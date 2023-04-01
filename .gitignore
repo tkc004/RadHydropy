@@ -2,5 +2,9 @@
 *.so
 *.png
 *.eps
+*.egg-info
+
+build/
+dist/
 
 testipy/.ipynb_checkpoints
