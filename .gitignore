@@ -1,1 +1,6 @@
-.ipynb_checkpoints
+*.pyc
+*.so
+*.png
+*.eps
+
+testipy/.ipynb_checkpoints
