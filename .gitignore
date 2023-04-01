@@ -7,4 +7,5 @@
 build/
 dist/
 
-testipy/.ipynb_checkpoints
+*.ipynb_checkpoints
+
