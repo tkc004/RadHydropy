@@ -52,10 +52,9 @@ class Fluid():
         
     def SetGradient(self):
         xdelta = self.mesh.xdelta
-        coordinate = self.mesh.coordinate
-        self.rho.grad = ru.CalGradient(self.rho, xdelta, coordinate)
-        self.u.grad   = ru.CalGradient(self.u, xdelta, coordinate)
-        self.p.grad   = ru.CalGradient(self.p, xdelta, coordinate)
+        self.rho.grad = ru.CalGradient(self.rho, xdelta)
+        self.u.grad   = ru.CalGradient(self.u, xdelta)
+        self.p.grad   = ru.CalGradient(self.p, xdelta)
         
         
     def SetConservedDensityFlux(self):

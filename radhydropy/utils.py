@@ -1,11 +1,18 @@
 import numpy as np
 import unyt
+from unyt import dimensions as dim
+
+
+
+def CheckDimension(a,dimcheck):
+    dummy = a+dimcheck
+    pass
 
 
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
-def CalGradient(quan,xdelta,coordinate):
+def CalGradient(quan,xdelta):
     # only work for periodic boundary condition!
     dqdx = ( np.roll(quan,-1) - np.roll(quan,1) ) / (2. * xdelta)
     return dqdx
