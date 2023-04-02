@@ -4,6 +4,7 @@
 *.eps
 *.egg-info
 *.json
+*.DS_Store
 
 build/
 dist/

@@ -37,16 +37,19 @@ class Rsim():
         self.fluid.SetInitFluid(self.params['rhoini'],self.params['vini'],self.params['tempini'],self.params['verbose'])
         self.fluid.SetConserved()        
 
+    def RunOneStep(self):
+        dt = self.fluid.GetTimeStep()
+        self.fluid.SetBoundary(self.params['boundcond'])
+        self.fluid.SetConserved()
+        self.fluid.SetInterFaceFlux()
+        self.fluid.AddFluxes(dt)
+        self.fluid.SetPrimitive()
+
     def Run(self,outputtime=0):
         print("--- Initization finished. Start running ... ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
         while self.fluid.time <self.params['timesim']:
-            dt = self.fluid.GetTimeStep()
-            self.fluid.SetBoundary(self.params['boundcond'])
-            self.fluid.SetConserved()
-            self.fluid.SetInterFaceFlux()
-            self.fluid.AddFluxes(dt)
-            self.fluid.SetPrimitive()
+            self.RunOneStep()
             if outputtime==1:
                 print("time, dt", self.fluid.time, dt)  
         print("--- Simulation finished. ---") 
