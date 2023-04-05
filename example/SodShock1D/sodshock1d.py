@@ -13,7 +13,7 @@ def main():
     params_sodshock = {
         'simname':'SodShock',
         'savedir':rundir, #save at the directory the python is run.
-        'coordinate':'cartesian', #
+        'coordsys':'cartesian', #
         'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
         'gamma':5./3., # for polytropic, the polytropic index
         'boxsize':10.0*unyt.cm, # length of the simulation domain
@@ -27,8 +27,6 @@ def main():
         'tempini': 1.0 * unyt.g / unyt.cm / unyt.s**2 * (1.28 * unyt.mp) / unyt.kb / (1.0 * unyt.g/unyt.cm**3),
         'boundcond':'Periodic',
         'verbose':0, # speak out details?
-        'fixtemp':1, #fix the value of temperature
-        'fixvel':1   #fix the value of velocity
     }
 
     mainrun = Rsim(params_sodshock)

@@ -3,6 +3,13 @@ import unyt
 from unyt import dimensions as dim
 
 
+def CheckParamDimen(params):
+    unitdir = {'boxsize':1.0*unyt.pc, 'tini':1.0*unyt.yr, 'vini':1.0*unyt.pc/unyt.yr,
+                'rhoini':1.0*unyt.g/unyt.cm**3, 'tempini':1.0*unyt.K, 'gamma':1.0}
+    for key in unitdir: 
+        if key in params.keys():
+            CheckDimension(params[key],unitdir[key])
+
 
 def CheckDimension(a,dimcheck):
     dummy = a+dimcheck

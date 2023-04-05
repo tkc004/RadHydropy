@@ -5,6 +5,7 @@
 *.egg-info
 *.json
 *.DS_Store
+*.hdf5
 
 build/
 dist/

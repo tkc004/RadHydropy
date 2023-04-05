@@ -13,7 +13,7 @@ def main():
 
     params_half = {
         'simname':'advection1d',
-        'coordinate':'cartesian', #
+        'coordsys':'cartesian', #
         'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
         'savedir':rundir,
         'gamma':1.4, # for polytropic, the polytropic index
@@ -28,8 +28,6 @@ def main():
         'tempini': 0.1 * unyt.K,
         'boundcond':'Periodic',
         'verbose':0, # speak out details?
-        'fixtemp':1, #fix the value of temperature
-        'fixvel':1   #fix the value of velocity
     }
 
     mainrun = Rsim(params_half)

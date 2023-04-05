@@ -6,7 +6,7 @@ def main():
 
     params_sodshock = {
         'simname':'SodShock',
-        'coordinate':'cartesian', #
+        'coordsys':'cartesian', #
         'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
         'gamma':5./3., # for polytropic, the polytropic index
         'boxsize':10.0*unyt.cm, # length of the simulation domain

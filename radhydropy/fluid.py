@@ -74,9 +74,9 @@ class Fluid():
             self.p.L = np.roll(self.p, Lroll)
             if order == 1:
                 self.SetGradient()
-                self.rho.R.first, self.rho.L.first = ru.extrapolateToFace(self.rho, self.mesh.xbound, self.rho.grad, order=1)
-                self.u.R.first, self.u.L.first = ru.extrapolateToFace(self.u, self.mesh.xbound, self.u.grad, order=1)
-                self.p.R.first, self.p.L.first = ru.extrapolateToFace(self.p, self.mesh.xbound, self.p.grad, order=1)
+                self.rho.R.first, self.rho.L.first = ru.extrapolateToFace(self.rho, self.mesh.boundary, self.rho.grad, order=1)
+                self.u.R.first, self.u.L.first = ru.extrapolateToFace(self.u, self.mesh.boundary, self.u.grad, order=1)
+                self.p.R.first, self.p.L.first = ru.extrapolateToFace(self.p, self.mesh.boundary, self.p.grad, order=1)
         else:
             print('order unknown')
         
@@ -94,11 +94,11 @@ class Fluid():
             self.rho = np.ones(nogrid+2) * rhoini
             self.u = np.ones(nogrid+2) * uini
             self.temp = np.ones(nogrid+2) * tempini
-            self.rho[np.logical_or(self.mesh.xmesh<0.25*self.mesh.boxsize, self.mesh.xmesh>0.75*self.mesh.boxsize)] *= 0.5
+            self.rho[np.logical_or(self.mesh.coordinate<0.25*self.mesh.boxsize, self.mesh.coordinate>0.75*self.mesh.boxsize)] *= 0.5
             # mean molecular weight
             self.mu = np.ones(nogrid+2) * 1.28 # for primordial neutral gas  
         elif self.ftype=='gaussian':
-            self.rho = (1.0+gaussian(self.mesh.xmesh, 0.5*self.mesh.boxsize, 0.1*self.mesh.boxsize))* rhoini
+            self.rho = (1.0+gaussian(self.mesh.coordinate, 0.5*self.mesh.boxsize, 0.1*self.mesh.boxsize))* rhoini
             self.u = np.ones(nogrid+2) * uini
             self.temp = np.ones(nogrid+2) * tempini
             # mean molecular weight
@@ -108,8 +108,8 @@ class Fluid():
             self.rho = np.ones(nogrid+2) * rhoini
             self.u = np.ones(nogrid+2) * uini
             self.temp = np.ones(nogrid+2) * tempini
-            self.rho[self.mesh.xmesh>0.5*self.mesh.boxsize] *= 0.1
-            self.temp[self.mesh.xmesh>0.5*self.mesh.boxsize] *= 0.1/0.125
+            self.rho[self.mesh.coordinate>0.5*self.mesh.boxsize] *= 0.1
+            self.temp[self.mesh.coordinate>0.5*self.mesh.boxsize] *= 0.1/0.125
             # mean molecular weight
             self.mu = np.ones(nogrid+2) * 1.28 # for primordial neutral gas            
         else:

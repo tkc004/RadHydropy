@@ -19,7 +19,7 @@ class Rsim():
     def SetMesh(self):
         print("--- Set up the boundary mesh ---")
         print("--- %s seconds ---" % (time.time() - start_time))
-        self.mesh = Mesh(self.params['boxsize'],self.params['ngrid'],self.params['coordinate'])
+        self.mesh = Mesh(self.params['boxsize'],self.params['ngrid'],self.params['coordsys'])
 
     def SetEOS(self):
         print("--- Set up the equation of state ---")

@@ -3,7 +3,7 @@ import numpy as np
 import unyt
 
 def rplot1d(rsim, yquan='rho',showfig=1,savefig=0):
-    xq = rsim.fluid.mesh.xmesh.to('pc')
+    xq = rsim.fluid.mesh.coordinate.to('pc')
     if yquan=='rho':
         yq =  rsim.fluid.rho.in_cgs()
     plt.plot(xq,yq,ls='dotted')
