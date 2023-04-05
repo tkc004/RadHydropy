@@ -5,34 +5,62 @@ import numpy as np
 import radhydropy.utils as ru
 
 
-def WriteIC(datadict,ICdir):
-    coordsys = datadict['Coordinate_System']
-    nogrid = datadict['Number_Grids']
-    time = datadict["Time"]
-    boxsize = datadict["BoxSize"]
-
-    rho = datadict["Density"]
-    u = datadict["Velocity"]
-    temp = datadict["Temperature"]
-    mu = datadict["Mol_weight"]
-
-    with h5py.File(ICdir, 'w') as fic:
+def writehdf5(ric,ICfilename):
+    print("--- writing "+ICfilename+" --- ")
+    with h5py.File(ICfilename, 'w') as fic:
         # saving initial condition
         # first, save header:
         header = fic.create_group("Header")
-        header.attrs['Coordinate_System'] = coordsys
-        header.attrs['Number_Grids'] = nogrid
-        header.create_dataset("Time",time)
-        header["Time"].attrs['units'] = str(time.units)
-        header.create_dataset("BoxSize",boxsize)
-        header["BoxSize"].attrs['units'] = str(boxsize.units)   
+        header.attrs['Coordinate_System'] = ric.par.coordsys
+        header.attrs['Number_Grids'] = ric.par.nogrid
+        header.create_dataset("Time", data=ric.par.time)
+        header["Time"].attrs['units'] = str(ric.par.time.units)
+        header.create_dataset("BoxSize", data=ric.par.boxsize)
+        header["BoxSize"].attrs['units'] = str(ric.par.boxsize.units)   
 
         #second, save mesh and fluid data:
         gdata = fic.create_group("Data")
-        gdata.create_dataset("Density", data=rho)
-        gdata["Density"].attrs['units'] = str(rho.units)
-        gdata.create_dataset("Velocity", data=u)
-        gdata["Velocity"].attrs['units'] = str(u.units)   
-        gdata.create_dataset("Temperature", data=temp)
-        gdata["Temperature"].attrs['units'] = str(temp.units) 
-        gdata.create_dataset("Mol_weight", data=mu)
+        gdata.create_dataset("Boundary", data=ric.mesh.boundary)
+        gdata["Boundary"].attrs['units'] = str(ric.mesh.boundary.units)        
+        gdata.create_dataset("Density", data=ric.fluid.rho)
+        gdata["Density"].attrs['units'] = str(ric.fluid.rho.units)
+        gdata.create_dataset("Velocity", data=ric.fluid.u)
+        gdata["Velocity"].attrs['units'] = str(ric.fluid.u.units)   
+        gdata.create_dataset("Temperature", data=ric.fluid.temp)
+        gdata["Temperature"].attrs['units'] = str(ric.fluid.temp.units) 
+        gdata.create_dataset("Mol_weight", data=ric.fluid.mu)
+
+
+
+def readhdf5(par, mesh, fluid, ICfilename): 
+    print("--- reading "+ICfilename+" --- ")
+    with h5py.File(ICfilename, 'r') as fic:
+        # saving initial condition
+        # first, save header:
+        header = fic["Header"]
+        par.coordsys = header.attrs['Coordinate_System']
+        par.nogrid = header.attrs['Number_Grids']
+        time = header["Time"][:] 
+        time_unit = header["Time"].attrs['units'] 
+        par.time = time * unyt.Unit(time_unit)
+        boxsize = header["BoxSize"][:]
+        boxsize_unit = header["BoxSize"].attrs['units']
+        par.boxsize = boxsize * unyt.Unit(boxsize_unit) 
+
+        #second, save mesh and fluid data:
+        gdata = fic["Data"]
+        boundary = gdata["Boundary"][:]
+        boundary_unit = gdata["Boundary"].attrs['units']   
+        mesh.boundary = boundary * unyt.Unit(boundary_unit) 
+        rho = gdata["Density"][:]
+        rho_unit = gdata["Density"].attrs['units']   
+        fluid.rho = rho * unyt.Unit(rho_unit)  
+        u = gdata["Velocity"][:] 
+        u_unit = gdata["Velocity"].attrs['units']   
+        fluid.u = u * unyt.Unit(u_unit)
+        temp = gdata["Temperature"][:] 
+        temp_unit = gdata["Temperature"].attrs['units'] 
+        temp_unit = gdata["Temperature"].attrs['units']   
+        fluid.temp = temp * unyt.Unit(temp_unit)      
+        fluid.mu = gdata["Mol_weight"][:]  
+
