@@ -13,20 +13,20 @@ class Solver():
         vol = mesh.vol
         fluid.rho = fluid.Mass / vol
         fluid.vel = fluid.Mom / fluid.Mass
-        fluid.p = (fluid.Energy/vol-0.5*fluid.rho*fluid.vel**2)*(fluid.eos.gamma-1.0)
+        fluid.pre = (fluid.Energy/vol-0.5*fluid.rho*fluid.vel**2)*(fluid.eos.gamma-1.0)
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
-        fluid.p[np.logical_or(fluid.p<0.0, np.isnan(fluid.p))] = 0.0            
+        fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0            
         if verbose == 1:
             print('fluid.rho',fluid.rho)
             print('fluid.vel',fluid.vel)
-            print('fluid.p',fluid.p)            
+            print('fluid.pre',fluid.pre)            
         
         
     def SetConserved(self, mesh, fluid, verbose=0):
         vol = mesh.vol
         fluid.Mass = fluid.rho * vol
         fluid.Mom = fluid.rho * fluid.vel * vol
-        fluid.Energy = (0.5*fluid.rho*fluid.vel**2 + fluid.p/(fluid.eos.gamma-1.0))*vol
+        fluid.Energy = (0.5*fluid.rho*fluid.vel**2 + fluid.pre/(fluid.eos.gamma-1.0))*vol
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         if verbose == 1:
@@ -39,11 +39,11 @@ class Solver():
         xdelta = mesh.xdelta
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
         fluid.vel.grad   = ru.CalGradient(fluid.vel, xdelta)
-        fluid.p.grad   = ru.CalGradient(fluid.p, xdelta)
+        fluid.pre.grad   = ru.CalGradient(fluid.pre, xdelta)
         
         
     def SetConservedDensityFlux(self, fluid):
-        fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.vel,fluid.p,fluid.eos.gamma)
+        fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.vel,fluid.pre,fluid.eos.gamma)
         
     def SetFaceLR(self, mesh, fluid, order=0):
         #numpy roll Rroll, put the right value to this cell
@@ -54,13 +54,13 @@ class Solver():
             fluid.rho.L = np.roll(fluid.rho, Lroll)
             fluid.vel.R = fluid.vel
             fluid.vel.L = np.roll(fluid.vel, Lroll)
-            fluid.p.R = fluid.p
-            fluid.p.L = np.roll(fluid.p, Lroll)
+            fluid.pre.R = fluid.pre
+            fluid.pre.L = np.roll(fluid.pre, Lroll)
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
                 fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
-                fluid.p.R.first, fluid.p.L.first = ru.extrapolateToFace(fluid.p, mesh.boundary, fluid.p.grad, order=1)
+                fluid.pre.R.first, fluid.pre.L.first = ru.extrapolateToFace(fluid.pre, mesh.boundary, fluid.pre.grad, order=1)
         else:
             print('order unknown')
 
@@ -68,14 +68,14 @@ class Solver():
     def SetFluxOnFace(self,fluid,order=0):
         Mass_flux_0, Mom_flux_0, Energy_flux_0 = ru.CalFluxFromLR(fluid.rho.L,fluid.rho.R,
                                                                fluid.vel.L,fluid.vel.R,
-                                                               fluid.p.L,fluid.p.R,
+                                                               fluid.pre.L,fluid.pre.R,
                                                                fluid.eos.gamma,fluid.cmax)
         if order==0:
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
         elif order==1:
             Mass_flux_1, Mom_flux_1, Energy_flux_1 = ru.CalFluxFromLR(fluid.rho.L.first, fluid.rho.R.first,
                                                                     fluid.vel.L.first, fluid.vel.R.first,
-                                                                    fluid.p.L.first, fluid.p.R.first,
+                                                                    fluid.pre.L.first, fluid.pre.R.first,
                                                                     fluid.eos.gamma, fluid.cmax)
             self.SetConservedDensityFlux(fluid)
             fluid.Mass.flux, fluid.philim_Mass= ru.ApplyFluxLimiter(fluid.Mass.q,Mass_flux_1,Mass_flux_0)

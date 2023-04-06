@@ -13,13 +13,13 @@ class Fluid():
         pass 
 
     def SetPressure(self):
-        self.p = ru.CalPressure(self.rho,self.temp,self.mu)
+        self.pre = ru.CalPressure(self.rho,self.temp,self.mu)
         
     def SetEnergyDensity(self):
-        self.eth = ru.CalEnergyDensity(self.p,self.eos.gamma)
+        self.eth = ru.CalEnergyDensity(self.pre,self.eos.gamma)
         
     def SetSoundSpeed(self):
-        self.cs = ru.CalSoundSpeed(self.p,self.rho,self.eos.gamma)
+        self.cs = ru.CalSoundSpeed(self.pre,self.rho,self.eos.gamma)
         
     def SetUpFluid(self):
         self.SetPressure() 
@@ -31,9 +31,9 @@ class Fluid():
         if btype == 'Periodic':
             self.rho[0] = self.rho[-2]
             self.vel[0] = self.vel[-2]
-            self.p[0] = self.p[-2]
+            self.pre[0] = self.pre[-2]
             self.rho[-1] = self.rho[1]
             self.vel[-1] = self.vel[1]
-            self.p[-1] = self.p[1]            
+            self.pre[-1] = self.pre[1]            
         else:
             print('Boundary condition unknown')           

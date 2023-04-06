@@ -37,7 +37,7 @@ ICparams = {
     'boxsize':4.0*unyt.cm, # the simulation box size
     'time':0.0*unyt.s, # initial time
     'rhoini':1.0 * unyt.g/ unyt.cm**3, # initial density (of the higher density end)
-    'uini':0.0 * unyt.km/unyt.s, #initial velocity
+    'vini':0.0 * unyt.km/unyt.s, #initial velocity
     'tempini':1.0 * unyt.g / unyt.cm / unyt.s**2 * (1.28 * unyt.mp) / unyt.kb / (1.0 * unyt.g/unyt.cm**3),
     'muini': 1.0,
     'rhoratio':0.1,
@@ -96,7 +96,7 @@ class Simwrap():
         #print('coordinate',coordinate)
 
         rho = np.ones(self.par.nogrid+2) * ICparams['rhoini']
-        self.fluid.vel = np.ones(self.par.nogrid+2) * ICparams['uini']
+        self.fluid.vel = np.ones(self.par.nogrid+2) * ICparams['vini']
         # label the region with low density:
         indexlow = np.logical_and(coordinate>0.25*self.par.boxsize[0],coordinate<0.75*self.par.boxsize[0])
         rho[indexlow] *= ICparams['rhoratio']

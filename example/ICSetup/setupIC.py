@@ -13,11 +13,11 @@ class InitialCondition():
         self.boxsize = 1.0*np.ones(1)*unyt.pc
         self.time = np.array([0.0])*unyt.Myr
         rhoini = 1.0 * unyt.mp/ unyt.cm**3
-        uini = 1.0 * unyt.km/unyt.s
+        vini = 1.0 * unyt.km/unyt.s
         tempini = 0.1 * unyt.K
 
         #check the dimension of the initial condition
-        #params = {"boxsize":self.boxsize, "time":self.time, "rhoini":rhoini, "uini":uini, "tempini":tempini}
+        #params = {"boxsize":self.boxsize, "time":self.time, "rhoini":rhoini, "vini":vini, "tempini":tempini}
         #ru.CheckParamDimen(params)
         # boundary points of the mesh
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
@@ -30,7 +30,7 @@ class InitialCondition():
         #print('coordinate',coordinate)
 
         rho = np.ones(self.nogrid+2) * rhoini
-        self.vel = np.ones(self.nogrid+2) * uini
+        self.vel = np.ones(self.nogrid+2) * vini
         self.temp = np.ones(self.nogrid+2) * tempini
         rho[np.logical_or(coordinate<0.25*self.boxsize[0], coordinate>0.75*self.boxsize[0])] *= 0.5
         self.rho = rho
