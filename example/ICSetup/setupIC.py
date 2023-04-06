@@ -30,7 +30,7 @@ class InitialCondition():
         #print('coordinate',coordinate)
 
         rho = np.ones(self.nogrid+2) * rhoini
-        self.u = np.ones(self.nogrid+2) * uini
+        self.vel = np.ones(self.nogrid+2) * uini
         self.temp = np.ones(self.nogrid+2) * tempini
         rho[np.logical_or(coordinate<0.25*self.boxsize[0], coordinate>0.75*self.boxsize[0])] *= 0.5
         self.rho = rho

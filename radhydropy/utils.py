@@ -67,16 +67,16 @@ def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
         flux_L = np.roll(fluxarray+fgrad*xdhalf , Lroll) 
     return flux_L, flux_R
 
-def GetFQ(rho,u,p,gamma):
-    Fmass = rho*u
+def GetFQ(rho,vel,p,gamma):
+    Fmass = rho*vel
     qmass = rho
-    #Fmom  = rho * u**2 * u/np.absolute(u) 
-    Fmom  = rho * u**2
-    Fmom[np.logical_or(u==0.0,np.isnan(u))] = 0.0 * rho[0] * u[0]**2
+    #Fmom  = rho * vel**2 * vel/np.absolute(vel) 
+    Fmom  = rho * vel**2
+    Fmom[np.logical_or(vel==0.0,np.isnan(vel))] = 0.0 * rho[0] * vel[0]**2
     Fmom += p
-    qmom  = rho * u
-    FEn   = u * (gamma * p / (gamma - 1.0) + 0.5 * rho * u**2)
-    qEn   = p/(gamma-1.0) + rho * u**2*0.5
+    qmom  = rho * vel
+    FEn   = vel * (gamma * p / (gamma - 1.0) + 0.5 * rho * vel**2)
+    qEn   = p/(gamma-1.0) + rho * vel**2*0.5
     return Fmass, qmass, Fmom, qmom, FEn, qEn 
 
 

@@ -24,8 +24,8 @@ def writehdf5(ric,ICfilename):
         gdata["Boundary"].attrs['units'] = str(ric.mesh.boundary.units)        
         gdata.create_dataset("Density", data=ric.fluid.rho)
         gdata["Density"].attrs['units'] = str(ric.fluid.rho.units)
-        gdata.create_dataset("Velocity", data=ric.fluid.u)
-        gdata["Velocity"].attrs['units'] = str(ric.fluid.u.units)   
+        gdata.create_dataset("Velocity", data=ric.fluid.vel)
+        gdata["Velocity"].attrs['units'] = str(ric.fluid.vel.units)   
         gdata.create_dataset("Temperature", data=ric.fluid.temp)
         gdata["Temperature"].attrs['units'] = str(ric.fluid.temp.units) 
         gdata.create_dataset("Mol_weight", data=ric.fluid.mu)
@@ -55,9 +55,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
         rho = gdata["Density"][:]
         rho_unit = gdata["Density"].attrs['units']   
         fluid.rho = rho * unyt.Unit(rho_unit)  
-        u = gdata["Velocity"][:] 
-        u_unit = gdata["Velocity"].attrs['units']   
-        fluid.u = u * unyt.Unit(u_unit)
+        vel = gdata["Velocity"][:] 
+        vel_unit = gdata["Velocity"].attrs['units']   
+        fluid.vel = vel * unyt.Unit(vel_unit)
         temp = gdata["Temperature"][:] 
         temp_unit = gdata["Temperature"].attrs['units'] 
         temp_unit = gdata["Temperature"].attrs['units']   

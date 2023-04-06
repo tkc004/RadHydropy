@@ -71,7 +71,7 @@ class Simwrap():
         #print('coordinate',coordinate)
 
         rho = np.ones(self.par.nogrid+2) * rhoini
-        self.fluid.u = np.ones(self.par.nogrid+2) * uini
+        self.fluid.vel = np.ones(self.par.nogrid+2) * uini
         self.fluid.temp = np.ones(self.par.nogrid+2) * tempini
         rho[np.logical_or(coordinate<0.25*self.par.boxsize[0], coordinate>0.75*self.par.boxsize[0])] *= 0.5
         self.fluid.rho = rho
@@ -93,7 +93,7 @@ def main():
     mainrun.RunAll()
     for outindex in range(0,9,2):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
-        ReadandPlot(outfilename,ls='none',ms='o')
+        ReadandPlot(outfilename,ls='none',marker='o')
     plt.show()    
 
 if __name__ == "__main__":

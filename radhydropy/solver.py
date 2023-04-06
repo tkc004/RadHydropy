@@ -12,21 +12,21 @@ class Solver():
     def SetPrimitive(self, mesh, fluid, verbose=0):
         vol = mesh.vol
         fluid.rho = fluid.Mass / vol
-        fluid.u = fluid.Mom / fluid.Mass
-        fluid.p = (fluid.Energy/vol-0.5*fluid.rho*fluid.u**2)*(fluid.eos.gamma-1.0)
+        fluid.vel = fluid.Mom / fluid.Mass
+        fluid.p = (fluid.Energy/vol-0.5*fluid.rho*fluid.vel**2)*(fluid.eos.gamma-1.0)
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
         fluid.p[np.logical_or(fluid.p<0.0, np.isnan(fluid.p))] = 0.0            
         if verbose == 1:
             print('fluid.rho',fluid.rho)
-            print('fluid.u',fluid.u)
+            print('fluid.vel',fluid.vel)
             print('fluid.p',fluid.p)            
         
         
     def SetConserved(self, mesh, fluid, verbose=0):
         vol = mesh.vol
         fluid.Mass = fluid.rho * vol
-        fluid.Mom = fluid.rho * fluid.u * vol
-        fluid.Energy = (0.5*fluid.rho*fluid.u**2 + fluid.p/(fluid.eos.gamma-1.0))*vol
+        fluid.Mom = fluid.rho * fluid.vel * vol
+        fluid.Energy = (0.5*fluid.rho*fluid.vel**2 + fluid.p/(fluid.eos.gamma-1.0))*vol
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         if verbose == 1:
@@ -38,12 +38,12 @@ class Solver():
     def SetGradient(self, mesh, fluid):
         xdelta = mesh.xdelta
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
-        fluid.u.grad   = ru.CalGradient(fluid.u, xdelta)
+        fluid.vel.grad   = ru.CalGradient(fluid.vel, xdelta)
         fluid.p.grad   = ru.CalGradient(fluid.p, xdelta)
         
         
     def SetConservedDensityFlux(self, fluid):
-        fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.u,fluid.p,fluid.eos.gamma)
+        fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.vel,fluid.p,fluid.eos.gamma)
         
     def SetFaceLR(self, mesh, fluid, order=0):
         #numpy roll Rroll, put the right value to this cell
@@ -52,14 +52,14 @@ class Solver():
         if order == 0 or order == 1:
             fluid.rho.R = fluid.rho
             fluid.rho.L = np.roll(fluid.rho, Lroll)
-            fluid.u.R = fluid.u
-            fluid.u.L = np.roll(fluid.u, Lroll)
+            fluid.vel.R = fluid.vel
+            fluid.vel.L = np.roll(fluid.vel, Lroll)
             fluid.p.R = fluid.p
             fluid.p.L = np.roll(fluid.p, Lroll)
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
-                fluid.u.R.first, fluid.u.L.first = ru.extrapolateToFace(fluid.u, mesh.boundary, fluid.u.grad, order=1)
+                fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
                 fluid.p.R.first, fluid.p.L.first = ru.extrapolateToFace(fluid.p, mesh.boundary, fluid.p.grad, order=1)
         else:
             print('order unknown')
@@ -67,14 +67,14 @@ class Solver():
 
     def SetFluxOnFace(self,fluid,order=0):
         Mass_flux_0, Mom_flux_0, Energy_flux_0 = ru.CalFluxFromLR(fluid.rho.L,fluid.rho.R,
-                                                               fluid.u.L,fluid.u.R,
+                                                               fluid.vel.L,fluid.vel.R,
                                                                fluid.p.L,fluid.p.R,
                                                                fluid.eos.gamma,fluid.cmax)
         if order==0:
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
         elif order==1:
             Mass_flux_1, Mom_flux_1, Energy_flux_1 = ru.CalFluxFromLR(fluid.rho.L.first, fluid.rho.R.first,
-                                                                    fluid.u.L.first, fluid.u.R.first,
+                                                                    fluid.vel.L.first, fluid.vel.R.first,
                                                                     fluid.p.L.first, fluid.p.R.first,
                                                                     fluid.eos.gamma, fluid.cmax)
             self.SetConservedDensityFlux(fluid)
@@ -129,7 +129,7 @@ class Solver():
     
     def GetTimeStep(self, mesh, fluid, CFL=0.1, vsmin = 0.001*unyt.km/unyt.s):
         fluid.SetSoundSpeed()
-        vsignal = np.absolute(fluid.u) + fluid.cs
+        vsignal = np.absolute(fluid.vel) + fluid.cs
         #if np.any(vsignal==0) or np.any(np.isnan(vsignal)):
         #    print('vsignal vanished')    
         #else:

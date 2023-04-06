@@ -96,7 +96,7 @@ class Simwrap():
         #print('coordinate',coordinate)
 
         rho = np.ones(self.par.nogrid+2) * ICparams['rhoini']
-        self.fluid.u = np.ones(self.par.nogrid+2) * ICparams['uini']
+        self.fluid.vel = np.ones(self.par.nogrid+2) * ICparams['uini']
         # label the region with low density:
         indexlow = np.logical_and(coordinate>0.25*self.par.boxsize[0],coordinate<0.75*self.par.boxsize[0])
         rho[indexlow] *= ICparams['rhoratio']
