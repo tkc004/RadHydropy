@@ -2,6 +2,18 @@ import numpy as np
 import unyt
 from unyt import dimensions as dim
 
+def CalPressure(rho,temp,mu):
+    pressure = rho / (mu * unyt.mp) * unyt.kb * temp
+    return pressure
+
+def CalEnergyDensity(pressure, gamma):
+    energydensity = pressure / (gamma-1.0)
+    return energydensity
+
+def CalSoundSpeed(pressure,rho, gamma):
+    soundspeed = np.sqrt(gamma * pressure / rho)
+    return soundspeed
+
 
 def CheckParamDimen(params):
     unitdir = {'boxsize':1.0*unyt.pc, 'tini':1.0*unyt.yr, 'vini':1.0*unyt.pc/unyt.yr,

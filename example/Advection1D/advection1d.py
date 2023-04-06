@@ -1,6 +1,7 @@
 from radhydropy.rsim import Rsim
 import unyt
 from radhydropy.analysis import rplot1d
+import matplotlib.pyplot as plt
 import numpy as np
 import radhydropy.utils as ru 
 import radhydropy.io as rio
@@ -42,7 +43,7 @@ class Fluid():
     def __init__(self) -> None:
         pass
 
-class InitialCondition():
+class Simwrap():
     def __init__(self) -> None:
         self.par = Par()
         self.mesh = Mesh()
@@ -78,12 +79,22 @@ class InitialCondition():
         self.fluid.mu = np.ones(self.par.nogrid+2) * 1.28 # for primordial neutral gas 
 
 
+def ReadandPlot(outfilename,**kwargs):
+    rout = Simwrap() 
+    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rplot1d(rout,showfig=0,**kwargs)
+
+
+
 def main():
-    ric = InitialCondition()
+    ric = Simwrap()
     rio.writehdf5(ric,runparams['ICfilename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll()
-    rplot1d(mainrun,showfig=1)
+    for outindex in range(0,9,2):
+        outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
+        ReadandPlot(outfilename,ls='none',ms='o')
+    plt.show()    
 
 if __name__ == "__main__":
     main()

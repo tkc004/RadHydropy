@@ -13,13 +13,13 @@ class Fluid():
         pass 
 
     def SetPressure(self):
-        self.p = self.eos.CalPressure(self.rho,self.temp,self.mu)
+        self.p = ru.CalPressure(self.rho,self.temp,self.mu)
         
     def SetEnergyDensity(self):
-        self.eth = self.eos.CalEnergyDensity(self.p)
+        self.eth = ru.CalEnergyDensity(self.p,self.eos.gamma)
         
     def SetSoundSpeed(self):
-        self.cs = self.eos.CalSoundSpeed(self.p,self.rho)
+        self.cs = ru.CalSoundSpeed(self.p,self.rho,self.eos.gamma)
         
     def SetUpFluid(self):
         self.SetPressure() 

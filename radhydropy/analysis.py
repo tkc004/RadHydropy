@@ -2,13 +2,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
-def rplot1d(rsim, yquan='rho',showfig=1):
-    xq = rsim.mesh.coordinate.to('pc')
+def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
+    xb = rsim.mesh.boundary.in_cgs()
+    xq = 0.5*(xb[1:]+xb[:-1])
     if yquan=='rho':
         yq =  rsim.fluid.rho.in_cgs()
-    plt.plot(xq,yq,ls='dotted')
-    plt.xlabel(r'$'+xq.to('pc').units.latex_repr+'$',fontsize=24)
+    plt.plot(xq,yq,**kwargs)
+    plt.xlabel(r'$'+xq.in_cgs().units.latex_repr+'$',fontsize=24)
     plt.ylabel(r'$'+yq.in_cgs().units.latex_repr+'$',fontsize=24)
+    if showhalf==1:
+        plt.xlim(xmax=0.5*np.amax(xq))
     if showfig==1:
         plt.show()
-    plt.clf()
+        plt.clf()
