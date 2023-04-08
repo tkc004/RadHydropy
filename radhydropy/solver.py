@@ -106,8 +106,7 @@ class Solver():
             self.SetFaceLR(mesh,fluid, order=order)
             self.SetFluxOnFace(fluid, order=order)
         else:
-            print('Interface flux method unknown')
-            exit()
+            raise Exception("Interface flux method unknown") 
         if (verbose==1):
             print('self.Mass.flux',self.Mass.flux)
             print('self.Mom.flux',self.Mom.flux)

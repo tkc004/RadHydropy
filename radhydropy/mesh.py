@@ -9,11 +9,9 @@ class Mesh:
     def SetUpMesh(self, par, area = 1.0 * unyt.pc**2):
 
         if par.nogrid < 1:
-            print('nogrid has to be bigger than 1')
-            exit()
+            raise Exception("nogrid has to be bigger than 1")
         if len(self.boundary) != par.nogrid + 3:
-            print('boundary point and nogrid are inconsistent')
-            exit() 
+            raise Exception("boundary point and nogrid are inconsistent")
         # boundary points of the mesh
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
         # to set boundary conditions
@@ -32,7 +30,6 @@ class Mesh:
             print('coordsys unknown')
             
         if np.any(self.vol == 0.0) or np.any(np.isnan(self.vol)):
-            print('vol vanished')
-            exit()
+            raise Exception("volume vanished") 
 
             
