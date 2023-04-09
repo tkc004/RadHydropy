@@ -20,7 +20,11 @@ def CheckParamDimen(params):
                 'rhoini':1.0*unyt.g/unyt.cm**3, 'tempini':1.0*unyt.K, 'gamma':1.0}
     for key in unitdir: 
         if key in params.keys():
-            CheckDimension(params[key],unitdir[key])
+            try:
+                CheckDimension(params[key],unitdir[key])
+            except unyt.exceptions.UnitOperationError:
+                return False
+    return True
 
 
 def CheckDimension(a,dimcheck):

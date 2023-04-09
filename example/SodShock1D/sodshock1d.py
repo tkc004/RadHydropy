@@ -78,7 +78,8 @@ class Simwrap():
         self.fluid = Fluid()
 
         #check the dimension of the initial condition
-        ru.CheckParamDimen(ICparams)
+        if ru.CheckParamDimen(ICparams) == False:
+            raise Exception("unit not correctly set in params")
         # should be read from parameter files instead
         self.par.nogrid = ICparams['nogrid']
         self.par.coordsys = ICparams['coordsys']

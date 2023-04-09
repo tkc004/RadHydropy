@@ -53,13 +53,16 @@ class Simwrap():
         self.par.coordsys = "cartesian"
         self.par.boxsize = 1.0*np.ones(1)*unyt.pc
         self.par.time = np.array([0.0])*unyt.Myr
-        rhoini = 1.0 * unyt.mp/ unyt.cm**3
+        #rhoini = 1.0 * unyt.mp/ unyt.cm**3
+        rhoini = 1.0 * unyt.mp/ unyt.cm**2
         vini = 1.0 * unyt.km/unyt.s
         tempini = 0.1 * unyt.K
 
         #check the dimension of the initial condition
         params = {"boxsize":self.par.boxsize, "time":self.par.time, "rhoini":rhoini, "vini":vini, "tempini":tempini}
-        ru.CheckParamDimen(params)
+        if ru.CheckParamDimen(params) == False:
+            raise Exception("unit not correctly set in params")
+         
         # boundary points of the mesh
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
         # to set boundary conditions
