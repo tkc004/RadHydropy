@@ -73,12 +73,12 @@ class Rsim():
         print("--- Simulation finished. ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
 
-    def RunAll(self):
+    def RunAll(self,outputtime=0):
         self.Callreadhdf5()
         self.SetMesh()
         self.SetFluid()
         self.SetInitFluid()
-        self.Run() 
+        self.Run(outputtime)
 
     def checkparams(self):
         print("--- Check parameters ---")

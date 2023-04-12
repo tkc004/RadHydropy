@@ -23,7 +23,7 @@ def CheckParamDimen(params):
             try:
                 CheckDimension(params[key],unitdir[key])
             except unyt.exceptions.UnitOperationError:
-                return False
+                return key
     return True
 
 

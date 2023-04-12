@@ -18,8 +18,8 @@ class InitialCondition():
 
         #check the dimension of the initial condition
         params = {"boxsize":self.boxsize, "time":self.time, "rhoini":rhoini, "vini":vini, "tempini":tempini}
-        if ru.CheckParamDimen(params) == False:
-            raise Exception("unit not correctly set in params")
+        if ru.CheckParamDimen(params) != True:
+            raise Exception("%s unit not correctly set in params"%ru.CheckParamDimen(params))
         # boundary points of the mesh
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
         # to set boundary conditions
