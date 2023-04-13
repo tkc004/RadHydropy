@@ -50,7 +50,7 @@ class Rsim():
         dt = self.solver.GetTimeStep(self.mesh,self.fluid)
         self.fluid.SetBoundary(self.par.boundcond)
         self.solver.SetConserved(self.mesh,self.fluid)
-        self.solver.SetInterFaceFlux(self.mesh,self.fluid)
+        self.solver.SetInterFaceFlux(self.mesh,self.fluid,order=self.par.order)
         self.solver.AddFluxes(dt,self.mesh,self.fluid)
         self.solver.SetPrimitive(self.mesh,self.fluid)
         return dt

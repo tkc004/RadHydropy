@@ -9,6 +9,7 @@
 
 build/
 dist/
+testipy/*.ipynb
 
 *.ipynb_checkpoints
 

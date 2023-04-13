@@ -28,6 +28,7 @@ runparams = {
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'Periodic',
     'verbose':0, # speak out details?
+    'order': 0
 }
 
 ICparams = {
