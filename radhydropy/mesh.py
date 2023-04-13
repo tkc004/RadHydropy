@@ -7,7 +7,9 @@ class Mesh:
         pass
 
     def SetUpMesh(self, par, area = 1.0 * unyt.pc**2):
-
+        attr = 'boundary'
+        if not hasattr(self, attr):
+            raise Exception("%s does not exist in mesh; quitting."%attr)
         if par.nogrid < 1:
             raise Exception("nogrid has to be bigger than 1")
         if len(self.boundary) != par.nogrid + 3:

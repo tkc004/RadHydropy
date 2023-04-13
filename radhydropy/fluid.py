@@ -22,6 +22,11 @@ class Fluid():
         self.cs = ru.CalSoundSpeed(self.pre,self.rho,self.eos.gamma)
         
     def SetUpFluid(self):
+        # check if the required attributes exist
+        attrlist = ['rho','temp','mu','vel'] 
+        for attr in attrlist:
+            if not hasattr(self, attr):
+                raise Exception("%s does not exist in fluid; quitting."%attr)
         self.SetPressure() 
 
     def SetFluidTime(self, time): 
