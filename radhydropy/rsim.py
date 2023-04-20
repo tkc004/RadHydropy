@@ -14,7 +14,6 @@ class Rsim():
     def __init__(self,params) -> None:
         print("--- Get simulation parameters ---")
         print("--- %s seconds ---" % (time.time() - start_time))
-        self.params = params
         self.fluid = Fluid()
         self.mesh  = Mesh()
         self.par    = Par(params)
@@ -39,19 +38,20 @@ class Rsim():
     def SetFluid(self):
         print("--- Set up the fluid ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
-        self.fluid.SetUpFluid()
+        self.fluid.SetUpFluid(self.par)
     
     def SetInitFluid(self):
         print("--- Fill up the fluid---") 
         print("--- %s seconds ---" % (time.time() - start_time))
+        self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid)        
 
     def RunOneStep(self):
-        dt = self.solver.GetTimeStep(self.mesh,self.fluid)
-        self.fluid.SetBoundary(self.par.boundcond)
+        dt = self.solver.GetTimeStep(self.mesh,self.fluid, self.par)
+        self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid)
-        self.solver.SetInterFaceFlux(self.mesh,self.fluid,order=self.par.order)
-        self.solver.AddFluxes(dt,self.mesh,self.fluid)
+        self.solver.SetInterFaceFlux(self.mesh,self.fluid,self.par.boundcond,order=self.par.order)
+        self.solver.AddFluxes(dt,self.mesh,self.fluid,self.par.boundcond)
         self.solver.SetPrimitive(self.mesh,self.fluid)
         return dt
 
@@ -60,11 +60,16 @@ class Rsim():
         print("--- %s seconds ---" % (time.time() - start_time))
         outtime = 0.0 * self.par.timesim 
         outindex = 0
+        # write the initial condition
+        rio.writehdf5(self,self.par.outdir+'/'+self.par.outfileprefix+'_%03d'%outindex+'.hdf5') 
+        outtime = 0.0 * self.par.timesim 
+        outindex += 1
         while self.fluid.time <self.par.timesim:
             dt = self.RunOneStep()
             if outputtime==1:
                 print("time, dt", self.fluid.time, dt)  
             if outtime > self.par.outdeltatime:
+                self.fluid.SetTemperature()
                 rio.writehdf5(self,self.par.outdir+'/'+self.par.outfileprefix+'_%03d'%outindex+'.hdf5') 
                 outtime = 0.0 * self.par.timesim 
                 outindex += 1

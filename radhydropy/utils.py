@@ -6,6 +6,10 @@ def CalPressure(rho,temp,mu):
     pressure = rho / (mu * unyt.mp) * unyt.kb * temp
     return pressure
 
+def CalTemperature(rho,pressure,mu):
+    temp = pressure / rho * (mu * unyt.mp) / unyt.kb 
+    return temp
+
 def CalEnergyDensity(pressure, gamma):
     energydensity = pressure / (gamma-1.0)
     return energydensity
@@ -33,7 +37,11 @@ def CheckDimension(a,dimcheck):
 
 
 def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+    return np.exp(-0.5 * np.power(x - mu, 2.) / np.power(sig, 2.)) / (np.sqrt(2.0*np.pi) * sig)
+
+def gaussiansph(r, sig):
+    return np.exp(-0.5 * np.power(r, 2.) / np.power(sig, 2.)) / (np.sqrt(2.0*np.pi) * sig)**3
+
 
 def CalGradient(quan,xdelta):
     # only work for periodic boundary condition!
@@ -72,9 +80,8 @@ def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
     return flux_L, flux_R
 
 def GetFQ(rho,vel,pre,gamma):
-    Fmass = rho*vel
+    Fmass = rho * vel
     qmass = rho
-    #Fmom  = rho * vel**2 * vel/np.absolute(vel) 
     Fmom  = rho * vel**2
     Fmom[np.logical_or(vel==0.0,np.isnan(vel))] = 0.0 * rho[0] * vel[0]**2
     Fmom += pre

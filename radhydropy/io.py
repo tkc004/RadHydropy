@@ -38,7 +38,12 @@ def readhdf5(par, mesh, fluid, ICfilename):
         # saving initial condition
         # first, save header:
         header = fic["Header"]
-        par.coordsys = header.attrs['Coordinate_System']
+        coordsys = header.attrs['Coordinate_System']
+        if hasattr(par, "coordsys"): 
+            if coordsys != par.coordsys:
+                raise Exception("Coordinate systems in IC (%s) and run (%s) do not agree!"%(coordsys,par.coordsys))
+        else:
+            par.coordsys = coordsys
         par.nogrid = header.attrs['Number_Grids']
         time = header["Time"][:] 
         time_unit = header["Time"].attrs['units'] 

@@ -25,11 +25,12 @@ runparams = {
     'gamma':1.4, # for polytropic, the polytropic index
     'timesim':1.0*unyt.s, # final simulation time
     'outdeltatime':1.0*unyt.s *0.1,
-    'ngrid':1000, # number of grid to discretize
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'Periodic',
     'verbose':0, # speak out details?
-    'order': 0
+    'order': 1,
+    'dtmin': 2.0e-8*unyt.s,
+    'dtmax': 2.0e-1*unyt.s,   
 }
 
 ICparams = {
@@ -89,35 +90,34 @@ class Simwrap():
         self.par.time = np.array([0.0]) * ICparams['time']
 
         # boundary points of the mesh
-        # note that we use first (0) and final (nogrid+1) cells as ghost cells
         # to set boundary conditions
         dx = self.par.boxsize[0]/self.par.nogrid
 
         # generate initial condition
-        self.mesh.boundary = np.linspace(-dx,self.par.boxsize[0]+dx,self.par.nogrid+3)
+        self.mesh.boundary = np.linspace(-dx,self.par.boxsize[0]+dx,self.par.nogrid+1)
         coordinate = 0.5 * (self.mesh.boundary[1:]+self.mesh.boundary[:-1])
         #print('coordinate',coordinate)
 
-        rho = np.ones(self.par.nogrid+2) * ICparams['rhoini']
-        self.fluid.vel = np.ones(self.par.nogrid+2) * ICparams['vini']
+        rho = np.ones(self.par.nogrid) * ICparams['rhoini']
+        self.fluid.vel = np.ones(self.par.nogrid) * ICparams['vini']
         # label the region with low density:
         indexlow = np.logical_and(coordinate>0.25*self.par.boxsize[0],coordinate<0.75*self.par.boxsize[0])
         rho[indexlow] *= ICparams['rhoratio']
         self.fluid.rho = rho
-        temp = np.ones(self.par.nogrid+2) * ICparams['tempini']
+        temp = np.ones(self.par.nogrid) * ICparams['tempini']
         temp[indexlow] *= ICparams['tempratio']
         self.fluid.temp = temp
         # mean molecular weight
-        self.fluid.mu = np.ones(self.par.nogrid+2) * ICparams['muini'] # for primordial neutral gas 
+        self.fluid.mu = np.ones(self.par.nogrid) * ICparams['muini'] # for primordial neutral gas 
 
  
 
 def ReadandPlot(outfilename,**kwargs):
     rout = Simwrap() 
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout,showfig=0,showhalf=1,**kwargs)
+    rplot1d(rout,yquan='rho',showfig=0,showhalf=1,**kwargs)
     rho_ana, p_ana, v_ana = getAnalyticSolution(ICparams, rout)
-    plt.plot(rout.mesh.boundary,rho_ana)
+    #plt.plot(rout.mesh.boundary,rho_ana)
 
 
 def main():

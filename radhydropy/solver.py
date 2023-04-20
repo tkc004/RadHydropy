@@ -45,7 +45,7 @@ class Solver():
     def SetConservedDensityFlux(self, fluid):
         fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.vel,fluid.pre,fluid.eos.gamma)
         
-    def SetFaceLR(self, mesh, fluid, order=0):
+    def SetFaceLR(self, mesh, fluid, boundcond, order=0):
         #numpy roll Rroll, put the right value to this cell
         Lroll = 1
         Rroll = -1
@@ -56,16 +56,20 @@ class Solver():
             fluid.vel.L = np.roll(fluid.vel, Lroll)
             fluid.pre.R = fluid.pre
             fluid.pre.L = np.roll(fluid.pre, Lroll)
+            #if boundcond == "OpenSph":
+            #    fluid.vel.L[0] = 0.0
+            #    fluid.rho.L[0] = fluid.rho.L[1]
+            #    fluid.pre.L[0] = fluid.pre.L[1] 
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
                 fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
                 fluid.pre.R.first, fluid.pre.L.first = ru.extrapolateToFace(fluid.pre, mesh.boundary, fluid.pre.grad, order=1)
         else:
-            print('order unknown')
+            raise Exception('order unknown')
 
 
-    def SetFluxOnFace(self,fluid,order=0):
+    def SetFluxOnFace(self,fluid,boundcond,order=0):
         Mass_flux_0, Mom_flux_0, Energy_flux_0 = ru.CalFluxFromLR(fluid.rho.L,fluid.rho.R,
                                                                fluid.vel.L,fluid.vel.R,
                                                                fluid.pre.L,fluid.pre.R,
@@ -83,10 +87,15 @@ class Solver():
             fluid.Energy.flux, fluid.philim_Energy  = ru.ApplyFluxLimiter(fluid.Energy.q,Energy_flux_1,Energy_flux_0)
             
         else:
-            print('order unknown')
+            raise Exception('order unknown')
+        #zero out all flux at the center for symmetric boundary at origin:
+        #if boundcond == 'OpenSph':
+        #    fluid.Mass.flux[0] = 0.0 * unyt.g / unyt.cm**2 / unyt.s 
+        #    fluid.Mom.flux[0] = 0.0 * unyt.g / unyt.cm / unyt.s **2
+        #    fluid.Energy.flux[0] = 0.0 * unyt.g / unyt.s**3
 
         
-    def SetInterFaceFlux(self,mesh,fluid,method='Rusanov',verbose=0, order=0):
+    def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=0, order=0):
         if method=='GLF' or method=='Rusanov':
             #numpy roll Rroll, put the right value to this cell
             Lroll = 1
@@ -103,8 +112,8 @@ class Solver():
                 # simple to implement but less diffusive
                 fluid.cmax = np.maximum(fluid.vsignal, np.roll(fluid.vsignal,Lroll))
             
-            self.SetFaceLR(mesh,fluid, order=order)
-            self.SetFluxOnFace(fluid, order=order)
+            self.SetFaceLR(mesh,fluid, boundcond, order=order)
+            self.SetFluxOnFace(fluid, boundcond, order=order)
         else:
             raise Exception("Interface flux method unknown") 
         if (verbose==1):
@@ -113,20 +122,82 @@ class Solver():
             print('self.Energy.flux',self.Energy.flux)
             
             
-    def AddFluxes(self, dt: float, mesh, fluid):
+    def AddFluxes(self, dt: float, mesh, fluid, boundcond):
         #numpy roll Rroll, put the right value to this cell
         Lroll = 1
         Rroll = -1
+
         # Add the interface fluxes to the cells:
         area = mesh.area
-        fluid.Mass += (fluid.Mass.flux*area - np.roll(fluid.Mass.flux*area,Rroll))*dt
-        fluid.Mom  += (fluid.Mom.flux*area - np.roll(fluid.Mom.flux*area,Rroll))*dt
-        fluid.Energy  += (fluid.Energy.flux*area - np.roll(fluid.Energy.flux*area,Rroll))*dt
+        df_Mass = fluid.Mass.flux*area - np.roll(fluid.Mass.flux*area,Rroll)
+        df_Mom = fluid.Mom.flux*area - np.roll(fluid.Mom.flux*area,Rroll)
+        df_Energy = fluid.Energy.flux*area - np.roll(fluid.Energy.flux*area,Rroll)
+
+        # we zero out the flux from the inner most boundary? 
+        #if boundcond == "OpenSph":
+        #    df_Mass[0] = - fluid.Mass.flux[1]*area[1]
+        #    df_Mom[0] = - fluid.Mom.flux[1]*area[1]
+        #    df_Energy[0] = - fluid.Energy.flux[1]*area[1]
+
+        fluid.Mass += df_Mass*dt
+        fluid.Mom  += df_Mom*dt
+        fluid.Energy  += df_Energy*dt
+
         # advance time
         fluid.time += dt
+
+
+    def SetBoundary(self, mesh, fluid, par):
+        btype = par.boundcond
+        noghost = par.noghost
+        nogrid = par.nogrid
+        nolast = noghost + nogrid -1
+        if btype == 'Periodic':
+            for ig in range(1,noghost+1):
+                fluid.rho[noghost-ig] = fluid.rho[nolast + 1 -ig]
+                fluid.vel[noghost-ig] = fluid.vel[nolast + 1 -ig]
+                fluid.pre[noghost-ig] = fluid.pre[nolast + 1 -ig]
+                fluid.rho[nolast+ig] = fluid.rho[noghost -1 + ig]
+                fluid.vel[nolast+ig] = fluid.vel[noghost -1 + ig]
+                fluid.pre[nolast+ig] = fluid.pre[noghost -1 + ig] 
+        elif btype == 'Open':
+            for ig in range(1,noghost+1):
+                fluid.rho[noghost-ig] = fluid.rho[noghost]
+                fluid.vel[noghost-ig] = fluid.vel[noghost]
+                fluid.pre[noghost-ig] = fluid.pre[noghost]
+                fluid.rho[nolast+ig] = fluid.rho[nolast]
+                fluid.vel[nolast+ig] = fluid.vel[nolast]
+                fluid.pre[nolast+ig] = fluid.pre[nolast]
+        elif btype == 'Reflecting': 
+            for ig in range(1,noghost+1): 
+                fluid.rho[noghost-ig] = fluid.rho[noghost-1+ig]
+                fluid.vel[noghost-ig] = -fluid.vel[noghost-1+ig]
+                fluid.pre[noghost-ig] = fluid.pre[noghost-1+ig]
+                fluid.rho[nolast+ig] = fluid.rho[nolast + 1 -ig]
+                fluid.vel[nolast+ig] = -fluid.vel[nolast + 1 -ig]
+                fluid.pre[nolast+ig] = fluid.pre[nolast + 1 -ig]
+        elif btype == 'OpenSph':
+            # spherical open boundary condition
+            # open only at outer boundary
+            # symmetric at the center
+            # this means zero flux at r=0 
+            # imply zero gradient?
+            # zero velocity at r=0
+            fluid.rho[noghost] = fluid.rho[noghost+1]
+            fluid.vel[noghost] *= 0.0
+            fluid.pre[noghost] = fluid.pre[noghost+1] 
+            for ig in range(1,noghost+1): 
+                fluid.rho[noghost-ig] = fluid.rho[noghost+ig]
+                fluid.vel[noghost-ig] = -fluid.vel[noghost+ig]
+                fluid.pre[noghost-ig] = fluid.pre[noghost+ig]
+                fluid.rho[nolast+ig] = fluid.rho[nolast]
+                fluid.vel[nolast+ig] = fluid.vel[nolast]
+                fluid.pre[nolast+ig] = fluid.pre[nolast]         
+        else:
+            raise Exception('Boundary condition unknown') 
         
     
-    def GetTimeStep(self, mesh, fluid, CFL=0.1, vsmin = 0.001*unyt.km/unyt.s):
+    def GetTimeStep(self, mesh, fluid, par, CFL=0.1, vsmin = 0.0*unyt.km/unyt.s):
         fluid.SetSoundSpeed()
         vsignal = np.absolute(fluid.vel) + fluid.cs
         #if np.any(vsignal==0) or np.any(np.isnan(vsignal)):
@@ -138,4 +209,11 @@ class Solver():
         fluid.vsignal = vsignal
         dt = np.amin(self.dt)
         #print('vsignal', vsignal)
+        if np.isnan(np.array(dt)):
+            raise Exception(" time step is nan")
+        if dt < par.dtmin:
+            raise Exception(" time step %.2e smaller than the minimum time step %.2e"%(dt,par.dtmin))
+        if dt > par.dtmax:
+            dt = par.dtmax
+            #raise Exception(" time step %.2e larger than the maximum time step %.2e"%(dt,par.dtmax))
         return dt

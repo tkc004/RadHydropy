@@ -21,24 +21,31 @@ class Fluid():
     def SetSoundSpeed(self):
         self.cs = ru.CalSoundSpeed(self.pre,self.rho,self.eos.gamma)
         
-    def SetUpFluid(self):
+    def SetUpFluid(self, par):
         # check if the required attributes exist
         attrlist = ['rho','temp','mu','vel'] 
         for attr in attrlist:
             if not hasattr(self, attr):
                 raise Exception("%s does not exist in fluid; quitting."%attr)
+            
+
+        #add ghost cells:
+        noghost = par.noghost
+        for attr in attrlist: 
+            quan = getattr(self, attr)
+            #print('attr,qaun',attr,quan)
+            try:
+                units = quan.units
+            except AttributeError:
+                units = 1.0
+            ghost = np.ones(noghost) * units
+            quan = unyt.uconcatenate((ghost,quan,ghost))
+            setattr(self, attr, quan)
         self.SetPressure() 
+        #print('self.pre', self.pre)
+
+    def SetTemperature(self):
+        self.temp = ru.CalTemperature(self.rho,self.pre,self.mu) 
 
     def SetFluidTime(self, time): 
-        self.time = time
-    
-    def SetBoundary(self,btype:str):
-        if btype == 'Periodic':
-            self.rho[0] = self.rho[-2]
-            self.vel[0] = self.vel[-2]
-            self.pre[0] = self.pre[-2]
-            self.rho[-1] = self.rho[1]
-            self.vel[-1] = self.vel[1]
-            self.pre[-1] = self.pre[1]            
-        else:
-            print('Boundary condition unknown')           
+        self.time = time       
