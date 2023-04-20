@@ -117,7 +117,7 @@ def ReadandPlot(outfilename,**kwargs):
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout,yquan='rho',showfig=0,showhalf=1,**kwargs)
     rho_ana, p_ana, v_ana = getAnalyticSolution(ICparams, rout)
-    #plt.plot(rout.mesh.boundary,rho_ana)
+    plt.plot(rout.mesh.boundary,rho_ana)
 
 
 def main():

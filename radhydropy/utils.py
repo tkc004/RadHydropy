@@ -82,7 +82,8 @@ def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
 def GetFQ(rho,vel,pre,gamma):
     Fmass = rho * vel
     qmass = rho
-    Fmom  = rho * vel**2
+    Fmom  = rho * np.absolute(vel)* vel
+    #Fmom  = rho * vel**2
     Fmom[np.logical_or(vel==0.0,np.isnan(vel))] = 0.0 * rho[0] * vel[0]**2
     Fmom += pre
     qmom  = rho * vel

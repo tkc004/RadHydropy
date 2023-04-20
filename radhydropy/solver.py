@@ -183,16 +183,20 @@ class Solver():
             # this means zero flux at r=0 
             # imply zero gradient?
             # zero velocity at r=0
-            fluid.rho[noghost] = fluid.rho[noghost+1]
-            fluid.vel[noghost] *= 0.0
-            fluid.pre[noghost] = fluid.pre[noghost+1] 
+            fluid.vel[noghost+1] *= 0.0
             for ig in range(1,noghost+1): 
                 fluid.rho[noghost-ig] = fluid.rho[noghost+ig]
                 fluid.vel[noghost-ig] = -fluid.vel[noghost+ig]
                 fluid.pre[noghost-ig] = fluid.pre[noghost+ig]
                 fluid.rho[nolast+ig] = fluid.rho[nolast]
                 fluid.vel[nolast+ig] = fluid.vel[nolast]
-                fluid.pre[nolast+ig] = fluid.pre[nolast]         
+                fluid.pre[nolast+ig] = fluid.pre[nolast]  
+            fluid.rho[noghost] = fluid.rho[noghost+1]
+            fluid.vel[noghost] *= 0.0
+            fluid.pre[noghost] = fluid.pre[noghost+1] 
+            fluid.rho[noghost-1] = fluid.rho[noghost+1]
+            fluid.vel[noghost-1] *= 0.0
+            fluid.pre[noghost-1] = fluid.pre[noghost+1]         
         else:
             raise Exception('Boundary condition unknown') 
         
