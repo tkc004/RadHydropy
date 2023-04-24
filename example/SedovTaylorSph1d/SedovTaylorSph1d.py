@@ -18,15 +18,15 @@ runparams = {
     'ICfilename':rundir+'/InitialCondition.hdf5',
     'outdir':rundir,
     'outfileprefix':'Output', 
-    'outdeltatime':1.0*unyt.s *0.1,
+    'outdeltatime':1000.0*unyt.s *0.1,
     'savedir':rundir,
     'coordsys':'spherical', #
     'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
-    'gamma':1.4, # for polytropic, the polytropic index
-    'timesim':2.0*unyt.s, # final simulation time
+    'gamma':5./3., # for polytropic, the polytropic index
+    'timesim':1000.0*unyt.s, # final simulation time
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'OpenSph',
-    'noghost': 4, #number of ghost cells in front (equal number of ghost cell after)
+    'noghost': 10, #number of ghost cells in front (equal number of ghost cell after)
     'verbose':0, # speak out details?
     'order': 0,
     'dtmin': 2.0e-8*unyt.s,
@@ -34,7 +34,7 @@ runparams = {
 }
 
 ICparams = {
-    'nogrid':100, # number of grid points
+    'nogrid':1000, # number of grid points
     'coordsys':"spherical", # coordinate system
     'boxsize':2.0*unyt.cm, # the simulation box size
     'time':0.0*unyt.s, # initial time
@@ -43,6 +43,7 @@ ICparams = {
     #'Eini': 0.0 * unyt.erg, # the total energy in central region
     'rini': 0.2 * unyt.cm, # radius of central region
     'muini': 1.0,
+    "rinj": 0.1*unyt.cm, 
 }
 
 
@@ -77,7 +78,7 @@ class Simwrap():
 
         # generate initial condition
         #self.mesh.boundary = np.linspace(0.5*dx,self.par.boxsize[0]+dx,self.par.nogrid+1)
-        self.mesh.boundary = np.linspace(-0.5*dx,self.par.boxsize[0]+dx,self.par.nogrid+1)
+        self.mesh.boundary = np.linspace(ICparams["rinj"],ICparams["rinj"]+self.par.boxsize[0],self.par.nogrid+1)
         self.mesh.coordinate = 0.5 * (self.mesh.boundary[:-1]+self.mesh.boundary[1:])
         self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm/unyt.s 
         self.fluid.rho =  ICparams["rhoini"] * np.ones(self.par.nogrid)
@@ -88,14 +89,9 @@ class Simwrap():
         #inject Eini to a single particle in the center
         #self.fluid.temp = ICparams["Eini"] * ru.gaussiansph(self.mesh.coordinate, 0.1*unyt.cm) * unyt.mp * self.fluid.mu / (self.fluid.rho * 1.5 * unyt.kb) 
         self.fluid.temp = np.ones(self.par.nogrid) * 0.0 * unyt.K
-        icut = self.mesh.coordinate<ICparams['rini']
-        self.fluid.temp[icut] = ICparams["Eini"] / np.sum(self.mesh.vol[icut]) * unyt.mp * self.fluid.mu[icut] / (self.fluid.rho[icut] * 1.5 * unyt.kb) 
-        #self.fluid.temp += np.ones(self.par.nogrid+2) * 0.01 * unyt.K
-        #self.fluid.temp = np.ones(self.par.nogrid+2) * 1e-7 * unyt.K
-        #print(self.fluid.temp)
-        #pre = ru.CalPressure(self.fluid.rho,self.fluid.temp,self.fluid.mu)
-        #cs = ru.CalSoundSpeed(pre,self.fluid.rho,5./3.)
-        #print("cs",cs)
+        icut = np.logical_and(self.mesh.coordinate<ICparams['rini'],self.mesh.coordinate>ICparams['rinj'])
+        self.fluid.temp[icut] = ICparams["Eini"] / np.sum(self.mesh.vol[icut] * self.fluid.rho[icut]) * unyt.mp * self.fluid.mu[icut] / (1.5 * unyt.kb) 
+
 
 
 # I think the analytic solution only work for constant density
@@ -105,7 +101,10 @@ class Simwrap():
 def ReadandPlot(outfilename,**kwargs):
     rout = Simwrap() 
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout,yquan='vel', showfig=0,**kwargs)
+    rplot1d(rout,yquan='rho', showfig=0,**kwargs)
+    # The analytic solution is off by half energy? Why?
+    Rst = 1.17 * np.power(0.5*ICparams['Eini']/ICparams['rhoini']*rout.par.time**2, 1./5.)
+    plt.axvline(x=Rst,color=kwargs['color']) 
 
 
 
@@ -115,10 +114,9 @@ def main():
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
-    for outindex in range(0,2):
+    for outindex in range(1,10):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
         ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=1,color=next(ax._get_lines.prop_cycler)['color'])
-        #plt.ylim(ymax=2.0)
     plt.show()    
 
 if __name__ == "__main__":
