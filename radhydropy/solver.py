@@ -197,23 +197,47 @@ class Solver():
             fluid.rho[noghost-1] = fluid.rho[noghost+1]
             fluid.vel[noghost-1] *= 0.0
             fluid.pre[noghost-1] = fluid.pre[noghost+1]         
+        elif btype == 'InflowSph':
+            fluid.vel[noghost+1] *= 0.0
+            pre_inflow = ru.CalPressure(par.rho_inflow,par.temp_inflow,par.mu_inflow)
+            for ig in range(1,noghost+1): 
+                fluid.rho[noghost-ig] = fluid.rho[noghost+ig]
+                fluid.vel[noghost-ig] = -fluid.vel[noghost+ig]
+                fluid.pre[noghost-ig] = fluid.pre[noghost+ig]
+                fluid.rho[nolast+ig] = par.rho_inflow
+                fluid.vel[nolast+ig] = par.vel_inflow
+                fluid.pre[nolast+ig] = pre_inflow 
+            fluid.rho[noghost] = fluid.rho[noghost+1]
+            fluid.vel[noghost] *= 0.0
+            fluid.pre[noghost] = fluid.pre[noghost+1] 
+            fluid.rho[noghost-1] = fluid.rho[noghost+1]
+            fluid.vel[noghost-1] *= 0.0
+            fluid.pre[noghost-1] = fluid.pre[noghost+1] 
+        elif btype == 'OutflowSph':
+            pre_outflow = ru.CalPressure(par.rho_outflow,par.temp_outflow,par.mu_outflow)
+            for ig in range(1,noghost+1):
+                fluid.rho[noghost-ig] = par.rho_outflow
+                fluid.vel[noghost-ig] = par.vel_outflow
+                fluid.pre[noghost-ig] = pre_outflow
+                fluid.rho[nolast+ig] = fluid.rho[nolast]
+                fluid.vel[nolast+ig] = fluid.vel[nolast]
+                fluid.pre[nolast+ig] = fluid.pre[nolast]                   
         else:
             raise Exception('Boundary condition unknown') 
         
     
-    def GetTimeStep(self, mesh, fluid, par, CFL=0.1, vsmin = 0.0*unyt.km/unyt.s):
+    def GetTimeStep(self, mesh, fluid, par, CFL=0.1):
         fluid.SetSoundSpeed()
         vsignal = np.absolute(fluid.vel) + fluid.cs
-        #if np.any(vsignal==0) or np.any(np.isnan(vsignal)):
-        #    print('vsignal vanished')    
-        #else:
-        vsignal[np.logical_or(vsignal==0.0,np.isnan(vsignal))] = vsmin
-        dx_c = mesh.xdelta / vsignal
-        self.dt =  CFL * np.amin(dx_c)
+        dt_array =  CFL * mesh.xdelta / vsignal
+        dt_array[vsignal==0] = par.dtmax 
+        self.dt = np.amin(dt_array)
         fluid.vsignal = vsignal
         dt = np.amin(self.dt)
-        #print('vsignal', vsignal)
         if np.isnan(np.array(dt)):
+            print('vsignal', vsignal)
+            print('fluid.vel',fluid.vel)
+            print('fluid.cs',fluid.cs)
             raise Exception(" time step is nan")
         if dt < par.dtmin:
             raise Exception(" time step %.2e smaller than the minimum time step %.2e"%(dt,par.dtmin))

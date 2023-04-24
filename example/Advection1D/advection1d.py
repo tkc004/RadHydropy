@@ -26,7 +26,7 @@ runparams = {
     'timesim':2.0*unyt.s, # final simulation time
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'Periodic',
-    'noghost': 10, #number of ghost cells in front (equal number of ghost cell after)
+    'noghost': 5, #number of ghost cells in front (equal number of ghost cell after)
     'verbose':0, # speak out details?
     'order': 0,
     'dtmin': 2.0e-8*unyt.s,

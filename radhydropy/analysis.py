@@ -12,6 +12,8 @@ def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
     plt.ylabel(r'$'+yq.in_cgs().units.latex_repr+'$',fontsize=24)
     if showhalf==1:
         plt.xlim(xmax=0.5*np.amax(xq))
+    if showhalf==2:
+        plt.xlim(xmin=0.5*np.amax(xq))        
     if showfig==1:
         plt.show()
         plt.clf()

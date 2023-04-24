@@ -6,7 +6,7 @@ class Mesh:
     def __init__(self):
         pass
 
-    def SetUpMesh(self, par, area = 1.0 * unyt.pc**2):
+    def SetUpMesh(self, par):
         attr = 'boundary'
         if not hasattr(self, attr):
             raise Exception("%s does not exist in mesh; quitting."%attr)
@@ -32,7 +32,7 @@ class Mesh:
         if par.coordsys == 'cartesian':
             # coordinate is the midpoint of boundary
             self.coordinate = 0.5 * (self.boundary[1:]+self.boundary[:-1])
-            self.area = np.ones(par.nogrid+noghost*2) * area
+            self.area = np.ones(par.nogrid+noghost*2) * par.area
             self.vol = (self.boundary[1:] - self.boundary[:-1]) * self.area
         elif par.coordsys == 'spherical':
             # check if any value is <0:

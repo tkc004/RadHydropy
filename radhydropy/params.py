@@ -14,6 +14,15 @@ refparams = {
     'timesim':2.0*unyt.s, # final simulation time
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'Periodic',
+    'area': 1.0 * unyt.cm**2,
+    'vel_inflow':1.0*unyt.cm/unyt.s,
+    'rho_inflow':1.0*unyt.g/unyt.cm**3,
+    'temp_inflow':0.0*unyt.K,
+    'mu_inflow':1.0,
+    'vel_outflow':1.0*unyt.cm/unyt.s,
+    'rho_outflow':1.0*unyt.g/unyt.cm**3,
+    'temp_outflow':0.0*unyt.K,
+    'mu_outflow':1.0,    
     'verbose':0, # speak out details?
     'order': 0,  
     'noghost':2,

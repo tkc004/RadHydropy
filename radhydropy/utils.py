@@ -8,6 +8,7 @@ def CalPressure(rho,temp,mu):
 
 def CalTemperature(rho,pressure,mu):
     temp = pressure / rho * (mu * unyt.mp) / unyt.kb 
+    temp[rho.value==0.0] = 0.0 * unyt.K
     return temp
 
 def CalEnergyDensity(pressure, gamma):
@@ -16,6 +17,7 @@ def CalEnergyDensity(pressure, gamma):
 
 def CalSoundSpeed(pressure,rho, gamma):
     soundspeed = np.sqrt(gamma * pressure / rho)
+    soundspeed[np.logical_or(rho.value==0.0,np.isnan(soundspeed))] =  0.0 * unyt.cm/unyt.s
     return soundspeed
 
 
@@ -82,7 +84,7 @@ def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
 def GetFQ(rho,vel,pre,gamma):
     Fmass = rho * vel
     qmass = rho
-    Fmom  = rho * np.absolute(vel)* vel
+    Fmom  = rho * vel* vel
     #Fmom  = rho * vel**2
     Fmom[np.logical_or(vel==0.0,np.isnan(vel))] = 0.0 * rho[0] * vel[0]**2
     Fmom += pre
