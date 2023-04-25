@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.special.gamma as sgamma
+from scipy import special
 
 # analytic Sedov blast wave solution
 # see Sedov 1993 ``Similarity and dimensional methods in mechanics'' 
@@ -14,6 +14,8 @@ import scipy.special.gamma as sgamma
 def get_rho0(r,A0,w):
     # we assume a power law density profile:
     # rho0 = A0 r^-w
+    # note that the dimenion of rho0 is [M/L^nu], is the dimension of the problem 
+    # Thus, A0 dimension is [M L^(w-nu)]
     rho0 = A0 * np.power(r, -w)    
     return rho0
 
@@ -39,12 +41,12 @@ def get_beta_index(nu,w,g,wa):
     b[0] = 1.0/ (nu * g - nu + 2.0)
     b[2] = (g-1)/(g* (wa[2] - w))
     b[3] = (nu - w) / (g * (wa[2] - w))
-    b[4] = b[1] * (nu - w) * (nu + 2.0 - w) / (wa[3] - w)
     b[5] = (2.0 * nu - w * (g+1)) / (wa[3] - w)
     b[6] = 2.0 / (nu + 2.0 - w)
+    b[1] = b[2] + (g+1) * b[0] - b[6]
+    b[4] = b[1] * (nu - w) * (nu + 2.0 - w) / (wa[3] - w)
     b[7] = w * b[6]
     b[8] = nu * b[6]
-    b[1] = b[2] + (g+1) * b[0] - b[6]
     return b
 
 
@@ -55,7 +57,8 @@ def get_Cc(nu,w,g,wa,b):
     # wa are some parameters of solution 
     # b is power law index for the analytic blastwave solution 
     Cc = np.zeros(7)
-    Cc[0] = 2.0**nu * np.pi**(0.5*(nu-1.0)) * sgamma(0.5*(nu+1.0)) / sgamma(nu)
+    #Cc[0] = 2.0 * (nu - 1.0) * np.pi + (nu - 2.0) * (nu - 3.0)
+    Cc[0] = 2.0**nu * np.pi**(0.5*(nu-1.0)) * special.gamma(0.5*(nu+1.0)) / special.gamma(nu)
     Cc[5] = 2.0 / (g-1.0)
     Cc[6] = (g+1.0) / 2.0
     Cc[1] = g * Cc[5]
@@ -79,7 +82,7 @@ def getShockquan(g, nu, w, A0, Rs, t):
 
 
 def getRs(E0,A0,nu,w,alpha,t):
-    Rs = np.power(E0 * t**2 / alpha / A0, 1.0/(nu + 2.0 + w))
+    Rs = np.power(E0 * t**2 / alpha / A0, 1.0/(nu + 2.0 - w))
     return Rs
 
 def eta_func(F,b,Cc):
@@ -96,7 +99,7 @@ def V_func(F,b,Cc):
     return Vf
 
 def P_func(F,b,Cc,w):
-    Pf = np.power(F, b[8]) * np.power(Cc[3]*(Cc[4] - F), b[4]+(w-2.0)*b[1]) * np.power(Cc[5]*(Cc[6]-F), 1.0-b[5])
+    Pf = np.power(F, b[8]) * np.power(Cc[3]*(Cc[4] - F), b[4]+(w-2.0)*b[1]) * np.power(Cc[5]*(Cc[6]-F), 1.0 - b[5])
     return Pf
 
 def integral_solution(nu,g,w):
@@ -107,7 +110,7 @@ def integral_solution(nu,g,w):
         Fmin = Cc[2]  
     else:
         Fmin = Cc[6]
-    F = np.linspace(Fmin,1.0,1000)
+    F = np.linspace(Fmin,1.0,10000)
     eta = eta_func(F,b,Cc)
     Df = D_func(F,b,Cc,w)
     Vf = V_func(F,b,Cc)
@@ -115,10 +118,10 @@ def integral_solution(nu,g,w):
     deta_dF = np.gradient(eta,F)
     Integrant = np.power(eta, nu-1.0) * (Df * Vf * Vf + Pf) * deta_dF
     Integrated_value = np.trapz(Integrant,F)
-    alpha = 8.0 * C[0] / (g**2 - 1.0) / (nu + 2.0 + w)**2 * Integrated_value 
+    alpha = 8.0 * Cc[0] / (g**2 - 1.0) / (nu + 2.0 + w)**2 * Integrated_value 
     return alpha, eta, Df, Vf, Pf
 
-def get_blastwave_solution(E0,A0,nu,g,w,alpha,t):
+def get_blastwave_solution(E0,A0,nu,g,w,t):
     alpha, eta, Df, Vf, Pf = integral_solution(nu,g,w) 
     Rs = getRs(E0,A0,nu,w,alpha,t)
     rhos, vs, ps = getShockquan(g, nu, w, A0, Rs, t)
@@ -126,7 +129,7 @@ def get_blastwave_solution(E0,A0,nu,g,w,alpha,t):
     rho = rhos * Df
     v = vs * Vf
     p = ps * Pf
-    return r, rho, v, p
+    return r, rho, v, p, Rs
 
 
 
