@@ -71,7 +71,7 @@ ICparams = {
     'time':0.0*unyt.s, # initial time
     'rhoini': 1.0 * unyt.g/unyt.cm**3,
     'Eini': 1.0 * unyt.erg, # the total energy in central region
-    'rini': 0.1 * unyt.cm, # radius of central region
+    'rini': 0.2 * unyt.cm, # radius of central region
     'muini': 1.0,
 }
 
@@ -101,7 +101,7 @@ class Simwrap():
         Eini = ICparams["Eini"]
 
         # this is the index of the center particle
-        index_center = int(int(self.par.nogrid)/2 +1)
+        #index_center = int(int(self.par.nogrid)/2 +1)
          
         # boundary points of the mesh
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
@@ -121,8 +121,10 @@ class Simwrap():
         self.fluid.mass = self.fluid.rho*self.mesh.vol 
         #inject Eini to a single particle in the center
         self.fluid.temp = np.ones(self.par.nogrid) * 0.0 * unyt.K
-        pre = ICparams["Eini"] / np.sum(self.mesh.vol[index_center]) * (runparams['gamma'] - 1.0)
-        self.fluid.temp[index_center] = ru.CalTemperature(self.fluid.rho[index_center],pre,self.fluid.mu[index_center])
+        #icut = self.mesh.coordinate<ICparams['rini']
+        icut = 0
+        pre = ICparams["Eini"] / np.sum(self.mesh.vol[icut]) * (runparams['gamma'] - 1.0)
+        self.fluid.temp[icut] = ru.CalTemperature(self.fluid.rho[icut],pre,self.fluid.mu[icut])
 
 
 def ReadandPlot(outfilename,**kwargs):
@@ -132,7 +134,10 @@ def ReadandPlot(outfilename,**kwargs):
     nu = 1 # dimension of the problem 
     g  = runparams['gamma'] # polytropic index
     w  = 0.0 # power law slope of the density profile
-    E0 = ICparams['Eini']
+    if runparams['boundcond']=='Periodic' or runparams['boundcond']=='Open':
+        E0 = ICparams['Eini']
+    else:
+        E0 = ICparams['Eini']*2.0
     rho1d0 = ICparams['rhoini'] * runparams['area'] # density in 1d
     A0 = rho1d0 # in the case of uniform density
     t = rout.par.time
@@ -141,15 +146,16 @@ def ReadandPlot(outfilename,**kwargs):
     rho = unyt.uconcatenate((rho, unyt.unyt_array([rho1d0,rho1d0]))) 
     v = unyt.uconcatenate((v,unyt.unyt_array([0.0*unyt.cm/unyt.s, 0.0*unyt.cm/unyt.s])))
     p = unyt.uconcatenate((p,unyt.unyt_array([0.0*unyt.dyn, 0.0*unyt.dyn])))
+    print('r',r)
     plt.subplot(1,3,1)
-    rplot1d(rout,yquan='pre', showfig=0,showhalf=2,**kwargs)
-    plt.plot((r + 0.5*ICparams["boxsize"]).in_cgs(), (p).in_cgs(), color=kwargs['color']) 
+    rplot1d(rout,yquan='pre', showfig=0,showhalf=0,**kwargs)
+    plt.plot(r.in_cgs(), (p).in_cgs(), color=kwargs['color']) 
     plt.subplot(1,3,2)    
-    rplot1d(rout,yquan='vel', showfig=0,showhalf=2,**kwargs)
-    plt.plot((r + 0.5*ICparams["boxsize"]).in_cgs(), (v).in_cgs(), color=kwargs['color'])
+    rplot1d(rout,yquan='vel', showfig=0,showhalf=0,**kwargs)
+    plt.plot(r.in_cgs(), (v).in_cgs(), color=kwargs['color'])
     plt.subplot(1,3,3)        
-    rplot1d(rout,yquan='rho', showfig=0,showhalf=2,**kwargs)
-    plt.plot((r + 0.5*ICparams["boxsize"]).in_cgs(), (rho/runparams['area']).in_cgs(), color=kwargs['color'])
+    rplot1d(rout,yquan='rho', showfig=0,showhalf=0,**kwargs)
+    plt.plot(r.in_cgs(), (rho/runparams['area']).in_cgs(), color=kwargs['color'])
 
 
 
@@ -157,12 +163,12 @@ def ReadandPlot(outfilename,**kwargs):
 
 
 def main():
-    ric = Simwrap()
-    rio.writehdf5(ric,runparams['ICfilename'])
-    mainrun = Rsim(runparams)
-    mainrun.RunAll(outputtime=0)
+    #ric = Simwrap()
+    #rio.writehdf5(ric,runparams['ICfilename'])
+    #mainrun = Rsim(runparams)
+    #mainrun.RunAll(outputtime=0)
     ax = plt.gca()
-    for outindex in range(1,10,3):
+    for outindex in range(0,1,1):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
         ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=1,color=next(ax._get_lines.prop_cycler)['color'])
         #plt.ylim(ymax=2.0)
@@ -170,3 +176,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -2,11 +2,41 @@ from radhydropy.rsim import Rsim
 import unyt
 from radhydropy.analysis import rplot1d
 import matplotlib.pyplot as plt
+from pylab import rcParams, rc
 import numpy as np
 import radhydropy.utils as ru 
 import radhydropy.io as rio
 #importing the os module
 import os
+import SedovTaylor_analytic as sa
+
+# Plot parameters
+plotparams = {'axes.labelsize': 24,
+'axes.titlesize': 24,
+'font.size': 24,
+'legend.fontsize': 20,
+'xtick.labelsize': 15,
+'ytick.labelsize': 15,
+'xtick.top': True,
+'ytick.right': True,
+'xtick.bottom': True,
+'ytick.left': True,
+'xtick.minor.visible': True,
+'ytick.minor.visible': True,
+'xtick.direction':"in",
+'ytick.direction':"in",
+'figure.figsize' : (30.45,6.5),
+'figure.subplot.left'    : 0.2,
+'figure.subplot.right'   : 0.9,
+'figure.subplot.bottom'  : 0.2,
+'figure.subplot.top'     : 0.85,
+'figure.subplot.wspace'  : 0.2,
+'figure.subplot.hspace'  : 0.2,
+'lines.markersize' : 6,
+'lines.linewidth' : 3.,
+}
+rcParams.update(plotparams)
+
 
 #to get the current working directory
 rundir = os.getcwd()
@@ -41,9 +71,9 @@ ICparams = {
     'rhoini': 1.0 * unyt.g/unyt.cm**3,
     'Eini': 1.0e-4 * unyt.erg, # the total energy in central region
     #'Eini': 0.0 * unyt.erg, # the total energy in central region
-    'rini': 0.2 * unyt.cm, # radius of central region
+    'rini': 0.5 * unyt.cm, # radius of central region
     'muini': 1.0,
-    "rinj": 0.1*unyt.cm, 
+    "rinj": 0.4*unyt.cm, 
 }
 
 
@@ -87,10 +117,10 @@ class Simwrap():
         self.fluid.mu = np.ones(self.par.nogrid) * ICparams["muini"] 
         self.fluid.mass = self.fluid.rho*self.mesh.vol 
         #inject Eini to a single particle in the center
-        #self.fluid.temp = ICparams["Eini"] * ru.gaussiansph(self.mesh.coordinate, 0.1*unyt.cm) * unyt.mp * self.fluid.mu / (self.fluid.rho * 1.5 * unyt.kb) 
         self.fluid.temp = np.ones(self.par.nogrid) * 0.0 * unyt.K
         icut = np.logical_and(self.mesh.coordinate<ICparams['rini'],self.mesh.coordinate>ICparams['rinj'])
-        self.fluid.temp[icut] = ICparams["Eini"] / np.sum(self.mesh.vol[icut] * self.fluid.rho[icut]) * unyt.mp * self.fluid.mu[icut] / (1.5 * unyt.kb) 
+        pre = ICparams["Eini"] / np.sum(self.mesh.vol[icut]) * (runparams['gamma'] - 1.0)
+        self.fluid.temp[icut] = ru.CalTemperature(self.fluid.rho[icut],pre,self.fluid.mu[icut])
 
 
 
@@ -101,10 +131,31 @@ class Simwrap():
 def ReadandPlot(outfilename,**kwargs):
     rout = Simwrap() 
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rout.fluid.pre = ru.CalPressure(rout.fluid.rho,rout.fluid.temp,rout.fluid.mu)
+    nu = 3 # dimension of the problem 
+    g  = runparams['gamma'] # polytropic index
+    w  = 0.0 # power law slope of the density profile
+    E0 = ICparams['Eini']
+    A0 = ICparams['rhoini']  # in the case of uniform density
+    t = rout.par.time
+    r, rho, v, p, Rs = sa.get_blastwave_solution(E0,A0,nu,g,w,t)
+    r = unyt.uconcatenate((r, unyt.unyt_array([1.0,2]*Rs)))
+    rho = unyt.uconcatenate((rho, unyt.unyt_array([ICparams['rhoini'],ICparams['rhoini']]))) 
+    v = unyt.uconcatenate((v,unyt.unyt_array([0.0*unyt.cm/unyt.s, 0.0*unyt.cm/unyt.s])))
+    p = unyt.uconcatenate((p,unyt.unyt_array([0.0*unyt.dyn/unyt.cm**2, 0.0*unyt.dyn/unyt.cm**2])))
+    plt.subplot(1,3,1)
+    rplot1d(rout,yquan='pre', showfig=0,**kwargs)
+    plt.plot((r ).in_cgs(), (p).in_cgs(), color=kwargs['color'])
+    plt.xlim([0,4]) 
+    plt.subplot(1,3,2)    
+    rplot1d(rout,yquan='vel', showfig=0,**kwargs)
+    plt.plot((r ).in_cgs(), (v).in_cgs(), color=kwargs['color'])
+    plt.xlim([0,4]) 
+    plt.subplot(1,3,3)        
     rplot1d(rout,yquan='rho', showfig=0,**kwargs)
-    # The analytic solution is off by half energy? Why?
-    Rst = 1.17 * np.power(0.5*ICparams['Eini']/ICparams['rhoini']*rout.par.time**2, 1./5.)
-    plt.axvline(x=Rst,color=kwargs['color']) 
+    plt.plot((r ).in_cgs(), (rho).in_cgs(), color=kwargs['color'])
+    plt.xlim([0,4]) 
+
 
 
 
@@ -114,7 +165,7 @@ def main():
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
-    for outindex in range(1,10):
+    for outindex in range(5,10):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
         ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=1,color=next(ax._get_lines.prop_cycler)['color'])
     plt.show()    
