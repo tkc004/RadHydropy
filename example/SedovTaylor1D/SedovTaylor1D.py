@@ -56,7 +56,7 @@ runparams = {
     'timesim':1.01*unyt.s, # final simulation time
     'area': 1.0 * unyt.cm**2, 
     'CFL':0.1, # CFL condition for time-step
-    'boundcond':'Open',
+    'boundcond':'Periodic',
     'noghost': 10, #number of ghost cells in front (equal number of ghost cell after)
     'verbose':0, # speak out details?
     'order': 0,
@@ -122,7 +122,7 @@ class Simwrap():
         #inject Eini to a single particle in the center
         self.fluid.temp = np.ones(self.par.nogrid) * 0.0 * unyt.K
         #icut = self.mesh.coordinate<ICparams['rini']
-        icut = 0
+        icut = 1
         pre = ICparams["Eini"] / np.sum(self.mesh.vol[icut]) * (runparams['gamma'] - 1.0)
         self.fluid.temp[icut] = ru.CalTemperature(self.fluid.rho[icut],pre,self.fluid.mu[icut])
 
@@ -148,13 +148,13 @@ def ReadandPlot(outfilename,**kwargs):
     p = unyt.uconcatenate((p,unyt.unyt_array([0.0*unyt.dyn, 0.0*unyt.dyn])))
     print('r',r)
     plt.subplot(1,3,1)
-    rplot1d(rout,yquan='pre', showfig=0,showhalf=0,**kwargs)
+    rplot1d(rout,yquan='pre', showfig=0,showhalf=1,**kwargs)
     plt.plot(r.in_cgs(), (p).in_cgs(), color=kwargs['color']) 
     plt.subplot(1,3,2)    
-    rplot1d(rout,yquan='vel', showfig=0,showhalf=0,**kwargs)
+    rplot1d(rout,yquan='vel', showfig=0,showhalf=1,**kwargs)
     plt.plot(r.in_cgs(), (v).in_cgs(), color=kwargs['color'])
     plt.subplot(1,3,3)        
-    rplot1d(rout,yquan='rho', showfig=0,showhalf=0,**kwargs)
+    rplot1d(rout,yquan='rho', showfig=0,showhalf=1,**kwargs)
     plt.plot(r.in_cgs(), (rho/runparams['area']).in_cgs(), color=kwargs['color'])
 
 
@@ -163,12 +163,12 @@ def ReadandPlot(outfilename,**kwargs):
 
 
 def main():
-    #ric = Simwrap()
-    #rio.writehdf5(ric,runparams['ICfilename'])
-    #mainrun = Rsim(runparams)
-    #mainrun.RunAll(outputtime=0)
+    ric = Simwrap()
+    rio.writehdf5(ric,runparams['ICfilename'])
+    mainrun = Rsim(runparams)
+    mainrun.RunAll(outputtime=0)
     ax = plt.gca()
-    for outindex in range(0,1,1):
+    for outindex in range(1,5,1):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
         ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=1,color=next(ax._get_lines.prop_cycler)['color'])
         #plt.ylim(ymax=2.0)

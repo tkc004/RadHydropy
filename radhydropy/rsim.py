@@ -61,6 +61,7 @@ class Rsim():
         outtime = 0.0 * self.par.timesim 
         outindex = 0
         # write the initial condition
+        
         rio.writehdf5(self,self.par.outdir+'/'+self.par.outfileprefix+'_%03d'%outindex+'.hdf5') 
         outtime = 0.0 * self.par.timesim 
         outindex += 1

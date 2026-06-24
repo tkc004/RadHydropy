@@ -161,13 +161,14 @@ class Solver():
                 fluid.vel[nolast+ig] = fluid.vel[noghost -1 + ig]
                 fluid.pre[nolast+ig] = fluid.pre[noghost -1 + ig] 
         elif btype == 'Open':
-            for ig in range(1,noghost+1):
-                fluid.rho[noghost-ig] = fluid.rho[noghost]
-                fluid.vel[noghost-ig] = fluid.vel[noghost]
-                fluid.pre[noghost-ig] = fluid.pre[noghost]
-                fluid.rho[nolast+ig] = fluid.rho[nolast]
-                fluid.vel[nolast+ig] = fluid.vel[nolast]
-                fluid.pre[nolast+ig] = fluid.pre[nolast]
+            #for ig in range(1,noghost+1):
+            # open boundary condition does not mean the gradient is zero.
+            fluid.rho[0] = fluid.rho[noghost]
+            fluid.vel[0] = fluid.vel[noghost]
+            fluid.pre[0] = fluid.pre[noghost]
+            fluid.rho[nogrid+2*noghost-1] = fluid.rho[nogrid+2*noghost-2]
+            fluid.vel[nogrid+2*noghost-1] = fluid.vel[nogrid+2*noghost-2]
+            fluid.pre[nogrid+2*noghost-1] = fluid.pre[nogrid+2*noghost-2]
         elif btype == 'Reflecting': 
             for ig in range(1,noghost+1): 
                 fluid.rho[noghost-ig] = fluid.rho[noghost-1+ig]
