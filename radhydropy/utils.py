@@ -1,23 +1,36 @@
 import numpy as np
 import unyt
-from unyt import dimensions as dim
+
+def SafeDivide(numerator, denominator):
+    numerator_value, denominator_value = np.broadcast_arrays(
+        np.asarray(numerator.value, dtype=float),
+        np.asarray(denominator.value, dtype=float),
+    )
+    quotient = np.zeros_like(denominator_value, dtype=float)
+    np.divide(
+        numerator_value,
+        denominator_value,
+        out=quotient,
+        where=denominator_value != 0.0,
+    )
+    return quotient * (numerator.units / denominator.units)
 
 def CalPressure(rho,temp,mu):
     pressure = rho / (mu * unyt.mp) * unyt.kb * temp
     return pressure
 
 def CalTemperature(rho,pressure,mu):
-    temp = pressure / rho * (mu * unyt.mp) / unyt.kb 
-    temp[rho.value==0.0] = 0.0 * unyt.K
-    return temp
+    pressure_over_rho = SafeDivide(pressure, rho)
+    return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
 def CalEnergyDensity(pressure, gamma):
     energydensity = pressure / (gamma-1.0)
     return energydensity
 
 def CalSoundSpeed(pressure,rho, gamma):
-    soundspeed = np.sqrt(gamma * pressure / rho)
-    soundspeed[np.logical_or(rho.value==0.0,np.isnan(soundspeed))] =  0.0 * unyt.cm/unyt.s
+    pressure_over_rho = SafeDivide(pressure, rho)
+    soundspeed = np.sqrt(gamma * pressure_over_rho).to(unyt.cm / unyt.s)
+    soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm/unyt.s
     return soundspeed
 
 
@@ -65,6 +78,8 @@ def CalFluxLimiter(rlim, limiter='minmod'):
     elif limiter=='vanLeer':
         # is it correct when rlim -> inf, philim -> 2?
         philim = (rlim + np.absolute(rlim)) / (1.0 + np.absolute(rlim))
+    else:
+        raise ValueError("flux limiter unknown: %s"%limiter)
     return philim
 
 def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
@@ -79,6 +94,8 @@ def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
         flux_R = fluxarray - fgrad * xdhalf
         # the following is correct in the first order case
         flux_L = np.roll(fluxarray+fgrad*xdhalf , Lroll) 
+    else:
+        raise ValueError("order unknown: %s"%order)
     return flux_L, flux_R
 
 def GetFQ(rho,vel,pre,gamma):
@@ -109,12 +126,13 @@ def ApplyFluxLimiter(q,flux_1,flux_0):
     #numpy roll Rroll, put the right value to this cell
     L2roll = 2
     Lroll = 1
-    Rroll = -1
-    R2roll = -2
     bottom = q - np.roll(q,Lroll)
-    rlim = (np.roll(q,Lroll)-np.roll(q,L2roll))/bottom
+    top = np.roll(q,Lroll)-np.roll(q,L2roll)
+    rlim = np.ones(len(q)) * 1000.0
+    nonzero = bottom != 0.0
+    rlim[nonzero] = np.asarray(top[nonzero] / bottom[nonzero])
     # if bottom is zero, we just assign a very large number
-    rlim[bottom==0] = 1000.0
+    rlim[np.isnan(rlim)] = 0.0
     #rlim[np.logical_or(bottom==0,np.isnan(bottom))] = 0.0
     philim = CalFluxLimiter(rlim)
     #print('philim',philim)

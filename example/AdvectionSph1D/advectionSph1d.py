@@ -101,7 +101,7 @@ def ReadandPlot(outfilename,**kwargs):
     rout.mesh.vol = np.absolute((rout.mesh.boundary[1:]**3 - rout.mesh.boundary[:-1]**3))*4.0*np.pi/3.0
     mtot = np.sum(rout.fluid.rho * rout.mesh.vol)
     print('mtot', mtot)
-    x = np.linspace(0.0,ICparams["boxsize"],ICparams["nogrid"]) 
+    x = np.linspace(0.0*ICparams["boxsize"],ICparams["boxsize"],ICparams["nogrid"]) 
     x1 = 0.25*ICparams["boxsize"]+rout.par.time*ICparams["vini"]
     x2 = 0.75*ICparams["boxsize"]+rout.par.time*ICparams["vini"]
     #rho = np.ones(ICparams["nogrid"]) * ICparams["rhoini"]

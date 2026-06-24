@@ -9,11 +9,16 @@ class Mesh:
     def SetUpMesh(self, par):
         attr = 'boundary'
         if not hasattr(self, attr):
-            raise Exception("%s does not exist in mesh; quitting."%attr)
+            raise AttributeError("%s does not exist in mesh; quitting."%attr)
+        for attr in ('nogrid', 'noghost', 'coordsys'):
+            if not hasattr(par, attr):
+                raise AttributeError("%s does not exist in params; quitting."%attr)
         if par.nogrid < 1:
-            raise Exception("nogrid has to be bigger than 1")
+            raise ValueError("nogrid has to be at least 1")
+        if par.noghost < 1:
+            raise ValueError("noghost has to be at least 1")
         if len(self.boundary) != par.nogrid + 1:
-            raise Exception("boundary point and nogrid are inconsistent")
+            raise ValueError("boundary point and nogrid are inconsistent")
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
         # to set boundary conditions
 
@@ -24,12 +29,14 @@ class Mesh:
         end = self.boundary[-1] + dx * noghost 
         ghost_front = np.linspace(start, self.boundary[0]-dx, noghost)
         ghost_back  = np.linspace(self.boundary[-1]+dx, end, noghost)
-        self.boundary = unyt.uconcatenate((ghost_front,self.boundary,ghost_back))
+        self.boundary = np.concatenate((ghost_front,self.boundary,ghost_back))
 
         # mesh size
         self.xdelta = self.boundary[1:] - self.boundary[:-1]
         self.oneoverdx = 1.0/self.xdelta
         if par.coordsys == 'cartesian':
+            if not hasattr(par, 'area'):
+                raise AttributeError("area does not exist in params; quitting.")
             # coordinate is the midpoint of boundary
             self.coordinate = 0.5 * (self.boundary[1:]+self.boundary[:-1])
             self.area = np.ones(par.nogrid+noghost*2) * par.area
@@ -48,16 +55,16 @@ class Mesh:
             self.area = (self.boundary[:-1]**2)*4.0*np.pi
             #cell volume
             self.vol = np.absolute((self.boundary[1:]**3 - self.boundary[:-1]**3))*4.0*np.pi/3.0
-            for ig in range(par.nogrid):
+            for ig in range(len(self.vol)):
                 # This is the inner sphere
                 if ((self.boundary[ig].value < 0.0) and (self.boundary[ig+1].value > 0.0)):
                     self.vol[ig] = (self.boundary[ig+1]**3)*4.0*np.pi/3.0
                     
 
         else:
-            print('coordsys unknown')
+            raise ValueError("coordsys unknown: %s"%par.coordsys)
             
         if np.any(self.vol == 0.0) or np.any(np.isnan(self.vol)):
-            raise Exception("volume vanished") 
+            raise ValueError("volume vanished") 
 
             

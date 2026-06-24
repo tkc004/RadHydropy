@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "radhydropy"
+version = "1.0.0"
+description = "Python code to simulate 1D hydrodynamics."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Tsang Keung Chan", email = "chantsangkeung@gmail.com"},
+]
+dependencies = [
+    "h5py",
+    "numpy",
+    "unyt",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]

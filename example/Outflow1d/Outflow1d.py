@@ -78,7 +78,7 @@ class Simwrap():
 
         # generate initial condition
         #self.mesh.boundary = np.linspace(-0.5*dx,self.par.boxsize[0]+0.5*dx,self.par.nogrid+1)
-        self.mesh.boundary = np.linspace(0.0,self.par.boxsize[0],self.par.nogrid+1)
+        self.mesh.boundary = np.linspace(0.0*self.par.boxsize[0],self.par.boxsize[0],self.par.nogrid+1)
         self.fluid.vel = ICparams["vini"] * np.ones(self.par.nogrid)
         self.fluid.temp = ICparams["tempini"] * np.ones(self.par.nogrid)
         self.fluid.rho = ICparams["rhoini"] * np.ones(self.par.nogrid)

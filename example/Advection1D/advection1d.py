@@ -82,7 +82,7 @@ class Simwrap():
         dx = self.par.boxsize[0]/self.par.nogrid
 
         # generate initial condition
-        self.mesh.boundary = np.linspace(0.0,self.par.boxsize[0]+dx,self.par.nogrid+1)
+        self.mesh.boundary = np.linspace(0.0*self.par.boxsize[0],self.par.boxsize[0]+dx,self.par.nogrid+1)
         coordinate = 0.5 * (self.mesh.boundary[1:]+self.mesh.boundary[:-1])
         #print('coordinate',coordinate)
 
@@ -98,7 +98,7 @@ class Simwrap():
 def ReadandPlot(outfilename,**kwargs):
     rout = Simwrap() 
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    x = np.linspace(0.0,ICparams["boxsize"],ICparams["nogrid"]) 
+    x = np.linspace(0.0*ICparams["boxsize"],ICparams["boxsize"],ICparams["nogrid"]) 
     rho = np.ones(ICparams["nogrid"]) * ICparams["rhoini"]
     x1 = 0.25*ICparams["boxsize"]+rout.par.time*ICparams["vini"]
     x2 = 0.75*ICparams["boxsize"]+rout.par.time*ICparams["vini"] 

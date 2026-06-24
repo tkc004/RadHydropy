@@ -9,12 +9,17 @@ class Solver():
         # and time
         pass
 
+    def _safe_divide(self, numerator, denominator):
+        return ru.SafeDivide(numerator, denominator)
+
     def SetPrimitive(self, mesh, fluid, verbose=0):
         vol = mesh.vol
-        fluid.rho = fluid.Mass / vol
-        fluid.vel = fluid.Mom / fluid.Mass
-        fluid.pre = (fluid.Energy/vol-0.5*fluid.rho*fluid.vel**2)*(fluid.eos.gamma-1.0)
+        fluid.rho = self._safe_divide(fluid.Mass, vol)
+        fluid.vel = self._safe_divide(fluid.Mom, fluid.Mass)
+        energy_density = self._safe_divide(fluid.Energy, vol)
+        fluid.pre = (energy_density-0.5*fluid.rho*fluid.vel**2)*(fluid.eos.gamma-1.0)
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
+        fluid.vel[np.isnan(fluid.vel)] = 0.0 * fluid.vel.units
         fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0            
         if verbose == 1:
             print('fluid.rho',fluid.rho)
@@ -48,7 +53,6 @@ class Solver():
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):
         #numpy roll Rroll, put the right value to this cell
         Lroll = 1
-        Rroll = -1
         if order == 0 or order == 1:
             fluid.rho.R = fluid.rho
             fluid.rho.L = np.roll(fluid.rho, Lroll)
@@ -66,7 +70,7 @@ class Solver():
                 fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
                 fluid.pre.R.first, fluid.pre.L.first = ru.extrapolateToFace(fluid.pre, mesh.boundary, fluid.pre.grad, order=1)
         else:
-            raise Exception('order unknown')
+            raise ValueError('order unknown: %s'%order)
 
 
     def SetFluxOnFace(self,fluid,boundcond,order=0):
@@ -87,7 +91,7 @@ class Solver():
             fluid.Energy.flux, fluid.philim_Energy  = ru.ApplyFluxLimiter(fluid.Energy.q,Energy_flux_1,Energy_flux_0)
             
         else:
-            raise Exception('order unknown')
+            raise ValueError('order unknown: %s'%order)
         #zero out all flux at the center for symmetric boundary at origin:
         #if boundcond == 'OpenSph':
         #    fluid.Mass.flux[0] = 0.0 * unyt.g / unyt.cm**2 / unyt.s 
@@ -99,7 +103,6 @@ class Solver():
         if method=='GLF' or method=='Rusanov':
             #numpy roll Rroll, put the right value to this cell
             Lroll = 1
-            Rroll = -1
             if method=='GLF':
                 # Global Lax Friedrich scheme
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
@@ -115,16 +118,15 @@ class Solver():
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
             self.SetFluxOnFace(fluid, boundcond, order=order)
         else:
-            raise Exception("Interface flux method unknown") 
+            raise ValueError("Interface flux method unknown: %s"%method) 
         if (verbose==1):
-            print('self.Mass.flux',self.Mass.flux)
-            print('self.Mom.flux',self.Mom.flux)
-            print('self.Energy.flux',self.Energy.flux)
+            print('fluid.Mass.flux',fluid.Mass.flux)
+            print('fluid.Mom.flux',fluid.Mom.flux)
+            print('fluid.Energy.flux',fluid.Energy.flux)
             
             
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
         #numpy roll Rroll, put the right value to this cell
-        Lroll = 1
         Rroll = -1
 
         # Add the interface fluxes to the cells:
@@ -152,31 +154,52 @@ class Solver():
         noghost = par.noghost
         nogrid = par.nogrid
         nolast = noghost + nogrid -1
+        first = noghost
+        right_start = noghost + nogrid
+        interior = slice(first, right_start)
+        left_ghost = slice(0, noghost)
+        right_ghost = slice(right_start, right_start + noghost)
+        fields = ('rho', 'vel', 'pre')
+
+        def copy_left(values):
+            for attr, value in values.items():
+                getattr(fluid, attr)[left_ghost] = value
+
+        def copy_right(values):
+            for attr, value in values.items():
+                getattr(fluid, attr)[right_ghost] = value
+
+        def apply_spherical_inner_boundary():
+            copy_left({
+                'rho': fluid.rho[noghost + 1:noghost + noghost + 1][::-1],
+                'vel': -fluid.vel[noghost + 1:noghost + noghost + 1][::-1],
+                'pre': fluid.pre[noghost + 1:noghost + noghost + 1][::-1],
+            })
+            fluid.rho[noghost] = fluid.rho[noghost+1]
+            fluid.vel[noghost] *= 0.0
+            fluid.pre[noghost] = fluid.pre[noghost+1]
+            fluid.rho[noghost-1] = fluid.rho[noghost+1]
+            fluid.vel[noghost-1] *= 0.0
+            fluid.pre[noghost-1] = fluid.pre[noghost+1]
+
         if btype == 'Periodic':
-            for ig in range(1,noghost+1):
-                fluid.rho[noghost-ig] = fluid.rho[nolast + 1 -ig]
-                fluid.vel[noghost-ig] = fluid.vel[nolast + 1 -ig]
-                fluid.pre[noghost-ig] = fluid.pre[nolast + 1 -ig]
-                fluid.rho[nolast+ig] = fluid.rho[noghost -1 + ig]
-                fluid.vel[nolast+ig] = fluid.vel[noghost -1 + ig]
-                fluid.pre[nolast+ig] = fluid.pre[noghost -1 + ig] 
+            for attr in fields:
+                quan = getattr(fluid, attr)
+                quan[left_ghost] = quan[interior][-noghost:]
+                quan[right_ghost] = quan[interior][:noghost]
         elif btype == 'Open':
-            #for ig in range(1,noghost+1):
             # open boundary condition does not mean the gradient is zero.
-            fluid.rho[0] = fluid.rho[noghost]
-            fluid.vel[0] = fluid.vel[noghost]
-            fluid.pre[0] = fluid.pre[noghost]
-            fluid.rho[nogrid+2*noghost-1] = fluid.rho[nogrid+2*noghost-2]
-            fluid.vel[nogrid+2*noghost-1] = fluid.vel[nogrid+2*noghost-2]
-            fluid.pre[nogrid+2*noghost-1] = fluid.pre[nogrid+2*noghost-2]
+            for attr in fields:
+                quan = getattr(fluid, attr)
+                quan[left_ghost] = quan[first]
+                quan[right_ghost] = quan[nolast]
         elif btype == 'Reflecting': 
-            for ig in range(1,noghost+1): 
-                fluid.rho[noghost-ig] = fluid.rho[noghost-1+ig]
-                fluid.vel[noghost-ig] = -fluid.vel[noghost-1+ig]
-                fluid.pre[noghost-ig] = fluid.pre[noghost-1+ig]
-                fluid.rho[nolast+ig] = fluid.rho[nolast + 1 -ig]
-                fluid.vel[nolast+ig] = -fluid.vel[nolast + 1 -ig]
-                fluid.pre[nolast+ig] = fluid.pre[nolast + 1 -ig]
+            fluid.rho[left_ghost] = fluid.rho[interior][:noghost][::-1]
+            fluid.vel[left_ghost] = -fluid.vel[interior][:noghost][::-1]
+            fluid.pre[left_ghost] = fluid.pre[interior][:noghost][::-1]
+            fluid.rho[right_ghost] = fluid.rho[interior][-noghost:][::-1]
+            fluid.vel[right_ghost] = -fluid.vel[interior][-noghost:][::-1]
+            fluid.pre[right_ghost] = fluid.pre[interior][-noghost:][::-1]
         elif btype == 'OpenSph':
             # spherical open boundary condition
             # open only at outer boundary
@@ -185,53 +208,48 @@ class Solver():
             # imply zero gradient?
             # zero velocity at r=0
             fluid.vel[noghost+1] *= 0.0
-            for ig in range(1,noghost+1): 
-                fluid.rho[noghost-ig] = fluid.rho[noghost+ig]
-                fluid.vel[noghost-ig] = -fluid.vel[noghost+ig]
-                fluid.pre[noghost-ig] = fluid.pre[noghost+ig]
-                fluid.rho[nolast+ig] = fluid.rho[nolast]
-                fluid.vel[nolast+ig] = fluid.vel[nolast]
-                fluid.pre[nolast+ig] = fluid.pre[nolast]  
-            fluid.rho[noghost] = fluid.rho[noghost+1]
-            fluid.vel[noghost] *= 0.0
-            fluid.pre[noghost] = fluid.pre[noghost+1] 
-            fluid.rho[noghost-1] = fluid.rho[noghost+1]
-            fluid.vel[noghost-1] *= 0.0
-            fluid.pre[noghost-1] = fluid.pre[noghost+1]         
+            apply_spherical_inner_boundary()
+            copy_right({
+                'rho': fluid.rho[nolast],
+                'vel': fluid.vel[nolast],
+                'pre': fluid.pre[nolast],
+            })
         elif btype == 'InflowSph':
             fluid.vel[noghost+1] *= 0.0
             pre_inflow = ru.CalPressure(par.rho_inflow,par.temp_inflow,par.mu_inflow)
-            for ig in range(1,noghost+1): 
-                fluid.rho[noghost-ig] = fluid.rho[noghost+ig]
-                fluid.vel[noghost-ig] = -fluid.vel[noghost+ig]
-                fluid.pre[noghost-ig] = fluid.pre[noghost+ig]
-                fluid.rho[nolast+ig] = par.rho_inflow
-                fluid.vel[nolast+ig] = par.vel_inflow
-                fluid.pre[nolast+ig] = pre_inflow 
-            fluid.rho[noghost] = fluid.rho[noghost+1]
-            fluid.vel[noghost] *= 0.0
-            fluid.pre[noghost] = fluid.pre[noghost+1] 
-            fluid.rho[noghost-1] = fluid.rho[noghost+1]
-            fluid.vel[noghost-1] *= 0.0
-            fluid.pre[noghost-1] = fluid.pre[noghost+1] 
+            apply_spherical_inner_boundary()
+            copy_right({
+                'rho': par.rho_inflow,
+                'vel': par.vel_inflow,
+                'pre': pre_inflow,
+            })
         elif btype == 'OutflowSph':
             pre_outflow = ru.CalPressure(par.rho_outflow,par.temp_outflow,par.mu_outflow)
-            for ig in range(1,noghost+1):
-                fluid.rho[noghost-ig] = par.rho_outflow
-                fluid.vel[noghost-ig] = par.vel_outflow
-                fluid.pre[noghost-ig] = pre_outflow
-                fluid.rho[nolast+ig] = fluid.rho[nolast]
-                fluid.vel[nolast+ig] = fluid.vel[nolast]
-                fluid.pre[nolast+ig] = fluid.pre[nolast]                   
+            copy_left({
+                'rho': par.rho_outflow,
+                'vel': par.vel_outflow,
+                'pre': pre_outflow,
+            })
+            copy_right({
+                'rho': fluid.rho[nolast],
+                'vel': fluid.vel[nolast],
+                'pre': fluid.pre[nolast],
+            })
         else:
-            raise Exception('Boundary condition unknown') 
+            raise ValueError('Boundary condition unknown: %s'%btype) 
         
     
-    def GetTimeStep(self, mesh, fluid, par, CFL=0.1):
+    def GetTimeStep(self, mesh, fluid, par, CFL=None):
+        if CFL is None:
+            CFL = par.CFL
         fluid.SetSoundSpeed()
         vsignal = np.absolute(fluid.vel) + fluid.cs
-        dt_array =  CFL * mesh.xdelta / vsignal
-        dt_array[vsignal==0] = par.dtmax 
+        dt_array = np.divide(
+            CFL * mesh.xdelta,
+            vsignal,
+            out=np.ones_like(vsignal.value) * par.dtmax,
+            where=vsignal != 0.0,
+        )
         self.dt = np.amin(dt_array)
         fluid.vsignal = vsignal
         dt = np.amin(self.dt)
@@ -241,7 +259,7 @@ class Solver():
             print('fluid.cs',fluid.cs)
             raise Exception(" time step is nan")
         if dt < par.dtmin:
-            raise Exception(" time step %.2e smaller than the minimum time step %.2e"%(dt,par.dtmin))
+            raise ValueError(" time step %.2e smaller than the minimum time step %.2e"%(dt,par.dtmin))
         if dt > par.dtmax:
             dt = par.dtmax
             #raise Exception(" time step %.2e larger than the maximum time step %.2e"%(dt,par.dtmax))
