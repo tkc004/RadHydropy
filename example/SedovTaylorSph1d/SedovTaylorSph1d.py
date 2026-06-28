@@ -66,14 +66,14 @@ runparams = {
 ICparams = {
     'nogrid':1000, # number of grid points
     'coordsys':"spherical", # coordinate system
-    'boxsize':2.0*unyt.cm, # the simulation box size
+    'boxsize':5.0*unyt.cm, # the simulation box size
     'time':0.0*unyt.s, # initial time
     'rhoini': 1.0 * unyt.g/unyt.cm**3,
     'Eini': 1.0e-4 * unyt.erg, # the total energy in central region
     #'Eini': 0.0 * unyt.erg, # the total energy in central region
     'rini': 0.5 * unyt.cm, # radius of central region
     'muini': 1.0,
-    "rinj": 0.4*unyt.cm, 
+    "rinj": 0.0*unyt.cm, 
 }
 
 
@@ -107,18 +107,17 @@ class Simwrap():
         dx = self.par.boxsize[0]/self.par.nogrid
 
         # generate initial condition
-        #self.mesh.boundary = np.linspace(0.5*dx,self.par.boxsize[0]+dx,self.par.nogrid+1)
         self.mesh.boundary = np.linspace(ICparams["rinj"],ICparams["rinj"]+self.par.boxsize[0],self.par.nogrid+1)
         self.mesh.coordinate = 0.5 * (self.mesh.boundary[:-1]+self.mesh.boundary[1:])
         self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm/unyt.s 
         self.fluid.rho =  ICparams["rhoini"] * np.ones(self.par.nogrid)
-        self.mesh.vol = (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)*4.0*np.pi/3.0 
+        self.mesh.vol = (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)*4.0*np.pi/3.0
         # mean molecular weight
         self.fluid.mu = np.ones(self.par.nogrid) * ICparams["muini"] 
         self.fluid.mass = self.fluid.rho*self.mesh.vol 
         #inject Eini to a single particle in the center
         self.fluid.temp = np.ones(self.par.nogrid) * 0.0 * unyt.K
-        icut = np.logical_and(self.mesh.coordinate<ICparams['rini'],self.mesh.coordinate>ICparams['rinj'])
+        icut = np.logical_and(self.mesh.coordinate<ICparams['rini'],self.mesh.coordinate>=ICparams['rinj'])
         pre = ICparams["Eini"] / np.sum(self.mesh.vol[icut]) * (runparams['gamma'] - 1.0)
         self.fluid.temp[icut] = ru.CalTemperature(self.fluid.rho[icut],pre,self.fluid.mu[icut])
 
@@ -139,10 +138,10 @@ def ReadandPlot(outfilename,**kwargs):
     A0 = ICparams['rhoini']  # in the case of uniform density
     t = rout.par.time
     r, rho, v, p, Rs = sa.get_blastwave_solution(E0,A0,nu,g,w,t)
-    r = unyt.uconcatenate((r, unyt.unyt_array([1.0,2]*Rs)))
-    rho = unyt.uconcatenate((rho, unyt.unyt_array([ICparams['rhoini'],ICparams['rhoini']]))) 
-    v = unyt.uconcatenate((v,unyt.unyt_array([0.0*unyt.cm/unyt.s, 0.0*unyt.cm/unyt.s])))
-    p = unyt.uconcatenate((p,unyt.unyt_array([0.0*unyt.dyn/unyt.cm**2, 0.0*unyt.dyn/unyt.cm**2])))
+    r = np.concatenate((r, unyt.unyt_array([1.0,2]*Rs)))
+    rho = np.concatenate((rho, unyt.unyt_array([ICparams['rhoini'],ICparams['rhoini']]))) 
+    v = np.concatenate((v,unyt.unyt_array([0.0*unyt.cm/unyt.s, 0.0*unyt.cm/unyt.s])))
+    p = np.concatenate((p,unyt.unyt_array([0.0*unyt.dyn/unyt.cm**2, 0.0*unyt.dyn/unyt.cm**2])))
     plt.subplot(1,3,1)
     rplot1d(rout,yquan='pre', showfig=0,**kwargs)
     plt.plot((r ).in_cgs(), (p).in_cgs(), color=kwargs['color'])
@@ -155,6 +154,7 @@ def ReadandPlot(outfilename,**kwargs):
     rplot1d(rout,yquan='rho', showfig=0,**kwargs)
     plt.plot((r ).in_cgs(), (rho).in_cgs(), color=kwargs['color'])
     plt.xlim([0,4]) 
+    plt.savefig(outfilename+'.png')
 
 
 

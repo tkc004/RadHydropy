@@ -37,9 +37,14 @@ class Fluid:
 
 
 class Mesh:
-    def __init__(self):
-        self.vol = np.ones(3) * unyt.cm**3
-        self.xdelta = np.ones(3) * unyt.cm
+    def __init__(self, boundary=None):
+        if boundary is None:
+            boundary = np.linspace(0.0, 8.0, 9)
+        self.boundary = boundary * unyt.cm
+        self.vol = np.ones(len(boundary)-1) * unyt.cm**3
+        self.xdelta = np.ones(len(boundary)-1) * unyt.cm
+        self.area = np.arange(len(boundary)-1, dtype=float) * unyt.cm**2
+        self.coordsys = 'cartesian'
 
 
 class Testing(unittest.TestCase):
@@ -68,18 +73,92 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.vel[:2].value, [-13.0, -12.0])
         np.testing.assert_array_equal(fluid.vel[-2:].value, [-15.0, -14.0])
 
+    def test_open_spherical_boundary_uses_center_symmetry(self):
+        fluid = Fluid()
+        Solver().SetBoundary(Mesh(), fluid, Par('OpenSph'))
+
+        np.testing.assert_array_equal(fluid.rho[:2].value, [3.0, 2.0])
+        np.testing.assert_array_equal(fluid.rho[-2:].value, [5.0, 5.0])
+        np.testing.assert_array_equal(fluid.vel[:2].value, [-13.0, -12.0])
+        np.testing.assert_array_equal(fluid.vel[-2:].value, [15.0, 15.0])
+
+    def test_open_spherical_boundary_skips_origin_cell_when_mesh_straddles_zero(self):
+        fluid = Fluid()
+        mesh = Mesh(np.linspace(-2.5, 5.5, 9))
+        Solver().SetBoundary(mesh, fluid, Par('OpenSph'))
+
+        np.testing.assert_array_equal(fluid.rho[:2].value, [4.0, 3.0])
+        np.testing.assert_array_equal(fluid.rho[-2:].value, [5.0, 5.0])
+        np.testing.assert_array_equal(fluid.vel[:2].value, [-14.0, -13.0])
+        np.testing.assert_array_equal(fluid.vel[-2:].value, [15.0, 15.0])
+
     def test_set_primitive_handles_zero_mass(self):
         fluid = Fluid()
         fluid.Mass = np.array([1.0, 0.0, 2.0]) * unyt.g
         fluid.Mom = np.array([2.0, 1.0, 0.0]) * unyt.g*unyt.cm/unyt.s
         fluid.Energy = np.array([10.0, 5.0, 1.0]) * unyt.g*unyt.cm**2/unyt.s**2
 
-        Solver().SetPrimitive(Mesh(), fluid)
+        Solver().SetPrimitive(Mesh(np.linspace(0.0, 3.0, 4)), fluid)
 
         self.assertEqual(fluid.vel[1], 0.0 * unyt.cm/unyt.s)
         self.assertFalse(np.any(np.isnan(fluid.rho)))
         self.assertFalse(np.any(np.isnan(fluid.vel)))
         self.assertFalse(np.any(np.isnan(fluid.pre)))
+
+    def test_spherical_uniform_pressure_does_not_create_momentum(self):
+        mesh = Mesh()
+        mesh.coordsys = 'spherical'
+        fluid = Fluid()
+        fluid.rho = np.ones(8) * unyt.g/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.pre = np.ones(8) * unyt.dyn/unyt.cm**2
+        fluid.time = 0.0 * unyt.s
+        fluid.Mass = np.ones(8) * unyt.g
+        fluid.Mom = np.zeros(8) * unyt.g*unyt.cm/unyt.s
+        fluid.Energy = np.ones(8) * unyt.g*unyt.cm**2/unyt.s**2
+        fluid.Mass.flux = np.zeros(8) * unyt.g/unyt.cm**2/unyt.s
+        fluid.Mom.flux = np.ones(8) * unyt.dyn/unyt.cm**2
+        fluid.Energy.flux = np.zeros(8) * unyt.g/unyt.s**3
+
+        Solver().AddFluxes(1.0*unyt.s, mesh, fluid, 'OpenSph')
+
+        np.testing.assert_allclose(fluid.Mom.value, np.zeros(8))
+
+    def test_spherical_origin_flux_is_zeroed(self):
+        mesh = Mesh()
+        mesh.coordsys = 'spherical'
+        fluid = Fluid()
+        fluid.Mass = np.ones(8) * unyt.g
+        fluid.Mom = np.ones(8) * unyt.g*unyt.cm/unyt.s
+        fluid.Energy = np.ones(8) * unyt.g*unyt.cm**2/unyt.s**2
+        fluid.Mass.flux = np.ones(8) * unyt.g/unyt.cm**2/unyt.s
+        fluid.Mom.flux = np.ones(8) * unyt.dyn/unyt.cm**2
+        fluid.Energy.flux = np.ones(8) * unyt.g/unyt.s**3
+
+        Solver()._zero_spherical_origin_flux(mesh, fluid)
+
+        self.assertEqual(fluid.Mass.flux[0], 0.0 * fluid.Mass.flux.units)
+        self.assertEqual(fluid.Mom.flux[0], 0.0 * fluid.Mom.flux.units)
+        self.assertEqual(fluid.Energy.flux[0], 0.0 * fluid.Energy.flux.units)
+
+    def test_spherical_center_momentum_is_projected_after_update(self):
+        mesh = Mesh()
+        mesh.coordsys = 'spherical'
+        fluid = Fluid()
+        fluid.rho = np.ones(8) * unyt.g/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.pre = np.zeros(8) * unyt.dyn/unyt.cm**2
+        fluid.time = 0.0 * unyt.s
+        fluid.Mass = np.ones(8) * unyt.g
+        fluid.Mom = np.ones(8) * unyt.g*unyt.cm/unyt.s
+        fluid.Energy = np.ones(8) * unyt.g*unyt.cm**2/unyt.s**2
+        fluid.Mass.flux = np.zeros(8) * unyt.g/unyt.cm**2/unyt.s
+        fluid.Mom.flux = np.zeros(8) * unyt.dyn/unyt.cm**2
+        fluid.Energy.flux = np.zeros(8) * unyt.g/unyt.s**3
+
+        Solver().AddFluxes(1.0*unyt.s, mesh, fluid, 'OpenSph')
+
+        self.assertEqual(fluid.Mom[0], 0.0 * fluid.Mom.units)
 
 
 if __name__ == '__main__':

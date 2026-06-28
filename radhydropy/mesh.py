@@ -7,6 +7,7 @@ class Mesh:
         pass
 
     def SetUpMesh(self, par):
+        self.coordsys = par.coordsys
         attr = 'boundary'
         if not hasattr(self, attr):
             raise AttributeError("%s does not exist in mesh; quitting."%attr)
@@ -47,18 +48,23 @@ class Mesh:
             #    raise Exception("Radial coordinate cannot be negative")
             # coordinate is the centroid of the volume (center of gravity?):
             # see Mignone+14
-            ri = 0.5 * (self.boundary[1:]+self.boundary[:-1]) 
-            #dri = 2.0*ri*self.xdelta**2 / ( 12.0 * ri**2 + self.xdelta**2)
-            #self.coordinate = ri + dri
-            self.coordinate = ri 
             #area to the left
             self.area = (self.boundary[:-1]**2)*4.0*np.pi
             #cell volume
             self.vol = np.absolute((self.boundary[1:]**3 - self.boundary[:-1]**3))*4.0*np.pi/3.0
+            vol_denom = self.boundary[1:]**3 - self.boundary[:-1]**3
+            self.coordinate = 0.5 * (self.boundary[1:] + self.boundary[:-1])
+            nonzero_vol_denom = vol_denom != 0.0
+            self.coordinate[nonzero_vol_denom] = 0.75 * (
+                self.boundary[1:][nonzero_vol_denom]**4
+                - self.boundary[:-1][nonzero_vol_denom]**4
+            ) / vol_denom[nonzero_vol_denom]
             for ig in range(len(self.vol)):
                 # This is the inner sphere
                 if ((self.boundary[ig].value < 0.0) and (self.boundary[ig+1].value > 0.0)):
                     self.vol[ig] = (self.boundary[ig+1]**3)*4.0*np.pi/3.0
+                    self.coordinate[ig] = 0.75 * self.boundary[ig+1]
+                    self.area[ig] = 0.0 * self.area.units
                     
 
         else:

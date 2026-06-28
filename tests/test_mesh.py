@@ -26,3 +26,28 @@ class Testing(unittest.TestCase):
         self.par.coordsys = 'cylindrical'
         with self.assertRaises(ValueError):
             self.mesh.SetUpMesh(self.par)
+
+    def test_spherical_origin_face_has_zero_area(self):
+        self.par.coordsys = 'spherical'
+        self.mesh.boundary = np.linspace(-0.5, 1.5, num=self.par.nogrid+1)*unyt.cm
+
+        self.mesh.SetUpMesh(self.par)
+
+        origin_cell = np.where(
+            np.logical_and(self.mesh.boundary[:-1] < 0.0 * unyt.cm,
+                           self.mesh.boundary[1:] > 0.0 * unyt.cm)
+        )[0][0]
+        self.assertEqual(self.mesh.area[origin_cell], 0.0 * unyt.cm**2)
+
+    def test_spherical_zero_inner_boundary_has_zero_area(self):
+        self.par.coordsys = 'spherical'
+        self.mesh.boundary = np.linspace(0.0, 1.0, num=self.par.nogrid+1)*unyt.cm
+
+        self.mesh.SetUpMesh(self.par)
+
+        self.assertEqual(self.mesh.boundary[self.par.noghost], 0.0 * unyt.cm)
+        self.assertEqual(self.mesh.area[self.par.noghost], 0.0 * unyt.cm**2)
+        self.assertAlmostEqual(
+            self.mesh.coordinate[self.par.noghost].to_value(unyt.cm),
+            0.75 * (self.mesh.boundary[self.par.noghost+1] - self.mesh.boundary[self.par.noghost]).to_value(unyt.cm),
+        )

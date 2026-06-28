@@ -12,6 +12,43 @@ class Solver():
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
 
+    def _spherical_center_cell_index(self, mesh):
+        if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
+            return None
+        origin = 0.0 * mesh.boundary.units
+        origin_faces = np.where(mesh.boundary[:-1] == origin)[0]
+        if len(origin_faces) > 0:
+            return int(origin_faces[0])
+        origin_cells = np.where(
+            np.logical_and(mesh.boundary[:-1] < origin, mesh.boundary[1:] > origin)
+        )[0]
+        if len(origin_cells) > 0:
+            return int(origin_cells[0])
+        return None
+
+    def _spherical_origin_face_index(self, mesh):
+        if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
+            return None
+        origin = 0.0 * mesh.boundary.units
+        origin_faces = np.where(mesh.boundary[:-1] == origin)[0]
+        if len(origin_faces) > 0:
+            return int(origin_faces[0])
+        return None
+
+    def _zero_spherical_origin_flux(self, mesh, fluid):
+        origin_face = self._spherical_origin_face_index(mesh)
+        if origin_face is None:
+            return
+        fluid.Mass.flux[origin_face] = 0.0 * fluid.Mass.flux.units
+        fluid.Mom.flux[origin_face] = 0.0 * fluid.Mom.flux.units
+        fluid.Energy.flux[origin_face] = 0.0 * fluid.Energy.flux.units
+
+    def _zero_spherical_center_momentum(self, mesh, fluid):
+        center_cell = self._spherical_center_cell_index(mesh)
+        if center_cell is None:
+            return
+        fluid.Mom[center_cell] = 0.0 * fluid.Mom.units
+
     def SetPrimitive(self, mesh, fluid, verbose=0):
         vol = mesh.vol
         fluid.rho = self._safe_divide(fluid.Mass, vol)
@@ -21,6 +58,9 @@ class Solver():
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
         fluid.vel[np.isnan(fluid.vel)] = 0.0 * fluid.vel.units
         fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0            
+        center_cell = self._spherical_center_cell_index(mesh)
+        if center_cell is not None:
+            fluid.vel[center_cell] = 0.0 * fluid.vel.units
         if verbose == 1:
             print('fluid.rho',fluid.rho)
             print('fluid.vel',fluid.vel)
@@ -34,6 +74,7 @@ class Solver():
         fluid.Energy = (0.5*fluid.rho*fluid.vel**2 + fluid.pre/(fluid.eos.gamma-1.0))*vol
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
+        self._zero_spherical_center_momentum(mesh, fluid)
         if verbose == 1:
             print('fluid.Mass',fluid.Mass)
             print('fluid.Mom',fluid.Mom)
@@ -117,6 +158,7 @@ class Solver():
             
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
             self.SetFluxOnFace(fluid, boundcond, order=order)
+            self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError("Interface flux method unknown: %s"%method) 
         if (verbose==1):
@@ -134,6 +176,9 @@ class Solver():
         df_Mass = fluid.Mass.flux*area - np.roll(fluid.Mass.flux*area,Rroll)
         df_Mom = fluid.Mom.flux*area - np.roll(fluid.Mom.flux*area,Rroll)
         df_Energy = fluid.Energy.flux*area - np.roll(fluid.Energy.flux*area,Rroll)
+        if getattr(mesh, 'coordsys', None) == 'spherical':
+            area_right = np.roll(area, Rroll)
+            df_Mom += fluid.pre * (area_right - area)
 
         # we zero out the flux from the inner most boundary? 
         #if boundcond == "OpenSph":
@@ -144,6 +189,7 @@ class Solver():
         fluid.Mass += df_Mass*dt
         fluid.Mom  += df_Mom*dt
         fluid.Energy  += df_Energy*dt
+        self._zero_spherical_center_momentum(mesh, fluid)
 
         # advance time
         fluid.time += dt
@@ -170,17 +216,16 @@ class Solver():
                 getattr(fluid, attr)[right_ghost] = value
 
         def apply_spherical_inner_boundary():
+            mirror_start = first
+            if mesh is not None and hasattr(mesh, 'boundary'):
+                origin = 0.0 * mesh.boundary.units
+                if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
+                    mirror_start = first + 1
             copy_left({
-                'rho': fluid.rho[noghost + 1:noghost + noghost + 1][::-1],
-                'vel': -fluid.vel[noghost + 1:noghost + noghost + 1][::-1],
-                'pre': fluid.pre[noghost + 1:noghost + noghost + 1][::-1],
+                'rho': fluid.rho[mirror_start:mirror_start+noghost][::-1],
+                'vel': -fluid.vel[mirror_start:mirror_start+noghost][::-1],
+                'pre': fluid.pre[mirror_start:mirror_start+noghost][::-1],
             })
-            fluid.rho[noghost] = fluid.rho[noghost+1]
-            fluid.vel[noghost] *= 0.0
-            fluid.pre[noghost] = fluid.pre[noghost+1]
-            fluid.rho[noghost-1] = fluid.rho[noghost+1]
-            fluid.vel[noghost-1] *= 0.0
-            fluid.pre[noghost-1] = fluid.pre[noghost+1]
 
         if btype == 'Periodic':
             for attr in fields:
@@ -206,8 +251,6 @@ class Solver():
             # symmetric at the center
             # this means zero flux at r=0 
             # imply zero gradient?
-            # zero velocity at r=0
-            fluid.vel[noghost+1] *= 0.0
             apply_spherical_inner_boundary()
             copy_right({
                 'rho': fluid.rho[nolast],
@@ -215,7 +258,6 @@ class Solver():
                 'pre': fluid.pre[nolast],
             })
         elif btype == 'InflowSph':
-            fluid.vel[noghost+1] *= 0.0
             pre_inflow = ru.CalPressure(par.rho_inflow,par.temp_inflow,par.mu_inflow)
             apply_spherical_inner_boundary()
             copy_right({
