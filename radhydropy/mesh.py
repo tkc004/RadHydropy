@@ -1,12 +1,35 @@
+"""Mesh construction utilities for one-dimensional simulations."""
+
 import numpy as np
 import unyt
 
 # set up the underlying mesh for fluid
 class Mesh:
+    """Store cell faces, cell centers, areas, and volumes.
+
+    A ``Mesh`` instance expects its ``boundary`` attribute to be populated with
+    physical cell-face locations before :meth:`SetUpMesh` is called.
+    """
+
     def __init__(self):
         pass
 
     def SetUpMesh(self, par):
+        """Build ghost cells and geometric factors from run parameters.
+
+        Parameters
+        ----------
+        par : object
+            Parameter object with ``nogrid``, ``noghost``, and ``coordsys``.
+            Cartesian meshes also require ``area``.
+
+        Raises
+        ------
+        AttributeError
+            If required mesh or parameter attributes are missing.
+        ValueError
+            If the mesh dimensions or coordinate system are invalid.
+        """
         self.coordsys = par.coordsys
         attr = 'boundary'
         if not hasattr(self, attr):

@@ -1,11 +1,17 @@
+"""HDF5 input and output helpers for simulations."""
+
 import h5py
 import os
 import unyt
 import numpy as np
 import radhydropy.utils as ru
 
-
 def writehdf5(ric,ICfilename):
+    """Write simulation state to a RadHydropy HDF5 file.
+
+    The output file contains a ``Header`` group for metadata and a ``Data``
+    group for mesh and fluid arrays. Units are stored as HDF5 attributes.
+    """
     print("--- writing "+ICfilename+" --- ")
     with h5py.File(ICfilename, 'w') as fic:
         # saving initial condition
@@ -33,6 +39,7 @@ def writehdf5(ric,ICfilename):
 
 
 def readhdf5(par, mesh, fluid, ICfilename): 
+    """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects."""
     print("--- reading "+ICfilename+" --- ")
     with h5py.File(ICfilename, 'r') as fic:
         # saving initial condition
@@ -68,4 +75,3 @@ def readhdf5(par, mesh, fluid, ICfilename):
         temp_unit = gdata["Temperature"].attrs['units']   
         fluid.temp = temp * unyt.Unit(temp_unit)      
         fluid.mu = gdata["Mol_weight"][:]  
-

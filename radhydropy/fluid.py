@@ -1,27 +1,49 @@
+"""Fluid state container and primitive thermodynamic updates."""
+
 import numpy as np
 import unyt
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
 
-
 # set up fluid properties
 
 class Fluid():
+    """Store primitive and conserved fluid quantities.
+
+    Fluid quantities are expected to be ``unyt`` arrays so that units propagate
+    through pressure, energy, sound-speed, and finite-volume calculations.
+    """
+
     # import mesh and EOS information into Fluid
     def __init__(self):
         pass 
 
     def SetPressure(self):
+        """Set gas pressure from density, temperature, and mean molecular weight."""
         self.pre = ru.CalPressure(self.rho,self.temp,self.mu)
         
     def SetEnergyDensity(self):
+        """Set thermal energy density from pressure and the fluid EOS."""
         self.eth = ru.CalEnergyDensity(self.pre,self.eos.gamma)
         
     def SetSoundSpeed(self):
+        """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
         self.cs = ru.CalSoundSpeed(self.pre,self.rho,self.eos.gamma)
         
     def SetUpFluid(self, par):
+        """Append ghost cells to primitive quantities and initialize pressure.
+
+        Parameters
+        ----------
+        par : object
+            Parameter object with the ``noghost`` attribute.
+
+        Raises
+        ------
+        Exception
+            If any required primitive quantity is missing.
+        """
         # check if the required attributes exist
         attrlist = ['rho','temp','mu','vel'] 
         valuelist = [1.0, 0.0, 1.0, 0.0]
@@ -45,7 +67,9 @@ class Fluid():
         self.SetPressure() 
 
     def SetTemperature(self):
+        """Set gas temperature from density, pressure, and mean molecular weight."""
         self.temp = ru.CalTemperature(self.rho,self.pre,self.mu) 
 
     def SetFluidTime(self, time): 
+        """Set the current fluid time."""
         self.time = time       

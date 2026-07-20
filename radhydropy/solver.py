@@ -1,8 +1,12 @@
+"""Finite-volume hydrodynamics solver operations."""
+
 import radhydropy.utils as ru
 import unyt
 import numpy as np
 
 class Solver():
+    """Advance one-dimensional Euler equations on a RadHydropy mesh."""
+
     def __init__(self) -> None:
         # should add information like
         # limiter, first order, what method
@@ -50,6 +54,7 @@ class Solver():
         fluid.Mom[center_cell] = 0.0 * fluid.Mom.units
 
     def SetPrimitive(self, mesh, fluid, verbose=0):
+        """Update primitive variables from conserved quantities."""
         vol = mesh.vol
         fluid.rho = self._safe_divide(fluid.Mass, vol)
         fluid.vel = self._safe_divide(fluid.Mom, fluid.Mass)
@@ -68,6 +73,7 @@ class Solver():
         
         
     def SetConserved(self, mesh, fluid, verbose=0):
+        """Update conserved mass, momentum, and energy from primitive variables."""
         vol = mesh.vol
         fluid.Mass = fluid.rho * vol
         fluid.Mom = fluid.rho * fluid.vel * vol
@@ -82,6 +88,7 @@ class Solver():
         
         
     def SetGradient(self, mesh, fluid):
+        """Calculate centered gradients for density, velocity, and pressure."""
         xdelta = mesh.xdelta
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
         fluid.vel.grad   = ru.CalGradient(fluid.vel, xdelta)
@@ -89,9 +96,15 @@ class Solver():
         
         
     def SetConservedDensityFlux(self, fluid):
+        """Store Euler fluxes and conserved densities on fluid arrays."""
         fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.vel,fluid.pre,fluid.eos.gamma)
         
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):
+        """Construct left and right states at cell faces.
+
+        ``order=0`` uses piecewise constant states. ``order=1`` applies a
+        gradient reconstruction before limiting the fluxes.
+        """
         #numpy roll Rroll, put the right value to this cell
         Lroll = 1
         if order == 0 or order == 1:
@@ -115,6 +128,7 @@ class Solver():
 
 
     def SetFluxOnFace(self,fluid,boundcond,order=0):
+        """Calculate mass, momentum, and energy fluxes at interfaces."""
         Mass_flux_0, Mom_flux_0, Energy_flux_0 = ru.CalFluxFromLR(fluid.rho.L,fluid.rho.R,
                                                                fluid.vel.L,fluid.vel.R,
                                                                fluid.pre.L,fluid.pre.R,
@@ -141,6 +155,7 @@ class Solver():
 
         
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=0, order=0):
+        """Set interface fluxes using GLF or Rusanov numerical fluxes."""
         if method=='GLF' or method=='Rusanov':
             #numpy roll Rroll, put the right value to this cell
             Lroll = 1
@@ -168,6 +183,7 @@ class Solver():
             
             
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
+        """Apply interface fluxes to conserved quantities and advance time."""
         #numpy roll Rroll, put the right value to this cell
         Rroll = -1
 
@@ -196,6 +212,7 @@ class Solver():
 
 
     def SetBoundary(self, mesh, fluid, par):
+        """Fill ghost cells according to the selected boundary condition."""
         btype = par.boundcond
         noghost = par.noghost
         nogrid = par.nogrid
@@ -282,6 +299,7 @@ class Solver():
         
     
     def GetTimeStep(self, mesh, fluid, par, CFL=None):
+        """Return a CFL-limited timestep."""
         if CFL is None:
             CFL = par.CFL
         fluid.SetSoundSpeed()

@@ -1,5 +1,6 @@
-import unyt
+"""Default simulation parameters and parameter container."""
 
+import unyt
 
 refparams = {
     'simname':'advection1d',
@@ -33,13 +34,20 @@ refparams = {
 
 
 class Par():
+    """Apply user parameters on top of :data:`refparams` defaults.
+
+    Parameters
+    ----------
+    params : dict
+        User supplied run parameters. Missing keys are filled from
+        :data:`refparams`.
+    """
+
     def __init__(self,params) -> None:
             for key, value in refparams.items():
                 if key in params:
                     setattr(self, key, params[key])
                 else:
                     print("key %s not find in params"%key)
-                    print(str(value) +"is used") 
-                    setattr(self, key, value)        
-
-        
+                    print(str(value) +"is used")
+                    setattr(self, key, value)

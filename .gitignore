@@ -9,7 +9,7 @@
 
 build/
 dist/
+docs/_build/
 testipy/*.ipynb
 
 *.ipynb_checkpoints
-

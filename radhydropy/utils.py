@@ -1,7 +1,10 @@
+"""Numerical and thermodynamic helper functions."""
+
 import numpy as np
 import unyt
 
 def SafeDivide(numerator, denominator):
+    """Divide two ``unyt`` quantities and return zero where the denominator is zero."""
     numerator_value, denominator_value = np.broadcast_arrays(
         np.asarray(numerator.value, dtype=float),
         np.asarray(denominator.value, dtype=float),
@@ -16,18 +19,22 @@ def SafeDivide(numerator, denominator):
     return quotient * (numerator.units / denominator.units)
 
 def CalPressure(rho,temp,mu):
+    """Calculate ideal-gas pressure from density, temperature, and molecular weight."""
     pressure = rho / (mu * unyt.mp) * unyt.kb * temp
     return pressure
 
 def CalTemperature(rho,pressure,mu):
+    """Calculate ideal-gas temperature from density, pressure, and molecular weight."""
     pressure_over_rho = SafeDivide(pressure, rho)
     return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
 def CalEnergyDensity(pressure, gamma):
+    """Calculate thermal energy density for a polytropic gas."""
     energydensity = pressure / (gamma-1.0)
     return energydensity
 
 def CalSoundSpeed(pressure,rho, gamma):
+    """Calculate adiabatic sound speed and zero invalid values."""
     pressure_over_rho = SafeDivide(pressure, rho)
     soundspeed = np.sqrt(gamma * pressure_over_rho).to(unyt.cm / unyt.s)
     soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm/unyt.s
@@ -35,6 +42,11 @@ def CalSoundSpeed(pressure,rho, gamma):
 
 
 def CheckParamDimen(params):
+    """Validate known dimensional parameters.
+
+    Returns ``True`` when all recognized parameters have compatible dimensions;
+    otherwise returns the first key with incompatible units.
+    """
     unitdir = {'boxsize':1.0*unyt.pc, 'tini':1.0*unyt.yr, 'vini':1.0*unyt.pc/unyt.yr,
                 'rhoini':1.0*unyt.g/unyt.cm**3, 'tempini':1.0*unyt.K, 'gamma':1.0}
     for key in unitdir: 
@@ -47,23 +59,28 @@ def CheckParamDimen(params):
 
 
 def CheckDimension(a,dimcheck):
+    """Raise a ``unyt`` error if ``a`` is not dimensionally compatible."""
     dummy = a+dimcheck
     pass
 
 
 def gaussian(x, mu, sig):
+    """Evaluate a normalized one-dimensional Gaussian profile."""
     return np.exp(-0.5 * np.power(x - mu, 2.) / np.power(sig, 2.)) / (np.sqrt(2.0*np.pi) * sig)
 
 def gaussiansph(r, sig):
+    """Evaluate a normalized spherical Gaussian profile."""
     return np.exp(-0.5 * np.power(r, 2.) / np.power(sig, 2.)) / (np.sqrt(2.0*np.pi) * sig)**3
 
 
 def CalGradient(quan,xdelta):
+    """Calculate a centered periodic gradient."""
     # only work for periodic boundary condition!
     dqdx = ( np.roll(quan,-1) - np.roll(quan,1) ) / (2. * xdelta)
     return dqdx
 
 def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cmax: float) -> float:
+    """Calculate a Lax-Friedrichs interface flux."""
     # Global Lax Friedrich function
     # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)    
     InterFaceFlux = 0.5 * (flux_L + flux_R)
@@ -72,6 +89,7 @@ def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cm
     return InterFaceFlux
     
 def CalFluxLimiter(rlim, limiter='minmod'):
+    """Calculate a slope limiter from the ratio of neighboring gradients."""
     if limiter=='minmod':
         firststep = np.minimum(np.ones(len(rlim)), rlim)
         philim = np.maximum(np.zeros(len(rlim)), firststep)
@@ -83,6 +101,7 @@ def CalFluxLimiter(rlim, limiter='minmod'):
     return philim
 
 def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
+    """Extrapolate cell-centered values to left and right faces."""
     #numpy roll Rroll, put the right value to this cell
     Lroll = 1
     Rroll = -1
@@ -99,6 +118,7 @@ def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
     return flux_L, flux_R
 
 def GetFQ(rho,vel,pre,gamma):
+    """Return Euler fluxes and conserved densities for mass, momentum, and energy."""
     Fmass = rho * vel
     qmass = rho
     Fmom  = rho * vel* vel
@@ -112,6 +132,7 @@ def GetFQ(rho,vel,pre,gamma):
 
 
 def CalFluxFromLR(rho_L,rho_R,u_L,u_R,p_L,p_R,gamma,cmax):
+    """Calculate Rusanov/GLF fluxes from left and right primitive states."""
     Fmass_L, qmass_L, Fmom_L, qmom_L, FEn_L, qEn_L  = GetFQ(rho_L, u_L, p_L, gamma)
     Fmass_R, qmass_R, Fmom_R, qmom_R, FEn_R, qEn_R  = GetFQ(rho_R, u_R, p_R, gamma)
 
@@ -123,6 +144,7 @@ def CalFluxFromLR(rho_L,rho_R,u_L,u_R,p_L,p_R,gamma,cmax):
 
 
 def ApplyFluxLimiter(q,flux_1,flux_0):
+    """Blend first-order and second-order fluxes using a minmod limiter."""
     #numpy roll Rroll, put the right value to this cell
     L2roll = 2
     Lroll = 1

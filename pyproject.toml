@@ -22,3 +22,6 @@ dependencies = [
 test = [
     "pytest",
 ]
+docs = [
+    "sphinx>=7",
+]

@@ -1,8 +1,11 @@
+"""Example command-line entry point for a Sod shock setup."""
+
 from radhydropy.rsim import Rsim
 import unyt
 from radhydropy.analysis import rplot1d
 
 def main():
+    """Run the bundled Sod shock example."""
 
     params_sodshock = {
         'simname':'SodShock',
