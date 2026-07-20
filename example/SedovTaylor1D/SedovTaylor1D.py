@@ -1,13 +1,20 @@
 from radhydropy.rsim import Rsim
 import unyt
-from radhydropy.analysis import rplot1d
+import os
+import tempfile
+
+os.environ.setdefault(
+    'MPLCONFIGDIR',
+    os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'),
+)
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pylab import rcParams, rc
+from radhydropy.analysis import rplot1d
 import numpy as np
 import radhydropy.utils as ru 
 import radhydropy.io as rio
-#importing the os module
-import os
 import SedovTaylor_analytic as sa
 
 
@@ -172,8 +179,11 @@ def main():
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
         ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=1,color=next(ax._get_lines.prop_cycler)['color'])
         #plt.ylim(ymax=2.0)
-    plt.show()    
+    figure_filename = rundir + '/SedovTaylor1D.jpg'
+    plt.tight_layout()
+    plt.savefig(figure_filename, dpi=200)
+    plt.close()
+    print('figure = %s' % figure_filename)
 
 if __name__ == "__main__":
     main()
-

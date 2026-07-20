@@ -154,13 +154,6 @@ def analytic_ionized_fraction(time_yr):
     return y0 / (1.0 + y0 * rate_time)
 
 
-def exponential_ionized_fraction(time_yr):
-    time = np.asarray(time_yr) * unyt.yr
-    rate_time = (recombination_rate() * time).value
-    y0 = 1.0 - ICparams['xHIini']
-    return y0 * np.exp(-rate_time)
-
-
 def write_output(sim, outindex):
     sim.fluid.SetTemperature()
     sim.par.time = sim.fluid.time
@@ -185,7 +178,6 @@ def save_history_plot(history, filename):
     time_yr = np.asarray(history['time_yr'])
     ionized_fraction = np.asarray(history['ionized_fraction'])
     analytic = analytic_ionized_fraction(time_yr)
-    exponential = exponential_ionized_fraction(time_yr)
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
     ax.plot(
@@ -203,14 +195,6 @@ def save_history_plot(history, filename):
         color='black',
         lw=2.0,
         label='Case-B analytic',
-    )
-    ax.plot(
-        time_yr,
-        exponential,
-        color='0.55',
-        lw=1.5,
-        ls=':',
-        label='Fixed-ne exponential',
     )
     ax.axhline(
         1.0 - target_neutral_fraction,

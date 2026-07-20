@@ -1,12 +1,19 @@
 from radhydropy.rsim import Rsim
 import unyt
-from radhydropy.analysis import rplot1d
+import os
+import tempfile
+
+os.environ.setdefault(
+    'MPLCONFIGDIR',
+    os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'),
+)
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from radhydropy.analysis import rplot1d
 import numpy as np
 import radhydropy.utils as ru 
 import radhydropy.io as rio
-#importing the os module
-import os
 
 #to get the current working directory
 rundir = os.getcwd()
@@ -114,7 +121,11 @@ def main():
     for outindex in range(0,9,2):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
         ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=5,color=next(ax._get_lines.prop_cycler)['color'])
-    plt.show()
+    figure_filename = rundir + '/OutflowSph1D.jpg'
+    plt.tight_layout()
+    plt.savefig(figure_filename, dpi=200)
+    plt.close()
+    print('figure = %s' % figure_filename)
 
 
 if __name__ == "__main__":
