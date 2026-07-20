@@ -169,12 +169,16 @@ def hydrogen_neutral_fraction_rate(
     temperature,
     xHI,
     hydrogen_mass_fraction=1.0,
+    collisional_ionization=True,
 ):
     """Return ``dxHI/dt`` from recombination and collisional ionization."""
     xHI = clip_neutral_fraction(xHI)
     ionized = 1.0 - xHI
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
-    rate = ionized**2 * nH * alpha_B(temperature) - xHI * ionized * nH * beta(temperature)
+    ionization_coefficient = beta(temperature)
+    if not collisional_ionization:
+        ionization_coefficient = np.zeros_like(ionization_coefficient.value) * ionization_coefficient.units
+    rate = ionized**2 * nH * alpha_B(temperature) - xHI * ionized * nH * ionization_coefficient
     return rate.to(1.0 / unyt.s)
 
 
@@ -184,12 +188,16 @@ def hydrogen_neutral_fraction_implicit_update(
     xHI,
     dt,
     hydrogen_mass_fraction=1.0,
+    collisional_ionization=True,
 ):
     """Return backward-Euler update of the hydrogen neutral fraction."""
     xHI = clip_neutral_fraction(xHI)
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
     recombination_rate = (nH * alpha_B(temperature)).to_value(1.0 / unyt.s)
-    ionization_rate = (nH * beta(temperature)).to_value(1.0 / unyt.s)
+    if collisional_ionization:
+        ionization_rate = (nH * beta(temperature)).to_value(1.0 / unyt.s)
+    else:
+        ionization_rate = np.zeros_like(recombination_rate)
     dt_value = dt.to_value(unyt.s) if hasattr(dt, "to_value") else float(dt)
 
     a = dt_value * (recombination_rate + ionization_rate)
@@ -212,12 +220,15 @@ def hydrogen_thermal_rate(
     temperature,
     xHI,
     hydrogen_mass_fraction=1.0,
+    collisional_ionization=True,
 ):
     """Return hydrogen cooling rate per volume, ``rho du/dt``."""
     xHI = clip_neutral_fraction(xHI)
     ionized = 1.0 - xHI
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
-    eHI_cooling = gamma_line_eHI(temperature) + gamma_ion_eHI(temperature)
+    eHI_cooling = gamma_line_eHI(temperature)
+    if collisional_ionization:
+        eHI_cooling += gamma_ion_eHI(temperature)
     eHII_cooling = gamma_ff_eHII(temperature) + gamma_B_eHII(temperature)
     cooling = nH**2 * (xHI * ionized * eHI_cooling + ionized**2 * eHII_cooling)
     return (-cooling).to(unyt.erg / unyt.cm**3 / unyt.s)
@@ -228,6 +239,7 @@ def hydrogen_source_terms(
     temperature,
     xHI,
     hydrogen_mass_fraction=1.0,
+    collisional_ionization=True,
 ):
     """Return thermal and neutral-fraction source terms for hydrogen."""
     thermal_rate = hydrogen_thermal_rate(
@@ -235,12 +247,14 @@ def hydrogen_source_terms(
         temperature,
         xHI,
         hydrogen_mass_fraction=hydrogen_mass_fraction,
+        collisional_ionization=collisional_ionization,
     )
     neutral_fraction_rate = hydrogen_neutral_fraction_rate(
         rho,
         temperature,
         xHI,
         hydrogen_mass_fraction=hydrogen_mass_fraction,
+        collisional_ionization=collisional_ionization,
     )
     return thermal_rate, neutral_fraction_rate
 

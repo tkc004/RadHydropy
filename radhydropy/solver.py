@@ -225,6 +225,8 @@ class Solver():
 
         source_CFL = getattr(par, 'hydrogen_source_CFL', 0.1)
         hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
+        thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
         if getattr(par, 'hydrogen_update_mu', False):
             fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
         fluid.SetTemperature()
@@ -233,16 +235,20 @@ class Solver():
             fluid.temp,
             fluid.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
+            collisional_ionization=collisional_ionization,
         )
         interior = self._interior_slice(par)
         candidates = []
 
         thermal_energy_density = fluid.pre / (fluid.eos.gamma - 1.0)
         thermal_rate_abs = np.absolute(thermal_rate[interior])
-        cooling_valid = np.logical_and(
-            thermal_rate_abs > 0.0 * thermal_rate_abs.units,
-            thermal_energy_density[interior] > 0.0 * thermal_energy_density.units,
-        )
+        if thermal_coupling:
+            cooling_valid = np.logical_and(
+                thermal_rate_abs > 0.0 * thermal_rate_abs.units,
+                thermal_energy_density[interior] > 0.0 * thermal_energy_density.units,
+            )
+        else:
+            cooling_valid = np.zeros(len(thermal_rate_abs), dtype=bool)
         if np.any(cooling_valid):
             cooling_times = (
                 source_CFL
@@ -298,6 +304,8 @@ class Solver():
             return
 
         hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
+        thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
         interior = self._interior_slice(par)
         remaining = dt.to(unyt.s)
         zero_time = 0.0 * unyt.s
@@ -310,6 +318,7 @@ class Solver():
                 fluid.temp,
                 fluid.xHI,
                 hydrogen_mass_fraction=hydrogen_mass_fraction,
+                collisional_ionization=collisional_ionization,
             )
             sub_dt = self.GetHydrogenTimeStep(mesh, fluid, par)
             if not np.isfinite(sub_dt.to_value(unyt.s)) or sub_dt <= zero_time:
@@ -317,8 +326,9 @@ class Solver():
             if sub_dt > remaining:
                 sub_dt = remaining
 
-            self._apply_hydrogen_thermal_source(sub_dt, mesh, fluid, thermal_rate, par)
-            self.SetPrimitive(mesh, fluid)
+            if thermal_coupling:
+                self._apply_hydrogen_thermal_source(sub_dt, mesh, fluid, thermal_rate, par)
+                self.SetPrimitive(mesh, fluid)
             if getattr(par, 'hydrogen_update_mu', False):
                 fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
             fluid.SetTemperature()
@@ -328,6 +338,7 @@ class Solver():
                 fluid.xHI[interior],
                 sub_dt,
                 hydrogen_mass_fraction=hydrogen_mass_fraction,
+                collisional_ionization=collisional_ionization,
             )
             if getattr(par, 'hydrogen_update_mu', False):
                 fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)

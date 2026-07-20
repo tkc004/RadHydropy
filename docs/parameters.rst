@@ -70,9 +70,9 @@ Hydrogen thermo-chemistry is disabled by default. Set
 ``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
 ``xHI = nHI / nH`` and apply the associated line, ionization, bremsstrahlung,
 and case-B recombination cooling source terms. Source terms are subcycled
-inside each hydrodynamic step: the thermal equation is advanced explicitly,
-then the updated temperature is used for a backward-Euler neutral-fraction
-solve.
+inside each hydrodynamic step: the thermal equation is advanced explicitly
+when enabled, then the updated temperature is used for a backward-Euler
+neutral-fraction solve.
 
 .. list-table::
    :header-rows: 1
@@ -100,6 +100,13 @@ solve.
      - dimensionless
    * - ``hydrogen_update_mu``
      - Update mean molecular weight from ``xHI`` for pure-hydrogen runs.
+     - boolean
+   * - ``hydrogen_thermal_coupling``
+     - Apply hydrogen heating/cooling to the gas energy. Disable this for
+       fixed-temperature chemistry tests.
+     - boolean
+   * - ``hydrogen_collisional_ionization``
+     - Include collisional ionization in the neutral-fraction equation.
      - boolean
 
 Boundary-Specific Keys

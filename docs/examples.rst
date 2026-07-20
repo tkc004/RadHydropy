@@ -23,6 +23,8 @@ Available Examples
      - Spherical inflow setup.
    * - ``example/HydrogenCooling1D``
      - Uniform ionized hydrogen box with cooling and chemistry enabled.
+   * - ``example/HydrogenRecombination1D``
+     - Fixed-temperature case-B hydrogen recombination box.
    * - ``example/Outflow1d``
      - Cartesian outflow setup.
    * - ``example/OutflowSph1d``

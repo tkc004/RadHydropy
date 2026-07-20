@@ -195,6 +195,32 @@ class Testing(unittest.TestCase):
         self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
         np.testing.assert_array_equal(fluid.xHI[:2], xHI_before[:2])
 
+    def test_hydrogen_chemistry_can_run_without_thermal_coupling(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        par.hydrogen_thermal_coupling = False
+        par.hydrogen_collisional_ionization = False
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
+        fluid.mu = np.ones(8) * 0.5
+        fluid.xHI = np.ones(8) * 0.5
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+        energy_before = fluid.Energy.copy()
+        xHI_before = fluid.xHI.copy()
+
+        Solver().AddHydrogenSources(1.0e6 * unyt.s, mesh, fluid, par)
+
+        np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
+        self.assertTrue(np.all(fluid.xHI[2:6] > xHI_before[2:6]))
+
     def test_hydrogen_subcycle_timestep_can_be_smaller_than_dtmax(self):
         par = Par('Periodic')
         par.hydrogen_chemistry = True
