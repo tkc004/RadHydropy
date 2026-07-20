@@ -10,6 +10,7 @@ The code currently provides:
 - mesh setup with ghost cells for Cartesian and spherical coordinates;
 - primitive and conserved fluid state handling;
 - ideal-gas pressure, temperature, energy-density, and sound-speed helpers;
+- optional subcycled hydrogen cooling with implicit neutral-fraction evolution;
 - finite-volume updates with GLF/Rusanov interface fluxes;
 - periodic, open, reflecting, spherical open, inflow, and outflow boundaries;
 - HDF5 input/output helpers; and
@@ -107,6 +108,7 @@ Initial-condition and output files use a compact HDF5 structure:
   - `Velocity`
   - `Temperature`
   - `Mol_weight`
+  - `NeutralFraction` (optional; used by hydrogen thermo-chemistry)
 
 Datasets with physical units store the unit string in a `units` attribute.
 

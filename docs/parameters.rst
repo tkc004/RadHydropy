@@ -63,6 +63,45 @@ Common Runtime Keys
      - Cartesian cross-sectional area used to calculate volumes.
      - area
 
+Hydrogen Thermo-Chemistry Keys
+------------------------------
+
+Hydrogen thermo-chemistry is disabled by default. Set
+``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
+``xHI = nHI / nH`` and apply the associated line, ionization, bremsstrahlung,
+and case-B recombination cooling source terms. Source terms are subcycled
+inside each hydrodynamic step: the thermal equation is advanced explicitly,
+then the updated temperature is used for a backward-Euler neutral-fraction
+solve.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 50 22
+
+   * - Key
+     - Meaning
+     - Typical unit
+   * - ``hydrogen_chemistry``
+     - Enable hydrogen thermal and neutral-fraction source terms.
+     - boolean
+   * - ``hydrogen_mass_fraction``
+     - Hydrogen mass fraction used to compute ``nH`` from density.
+     - dimensionless
+   * - ``hydrogen_xHI_initial``
+     - Initial neutral fraction used when the HDF5 file has no
+       ``NeutralFraction`` dataset.
+     - dimensionless
+   * - ``hydrogen_xHI_inflow`` / ``hydrogen_xHI_outflow``
+     - Neutral fraction imposed by spherical inflow/outflow ghost cells.
+     - dimensionless
+   * - ``hydrogen_source_CFL``
+     - Fractional subcycle limiter for ``u / |du/dt|`` and
+       ``xHI / |dxHI/dt|``.
+     - dimensionless
+   * - ``hydrogen_update_mu``
+     - Update mean molecular weight from ``xHI`` for pure-hydrogen runs.
+     - boolean
+
 Boundary-Specific Keys
 ----------------------
 

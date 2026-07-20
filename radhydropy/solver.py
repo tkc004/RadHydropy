@@ -1,6 +1,7 @@
 """Finite-volume hydrodynamics solver operations."""
 
 import radhydropy.utils as ru
+import radhydropy.hydrogen as rh
 import unyt
 import numpy as np
 
@@ -15,6 +16,13 @@ class Solver():
 
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
+
+    def _interior_slice(self, par):
+        first = par.noghost
+        return slice(first, first + par.nogrid)
+
+    def _hydrogen_enabled(self, fluid, par):
+        return getattr(par, 'hydrogen_chemistry', False) and hasattr(fluid, 'xHI')
 
     def _spherical_center_cell_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
@@ -210,6 +218,121 @@ class Solver():
         # advance time
         fluid.time += dt
 
+    def GetHydrogenTimeStep(self, mesh, fluid, par):
+        """Return a hydrogen source subcycle timestep."""
+        if not self._hydrogen_enabled(fluid, par):
+            return par.dtmax
+
+        source_CFL = getattr(par, 'hydrogen_source_CFL', 0.1)
+        hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        if getattr(par, 'hydrogen_update_mu', False):
+            fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+        fluid.SetTemperature()
+        thermal_rate, neutral_fraction_rate = rh.hydrogen_source_terms(
+            fluid.rho,
+            fluid.temp,
+            fluid.xHI,
+            hydrogen_mass_fraction=hydrogen_mass_fraction,
+        )
+        interior = self._interior_slice(par)
+        candidates = []
+
+        thermal_energy_density = fluid.pre / (fluid.eos.gamma - 1.0)
+        thermal_rate_abs = np.absolute(thermal_rate[interior])
+        cooling_valid = np.logical_and(
+            thermal_rate_abs > 0.0 * thermal_rate_abs.units,
+            thermal_energy_density[interior] > 0.0 * thermal_energy_density.units,
+        )
+        if np.any(cooling_valid):
+            cooling_times = (
+                source_CFL
+                * thermal_energy_density[interior][cooling_valid]
+                / thermal_rate_abs[cooling_valid]
+            ).to(unyt.s)
+            cooling_times = cooling_times[
+                np.logical_and(np.isfinite(cooling_times.value), cooling_times.value > 0.0)
+            ]
+            if len(cooling_times) > 0:
+                candidates.append(np.amin(cooling_times))
+
+        xHI = rh.clip_neutral_fraction(fluid.xHI[interior])
+        neutral_fraction_rate_abs = np.absolute(
+            neutral_fraction_rate[interior].to_value(1.0 / unyt.s)
+        )
+        chemistry_valid = np.logical_and(
+            neutral_fraction_rate_abs > 0.0,
+            xHI > 0.0,
+        )
+        if np.any(chemistry_valid):
+            chemistry_times = (
+                source_CFL
+                * xHI[chemistry_valid]
+                / neutral_fraction_rate_abs[chemistry_valid]
+            ) * unyt.s
+            chemistry_times = chemistry_times[
+                np.logical_and(np.isfinite(chemistry_times.value), chemistry_times.value > 0.0)
+            ]
+            if len(chemistry_times) > 0:
+                candidates.append(np.amin(chemistry_times))
+
+        if len(candidates) == 0:
+            return par.dtmax
+        return min(candidates)
+
+    def _apply_hydrogen_thermal_source(self, dt, mesh, fluid, thermal_rate, par):
+        interior = self._interior_slice(par)
+        fluid.Energy[interior] += (
+            thermal_rate[interior] * mesh.vol[interior] * dt
+        ).to(fluid.Energy.units)
+
+        kinetic_energy = 0.5 * fluid.rho * fluid.vel**2 * mesh.vol
+        overcooled = fluid.Energy[interior] < kinetic_energy[interior]
+        if np.any(overcooled):
+            interior_indices = np.arange(len(fluid.Energy))[interior]
+            overcooled_indices = interior_indices[overcooled]
+            fluid.Energy[overcooled_indices] = kinetic_energy[overcooled_indices]
+
+    def AddHydrogenSources(self, dt, mesh, fluid, par):
+        """Subcycle hydrogen cooling explicitly and chemistry implicitly."""
+        if not self._hydrogen_enabled(fluid, par):
+            return
+
+        hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        interior = self._interior_slice(par)
+        remaining = dt.to(unyt.s)
+        zero_time = 0.0 * unyt.s
+        while remaining > zero_time:
+            if getattr(par, 'hydrogen_update_mu', False):
+                fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+            fluid.SetTemperature()
+            thermal_rate, _ = rh.hydrogen_source_terms(
+                fluid.rho,
+                fluid.temp,
+                fluid.xHI,
+                hydrogen_mass_fraction=hydrogen_mass_fraction,
+            )
+            sub_dt = self.GetHydrogenTimeStep(mesh, fluid, par)
+            if not np.isfinite(sub_dt.to_value(unyt.s)) or sub_dt <= zero_time:
+                sub_dt = remaining
+            if sub_dt > remaining:
+                sub_dt = remaining
+
+            self._apply_hydrogen_thermal_source(sub_dt, mesh, fluid, thermal_rate, par)
+            self.SetPrimitive(mesh, fluid)
+            if getattr(par, 'hydrogen_update_mu', False):
+                fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+            fluid.SetTemperature()
+            fluid.xHI[interior] = rh.hydrogen_neutral_fraction_implicit_update(
+                fluid.rho[interior],
+                fluid.temp[interior],
+                fluid.xHI[interior],
+                sub_dt,
+                hydrogen_mass_fraction=hydrogen_mass_fraction,
+            )
+            if getattr(par, 'hydrogen_update_mu', False):
+                fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+            remaining -= sub_dt
+
 
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
@@ -222,7 +345,10 @@ class Solver():
         interior = slice(first, right_start)
         left_ghost = slice(0, noghost)
         right_ghost = slice(right_start, right_start + noghost)
-        fields = ('rho', 'vel', 'pre')
+        fields = ['rho', 'vel', 'pre']
+        if hasattr(fluid, 'xHI'):
+            fields.append('xHI')
+        scalar_fields = [field for field in fields if field != 'vel']
 
         def copy_left(values):
             for attr, value in values.items():
@@ -238,11 +364,14 @@ class Solver():
                 origin = 0.0 * mesh.boundary.units
                 if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
                     mirror_start = first + 1
-            copy_left({
+            left_values = {
                 'rho': fluid.rho[mirror_start:mirror_start+noghost][::-1],
                 'vel': -fluid.vel[mirror_start:mirror_start+noghost][::-1],
                 'pre': fluid.pre[mirror_start:mirror_start+noghost][::-1],
-            })
+            }
+            if hasattr(fluid, 'xHI'):
+                left_values['xHI'] = fluid.xHI[mirror_start:mirror_start+noghost][::-1]
+            copy_left(left_values)
 
         if btype == 'Periodic':
             for attr in fields:
@@ -256,12 +385,12 @@ class Solver():
                 quan[left_ghost] = quan[first]
                 quan[right_ghost] = quan[nolast]
         elif btype == 'Reflecting': 
-            fluid.rho[left_ghost] = fluid.rho[interior][:noghost][::-1]
+            for attr in scalar_fields:
+                quan = getattr(fluid, attr)
+                quan[left_ghost] = quan[interior][:noghost][::-1]
+                quan[right_ghost] = quan[interior][-noghost:][::-1]
             fluid.vel[left_ghost] = -fluid.vel[interior][:noghost][::-1]
-            fluid.pre[left_ghost] = fluid.pre[interior][:noghost][::-1]
-            fluid.rho[right_ghost] = fluid.rho[interior][-noghost:][::-1]
             fluid.vel[right_ghost] = -fluid.vel[interior][-noghost:][::-1]
-            fluid.pre[right_ghost] = fluid.pre[interior][-noghost:][::-1]
         elif btype == 'OpenSph':
             # spherical open boundary condition
             # open only at outer boundary
@@ -269,31 +398,43 @@ class Solver():
             # this means zero flux at r=0 
             # imply zero gradient?
             apply_spherical_inner_boundary()
-            copy_right({
+            right_values = {
                 'rho': fluid.rho[nolast],
                 'vel': fluid.vel[nolast],
                 'pre': fluid.pre[nolast],
-            })
+            }
+            if hasattr(fluid, 'xHI'):
+                right_values['xHI'] = fluid.xHI[nolast]
+            copy_right(right_values)
         elif btype == 'InflowSph':
             pre_inflow = ru.CalPressure(par.rho_inflow,par.temp_inflow,par.mu_inflow)
             apply_spherical_inner_boundary()
-            copy_right({
+            right_values = {
                 'rho': par.rho_inflow,
                 'vel': par.vel_inflow,
                 'pre': pre_inflow,
-            })
+            }
+            if hasattr(fluid, 'xHI'):
+                right_values['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
+            copy_right(right_values)
         elif btype == 'OutflowSph':
             pre_outflow = ru.CalPressure(par.rho_outflow,par.temp_outflow,par.mu_outflow)
-            copy_left({
+            left_values = {
                 'rho': par.rho_outflow,
                 'vel': par.vel_outflow,
                 'pre': pre_outflow,
-            })
-            copy_right({
+            }
+            if hasattr(fluid, 'xHI'):
+                left_values['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
+            copy_left(left_values)
+            right_values = {
                 'rho': fluid.rho[nolast],
                 'vel': fluid.vel[nolast],
                 'pre': fluid.pre[nolast],
-            })
+            }
+            if hasattr(fluid, 'xHI'):
+                right_values['xHI'] = fluid.xHI[nolast]
+            copy_right(right_values)
         else:
             raise ValueError('Boundary condition unknown: %s'%btype) 
         
@@ -313,6 +454,7 @@ class Solver():
         self.dt = np.amin(dt_array)
         fluid.vsignal = vsignal
         dt = np.amin(self.dt)
+        self.dt = dt
         if np.isnan(np.array(dt)):
             print('vsignal', vsignal)
             print('fluid.vel',fluid.vel)

@@ -42,7 +42,8 @@ Initial-condition files use a compact HDF5 layout:
 * ``Header`` contains ``Coordinate_System``, ``Number_Grids``, ``Time``, and
   ``BoxSize``.
 * ``Data`` contains ``Boundary``, ``Density``, ``Velocity``, ``Temperature``,
-  and ``Mol_weight``.
+  and ``Mol_weight``. The optional ``NeutralFraction`` dataset stores
+  ``xHI = nHI / nH`` for hydrogen thermo-chemistry runs.
 * Datasets with units store the unit string in a ``units`` attribute.
 
 Use :func:`radhydropy.io.writehdf5` to write this layout and

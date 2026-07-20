@@ -25,6 +25,12 @@ Fluid
 .. automodule:: radhydropy.fluid
    :members:
 
+Hydrogen
+--------
+
+.. automodule:: radhydropy.hydrogen
+   :members:
+
 Solver
 ------
 

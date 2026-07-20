@@ -63,6 +63,10 @@ class Rsim():
         self.solver.SetInterFaceFlux(self.mesh,self.fluid,self.par.boundcond,order=self.par.order)
         self.solver.AddFluxes(dt,self.mesh,self.fluid,self.par.boundcond)
         self.solver.SetPrimitive(self.mesh,self.fluid)
+        self.solver.AddHydrogenSources(dt,self.mesh,self.fluid,self.par)
+        self.solver.SetPrimitive(self.mesh,self.fluid)
+        if getattr(self.par, 'hydrogen_chemistry', False):
+            self.fluid.SetTemperature()
         return dt
 
     def Run(self,outputtime=0):

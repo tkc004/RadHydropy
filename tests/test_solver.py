@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import unyt
 
+from radhydropy.fluid import Fluid as RealFluid
 from radhydropy.solver import Solver
 
 
@@ -63,6 +64,15 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_array_equal(fluid.rho[:2].value, [4.0, 5.0])
         np.testing.assert_array_equal(fluid.rho[-2:].value, [2.0, 3.0])
+
+    def test_periodic_boundary_wraps_neutral_fraction(self):
+        fluid = Fluid()
+        fluid.xHI = np.arange(8, dtype=float) / 10.0
+
+        Solver().SetBoundary(None, fluid, Par('Periodic'))
+
+        np.testing.assert_array_equal(fluid.xHI[:2], [0.4, 0.5])
+        np.testing.assert_array_equal(fluid.xHI[-2:], [0.2, 0.3])
 
     def test_reflecting_boundary_reverses_velocity(self):
         fluid = Fluid()
@@ -159,6 +169,76 @@ class Testing(unittest.TestCase):
         Solver().AddFluxes(1.0*unyt.s, mesh, fluid, 'OpenSph')
 
         self.assertEqual(fluid.Mom[0], 0.0 * fluid.Mom.units)
+
+    def test_hydrogen_source_cools_and_updates_neutral_fraction(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 1.0e5 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8) * 0.5
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+        energy_before = fluid.Energy.copy()
+        xHI_before = fluid.xHI.copy()
+
+        Solver().AddHydrogenSources(1.0e6 * unyt.s, mesh, fluid, par)
+
+        self.assertTrue(np.all(fluid.Energy[2:6] < energy_before[2:6]))
+        self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
+        np.testing.assert_array_equal(fluid.xHI[:2], xHI_before[:2])
+
+    def test_hydrogen_subcycle_timestep_can_be_smaller_than_dtmax(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * 1.0e10 * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 1.0e5 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8) * 0.5
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+        Solver().SetPrimitive(mesh, fluid)
+
+        hydrogen_dt = Solver().GetHydrogenTimeStep(mesh, fluid, par)
+
+        self.assertLess(hydrogen_dt, par.dtmax)
+
+    def test_hydrogen_subcycling_does_not_limit_hydro_timestep(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        mesh = Mesh()
+        mesh.xdelta = np.ones(8) * 1.0e12 * unyt.cm
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * 1.0e10 * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 1.0e5 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8) * 0.5
+        fluid.SetPressure()
+
+        hydrogen_dt = Solver().GetHydrogenTimeStep(mesh, fluid, par)
+        hydro_dt = Solver().GetTimeStep(mesh, fluid, par)
+
+        self.assertLess(hydrogen_dt, par.dtmax)
+        self.assertEqual(hydro_dt, par.dtmax)
 
 
 if __name__ == '__main__':

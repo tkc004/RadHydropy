@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+import radhydropy.hydrogen as rh
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
@@ -30,6 +31,13 @@ class Fluid():
     def SetSoundSpeed(self):
         """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
         self.cs = ru.CalSoundSpeed(self.pre,self.rho,self.eos.gamma)
+
+    def SetHydrogenMu(self, hydrogen_mass_fraction=1.0):
+        """Set mean molecular weight from hydrogen neutral fraction."""
+        self.mu = rh.pure_hydrogen_mu(
+            self.xHI,
+            hydrogen_mass_fraction=hydrogen_mass_fraction,
+        )
         
     def SetUpFluid(self, par):
         """Append ghost cells to primitive quantities and initialize pressure.
@@ -50,6 +58,15 @@ class Fluid():
         for attr in attrlist:
             if not hasattr(self, attr):
                 raise Exception("%s does not exist in fluid; quitting."%attr)
+
+        if getattr(par, 'hydrogen_chemistry', False) and not hasattr(self, 'xHI'):
+            self.xHI = (
+                np.ones(np.shape(self.rho), dtype=float)
+                * getattr(par, 'hydrogen_xHI_initial', 1.0)
+            )
+        if hasattr(self, 'xHI'):
+            attrlist.append('xHI')
+            valuelist.append(getattr(par, 'hydrogen_xHI_initial', 1.0))
             
 
         #add ghost cells:
@@ -64,6 +81,15 @@ class Fluid():
             ghost = np.ones(noghost) * units * valuelist[iattr] 
             quan = unyt.uconcatenate((ghost,quan,ghost))
             setattr(self, attr, quan)
+        if hasattr(self, 'xHI'):
+            self.xHI = rh.clip_neutral_fraction(self.xHI)
+        if (
+            getattr(par, 'hydrogen_chemistry', False)
+            and getattr(par, 'hydrogen_update_mu', False)
+        ):
+            self.SetHydrogenMu(
+                hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
+            )
         self.SetPressure() 
 
     def SetTemperature(self):

@@ -21,6 +21,8 @@ Available Examples
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``
      - Spherical inflow setup.
+   * - ``example/HydrogenCooling1D``
+     - Uniform ionized hydrogen box with cooling and chemistry enabled.
    * - ``example/Outflow1d``
      - Cartesian outflow setup.
    * - ``example/OutflowSph1d``
