@@ -6,7 +6,15 @@ once the mean temperature reaches roughly ``2e4 K``.
 """
 
 import os
+import tempfile
 
+os.environ.setdefault(
+    'MPLCONFIGDIR',
+    os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'),
+)
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
@@ -131,6 +139,44 @@ def write_output(sim, outindex):
     return time_value(sim, unyt.s)
 
 
+def append_history(sim, history):
+    history['time_yr'].append(time_value(sim, unyt.yr))
+    history['temperature_K'].append(mean_temperature(sim).to_value(unyt.K))
+    history['xHI'].append(mean_neutral_fraction(sim))
+
+
+def save_history_plot(history, filename):
+    fig, ax_temp = plt.subplots(figsize=(7.0, 4.5))
+    ax_xHI = ax_temp.twinx()
+
+    ax_temp.plot(
+        history['time_yr'],
+        history['temperature_K'],
+        color='tab:red',
+        lw=2.0,
+        label='Temperature',
+    )
+    ax_xHI.plot(
+        history['time_yr'],
+        history['xHI'],
+        color='tab:blue',
+        lw=2.0,
+        label='Neutral fraction',
+    )
+
+    ax_temp.set_xlabel('Time [yr]')
+    ax_temp.set_ylabel('Temperature [K]', color='tab:red')
+    ax_xHI.set_ylabel('Neutral fraction', color='tab:blue')
+    ax_temp.set_yscale('log')
+    ax_xHI.set_ylim(0.0, 1.0)
+    ax_temp.tick_params(axis='y', labelcolor='tab:red')
+    ax_xHI.tick_params(axis='y', labelcolor='tab:blue')
+    ax_temp.grid(True, which='both', alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=200)
+    plt.close(fig)
+
+
 def main():
     ric = Simwrap()
     rio.writehdf5(ric, runparams['ICfilename'])
@@ -141,10 +187,12 @@ def main():
     sim.SetFluid()
     sim.SetInitFluid()
 
+    history = {'time_yr': [], 'temperature_K': [], 'xHI': []}
     outindex = 0
     output_interval = sim.par.outdeltatime.copy()
     next_output_time = output_interval.copy()
     last_output_time = write_output(sim, outindex)
+    append_history(sim, history)
     outindex += 1
 
     while (
@@ -152,6 +200,7 @@ def main():
         and time_value(sim, unyt.s) < float(sim.par.timesim.to_value(unyt.s))
     ):
         sim.RunOneStep()
+        append_history(sim, history)
         if sim.fluid.time >= next_output_time:
             last_output_time = write_output(sim, outindex)
             outindex += 1
@@ -160,10 +209,14 @@ def main():
     if time_value(sim, unyt.s) != last_output_time:
         write_output(sim, outindex)
 
+    figure_filename = rundir + '/HydrogenCooling1D.jpg'
+    save_history_plot(history, figure_filename)
+
     print('Hydrogen cooling example finished')
     print('time = %.3e yr' % time_value(sim, unyt.yr))
     print('mean temperature = %.3e K' % mean_temperature(sim).to_value(unyt.K))
     print('mean neutral fraction = %.3e' % mean_neutral_fraction(sim))
+    print('figure = %s' % figure_filename)
 
 
 if __name__ == '__main__':
