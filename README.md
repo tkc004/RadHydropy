@@ -140,3 +140,21 @@ sphinx-build -b html docs docs/_build/html
 
 Open `docs/_build/html/index.html` after the build finishes. You can also run
 `make html` from inside the `docs/` directory.
+
+## Hosting Documentation On GitHub Pages
+
+This repository includes a GitHub Actions workflow at
+`.github/workflows/docs.yml` that builds and deploys the Sphinx documentation
+whenever changes are pushed to `main`.
+
+To enable hosting:
+
+1. push this repository to GitHub;
+2. open the repository on GitHub;
+3. go to `Settings` -> `Pages`;
+4. under `Build and deployment`, set `Source` to `GitHub Actions`; and
+5. push to `main` or run the `Build and deploy documentation` workflow
+   manually from the `Actions` tab.
+
+After the workflow finishes, GitHub shows the documentation URL on the workflow
+summary page and in `Settings` -> `Pages`.
