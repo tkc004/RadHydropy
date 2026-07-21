@@ -39,6 +39,8 @@ refparams = {
     'hydrogen_thermal_coupling': True,
     'hydrogen_recombination': True,
     'hydrogen_collisional_ionization': True,
+    'hydrogen_alpha_B': None,
+    'hydrogen_beta': None,
     'hydrogen_radiation_field': False,
     'hydrogen_radiation_evolution': True,
     'hydrogen_ngamma_initial': 0.0 / unyt.cm**3,
@@ -46,6 +48,11 @@ refparams = {
     'hydrogen_ngamma_outflow': 0.0 / unyt.cm**3,
     'hydrogen_sigma_gamma': 1.62e-18 * unyt.cm**2,
     'hydrogen_epsilon_gamma': 0.0 * unyt.erg,
+    'radiative_transfer': False,
+    'radiative_transfer_method': 'long_characteristics',
+    'radiative_transfer_boundary_flux': 0.0 / (unyt.cm**2 * unyt.s),
+    'radiative_transfer_source_photon_rate': 0.0 / unyt.s,
+    'radiative_transfer_direction': 1,
 }
 
 

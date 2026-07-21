@@ -328,6 +328,38 @@ class Testing(unittest.TestCase):
         expected = 1.0 / (1.0 + photoionization_rate * 1.0e2)
         np.testing.assert_allclose(fluid.xHI[2:6], expected)
 
+    def test_radiative_transfer_supplies_ngamma_to_hydrogen_sources(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        par.hydrogen_thermal_coupling = False
+        par.hydrogen_recombination = False
+        par.hydrogen_collisional_ionization = False
+        par.radiative_transfer = True
+        par.radiative_transfer_method = 'long_characteristics'
+        par.radiative_transfer_boundary_flux = 1.0e15 / (unyt.cm**2 * unyt.s)
+        par.radiative_transfer_source_photon_rate = 0.0 / unyt.s
+        par.radiative_transfer_direction = 1
+        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8)
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+
+        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+
+        self.assertTrue(hasattr(fluid, 'ngamma'))
+        self.assertTrue(np.all(fluid.ngamma[2:6] > 0.0 / unyt.cm**3))
+        self.assertTrue(np.all(fluid.xHI[2:6] < 1.0))
+
     def test_hydrogen_subcycle_timestep_can_be_smaller_than_dtmax(self):
         par = Par('Periodic')
         par.hydrogen_chemistry = True

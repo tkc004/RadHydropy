@@ -6,4 +6,16 @@ state handling, equation-of-state helpers, finite-volume updates, HDF5 I/O,
 and plotting utilities.
 """
 
-__all__ = ["utils","mesh","eos","fluid","rsim","analysis","io","params","solver","hydrogen"]
+__all__ = [
+    "utils",
+    "mesh",
+    "eos",
+    "fluid",
+    "rsim",
+    "analysis",
+    "io",
+    "params",
+    "solver",
+    "hydrogen",
+    "radiative_transfer",
+]

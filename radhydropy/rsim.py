@@ -53,7 +53,8 @@ class Rsim():
         print("--- Fill up the fluid---") 
         print("--- %s seconds ---" % (time.time() - start_time))
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
-        self.solver.SetConserved(self.mesh,self.fluid)        
+        self.solver.SetConserved(self.mesh,self.fluid)
+        self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
 
     def RunOneStep(self):
         """Advance the simulation by one timestep and return that timestep."""
@@ -63,6 +64,7 @@ class Rsim():
         self.solver.SetInterFaceFlux(self.mesh,self.fluid,self.par.boundcond,order=self.par.order)
         self.solver.AddFluxes(dt,self.mesh,self.fluid,self.par.boundcond)
         self.solver.SetPrimitive(self.mesh,self.fluid)
+        self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
         self.solver.AddHydrogenSources(dt,self.mesh,self.fluid,self.par)
         self.solver.SetPrimitive(self.mesh,self.fluid)
         if getattr(self.par, 'hydrogen_chemistry', False):

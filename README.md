@@ -11,6 +11,8 @@ The code currently provides:
 - primitive and conserved fluid state handling;
 - ideal-gas pressure, temperature, energy-density, and sound-speed helpers;
 - optional subcycled hydrogen cooling with implicit neutral-fraction evolution;
+- optional one-dimensional long-characteristic radiative transfer coupled to
+  photon number density;
 - finite-volume updates with GLF/Rusanov interface fluxes;
 - periodic, open, reflecting, spherical open, inflow, and outflow boundaries;
 - HDF5 input/output helpers; and
@@ -122,6 +124,7 @@ radhydropy/
   io.py         HDF5 read/write helpers
   mesh.py       mesh and geometry setup
   params.py     default runtime parameters
+  radiative_transfer.py optional long-characteristic photon transport
   rsim.py       high-level simulation runner
   solver.py     finite-volume update operations
   utils.py      numerical and thermodynamic utilities

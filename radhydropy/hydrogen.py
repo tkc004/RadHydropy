@@ -55,6 +55,17 @@ def clip_neutral_fraction(xHI):
     return np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
 
 
+def _coefficient_from_override(coefficient, xHI, units):
+    if coefficient is None:
+        return None
+    if hasattr(coefficient, "to"):
+        coefficient = coefficient.to(units)
+        if np.shape(coefficient) == ():
+            return np.ones_like(np.asarray(xHI, dtype=float)) * coefficient
+        return coefficient
+    return np.ones_like(np.asarray(xHI, dtype=float)) * float(coefficient) * units
+
+
 def alpha_B(temperature):
     """Case-B hydrogen recombination coefficient from Hui & Gnedin (1997)."""
 
@@ -280,18 +291,36 @@ def hydrogen_neutral_fraction_rate(
     collisional_ionization=True,
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
+    recombination_coefficient=None,
+    ionization_coefficient=None,
 ):
     """Return ``dxHI/dt`` from recombination, collisional and photo-ionization."""
     xHI = clip_neutral_fraction(xHI)
     ionized = 1.0 - xHI
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
-    recombination_coefficient = alpha_B(temperature)
+    override = _coefficient_from_override(
+        recombination_coefficient,
+        xHI,
+        unyt.cm**3 / unyt.s,
+    )
+    if override is None:
+        recombination_coefficient = alpha_B(temperature)
+    else:
+        recombination_coefficient = override
     if not recombination:
         recombination_coefficient = (
             np.zeros_like(recombination_coefficient.value)
             * recombination_coefficient.units
         )
-    ionization_coefficient = beta(temperature)
+    override = _coefficient_from_override(
+        ionization_coefficient,
+        xHI,
+        unyt.cm**3 / unyt.s,
+    )
+    if override is None:
+        ionization_coefficient = beta(temperature)
+    else:
+        ionization_coefficient = override
     if not collisional_ionization:
         ionization_coefficient = np.zeros_like(ionization_coefficient.value) * ionization_coefficient.units
     if ngamma is None:
@@ -316,16 +345,36 @@ def hydrogen_neutral_fraction_implicit_update(
     collisional_ionization=True,
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
+    recombination_coefficient=None,
+    ionization_coefficient=None,
 ):
     """Return backward-Euler update of the hydrogen neutral fraction."""
     xHI = clip_neutral_fraction(xHI)
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
     if recombination:
-        recombination_rate = (nH * alpha_B(temperature)).to_value(1.0 / unyt.s)
+        override = _coefficient_from_override(
+            recombination_coefficient,
+            xHI,
+            unyt.cm**3 / unyt.s,
+        )
+        if override is None:
+            recombination_coefficient = alpha_B(temperature)
+        else:
+            recombination_coefficient = override
+        recombination_rate = (nH * recombination_coefficient).to_value(1.0 / unyt.s)
     else:
         recombination_rate = np.zeros_like(np.asarray(xHI, dtype=float))
     if collisional_ionization:
-        ionization_rate = (nH * beta(temperature)).to_value(1.0 / unyt.s)
+        override = _coefficient_from_override(
+            ionization_coefficient,
+            xHI,
+            unyt.cm**3 / unyt.s,
+        )
+        if override is None:
+            ionization_coefficient = beta(temperature)
+        else:
+            ionization_coefficient = override
+        ionization_rate = (nH * ionization_coefficient).to_value(1.0 / unyt.s)
     else:
         ionization_rate = np.zeros_like(recombination_rate)
     if ngamma is None:
@@ -402,6 +451,8 @@ def hydrogen_source_terms(
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
     epsilon_gamma=DEFAULT_EPSILON_GAMMA,
+    recombination_coefficient=None,
+    ionization_coefficient=None,
 ):
     """Return thermal and neutral-fraction source terms for hydrogen."""
     thermal_rate = hydrogen_thermal_rate(
@@ -424,6 +475,8 @@ def hydrogen_source_terms(
         collisional_ionization=collisional_ionization,
         ngamma=ngamma,
         sigma_gamma=sigma_gamma,
+        recombination_coefficient=recombination_coefficient,
+        ionization_coefficient=ionization_coefficient,
     )
     return thermal_rate, neutral_fraction_rate
 

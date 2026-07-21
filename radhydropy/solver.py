@@ -2,6 +2,7 @@
 
 import radhydropy.utils as ru
 import radhydropy.hydrogen as rh
+import radhydropy.radiative_transfer as rrt
 import unyt
 import numpy as np
 
@@ -27,7 +28,10 @@ class Solver():
     def _hydrogen_radiation_enabled(self, fluid, par):
         return (
             self._hydrogen_enabled(fluid, par)
-            and getattr(par, 'hydrogen_radiation_field', False)
+            and (
+                getattr(par, 'hydrogen_radiation_field', False)
+                or getattr(par, 'radiative_transfer', False)
+            )
             and hasattr(fluid, 'ngamma')
         )
 
@@ -35,7 +39,12 @@ class Solver():
         return (
             self._hydrogen_radiation_enabled(fluid, par)
             and getattr(par, 'hydrogen_radiation_evolution', True)
+            and not getattr(par, 'radiative_transfer', False)
         )
+
+    def ApplyRadiativeTransfer(self, mesh, fluid, par):
+        """Update optional radiative-transfer photon fields."""
+        return rrt.apply_long_characteristics_to_fluid(mesh, fluid, par)
 
     def _spherical_center_cell_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
@@ -245,6 +254,8 @@ class Solver():
         radiation_evolution = self._hydrogen_radiation_evolution_enabled(fluid, par)
         sigma_gamma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA)
         epsilon_gamma = getattr(par, 'hydrogen_epsilon_gamma', rh.DEFAULT_EPSILON_GAMMA)
+        recombination_coefficient = getattr(par, 'hydrogen_alpha_B', None)
+        ionization_coefficient = getattr(par, 'hydrogen_beta', None)
         ngamma = fluid.ngamma if radiation_coupling else None
         if getattr(par, 'hydrogen_update_mu', False):
             fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
@@ -259,6 +270,8 @@ class Solver():
             ngamma=ngamma,
             sigma_gamma=sigma_gamma,
             epsilon_gamma=epsilon_gamma,
+            recombination_coefficient=recombination_coefficient,
+            ionization_coefficient=ionization_coefficient,
         )
         interior = self._interior_slice(par)
         candidates = []
@@ -359,14 +372,20 @@ class Solver():
         recombination = getattr(par, 'hydrogen_recombination', True)
         collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
         thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
-        radiation_coupling = self._hydrogen_radiation_enabled(fluid, par)
-        radiation_evolution = self._hydrogen_radiation_evolution_enabled(fluid, par)
         sigma_gamma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA)
         epsilon_gamma = getattr(par, 'hydrogen_epsilon_gamma', rh.DEFAULT_EPSILON_GAMMA)
+        recombination_coefficient = getattr(par, 'hydrogen_alpha_B', None)
+        ionization_coefficient = getattr(par, 'hydrogen_beta', None)
+        if getattr(par, 'radiative_transfer', False):
+            self.ApplyRadiativeTransfer(mesh, fluid, par)
+        radiation_coupling = self._hydrogen_radiation_enabled(fluid, par)
+        radiation_evolution = self._hydrogen_radiation_evolution_enabled(fluid, par)
         interior = self._interior_slice(par)
         remaining = dt.to(unyt.s)
         zero_time = 0.0 * unyt.s
         while remaining > zero_time:
+            if getattr(par, 'radiative_transfer', False):
+                self.ApplyRadiativeTransfer(mesh, fluid, par)
             if getattr(par, 'hydrogen_update_mu', False):
                 fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
             fluid.SetTemperature()
@@ -381,6 +400,8 @@ class Solver():
                 ngamma=ngamma,
                 sigma_gamma=sigma_gamma,
                 epsilon_gamma=epsilon_gamma,
+                recombination_coefficient=recombination_coefficient,
+                ionization_coefficient=ionization_coefficient,
             )
             sub_dt = self.GetHydrogenTimeStep(mesh, fluid, par)
             if not np.isfinite(sub_dt.to_value(unyt.s)) or sub_dt <= zero_time:
@@ -414,10 +435,14 @@ class Solver():
                 collisional_ionization=collisional_ionization,
                 ngamma=fluid.ngamma[interior] if radiation_coupling else None,
                 sigma_gamma=sigma_gamma,
+                recombination_coefficient=recombination_coefficient,
+                ionization_coefficient=ionization_coefficient,
             )
             if getattr(par, 'hydrogen_update_mu', False):
                 fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
             remaining -= sub_dt
+        if getattr(par, 'radiative_transfer', False):
+            self.ApplyRadiativeTransfer(mesh, fluid, par)
 
 
     def SetBoundary(self, mesh, fluid, par):

@@ -31,6 +31,12 @@ Hydrogen
 .. automodule:: radhydropy.hydrogen
    :members:
 
+Radiative Transfer
+------------------
+
+.. automodule:: radhydropy.radiative_transfer
+   :members:
+
 Solver
 ------
 

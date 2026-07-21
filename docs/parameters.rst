@@ -108,6 +108,60 @@ neutral-fraction solve.
    * - ``hydrogen_collisional_ionization``
      - Include collisional ionization in the neutral-fraction equation.
      - boolean
+   * - ``hydrogen_alpha_B`` / ``hydrogen_beta``
+     - Optional fixed recombination or collisional ionization coefficients.
+       Leave as ``None`` to use the temperature-dependent fits.
+     - ``cm^3 s^-1``
+   * - ``hydrogen_radiation_field``
+     - Enable photo-ionization and photo-heating from ``fluid.ngamma``.
+     - boolean
+   * - ``hydrogen_radiation_evolution``
+     - Apply the local analytic hydrogen photon absorption update when no
+       ray-tracing transport is active.
+     - boolean
+   * - ``hydrogen_ngamma_initial``
+     - Initial photon number density used when the HDF5 file has no
+       ``PhotonNumberDensity`` dataset.
+     - ``cm^-3``
+   * - ``hydrogen_sigma_gamma``
+     - Hydrogen photo-ionization cross-section.
+     - area
+   * - ``hydrogen_epsilon_gamma``
+     - Excess photo-ionization energy per absorbed photon.
+     - energy
+
+Radiative Transfer Keys
+-----------------------
+
+Set ``radiative_transfer=True`` to compute ``fluid.ngamma`` from the optional
+one-dimensional long-characteristic ray tracer before the hydrogen source terms
+are applied. See :doc:`radiative_transfer` for the implementation details.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 48 20
+
+   * - Key
+     - Meaning
+     - Typical unit
+   * - ``radiative_transfer``
+     - Enable optional long-characteristic radiative transfer.
+     - boolean
+   * - ``radiative_transfer_method``
+     - Transport method. Currently ``long_characteristics``.
+     - string
+   * - ``radiative_transfer_boundary_flux``
+     - Incident photon number flux for Cartesian rays or spherical boundary
+       illumination.
+     - ``cm^-2 s^-1``
+   * - ``radiative_transfer_source_photon_rate``
+     - Spherical source photon rate. Prefer this for radial traces starting at
+       ``r = 0``.
+     - ``s^-1``
+   * - ``radiative_transfer_direction``
+     - ``+1`` for left-to-right or inner-to-outer tracing; ``-1`` for the
+       opposite direction.
+     - dimensionless
 
 Boundary-Specific Keys
 ----------------------

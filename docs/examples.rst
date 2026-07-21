@@ -29,6 +29,12 @@ Available Examples
      - Cartesian outflow setup.
    * - ``example/OutflowSph1d``
      - Spherical outflow setup.
+   * - ``example/RadiativeTransferSph1D``
+     - Spherical central-source long-characteristic radiative transfer without
+       hydrodynamic or thermo-chemical evolution.
+   * - ``example/StaticStromgrenSphere1D``
+     - Static spherical Stromgren benchmark with constant density,
+       temperature, radiative transfer, and implicit hydrogen chemistry.
    * - ``example/SedovTaylor1D``
      - Cartesian Sedov-Taylor blast-wave setup with analytic helper.
    * - ``example/SedovTaylorSph1d``

@@ -68,7 +68,13 @@ class Fluid():
             attrlist.append('xHI')
             valuelist.append(getattr(par, 'hydrogen_xHI_initial', 1.0))
 
-        if getattr(par, 'hydrogen_radiation_field', False) and not hasattr(self, 'ngamma'):
+        if (
+            (
+                getattr(par, 'hydrogen_radiation_field', False)
+                or getattr(par, 'radiative_transfer', False)
+            )
+            and not hasattr(self, 'ngamma')
+        ):
             self.ngamma = (
                 np.ones(np.shape(self.rho), dtype=float)
                 * rh.photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0))
