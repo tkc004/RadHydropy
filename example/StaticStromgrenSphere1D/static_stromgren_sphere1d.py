@@ -43,7 +43,10 @@ source_photon_rate = 5.0e48 / unyt.s
 boxsize = 20.0 * unyt.kpc
 plot_radius_max = 7.5 * unyt.kpc
 final_time = 500.0 * unyt.Myr
-chemistry_timestep = 1.0 * unyt.Myr
+chemistry_timestep = 5.0 * unyt.Myr
+chemistry_timestep_min = 1.0e-3 * unyt.Myr
+chemistry_timestep_cfl = 0.1
+radiative_transfer_update_interval = 5
 number_of_cells = 256
 analytic_inner_radius = 0.1 * unyt.kpc
 
@@ -58,6 +61,9 @@ def main():
         'plot_radius_max': plot_radius_max,
         'number_of_cells': number_of_cells,
         'analytic_inner_radius': analytic_inner_radius,
+        'chemistry_timestep_min': chemistry_timestep_min,
+        'chemistry_timestep_cfl': chemistry_timestep_cfl,
+        'radiative_transfer_update_interval': radiative_transfer_update_interval,
     }
     par, mesh, fluid, solver = et.build_static_problem(config)
     front_history = et.evolve_static_chemistry(
@@ -115,6 +121,13 @@ def main():
     print(
         'photon budget relative error = %.6e'
         % photon_budget['relative_error']
+    )
+    print(
+        'chemistry steps = %d, radiative-transfer updates = %d'
+        % (
+            front_history['chemistry_steps'],
+            front_history['radiative_transfer_updates'],
+        )
     )
     print('figure = %s' % figure_filename)
     print('front figure = %s' % front_figure_filename)
