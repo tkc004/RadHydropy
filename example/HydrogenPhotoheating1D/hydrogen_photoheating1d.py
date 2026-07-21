@@ -32,17 +32,28 @@ import radhydropy.io as rio
 rundir = os.getcwd()
 
 photon_flux = 1.0e12 / (unyt.s * unyt.cm**2)
-ionization_timescale = 10.0**-2.3 * unyt.yr
-recombination_timescale = 10.0**5.1 * unyt.yr
+hydrogen_number_density = 1.0 / unyt.cm**3
+excess_photoionization_energy = 6.33 * unyt.eV
+sigma_gamma = rh.DEFAULT_SIGMA_GAMMA
 thermal_equilibrium_timescale = 10.0**9.3 * unyt.yr
 source_switch_time = 5.0e7 * unyt.yr
 final_time = 1.0e8 * unyt.yr
 photon_density_on = (photon_flux / rh.SPEED_OF_LIGHT).to(1.0 / unyt.cm**3)
-sigma_gamma = (1.0 / (photon_flux * ionization_timescale)).to(unyt.cm**2)
 photoionization_equilibrium_temperature = (
-    6.33 * unyt.eV / (3.0 * unyt.kb)
+    excess_photoionization_energy / (3.0 * unyt.kb)
 ).to(unyt.K)
 thermal_equilibrium_temperature = 2.0 * photoionization_equilibrium_temperature
+ionization_timescale = (
+    1.0
+    / (rh.SPEED_OF_LIGHT * sigma_gamma * photon_density_on)
+).to(unyt.yr)
+recombination_timescale = (
+    1.0
+    / (
+        hydrogen_number_density
+        * rh.alpha_B(photoionization_equilibrium_temperature)
+    )
+).to(unyt.yr)
 
 runparams = {
     'simname': 'HydrogenPhotoheating1D',
@@ -95,7 +106,7 @@ ICparams = {
     'coordsys': 'cartesian',
     'boxsize': 1.0 * unyt.kpc,
     'time': 0.0 * unyt.yr,
-    'nHini': 1.0 / unyt.cm**3,
+    'nHini': hydrogen_number_density,
     'tempini': 100.0 * unyt.K,
     'xHIini': 1.0,
     'ngammaini': photon_density_on,
@@ -193,6 +204,43 @@ def sample_times():
     return np.unique(values) * unyt.yr
 
 
+def recombination_timescale_at_temperature(temperature):
+    rate = hydrogen_number_density * rh.alpha_B(temperature)
+    return (1.0 / rate).to(unyt.yr)
+
+
+def photoionization_timescale(sigma, photon_density):
+    return (
+        1.0
+        / (
+            rh.SPEED_OF_LIGHT
+            * rh.photon_cross_section(sigma)
+            * rh.photon_number_density(photon_density)
+        )
+    ).to(unyt.yr)
+
+
+def neutral_fraction_reference():
+    temperature = photoionization_equilibrium_temperature
+    tau_i = photoionization_timescale(
+        runparams['hydrogen_sigma_gamma'],
+        runparams['hydrogen_ngamma_initial'],
+    )
+    tau_r = recombination_timescale_at_temperature(temperature)
+    xHI = (tau_i / tau_r).to_value('')
+    return {
+        'temperature': temperature,
+        'ionization_timescale': tau_i,
+        'recombination_timescale': tau_r,
+        'xHI': xHI,
+    }
+
+
+def timescale_label(symbol, time_scale):
+    exponent = np.log10(time_scale.to_value(unyt.yr))
+    return r'$\tau_%s=10^{%.2f}\ {\rm yr}$' % (symbol, exponent)
+
+
 def write_output(sim, outindex):
     sim.fluid.SetTemperature()
     sim.par.time = sim.fluid.time
@@ -227,60 +275,95 @@ def advance_sources(sim, dt):
 def save_history_plot(history, filename):
     time_yr = np.asarray(history['time_yr'])
     temperature_K = np.asarray(history['temperature_K'])
+    xHI = np.maximum(np.asarray(history['xHI']), 1.0e-12)
     plot_time_yr = np.maximum(time_yr, 1.0e-6)
+    xHI_reference = neutral_fraction_reference()
+    xHI_reference_log = np.log10(xHI_reference['xHI'])
 
-    fig, ax = plt.subplots(figsize=(8.0, 4.8))
-    ax.plot(
+    fig, (ax_temp, ax_xHI) = plt.subplots(
+        2,
+        1,
+        figsize=(8.0, 6.4),
+        sharex=True,
+        gridspec_kw={'height_ratios': [2.0, 1.0], 'hspace': 0.08},
+    )
+    ax_temp.plot(
         plot_time_yr,
         temperature_K,
         color='tab:red',
         lw=2.0,
         label='Temperature',
     )
-    ax.axhline(
+    ax_temp.axhline(
         photoionization_equilibrium_temperature.to_value(unyt.K),
         color='0.25',
         lw=1.2,
         ls=':',
         label=r'$T_{\rm ion}=6.33\,{\rm eV}/(3k_{\rm B})$',
     )
-    ax.axhline(
+    ax_temp.axhline(
         thermal_equilibrium_temperature.to_value(unyt.K),
         color='0.45',
         lw=1.2,
         ls='-.',
         label=r'$T_{\rm therm}\approx2T_{\rm ion}$',
     )
-    ax.text(
+    ax_temp.text(
         1.7e8,
         photoionization_equilibrium_temperature.to_value(unyt.K) * 1.04,
         r'$10^{4.39}\ {\rm K}$',
         color='0.25',
         va='bottom',
     )
-    ax.text(
-        1.7e8,
+    ax_temp.text(
+        2.0e7,
         thermal_equilibrium_temperature.to_value(unyt.K) * 1.04,
         r'$\approx2\times10^{4.39}\ {\rm K}$',
         color='0.45',
         va='bottom',
     )
 
+    ax_xHI.plot(
+        plot_time_yr,
+        xHI,
+        color='tab:blue',
+        lw=2.0,
+        label='Neutral fraction',
+    )
+    ax_xHI.axhline(
+        xHI_reference['xHI'],
+        color='black',
+        lw=1.2,
+        ls=':',
+        label=r'$x_{\rm HI}=\tau_i/\tau_r(T_{\rm ion})$',
+    )
+    ax_xHI.text(
+        1.0e2,
+        xHI_reference['xHI'] * 1.25,
+        r'$\tau_i/\tau_r=10^{%.2f}$' % xHI_reference_log,
+        color='black',
+        va='bottom',
+    )
+
     timescales = [
-        (ionization_timescale.to_value(unyt.yr), r'$\tau_i=10^{-2.3}\ {\rm yr}$'),
+        (
+            ionization_timescale.to_value(unyt.yr),
+            timescale_label('i', ionization_timescale),
+        ),
         (
             recombination_timescale.to_value(unyt.yr),
-            r'$\tau_r=10^{5.1}\ {\rm yr}$',
+            timescale_label('r', recombination_timescale),
         ),
         (
             thermal_equilibrium_timescale.to_value(unyt.yr),
-            r'$\tau_e=10^{9.3}\ {\rm yr}$',
+            timescale_label('e', thermal_equilibrium_timescale),
         ),
     ]
     colors = ['tab:blue', 'tab:green', 'tab:purple']
     for (time_scale, label), color in zip(timescales, colors):
-        ax.axvline(time_scale, color=color, lw=1.2, ls='--')
-        ax.text(
+        ax_temp.axvline(time_scale, color=color, lw=1.2, ls='--')
+        ax_xHI.axvline(time_scale, color=color, lw=1.0, ls='--', alpha=0.65)
+        ax_temp.text(
             time_scale,
             0.97,
             label,
@@ -288,19 +371,32 @@ def save_history_plot(history, filename):
             rotation=90,
             va='top',
             ha='right',
-            transform=ax.get_xaxis_transform(),
+            transform=ax_temp.get_xaxis_transform(),
         )
 
-    ax.set_xlabel('Time [yr]')
-    ax.set_ylabel('Temperature [K]')
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_xlim(1.0e-6, 4.0e9)
-    ax.grid(True, which='both', alpha=0.25)
-    ax.legend(frameon=False, loc='lower left')
-    fig.tight_layout()
+    ax_xHI.set_xlabel('Time [yr]')
+    ax_temp.set_ylabel('Temperature [K]')
+    ax_xHI.set_ylabel('Neutral fraction')
+    ax_xHI.set_xscale('log')
+    ax_temp.set_yscale('log')
+    ax_xHI.set_yscale('log')
+    ax_xHI.set_xlim(1.0e-6, 4.0e9)
+    ax_temp.set_ylim(70.0, thermal_equilibrium_temperature.to_value(unyt.K) * 1.55)
+    ax_xHI.set_ylim(1.0e-9, 1.5)
+    ax_temp.grid(True, which='both', alpha=0.25)
+    ax_xHI.grid(True, which='both', alpha=0.25)
+    ax_temp.legend(frameon=False, loc='lower left')
+    ax_xHI.legend(frameon=False, loc='lower left')
+    fig.subplots_adjust(
+        left=0.12,
+        right=0.98,
+        bottom=0.10,
+        top=0.98,
+        hspace=0.08,
+    )
     fig.savefig(filename, dpi=200)
     plt.close(fig)
+    return xHI_reference
 
 
 def main():
@@ -339,7 +435,7 @@ def main():
         write_output(sim, outindex)
 
     figure_filename = rundir + '/HydrogenPhotoheating1D.jpg'
-    save_history_plot(history, figure_filename)
+    xHI_reference = save_history_plot(history, figure_filename)
 
     print('Hydrogen photoheating example finished')
     print('time = %.3e yr' % time_value(sim, unyt.yr))
@@ -364,6 +460,18 @@ def main():
     print(
         'thermal equilibrium reference temperature = %.3e K'
         % thermal_equilibrium_temperature.to_value(unyt.K)
+    )
+    print(
+        'ionization time = %.3e yr'
+        % xHI_reference['ionization_timescale'].to_value(unyt.yr)
+    )
+    print(
+        'recombination time at T_ion = %.3e yr'
+        % xHI_reference['recombination_timescale'].to_value(unyt.yr)
+    )
+    print(
+        'ionization equilibrium neutral fraction = %.3e'
+        % xHI_reference['xHI']
     )
     print('figure = %s' % figure_filename)
 
