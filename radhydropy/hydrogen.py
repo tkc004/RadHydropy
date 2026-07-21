@@ -276,6 +276,7 @@ def hydrogen_neutral_fraction_rate(
     temperature,
     xHI,
     hydrogen_mass_fraction=1.0,
+    recombination=True,
     collisional_ionization=True,
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
@@ -284,6 +285,12 @@ def hydrogen_neutral_fraction_rate(
     xHI = clip_neutral_fraction(xHI)
     ionized = 1.0 - xHI
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
+    recombination_coefficient = alpha_B(temperature)
+    if not recombination:
+        recombination_coefficient = (
+            np.zeros_like(recombination_coefficient.value)
+            * recombination_coefficient.units
+        )
     ionization_coefficient = beta(temperature)
     if not collisional_ionization:
         ionization_coefficient = np.zeros_like(ionization_coefficient.value) * ionization_coefficient.units
@@ -292,7 +299,7 @@ def hydrogen_neutral_fraction_rate(
     else:
         photoionization_rate = photoionization_frequency(ngamma, sigma_gamma)
     rate = (
-        ionized**2 * nH * alpha_B(temperature)
+        ionized**2 * nH * recombination_coefficient
         - xHI * ionized * nH * ionization_coefficient
         - xHI * photoionization_rate
     )
@@ -305,6 +312,7 @@ def hydrogen_neutral_fraction_implicit_update(
     xHI,
     dt,
     hydrogen_mass_fraction=1.0,
+    recombination=True,
     collisional_ionization=True,
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
@@ -312,7 +320,10 @@ def hydrogen_neutral_fraction_implicit_update(
     """Return backward-Euler update of the hydrogen neutral fraction."""
     xHI = clip_neutral_fraction(xHI)
     nH = hydrogen_number_density(rho, hydrogen_mass_fraction)
-    recombination_rate = (nH * alpha_B(temperature)).to_value(1.0 / unyt.s)
+    if recombination:
+        recombination_rate = (nH * alpha_B(temperature)).to_value(1.0 / unyt.s)
+    else:
+        recombination_rate = np.zeros_like(np.asarray(xHI, dtype=float))
     if collisional_ionization:
         ionization_rate = (nH * beta(temperature)).to_value(1.0 / unyt.s)
     else:
@@ -350,6 +361,7 @@ def hydrogen_thermal_rate(
     temperature,
     xHI,
     hydrogen_mass_fraction=1.0,
+    recombination=True,
     collisional_ionization=True,
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
@@ -362,7 +374,9 @@ def hydrogen_thermal_rate(
     eHI_cooling = gamma_line_eHI(temperature)
     if collisional_ionization:
         eHI_cooling += gamma_ion_eHI(temperature)
-    eHII_cooling = gamma_ff_eHII(temperature) + gamma_B_eHII(temperature)
+    eHII_cooling = gamma_ff_eHII(temperature)
+    if recombination:
+        eHII_cooling += gamma_B_eHII(temperature)
     cooling = nH**2 * (xHI * ionized * eHI_cooling + ionized**2 * eHII_cooling)
     if ngamma is None:
         heating = np.zeros_like(cooling.value) * unyt.erg / unyt.cm**3 / unyt.s
@@ -383,6 +397,7 @@ def hydrogen_source_terms(
     temperature,
     xHI,
     hydrogen_mass_fraction=1.0,
+    recombination=True,
     collisional_ionization=True,
     ngamma=None,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
@@ -394,6 +409,7 @@ def hydrogen_source_terms(
         temperature,
         xHI,
         hydrogen_mass_fraction=hydrogen_mass_fraction,
+        recombination=recombination,
         collisional_ionization=collisional_ionization,
         ngamma=ngamma,
         sigma_gamma=sigma_gamma,
@@ -404,6 +420,7 @@ def hydrogen_source_terms(
         temperature,
         xHI,
         hydrogen_mass_fraction=hydrogen_mass_fraction,
+        recombination=recombination,
         collisional_ionization=collisional_ionization,
         ngamma=ngamma,
         sigma_gamma=sigma_gamma,

@@ -252,6 +252,33 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_allclose(residual, np.zeros_like(updated), atol=1.0e-14)
         self.assertTrue(np.all(updated < xHI))
+
+    def test_hydrogen_implicit_neutral_fraction_update_can_disable_recombination(self):
+        rho = np.ones(2) * unyt.mp / unyt.cm**3
+        temp = np.ones(2) * 2.0e4 * unyt.K
+        xHI = np.array([0.2, 0.8])
+        ngamma = np.ones(2) * 1.0e3 / unyt.cm**3
+        sigma_gamma = 1.0e-18 * unyt.cm**2
+        dt = 1.0e4 * unyt.s
+
+        updated = rh.hydrogen_neutral_fraction_implicit_update(
+            rho,
+            temp,
+            xHI,
+            dt,
+            recombination=False,
+            collisional_ionization=False,
+            ngamma=ngamma,
+            sigma_gamma=sigma_gamma,
+        )
+        photoionization_rate = rh.photoionization_frequency(
+            ngamma,
+            sigma_gamma,
+        ).to_value(1.0/unyt.s)
+        residual = updated - xHI + dt.to_value(unyt.s) * photoionization_rate * updated
+
+        np.testing.assert_allclose(residual, np.zeros_like(updated), atol=1.0e-14)
+        self.assertTrue(np.all(updated < xHI))
     
     
 

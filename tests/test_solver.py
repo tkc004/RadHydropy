@@ -294,6 +294,40 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
         self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
 
+    def test_hydrogen_fixed_radiation_field_can_disable_recombination(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        par.hydrogen_thermal_coupling = False
+        par.hydrogen_recombination = False
+        par.hydrogen_collisional_ionization = False
+        par.hydrogen_radiation_field = True
+        par.hydrogen_radiation_evolution = False
+        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8)
+        fluid.ngamma = np.ones(8) * 1.0e3 / unyt.cm**3
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+
+        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+
+        photoionization_rate = (
+            unyt.c.to(unyt.cm/unyt.s)
+            * par.hydrogen_sigma_gamma
+            * fluid.ngamma[2:6]
+        ).to_value(1.0/unyt.s)
+        expected = 1.0 / (1.0 + photoionization_rate * 1.0e2)
+        np.testing.assert_allclose(fluid.xHI[2:6], expected)
+
     def test_hydrogen_subcycle_timestep_can_be_smaller_than_dtmax(self):
         par = Par('Periodic')
         par.hydrogen_chemistry = True

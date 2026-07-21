@@ -238,6 +238,7 @@ class Solver():
 
         source_CFL = getattr(par, 'hydrogen_source_CFL', 0.1)
         hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        recombination = getattr(par, 'hydrogen_recombination', True)
         collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
         thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
         radiation_coupling = self._hydrogen_radiation_enabled(fluid, par)
@@ -253,6 +254,7 @@ class Solver():
             fluid.temp,
             fluid.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
+            recombination=recombination,
             collisional_ionization=collisional_ionization,
             ngamma=ngamma,
             sigma_gamma=sigma_gamma,
@@ -354,6 +356,7 @@ class Solver():
             return
 
         hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        recombination = getattr(par, 'hydrogen_recombination', True)
         collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
         thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
         radiation_coupling = self._hydrogen_radiation_enabled(fluid, par)
@@ -373,6 +376,7 @@ class Solver():
                 fluid.temp,
                 fluid.xHI,
                 hydrogen_mass_fraction=hydrogen_mass_fraction,
+                recombination=recombination,
                 collisional_ionization=collisional_ionization,
                 ngamma=ngamma,
                 sigma_gamma=sigma_gamma,
@@ -406,6 +410,7 @@ class Solver():
                 fluid.xHI[interior],
                 sub_dt,
                 hydrogen_mass_fraction=hydrogen_mass_fraction,
+                recombination=recombination,
                 collisional_ionization=collisional_ionization,
                 ngamma=fluid.ngamma[interior] if radiation_coupling else None,
                 sigma_gamma=sigma_gamma,
