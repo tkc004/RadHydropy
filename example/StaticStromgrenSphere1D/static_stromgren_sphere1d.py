@@ -33,6 +33,7 @@ from radhydropy.fluid import Fluid
 import radhydropy.hydrogen as rh
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
+import stromgren_analytic as sa
 
 
 rundir = os.path.dirname(os.path.abspath(__file__))
@@ -40,70 +41,54 @@ figure_filename = os.path.join(rundir, 'StaticStromgrenSphere1D.jpg')
 
 hydrogen_number_density = 1.0e-3 / unyt.cm**3
 alpha_B_coefficient = 2.59e-13 * unyt.cm**3 / unyt.s
-beta_coefficient = 3.1e-16 * unyt.cm**3 / unyt.s
 sigma_gamma = 8.13e-18 * unyt.cm**2
 source_photon_rate = 5.0e48 / unyt.s
 boxsize = 20.0 * unyt.kpc
 final_time = 500.0 * unyt.Myr
 chemistry_timestep = 1.0 * unyt.Myr
 number_of_cells = 256
+analytic_inner_radius = 0.1 * unyt.kpc
 
 
 def stromgren_radius():
-    radius_cubed = (
-        3.0
-        * source_photon_rate
-        / (
-            4.0
-            * np.pi
-            * alpha_B_coefficient
-            * hydrogen_number_density**2
-        )
+    return sa.stromgren_radius(
+        source_photon_rate,
+        hydrogen_number_density,
+        alpha_B_coefficient,
     )
-    return radius_cubed**(1.0 / 3.0)
 
 
 def stromgren_optical_depth():
-    return (hydrogen_number_density * sigma_gamma * stromgren_radius()).to_value('')
+    return sa.stromgren_optical_depth(
+        source_photon_rate,
+        hydrogen_number_density,
+        sigma_gamma,
+        alpha_B_coefficient,
+    )
 
 
 def recombination_time():
-    return (1.0 / (alpha_B_coefficient * hydrogen_number_density)).to(unyt.Myr)
+    return sa.recombination_time(hydrogen_number_density, alpha_B_coefficient)
 
 
 def analytic_front_radius(time):
-    value = 1.0 - np.exp(-(time / recombination_time()).to_value(''))
-    return stromgren_radius() * value**(1.0 / 3.0)
+    return sa.ionization_front_radius(
+        time,
+        source_photon_rate,
+        hydrogen_number_density,
+        alpha_B_coefficient,
+    )
 
 
 def analytic_stromgren_neutral_fraction(radius):
-    q_target = np.asarray((radius / stromgren_radius()).to_value(''), dtype=float)
-    q_start = min(np.amin(q_target[q_target > 0.0]), 1.0e-5)
-    q_end = np.amax(q_target)
-    tau_s = stromgren_optical_depth()
-    q_grid = np.linspace(q_start, q_end, 60000)
-    x_grid = np.empty_like(q_grid)
-    x_grid[0] = np.clip(3.0 * q_start**2 / tau_s, 1.0e-300, 1.0 - 1.0e-12)
-
-    def derivative(q, x):
-        x = np.clip(x, 1.0e-300, 1.0 - 1.0e-12)
-        return x * (1.0 - x) * (tau_s * x + 2.0 / q) / (1.0 + x)
-
-    for i in range(len(q_grid) - 1):
-        q = q_grid[i]
-        h = q_grid[i + 1] - q
-        x = x_grid[i]
-        k1 = derivative(q, x)
-        k2 = derivative(q + 0.5 * h, x + 0.5 * h * k1)
-        k3 = derivative(q + 0.5 * h, x + 0.5 * h * k2)
-        k4 = derivative(q + h, x + h * k3)
-        x_grid[i + 1] = np.clip(
-            x + h * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0,
-            1.0e-300,
-            1.0 - 1.0e-12,
-        )
-
-    return np.interp(q_target, q_grid, x_grid)
+    return sa.neutral_fraction_profile(
+        radius,
+        hydrogen_number_density,
+        sigma_gamma,
+        alpha_B_coefficient,
+        source_photon_rate,
+        inner_radius=analytic_inner_radius,
+    )
 
 
 def build_static_problem():
@@ -122,9 +107,9 @@ def build_static_problem():
         hydrogen_update_mu=False,
         hydrogen_thermal_coupling=False,
         hydrogen_recombination=True,
-        hydrogen_collisional_ionization=True,
+        hydrogen_collisional_ionization=False,
         hydrogen_alpha_B=alpha_B_coefficient,
-        hydrogen_beta=beta_coefficient,
+        hydrogen_beta=0.0 * unyt.cm**3 / unyt.s,
         hydrogen_radiation_field=False,
         hydrogen_radiation_evolution=False,
         hydrogen_ngamma_initial=0.0 / unyt.cm**3,
