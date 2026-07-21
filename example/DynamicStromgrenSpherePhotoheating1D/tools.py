@@ -92,6 +92,45 @@ def interior_slice(par):
     return slice(first, first + par.nogrid)
 
 
+def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
+    interior = interior_slice(par)
+    radius = mesh.coordinate[interior].to_value(unyt.kpc)
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
+
+    ionized = xHI <= neutral_fraction
+    if not np.any(ionized):
+        return 0.0
+    if np.all(ionized):
+        return radius[-1]
+
+    outer_ionized_index = np.where(ionized)[0][-1]
+    left = outer_ionized_index
+    right = outer_ionized_index + 1
+    x_left = xHI[left]
+    x_right = xHI[right]
+    if x_right == x_left:
+        return radius[left]
+
+    weight = (neutral_fraction - x_left) / (x_right - x_left)
+    return radius[left] + weight * (radius[right] - radius[left])
+
+
+def mean_ionized_temperature(fluid, par):
+    interior = interior_slice(par)
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
+    temperature = fluid.temp[interior].to_value(unyt.K)
+    ionized_weight = 1.0 - xHI
+    if np.sum(ionized_weight) <= 0.0:
+        return 0.0
+    return float(np.sum(ionized_weight * temperature) / np.sum(ionized_weight))
+
+
+def append_history(history, mesh, fluid, par):
+    history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
+    history['front_radius_kpc'].append(ionization_front_position(mesh, fluid, par))
+    history['mean_ionized_temperature_K'].append(mean_ionized_temperature(fluid, par))
+
+
 def attenuation_mean(tau):
     mean = np.ones_like(tau)
     valid = np.abs(tau) > 1.0e-10
@@ -293,6 +332,12 @@ def run_hydro_step(mesh, fluid, par, solver, dt):
 def evolve(mesh, fluid, par, solver, config, final_time):
     hydro_steps = 0
     source_steps = 0
+    history = {
+        'time_Myr': [],
+        'front_radius_kpc': [],
+        'mean_ionized_temperature_K': [],
+    }
+    append_history(history, mesh, fluid, par)
     while fluid.time < final_time:
         dt = solver.GetTimeStep(mesh, fluid, par)
         if fluid.time + dt > final_time:
@@ -302,9 +347,58 @@ def evolve(mesh, fluid, par, solver, config, final_time):
         solver.SetBoundary(mesh, fluid, par)
         solver.SetConserved(mesh, fluid)
         hydro_steps += 1
+        append_history(history, mesh, fluid, par)
     trace_spherical_ngamma(mesh, fluid, par, config)
     solver.SetBoundary(mesh, fluid, par)
-    return {'hydro_steps': hydro_steps, 'source_steps': source_steps}
+    history['hydro_steps'] = hydro_steps
+    history['source_steps'] = source_steps
+    return history
+
+
+def stromgren_radius(config):
+    radius = (
+        3.0
+        * config['source_photon_rate']
+        / (
+            4.0
+            * np.pi
+            * config['alpha_B_coefficient']
+            * config['hydrogen_number_density']**2
+        )
+    ) ** (1.0 / 3.0)
+    return radius.to(unyt.kpc)
+
+
+def recombination_time(config):
+    return (
+        1.0
+        / (config['hydrogen_number_density'] * config['alpha_B_coefficient'])
+    ).to(unyt.Myr)
+
+
+def ionized_sound_speed_from_history(history, gamma):
+    temperature = history['mean_ionized_temperature_K'][-1] * unyt.K
+    mu_ionized = 0.5
+    return np.sqrt(gamma * unyt.kboltz * temperature / (mu_ionized * unyt.mp)).to(
+        unyt.km / unyt.s
+    )
+
+
+def spitzer_radius(time, config, ci):
+    radius_stromgren = stromgren_radius(config)
+    factor = (
+        1.0
+        + 7.0
+        * ci.to(unyt.cm / unyt.s)
+        * time.to(unyt.s)
+        / (4.0 * radius_stromgren.to(unyt.cm))
+    )
+    return (radius_stromgren * factor**(4.0 / 7.0)).to(unyt.kpc)
+
+
+def shifted_spitzer_radius(time, config, ci):
+    time_since_recombination = time - recombination_time(config)
+    return spitzer_radius(time_since_recombination, config, ci)
 
 
 def load_reference_profile(filename, radius_unit, log_value=False):
@@ -334,6 +428,65 @@ def scatter_reference(ax, reference, label='ZEUS-MP'):
         facecolors='none',
         label=label,
     )
+
+
+def save_front_plot(history, config, figure_filename):
+    time = np.asarray(history['time_Myr']) * unyt.Myr
+    front_radius = np.asarray(history['front_radius_kpc'])
+    radius_stromgren = stromgren_radius(config)
+    tau_recombination = recombination_time(config)
+    ci = ionized_sound_speed_from_history(history, 5.0 / 3.0)
+    spitzer_valid = time >= tau_recombination
+    radius_spitzer = shifted_spitzer_radius(
+        time[spitzer_valid],
+        config,
+        ci,
+    ).to_value(unyt.kpc)
+    plot_radius_max = config['plot_radius_max'].to_value(unyt.kpc)
+
+    fig, ax = plt.subplots(figsize=(7.2, 4.8))
+    ax.plot(
+        time.to_value(unyt.Myr),
+        front_radius,
+        color='tab:blue',
+        lw=2.0,
+        label=r'RadHydropy $x_{\rm HI}=0.5$',
+    )
+    ax.plot(
+        time[spitzer_valid].to_value(unyt.Myr),
+        radius_spitzer,
+        color='black',
+        lw=1.7,
+        ls='--',
+        label=(
+            r'Spitzer after $\tau_{\rm rec}$, '
+            r'$c_i=%.1f$ km s$^{-1}$'
+            % ci.to_value(unyt.km / unyt.s)
+        ),
+    )
+    ax.axvline(
+        tau_recombination.to_value(unyt.Myr),
+        color='0.45',
+        lw=1.2,
+        ls='-.',
+        label=r'$\tau_{\rm rec}=%.1f$ Myr' % tau_recombination.to_value(unyt.Myr),
+    )
+    ax.axhline(
+        radius_stromgren.to_value(unyt.kpc),
+        color='0.3',
+        lw=1.4,
+        ls=':',
+        label=r'$R_{\rm S}$',
+    )
+    ax.set_xlim(0.0, time[-1].to_value(unyt.Myr))
+    ax.set_ylim(0.0, max(plot_radius_max, 1.05 * np.nanmax(radius_spitzer)))
+    ax.set_xlabel('Time [Myr]')
+    ax.set_ylabel('Ionization-front radius [kpc]')
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False, loc='best')
+    fig.tight_layout()
+    fig.savefig(figure_filename, dpi=200, bbox_inches='tight')
+    plt.close(fig)
 
 
 def save_plot(mesh, fluid, par, config, figure_filename):

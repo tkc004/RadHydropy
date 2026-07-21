@@ -29,6 +29,10 @@ figure_filename = os.path.join(
     rundir,
     'DynamicStromgrenSpherePhotoheating1D.jpg',
 )
+front_figure_filename = os.path.join(
+    rundir,
+    'DynamicStromgrenSpherePhotoheating1D_IFront.jpg',
+)
 density_reference_filename = os.path.join(
     rundir,
     'Stromgren3D_rhd_n_r_zeusmp_t200.csv',
@@ -87,11 +91,13 @@ def main():
     par, mesh, fluid, solver = et.build_problem(config)
     history = et.evolve(mesh, fluid, par, solver, config, final_time)
     et.save_plot(mesh, fluid, par, config, figure_filename)
+    et.save_front_plot(history, config, front_figure_filename)
 
     print('time = %s' % fluid.time)
     print('hydro steps = %d' % history['hydro_steps'])
     print('source steps = %d' % history['source_steps'])
     print('figure = %s' % figure_filename)
+    print('front figure = %s' % front_figure_filename)
 
 
 if __name__ == '__main__':
