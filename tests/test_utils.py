@@ -131,6 +131,78 @@ class Testing(unittest.TestCase):
         self.assertEqual(neutral_fraction_rate.units, (1.0/unyt.s).units)
         self.assertTrue(np.all(thermal_rate <= 0.0 * thermal_rate.units))
 
+    def test_hydrogen_radiation_terms_have_expected_units_and_values(self):
+        rho = np.ones(1) * unyt.mp / unyt.cm**3
+        xHI = np.array([0.5])
+        ngamma = np.ones(1) * 10.0 / unyt.cm**3
+        sigma_gamma = 2.0e-18 * unyt.cm**2
+        epsilon_gamma = 3.0e-12 * unyt.erg
+
+        photo_frequency = rh.photoionization_frequency(ngamma, sigma_gamma)
+        absorption_rate = rh.hydrogen_photon_absorption_rate(
+            rho,
+            xHI,
+            ngamma,
+            sigma_gamma=sigma_gamma,
+        )
+        radiation_rate = rh.hydrogen_radiation_rate(
+            rho,
+            xHI,
+            ngamma,
+            sigma_gamma=sigma_gamma,
+        )
+        photoheating_rate = rh.hydrogen_photoheating_rate(
+            rho,
+            xHI,
+            ngamma,
+            sigma_gamma=sigma_gamma,
+            epsilon_gamma=epsilon_gamma,
+        )
+
+        expected_photo_frequency = (unyt.c.to(unyt.cm/unyt.s) * sigma_gamma * ngamma).to(1.0/unyt.s)
+        expected_absorption = (xHI * rh.hydrogen_number_density(rho) * expected_photo_frequency).to(
+            1.0/unyt.cm**3/unyt.s
+        )
+
+        self.assertEqual(photo_frequency.units, (1.0/unyt.s).units)
+        self.assertEqual(absorption_rate.units, (1.0/unyt.cm**3/unyt.s).units)
+        self.assertEqual(radiation_rate.units, (1.0/unyt.cm**3/unyt.s).units)
+        self.assertEqual(photoheating_rate.units, (unyt.erg/unyt.cm**3/unyt.s).units)
+        np.testing.assert_allclose(photo_frequency.value, expected_photo_frequency.value)
+        np.testing.assert_allclose(absorption_rate.value, expected_absorption.value)
+        np.testing.assert_allclose(radiation_rate.value, -expected_absorption.value)
+        np.testing.assert_allclose(
+            photoheating_rate.value,
+            (epsilon_gamma * expected_absorption).to_value(unyt.erg/unyt.cm**3/unyt.s),
+        )
+
+    def test_hydrogen_radiation_analytic_update_attenuates_photons(self):
+        rho = np.ones(1) * unyt.mp / unyt.cm**3
+        xHI = np.array([0.25])
+        ngamma = np.ones(1) * 12.0 / unyt.cm**3
+        sigma_gamma = 3.0e-18 * unyt.cm**2
+        dt = 2.0e6 * unyt.s
+
+        updated = rh.hydrogen_radiation_analytic_update(
+            rho,
+            xHI,
+            ngamma,
+            dt,
+            sigma_gamma=sigma_gamma,
+        )
+
+        exponent = -(
+            xHI
+            * rh.hydrogen_number_density(rho)
+            * unyt.c.to(unyt.cm/unyt.s)
+            * sigma_gamma
+            * dt
+        ).to_value('')
+        expected = ngamma * np.exp(exponent)
+
+        self.assertEqual(updated.units, (1.0/unyt.cm**3).units)
+        np.testing.assert_allclose(updated.value, expected.value)
+
     def test_hydrogen_implicit_neutral_fraction_update_satisfies_backward_euler(self):
         rho = np.ones(2) * unyt.mp / unyt.cm**3
         temp = np.ones(2) * 2.0e4 * unyt.K
@@ -149,6 +221,37 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(residual, np.zeros_like(updated), atol=1.0e-14)
         self.assertTrue(np.all(updated >= 0.0))
         self.assertTrue(np.all(updated <= 1.0))
+
+    def test_hydrogen_implicit_neutral_fraction_update_includes_photoionization(self):
+        rho = np.ones(2) * unyt.mp / unyt.cm**3
+        temp = np.ones(2) * 2.0e4 * unyt.K
+        xHI = np.array([0.2, 0.8])
+        ngamma = np.ones(2) * 1.0e3 / unyt.cm**3
+        sigma_gamma = 1.0e-18 * unyt.cm**2
+        dt = 1.0e4 * unyt.s
+
+        updated = rh.hydrogen_neutral_fraction_implicit_update(
+            rho,
+            temp,
+            xHI,
+            dt,
+            collisional_ionization=False,
+            ngamma=ngamma,
+            sigma_gamma=sigma_gamma,
+        )
+        nH = rh.hydrogen_number_density(rho)
+        recombination_rate = (nH * rh.alpha_B(temp)).to_value(1.0/unyt.s)
+        photoionization_rate = rh.photoionization_frequency(
+            ngamma,
+            sigma_gamma,
+        ).to_value(1.0/unyt.s)
+        residual = updated - xHI - dt.to_value(unyt.s) * (
+            recombination_rate * (1.0 - updated)**2
+            - photoionization_rate * updated
+        )
+
+        np.testing.assert_allclose(residual, np.zeros_like(updated), atol=1.0e-14)
+        self.assertTrue(np.all(updated < xHI))
     
     
 

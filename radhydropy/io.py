@@ -37,6 +37,9 @@ def writehdf5(ric,ICfilename):
         gdata.create_dataset("Mol_weight", data=ric.fluid.mu)
         if hasattr(ric.fluid, "xHI"):
             gdata.create_dataset("NeutralFraction", data=ric.fluid.xHI)
+        if hasattr(ric.fluid, "ngamma"):
+            gdata.create_dataset("PhotonNumberDensity", data=ric.fluid.ngamma)
+            gdata["PhotonNumberDensity"].attrs['units'] = str(ric.fluid.ngamma.units)
 
 
 
@@ -79,3 +82,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
         fluid.mu = gdata["Mol_weight"][:]  
         if "NeutralFraction" in gdata:
             fluid.xHI = gdata["NeutralFraction"][:]
+        if "PhotonNumberDensity" in gdata:
+            ngamma = gdata["PhotonNumberDensity"][:]
+            ngamma_unit = gdata["PhotonNumberDensity"].attrs['units']
+            fluid.ngamma = ngamma * unyt.Unit(ngamma_unit)

@@ -74,6 +74,15 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.xHI[:2], [0.4, 0.5])
         np.testing.assert_array_equal(fluid.xHI[-2:], [0.2, 0.3])
 
+    def test_periodic_boundary_wraps_photon_number_density(self):
+        fluid = Fluid()
+        fluid.ngamma = np.arange(8, dtype=float) / unyt.cm**3
+
+        Solver().SetBoundary(None, fluid, Par('Periodic'))
+
+        np.testing.assert_array_equal(fluid.ngamma[:2].value, [4.0, 5.0])
+        np.testing.assert_array_equal(fluid.ngamma[-2:].value, [2.0, 3.0])
+
     def test_reflecting_boundary_reverses_velocity(self):
         fluid = Fluid()
         Solver().SetBoundary(None, fluid, Par('Reflecting'))
@@ -220,6 +229,70 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
         self.assertTrue(np.all(fluid.xHI[2:6] > xHI_before[2:6]))
+
+    def test_hydrogen_radiation_field_attenuates_heats_and_ionizes(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        par.hydrogen_collisional_ionization = False
+        par.hydrogen_radiation_field = True
+        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
+        par.hydrogen_epsilon_gamma = 1.0e-12 * unyt.erg
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 1.0e4 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8) * 0.9
+        fluid.ngamma = np.ones(8) * 1.0e3 / unyt.cm**3
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+        energy_before = fluid.Energy.copy()
+        xHI_before = fluid.xHI.copy()
+        ngamma_before = fluid.ngamma.copy()
+
+        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+
+        self.assertTrue(np.all(fluid.ngamma[2:6] < ngamma_before[2:6]))
+        self.assertTrue(np.all(fluid.Energy[2:6] > energy_before[2:6]))
+        self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
+        np.testing.assert_array_equal(fluid.ngamma[:2], ngamma_before[:2])
+
+    def test_hydrogen_fixed_radiation_field_ionizes_without_attenuation(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = True
+        par.hydrogen_mass_fraction = 1.0
+        par.hydrogen_source_CFL = 0.1
+        par.hydrogen_update_mu = False
+        par.hydrogen_thermal_coupling = False
+        par.hydrogen_collisional_ionization = False
+        par.hydrogen_radiation_field = True
+        par.hydrogen_radiation_evolution = False
+        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.xHI = np.ones(8)
+        fluid.ngamma = np.ones(8) * 1.0e3 / unyt.cm**3
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+        energy_before = fluid.Energy.copy()
+        xHI_before = fluid.xHI.copy()
+        ngamma_before = fluid.ngamma.copy()
+
+        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+
+        np.testing.assert_allclose(fluid.ngamma.value, ngamma_before.value)
+        np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
+        self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
 
     def test_hydrogen_subcycle_timestep_can_be_smaller_than_dtmax(self):
         par = Par('Periodic')

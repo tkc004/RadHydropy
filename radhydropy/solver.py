@@ -24,6 +24,19 @@ class Solver():
     def _hydrogen_enabled(self, fluid, par):
         return getattr(par, 'hydrogen_chemistry', False) and hasattr(fluid, 'xHI')
 
+    def _hydrogen_radiation_enabled(self, fluid, par):
+        return (
+            self._hydrogen_enabled(fluid, par)
+            and getattr(par, 'hydrogen_radiation_field', False)
+            and hasattr(fluid, 'ngamma')
+        )
+
+    def _hydrogen_radiation_evolution_enabled(self, fluid, par):
+        return (
+            self._hydrogen_radiation_enabled(fluid, par)
+            and getattr(par, 'hydrogen_radiation_evolution', True)
+        )
+
     def _spherical_center_cell_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
@@ -227,6 +240,11 @@ class Solver():
         hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
         collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
         thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
+        radiation_coupling = self._hydrogen_radiation_enabled(fluid, par)
+        radiation_evolution = self._hydrogen_radiation_evolution_enabled(fluid, par)
+        sigma_gamma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA)
+        epsilon_gamma = getattr(par, 'hydrogen_epsilon_gamma', rh.DEFAULT_EPSILON_GAMMA)
+        ngamma = fluid.ngamma if radiation_coupling else None
         if getattr(par, 'hydrogen_update_mu', False):
             fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
         fluid.SetTemperature()
@@ -236,9 +254,41 @@ class Solver():
             fluid.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
             collisional_ionization=collisional_ionization,
+            ngamma=ngamma,
+            sigma_gamma=sigma_gamma,
+            epsilon_gamma=epsilon_gamma,
         )
         interior = self._interior_slice(par)
         candidates = []
+
+        if radiation_evolution:
+            radiation_rate = rh.hydrogen_radiation_rate(
+                fluid.rho,
+                fluid.xHI,
+                fluid.ngamma,
+                hydrogen_mass_fraction=hydrogen_mass_fraction,
+                sigma_gamma=sigma_gamma,
+            )
+            photon_density = fluid.ngamma[interior]
+            radiation_rate_abs = np.absolute(radiation_rate[interior])
+            radiation_valid = np.logical_and(
+                radiation_rate_abs > 0.0 * radiation_rate_abs.units,
+                photon_density > 0.0 * photon_density.units,
+            )
+            if np.any(radiation_valid):
+                radiation_times = (
+                    source_CFL
+                    * photon_density[radiation_valid]
+                    / radiation_rate_abs[radiation_valid]
+                ).to(unyt.s)
+                radiation_times = radiation_times[
+                    np.logical_and(
+                        np.isfinite(radiation_times.value),
+                        radiation_times.value > 0.0,
+                    )
+                ]
+                if len(radiation_times) > 0:
+                    candidates.append(np.amin(radiation_times))
 
         thermal_energy_density = fluid.pre / (fluid.eos.gamma - 1.0)
         thermal_rate_abs = np.absolute(thermal_rate[interior])
@@ -306,6 +356,10 @@ class Solver():
         hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
         collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
         thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
+        radiation_coupling = self._hydrogen_radiation_enabled(fluid, par)
+        radiation_evolution = self._hydrogen_radiation_evolution_enabled(fluid, par)
+        sigma_gamma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA)
+        epsilon_gamma = getattr(par, 'hydrogen_epsilon_gamma', rh.DEFAULT_EPSILON_GAMMA)
         interior = self._interior_slice(par)
         remaining = dt.to(unyt.s)
         zero_time = 0.0 * unyt.s
@@ -313,18 +367,32 @@ class Solver():
             if getattr(par, 'hydrogen_update_mu', False):
                 fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
             fluid.SetTemperature()
+            ngamma = fluid.ngamma if radiation_coupling else None
             thermal_rate, _ = rh.hydrogen_source_terms(
                 fluid.rho,
                 fluid.temp,
                 fluid.xHI,
                 hydrogen_mass_fraction=hydrogen_mass_fraction,
                 collisional_ionization=collisional_ionization,
+                ngamma=ngamma,
+                sigma_gamma=sigma_gamma,
+                epsilon_gamma=epsilon_gamma,
             )
             sub_dt = self.GetHydrogenTimeStep(mesh, fluid, par)
             if not np.isfinite(sub_dt.to_value(unyt.s)) or sub_dt <= zero_time:
                 sub_dt = remaining
             if sub_dt > remaining:
                 sub_dt = remaining
+
+            if radiation_evolution:
+                fluid.ngamma[interior] = rh.hydrogen_radiation_analytic_update(
+                    fluid.rho[interior],
+                    fluid.xHI[interior],
+                    fluid.ngamma[interior],
+                    sub_dt,
+                    hydrogen_mass_fraction=hydrogen_mass_fraction,
+                    sigma_gamma=sigma_gamma,
+                ).to(fluid.ngamma.units)
 
             if thermal_coupling:
                 self._apply_hydrogen_thermal_source(sub_dt, mesh, fluid, thermal_rate, par)
@@ -339,6 +407,8 @@ class Solver():
                 sub_dt,
                 hydrogen_mass_fraction=hydrogen_mass_fraction,
                 collisional_ionization=collisional_ionization,
+                ngamma=fluid.ngamma[interior] if radiation_coupling else None,
+                sigma_gamma=sigma_gamma,
             )
             if getattr(par, 'hydrogen_update_mu', False):
                 fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
@@ -359,6 +429,8 @@ class Solver():
         fields = ['rho', 'vel', 'pre']
         if hasattr(fluid, 'xHI'):
             fields.append('xHI')
+        if hasattr(fluid, 'ngamma'):
+            fields.append('ngamma')
         scalar_fields = [field for field in fields if field != 'vel']
 
         def copy_left(values):
@@ -382,6 +454,8 @@ class Solver():
             }
             if hasattr(fluid, 'xHI'):
                 left_values['xHI'] = fluid.xHI[mirror_start:mirror_start+noghost][::-1]
+            if hasattr(fluid, 'ngamma'):
+                left_values['ngamma'] = fluid.ngamma[mirror_start:mirror_start+noghost][::-1]
             copy_left(left_values)
 
         if btype == 'Periodic':
@@ -416,6 +490,8 @@ class Solver():
             }
             if hasattr(fluid, 'xHI'):
                 right_values['xHI'] = fluid.xHI[nolast]
+            if hasattr(fluid, 'ngamma'):
+                right_values['ngamma'] = fluid.ngamma[nolast]
             copy_right(right_values)
         elif btype == 'InflowSph':
             pre_inflow = ru.CalPressure(par.rho_inflow,par.temp_inflow,par.mu_inflow)
@@ -427,6 +503,10 @@ class Solver():
             }
             if hasattr(fluid, 'xHI'):
                 right_values['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
+            if hasattr(fluid, 'ngamma'):
+                right_values['ngamma'] = rh.photon_number_density(
+                    getattr(par, 'hydrogen_ngamma_inflow', 0.0)
+                ).to(fluid.ngamma.units)
             copy_right(right_values)
         elif btype == 'OutflowSph':
             pre_outflow = ru.CalPressure(par.rho_outflow,par.temp_outflow,par.mu_outflow)
@@ -437,6 +517,10 @@ class Solver():
             }
             if hasattr(fluid, 'xHI'):
                 left_values['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
+            if hasattr(fluid, 'ngamma'):
+                left_values['ngamma'] = rh.photon_number_density(
+                    getattr(par, 'hydrogen_ngamma_outflow', 0.0)
+                ).to(fluid.ngamma.units)
             copy_left(left_values)
             right_values = {
                 'rho': fluid.rho[nolast],
@@ -445,6 +529,8 @@ class Solver():
             }
             if hasattr(fluid, 'xHI'):
                 right_values['xHI'] = fluid.xHI[nolast]
+            if hasattr(fluid, 'ngamma'):
+                right_values['ngamma'] = fluid.ngamma[nolast]
             copy_right(right_values)
         else:
             raise ValueError('Boundary condition unknown: %s'%btype) 

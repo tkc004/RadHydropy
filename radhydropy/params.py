@@ -38,6 +38,13 @@ refparams = {
     'hydrogen_update_mu': False,
     'hydrogen_thermal_coupling': True,
     'hydrogen_collisional_ionization': True,
+    'hydrogen_radiation_field': False,
+    'hydrogen_radiation_evolution': True,
+    'hydrogen_ngamma_initial': 0.0 / unyt.cm**3,
+    'hydrogen_ngamma_inflow': 0.0 / unyt.cm**3,
+    'hydrogen_ngamma_outflow': 0.0 / unyt.cm**3,
+    'hydrogen_sigma_gamma': 1.62e-18 * unyt.cm**2,
+    'hydrogen_epsilon_gamma': 0.0 * unyt.erg,
 }
 
 
