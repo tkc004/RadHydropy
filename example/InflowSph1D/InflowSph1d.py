@@ -10,10 +10,8 @@ os.environ.setdefault(
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from radhydropy.analysis import rplot1d
-import numpy as np
-import radhydropy.utils as ru 
 import radhydropy.io as rio
+import tools as et
 
 #to get the current working directory
 rundir = os.getcwd()
@@ -55,69 +53,24 @@ ICparams = {
     'rhoini': 0.001 * unyt.g/ unyt.cm**3, # initial density (of the higher density end)
 }
 
-class Par():
-    def __init__(self) -> None:
-        pass
-
-class Mesh():
-    def __init__(self) -> None:
-        pass
-
-class Fluid():
-    def __init__(self) -> None:
-        pass
-
-class Simwrap():
-    def __init__(self) -> None:
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        # should be read from parameter files instead
-        self.par.nogrid = ICparams["nogrid"]
-        self.par.coordsys = ICparams["coordsys"]
-        self.par.boxsize = ICparams["boxsize"]*np.ones(1)
-        self.par.time = ICparams["time"]*np.ones(1)
-         
-        # boundary points of the mesh
-        # note that we use first (0) and final (nogrid+1) cells as ghost cells
-        # to set boundary conditions
-        dx = self.par.boxsize[0]/self.par.nogrid
-
-        # generate initial condition
-        #self.mesh.boundary = np.linspace(-0.5*dx,self.par.boxsize[0]+0.5*dx,self.par.nogrid+1)
-        self.mesh.boundary = np.linspace(-0.5*dx,self.par.boxsize[0]+0.5*dx,self.par.nogrid+1)
-        self.fluid.vel = ICparams["vini"] * np.ones(self.par.nogrid)
-        self.fluid.temp = ICparams["tempini"] * np.ones(self.par.nogrid)
-        self.fluid.rho = ICparams["rhoini"] * np.ones(self.par.nogrid)
-        # mean molecular weight
-        self.fluid.mu = ICparams["muini"] * np.ones(self.par.nogrid) # for primordial neutral gas 
-
-# I think the analytic solution only work for constant density
-# we cannot do density advection
-# we cannot do temperature advection neither
-# since temperature changes with density
-def ReadandPlot(outfilename,**kwargs):
-    rout = Simwrap() 
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout,yquan='rho',showhalf=0,showfig=0,**kwargs)
-    plt.ylim(ymax=10.1)
-    plt.axvline(x = ICparams["boxsize"]+rout.par.time*runparams['vel_inflow'],color=kwargs['color'],ls='dashed')
-    rhoana = runparams['rho_inflow']*ICparams['boxsize']**2/rout.mesh.boundary[:-1]**2
-    plt.plot(rout.mesh.boundary[:-1],rhoana,ls='dashed',color='k')
-
-
-
-
-
 def main():
-    ric = Simwrap()
+    ric = et.Simwrap(ICparams)
     rio.writehdf5(ric,runparams['ICfilename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
     for outindex in range(0,9,2):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
-        ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=1,color=next(ax._get_lines.prop_cycler)['color'])
+        et.ReadandPlot(
+            outfilename,
+            ICparams,
+            runparams,
+            ls='none',
+            marker='o',
+            mfc='none',
+            markevery=1,
+            color=next(ax._get_lines.prop_cycler)['color'],
+        )
     figure_filename = rundir + '/InflowSph1D.jpg'
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)

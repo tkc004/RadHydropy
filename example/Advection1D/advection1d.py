@@ -10,10 +10,8 @@ os.environ.setdefault(
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from radhydropy.analysis import rplot1d
-import numpy as np
-import radhydropy.utils as ru 
 import radhydropy.io as rio
+import tools as et
 
 #to get the current working directory
 rundir = os.getcwd()
@@ -51,86 +49,24 @@ ICparams = {
     'muini': 1.0,
 }
 
-
-
-class Par():
-    def __init__(self) -> None:
-        pass
-
-class Mesh():
-    def __init__(self) -> None:
-        pass
-
-class Fluid():
-    def __init__(self) -> None:
-        pass
-
-class Simwrap():
-    def __init__(self) -> None:
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        # should be read from parameter files instead
-        self.par.nogrid = ICparams["nogrid"]
-        self.par.coordsys = ICparams["coordsys"]
-        self.par.boxsize = ICparams["boxsize"]*np.ones(1)
-        self.par.time = ICparams["time"]*np.ones(1)
-        rhoini = ICparams["rhoini"]
-        vini = ICparams["vini"]
-        tempini = ICparams["tempini"]
-        muini = ICparams["muini"]
-
-        #check the dimension of the initial condition
-        if ru.CheckParamDimen(ICparams) != True:
-            raise Exception("%s unit not correctly set in params"%ru.CheckParamDimen(ICparams))
-         
-        # boundary points of the mesh
-        # to set boundary conditions
-        dx = self.par.boxsize[0]/self.par.nogrid
-
-        # generate initial condition
-        self.mesh.boundary = np.linspace(0.0*self.par.boxsize[0],self.par.boxsize[0]+dx,self.par.nogrid+1)
-        coordinate = 0.5 * (self.mesh.boundary[1:]+self.mesh.boundary[:-1])
-        #print('coordinate',coordinate)
-
-        rho = np.ones(self.par.nogrid) * rhoini
-        self.fluid.vel = np.ones(self.par.nogrid) * vini
-        self.fluid.temp = np.ones(self.par.nogrid) * tempini
-        rho[np.logical_or(coordinate<0.25*self.par.boxsize[0], coordinate>0.75*self.par.boxsize[0])] *= 0.5
-        self.fluid.rho = rho
-        # mean molecular weight
-        self.fluid.mu = np.ones(self.par.nogrid) * ICparams["muini"] # for primordial neutral gas 
-
-
-def ReadandPlot(outfilename,**kwargs):
-    rout = Simwrap() 
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    x = np.linspace(0.0*ICparams["boxsize"],ICparams["boxsize"],ICparams["nogrid"]) 
-    rho = np.ones(ICparams["nogrid"]) * ICparams["rhoini"]
-    x1 = 0.25*ICparams["boxsize"]+rout.par.time*ICparams["vini"]
-    x2 = 0.75*ICparams["boxsize"]+rout.par.time*ICparams["vini"] 
-    if x1>ICparams["boxsize"]:
-        x1 -= ICparams["boxsize"] 
-    if x2>ICparams["boxsize"]:
-        x2 -= ICparams["boxsize"]
-    if x2>x1:     
-        rho[np.logical_or(x<x1, x>x2)] *= 0.5
-    if x1>x2:
-        rho[np.logical_and(x>x1, x<x2)] *= 0.5 
-    plt.plot(x, rho, color=kwargs['color'],ls='solid')
-    rplot1d(rout, showfig=0,**kwargs)
-
-
-
 def main():
-    ric = Simwrap()
+    ric = et.Simwrap(ICparams)
     rio.writehdf5(ric,runparams['ICfilename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
     for outindex in range(0,10,5):
         outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
-        ReadandPlot(outfilename,ls='none',marker='o', mfc='none', markevery=10,color=next(ax._get_lines.prop_cycler)['color'])
+        et.ReadandPlot(
+            outfilename,
+            ICparams,
+            runparams,
+            ls='none',
+            marker='o',
+            mfc='none',
+            markevery=10,
+            color=next(ax._get_lines.prop_cycler)['color'],
+        )
     figure_filename = rundir + '/Advection1D.jpg'
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
