@@ -78,9 +78,41 @@ def interior_slice(par):
     return slice(first, first + par.nogrid)
 
 
+def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
+    interior = interior_slice(par)
+    radius = mesh.coordinate[interior].to(unyt.kpc)
+    xHI = np.asarray(fluid.xHI[interior])
+
+    ionized = xHI <= neutral_fraction
+    if not np.any(ionized):
+        return 0.0 * unyt.kpc
+    if np.all(ionized):
+        return mesh.boundary[interior.stop].to(unyt.kpc)
+
+    outer_ionized_index = np.where(ionized)[0][-1]
+    left = outer_ionized_index
+    right = outer_ionized_index + 1
+    x_left = xHI[left]
+    x_right = xHI[right]
+    if x_right == x_left:
+        return radius[left]
+
+    weight = (neutral_fraction - x_left) / (x_right - x_left)
+    return radius[left] + weight * (radius[right] - radius[left])
+
+
+def append_front_history(history, mesh, fluid, par):
+    history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
+    history['front_radius_kpc'].append(
+        ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
+    )
+
+
 def evolve_static_chemistry(mesh, fluid, par, solver, final_time, chemistry_timestep):
     interior = interior_slice(par)
     elapsed = 0.0 * unyt.Myr
+    history = {'time_Myr': [], 'front_radius_kpc': []}
+    append_front_history(history, mesh, fluid, par)
     while elapsed < final_time:
         dt = min(chemistry_timestep, final_time - elapsed)
         solver.SetBoundary(mesh, fluid, par)
@@ -100,13 +132,16 @@ def evolve_static_chemistry(mesh, fluid, par, solver, final_time, chemistry_time
         )
         elapsed += dt
         fluid.time = elapsed
+        append_front_history(history, mesh, fluid, par)
     solver.SetBoundary(mesh, fluid, par)
     solver.ApplyRadiativeTransfer(mesh, fluid, par)
+    return history
 
 
 def save_plot(mesh, fluid, par, config, figure_filename):
     interior = interior_slice(par)
     radius = mesh.coordinate[interior].to(unyt.kpc)
+    plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
     xHI = fluid.xHI[interior]
     xHII = 1.0 - xHI
     xHI_analytic = sa.neutral_fraction_profile(
@@ -164,11 +199,62 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     )
     ax.set_xlabel('Radius [kpc]')
     ax.set_ylabel('Hydrogen fraction')
-    ax.set_xlim(0.0, config['boxsize'].to_value(unyt.kpc))
+    ax.set_xlim(0.0, plot_radius_max)
     ax.set_yscale('log')
     ax.set_ylim(plot_floor, 1.2)
     ax.grid(True, which='both', alpha=0.25)
     ax.legend(frameon=False, loc='center right')
+    fig.tight_layout()
+    fig.savefig(figure_filename, dpi=200)
+    plt.close(fig)
+
+
+def save_front_history_plot(history, config, figure_filename):
+    time_Myr = np.asarray(history['time_Myr'])
+    front_radius_kpc = np.asarray(history['front_radius_kpc'])
+    plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
+    time = time_Myr * unyt.Myr
+    analytic_front = sa.ionization_front_radius(
+        time,
+        config['source_photon_rate'],
+        config['hydrogen_number_density'],
+        config['alpha_B_coefficient'],
+    ).to_value(unyt.kpc)
+    radius_stromgren = sa.stromgren_radius(
+        config['source_photon_rate'],
+        config['hydrogen_number_density'],
+        config['alpha_B_coefficient'],
+    ).to_value(unyt.kpc)
+
+    fig, ax = plt.subplots(figsize=(7.2, 4.8))
+    ax.plot(
+        time_Myr,
+        front_radius_kpc,
+        color='tab:blue',
+        lw=2.0,
+        label=r'$x_{\rm HI}=0.5$ numerical',
+    )
+    ax.plot(
+        time_Myr,
+        analytic_front,
+        color='black',
+        lw=1.8,
+        ls='--',
+        label=r'$R_I(t)=R_S[1-\exp(-t/\tau_r)]^{1/3}$',
+    )
+    ax.axhline(
+        radius_stromgren,
+        color='0.25',
+        lw=1.2,
+        ls=':',
+        label=r'$R_{\rm S}=%.2f\ {\rm kpc}$' % radius_stromgren,
+    )
+    ax.set_xlabel('Time [Myr]')
+    ax.set_ylabel('Ionization-front radius [kpc]')
+    ax.set_xlim(0.0, time_Myr[-1])
+    ax.set_ylim(0.0, plot_radius_max)
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False, loc='lower right')
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)

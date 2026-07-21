@@ -38,7 +38,7 @@ def recombination_time(hydrogen_number_density, alpha_B):
 
 
 def ionization_front_radius(time, source_photon_rate, hydrogen_number_density, alpha_B):
-    """Return the classic time-dependent Stromgren I-front radius."""
+    """Return ``R_I(t) = R_S [1 - exp(-t / tau_r)]^(1/3)``."""
 
     radius = stromgren_radius(source_photon_rate, hydrogen_number_density, alpha_B)
     time_rec = recombination_time(hydrogen_number_density, alpha_B)
