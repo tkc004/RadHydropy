@@ -35,6 +35,7 @@ refparams = {
     'hydrogen_xHI_inflow': 1.0,
     'hydrogen_xHI_outflow': 1.0,
     'hydrogen_source_CFL': 0.1,
+    'hydrogen_source_dtmin': 0.0 * unyt.s,
     'hydrogen_update_mu': False,
     'hydrogen_thermal_coupling': True,
     'hydrogen_recombination': True,

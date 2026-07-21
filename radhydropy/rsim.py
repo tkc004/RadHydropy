@@ -24,6 +24,16 @@ class Rsim():
         self.par    = Par(params)
         self.solver = Solver()
         self.fluid.eos = EOS(self.par.EOStype,self.par.gamma)
+
+    @classmethod
+    def FromComponents(cls, par, mesh, fluid, solver=None):
+        """Create a runner from already-initialized objects."""
+        sim = cls.__new__(cls)
+        sim.par = par
+        sim.mesh = mesh
+        sim.fluid = fluid
+        sim.solver = solver if solver is not None else Solver()
+        return sim
         
 
     def Callreadhdf5(self):
@@ -70,6 +80,88 @@ class Rsim():
         if getattr(self.par, 'hydrogen_chemistry', False):
             self.fluid.SetTemperature()
         return dt
+
+    def RunHydroStep(self, dt=None, advect_hydrogen=True):
+        """Advance one hydrodynamic step, optionally advecting hydrogen scalars."""
+        if dt is None:
+            dt = self.solver.GetTimeStep(self.mesh, self.fluid, self.par)
+        self.solver.SetBoundary(self.mesh, self.fluid, self.par)
+        self.solver.SetConserved(self.mesh, self.fluid)
+        old_mass = self.fluid.Mass.copy()
+        self.solver.SetInterFaceFlux(
+            self.mesh,
+            self.fluid,
+            self.par.boundcond,
+            order=self.par.order,
+        )
+        mass_flux = self.fluid.Mass.flux.copy()
+        self.solver.AddFluxes(dt, self.mesh, self.fluid, self.par.boundcond)
+        if advect_hydrogen:
+            self.solver.AdvectHydrogenNeutralFraction(
+                dt,
+                self.mesh,
+                self.fluid,
+                self.par,
+                old_mass,
+                mass_flux,
+            )
+        self.solver.SetPrimitive(self.mesh, self.fluid)
+        if getattr(self.par, 'hydrogen_chemistry', False):
+            if getattr(self.par, 'hydrogen_update_mu', False):
+                self.fluid.SetHydrogenMu(
+                    hydrogen_mass_fraction=getattr(
+                        self.par,
+                        'hydrogen_mass_fraction',
+                        1.0,
+                    )
+                )
+            self.fluid.SetTemperature()
+            self.fluid.SetPressure()
+        self.solver.SetConserved(self.mesh, self.fluid)
+        return dt
+
+    def RunCoupledHydroSourceStep(self, dt=None, fast_hydrogen_sources=False):
+        """Advance hydrodynamics and then hydrogen source terms for one step."""
+        dt = self.RunHydroStep(dt=dt)
+        if fast_hydrogen_sources:
+            source_steps = self.solver.AddHydrogenSourcesFast(
+                dt,
+                self.mesh,
+                self.fluid,
+                self.par,
+            )
+        else:
+            self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
+            self.solver.AddHydrogenSources(dt, self.mesh, self.fluid, self.par)
+            source_steps = 1
+        self.solver.SetBoundary(self.mesh, self.fluid, self.par)
+        self.solver.SetConserved(self.mesh, self.fluid)
+        return dt, source_steps
+
+    def EvolveCoupledHydroSources(
+        self,
+        final_time,
+        fast_hydrogen_sources=False,
+        history_callback=None,
+    ):
+        """Evolve hydro plus source terms to ``final_time`` and return counters."""
+        hydro_steps = 0
+        source_steps = 0
+        if history_callback is not None:
+            history_callback(self)
+        while self.fluid.time < final_time:
+            dt = self.solver.GetTimeStep(self.mesh, self.fluid, self.par)
+            if self.fluid.time + dt > final_time:
+                dt = final_time - self.fluid.time
+            _, step_sources = self.RunCoupledHydroSourceStep(
+                dt=dt,
+                fast_hydrogen_sources=fast_hydrogen_sources,
+            )
+            hydro_steps += 1
+            source_steps += step_sources
+            if history_callback is not None:
+                history_callback(self)
+        return {'hydro_steps': hydro_steps, 'source_steps': source_steps}
 
     def Run(self,outputtime=0):
         """Run the simulation loop and write periodic HDF5 outputs."""

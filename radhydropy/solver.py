@@ -240,6 +240,221 @@ class Solver():
         # advance time
         fluid.time += dt
 
+    def AdvectHydrogenNeutralFraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
+        """Advect neutral hydrogen fraction consistently with the mass flux."""
+        if not hasattr(fluid, 'xHI'):
+            return
+        face_area = mesh.area
+        x_left = np.roll(fluid.xHI, 1)
+        x_right = fluid.xHI
+        x_face = np.where(mass_flux >= 0.0 * mass_flux.units, x_left, x_right)
+        neutral_mass = np.asarray(fluid.xHI) * old_mass
+        neutral_flux = x_face * mass_flux
+        neutral_mass += (
+            neutral_flux * face_area
+            - np.roll(neutral_flux * face_area, -1)
+        ) * dt
+        xHI = ru.SafeDivide(neutral_mass, fluid.Mass)
+        fluid.xHI = rh.clip_neutral_fraction(xHI.to_value(''))
+
+    def TraceSphericalPhotonDensityFast(self, mesh, fluid, par):
+        """Update ``ngamma`` with a lightweight spherical long-characteristic trace."""
+        if getattr(mesh, 'coordsys', None) != 'spherical':
+            self.ApplyRadiativeTransfer(mesh, fluid, par)
+            return fluid.ngamma[self._interior_slice(par)]
+        if not hasattr(fluid, 'ngamma'):
+            return None
+
+        interior = self._interior_slice(par)
+        boundary = mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm)
+        width = np.diff(boundary)
+        volume = mesh.vol[interior].to_value(unyt.cm**3)
+        rho = fluid.rho[interior].to_value(unyt.g / unyt.cm**3)
+        nH = (
+            rho
+            * getattr(par, 'hydrogen_mass_fraction', 1.0)
+            / unyt.mp.to_value(unyt.g)
+        )
+        xHI = np.clip(np.asarray(fluid.xHI[interior], dtype=float), 0.0, 1.0)
+        sigma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA).to_value(
+            unyt.cm**2
+        )
+        source_rate = getattr(
+            par,
+            'radiative_transfer_source_photon_rate',
+            0.0 / unyt.s,
+        ).to_value(1.0 / unyt.s)
+        c_light = rh.SPEED_OF_LIGHT.to_value(unyt.cm / unyt.s)
+
+        tau = sigma * nH * xHI * width
+        attenuation = np.exp(-np.clip(tau, 0.0, 700.0))
+        mean_attenuation = np.ones_like(tau)
+        valid = np.abs(tau) > 1.0e-10
+        mean_attenuation[valid] = -np.expm1(-tau[valid]) / tau[valid]
+
+        face_rate = np.zeros(len(xHI) + 1)
+        ngamma = np.zeros_like(xHI)
+        face_rate[0] = source_rate
+        for i in range(len(xHI)):
+            face_rate[i + 1] = face_rate[i] * attenuation[i]
+            ngamma[i] = (
+                face_rate[i]
+                * width[i]
+                * mean_attenuation[i]
+                / volume[i]
+                / c_light
+            )
+
+        fluid.ngamma[interior] = ngamma / unyt.cm**3
+        return fluid.ngamma[interior]
+
+    def GetHydrogenSourceTimeStepFast(self, mesh, fluid, par, remaining):
+        """Return a source substep for RT-coupled hydrogen heating/chemistry."""
+        interior = self._interior_slice(par)
+        source_CFL = getattr(par, 'hydrogen_source_CFL', 0.1)
+        dtmin = getattr(par, 'hydrogen_source_dtmin', 0.0 * unyt.s).to(unyt.s)
+        hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        recombination = getattr(par, 'hydrogen_recombination', True)
+        collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
+        thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
+        sigma_gamma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA)
+        epsilon_gamma = getattr(par, 'hydrogen_epsilon_gamma', rh.DEFAULT_EPSILON_GAMMA)
+        recombination_coefficient = getattr(par, 'hydrogen_alpha_B', None)
+        ionization_coefficient = getattr(par, 'hydrogen_beta', None)
+
+        thermal_rate, neutral_fraction_rate = rh.hydrogen_source_terms(
+            fluid.rho,
+            fluid.temp,
+            fluid.xHI,
+            hydrogen_mass_fraction=hydrogen_mass_fraction,
+            recombination=recombination,
+            collisional_ionization=collisional_ionization,
+            ngamma=fluid.ngamma if hasattr(fluid, 'ngamma') else None,
+            sigma_gamma=sigma_gamma,
+            epsilon_gamma=epsilon_gamma,
+            recombination_coefficient=recombination_coefficient,
+            ionization_coefficient=ionization_coefficient,
+        )
+        candidates = []
+
+        if thermal_coupling:
+            thermal_energy_density = fluid.pre / (fluid.eos.gamma - 1.0)
+            thermal_rate_abs = np.absolute(thermal_rate[interior])
+            thermal_valid = np.logical_and(
+                thermal_rate_abs > 0.0 * thermal_rate_abs.units,
+                thermal_energy_density[interior] > 0.0 * thermal_energy_density.units,
+            )
+            if np.any(thermal_valid):
+                thermal_times = (
+                    source_CFL
+                    * thermal_energy_density[interior][thermal_valid]
+                    / thermal_rate_abs[thermal_valid]
+                ).to(unyt.s)
+                thermal_times = thermal_times[
+                    np.logical_and(
+                        np.isfinite(thermal_times.value),
+                        thermal_times.value > 0.0,
+                    )
+                ]
+                if len(thermal_times) > 0:
+                    candidates.append(np.amin(thermal_times))
+
+        xHI = rh.clip_neutral_fraction(fluid.xHI[interior])
+        neutral_fraction_rate_abs = np.absolute(
+            neutral_fraction_rate[interior].to_value(1.0 / unyt.s)
+        )
+        scale = np.where(neutral_fraction_rate[interior].to_value(1.0 / unyt.s) < 0.0,
+                         xHI,
+                         1.0 - xHI)
+        chemistry_valid = np.logical_and(
+            neutral_fraction_rate_abs > 0.0,
+            scale > 0.0,
+        )
+        if np.any(chemistry_valid):
+            chemistry_times = (
+                source_CFL
+                * scale[chemistry_valid]
+                / neutral_fraction_rate_abs[chemistry_valid]
+            ) * unyt.s
+            chemistry_times = chemistry_times[
+                np.logical_and(
+                    np.isfinite(chemistry_times.value),
+                    chemistry_times.value > 0.0,
+                )
+            ]
+            if len(chemistry_times) > 0:
+                candidates.append(np.amin(chemistry_times))
+
+        if len(candidates) == 0:
+            return remaining, thermal_rate
+        sub_dt = min(remaining, max(dtmin, min(candidates)))
+        return sub_dt, thermal_rate
+
+    def AddHydrogenSourcesFast(self, dt, mesh, fluid, par):
+        """Fast source update for RT-coupled hydrogen tests.
+
+        This keeps density fixed during the source subcycle, updates the RT
+        photon density with a spherical long-characteristic trace, evolves
+        thermal energy explicitly, and updates neutral fraction implicitly.
+        """
+        if not self._hydrogen_enabled(fluid, par):
+            return 0
+
+        hydrogen_mass_fraction = getattr(par, 'hydrogen_mass_fraction', 1.0)
+        recombination = getattr(par, 'hydrogen_recombination', True)
+        collisional_ionization = getattr(par, 'hydrogen_collisional_ionization', True)
+        thermal_coupling = getattr(par, 'hydrogen_thermal_coupling', True)
+        sigma_gamma = getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA)
+        recombination_coefficient = getattr(par, 'hydrogen_alpha_B', None)
+        ionization_coefficient = getattr(par, 'hydrogen_beta', None)
+        interior = self._interior_slice(par)
+        remaining = dt.to(unyt.s)
+        zero_time = 0.0 * unyt.s
+        source_steps = 0
+        while remaining > zero_time:
+            if getattr(par, 'radiative_transfer', False):
+                self.TraceSphericalPhotonDensityFast(mesh, fluid, par)
+            if getattr(par, 'hydrogen_update_mu', False):
+                fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+            fluid.SetTemperature()
+            sub_dt, thermal_rate = self.GetHydrogenSourceTimeStepFast(
+                mesh,
+                fluid,
+                par,
+                remaining,
+            )
+            if not np.isfinite(sub_dt.to_value(unyt.s)) or sub_dt <= zero_time:
+                sub_dt = remaining
+            if sub_dt > remaining:
+                sub_dt = remaining
+
+            if thermal_coupling:
+                self._apply_hydrogen_thermal_source(sub_dt, mesh, fluid, thermal_rate, par)
+                self.SetPrimitive(mesh, fluid)
+            if getattr(par, 'hydrogen_update_mu', False):
+                fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+            fluid.SetTemperature()
+            fluid.xHI[interior] = rh.hydrogen_neutral_fraction_implicit_update(
+                fluid.rho[interior],
+                fluid.temp[interior],
+                fluid.xHI[interior],
+                sub_dt,
+                hydrogen_mass_fraction=hydrogen_mass_fraction,
+                recombination=recombination,
+                collisional_ionization=collisional_ionization,
+                ngamma=fluid.ngamma[interior] if hasattr(fluid, 'ngamma') else None,
+                sigma_gamma=sigma_gamma,
+                recombination_coefficient=recombination_coefficient,
+                ionization_coefficient=ionization_coefficient,
+            )
+            if getattr(par, 'hydrogen_update_mu', False):
+                fluid.SetHydrogenMu(hydrogen_mass_fraction=hydrogen_mass_fraction)
+            remaining -= sub_dt
+            source_steps += 1
+        if getattr(par, 'radiative_transfer', False):
+            self.TraceSphericalPhotonDensityFast(mesh, fluid, par)
+        return source_steps
+
     def GetHydrogenTimeStep(self, mesh, fluid, par):
         """Return a hydrogen source subcycle timestep."""
         if not self._hydrogen_enabled(fluid, par):

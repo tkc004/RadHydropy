@@ -21,6 +21,7 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
+from radhydropy.rsim import Rsim
 import tools as et
 
 
@@ -89,7 +90,25 @@ def main():
         'neutral_fraction_reference_filename': neutral_fraction_reference_filename,
     }
     par, mesh, fluid, solver = et.build_problem(config)
-    history = et.evolve(mesh, fluid, par, solver, config, final_time)
+    sim = Rsim.FromComponents(par, mesh, fluid, solver)
+    history = {
+        'time_Myr': [],
+        'front_radius_kpc': [],
+        'mean_ionized_temperature_K': [],
+    }
+    counters = sim.EvolveCoupledHydroSources(
+        final_time,
+        fast_hydrogen_sources=True,
+        history_callback=lambda current_sim: et.append_history(
+            history,
+            current_sim.mesh,
+            current_sim.fluid,
+            current_sim.par,
+        ),
+    )
+    sim.solver.TraceSphericalPhotonDensityFast(sim.mesh, sim.fluid, sim.par)
+    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+    history.update(counters)
     et.save_plot(mesh, fluid, par, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
 
