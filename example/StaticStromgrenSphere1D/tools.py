@@ -101,22 +101,84 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     return radius[left] + weight * (radius[right] - radius[left])
 
 
-def append_front_history(history, mesh, fluid, par):
+def ionized_hydrogen_atoms(mesh, fluid, par):
+    interior = interior_slice(par)
+    nH = rh.hydrogen_number_density(
+        fluid.rho[interior],
+        par.hydrogen_mass_fraction,
+    )
+    ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
+    ionized_atoms = np.sum(ionized_fraction * nH * mesh.vol[interior])
+    return ionized_atoms.to_value('')
+
+
+def photons_in_volume(mesh, fluid, par):
+    interior = interior_slice(par)
+    photon_count = np.sum(fluid.ngamma[interior] * mesh.vol[interior])
+    return photon_count.to_value('')
+
+
+def total_recombination_rate(mesh, fluid, par):
+    interior = interior_slice(par)
+    nH = rh.hydrogen_number_density(
+        fluid.rho[interior],
+        par.hydrogen_mass_fraction,
+    )
+    ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
+    rate = np.sum(
+        par.hydrogen_alpha_B
+        * ionized_fraction**2
+        * nH**2
+        * mesh.vol[interior]
+    )
+    return rate.to(1.0 / unyt.s)
+
+
+def append_history(history, mesh, fluid, par, config, recombined_photons):
     history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
     history['front_radius_kpc'].append(
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
+    history['injected_photons'].append(
+        (config['source_photon_rate'] * fluid.time).to_value('')
+    )
+    history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, par))
+    history['recombined_photons'].append(recombined_photons)
+    history['volume_photons'].append(photons_in_volume(mesh, fluid, par))
+    history['accounted_photons'].append(
+        history['ionized_atoms'][-1]
+        + history['recombined_photons'][-1]
+        + history['volume_photons'][-1]
+    )
 
 
-def evolve_static_chemistry(mesh, fluid, par, solver, final_time, chemistry_timestep):
+def evolve_static_chemistry(
+    mesh,
+    fluid,
+    par,
+    solver,
+    config,
+    final_time,
+    chemistry_timestep,
+):
     interior = interior_slice(par)
     elapsed = 0.0 * unyt.Myr
-    history = {'time_Myr': [], 'front_radius_kpc': []}
-    append_front_history(history, mesh, fluid, par)
+    recombined_photons = 0.0
+    history = {
+        'time_Myr': [],
+        'front_radius_kpc': [],
+        'injected_photons': [],
+        'ionized_atoms': [],
+        'recombined_photons': [],
+        'volume_photons': [],
+        'accounted_photons': [],
+    }
+    append_history(history, mesh, fluid, par, config, recombined_photons)
     while elapsed < final_time:
         dt = min(chemistry_timestep, final_time - elapsed)
         solver.SetBoundary(mesh, fluid, par)
         solver.ApplyRadiativeTransfer(mesh, fluid, par)
+        recombination_rate_start = total_recombination_rate(mesh, fluid, par)
         fluid.xHI[interior] = rh.hydrogen_neutral_fraction_implicit_update(
             fluid.rho[interior],
             fluid.temp[interior],
@@ -130,9 +192,17 @@ def evolve_static_chemistry(mesh, fluid, par, solver, final_time, chemistry_time
             recombination_coefficient=par.hydrogen_alpha_B,
             ionization_coefficient=par.hydrogen_beta,
         )
+        recombination_rate_end = total_recombination_rate(mesh, fluid, par)
+        recombined_photons += (
+            0.5
+            * (recombination_rate_start + recombination_rate_end)
+            * dt
+        ).to_value('')
         elapsed += dt
         fluid.time = elapsed
-        append_front_history(history, mesh, fluid, par)
+        solver.SetBoundary(mesh, fluid, par)
+        solver.ApplyRadiativeTransfer(mesh, fluid, par)
+        append_history(history, mesh, fluid, par, config, recombined_photons)
     solver.SetBoundary(mesh, fluid, par)
     solver.ApplyRadiativeTransfer(mesh, fluid, par)
     return history
@@ -255,6 +325,96 @@ def save_front_history_plot(history, config, figure_filename):
     ax.set_ylim(0.0, plot_radius_max)
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False, loc='lower right')
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.14, right=0.98, bottom=0.10, top=0.97, hspace=0.08)
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
+
+
+def save_photon_budget_plot(history, figure_filename):
+    time_Myr = np.asarray(history['time_Myr'])
+    injected = np.asarray(history['injected_photons'])
+    ionized = np.asarray(history['ionized_atoms'])
+    recombined = np.asarray(history['recombined_photons'])
+    volume_photons = np.asarray(history['volume_photons'])
+    accounted = np.asarray(history['accounted_photons'])
+    residual = np.zeros_like(injected)
+    valid = injected > 0.0
+    residual[valid] = (accounted[valid] - injected[valid]) / injected[valid]
+
+    fig, (ax_budget, ax_residual) = plt.subplots(
+        2,
+        1,
+        figsize=(7.2, 6.0),
+        sharex=True,
+        gridspec_kw={'height_ratios': [2.0, 1.0], 'hspace': 0.08},
+    )
+    ax_budget.plot(
+        time_Myr,
+        injected,
+        color='black',
+        lw=2.0,
+        label=r'injected photons, $\dot{N}_\gamma t$',
+    )
+    ax_budget.plot(
+        time_Myr,
+        accounted,
+        color='tab:blue',
+        lw=1.8,
+        ls='--',
+        label=r'$N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}$',
+    )
+    ax_budget.plot(
+        time_Myr,
+        ionized,
+        color='tab:red',
+        lw=1.2,
+        ls=':',
+        label=r'$N_{\rm HII}$',
+    )
+    ax_budget.plot(
+        time_Myr,
+        recombined,
+        color='tab:green',
+        lw=1.2,
+        ls='-.',
+        label=r'$N_{\rm rec}$',
+    )
+    ax_budget.plot(
+        time_Myr,
+        volume_photons,
+        color='tab:orange',
+        lw=1.2,
+        ls=(0, (3, 1, 1, 1)),
+        label=r'$N_{\gamma,\rm vol}$',
+    )
+    ax_residual.axhline(0.0, color='black', lw=1.0)
+    ax_residual.plot(
+        time_Myr,
+        residual,
+        color='tab:purple',
+        lw=1.8,
+        label=(
+            r'$(N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}'
+            r'-\dot{N}_\gamma t)/\dot{N}_\gamma t$'
+        ),
+    )
+
+    ax_budget.set_ylabel('Photon count')
+    ax_residual.set_xlabel('Time [Myr]')
+    ax_residual.set_ylabel('Relative error')
+    ax_budget.set_yscale('log')
+    ax_budget.grid(True, which='both', alpha=0.25)
+    ax_residual.grid(True, alpha=0.25)
+    ax_budget.legend(frameon=False, loc='lower right')
+    ax_residual.legend(frameon=False, loc='best')
+    fig.subplots_adjust(left=0.14, right=0.98, bottom=0.10, top=0.97, hspace=0.08)
+    fig.savefig(figure_filename, dpi=200)
+    plt.close(fig)
+    return {
+        'injected_photons': injected[-1],
+        'accounted_photons': accounted[-1],
+        'ionized_atoms': ionized[-1],
+        'recombined_photons': recombined[-1],
+        'volume_photons': volume_photons[-1],
+        'relative_error': residual[-1],
+    }

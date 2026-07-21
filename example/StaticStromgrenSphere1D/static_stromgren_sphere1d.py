@@ -31,6 +31,10 @@ import tools as et
 rundir = os.path.dirname(os.path.abspath(__file__))
 figure_filename = os.path.join(rundir, 'StaticStromgrenSphere1D.jpg')
 front_figure_filename = os.path.join(rundir, 'StaticStromgrenSphere1D_IFront.jpg')
+budget_figure_filename = os.path.join(
+    rundir,
+    'StaticStromgrenSphere1D_PhotonBudget.jpg',
+)
 
 hydrogen_number_density = 1.0e-3 / unyt.cm**3
 alpha_B_coefficient = 2.59e-13 * unyt.cm**3 / unyt.s
@@ -61,11 +65,16 @@ def main():
         fluid,
         par,
         solver,
+        config,
         final_time,
         chemistry_timestep,
     )
     et.save_plot(mesh, fluid, par, config, figure_filename)
     et.save_front_history_plot(front_history, config, front_figure_filename)
+    photon_budget = et.save_photon_budget_plot(
+        front_history,
+        budget_figure_filename,
+    )
     print('time = %s' % fluid.time)
     print(
         'recombination time = %s'
@@ -88,8 +97,28 @@ def main():
             alpha_B_coefficient,
         ).to(unyt.kpc)
     )
+    print(
+        'injected photons = %.6e, accounted photons = %.6e'
+        % (
+            photon_budget['injected_photons'],
+            photon_budget['accounted_photons'],
+        )
+    )
+    print(
+        'ionized H = %.6e, recombinations = %.6e, photons in volume = %.6e'
+        % (
+            photon_budget['ionized_atoms'],
+            photon_budget['recombined_photons'],
+            photon_budget['volume_photons'],
+        )
+    )
+    print(
+        'photon budget relative error = %.6e'
+        % photon_budget['relative_error']
+    )
     print('figure = %s' % figure_filename)
     print('front figure = %s' % front_figure_filename)
+    print('photon budget figure = %s' % budget_figure_filename)
 
 
 if __name__ == '__main__':
