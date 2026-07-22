@@ -198,7 +198,7 @@ class Testing(unittest.TestCase):
         energy_before = fluid.Energy.copy()
         xHI_before = fluid.xHI.copy()
 
-        Solver().AddHydrogenSources(1.0e6 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistry(1.0e6 * unyt.s, mesh, fluid, par)
 
         self.assertTrue(np.all(fluid.Energy[2:6] < energy_before[2:6]))
         self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
@@ -225,7 +225,7 @@ class Testing(unittest.TestCase):
         energy_before = fluid.Energy.copy()
         xHI_before = fluid.xHI.copy()
 
-        Solver().AddHydrogenSources(1.0e6 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistry(1.0e6 * unyt.s, mesh, fluid, par)
 
         np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
         self.assertTrue(np.all(fluid.xHI[2:6] > xHI_before[2:6]))
@@ -255,7 +255,7 @@ class Testing(unittest.TestCase):
         xHI_before = fluid.xHI.copy()
         ngamma_before = fluid.ngamma.copy()
 
-        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
 
         self.assertTrue(np.all(fluid.ngamma[2:6] < ngamma_before[2:6]))
         self.assertTrue(np.all(fluid.Energy[2:6] > energy_before[2:6]))
@@ -288,7 +288,7 @@ class Testing(unittest.TestCase):
         xHI_before = fluid.xHI.copy()
         ngamma_before = fluid.ngamma.copy()
 
-        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
 
         np.testing.assert_allclose(fluid.ngamma.value, ngamma_before.value)
         np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
@@ -318,7 +318,7 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
 
-        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
 
         photoionization_rate = (
             unyt.c.to(unyt.cm/unyt.s)
@@ -354,7 +354,7 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
 
-        Solver().AddHydrogenSources(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
 
         self.assertTrue(hasattr(fluid, 'ngamma'))
         self.assertTrue(np.all(fluid.ngamma[2:6] > 0.0 / unyt.cm**3))
@@ -378,9 +378,9 @@ class Testing(unittest.TestCase):
         Solver().SetConserved(mesh, fluid)
         Solver().SetPrimitive(mesh, fluid)
 
-        hydrogen_dt = Solver().GetHydrogenTimeStep(mesh, fluid, par)
+        thermochemistry_dt = Solver().GetThermochemistryTimeStep(mesh, fluid, par)
 
-        self.assertLess(hydrogen_dt, par.dtmax)
+        self.assertLess(thermochemistry_dt, par.dtmax)
 
     def test_hydrogen_subcycling_does_not_limit_hydro_timestep(self):
         par = Par('Periodic')
@@ -399,10 +399,10 @@ class Testing(unittest.TestCase):
         fluid.xHI = np.ones(8) * 0.5
         fluid.SetPressure()
 
-        hydrogen_dt = Solver().GetHydrogenTimeStep(mesh, fluid, par)
+        thermochemistry_dt = Solver().GetThermochemistryTimeStep(mesh, fluid, par)
         hydro_dt = Solver().GetTimeStep(mesh, fluid, par)
 
-        self.assertLess(hydrogen_dt, par.dtmax)
+        self.assertLess(thermochemistry_dt, par.dtmax)
         self.assertEqual(hydro_dt, par.dtmax)
 
 

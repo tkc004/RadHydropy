@@ -24,6 +24,7 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
+from radhydropy.rsim import Rsim
 import stromgren_analytic as sa
 import tools as et
 
@@ -66,12 +67,8 @@ def main():
         'radiative_transfer_update_interval': radiative_transfer_update_interval,
     }
     par, mesh, fluid, solver = et.build_static_problem(config)
-    front_history = et.evolve_static_chemistry(
-        mesh,
-        fluid,
-        par,
-        solver,
-        config,
+    sim = Rsim.FromComponents(par, mesh, fluid, solver)
+    front_history = sim.EvolveStaticThermochemistry(
         final_time,
         chemistry_timestep,
     )

@@ -75,14 +75,14 @@ class Rsim():
         self.solver.AddFluxes(dt,self.mesh,self.fluid,self.par.boundcond)
         self.solver.SetPrimitive(self.mesh,self.fluid)
         self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
-        self.solver.AddHydrogenSources(dt,self.mesh,self.fluid,self.par)
+        self.solver.ApplyThermochemistry(dt,self.mesh,self.fluid,self.par)
         self.solver.SetPrimitive(self.mesh,self.fluid)
         if getattr(self.par, 'hydrogen_chemistry', False):
             self.fluid.SetTemperature()
         return dt
 
-    def RunHydroStep(self, dt=None, advect_hydrogen=True):
-        """Advance one hydrodynamic step, optionally advecting hydrogen scalars."""
+    def RunHydroStep(self, dt=None, advect_chemistry=True):
+        """Advance one hydrodynamic step, optionally advecting chemistry scalars."""
         if dt is None:
             dt = self.solver.GetTimeStep(self.mesh, self.fluid, self.par)
         self.solver.SetBoundary(self.mesh, self.fluid, self.par)
@@ -96,8 +96,8 @@ class Rsim():
         )
         mass_flux = self.fluid.Mass.flux.copy()
         self.solver.AddFluxes(dt, self.mesh, self.fluid, self.par.boundcond)
-        if advect_hydrogen:
-            self.solver.AdvectHydrogenNeutralFraction(
+        if advect_chemistry:
+            self.solver.AdvectIonizationFraction(
                 dt,
                 self.mesh,
                 self.fluid,
@@ -120,11 +120,15 @@ class Rsim():
         self.solver.SetConserved(self.mesh, self.fluid)
         return dt
 
-    def RunCoupledHydroSourceStep(self, dt=None, fast_hydrogen_sources=False):
-        """Advance hydrodynamics and then hydrogen source terms for one step."""
+    def RunCoupledHydroSourceStep(
+        self,
+        dt=None,
+        fast_thermochemistry=False,
+    ):
+        """Advance hydrodynamics and then thermo-chemistry source terms."""
         dt = self.RunHydroStep(dt=dt)
-        if fast_hydrogen_sources:
-            source_steps = self.solver.AddHydrogenSourcesFast(
+        if fast_thermochemistry:
+            source_steps = self.solver.ApplyThermochemistryFast(
                 dt,
                 self.mesh,
                 self.fluid,
@@ -132,7 +136,7 @@ class Rsim():
             )
         else:
             self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
-            self.solver.AddHydrogenSources(dt, self.mesh, self.fluid, self.par)
+            self.solver.ApplyThermochemistry(dt, self.mesh, self.fluid, self.par)
             source_steps = 1
         self.solver.SetBoundary(self.mesh, self.fluid, self.par)
         self.solver.SetConserved(self.mesh, self.fluid)
@@ -141,7 +145,7 @@ class Rsim():
     def EvolveCoupledHydroSources(
         self,
         final_time,
-        fast_hydrogen_sources=False,
+        fast_thermochemistry=False,
         history_callback=None,
     ):
         """Evolve hydro plus source terms to ``final_time`` and return counters."""
@@ -155,13 +159,190 @@ class Rsim():
                 dt = final_time - self.fluid.time
             _, step_sources = self.RunCoupledHydroSourceStep(
                 dt=dt,
-                fast_hydrogen_sources=fast_hydrogen_sources,
+                fast_thermochemistry=fast_thermochemistry,
             )
             hydro_steps += 1
             source_steps += step_sources
             if history_callback is not None:
                 history_callback(self)
         return {'hydro_steps': hydro_steps, 'source_steps': source_steps}
+
+    def _static_front_radius_from_state(self, state, neutral_fraction=0.5):
+        ionized = state['xHI'] <= neutral_fraction
+        if not np.any(ionized):
+            return 0.0
+        if np.all(ionized):
+            return state['radius_kpc'][-1]
+        left = np.where(ionized)[0][-1]
+        right = left + 1
+        x_left = state['xHI'][left]
+        x_right = state['xHI'][right]
+        if x_right == x_left:
+            return state['radius_kpc'][left]
+        weight = (neutral_fraction - x_left) / (x_right - x_left)
+        return state['radius_kpc'][left] + weight * (
+            state['radius_kpc'][right] - state['radius_kpc'][left]
+        )
+
+    def _append_static_history(self, history, state, ngamma, time_s, recombined_photons):
+        ionized = 1.0 - state['xHI']
+        ionized_atoms = np.sum(ionized * state['nH_cm3'] * state['volume_cm3'])
+        volume_photons = np.sum(ngamma * state['volume_cm3'])
+        history['time_Myr'].append((time_s * unyt.s).to_value(unyt.Myr))
+        history['front_radius_kpc'].append(self._static_front_radius_from_state(state))
+        history['injected_photons'].append(
+            getattr(
+                self.par,
+                'radiative_transfer_source_photon_rate',
+                0.0 / unyt.s,
+            ).to_value(1.0 / unyt.s)
+            * time_s
+        )
+        history['ionized_atoms'].append(ionized_atoms)
+        history['recombined_photons'].append(recombined_photons)
+        history['volume_photons'].append(volume_photons)
+        history['accounted_photons'].append(
+            ionized_atoms + recombined_photons + volume_photons
+        )
+        if 'mean_ionized_temp_K' in history:
+            ionized_weight = 1.0 - state['xHI']
+            if np.sum(ionized_weight) > 0.0:
+                mean_temp = np.sum(ionized_weight * state['temperature_K']) / np.sum(
+                    ionized_weight
+                )
+            else:
+                mean_temp = 0.0
+            history['mean_ionized_temp_K'].append(float(mean_temp))
+
+    def _snapshot_static_state(self, state, time_s):
+        return {
+            'time_Myr': (time_s * unyt.s).to_value(unyt.Myr),
+            'radius_kpc': state['radius_kpc'].copy(),
+            'xHI': state['xHI'].copy(),
+            'temperature_K': state['temperature_K'].copy(),
+        }
+
+    def EvolveStaticThermochemistry(
+        self,
+        final_time,
+        source_timestep,
+        include_thermal_history=False,
+        reference_time=None,
+    ):
+        """Evolve fixed-density thermo-chemistry/radiation source terms."""
+        state = self.solver.StaticThermochemistryState(self.mesh, self.fluid, self.par)
+        ngamma = self.solver.TraceStaticSphericalPhotonDensity(state, self.par)
+        recombined_photons = 0.0
+        time_s = 0.0
+        final_time_s = final_time.to_value(unyt.s)
+        dtmax_s = source_timestep.to_value(unyt.s)
+        reference_time_s = None
+        if reference_time is not None:
+            reference_time_s = reference_time.to_value(unyt.s)
+        rt_update_interval = max(
+            1,
+            int(getattr(self.par, 'radiative_transfer_update_interval', 1)),
+        )
+        history = {
+            'time_Myr': [],
+            'front_radius_kpc': [],
+            'injected_photons': [],
+            'ionized_atoms': [],
+            'recombined_photons': [],
+            'volume_photons': [],
+            'accounted_photons': [],
+        }
+        if include_thermal_history:
+            history['mean_ionized_temp_K'] = []
+        self._append_static_history(history, state, ngamma, time_s, recombined_photons)
+        step = 0
+        rt_updates = 1
+        while time_s < final_time_s:
+            remaining_s = final_time_s - time_s
+            dtmax_step_s = min(dtmax_s, remaining_s)
+            if (
+                reference_time_s is not None
+                and 'reference_snapshot' not in history
+                and time_s < reference_time_s <= time_s + dtmax_step_s
+            ):
+                dtmax_step_s = reference_time_s - time_s
+            dt_s, thermal_rate = self.solver.GetStaticThermochemistryTimeStep(
+                state,
+                ngamma,
+                self.par,
+                remaining_s,
+                dtmax_step_s,
+            )
+            ionized_start = 1.0 - state['xHI']
+            alpha = getattr(self.par, 'hydrogen_alpha_B', None)
+            if alpha is None:
+                alpha_value = 0.0
+            else:
+                alpha_value = alpha.to_value(unyt.cm**3 / unyt.s)
+            recombination_rate_start = np.sum(
+                alpha_value
+                * ionized_start**2
+                * state['nH_cm3']**2
+                * state['volume_cm3']
+            )
+            if getattr(self.par, 'hydrogen_thermal_coupling', True):
+                if thermal_rate is None:
+                    thermal_rate = self.solver.StaticThermalRate(
+                        state,
+                        ngamma,
+                        self.par,
+                    )
+                state['specific_energy_erg_g'] += thermal_rate / state['rho_g_cm3'] * dt_s
+                state['specific_energy_erg_g'] = np.maximum(
+                    state['specific_energy_erg_g'],
+                    1.0e6,
+                )
+                self.solver.UpdateStaticTemperatureFromEnergy(state)
+            self.solver.StaticIonizationFractionImplicitUpdate(
+                state,
+                ngamma,
+                dt_s,
+                self.par,
+            )
+            if getattr(self.par, 'hydrogen_thermal_coupling', True):
+                self.solver.UpdateStaticTemperatureFromEnergy(state)
+            ionized_end = 1.0 - state['xHI']
+            recombination_rate_end = np.sum(
+                alpha_value
+                * ionized_end**2
+                * state['nH_cm3']**2
+                * state['volume_cm3']
+            )
+            recombined_photons += (
+                0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
+            )
+            time_s += dt_s
+            step += 1
+            if step % rt_update_interval == 0 or time_s >= final_time_s:
+                ngamma = self.solver.TraceStaticSphericalPhotonDensity(state, self.par)
+                rt_updates += 1
+            if (
+                reference_time_s is not None
+                and 'reference_snapshot' not in history
+                and time_s >= reference_time_s
+            ):
+                history['reference_snapshot'] = self._snapshot_static_state(state, time_s)
+            self._append_static_history(
+                history,
+                state,
+                ngamma,
+                time_s,
+                recombined_photons,
+            )
+
+        state['ngamma'] = self.solver.TraceStaticSphericalPhotonDensity(state, self.par)
+        state['time_s'] = time_s
+        self.solver.ApplyStaticThermochemistryState(state, self.fluid, self.par)
+        self.solver.SetBoundary(self.mesh, self.fluid, self.par)
+        history['chemistry_steps'] = step
+        history['evolution_steps'] = step
+        history['radiative_transfer_updates'] = rt_updates
+        return history
 
     def Run(self,outputtime=0):
         """Run the simulation loop and write periodic HDF5 outputs."""

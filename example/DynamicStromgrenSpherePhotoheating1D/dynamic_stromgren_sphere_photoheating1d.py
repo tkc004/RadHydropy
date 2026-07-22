@@ -98,7 +98,7 @@ def main():
     }
     counters = sim.EvolveCoupledHydroSources(
         final_time,
-        fast_hydrogen_sources=True,
+        fast_thermochemistry=True,
         history_callback=lambda current_sim: et.append_history(
             history,
             current_sim.mesh,

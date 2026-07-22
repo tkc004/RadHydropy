@@ -15,9 +15,6 @@ from radhydropy.solver import Solver
 import stromgren_analytic as sa
 
 
-SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
-
-
 def build_static_problem(config):
     par = SimpleNamespace(
         coordsys='spherical',
@@ -30,7 +27,8 @@ def build_static_problem(config):
         hydrogen_xHI_initial=1.0,
         hydrogen_xHI_inflow=1.0,
         hydrogen_xHI_outflow=1.0,
-        hydrogen_source_CFL=1.0,
+        hydrogen_source_CFL=config.get('chemistry_timestep_cfl', 0.1),
+        hydrogen_source_dtmin=config.get('chemistry_timestep_min', 0.0 * unyt.s),
         hydrogen_update_mu=False,
         hydrogen_thermal_coupling=False,
         hydrogen_recombination=True,
@@ -47,6 +45,10 @@ def build_static_problem(config):
         radiative_transfer_boundary_flux=0.0 / (unyt.cm**2 * unyt.s),
         radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
+        radiative_transfer_update_interval=config.get(
+            'radiative_transfer_update_interval',
+            1,
+        ),
     )
 
     mesh = Mesh()
@@ -137,136 +139,6 @@ def total_recombination_rate(mesh, fluid, par):
     return rate.to(1.0 / unyt.s)
 
 
-def static_float_state(mesh, fluid, par, config):
-    interior = interior_slice(par)
-    boundary = mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm)
-    return {
-        'interior': interior,
-        'boundary_cm': boundary,
-        'width_cm': np.diff(boundary),
-        'volume_cm3': mesh.vol[interior].to_value(unyt.cm**3),
-        'radius_kpc': mesh.coordinate[interior].to_value(unyt.kpc),
-        'xHI': np.asarray(fluid.xHI[interior], dtype=float).copy(),
-        'nH_cm3': config['hydrogen_number_density'].to_value(1.0 / unyt.cm**3),
-        'alpha_B_cm3_s': config['alpha_B_coefficient'].to_value(
-            unyt.cm**3 / unyt.s
-        ),
-        'sigma_cm2': config['sigma_gamma'].to_value(unyt.cm**2),
-        'source_rate_s': config['source_photon_rate'].to_value(1.0 / unyt.s),
-        'c_cm_s': rh.SPEED_OF_LIGHT.to_value(unyt.cm / unyt.s),
-    }
-
-
-def attenuation_mean(tau):
-    mean = np.ones_like(tau)
-    valid = np.abs(tau) > 1.0e-10
-    mean[valid] = -np.expm1(-tau[valid]) / tau[valid]
-    return mean
-
-
-def trace_spherical_ngamma(state):
-    tau = (
-        state['sigma_cm2']
-        * state['nH_cm3']
-        * np.clip(state['xHI'], 0.0, 1.0)
-        * state['width_cm']
-    )
-    attenuation = np.exp(-np.clip(tau, 0.0, 700.0))
-    mean_attenuation = attenuation_mean(tau)
-    face_rate = np.zeros(len(state['xHI']) + 1)
-    ngamma = np.zeros_like(state['xHI'])
-    face_rate[0] = state['source_rate_s']
-    for i in range(len(state['xHI'])):
-        face_rate[i + 1] = face_rate[i] * attenuation[i]
-        ngamma[i] = (
-            face_rate[i]
-            * state['width_cm'][i]
-            * mean_attenuation[i]
-            / state['volume_cm3'][i]
-            / state['c_cm_s']
-        )
-    return ngamma
-
-
-def neutral_fraction_rate(xHI, ngamma, state):
-    recombination_rate = state['nH_cm3'] * state['alpha_B_cm3_s']
-    photoionization_rate = state['c_cm_s'] * state['sigma_cm2'] * ngamma
-    ionized = 1.0 - xHI
-    return recombination_rate * ionized**2 - photoionization_rate * xHI
-
-
-def adaptive_timestep_seconds(xHI, ngamma, state, dtmin_s, dtmax_s, cfl):
-    rate = neutral_fraction_rate(xHI, ngamma, state)
-    scale = np.where(rate < 0.0, xHI, 1.0 - xHI)
-    valid = (np.abs(rate) > 0.0) & (scale > 0.0)
-    if not np.any(valid):
-        return dtmax_s
-    dt = cfl * np.min(scale[valid] / np.abs(rate[valid]))
-    return min(dtmax_s, max(dtmin_s, dt))
-
-
-def implicit_neutral_fraction_update(xHI, ngamma, dt_s, state):
-    xHI = np.clip(xHI, 1.0e-12, 1.0 - 1.0e-12)
-    recombination_rate = state['nH_cm3'] * state['alpha_B_cm3_s']
-    photoionization_rate = state['c_cm_s'] * state['sigma_cm2'] * ngamma
-
-    a = dt_s * recombination_rate
-    b = -(1.0 + dt_s * (photoionization_rate + 2.0 * recombination_rate))
-    c = xHI + dt_s * recombination_rate
-    discriminant = np.maximum(b**2 - 4.0 * a * c, 0.0)
-    denominator = -b + np.sqrt(discriminant)
-    updated = np.divide(
-        2.0 * c,
-        denominator,
-        out=xHI.copy(),
-        where=denominator != 0.0,
-    )
-    return np.clip(updated, 1.0e-12, 1.0 - 1.0e-12)
-
-
-def ionization_front_position_from_arrays(radius_kpc, xHI, neutral_fraction=0.5):
-    ionized = xHI <= neutral_fraction
-    if not np.any(ionized):
-        return 0.0
-    if np.all(ionized):
-        return radius_kpc[-1]
-
-    outer_ionized_index = np.where(ionized)[0][-1]
-    left = outer_ionized_index
-    right = outer_ionized_index + 1
-    x_left = xHI[left]
-    x_right = xHI[right]
-    if x_right == x_left:
-        return radius_kpc[left]
-
-    weight = (neutral_fraction - x_left) / (x_right - x_left)
-    return radius_kpc[left] + weight * (radius_kpc[right] - radius_kpc[left])
-
-
-def append_fast_history(history, state, ngamma, time_s, recombined_photons):
-    ionized = 1.0 - state['xHI']
-    ionized_atoms = np.sum(ionized * state['nH_cm3'] * state['volume_cm3'])
-    volume_photons = np.sum(ngamma * state['volume_cm3'])
-    history['time_Myr'].append(time_s / SECONDS_PER_MYR)
-    history['front_radius_kpc'].append(
-        ionization_front_position_from_arrays(state['radius_kpc'], state['xHI'])
-    )
-    history['injected_photons'].append(state['source_rate_s'] * time_s)
-    history['ionized_atoms'].append(ionized_atoms)
-    history['recombined_photons'].append(recombined_photons)
-    history['volume_photons'].append(volume_photons)
-    history['accounted_photons'].append(
-        ionized_atoms + recombined_photons + volume_photons
-    )
-
-
-def apply_fast_state_to_fluid(state, fluid):
-    interior = state['interior']
-    fluid.xHI[interior] = state['xHI']
-    fluid.ngamma[interior] = state['ngamma'] / unyt.cm**3
-    fluid.time = (state['time_s'] / SECONDS_PER_MYR) * unyt.Myr
-
-
 def append_history(history, mesh, fluid, par, config, recombined_photons):
     history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
     history['front_radius_kpc'].append(
@@ -283,90 +155,6 @@ def append_history(history, mesh, fluid, par, config, recombined_photons):
         + history['recombined_photons'][-1]
         + history['volume_photons'][-1]
     )
-
-
-def evolve_static_chemistry(
-    mesh,
-    fluid,
-    par,
-    solver,
-    config,
-    final_time,
-    chemistry_timestep,
-):
-    state = static_float_state(mesh, fluid, par, config)
-    ngamma = trace_spherical_ngamma(state)
-    recombined_photons = 0.0
-    time_s = 0.0
-    final_time_s = final_time.to_value(unyt.s)
-    dtmax_s = chemistry_timestep.to_value(unyt.s)
-    dtmin_s = config.get(
-        'chemistry_timestep_min',
-        1.0e-6 * unyt.Myr,
-    ).to_value(unyt.s)
-    timestep_cfl = config.get('chemistry_timestep_cfl', 0.1)
-    rt_update_interval = max(
-        1,
-        int(config.get('radiative_transfer_update_interval', 1)),
-    )
-    step = 0
-    rt_updates = 1
-    history = {
-        'time_Myr': [],
-        'front_radius_kpc': [],
-        'injected_photons': [],
-        'ionized_atoms': [],
-        'recombined_photons': [],
-        'volume_photons': [],
-        'accounted_photons': [],
-    }
-    append_fast_history(history, state, ngamma, time_s, recombined_photons)
-    while time_s < final_time_s:
-        dt_s = adaptive_timestep_seconds(
-            state['xHI'],
-            ngamma,
-            state,
-            dtmin_s,
-            min(dtmax_s, final_time_s - time_s),
-            timestep_cfl,
-        )
-        ionized_start = 1.0 - state['xHI']
-        recombination_rate_start = np.sum(
-            state['alpha_B_cm3_s']
-            * ionized_start**2
-            * state['nH_cm3']**2
-            * state['volume_cm3']
-        )
-        state['xHI'] = implicit_neutral_fraction_update(
-            state['xHI'],
-            ngamma,
-            dt_s,
-            state,
-        )
-        ionized_end = 1.0 - state['xHI']
-        recombination_rate_end = np.sum(
-            state['alpha_B_cm3_s']
-            * ionized_end**2
-            * state['nH_cm3']**2
-            * state['volume_cm3']
-        )
-        recombined_photons += (
-            0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
-        )
-        time_s += dt_s
-        step += 1
-        if step % rt_update_interval == 0 or time_s >= final_time_s:
-            ngamma = trace_spherical_ngamma(state)
-            rt_updates += 1
-        append_fast_history(history, state, ngamma, time_s, recombined_photons)
-
-    state['ngamma'] = trace_spherical_ngamma(state)
-    state['time_s'] = time_s
-    apply_fast_state_to_fluid(state, fluid)
-    solver.SetBoundary(mesh, fluid, par)
-    history['chemistry_steps'] = step
-    history['radiative_transfer_updates'] = rt_updates
-    return history
 
 
 def save_plot(mesh, fluid, par, config, figure_filename):

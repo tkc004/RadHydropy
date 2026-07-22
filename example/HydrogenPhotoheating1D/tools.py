@@ -161,7 +161,7 @@ def append_history(sim, history):
 
 def advance_sources(sim, dt, source_switch_time, photon_density_on):
     set_source_state(sim, source_switch_time, photon_density_on)
-    sim.solver.AddHydrogenSources(dt, sim.mesh, sim.fluid, sim.par)
+    sim.solver.ApplyThermochemistry(dt, sim.mesh, sim.fluid, sim.par)
     sim.solver.SetPrimitive(sim.mesh, sim.fluid)
     sim.fluid.time += dt
     sim.fluid.SetTemperature()
