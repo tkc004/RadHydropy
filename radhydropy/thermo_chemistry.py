@@ -28,6 +28,8 @@ def get_network(par):
 
 
 def thermochemistry_enabled(fluid, par):
+    if not getattr(par, "hydrogen_chemistry", False):
+        return False
     return get_network(par).enabled(fluid, par)
 
 
