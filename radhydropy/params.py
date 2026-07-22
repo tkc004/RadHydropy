@@ -29,6 +29,7 @@ refparams = {
     'noghost':2,
     'dtmin': 2.0e-8*unyt.s,
     'dtmax': 2.0e-1*unyt.s,   
+    'thermochemistry_network': 'hydrogen',
     'hydrogen_chemistry': False,
     'hydrogen_mass_fraction': 1.0,
     'hydrogen_xHI_initial': 1.0,

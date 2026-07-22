@@ -297,7 +297,7 @@ class Rsim():
                     state['specific_energy_erg_g'],
                     1.0e6,
                 )
-                self.solver.UpdateStaticTemperatureFromEnergy(state)
+                self.solver.UpdateStaticTemperatureFromEnergy(state, self.par)
             self.solver.StaticIonizationFractionImplicitUpdate(
                 state,
                 ngamma,
@@ -305,7 +305,7 @@ class Rsim():
                 self.par,
             )
             if getattr(self.par, 'hydrogen_thermal_coupling', True):
-                self.solver.UpdateStaticTemperatureFromEnergy(state)
+                self.solver.UpdateStaticTemperatureFromEnergy(state, self.par)
             ionized_end = 1.0 - state['xHI']
             recombination_rate_end = np.sum(
                 alpha_value

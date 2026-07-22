@@ -18,5 +18,6 @@ __all__ = [
     "solver",
     "hydrogen",
     "thermo_chemistry",
+    "thermo_networks",
     "radiative_transfer",
 ]

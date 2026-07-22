@@ -63,11 +63,12 @@ Common Runtime Keys
      - Cartesian cross-sectional area used to calculate volumes.
      - area
 
-Hydrogen Thermo-Chemistry Keys
-------------------------------
+Thermo-Chemistry Keys
+---------------------
 
-Hydrogen thermo-chemistry is disabled by default. Set
-``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
+Thermo-chemistry is disabled by default. The active network is selected by
+``thermochemistry_network``; currently the available network is ``hydrogen``.
+Set ``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
 ``xHI = nHI / nH`` and apply the associated line, ionization, bremsstrahlung,
 and case-B recombination cooling source terms. Source terms are subcycled
 inside each hydrodynamic step: the thermal equation is advanced explicitly
@@ -81,6 +82,9 @@ neutral-fraction solve.
    * - Key
      - Meaning
      - Typical unit
+   * - ``thermochemistry_network``
+     - Thermo-chemistry network name. Currently ``hydrogen``.
+     - string
    * - ``hydrogen_chemistry``
      - Enable hydrogen thermal and neutral-fraction source terms.
      - boolean

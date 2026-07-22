@@ -282,9 +282,9 @@ class Solver():
             dtmax_s,
         )
 
-    def UpdateStaticTemperatureFromEnergy(self, state):
+    def UpdateStaticTemperatureFromEnergy(self, state, par=None):
         """Update temperature in a static float state from specific energy."""
-        return rtc.update_static_temperature_from_energy(state)
+        return rtc.update_static_temperature_from_energy(state, par)
 
     def StaticIonizationFractionImplicitUpdate(self, state, ngamma, dt_s, par):
         """Implicitly update the chemistry fraction for a static float state."""

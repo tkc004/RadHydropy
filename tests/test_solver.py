@@ -5,6 +5,7 @@ import unyt
 
 from radhydropy.fluid import Fluid as RealFluid
 from radhydropy.solver import Solver
+import radhydropy.thermo_chemistry as rtc
 
 
 class Par:
@@ -404,6 +405,13 @@ class Testing(unittest.TestCase):
 
         self.assertLess(thermochemistry_dt, par.dtmax)
         self.assertEqual(hydro_dt, par.dtmax)
+
+    def test_unknown_thermochemistry_network_raises_clear_error(self):
+        par = Par('Periodic')
+        par.thermochemistry_network = 'unknown'
+
+        with self.assertRaisesRegex(ValueError, 'Unknown thermo-chemistry network'):
+            rtc.get_network(par)
 
 
 if __name__ == '__main__':
