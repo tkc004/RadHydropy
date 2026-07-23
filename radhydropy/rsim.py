@@ -141,42 +141,92 @@ class Rsim():
         self.solver.ApplyThermochemistry(dt, self.mesh, self.fluid, self.par)
         return 1
 
-    def EvolveUntil(self, final_time, step_function, history_callback=None):
-        """Run ``step_function(dt)`` until ``final_time`` and count steps."""
-        steps = 0
+    def Step(
+        self,
+        dt=None,
+        mode="hydro_sources",
+        fast_thermochemistry=False,
+        advect_chemistry=True,
+    ):
+        """Advance one canonical simulation step in the requested mode."""
+        valid_modes = ("hydro", "hydro_sources", "sources")
+        if mode not in valid_modes:
+            raise ValueError(
+                "Unknown step mode %r; valid modes are %s"
+                % (mode, ", ".join(valid_modes))
+            )
+        dt = self.GetStepTime(dt=dt)
+        result = {
+            "dt": dt,
+            "hydro_steps": 0,
+            "source_steps": 0,
+        }
+
+        if mode in ("hydro", "hydro_sources"):
+            self.PrepareConservedStep()
+            old_mass, mass_flux = self.AdvanceHydroFluxes(dt)
+            self.FinalizeHydroStep(
+                dt,
+                old_mass,
+                mass_flux,
+                advect_chemistry=advect_chemistry,
+            )
+            result["hydro_steps"] = 1
+
+        if mode in ("hydro_sources", "sources"):
+            result["source_steps"] = self.ApplyThermochemistrySources(
+                dt,
+                fast_thermochemistry=fast_thermochemistry,
+            )
+            if mode == "sources":
+                self.fluid.time += dt
+            self.solver.SetBoundary(self.mesh, self.fluid, self.par)
+            self.solver.SetConserved(self.mesh, self.fluid)
+
+        return result
+
+    def Evolve(
+        self,
+        final_time=None,
+        mode="hydro_sources",
+        fast_thermochemistry=False,
+        advect_chemistry=True,
+        history_callback=None,
+        output_callback=None,
+    ):
+        """Evolve the simulation with the canonical :meth:`Step` loop."""
+        if final_time is None:
+            final_time = self.par.timesim
+        counters = {"hydro_steps": 0, "source_steps": 0}
         if history_callback is not None:
             history_callback(self)
         while self.fluid.time < final_time:
             dt = self.GetStepTime(final_time=final_time)
-            step_function(dt)
-            steps += 1
+            step = self.Step(
+                dt=dt,
+                mode=mode,
+                fast_thermochemistry=fast_thermochemistry,
+                advect_chemistry=advect_chemistry,
+            )
+            counters["hydro_steps"] += step["hydro_steps"]
+            counters["source_steps"] += step["source_steps"]
             if history_callback is not None:
                 history_callback(self)
-        return steps
+            if output_callback is not None:
+                output_callback(self, step)
+        return counters
 
     def RunOneStep(self):
-        """Advance the simulation by one timestep and return that timestep."""
-        dt = self.GetStepTime()
-        self.PrepareConservedStep()
-        self.AdvanceHydroFluxes(dt)
-        self.solver.SetPrimitive(self.mesh,self.fluid)
-        self.ApplyThermochemistrySources(dt, fast_thermochemistry=False)
-        self.solver.SetPrimitive(self.mesh,self.fluid)
-        self.UpdateThermochemistryPrimitiveState(update_pressure=False)
-        return dt
+        """Advance one hydro-plus-source timestep and return that timestep."""
+        return self.Step(mode="hydro_sources")["dt"]
 
     def RunHydroStep(self, dt=None, advect_chemistry=True):
         """Advance one hydrodynamic step, optionally advecting chemistry scalars."""
-        dt = self.GetStepTime(dt=dt)
-        self.PrepareConservedStep()
-        old_mass, mass_flux = self.AdvanceHydroFluxes(dt)
-        self.FinalizeHydroStep(
-            dt,
-            old_mass,
-            mass_flux,
+        return self.Step(
+            dt=dt,
+            mode="hydro",
             advect_chemistry=advect_chemistry,
-        )
-        return dt
+        )["dt"]
 
     def RunCoupledHydroSourceStep(
         self,
@@ -184,14 +234,12 @@ class Rsim():
         fast_thermochemistry=False,
     ):
         """Advance hydrodynamics and then thermo-chemistry source terms."""
-        dt = self.RunHydroStep(dt=dt)
-        source_steps = self.ApplyThermochemistrySources(
-            dt,
+        step = self.Step(
+            dt=dt,
+            mode="hydro_sources",
             fast_thermochemistry=fast_thermochemistry,
         )
-        self.solver.SetBoundary(self.mesh, self.fluid, self.par)
-        self.solver.SetConserved(self.mesh, self.fluid)
-        return dt, source_steps
+        return step["dt"], step["source_steps"]
 
     def EvolveCoupledHydroSources(
         self,
@@ -200,18 +248,12 @@ class Rsim():
         history_callback=None,
     ):
         """Evolve hydro plus source terms to ``final_time`` and return counters."""
-        counters = {'hydro_steps': 0, 'source_steps': 0}
-
-        def step(dt):
-            _, step_sources = self.RunCoupledHydroSourceStep(
-                dt=dt,
-                fast_thermochemistry=fast_thermochemistry,
-            )
-            counters['hydro_steps'] += 1
-            counters['source_steps'] += step_sources
-
-        self.EvolveUntil(final_time, step, history_callback=history_callback)
-        return counters
+        return self.Evolve(
+            final_time=final_time,
+            mode="hydro_sources",
+            fast_thermochemistry=fast_thermochemistry,
+            history_callback=history_callback,
+        )
 
     def _static_front_radius_from_state(self, state, neutral_fraction=0.5):
         ionized = state['xHI'] <= neutral_fraction
@@ -438,28 +480,45 @@ class Rsim():
         history['radiative_transfer_updates'] = rt_updates
         return history
 
+    def _write_numbered_hdf5(self, outindex):
+        filename = (
+            self.par.outdir
+            + '/'
+            + self.par.outfileprefix
+            + '_%03d' % outindex
+            + '.hdf5'
+        )
+        rio.writehdf5(self, filename)
+
+    def _hdf5_output_callback(self, outputtime=0):
+        output_state = {
+            'outtime': 0.0 * self.par.timesim,
+            'outindex': 1,
+        }
+
+        def callback(sim, step):
+            if outputtime == 1:
+                print("time, dt", sim.fluid.time, step["dt"])
+            if output_state['outtime'] > sim.par.outdeltatime:
+                sim.fluid.SetTemperature()
+                sim._write_numbered_hdf5(output_state['outindex'])
+                output_state['outtime'] = 0.0 * sim.par.timesim
+                output_state['outindex'] += 1
+            else:
+                output_state['outtime'] += step["dt"]
+
+        return callback
+
     def Run(self,outputtime=0):
         """Run the simulation loop and write periodic HDF5 outputs."""
         print("--- Initization finished. Start running ... ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
-        outtime = 0.0 * self.par.timesim 
-        outindex = 0
-        # write the initial condition
-        
-        rio.writehdf5(self,self.par.outdir+'/'+self.par.outfileprefix+'_%03d'%outindex+'.hdf5') 
-        outtime = 0.0 * self.par.timesim 
-        outindex += 1
-        while self.fluid.time <self.par.timesim:
-            dt = self.RunOneStep()
-            if outputtime==1:
-                print("time, dt", self.fluid.time, dt)  
-            if outtime > self.par.outdeltatime:
-                self.fluid.SetTemperature()
-                rio.writehdf5(self,self.par.outdir+'/'+self.par.outfileprefix+'_%03d'%outindex+'.hdf5') 
-                outtime = 0.0 * self.par.timesim 
-                outindex += 1
-            else:
-                outtime += dt 
+        self._write_numbered_hdf5(0)
+        self.Evolve(
+            final_time=self.par.timesim,
+            mode="hydro_sources",
+            output_callback=self._hdf5_output_callback(outputtime=outputtime),
+        )
         print("--- Simulation finished. ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
 

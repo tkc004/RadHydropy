@@ -4,6 +4,7 @@ import numpy as np
 import unyt
 
 from radhydropy.fluid import Fluid as RealFluid
+from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 import radhydropy.thermo_chemistry as rtc
 
@@ -412,6 +413,56 @@ class Testing(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, 'Unknown thermo-chemistry network'):
             rtc.get_network(par)
+
+    def test_rsim_step_rejects_unknown_mode(self):
+        sim = Rsim.FromComponents(Par('Periodic'), Mesh(), Fluid())
+
+        with self.assertRaisesRegex(ValueError, 'Unknown step mode'):
+            sim.Step(dt=1.0 * unyt.s, mode='unknown')
+
+    def test_rsim_source_step_advances_time_without_hydro_step(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = False
+        mesh = Mesh()
+        fluid = Fluid()
+        fluid.time = 0.0 * unyt.s
+        sim = Rsim.FromComponents(par, mesh, fluid)
+
+        result = sim.Step(dt=0.25 * unyt.s, mode='sources')
+
+        self.assertEqual(result['hydro_steps'], 0)
+        self.assertEqual(result['source_steps'], 1)
+        self.assertEqual(fluid.time, 0.25 * unyt.s)
+        self.assertTrue(hasattr(fluid, 'Mass'))
+
+    def test_rsim_evolve_uses_step_and_history_callback(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = False
+        par.dtmax = 0.2 * unyt.s
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.g/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.zeros(8) * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.SetPressure()
+        fluid.time = 0.0 * unyt.s
+        sim = Rsim.FromComponents(par, mesh, fluid)
+        history = []
+
+        counters = sim.Evolve(
+            final_time=0.5 * unyt.s,
+            mode='sources',
+            history_callback=lambda current_sim: history.append(
+                current_sim.fluid.time.to_value(unyt.s)
+            ),
+        )
+
+        self.assertEqual(counters['hydro_steps'], 0)
+        self.assertEqual(counters['source_steps'], 3)
+        self.assertEqual(fluid.time, 0.5 * unyt.s)
+        np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
 
 
 if __name__ == '__main__':
