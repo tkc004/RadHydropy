@@ -92,7 +92,7 @@ def main():
         et.mean_temperature(sim) > target_temperature
         and et.time_value(sim, unyt.s) < float(sim.par.timesim.to_value(unyt.s))
     ):
-        sim.RunOneStep()
+        sim.Step(mode='hydro_sources')
         et.append_history(sim, history)
         if sim.fluid.time >= next_output_time:
             last_output_time = et.write_output(sim, outindex)

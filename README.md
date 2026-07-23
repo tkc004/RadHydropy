@@ -62,6 +62,20 @@ Most examples follow the same pattern:
 4. call `RunAll()`; and
 5. inspect or plot the output files.
 
+The runner also exposes lower-level stepping methods when an example or test
+needs finer control:
+
+- `Step(mode="hydro")` advances only the finite-volume hydrodynamics update.
+- `Step(mode="sources")` advances thermo-chemistry and radiative-transfer
+  sources without a hydro flux update.
+- `Step(mode="hydro_sources")` performs the standard coupled update.
+- `Evolve(final_time=...)` loops over `Step(...)` and returns counters for the
+  number of hydro and source updates.
+
+The older convenience methods `RunOneStep()`, `RunHydroStep()`,
+`RunCoupledHydroSourceStep()`, and `EvolveCoupledHydroSources()` remain
+available and now delegate to the same shared stepping path.
+
 ## Minimal Simulation Runner
 
 RadHydropy simulations are driven by a parameter dictionary and an HDF5
@@ -94,6 +108,21 @@ sim.RunAll(outputtime=1)
 
 The `ICfilename` file must already exist. You can create it with
 `radhydropy.io.writehdf5`, as shown in the scripts under `example/`.
+
+If you want manual control over the evolution loop, use the canonical stepping
+API directly:
+
+```python
+step = sim.Step(mode="hydro_sources")
+print(step["dt"], step["hydro_steps"], step["source_steps"])
+
+counters = sim.Evolve(final_time=sim.par.timesim, mode="hydro_sources")
+print(counters)
+```
+
+For fixed-density thermo-chemistry tests such as the static Stromgren sphere,
+`Rsim.EvolveStaticThermochemistry(...)` evolves the source terms without a
+hydrodynamic update.
 
 ## Initial-Condition File Format
 

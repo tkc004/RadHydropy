@@ -34,6 +34,47 @@ Minimal Runner
    sim = Rsim(runparams)
    sim.RunAll(outputtime=1)
 
+Stepping API
+------------
+
+The high-level runner now exposes a canonical stepping interface through
+:meth:`radhydropy.rsim.Rsim.Step` and :meth:`radhydropy.rsim.Rsim.Evolve`.
+This keeps hydrodynamics, source terms, and output scheduling on a single code
+path.
+
+Use :meth:`radhydropy.rsim.Rsim.Step` for one controlled update:
+
+.. code-block:: python
+
+   dt = sim.Step(mode="hydro_sources")["dt"]
+
+Available ``mode`` values are:
+
+* ``"hydro"`` for a finite-volume hydrodynamic step only;
+* ``"sources"`` for thermo-chemistry and radiative-transfer sources only; and
+* ``"hydro_sources"`` for the coupled update used by the standard run loop.
+
+Use :meth:`radhydropy.rsim.Rsim.Evolve` to advance until a target time:
+
+.. code-block:: python
+
+   counters = sim.Evolve(final_time=sim.par.timesim, mode="hydro_sources")
+   print(counters["hydro_steps"], counters["source_steps"])
+
+The convenience wrappers remain available and now call the same canonical
+implementation:
+
+* :meth:`radhydropy.rsim.Rsim.RunOneStep`
+* :meth:`radhydropy.rsim.Rsim.RunHydroStep`
+* :meth:`radhydropy.rsim.Rsim.RunCoupledHydroSourceStep`
+* :meth:`radhydropy.rsim.Rsim.EvolveCoupledHydroSources`
+* :meth:`radhydropy.rsim.Rsim.Run`
+
+For fixed-density Stromgren-style tests, use
+:meth:`radhydropy.rsim.Rsim.EvolveStaticThermochemistry`, which evolves the
+static thermo-chemistry/radiative-transfer state without a hydrodynamic flux
+update.
+
 Initial-Condition Files
 -----------------------
 

@@ -96,8 +96,9 @@ def main():
         'front_radius_kpc': [],
         'mean_ionized_temperature_K': [],
     }
-    counters = sim.EvolveCoupledHydroSources(
-        final_time,
+    counters = sim.Evolve(
+        final_time=final_time,
+        mode='hydro_sources',
         fast_thermochemistry=True,
         history_callback=lambda current_sim: et.append_history(
             history,
