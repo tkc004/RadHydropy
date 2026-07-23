@@ -1,7 +1,9 @@
-"""Early isothermal H II region expansion in spherical 1D.
+"""Late phase isothermal H II region expansion in spherical 1D.
 
 This example is from STARBENCH: The D-type expansion of an H II region
 https://arxiv.org/abs/1507.05621v1
+
+(Late phase of the expansion)
 
 This example follows the hydrodynamic expansion of a central photoionized
 region around a source at the origin. The gas is pure hydrogen, spherical,
@@ -37,17 +39,17 @@ import tools as et
 
 
 rundir = os.path.dirname(os.path.abspath(__file__))
-figure_filename = os.path.join(rundir, 'EarlyHIIRegionExpansion1D_IFront.jpg')
+figure_filename = os.path.join(rundir, 'LateHIIRegionExpansion1D_IFront.jpg')
 density_output_specs = (
-    (0.005 * unyt.Myr, '0p005'),
-    (0.020 * unyt.Myr, '0p020'),
-    (0.080 * unyt.Myr, '0p080'),
-    (0.140 * unyt.Myr, '0p140'),
+    (0.05 * unyt.Myr, '0p05'),
+    (0.20 * unyt.Myr, '0p20'),
+    (0.80 * unyt.Myr, '0p80'),
+    (3.0 * unyt.Myr, '3p00'),
 )
 density_figure_filenames = [
     os.path.join(
         rundir,
-        'EarlyHIIRegionExpansion1D_Density_%sMyr.jpg' % label,
+        'LateHIIRegionExpansion1D_Density_%sMyr.jpg' % label,
     )
     for _, label in density_output_specs
 ]
@@ -63,15 +65,15 @@ ionized_sound_speed = 12.85 * unyt.km / unyt.s
 sigma_gamma = 6.3e-18 * unyt.cm**2
 # Approximate recombination coefficient for hydrogen at 10^4 K, case B:
 alpha_B_coefficient = 2.7e-13 * unyt.cm**3 / unyt.s
-boxsize = 2.0 * unyt.pc
-final_time = 0.14 * unyt.Myr
+boxsize = 7.0 * unyt.pc
+final_time = 3.0 * unyt.Myr
 hydro_cfl = 0.5
 hydro_order = 1
 source_cfl = 0.1
 hydro_timestep_max = 2.0e-4 * unyt.Myr
 source_timestep_min = 1.0e-12 * unyt.Myr
 number_of_cells = 512
-comparison_time = 0.14 * unyt.Myr
+comparison_time = 3.0 * unyt.Myr
 
 
 def main():
