@@ -22,15 +22,20 @@ class Fluid():
 
     def SetPressure(self):
         """Set gas pressure from density, temperature, and mean molecular weight."""
-        self.pre = ru.CalPressure(self.rho,self.temp,self.mu)
+        self.pre = self.eos.pressure(self.rho, self.temp, self.mu)
         
     def SetEnergyDensity(self):
         """Set thermal energy density from pressure and the fluid EOS."""
-        self.eth = ru.CalEnergyDensity(self.pre,self.eos.gamma)
+        self.eth = self.eos.thermal_energy_density(self.pre)
         
     def SetSoundSpeed(self):
         """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
-        self.cs = ru.CalSoundSpeed(self.pre,self.rho,self.eos.gamma)
+        self.cs = self.eos.sound_speed(
+            self.rho,
+            self.pre,
+            temp=self.temp,
+            mu=self.mu,
+        )
 
     def SetHydrogenMu(self, hydrogen_mass_fraction=1.0):
         """Set mean molecular weight from hydrogen neutral fraction."""
@@ -112,7 +117,7 @@ class Fluid():
 
     def SetTemperature(self):
         """Set gas temperature from density, pressure, and mean molecular weight."""
-        self.temp = ru.CalTemperature(self.rho,self.pre,self.mu) 
+        self.temp = self.eos.temperature(self.rho, self.pre, self.mu)
 
     def SetFluidTime(self, time): 
         """Set the current fluid time."""

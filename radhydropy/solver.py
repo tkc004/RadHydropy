@@ -90,7 +90,13 @@ class Solver():
         fluid.rho = self._safe_divide(fluid.Mass, vol)
         fluid.vel = self._safe_divide(fluid.Mom, fluid.Mass)
         energy_density = self._safe_divide(fluid.Energy, vol)
-        fluid.pre = (energy_density-0.5*fluid.rho*fluid.vel**2)*(fluid.eos.gamma-1.0)
+        fluid.pre = fluid.eos.pressure_from_conserved(
+            fluid.rho,
+            fluid.vel,
+            energy_density,
+            temp=getattr(fluid, 'temp', None),
+            mu=getattr(fluid, 'mu', None),
+        )
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
         fluid.vel[np.isnan(fluid.vel)] = 0.0 * fluid.vel.units
         fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0            
@@ -108,7 +114,11 @@ class Solver():
         vol = mesh.vol
         fluid.Mass = fluid.rho * vol
         fluid.Mom = fluid.rho * fluid.vel * vol
-        fluid.Energy = (0.5*fluid.rho*fluid.vel**2 + fluid.pre/(fluid.eos.gamma-1.0))*vol
+        fluid.Energy = fluid.eos.total_energy_density(
+            fluid.rho,
+            fluid.vel,
+            fluid.pre,
+        ) * vol
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         self._zero_spherical_center_momentum(mesh, fluid)
@@ -128,7 +138,14 @@ class Solver():
         
     def SetConservedDensityFlux(self, fluid):
         """Store Euler fluxes and conserved densities on fluid arrays."""
-        fluid.Mass.F, fluid.Mass.q, fluid.Mom.F, fluid.Mom.q, fluid.Energy.F, fluid.Energy.q = ru.GetFQ(fluid.rho,fluid.vel,fluid.pre,fluid.eos.gamma)
+        (
+            fluid.Mass.F,
+            fluid.Mass.q,
+            fluid.Mom.F,
+            fluid.Mom.q,
+            fluid.Energy.F,
+            fluid.Energy.q,
+        ) = fluid.eos.fluxes(fluid.rho, fluid.vel, fluid.pre)
         
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):
         """Construct left and right states at cell faces.
@@ -160,17 +177,65 @@ class Solver():
 
     def SetFluxOnFace(self,fluid,boundcond,order=0):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
-        Mass_flux_0, Mom_flux_0, Energy_flux_0 = ru.CalFluxFromLR(fluid.rho.L,fluid.rho.R,
-                                                               fluid.vel.L,fluid.vel.R,
-                                                               fluid.pre.L,fluid.pre.R,
-                                                               fluid.eos.gamma,fluid.cmax)
+        (
+            Fmass_L,
+            qmass_L,
+            Fmom_L,
+            qmom_L,
+            FEn_L,
+            qEn_L,
+        ) = fluid.eos.fluxes(fluid.rho.L, fluid.vel.L, fluid.pre.L)
+        (
+            Fmass_R,
+            qmass_R,
+            Fmom_R,
+            qmom_R,
+            FEn_R,
+            qEn_R,
+        ) = fluid.eos.fluxes(fluid.rho.R, fluid.vel.R, fluid.pre.R)
+        Mass_flux_0 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
+        Mom_flux_0 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
+        Energy_flux_0 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
         if order==0:
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
         elif order==1:
-            Mass_flux_1, Mom_flux_1, Energy_flux_1 = ru.CalFluxFromLR(fluid.rho.L.first, fluid.rho.R.first,
-                                                                    fluid.vel.L.first, fluid.vel.R.first,
-                                                                    fluid.pre.L.first, fluid.pre.R.first,
-                                                                    fluid.eos.gamma, fluid.cmax)
+            (
+                Fmass_L,
+                qmass_L,
+                Fmom_L,
+                qmom_L,
+                FEn_L,
+                qEn_L,
+            ) = fluid.eos.fluxes(fluid.rho.L.first, fluid.vel.L.first, fluid.pre.L.first)
+            (
+                Fmass_R,
+                qmass_R,
+                Fmom_R,
+                qmom_R,
+                FEn_R,
+                qEn_R,
+            ) = fluid.eos.fluxes(fluid.rho.R.first, fluid.vel.R.first, fluid.pre.R.first)
+            Mass_flux_1 = ru.CalInterFaceFluxGLF(
+                Fmass_L,
+                Fmass_R,
+                qmass_L,
+                qmass_R,
+                fluid.cmax,
+            )
+            Mom_flux_1 = ru.CalInterFaceFluxGLF(
+                Fmom_L,
+                Fmom_R,
+                qmom_L,
+                qmom_R,
+                fluid.cmax,
+            )
+            Energy_flux_1 = ru.CalInterFaceFluxGLF(
+                FEn_L,
+                FEn_R,
+                qEn_L,
+                qEn_R,
+                fluid.cmax,
+            )
             self.SetConservedDensityFlux(fluid)
             fluid.Mass.flux, fluid.philim_Mass= ru.ApplyFluxLimiter(fluid.Mass.q,Mass_flux_1,Mass_flux_0)
             fluid.Mom.flux, fluid.philim_Mom  = ru.ApplyFluxLimiter(fluid.Mom.q,Mom_flux_1,Mom_flux_0)

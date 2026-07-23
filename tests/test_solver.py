@@ -29,6 +29,50 @@ class Par:
 
 class EOS:
     gamma = 5.0/3.0
+    EOStype = 'polytropic'
+
+    def pressure(self, rho, temp, mu):
+        return rho / (mu * unyt.mp) * unyt.kb * temp
+
+    def temperature(self, rho, pressure, mu):
+        pressure_over_rho = np.zeros_like(np.asarray(rho.value, dtype=float)) * unyt.K
+        nonzero = rho != 0.0 * rho.units
+        pressure_over_rho[nonzero] = (
+            pressure[nonzero] / rho[nonzero] * (mu * unyt.mp) / unyt.kb
+        ).to(unyt.K)
+        return pressure_over_rho
+
+    def thermal_energy_density(self, pressure):
+        return pressure / (self.gamma - 1.0)
+
+    def sound_speed(self, rho, pressure, temp=None, mu=None):
+        pressure_over_rho = np.zeros_like(np.asarray(rho.value, dtype=float)) * (
+            unyt.cm**2 / unyt.s**2
+        )
+        nonzero = rho != 0.0 * rho.units
+        pressure_over_rho[nonzero] = (pressure[nonzero] / rho[nonzero]).to(
+            unyt.cm**2 / unyt.s**2
+        )
+        soundspeed = np.sqrt(self.gamma * pressure_over_rho).to(unyt.cm / unyt.s)
+        soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm / unyt.s
+        return soundspeed
+
+    def total_energy_density(self, rho, vel, pressure):
+        return 0.5 * rho * vel**2 + self.thermal_energy_density(pressure)
+
+    def pressure_from_conserved(self, rho, vel, energy_density, temp=None, mu=None):
+        return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
+
+    def fluxes(self, rho, vel, pressure):
+        Fmass = rho * vel
+        qmass = rho
+        Fmom = rho * vel * vel
+        Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0]**2
+        Fmom += pressure
+        qmom = rho * vel
+        FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)
+        qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5
+        return Fmass, qmass, Fmom, qmom, FEn, qEn
 
 
 class Fluid:
