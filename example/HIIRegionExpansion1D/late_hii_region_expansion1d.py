@@ -3,7 +3,7 @@
 This example is from STARBENCH: The D-type expansion of an H II region
 https://arxiv.org/abs/1507.05621v1
 
-(Late phase of the expansion)
+(Late phase of the expansion: note the neutral gas is at 10^3 K, not 10^2 K as in the early phase example.)
 
 This example follows the hydrodynamic expansion of a central photoionized
 region around a source at the origin. The gas is pure hydrogen, spherical,
@@ -58,7 +58,7 @@ density_figure_filenames = [
 # This is Lyman continuum photon rate:
 source_photon_rate = 1.0e49 / unyt.s
 rho_initial = 5.21e-21 * unyt.g / unyt.cm**3
-neutral_temperature = 1.0e2 * unyt.K
+neutral_temperature = 1.0e3 * unyt.K
 ionized_temperature = 1.0e4 * unyt.K
 ionized_sound_speed = 12.85 * unyt.km / unyt.s
 # Lyman continuum photoionization cross-section at 13.6 eV:
