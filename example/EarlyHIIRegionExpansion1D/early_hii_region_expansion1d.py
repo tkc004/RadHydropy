@@ -38,6 +38,19 @@ import tools as et
 
 rundir = os.path.dirname(os.path.abspath(__file__))
 figure_filename = os.path.join(rundir, 'EarlyHIIRegionExpansion1D_IFront.jpg')
+density_output_specs = (
+    (0.005 * unyt.Myr, '0p005'),
+    (0.020 * unyt.Myr, '0p020'),
+    (0.080 * unyt.Myr, '0p080'),
+    (0.140 * unyt.Myr, '0p140'),
+)
+density_figure_filenames = [
+    os.path.join(
+        rundir,
+        'EarlyHIIRegionExpansion1D_Density_%sMyr.jpg' % label,
+    )
+    for _, label in density_output_specs
+]
 
 # Physical parameters
 # This is Lyman continuum photon rate:
@@ -50,9 +63,10 @@ ionized_sound_speed = 12.85 * unyt.km / unyt.s
 sigma_gamma = 6.3e-18 * unyt.cm**2
 # Approximate recombination coefficient for hydrogen at 10^4 K, case B:
 alpha_B_coefficient = 2.7e-13 * unyt.cm**3 / unyt.s
-boxsize = 5.0 * unyt.pc
-final_time = 0.2 * unyt.Myr
+boxsize = 2.0 * unyt.pc
+final_time = 0.14 * unyt.Myr
 hydro_cfl = 0.5
+hydro_order = 1
 source_cfl = 0.1
 hydro_timestep_max = 2.0e-4 * unyt.Myr
 source_timestep_min = 1.0e-12 * unyt.Myr
@@ -72,6 +86,7 @@ def main():
         'boxsize': boxsize,
         'final_time': final_time,
         'hydro_cfl': hydro_cfl,
+        'hydro_order': hydro_order,
         'source_cfl': source_cfl,
         'hydro_timestep_max': hydro_timestep_max,
         'source_timestep_min': source_timestep_min,
@@ -85,13 +100,22 @@ def main():
         'time_Myr': [],
         'front_radius_pc': [],
     }
+    density_snapshots = []
+    density_snapshot_times = [time for time, _ in density_output_specs]
+    next_density_snapshot = 0
     counters = {
         'hydro_steps': 0,
         'source_steps': 0,
     }
     et.append_history(history, sim.mesh, sim.fluid, sim.par)
     while sim.fluid.time < final_time:
-        dt = sim.GetStepTime(final_time=final_time)
+        step_final_time = final_time
+        if next_density_snapshot < len(density_snapshot_times):
+            step_final_time = min(
+                final_time,
+                density_snapshot_times[next_density_snapshot],
+            )
+        dt = sim.GetStepTime(final_time=step_final_time)
         step = sim.Step(
             dt=dt,
             mode='hydro_sources',
@@ -107,10 +131,26 @@ def main():
             config,
         )
         et.append_history(history, sim.mesh, sim.fluid, sim.par)
+        while next_density_snapshot < len(density_snapshot_times):
+            current_time_myr = sim.fluid.time.to_value(unyt.Myr)
+            snapshot_time_myr = density_snapshot_times[
+                next_density_snapshot
+            ].to_value(unyt.Myr)
+            if current_time_myr + 1.0e-12 < snapshot_time_myr:
+                break
+            density_snapshots.append(
+                et.density_snapshot(sim.mesh, sim.fluid, sim.par)
+            )
+            next_density_snapshot += 1
 
     sim.solver.TraceSphericalPhotonDensityFast(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     et.save_front_plot(history, config, figure_filename)
+    et.save_density_profile_plots(
+        density_snapshots,
+        config,
+        density_figure_filenames,
+    )
 
     comparison_time_myr = comparison_time.to_value(unyt.Myr)
     simulation_radius_pc = et.front_radius_at_time(
@@ -118,6 +158,10 @@ def main():
         comparison_time,
     ).to_value(unyt.pc)
     spitzer_radius_pc = et.spitzer_radius(
+        comparison_time,
+        config,
+    ).to_value(unyt.pc)
+    hosokawa_inutsuka_radius_pc = et.hosokawa_inutsuka_radius(
         comparison_time,
         config,
     ).to_value(unyt.pc)
@@ -138,7 +182,13 @@ def main():
         'Spitzer solution at %.2f Myr = %.3e pc'
         % (comparison_time_myr, spitzer_radius_pc)
     )
+    print(
+        'Hosokawa-Inutsuka solution at %.2f Myr = %.3e pc'
+        % (comparison_time_myr, hosokawa_inutsuka_radius_pc)
+    )
     print('figure = %s' % figure_filename)
+    for density_figure_filename in density_figure_filenames:
+        print('density figure = %s' % density_figure_filename)
 
 
 if __name__ == '__main__':
