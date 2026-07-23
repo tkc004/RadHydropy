@@ -23,5 +23,6 @@ test = [
     "pytest",
 ]
 docs = [
+    "matplotlib",
     "sphinx>=7",
 ]
