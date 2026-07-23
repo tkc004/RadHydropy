@@ -127,6 +127,16 @@ def append_history(history, mesh, fluid, par):
     history['front_radius_pc'].append(ionization_front_position(mesh, fluid, par))
 
 
+def front_radius_at_time(history, time):
+    time_myr = np.asarray(history['time_Myr'])
+    front_radius_pc = np.asarray(history['front_radius_pc'])
+    target_time_myr = time.to_value(unyt.Myr)
+    if target_time_myr < time_myr[0] or target_time_myr > time_myr[-1]:
+        raise ValueError('requested time is outside the recorded history')
+
+    return np.interp(target_time_myr, time_myr, front_radius_pc) * unyt.pc
+
+
 def stromgren_radius(config):
     nH = rh.hydrogen_number_density(
         config['rho_initial'],
