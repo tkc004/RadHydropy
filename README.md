@@ -18,6 +18,9 @@ The code currently provides:
 - HDF5 input/output helpers; and
 - plotting utilities for one-dimensional outputs.
 
+Full documentation: 
+https://tkc004.github.io/RadHydropy/
+
 ## Installation
 
 Clone the repository and install it in editable mode:
