@@ -159,6 +159,21 @@ def stromgren_radius(config):
     return radius.to(unyt.pc)
 
 
+def neutral_sound_speed(config):
+    return np.sqrt(
+        unyt.kb * config['neutral_temperature'] / unyt.mp
+    ).to(unyt.cm / unyt.s)
+
+
+def stagnation_radius(config):
+    radius_stromgren = stromgren_radius(config)
+    ionized_sound_speed = config['ionized_sound_speed'].to(unyt.cm / unyt.s)
+    return (
+        (ionized_sound_speed / neutral_sound_speed(config)) ** (4.0 / 3.0)
+        * radius_stromgren
+    ).to(unyt.pc)
+
+
 def spitzer_radius(time, config):
     radius_stromgren = stromgren_radius(config)
     ionized_sound_speed = config['ionized_sound_speed'].to(unyt.cm / unyt.s)
@@ -196,6 +211,9 @@ def save_front_plot(history, config, figure_filename):
         time,
         config,
     ).to_value(unyt.pc)
+    show_stagnation_radius = config.get('show_stagnation_radius', False)
+    if show_stagnation_radius:
+        radius_stagnation_pc = stagnation_radius(config).to_value(unyt.pc)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
@@ -231,18 +249,26 @@ def save_front_plot(history, config, figure_filename):
         ls='--',
         label=r'$R_{\rm S}$',
     )
+    if show_stagnation_radius:
+        ax.axhline(
+            radius_stagnation_pc,
+            color='tab:red',
+            lw=1.6,
+            ls='-.',
+            label=r'$R_{\rm stag}$',
+        )
     ax.set_xlabel('Time [Myr]')
     ax.set_ylabel('Ionization-front radius [pc]')
     ax.set_xlim(0.0, config['final_time'].to_value(unyt.Myr))
-    ax.set_ylim(
-        0.0,
-        max(
-            1.05 * np.max(front_radius_pc),
-            1.05 * np.max(radius_spitzer_pc),
-            1.05 * np.max(radius_hosokawa_inutsuka_pc),
-            1.1 * stromgren_radius_pc,
-        ),
+    radius_limits = (
+        1.05 * np.max(front_radius_pc),
+        1.05 * np.max(radius_spitzer_pc),
+        1.05 * np.max(radius_hosokawa_inutsuka_pc),
+        1.1 * stromgren_radius_pc,
     )
+    if show_stagnation_radius:
+        radius_limits += (1.1 * radius_stagnation_pc,)
+    ax.set_ylim(0.0, max(radius_limits))
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
     fig.tight_layout()
@@ -259,6 +285,9 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         time,
         config,
     ).to_value(unyt.pc)
+    show_stagnation_radius = config.get('show_stagnation_radius', False)
+    if show_stagnation_radius:
+        radius_stagnation_pc = stagnation_radius(config).to_value(unyt.pc)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
@@ -282,6 +311,14 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         ls=':',
         label='Hosokawa-Inutsuka',
     )
+    if show_stagnation_radius:
+        ax.axvline(
+            radius_stagnation_pc,
+            color='tab:red',
+            lw=1.6,
+            ls='-.',
+            label=r'$R_{\rm stag}$',
+        )
     ax.set_yscale('log')
     ax.set_xlabel('Radius [pc]')
     ax.set_ylabel(r'Density [g cm$^{-3}$]')

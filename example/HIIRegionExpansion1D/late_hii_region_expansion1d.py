@@ -74,6 +74,7 @@ hydro_timestep_max = 2.0e-4 * unyt.Myr
 source_timestep_min = 1.0e-12 * unyt.Myr
 number_of_cells = 512
 comparison_time = 3.0 * unyt.Myr
+show_stagnation_radius = True
 
 
 def main():
@@ -93,6 +94,7 @@ def main():
         'hydro_timestep_max': hydro_timestep_max,
         'source_timestep_min': source_timestep_min,
         'number_of_cells': number_of_cells,
+        'show_stagnation_radius': show_stagnation_radius,
     }
     par, mesh, fluid, solver = et.build_problem(config)
     sim = Rsim.FromComponents(par, mesh, fluid, solver)
@@ -167,9 +169,11 @@ def main():
         comparison_time,
         config,
     ).to_value(unyt.pc)
+    stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
     print('time = %s' % sim.fluid.time)
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
+    print('stagnation radius = %.3e pc' % stagnation_radius_pc)
     print('hydro steps = %d' % counters['hydro_steps'])
     print('source steps = %d' % counters['source_steps'])
     print(
