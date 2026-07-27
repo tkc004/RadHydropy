@@ -10,11 +10,13 @@ The code currently provides:
 - mesh setup with ghost cells for Cartesian and spherical coordinates;
 - primitive and conserved fluid state handling;
 - ideal-gas pressure, temperature, energy-density, and sound-speed helpers;
-- optional subcycled hydrogen cooling with implicit neutral-fraction evolution;
+- a finite-volume hydrodynamics solver with GLF/Rusanov interface fluxes;
+- boundary-condition handling for periodic, open, reflecting, spherical open,
+  inflow, and outflow modes;
+- an optional hydrogen thermo-chemistry network with implicit neutral-fraction
+  evolution and source-term subcycling;
 - optional one-dimensional long-characteristic radiative transfer coupled to
   photon number density;
-- finite-volume updates with GLF/Rusanov interface fluxes;
-- periodic, open, reflecting, spherical open, inflow, and outflow boundaries;
 - HDF5 input/output helpers; and
 - plotting utilities for one-dimensional outputs.
 
@@ -48,8 +50,9 @@ pytest
 ## Quick Start
 
 The fastest way to try the code is to run one of the bundled examples. For
-example, the Sod shock tube setup creates an initial-condition file, runs the
-simulation, writes `Output_*.hdf5` files, and plots the result:
+example, the Sod shock tube setup loads a YAML configuration, builds the
+initial-condition file, runs the coupled hydrodynamics update, writes
+`Output_*.hdf5` files, and plots the result:
 
 ```bash
 cd example/SodShock1D
@@ -58,9 +61,9 @@ python sodshock1d.py
 
 Most examples follow the same pattern:
 
-1. define run parameters;
-2. create or load an HDF5 initial-condition file;
-3. construct `Rsim`;
+1. load `runparams` and `ICparams` from the example YAML file;
+2. create or load an HDF5 initial-condition file from `ICparams`;
+3. construct `Rsim` with the runtime parameters;
 4. call `RunAll()`; and
 5. inspect or plot the output files.
 
@@ -69,8 +72,9 @@ needs finer control:
 
 - `Step(mode="hydro")` advances only the finite-volume hydrodynamics update.
 - `Step(mode="sources")` advances thermo-chemistry and radiative-transfer
-  sources without a hydro flux update.
-- `Step(mode="hydro_sources")` performs the standard coupled update.
+  sources without a hydrodynamic flux update.
+- `Step(mode="hydro_sources")` performs the standard coupled update used by
+  the bundled examples.
 - `Evolve(final_time=...)` loops over `Step(...)` and returns counters for the
   number of hydro and source updates.
 
@@ -79,8 +83,8 @@ available and now delegate to the same shared stepping path.
 
 ## Minimal Simulation Runner
 
-RadHydropy simulations are driven by a parameter dictionary and an HDF5
-initial-condition file. A typical runner looks like this:
+RadHydropy simulations are driven by a runtime-parameter dictionary and an
+HDF5 initial-condition file. A typical YAML-driven runner looks like this:
 
 ```python
 import unyt
@@ -127,8 +131,8 @@ print(counters)
 ```
 
 For fixed-density thermo-chemistry tests such as the static Stromgren sphere,
-`Rsim.EvolveStaticThermochemistry(...)` evolves the source terms without a
-hydrodynamic update.
+`Rsim.EvolveStaticThermochemistry(...)` evolves the thermo-chemistry and
+radiative-transfer source terms without a hydrodynamic update.
 
 ## Initial-Condition File Format
 
@@ -145,7 +149,8 @@ Initial-condition and output files use a compact HDF5 structure:
   - `Velocity`
   - `Temperature`
   - `Mol_weight`
-  - `NeutralFraction` (optional; used by hydrogen thermo-chemistry)
+  - `NeutralFraction` (optional; used by the hydrogen thermo-chemistry
+    network)
 
 Datasets with physical units store the unit string in a `units` attribute.
 
@@ -172,10 +177,15 @@ docs/           Sphinx documentation
 ## Documentation
 
 The rendered docs include the installation guide, quickstart, example gallery,
-and API reference:
+and API reference, plus standalone pages for the main simulation subsystems:
 
 - [Installation guide](docs/installation.rst)
 - [Quickstart](docs/quickstart.rst)
+- [Initial-condition parameters](docs/icparams.rst)
+- [Hydrodynamics solver](docs/hydrodynamics.rst)
+- [Thermo-chemistry solver](docs/thermo_chemistry.rst)
+- [Boundary conditions](docs/boundary_conditions.rst)
+- [Radiative transfer](docs/radiative_transfer.rst)
 - [Examples](docs/examples.rst)
 - [API reference](docs/api/index.rst)
 
