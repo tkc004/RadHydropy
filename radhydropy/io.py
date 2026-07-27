@@ -6,13 +6,23 @@ import unyt
 import numpy as np
 import radhydropy.utils as ru
 
+
+def _read_quantity(group, name):
+    dataset = group[name]
+    return np.asarray(dataset[()]) * unyt.Unit(dataset.attrs['units'])
+
+
+def _read_dataset(group, name):
+    return group[name][()]
+
 def writehdf5(ric,ICfilename):
     """Write simulation state to a RadHydropy HDF5 file.
 
     The output file contains a ``Header`` group for metadata and a ``Data``
     group for mesh and fluid arrays. Units are stored as HDF5 attributes.
     """
-    print("--- writing "+ICfilename+" --- ")
+    ICfilename = str(ICfilename)
+    print(f"--- writing {ICfilename} --- ")
     if hasattr(ric.fluid, "time"):
         output_time = ric.fluid.time
         if hasattr(ric.par, "time"):
@@ -51,7 +61,8 @@ def writehdf5(ric,ICfilename):
 
 def readhdf5(par, mesh, fluid, ICfilename): 
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects."""
-    print("--- reading "+ICfilename+" --- ")
+    ICfilename = str(ICfilename)
+    print(f"--- reading {ICfilename} --- ")
     with h5py.File(ICfilename, 'r') as fic:
         # saving initial condition
         # first, save header:
@@ -63,33 +74,18 @@ def readhdf5(par, mesh, fluid, ICfilename):
         else:
             par.coordsys = coordsys
         par.nogrid = header.attrs['Number_Grids']
-        time = header["Time"][:] 
-        time_unit = header["Time"].attrs['units'] 
-        par.time = time * unyt.Unit(time_unit)
+        par.time = _read_quantity(header, "Time")
         fluid.time = par.time.copy()
-        boxsize = header["BoxSize"][:]
-        boxsize_unit = header["BoxSize"].attrs['units']
-        par.boxsize = boxsize * unyt.Unit(boxsize_unit) 
+        par.boxsize = _read_quantity(header, "BoxSize")
 
         #second, save mesh and fluid data:
         gdata = fic["Data"]
-        boundary = gdata["Boundary"][:]
-        boundary_unit = gdata["Boundary"].attrs['units']   
-        mesh.boundary = boundary * unyt.Unit(boundary_unit) 
-        rho = gdata["Density"][:]
-        rho_unit = gdata["Density"].attrs['units']   
-        fluid.rho = rho * unyt.Unit(rho_unit)  
-        vel = gdata["Velocity"][:] 
-        vel_unit = gdata["Velocity"].attrs['units']   
-        fluid.vel = vel * unyt.Unit(vel_unit)
-        temp = gdata["Temperature"][:] 
-        temp_unit = gdata["Temperature"].attrs['units'] 
-        temp_unit = gdata["Temperature"].attrs['units']   
-        fluid.temp = temp * unyt.Unit(temp_unit)      
-        fluid.mu = gdata["Mol_weight"][:]  
+        mesh.boundary = _read_quantity(gdata, "Boundary")
+        fluid.rho = _read_quantity(gdata, "Density")
+        fluid.vel = _read_quantity(gdata, "Velocity")
+        fluid.temp = _read_quantity(gdata, "Temperature")
+        fluid.mu = _read_dataset(gdata, "Mol_weight")
         if "NeutralFraction" in gdata:
-            fluid.xHI = gdata["NeutralFraction"][:]
+            fluid.xHI = _read_dataset(gdata, "NeutralFraction")
         if "PhotonNumberDensity" in gdata:
-            ngamma = gdata["PhotonNumberDensity"][:]
-            ngamma_unit = gdata["PhotonNumberDensity"].attrs['units']
-            fluid.ngamma = ngamma * unyt.Unit(ngamma_unit)
+            fluid.ngamma = _read_quantity(gdata, "PhotonNumberDensity")

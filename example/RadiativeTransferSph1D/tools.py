@@ -22,6 +22,7 @@ def build_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
+        boxsize=config['boxsize'],
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
