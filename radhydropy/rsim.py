@@ -8,6 +8,7 @@ from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.params import Par
 from radhydropy.solver import Solver
+from pathlib import Path
 import unyt
 import numpy as np
 import time
@@ -490,6 +491,84 @@ class Rsim():
         )
         rio.writehdf5(self, filename)
 
+    def _load_output_time_list(self):
+        """Load explicit HDF5 output times from a text file when configured."""
+        filename = getattr(self.par, 'outputtimefilename', None)
+        if not filename:
+            return None
+
+        outputtimepath = Path(filename)
+        if not outputtimepath.exists():
+            raise FileNotFoundError(
+                f"Output-time file not found: {outputtimepath}"
+            )
+
+        unit = None
+        output_times = []
+        with outputtimepath.open() as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                tokens = line.split()
+                if unit is None:
+                    unit = tokens[0]
+                    for token in tokens[1:]:
+                        output_times.append(float(token))
+                    continue
+                for token in tokens:
+                    output_times.append(float(token))
+
+        if unit is None:
+            raise ValueError(
+                f"Output-time file is empty: {outputtimepath}"
+            )
+
+        return np.asarray(output_times, dtype=float) * unyt.Unit(unit)
+
+    def _run_with_output_times(self, outputtime=0):
+        """Run the simulation using an explicit list of output times."""
+        print("--- Initization finished. Start running ... ---")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        self._write_numbered_hdf5(0)
+
+        current_time = self.fluid.time
+        final_time = self.par.timesim
+        output_times = self._load_output_time_list()
+        if output_times is None:
+            output_times = []
+        else:
+            target_unit = final_time.units
+            sorted_values = np.unique(
+                np.asarray(output_times.to_value(target_unit), dtype=float)
+            )
+            output_times = [
+                value * target_unit
+                for value in sorted_values
+                if value * target_unit > current_time and value * target_unit <= final_time
+            ]
+
+        outindex = 1
+        for target_time in output_times:
+            while self.fluid.time < target_time:
+                dt = self.GetStepTime(final_time=target_time)
+                if outputtime == 1:
+                    print("time, dt", self.fluid.time, dt)
+                self.Step(dt=dt, mode="hydro_sources")
+            if self.fluid.time == target_time:
+                self.fluid.SetTemperature()
+                self._write_numbered_hdf5(outindex)
+                outindex += 1
+
+        while self.fluid.time < final_time:
+            dt = self.GetStepTime(final_time=final_time)
+            if outputtime == 1:
+                print("time, dt", self.fluid.time, dt)
+            self.Step(dt=dt, mode="hydro_sources")
+
+        print("--- Simulation finished. ---")
+        print("--- %s seconds ---" % (time.time() - start_time))
+
     def _hdf5_output_callback(self, outputtime=0):
         output_state = {
             'outtime': 0.0 * self.par.timesim,
@@ -514,6 +593,9 @@ class Rsim():
 
     def Run(self,outputtime=0):
         """Run the simulation loop and write periodic HDF5 outputs."""
+        if getattr(self.par, 'outputtimefilename', None):
+            self._run_with_output_times(outputtime=outputtime)
+            return
         print("--- Initization finished. Start running ... ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
         self._write_numbered_hdf5(0)

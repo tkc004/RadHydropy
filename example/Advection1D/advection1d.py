@@ -8,9 +8,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import unyt
-import yaml
 
 os.environ.setdefault(
     'MPLCONFIGDIR',
@@ -23,44 +23,12 @@ import radhydropy.io as rio
 import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('advection1d.yaml')
-PATH_PARAMS = {'ICfilename', 'outdir', 'savedir'}
-
-
-def _load_yaml_value(value):
-    if isinstance(value, dict) and {'value', 'unit'} <= value.keys():
-        return value['value'] * unyt.Unit(value['unit'])
-    if isinstance(value, dict):
-        return {key: _load_yaml_value(val) for key, val in value.items()}
-    if isinstance(value, list):
-        return [_load_yaml_value(item) for item in value]
-    return value
-
-
-def _resolve_path(value, rundir):
-    path = Path(value)
-    if path.is_absolute():
-        return str(path)
-    return str(rundir / path)
-
-
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    rundir = Path.cwd().resolve() if rundir is None else Path(rundir).resolve()
-    config_filename = Path(config_filename)
-    with config_filename.open() as config_file:
-        config = yaml.safe_load(config_file)
-
-    runparams = _load_yaml_value(config['runparams'])
-    ICparams = _load_yaml_value(config['ICparams'])
-    for key in PATH_PARAMS:
-        if key in runparams:
-            runparams[key] = _resolve_path(runparams[key], rundir)
-    return runparams, ICparams
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_parameters(config_filename, rundir)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
 
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric,runparams['ICfilename'])

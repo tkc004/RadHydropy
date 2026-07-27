@@ -3,6 +3,7 @@
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import glob
 import numpy as np
 import unyt
 
@@ -73,6 +74,28 @@ def time_value(sim, units):
     return float(np.ravel(sim.fluid.time.to_value(units))[0])
 
 
+def _interior_slice(noghost, nogrid):
+    return slice(noghost, noghost + nogrid)
+
+
+def load_history_from_outputs(outputfiles, icparams, noghost):
+    history = {'time_yr': [], 'temperature_K': [], 'ionized_fraction': []}
+    interior = _interior_slice(noghost, icparams['nogrid'])
+
+    for outfilename in sorted(outputfiles):
+        rout = Simwrap(icparams)
+        rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+        history['time_yr'].append(time_value(rout, unyt.yr))
+        history['temperature_K'].append(
+            np.mean(rout.fluid.temp[interior].to_value(unyt.K))
+        )
+        history['ionized_fraction'].append(
+            1.0 - float(np.mean(rout.fluid.xHI[interior]))
+        )
+
+    return history
+
+
 def write_output(sim, outindex):
     sim.fluid.SetTemperature()
     sim.par.time = sim.fluid.time
@@ -85,6 +108,11 @@ def write_output(sim, outindex):
     )
     rio.writehdf5(sim, filename)
     return time_value(sim, unyt.s)
+
+
+def output_files(outdir, outfileprefix):
+    pattern = outdir + '/' + outfileprefix + '_*.hdf5'
+    return glob.glob(pattern)
 
 
 def append_history(sim, history):

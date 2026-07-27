@@ -8,6 +8,7 @@ refparams = {
     'outdir':'./',
     'outfileprefix':'Output', 
     'outdeltatime':2.0*unyt.s *0.1,
+    'outputtimefilename': None,
     'savedir':'./',
     'coordsys':'cartesian', #
     'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
@@ -74,6 +75,7 @@ class Par():
                 if key in params:
                     setattr(self, key, params[key])
                 else:
-                    print("key %s not find in params"%key)
-                    print(str(value) +"is used")
+                    if value is not None:
+                        print("key %s not find in params"%key)
+                        print(str(value) +"is used")
                     setattr(self, key, value)

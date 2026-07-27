@@ -8,7 +8,7 @@ import yaml
 
 def _load_yaml_value(value):
     if isinstance(value, dict) and {'value', 'unit'} <= value.keys():
-        return value['value'] * unyt.Unit(value['unit'])
+        return float(value['value']) * unyt.Unit(value['unit'])
     if isinstance(value, dict):
         return {key: _load_yaml_value(val) for key, val in value.items()}
     if isinstance(value, list):
@@ -32,7 +32,7 @@ def load_example_parameters(config_filename, rundir=None):
 
     runparams = _load_yaml_value(config['runparams'])
     icparams = _load_yaml_value(config['ICparams'])
-    for key in {'ICfilename', 'outdir', 'savedir'}:
+    for key in {'ICfilename', 'outdir', 'outputtimefilename', 'savedir'}:
         if key in runparams:
             runparams[key] = _resolve_path(runparams[key], rundir)
     return runparams, icparams

@@ -3,9 +3,7 @@ runparams:
   ICfilename: InitialCondition.hdf5
   outdir: .
   outfileprefix: Output
-  outdeltatime:
-    value: 0.1
-    unit: s
+  outputtimefilename: output_times.txt
   savedir: .
   coordsys: cartesian
   EOStype: polytropic

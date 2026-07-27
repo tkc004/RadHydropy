@@ -6,75 +6,53 @@ The run stops once the gas is 99 percent neutral and writes a JPG comparing
 the ionized fraction against the analytic case-B expectation.
 """
 
+import argparse
 import os
+import sys
+from pathlib import Path
 import tempfile
 
+cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
+mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+os.makedirs(cache_dir, exist_ok=True)
+os.makedirs(mplconfig_dir, exist_ok=True)
+os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault(
     'MPLCONFIGDIR',
-    os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'),
+    mplconfig_dir,
 )
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import unyt
+import yaml
 
 from radhydropy.rsim import Rsim
+from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 import tools as et
 
-
-rundir = os.getcwd()
-
-runparams = {
-    'simname': 'HydrogenRecombination1D',
-    'ICfilename': rundir + '/InitialCondition.hdf5',
-    'outdir': rundir,
-    'outfileprefix': 'Output',
-    'outdeltatime': 5.0e4 * unyt.yr,
-    'savedir': rundir,
-    'coordsys': 'cartesian',
-    'EOStype': 'polytropic',
-    'gamma': 5.0 / 3.0,
-    'timesim': 5.0e5 * unyt.yr,
-    'area': 1.0 * unyt.cm**2,
-    'CFL': 0.5,
-    'boundcond': 'Periodic',
-    'vel_inflow': 0.0 * unyt.cm / unyt.s,
-    'rho_inflow': 1.0 * unyt.mp / unyt.cm**3,
-    'temp_inflow': 0.0 * unyt.K,
-    'mu_inflow': 1.0,
-    'vel_outflow': 0.0 * unyt.cm / unyt.s,
-    'rho_outflow': 1.0 * unyt.mp / unyt.cm**3,
-    'temp_outflow': 0.0 * unyt.K,
-    'mu_outflow': 1.0,
-    'noghost': 2,
-    'verbose': 0,
-    'order': 0,
-    'dtmin': 1.0e-6 * unyt.yr,
-    'dtmax': 2.0e3 * unyt.yr,
-    'hydrogen_chemistry': True,
-    'hydrogen_mass_fraction': 1.0,
-    'hydrogen_xHI_initial': 0.0,
-    'hydrogen_xHI_inflow': 0.0,
-    'hydrogen_xHI_outflow': 0.0,
-    'hydrogen_source_CFL': 0.2,
-    'hydrogen_update_mu': False,
-    'hydrogen_thermal_coupling': False,
-    'hydrogen_collisional_ionization': False,
-}
-
-ICparams = {
-    'nogrid': 16,
-    'coordsys': 'cartesian',
-    'boxsize': 1.0 * unyt.kpc,
-    'time': 0.0 * unyt.yr,
-    'nHini': 100.0 / unyt.cm**3,
-    'tempini': 2.0e4 * unyt.K,
-    'xHIini': 0.0,
-    'muini': 0.5,
-}
-
-target_neutral_fraction = 0.99
+DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_recombination1d.yaml')
 
 
-def main():
+def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
+    config_filename = Path(config_filename)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
+    with config_filename.open() as config_file:
+        config = yaml.safe_load(config_file)
+    return runparams, ICparams, config.get('target_neutral_fraction', 0.99)
+
+
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
+    runparams, ICparams, target_neutral_fraction = load_parameters(
+        config_filename,
+        rundir,
+    )
+
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric, runparams['ICfilename'])
 
@@ -84,12 +62,10 @@ def main():
     sim.SetFluid()
     sim.SetInitFluid()
 
-    history = {'time_yr': [], 'temperature_K': [], 'ionized_fraction': []}
     outindex = 0
     output_interval = sim.par.outdeltatime.copy()
     next_output_time = output_interval.copy()
     last_output_time = et.write_output(sim, outindex)
-    et.append_history(sim, history)
     outindex += 1
 
     while (
@@ -97,7 +73,6 @@ def main():
         and et.time_value(sim, unyt.s) < float(sim.par.timesim.to_value(unyt.s))
     ):
         sim.Step(mode='hydro_sources')
-        et.append_history(sim, history)
         if sim.fluid.time >= next_output_time:
             last_output_time = et.write_output(sim, outindex)
             outindex += 1
@@ -105,11 +80,25 @@ def main():
 
     if et.time_value(sim, unyt.s) != last_output_time:
         et.write_output(sim, outindex)
+        outindex += 1
 
-    figure_filename = rundir + '/HydrogenRecombination1D.jpg'
+    outputfiles = [
+        os.path.join(
+            runparams['outdir'],
+            f"{runparams['outfileprefix']}_{index:03d}.hdf5",
+        )
+        for index in range(outindex)
+    ]
+    history = et.load_history_from_outputs(
+        outputfiles,
+        ICparams,
+        runparams['noghost'],
+    )
+
+    figure_filename = rundir / 'HydrogenRecombination1D.jpg'
     et.save_history_plot(
         history,
-        figure_filename,
+        str(figure_filename),
         ICparams,
         target_neutral_fraction,
     )
@@ -122,5 +111,18 @@ def main():
     print('figure = %s' % figure_filename)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Run the 1D hydrogen recombination example.',
+    )
+    parser.add_argument(
+        '--config',
+        default=DEFAULT_CONFIG,
+        help='YAML file containing runparams, ICparams, and target_neutral_fraction.',
+    )
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    main(args.config)

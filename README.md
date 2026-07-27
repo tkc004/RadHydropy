@@ -98,6 +98,7 @@ runparams = {
     "gamma": 1.4,
     "timesim": 1.0 * unyt.s,
     "outdeltatime": 0.1 * unyt.s,
+    "outputtimefilename": None,
     "CFL": 0.1,
     "boundcond": "Periodic",
     "order": 1,
@@ -108,6 +109,10 @@ runparams = {
 sim = Rsim(runparams)
 sim.RunAll(outputtime=1)
 ```
+
+To use explicit output times, set `outputtimefilename` to a txt file whose
+first non-empty line is the time unit and whose remaining lines are the output
+times.
 
 The `ICfilename` file must already exist. You can create it with
 `radhydropy.io.writehdf5`, as shown in the scripts under `example/`.

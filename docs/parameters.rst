@@ -42,6 +42,10 @@ Common Runtime Keys
    * - ``outdeltatime``
      - Output cadence.
      - time
+   * - ``outputtimefilename``
+     - Optional txt file containing explicit output times. The first non-empty
+       row gives the time unit and the remaining rows list the output times.
+     - path string
    * - ``CFL``
      - Courant factor used by :meth:`radhydropy.solver.Solver.GetTimeStep`.
      - dimensionless
@@ -140,6 +144,19 @@ Radiative Transfer Keys
 Set ``radiative_transfer=True`` to compute ``fluid.ngamma`` from the optional
 one-dimensional long-characteristic ray tracer before the hydrogen source terms
 are applied. See :doc:`radiative_transfer` for the implementation details.
+
+If ``outputtimefilename`` is provided, RadHydropy ignores ``outdeltatime`` and
+writes outputs at the explicit times listed in the txt file. The file format is
+one time unit on the first non-empty line, followed by one output time per
+line. Include ``timesim`` in the list if you want the final state written as an
+output file. For example:
+
+.. code-block:: text
+
+   yr
+   0.0
+   1.0e4
+   2.0e4
 
 .. list-table::
    :header-rows: 1

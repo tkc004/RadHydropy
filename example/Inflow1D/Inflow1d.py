@@ -36,13 +36,12 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
-    for outindex in range(0, 9, 1):
-        outfilename = os.path.join(
-            runparams['outdir'],
-            runparams['outfileprefix'] + '_%03d' % outindex + '.hdf5',
-        )
+    outputfiles = sorted(
+        Path(runparams['outdir']).glob(f"{runparams['outfileprefix']}_*.hdf5")
+    )
+    for outfilename in outputfiles:
         et.ReadandPlot(
-            outfilename,
+            str(outfilename),
             ICparams,
             runparams,
             ls='none',

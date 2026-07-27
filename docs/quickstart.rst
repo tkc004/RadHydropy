@@ -24,6 +24,7 @@ Minimal Runner
        "gamma": 1.4,
        "timesim": 1.0 * unyt.s,
        "outdeltatime": 0.1 * unyt.s,
+       "outputtimefilename": None,
        "CFL": 0.1,
        "boundcond": "Periodic",
        "order": 1,
@@ -33,6 +34,17 @@ Minimal Runner
 
    sim = Rsim(runparams)
    sim.RunAll(outputtime=1)
+
+To use explicit output times instead of a fixed cadence, set
+`outputtimefilename` to a txt file whose first non-empty line is the time unit
+and whose remaining lines are the output times. For example:
+
+.. code-block:: text
+
+   yr
+   0.0
+   1.0e4
+   2.0e4
 
 Stepping API
 ------------
