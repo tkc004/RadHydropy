@@ -20,6 +20,9 @@ Available Examples
    * - ``example/HIIRegionExpansion1D``
      - Spherical H II region expansion with hydrodynamics and a
        simplified piecewise-isothermal neutral/ionized equation of state.
+   * - ``example/HydrostaticEquilibrium1D``
+     - Cartesian isothermal atmosphere in a constant gravitational field used
+       as a hydrostatic-equilibrium check.
    * - ``example/Inflow1D``
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``

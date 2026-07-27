@@ -62,6 +62,25 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(icparams['nHini'].to_value(1.0 / unyt.cm**3), 1.0)
 
+    def test_hydrostatic_equilibrium1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrostaticEquilibrium1D'
+            / 'hydrostatic_equilibrium1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['EOStype'], 'isothermal')
+        self.assertEqual(runparams['boundcond'], 'Open')
+        self.assertEqual(icparams['nogrid'], 256)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 10.0)
+        self.assertAlmostEqual(
+            icparams['gravity_strength'].to_value(unyt.cm / unyt.s**2),
+            1.0e-7,
+        )
+
     def test_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
