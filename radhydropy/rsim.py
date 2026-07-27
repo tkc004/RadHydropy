@@ -179,6 +179,8 @@ class Rsim():
                 dt,
                 fast_thermochemistry=fast_thermochemistry,
             )
+            # Source updates can change temperature, pressure, and chemistry
+            # fields, so refresh the boundary state before the next loop.
             if mode == "sources":
                 self.fluid.time += dt
             self.solver.SetBoundary(self.mesh, self.fluid, self.par)
@@ -539,6 +541,8 @@ class Rsim():
             sorted_values = np.unique(
                 np.asarray(output_times.to_value(target_unit), dtype=float)
             )
+            # Keep only explicit output times that are still ahead of the
+            # current state and do not overshoot the requested final time.
             output_times = [
                 value * target_unit
                 for value in sorted_values
@@ -615,6 +619,8 @@ class Rsim():
                 dt = dt[0]
             if outputtime == 1:
                 print("time, dt", sim.fluid.time, dt)
+            # `outtime` measures elapsed simulation time since the last file
+            # write, not wall-clock time.
             if output_state['outtime'] >= sim.par.outdeltatime:
                 sim.fluid.SetTemperature()
                 sim._write_numbered_hdf5(output_state['outindex'])
@@ -650,6 +656,8 @@ class Rsim():
                 step_backend_kwargs=step_backend_kwargs,
             )
             return
+        # Fixed-cadence output path: advance to `timesim` and write snapshots
+        # whenever `outtime` reaches `outdeltatime`.
         print("--- Initization finished. Start running ... ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
         self._write_numbered_hdf5(0)

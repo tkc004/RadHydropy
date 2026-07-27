@@ -113,6 +113,8 @@ thermo-chemistry solver and its example workflows.
 
 See :doc:`hydrodynamics` for a standalone description of the finite-volume
 Euler update, reconstruction order, fluxes, and boundary handling.
+See :doc:`boundary_conditions` for a standalone description of the supported
+boundary-condition modes and the geometry-specific ghost-cell treatment.
 
 Initial-Condition Files
 -----------------------

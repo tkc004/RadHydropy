@@ -24,6 +24,8 @@ def get_network(par):
             "Unknown thermo-chemistry network "
             f"{network_name!r}; available networks: {available}"
         ) from exc
+    # The dispatcher returns a fresh network instance so each call can read the
+    # current runtime parameters without sharing mutable state.
     return network_class()
 
 

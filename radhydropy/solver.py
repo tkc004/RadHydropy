@@ -153,7 +153,8 @@ class Solver():
         ``order=0`` uses piecewise constant states. ``order=1`` applies a
         gradient reconstruction before limiting the fluxes.
         """
-        #numpy roll Rroll, put the right value to this cell
+        # Start from neighbor-shifted cell states, then optionally replace them
+        # with reconstructed face values for second-order updates.
         Lroll = 1
         if order == 0 or order == 1:
             fluid.rho.R = fluid.rho
@@ -162,10 +163,6 @@ class Solver():
             fluid.vel.L = np.roll(fluid.vel, Lroll)
             fluid.pre.R = fluid.pre
             fluid.pre.L = np.roll(fluid.pre, Lroll)
-            #if boundcond == "OpenSph":
-            #    fluid.vel.L[0] = 0.0
-            #    fluid.rho.L[0] = fluid.rho.L[1]
-            #    fluid.pre.L[0] = fluid.pre.L[1] 
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
@@ -193,6 +190,8 @@ class Solver():
             FEn_R,
             qEn_R,
         ) = fluid.eos.fluxes(fluid.rho.R, fluid.vel.R, fluid.pre.R)
+        # Compute a diffusive baseline flux first; order=1 later blends this
+        # with the reconstructed flux through a limiter.
         Mass_flux_0 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
         Mom_flux_0 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
         Energy_flux_0 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
@@ -236,6 +235,8 @@ class Solver():
                 qEn_R,
                 fluid.cmax,
             )
+            # Limit the reconstructed flux back toward the baseline flux when
+            # the face-centered state would otherwise introduce oscillations.
             self.SetConservedDensityFlux(fluid)
             fluid.Mass.flux, fluid.philim_Mass= ru.ApplyFluxLimiter(fluid.Mass.q,Mass_flux_1,Mass_flux_0)
             fluid.Mom.flux, fluid.philim_Mom  = ru.ApplyFluxLimiter(fluid.Mom.q,Mom_flux_1,Mom_flux_0)
@@ -280,23 +281,19 @@ class Solver():
             
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
         """Apply interface fluxes to conserved quantities and advance time."""
-        #numpy roll Rroll, put the right value to this cell
+        # Shift the face fluxes so each cell receives the net in-flow minus
+        # out-flow through its two bounding faces.
         Rroll = -1
 
-        # Add the interface fluxes to the cells:
         area = mesh.area
         df_Mass = fluid.Mass.flux*area - np.roll(fluid.Mass.flux*area,Rroll)
         df_Mom = fluid.Mom.flux*area - np.roll(fluid.Mom.flux*area,Rroll)
         df_Energy = fluid.Energy.flux*area - np.roll(fluid.Energy.flux*area,Rroll)
         if getattr(mesh, 'coordsys', None) == 'spherical':
+            # Spherical momentum needs the geometric pressure term from the
+            # changing face area, not just the flux divergence.
             area_right = np.roll(area, Rroll)
             df_Mom += fluid.pre * (area_right - area)
-
-        # we zero out the flux from the inner most boundary? 
-        #if boundcond == "OpenSph":
-        #    df_Mass[0] = - fluid.Mass.flux[1]*area[1]
-        #    df_Mom[0] = - fluid.Mom.flux[1]*area[1]
-        #    df_Energy[0] = - fluid.Energy.flux[1]*area[1]
 
         fluid.Mass += df_Mass*dt
         fluid.Mom  += df_Mom*dt

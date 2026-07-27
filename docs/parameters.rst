@@ -1,4 +1,4 @@
-Parameters
+Run Parameters
 ==========
 
 Runtime parameters are passed to :class:`radhydropy.params.Par` as a dictionary.

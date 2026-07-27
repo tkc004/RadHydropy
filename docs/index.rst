@@ -25,6 +25,7 @@ The package is organized around a small simulation workflow:
    icparams
    hydrodynamics
    thermo_chemistry
+   boundary_conditions
    radiative_transfer
    examples
 
