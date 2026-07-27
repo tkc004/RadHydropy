@@ -1,5 +1,6 @@
 """Helper utilities for the fixed-field photoionization example."""
 
+import glob
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -78,27 +79,27 @@ def time_value(sim, units):
     return float(np.ravel(sim.fluid.time.to_value(units))[0])
 
 
-def write_output(sim, outindex):
-    sim.fluid.SetTemperature()
-    sim.par.time = sim.fluid.time
-    filename = (
-        sim.par.outdir
-        + '/'
-        + sim.par.outfileprefix
-        + '_%03d' % outindex
-        + '.hdf5'
-    )
-    rio.writehdf5(sim, filename)
-    return time_value(sim, unyt.s)
+def load_history_from_outputs(outputfiles, icparams, noghost):
+    history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
+    interior = slice(noghost, noghost + icparams['nogrid'])
+
+    for outfilename in sorted(outputfiles):
+        rout = Simwrap(icparams)
+        rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+        history['time_yr'].append(time_value(rout, unyt.yr))
+        history['temperature_K'].append(
+            np.mean(rout.fluid.temp[interior].to_value(unyt.K))
+        )
+        history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
+        history['ngamma'].append(
+            np.mean(rout.fluid.ngamma[interior].to_value(1.0 / unyt.cm**3))
+        )
+
+    return history
 
 
-def append_history(sim, history):
-    history['time_yr'].append(time_value(sim, unyt.yr))
-    history['temperature_K'].append(mean_temperature(sim).to_value(unyt.K))
-    history['xHI'].append(mean_neutral_fraction(sim))
-    history['ngamma'].append(
-        mean_photon_number_density(sim).to_value(1.0 / unyt.cm**3)
-    )
+def output_files(outdir, outfileprefix):
+    return sorted(glob.glob(outdir + '/' + outfileprefix + '_*.hdf5'))
 
 
 def save_history_plot(history, filename, icparams, runparams, target_xHI):

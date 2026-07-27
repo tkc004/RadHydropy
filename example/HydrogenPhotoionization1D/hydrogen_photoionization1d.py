@@ -3,131 +3,76 @@
 The gas starts neutral at ``T = 2e4 K`` and ``nH = 1 cm^-3``. A fixed,
 spatially uniform photon number density photoionizes the gas while the
 radiation-field evolution and thermal source update are disabled. The run
-stops once the gas is 99 percent ionized and writes a JPG comparing the
-neutral fraction against the analytic fixed-field solution.
+stops once the gas is 99 percent ionized, writes HDF5 snapshots, reloads them,
+and plots the neutral-fraction evolution against the analytic fixed-field
+solution.
 """
 
 import os
+import sys
+from pathlib import Path
 import tempfile
+import argparse
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
-os.environ.setdefault(
-    'MPLCONFIGDIR',
-    mplconfig_dir,
-)
+os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import unyt
 
+from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
-import radhydropy.hydrogen as rh
 import radhydropy.io as rio
 import tools as et
 
 
-rundir = os.getcwd()
-
-runparams = {
-    'simname': 'HydrogenPhotoionization1D',
-    'ICfilename': rundir + '/InitialCondition.hdf5',
-    'outdir': rundir,
-    'outfileprefix': 'Output',
-    'outdeltatime': 5.0e2 * unyt.yr,
-    'savedir': rundir,
-    'coordsys': 'cartesian',
-    'EOStype': 'polytropic',
-    'gamma': 5.0 / 3.0,
-    'timesim': 2.0e4 * unyt.yr,
-    'area': 1.0 * unyt.cm**2,
-    'CFL': 0.5,
-    'boundcond': 'Periodic',
-    'vel_inflow': 0.0 * unyt.cm / unyt.s,
-    'rho_inflow': 1.0 * unyt.mp / unyt.cm**3,
-    'temp_inflow': 0.0 * unyt.K,
-    'mu_inflow': 1.0,
-    'vel_outflow': 0.0 * unyt.cm / unyt.s,
-    'rho_outflow': 1.0 * unyt.mp / unyt.cm**3,
-    'temp_outflow': 0.0 * unyt.K,
-    'mu_outflow': 1.0,
-    'noghost': 2,
-    'verbose': 0,
-    'order': 0,
-    'dtmin': 1.0e-6 * unyt.yr,
-    'dtmax': 2.0e1 * unyt.yr,
-    'hydrogen_chemistry': True,
-    'hydrogen_mass_fraction': 1.0,
-    'hydrogen_xHI_initial': 1.0,
-    'hydrogen_xHI_inflow': 1.0,
-    'hydrogen_xHI_outflow': 1.0,
-    'hydrogen_source_CFL': 0.1,
-    'hydrogen_update_mu': False,
-    'hydrogen_thermal_coupling': False,
-    'hydrogen_collisional_ionization': False,
-    'hydrogen_radiation_field': True,
-    'hydrogen_radiation_evolution': False,
-    'hydrogen_ngamma_initial': 1.0e-3 / unyt.cm**3,
-    'hydrogen_ngamma_inflow': 1.0e-3 / unyt.cm**3,
-    'hydrogen_ngamma_outflow': 1.0e-3 / unyt.cm**3,
-    'hydrogen_sigma_gamma': rh.DEFAULT_SIGMA_GAMMA,
-    'hydrogen_epsilon_gamma': 0.0 * unyt.erg,
-}
-
-ICparams = {
-    'nogrid': 16,
-    'coordsys': 'cartesian',
-    'boxsize': 1.0 * unyt.kpc,
-    'time': 0.0 * unyt.yr,
-    'nHini': 1.0 / unyt.cm**3,
-    'tempini': 2.0e4 * unyt.K,
-    'xHIini': 1.0,
-    'ngammaini': runparams['hydrogen_ngamma_initial'],
-    'muini': 1.0,
-}
-
-target_neutral_fraction = 0.01
+DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_photoionization1d.yaml')
 
 
-def main():
+def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
+    config_filename = Path(config_filename)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
+    return runparams, ICparams
+
+
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
+    runparams, ICparams = load_parameters(config_filename, rundir)
+
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric, runparams['ICfilename'])
 
     sim = Rsim(runparams)
-    sim.Callreadhdf5()
-    sim.SetMesh()
-    sim.SetFluid()
-    sim.SetInitFluid()
+    sim.RunHydrogenPhotoionization(
+        runparams['target_neutral_fraction'],
+        outputtime=0,
+    )
 
-    history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
-    outindex = 0
-    output_interval = sim.par.outdeltatime.copy()
-    next_output_time = output_interval.copy()
-    last_output_time = et.write_output(sim, outindex)
-    et.append_history(sim, history)
-    outindex += 1
+    outputfiles = et.output_files(
+        runparams['outdir'],
+        runparams['outfileprefix'],
+    )
+    history = et.load_history_from_outputs(
+        outputfiles,
+        ICparams,
+        runparams['noghost'],
+    )
 
-    while (
-        et.mean_neutral_fraction(sim) > target_neutral_fraction
-        and et.time_value(sim, unyt.s) < float(sim.par.timesim.to_value(unyt.s))
-    ):
-        sim.Step(mode='hydro_sources')
-        et.append_history(sim, history)
-        if sim.fluid.time >= next_output_time:
-            last_output_time = et.write_output(sim, outindex)
-            outindex += 1
-            next_output_time += output_interval
-
-    if et.time_value(sim, unyt.s) != last_output_time:
-        et.write_output(sim, outindex)
-
-    figure_filename = rundir + '/HydrogenPhotoionization1D.jpg'
+    figure_filename = Path(runparams['savedir']) / 'HydrogenPhotoionization1D.jpg'
     et.save_history_plot(
         history,
-        figure_filename,
+        str(figure_filename),
         ICparams,
         runparams,
-        target_neutral_fraction,
+        runparams['target_neutral_fraction'],
     )
 
     print('Hydrogen photoionization example finished')
@@ -141,5 +86,18 @@ def main():
     print('figure = %s' % figure_filename)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Run the fixed-radiation hydrogen photoionization example.',
+    )
+    parser.add_argument(
+        '--config',
+        default=DEFAULT_CONFIG,
+        help='YAML file containing runparams and ICparams.',
+    )
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    main(args.config)

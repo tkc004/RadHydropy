@@ -1,5 +1,6 @@
 """Helper utilities for the optically thin photoheating example."""
 
+import glob
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -114,57 +115,27 @@ def time_value(sim, units):
     return float(np.ravel(sim.fluid.time.to_value(units))[0])
 
 
-def current_time(sim):
-    return time_value(sim, unyt.s) * unyt.s
+def load_history_from_outputs(outputfiles, icparams, noghost):
+    history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
+    interior = slice(noghost, noghost + icparams['nogrid'])
+
+    for outfilename in sorted(outputfiles):
+        rout = Simwrap(icparams)
+        rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+        history['time_yr'].append(time_value(rout, unyt.yr))
+        history['temperature_K'].append(
+            np.mean(rout.fluid.temp[interior].to_value(unyt.K))
+        )
+        history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
+        history['ngamma'].append(
+            np.mean(rout.fluid.ngamma[interior].to_value(1.0 / unyt.cm**3))
+        )
+
+    return history
 
 
-def set_source_state(sim, source_switch_time, photon_density_on):
-    if current_time(sim) < source_switch_time:
-        ngamma = photon_density_on
-    else:
-        ngamma = 0.0 / unyt.cm**3
-    sim.fluid.ngamma[:] = ngamma.to(sim.fluid.ngamma.units)
-
-
-def sample_times(source_switch_time, final_time):
-    switch_yr = source_switch_time.to_value(unyt.yr)
-    final_yr = final_time.to_value(unyt.yr)
-    early = np.logspace(-6.0, np.log10(switch_yr), 420)
-    late = np.logspace(np.log10(switch_yr), np.log10(final_yr), 120)
-    values = np.concatenate(([0.0], early, late, [switch_yr, final_yr]))
-    values = values[np.logical_and(values >= 0.0, values <= final_yr)]
-    return np.unique(values) * unyt.yr
-
-
-def write_output(sim, outindex):
-    sim.fluid.SetTemperature()
-    sim.par.time = sim.fluid.time
-    filename = (
-        sim.par.outdir
-        + '/'
-        + sim.par.outfileprefix
-        + '_%03d' % outindex
-        + '.hdf5'
-    )
-    rio.writehdf5(sim, filename)
-    return time_value(sim, unyt.s)
-
-
-def append_history(sim, history):
-    history['time_yr'].append(time_value(sim, unyt.yr))
-    history['temperature_K'].append(mean_temperature(sim).to_value(unyt.K))
-    history['xHI'].append(mean_neutral_fraction(sim))
-    history['ngamma'].append(
-        mean_photon_number_density(sim).to_value(1.0 / unyt.cm**3)
-    )
-
-
-def advance_sources(sim, dt, source_switch_time, photon_density_on):
-    set_source_state(sim, source_switch_time, photon_density_on)
-    sim.solver.ApplyThermochemistry(dt, sim.mesh, sim.fluid, sim.par)
-    sim.solver.SetPrimitive(sim.mesh, sim.fluid)
-    sim.fluid.time += dt
-    sim.fluid.SetTemperature()
+def output_files(outdir, outfileprefix):
+    return sorted(glob.glob(outdir + '/' + outfileprefix + '_*.hdf5'))
 
 
 def save_history_plot(history, filename, reference):

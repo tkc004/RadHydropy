@@ -704,6 +704,106 @@ class Rsim():
             stop_condition=stop_condition,
         )
 
+    def _mean_neutral_fraction(self):
+        """Return the mean neutral fraction in the active fluid region."""
+        if not hasattr(self.fluid, 'xHI'):
+            raise AttributeError('fluid does not have a neutral-fraction field')
+        first = getattr(self.par, 'noghost', 0)
+        last = first + getattr(self.par, 'nogrid', len(self.fluid.xHI))
+        return float(np.mean(self.fluid.xHI[first:last]))
+
+    def RunHydrogenPhotoionization(self, target_neutral_fraction, outputtime=0):
+        """Run the fixed-field photoionization example until neutral fraction falls."""
+        return self.RunAll(
+            outputtime=outputtime,
+            mode="hydro_sources",
+            stop_condition=lambda sim: (
+                sim._mean_neutral_fraction() <= target_neutral_fraction
+            ),
+        )
+
+    def RunHydrogenPhotoheating(
+        self,
+        source_switch_time,
+        photon_density_on,
+        outputtime=0,
+    ):
+        """Run the optically thin photoheating example with source switching."""
+        print("--- Initization finished. Start running ... ---")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        self._write_numbered_hdf5(0)
+
+        final_time = self.par.timesim
+        output_times = self._load_output_time_list()
+        if output_times is not None:
+            target_unit = final_time.units
+            output_times = np.unique(
+                np.asarray(output_times.to_value(target_unit), dtype=float)
+            )
+            output_times = [
+                value * target_unit
+                for value in output_times
+                if value * target_unit > self.fluid.time and value * target_unit <= final_time
+            ]
+        else:
+            output_interval = getattr(self.par, 'outdeltatime', None)
+            next_output_time = (
+                output_interval.copy() if output_interval is not None else None
+            )
+        last_output_time = self.fluid.time.copy()
+        outindex = 1
+        next_output_index = 0
+
+        while self.fluid.time < final_time:
+            current_time = self.fluid.time
+            dt = final_time - current_time
+            if output_times is not None and next_output_index < len(output_times):
+                target_output_time = output_times[next_output_index]
+                if current_time < target_output_time < current_time + dt:
+                    dt = target_output_time - current_time
+            elif (
+                next_output_time is not None
+                and current_time < next_output_time < current_time + dt
+            ):
+                dt = next_output_time - current_time
+            if current_time < source_switch_time < current_time + dt:
+                dt = source_switch_time - current_time
+
+            if current_time < source_switch_time:
+                ngamma = photon_density_on
+            else:
+                ngamma = 0.0 * self.fluid.ngamma.units
+            self.fluid.ngamma[:] = ngamma.to(self.fluid.ngamma.units)
+
+            self.solver.ApplyThermochemistry(dt, self.mesh, self.fluid, self.par)
+            self.solver.SetPrimitive(self.mesh, self.fluid)
+            self.fluid.time += dt
+            self.fluid.SetTemperature()
+
+            if outputtime == 1:
+                print("time, dt", self.fluid.time, dt)
+
+            if output_times is not None:
+                while (
+                    next_output_index < len(output_times)
+                    and self.fluid.time >= output_times[next_output_index]
+                ):
+                    self._write_numbered_hdf5(outindex)
+                    last_output_time = self.fluid.time.copy()
+                    outindex += 1
+                    next_output_index += 1
+            elif next_output_time is not None and self.fluid.time >= next_output_time:
+                self._write_numbered_hdf5(outindex)
+                last_output_time = self.fluid.time.copy()
+                outindex += 1
+                next_output_time += output_interval
+
+        if self.fluid.time != last_output_time:
+            self._write_numbered_hdf5(outindex)
+
+        print("--- Simulation finished. ---")
+        print("--- %s seconds ---" % (time.time() - start_time))
+
     def RunRadiativeTransferOnly(self):
         """Apply radiative transfer once and write a single HDF5 snapshot."""
         print("--- Initization finished. Start running ... ---")

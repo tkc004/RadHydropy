@@ -31,6 +31,37 @@ class Testing(unittest.TestCase):
         self.assertEqual(float(lines[1]), 0.1)
         self.assertEqual(float(lines[-1]), 2.0)
 
+    def test_hydrogen_photoionization1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrogenPhotoionization1D'
+            / 'hydrogen_photoionization1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['target_neutral_fraction'], 0.01)
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(icparams['nogrid'], 16)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 1.0)
+
+    def test_hydrogen_photoheating1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrogenPhotoheating1D'
+            / 'hydrogen_photoheating1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['source_switch_time'].to_value(unyt.yr), 5.0e7)
+        self.assertAlmostEqual(
+            runparams['thermal_equilibrium_timescale'].to_value(unyt.yr),
+            1.99526231496888e9,
+        )
+        self.assertEqual(icparams['nHini'].to_value(1.0 / unyt.cm**3), 1.0)
+
     def test_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

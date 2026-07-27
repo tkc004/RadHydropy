@@ -1,0 +1,97 @@
+runparams:
+  simname: HydrogenPhotoionization1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outdeltatime:
+    value: 5.0e2
+    unit: yr
+  savedir: .
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 2.0e4
+    unit: yr
+  area:
+    value: 1.0
+    unit: cm**2
+  CFL: 0.5
+  boundcond: Periodic
+  vel_inflow:
+    value: 0.0
+    unit: cm/s
+  rho_inflow:
+    value: 1.0
+    unit: mp/cm**3
+  temp_inflow:
+    value: 0.0
+    unit: K
+  mu_inflow: 1.0
+  vel_outflow:
+    value: 0.0
+    unit: cm/s
+  rho_outflow:
+    value: 1.0
+    unit: mp/cm**3
+  temp_outflow:
+    value: 0.0
+    unit: K
+  mu_outflow: 1.0
+  noghost: 2
+  verbose: 0
+  order: 0
+  dtmin:
+    value: 1.0e-6
+    unit: yr
+  dtmax:
+    value: 2.0e1
+    unit: yr
+  target_neutral_fraction: 0.01
+  hydrogen_chemistry: true
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 1.0
+  hydrogen_xHI_inflow: 1.0
+  hydrogen_xHI_outflow: 1.0
+  hydrogen_source_CFL: 0.1
+  hydrogen_update_mu: false
+  hydrogen_thermal_coupling: false
+  hydrogen_collisional_ionization: false
+  hydrogen_radiation_field: true
+  hydrogen_radiation_evolution: false
+  hydrogen_ngamma_initial:
+    value: 1.0e-3
+    unit: 1/cm**3
+  hydrogen_ngamma_inflow:
+    value: 1.0e-3
+    unit: 1/cm**3
+  hydrogen_ngamma_outflow:
+    value: 1.0e-3
+    unit: 1/cm**3
+  hydrogen_sigma_gamma:
+    value: 6.3e-18
+    unit: cm**2
+  hydrogen_epsilon_gamma:
+    value: 0.0
+    unit: erg
+
+ICparams:
+  nogrid: 16
+  coordsys: cartesian
+  boxsize:
+    value: 1.0
+    unit: kpc
+  time:
+    value: 0.0
+    unit: yr
+  nHini:
+    value: 1.0
+    unit: 1/cm**3
+  tempini:
+    value: 2.0e4
+    unit: K
+  xHIini: 1.0
+  ngammaini:
+    value: 1.0e-3
+    unit: 1/cm**3
+  muini: 1.0
