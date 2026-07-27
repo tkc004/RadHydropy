@@ -6,10 +6,13 @@
 *.json
 *.DS_Store
 *.hdf5
+*used_parameters.yaml
+**/__pycache__/
 
 build/
 dist/
 docs/_build/
 testipy/*.ipynb
+
 
 *.ipynb_checkpoints

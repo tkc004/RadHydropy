@@ -2,12 +2,14 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 import importlib.util
 import sys
 import os
 
 import numpy as np
 import unyt
+import yaml
 
 from radhydropy.rsim import Rsim
 
@@ -142,29 +144,29 @@ class Testing(unittest.TestCase):
             cwd = Path.cwd()
             try:
                 os.chdir(tmpdir)
-                fluid = SimpleNamespace(
-                    time=0.0 * unyt.s,
-                    SetTemperature=lambda: None,
+                sim = Rsim(
+                    {
+                        'timesim': 0.0 * unyt.s,
+                        'outdir': str(tmpdir),
+                        'outfileprefix': 'Output',
+                        'outdeltatime': 1.0 * unyt.s,
+                        'simname': 'test_run',
+                    }
                 )
-                par = SimpleNamespace(
-                    timesim=0.0 * unyt.s,
-                    outdir=str(tmpdir),
-                    outfileprefix='Output',
-                    outdeltatime=1.0 * unyt.s,
-                    simname='test_run',
-                )
-                sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
                 sim._write_numbered_hdf5 = lambda index: None
                 sim.Evolve = lambda **kwargs: None
 
                 sim.Run()
 
-                used_parameters = Path(tmpdir) / 'used_parameters.txt'
+                used_parameters = Path(tmpdir) / 'used_parameters.yaml'
                 self.assertTrue(used_parameters.exists())
-                text = used_parameters.read_text()
-                self.assertIn('timesim:', text)
-                self.assertIn('simname:', text)
-                self.assertIn('test_run', text)
+                payload = yaml.safe_load(used_parameters.read_text())
+                self.assertIn('runparams', payload)
+                self.assertIn('ICparams', payload)
+                self.assertEqual(payload['runparams']['simname'], 'test_run')
+                self.assertEqual(payload['runparams']['timesim']['value'], 0.0)
+                self.assertEqual(payload['runparams']['timesim']['unit'], 's')
+                self.assertEqual(payload['ICparams'], {})
             finally:
                 os.chdir(cwd)
 
@@ -173,6 +175,73 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(sim._parameter_tree(np.int64(256)), 256)
         self.assertEqual(sim._parameter_tree(np.bool_(True)), True)
+
+    def test_hydrostatic_example_plots_interior_cells_in_cgs(self):
+        example_dir = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrostaticEquilibrium1D'
+        )
+        tools_path = example_dir / 'tools.py'
+        spec = importlib.util.spec_from_file_location(
+            'hydrostatic_equilibrium_tools_test',
+            tools_path,
+        )
+        module = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(example_dir))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
+
+        captured_plots = []
+
+        def fake_plot(x, y, **kwargs):
+            captured_plots.append((x, y, kwargs))
+
+        def fake_readhdf5(par, mesh, fluid, outfilename):
+            mesh.boundary = np.linspace(0.0, 7.0, 8) * unyt.pc
+            fluid.rho = np.linspace(1.0, 7.0, 7) * (unyt.g / unyt.cm**3)
+            fluid.vel = np.linspace(-3.0, 3.0, 7) * (unyt.cm / unyt.s)
+
+        with mock.patch.object(module.rio, 'readhdf5', fake_readhdf5), \
+            mock.patch.object(module.plt, 'plot', side_effect=fake_plot), \
+            mock.patch.object(module.plt, 'subplot', return_value=None), \
+            mock.patch.object(module.plt, 'ylabel', return_value=None):
+            module.ReadandPlot(
+                'unused.hdf5',
+                {
+                    'nogrid': 5,
+                    'coordsys': 'cartesian',
+                    'boxsize': 1.0 * unyt.pc,
+                    'time': 0.0 * unyt.s,
+                    'rho_ref': 1.0 * (unyt.g / unyt.cm**3),
+                    'tempini': 1.0 * unyt.K,
+                    'muini': 1.0,
+                    'gravity_strength': 1.0 * (unyt.cm / unyt.s**2),
+                },
+                {'noghost': 2},
+            )
+
+        self.assertEqual(len(captured_plots), 4)
+
+        density_x, density_y, _ = captured_plots[0]
+        analytic_x, analytic_y, _ = captured_plots[1]
+        velocity_x, velocity_y, _ = captured_plots[2]
+        zero_x, zero_y, _ = captured_plots[3]
+
+        self.assertEqual(density_x.units, unyt.cm)
+        self.assertEqual(analytic_x.units, unyt.cm)
+        self.assertEqual(velocity_x.units, unyt.cm)
+        self.assertEqual(zero_x.units, unyt.cm)
+        self.assertEqual(density_x.shape[0], 3)
+        self.assertEqual(analytic_x.shape[0], 3)
+        self.assertEqual(velocity_x.shape[0], 3)
+        self.assertEqual(zero_x.shape[0], 3)
+        self.assertEqual(density_y.units, unyt.g / unyt.cm**3)
+        self.assertEqual(analytic_y.units, unyt.g / unyt.cm**3)
+        self.assertEqual(velocity_y.units, unyt.cm / unyt.s)
+        self.assertEqual(zero_y.units, unyt.cm / unyt.s)
 
     def test_hydrogen_recombination_helper_uses_source_only_wrapper(self):
         example_dir = (

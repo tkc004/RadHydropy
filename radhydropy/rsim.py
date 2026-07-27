@@ -99,17 +99,18 @@ class Rsim():
             return str(value)
         return value
 
-    def WriteUsedParameters(self, filename="used_parameters.txt"):
+    def WriteUsedParameters(self, filename="used_parameters.yaml"):
         """Write the active runtime parameters to a text file in the CWD."""
         path = Path.cwd() / filename
-        payload = {
-            key: self._parameter_tree(value)
-            for key, value in sorted(vars(self.par).items())
-            if not key.startswith("_")
-        }
-        with path.open("w", encoding="utf-8") as handle:
-            handle.write("# RadHydropy used parameters\n")
-            yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
+        rio.update_used_parameters_yaml(
+            path,
+            runparams={
+                key: value
+                for key, value in sorted(vars(self.par).items())
+                if not key.startswith("_") and key not in {"runparams", "ICparams"}
+            },
+            icparams=getattr(self.par, "ICparams", None),
+        )
         return path
 
     def GetStepTime(self, dt=None, final_time=None):

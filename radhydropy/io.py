@@ -1,9 +1,12 @@
 """HDF5 input and output helpers for simulations."""
 
+from pathlib import Path
+
 import h5py
 import os
 import unyt
 import numpy as np
+import yaml
 import radhydropy.utils as ru
 
 
@@ -14,6 +17,84 @@ def _read_quantity(group, name):
 
 def _read_dataset(group, name):
     return group[name][()]
+
+
+def _yaml_config_value(value):
+    """Convert a value to a YAML config friendly representation."""
+    if isinstance(value, np.generic):
+        return value.item()
+    if hasattr(value, "units"):
+        raw_value = np.asarray(value.to_value(value.units))
+        if raw_value.shape == () or raw_value.size == 1:
+            return {
+                "value": float(raw_value.reshape(-1)[0]),
+                "unit": str(value.units),
+            }
+        return {
+            "value": raw_value.tolist(),
+            "unit": str(value.units),
+        }
+    if isinstance(value, dict):
+        return {str(key): _yaml_config_value(val) for key, val in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_yaml_config_value(item) for item in value]
+    if isinstance(value, np.ndarray):
+        if value.shape == () or value.size == 1:
+            return value.reshape(-1)[0].item()
+        return value.tolist()
+    if callable(value):
+        return getattr(value, "__name__", value.__class__.__name__)
+    if hasattr(value, "__dict__") and not isinstance(value, type):
+        return {
+            key: _yaml_config_value(item)
+            for key, item in vars(value).items()
+            if not key.startswith("_")
+        }
+    if isinstance(value, Path):
+        return str(value)
+    return value
+
+
+def _used_parameters_payload(runparams=None, icparams=None, existing=None):
+    payload = {}
+    if isinstance(existing, dict):
+        payload.update(existing)
+    if runparams is not None:
+        payload["runparams"] = {
+            key: _yaml_config_value(value)
+            for key, value in sorted(runparams.items())
+            if not str(key).startswith("_")
+        }
+    elif "runparams" not in payload:
+        payload["runparams"] = {}
+    if icparams is not None:
+        payload["ICparams"] = {
+            key: _yaml_config_value(value)
+            for key, value in sorted(icparams.items())
+            if not str(key).startswith("_")
+        }
+    elif "ICparams" not in payload:
+        payload["ICparams"] = {}
+    return payload
+
+
+def update_used_parameters_yaml(path, runparams=None, icparams=None):
+    """Create or update a config-style ``used_parameters.yaml`` file."""
+    path = Path(path)
+    existing = {}
+    if path.exists():
+        with path.open("r", encoding="utf-8") as handle:
+            loaded = yaml.safe_load(handle)
+        if isinstance(loaded, dict):
+            existing = loaded
+    payload = _used_parameters_payload(
+        runparams=runparams,
+        icparams=icparams,
+        existing=existing,
+    )
+    with path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
+    return path
 
 def writehdf5(ric,ICfilename):
     """Write simulation state to a RadHydropy HDF5 file.
@@ -56,6 +137,15 @@ def writehdf5(ric,ICfilename):
         if hasattr(ric.fluid, "ngamma"):
             gdata.create_dataset("PhotonNumberDensity", data=ric.fluid.ngamma)
             gdata["PhotonNumberDensity"].attrs['units'] = str(ric.fluid.ngamma.units)
+
+    if (
+        not hasattr(ric, "solver")
+        and Path(ICfilename).stem.lower() == "initialcondition"
+    ):
+        update_used_parameters_yaml(
+            Path.cwd() / "used_parameters.yaml",
+            icparams=vars(ric.par),
+        )
 
 
 

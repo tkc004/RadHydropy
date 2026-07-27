@@ -77,6 +77,7 @@ class Par():
     """
 
     def __init__(self,params) -> None:
+            self.runparams = dict(params)
             for key, value in refparams.items():
                 if key in params:
                     setattr(self, key, params[key])
