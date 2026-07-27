@@ -25,8 +25,8 @@ def _resolve_path(value, rundir):
 
 def load_example_parameters(config_filename, rundir=None):
     """Load ``runparams`` and ``ICparams`` from an example YAML file."""
-    rundir = Path.cwd().resolve() if rundir is None else Path(rundir).resolve()
     config_filename = Path(config_filename)
+    rundir = config_filename.parent.resolve()
     with config_filename.open() as config_file:
         config = yaml.safe_load(config_file)
 
