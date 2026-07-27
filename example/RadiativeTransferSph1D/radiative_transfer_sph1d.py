@@ -5,15 +5,22 @@ Hydrodynamics and hydrogen thermo-chemistry are not advanced; the script only
 applies the optional long-characteristic radiative-transfer update and compares
 the resulting photon number density with the analytic optically thin spherical
 dilution solution.
+
+The example builds the static spherical problem from YAML parameters, applies
+the long-characteristic radiative-transfer update once through ``Rsim``, writes
+an HDF5 snapshot, reloads that snapshot, and compares the result with the
+analytic optically thin spherical dilution solution.
 """
 
+import argparse
 import os
 import sys
+from pathlib import Path
 import tempfile
 
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
+repo_root = Path(__file__).resolve().parents[2]
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
@@ -22,36 +29,57 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
-import unyt
-
+from radhydropy.example_config import load_example_parameters
+from radhydropy.rsim import Rsim
 import tools as et
 
 
-rundir = os.path.dirname(os.path.abspath(__file__))
-figure_filename = os.path.join(rundir, 'RadiativeTransferSph1D.jpg')
-
-source_photon_rate = 1.0e49 / unyt.s
-boxsize = 1.0 * unyt.pc
-number_of_cells = 256
+DEFAULT_CONFIG = Path(__file__).resolve().with_name('radiative_transfer_sph1d.yaml')
 
 
-def main():
-    par, mesh, fluid, result = et.build_static_problem(
-        number_of_cells,
-        boxsize,
-        source_photon_rate,
-    )
+def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
+    config_filename = Path(config_filename)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
+    return runparams, ICparams
+
+
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
+    runparams, ICparams = load_parameters(config_filename, rundir)
+    config = {**runparams, **ICparams}
+
+    par, mesh, fluid, solver = et.build_problem(config)
+    sim = Rsim.FromComponents(par, mesh, fluid, solver)
+    result = sim.RunRadiativeTransferOnly()
+
+    output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
+    out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
     relative_error = et.save_plot(
-        mesh,
-        fluid,
-        par,
-        source_photon_rate,
-        figure_filename,
+        out_mesh,
+        out_fluid,
+        out_par,
+        config['source_photon_rate'],
+        str(Path(runparams['savedir']) / 'RadiativeTransferSph1D.jpg'),
     )
+
     print('outer face photon rate = %s' % result.face_photon_rate[-1])
     print('max relative error = %.3e' % relative_error)
-    print('figure = %s' % figure_filename)
+    print('figure = %s' % (Path(runparams['savedir']) / 'RadiativeTransferSph1D.jpg'))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Run the spherical radiative-transfer example.',
+    )
+    parser.add_argument(
+        '--config',
+        default=DEFAULT_CONFIG,
+        help='YAML file containing runparams and ICparams.',
+    )
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    main(args.config)

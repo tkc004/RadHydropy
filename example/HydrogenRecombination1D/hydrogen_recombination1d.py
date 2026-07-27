@@ -57,13 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(ric, runparams['ICfilename'])
 
     sim = Rsim(runparams)
-    sim.RunAll(
-        outputtime=0,
-        mode='sources',
-        stop_condition=lambda runner: (
-            et.mean_neutral_fraction(runner) >= target_neutral_fraction
-        ),
-    )
+    et.run_hydrogen_recombination(sim, target_neutral_fraction, outputtime=0)
 
     outputfiles = et.output_files(
         runparams['outdir'],

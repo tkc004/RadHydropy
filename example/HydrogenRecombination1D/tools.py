@@ -97,6 +97,16 @@ def output_files(outdir, outfileprefix):
     return glob.glob(pattern)
 
 
+def run_hydrogen_recombination(sim, target_neutral_fraction, outputtime=0):
+    return sim.RunAll(
+        outputtime=outputtime,
+        mode='sources',
+        stop_condition=lambda runner: (
+            mean_neutral_fraction(runner) >= target_neutral_fraction
+        ),
+    )
+
+
 def save_history_plot(history, filename, icparams, target_neutral_fraction):
     time_yr = np.asarray(history['time_yr'])
     ionized_fraction = np.asarray(history['ionized_fraction'])

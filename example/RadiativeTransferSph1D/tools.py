@@ -5,21 +5,25 @@ from types import SimpleNamespace
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
 import unyt
+import numpy as np
 
+import radhydropy.io as rio
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
 import radiative_transfer_analytic as rta
 
 
-def build_static_problem(number_of_cells, boxsize, source_photon_rate):
+def build_problem(config):
     par = SimpleNamespace(
         coordsys='spherical',
         boundcond='OpenSph',
-        nogrid=number_of_cells,
+        nogrid=config['number_of_cells'],
         noghost=2,
+        outdir=config.get('outdir', '.'),
+        outfileprefix=config.get('outfileprefix', 'Output'),
+        savedir=config.get('savedir', config.get('outdir', '.')),
         area=1.0 * unyt.cm**2,
         hydrogen_chemistry=False,
         hydrogen_mass_fraction=1.0,
@@ -28,14 +32,14 @@ def build_static_problem(number_of_cells, boxsize, source_photon_rate):
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
         radiative_transfer_boundary_flux=0.0 / (unyt.cm**2 * unyt.s),
-        radiative_transfer_source_photon_rate=source_photon_rate,
+        radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
     )
 
     mesh = Mesh()
     mesh.boundary = np.linspace(
         0.0,
-        boxsize.to_value(unyt.cm),
+        config['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
     mesh.SetUpMesh(par)
@@ -47,20 +51,22 @@ def build_static_problem(number_of_cells, boxsize, source_photon_rate):
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
     fluid.SetUpFluid(par)
+    fluid.SetFluidTime(0.0 * unyt.s)
 
     solver = Solver()
     solver.SetBoundary(mesh, fluid, par)
-    result = solver.ApplyRadiativeTransfer(mesh, fluid, par)
-    return par, mesh, fluid, result
+    solver.SetConserved(mesh, fluid)
+    return par, mesh, fluid, solver
 
 
-def interior_slice(par):
-    first = par.noghost
-    return slice(first, first + par.nogrid)
+def load_output_state(outputfilename, config):
+    par, mesh, fluid, _ = build_problem(config)
+    rio.readhdf5(par, mesh, fluid, outputfilename)
+    return par, mesh, fluid
 
 
 def save_plot(mesh, fluid, par, source_photon_rate, figure_filename):
-    interior = interior_slice(par)
+    interior = slice(par.noghost, par.noghost + par.nogrid)
     radius = mesh.coordinate[interior].to(unyt.pc)
     simulated = fluid.ngamma[interior].to(1.0 / unyt.cm**3)
     analytic_fv = rta.finite_volume_density(

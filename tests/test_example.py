@@ -31,6 +31,21 @@ class Testing(unittest.TestCase):
         self.assertEqual(float(lines[1]), 0.1)
         self.assertEqual(float(lines[-1]), 2.0)
 
+    def test_radiative_transfer_sph1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'RadiativeTransferSph1D'
+            / 'radiative_transfer_sph1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertEqual(icparams['number_of_cells'], 256)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 1.0)
+        self.assertEqual(icparams['source_photon_rate'].to_value(1.0 / unyt.s), 1.0e49)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,7 +2,10 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+import importlib.util
+import sys
 
+import numpy as np
 import unyt
 
 from radhydropy.rsim import Rsim
@@ -132,6 +135,49 @@ class Testing(unittest.TestCase):
                 [0.0, 2.0, 3.0],
             )
             self.assertEqual(fluid.time, 3.0 * unyt.s)
+
+    def test_hydrogen_recombination_helper_uses_source_only_wrapper(self):
+        example_dir = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrogenRecombination1D'
+        )
+        tools_path = example_dir / 'tools.py'
+        spec = importlib.util.spec_from_file_location(
+            'hydrogen_recombination_tools_test',
+            tools_path,
+        )
+        module = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(example_dir))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
+
+        sim = SimpleNamespace(
+            par=SimpleNamespace(noghost=2, nogrid=3),
+            fluid=SimpleNamespace(
+                xHI=np.array([0.0, 0.0, 0.8, 0.9, 1.0]),
+            ),
+        )
+
+        captured = {}
+
+        def fake_runall(**kwargs):
+            captured.update(kwargs)
+            self.assertEqual(kwargs['mode'], 'sources')
+            self.assertEqual(kwargs['outputtime'], 0)
+            self.assertTrue(kwargs['stop_condition'](sim))
+            return 'wrapped'
+
+        sim.RunAll = fake_runall
+
+        result = module.run_hydrogen_recombination(sim, 0.7)
+
+        self.assertEqual(result, 'wrapped')
+        self.assertEqual(captured['mode'], 'sources')
+        self.assertEqual(captured['outputtime'], 0)
+        self.assertTrue(captured['stop_condition'](sim))
 
 
 if __name__ == '__main__':

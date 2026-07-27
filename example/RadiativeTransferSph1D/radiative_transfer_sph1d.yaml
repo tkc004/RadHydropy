@@ -1,0 +1,15 @@
+runparams:
+  simname: RadiativeTransferSph1D
+  outdir: .
+  outfileprefix: Output
+  savedir: .
+  coordsys: spherical
+
+ICparams:
+  number_of_cells: 256
+  boxsize:
+    value: 1.0
+    unit: pc
+  source_photon_rate:
+    value: 1.0e49
+    unit: 1/s

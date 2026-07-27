@@ -704,6 +704,21 @@ class Rsim():
             stop_condition=stop_condition,
         )
 
+    def RunRadiativeTransferOnly(self):
+        """Apply radiative transfer once and write a single HDF5 snapshot."""
+        print("--- Initization finished. Start running ... ---")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        self.solver.SetBoundary(self.mesh, self.fluid, self.par)
+        self.solver.SetConserved(self.mesh, self.fluid)
+        result = self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
+        if not hasattr(self.fluid, 'time'):
+            self.fluid.SetFluidTime(0.0 * unyt.s)
+        self.fluid.SetTemperature()
+        self._write_numbered_hdf5(0)
+        print("--- Simulation finished. ---")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        return result
+
     def checkparams(self):
         """Validate dimensional consistency for selected parameters."""
         print("--- Check parameters ---")
