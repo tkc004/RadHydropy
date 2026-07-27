@@ -71,6 +71,8 @@ class Rsim():
 
     def _parameter_tree(self, value):
         """Convert a parameter value into a YAML-safe, human-readable object."""
+        if isinstance(value, np.generic):
+            return value.item()
         if isinstance(value, dict):
             return {
                 str(key): self._parameter_tree(item)

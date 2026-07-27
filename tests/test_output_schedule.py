@@ -168,6 +168,12 @@ class Testing(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_parameter_tree_converts_numpy_scalars(self):
+        sim = Rsim.__new__(Rsim)
+
+        self.assertEqual(sim._parameter_tree(np.int64(256)), 256)
+        self.assertEqual(sim._parameter_tree(np.bool_(True)), True)
+
     def test_hydrogen_recombination_helper_uses_source_only_wrapper(self):
         example_dir = (
             Path(__file__).resolve().parents[1]
