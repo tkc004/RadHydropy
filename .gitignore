@@ -7,7 +7,9 @@
 *.DS_Store
 *.hdf5
 *used_parameters.yaml
-**/__pycache__/
+__pycache__/
+*/__pycache__/*
+__pycache__
 
 build/
 dist/
