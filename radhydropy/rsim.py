@@ -497,15 +497,18 @@ class Rsim():
         }
 
         def callback(sim, step):
+            dt = step["dt"]
+            if getattr(dt, "shape", None) == (1,):
+                dt = dt[0]
             if outputtime == 1:
-                print("time, dt", sim.fluid.time, step["dt"])
+                print("time, dt", sim.fluid.time, dt)
             if output_state['outtime'] > sim.par.outdeltatime:
                 sim.fluid.SetTemperature()
                 sim._write_numbered_hdf5(output_state['outindex'])
                 output_state['outtime'] = 0.0 * sim.par.timesim
                 output_state['outindex'] += 1
             else:
-                output_state['outtime'] += step["dt"]
+                output_state['outtime'] += dt
 
         return callback
 

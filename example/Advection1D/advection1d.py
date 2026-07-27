@@ -1,9 +1,15 @@
-from radhydropy.rsim import Rsim
 import argparse
-import unyt
 import os
+import sys
 from pathlib import Path
 import tempfile
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from radhydropy.rsim import Rsim
+import unyt
 import yaml
 
 os.environ.setdefault(
