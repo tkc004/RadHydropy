@@ -9,6 +9,7 @@ import unyt
 import numpy as np
 
 import radhydropy.io as rio
+from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
@@ -45,6 +46,7 @@ def build_problem(config):
     mesh.SetUpMesh(par)
 
     fluid = Fluid()
+    fluid.eos = EOS('polytropic', 5.0 / 3.0)
     fluid.rho = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * unyt.K
