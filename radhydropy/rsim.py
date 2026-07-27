@@ -239,19 +239,6 @@ class Rsim():
             advect_chemistry=advect_chemistry,
         )["dt"]
 
-    def RunCoupledHydroSourceStep(
-        self,
-        dt=None,
-        fast_thermochemistry=False,
-    ):
-        """Advance hydrodynamics and then thermo-chemistry source terms."""
-        step = self.Step(
-            dt=dt,
-            mode="hydro_sources",
-            fast_thermochemistry=fast_thermochemistry,
-        )
-        return step["dt"], step["source_steps"]
-
     def _static_front_radius_from_state(self, state, neutral_fraction=0.5):
         ionized = state['xHI'] <= neutral_fraction
         if not np.any(ionized):

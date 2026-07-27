@@ -75,9 +75,8 @@ needs finer control:
 - `Evolve(final_time=...)` loops over `Step(...)` and returns counters for the
   number of hydro and source updates.
 
-The older convenience methods `RunOneStep()`, `RunHydroStep()`, and
-`RunCoupledHydroSourceStep()` remain available and now delegate to the same
-shared stepping path.
+The older convenience methods `RunOneStep()` and `RunHydroStep()` remain
+available and now delegate to the same shared stepping path.
 
 ## Minimal Simulation Runner
 
