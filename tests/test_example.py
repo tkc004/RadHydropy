@@ -98,6 +98,29 @@ class Testing(unittest.TestCase):
             0.1,
         )
 
+    def test_static_stromgren_sphere_photoheating1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StaticStromgrenSpherePhotoheating1D'
+            / 'static_stromgren_sphere_photoheating1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(icparams['number_of_cells'], 1024)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(
+            icparams['source_photon_rate'].to_value(1.0 / unyt.s),
+            5.0e48,
+        )
+        self.assertEqual(icparams['evolution_timestep'].to_value(unyt.Myr), 1.0)
+        self.assertTrue(
+            icparams['temperature_reference_filename'].endswith(
+                'TTT1Dthin_Stromgren100Myr.txt'
+            )
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
