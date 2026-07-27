@@ -57,38 +57,18 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(ric, runparams['ICfilename'])
 
     sim = Rsim(runparams)
-    sim.Callreadhdf5()
-    sim.SetMesh()
-    sim.SetFluid()
-    sim.SetInitFluid()
+    sim.RunAll(
+        outputtime=0,
+        mode='sources',
+        stop_condition=lambda runner: (
+            et.mean_neutral_fraction(runner) >= target_neutral_fraction
+        ),
+    )
 
-    outindex = 0
-    output_interval = sim.par.outdeltatime.copy()
-    next_output_time = output_interval.copy()
-    last_output_time = et.write_output(sim, outindex)
-    outindex += 1
-
-    while (
-        et.mean_neutral_fraction(sim) < target_neutral_fraction
-        and et.time_value(sim, unyt.s) < float(sim.par.timesim.to_value(unyt.s))
-    ):
-        sim.Step(mode='hydro_sources')
-        if sim.fluid.time >= next_output_time:
-            last_output_time = et.write_output(sim, outindex)
-            outindex += 1
-            next_output_time += output_interval
-
-    if et.time_value(sim, unyt.s) != last_output_time:
-        et.write_output(sim, outindex)
-        outindex += 1
-
-    outputfiles = [
-        os.path.join(
-            runparams['outdir'],
-            f"{runparams['outfileprefix']}_{index:03d}.hdf5",
-        )
-        for index in range(outindex)
-    ]
+    outputfiles = et.output_files(
+        runparams['outdir'],
+        runparams['outfileprefix'],
+    )
     history = et.load_history_from_outputs(
         outputfiles,
         ICparams,

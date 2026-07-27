@@ -194,6 +194,7 @@ class Rsim():
         advect_chemistry=True,
         history_callback=None,
         output_callback=None,
+        stop_condition=None,
     ):
         """Evolve the simulation with the canonical :meth:`Step` loop."""
         if final_time is None:
@@ -202,6 +203,8 @@ class Rsim():
         if history_callback is not None:
             history_callback(self)
         while self.fluid.time < final_time:
+            if stop_condition is not None and stop_condition(self):
+                break
             dt = self.GetStepTime(final_time=final_time)
             step = self.Step(
                 dt=dt,
@@ -526,11 +529,19 @@ class Rsim():
 
         return np.asarray(output_times, dtype=float) * unyt.Unit(unit)
 
-    def _run_with_output_times(self, outputtime=0):
+    def _run_with_output_times(
+        self,
+        outputtime=0,
+        mode="hydro_sources",
+        fast_thermochemistry=False,
+        advect_chemistry=True,
+        stop_condition=None,
+    ):
         """Run the simulation using an explicit list of output times."""
         print("--- Initization finished. Start running ... ---")
         print("--- %s seconds ---" % (time.time() - start_time))
         self._write_numbered_hdf5(0)
+        last_output_time_s = float(np.ravel(self.fluid.time.to_value(unyt.s))[0])
 
         current_time = self.fluid.time
         final_time = self.par.timesim
@@ -550,30 +561,65 @@ class Rsim():
 
         outindex = 1
         for target_time in output_times:
+            if stop_condition is not None and stop_condition(self):
+                break
             while self.fluid.time < target_time:
+                if stop_condition is not None and stop_condition(self):
+                    break
                 dt = self.GetStepTime(final_time=target_time)
                 if outputtime == 1:
                     print("time, dt", self.fluid.time, dt)
-                self.Step(dt=dt, mode="hydro_sources")
+                self.Step(
+                    dt=dt,
+                    mode=mode,
+                    fast_thermochemistry=fast_thermochemistry,
+                    advect_chemistry=advect_chemistry,
+                )
+            if stop_condition is not None and stop_condition(self):
+                break
             if self.fluid.time == target_time:
                 self.fluid.SetTemperature()
                 self._write_numbered_hdf5(outindex)
+                last_output_time_s = float(np.ravel(self.fluid.time.to_value(unyt.s))[0])
                 outindex += 1
 
         while self.fluid.time < final_time:
+            if stop_condition is not None and stop_condition(self):
+                break
             dt = self.GetStepTime(final_time=final_time)
             if outputtime == 1:
                 print("time, dt", self.fluid.time, dt)
-            self.Step(dt=dt, mode="hydro_sources")
+            self.Step(
+                dt=dt,
+                mode=mode,
+                fast_thermochemistry=fast_thermochemistry,
+                advect_chemistry=advect_chemistry,
+            )
+
+        if (
+            stop_condition is not None
+            and float(np.ravel(self.fluid.time.to_value(unyt.s))[0]) != last_output_time_s
+        ):
+            self.fluid.SetTemperature()
+            self._write_numbered_hdf5(outindex)
 
         print("--- Simulation finished. ---")
         print("--- %s seconds ---" % (time.time() - start_time))
 
-    def _hdf5_output_callback(self, outputtime=0):
-        output_state = {
-            'outtime': 0.0 * self.par.timesim,
-            'outindex': 1,
-        }
+    def _hdf5_output_callback(self, outputtime=0, output_state=None):
+        if output_state is None:
+            output_state = {
+                'outtime': 0.0 * self.par.timesim,
+                'outindex': 1,
+                'last_output_time_s': float(np.ravel(self.fluid.time.to_value(unyt.s))[0]),
+            }
+        else:
+            output_state.setdefault('outtime', 0.0 * self.par.timesim)
+            output_state.setdefault('outindex', 1)
+            output_state.setdefault(
+                'last_output_time_s',
+                float(np.ravel(self.fluid.time.to_value(unyt.s))[0]),
+            )
 
         def callback(sim, step):
             dt = step["dt"]
@@ -581,9 +627,12 @@ class Rsim():
                 dt = dt[0]
             if outputtime == 1:
                 print("time, dt", sim.fluid.time, dt)
-            if output_state['outtime'] > sim.par.outdeltatime:
+            if output_state['outtime'] >= sim.par.outdeltatime:
                 sim.fluid.SetTemperature()
                 sim._write_numbered_hdf5(output_state['outindex'])
+                output_state['last_output_time_s'] = float(
+                    np.ravel(sim.fluid.time.to_value(unyt.s))[0]
+                )
                 output_state['outtime'] = 0.0 * sim.par.timesim
                 output_state['outindex'] += 1
             else:
@@ -591,29 +640,69 @@ class Rsim():
 
         return callback
 
-    def Run(self,outputtime=0):
+    def Run(
+        self,
+        outputtime=0,
+        mode="hydro_sources",
+        fast_thermochemistry=False,
+        advect_chemistry=True,
+        stop_condition=None,
+    ):
         """Run the simulation loop and write periodic HDF5 outputs."""
         if getattr(self.par, 'outputtimefilename', None):
-            self._run_with_output_times(outputtime=outputtime)
+            self._run_with_output_times(
+                outputtime=outputtime,
+                mode=mode,
+                fast_thermochemistry=fast_thermochemistry,
+                advect_chemistry=advect_chemistry,
+                stop_condition=stop_condition,
+            )
             return
         print("--- Initization finished. Start running ... ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
         self._write_numbered_hdf5(0)
+        output_state = {
+            'outtime': 0.0 * self.par.timesim,
+            'outindex': 1,
+            'last_output_time_s': float(np.ravel(self.fluid.time.to_value(unyt.s))[0]),
+        }
         self.Evolve(
             final_time=self.par.timesim,
-            mode="hydro_sources",
-            output_callback=self._hdf5_output_callback(outputtime=outputtime),
+            mode=mode,
+            fast_thermochemistry=fast_thermochemistry,
+            advect_chemistry=advect_chemistry,
+            output_callback=self._hdf5_output_callback(
+                outputtime=outputtime,
+                output_state=output_state,
+            ),
+            stop_condition=stop_condition,
         )
+        if stop_condition is not None:
+            self.fluid.SetTemperature()
+            self._write_numbered_hdf5(output_state['outindex'])
         print("--- Simulation finished. ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
 
-    def RunAll(self,outputtime=0):
+    def RunAll(
+        self,
+        outputtime=0,
+        mode="hydro_sources",
+        fast_thermochemistry=False,
+        advect_chemistry=True,
+        stop_condition=None,
+    ):
         """Run the full workflow from initial-condition read through outputs."""
         self.Callreadhdf5()
         self.SetMesh()
         self.SetFluid()
         self.SetInitFluid()
-        self.Run(outputtime)
+        self.Run(
+            outputtime=outputtime,
+            mode=mode,
+            fast_thermochemistry=fast_thermochemistry,
+            advect_chemistry=advect_chemistry,
+            stop_condition=stop_condition,
+        )
 
     def checkparams(self):
         """Validate dimensional consistency for selected parameters."""
