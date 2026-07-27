@@ -17,8 +17,8 @@ Available Examples
      - Cartesian one-dimensional advection.
    * - ``example/AdvectionSph1D``
      - Spherical one-dimensional advection.
-   * - ``example/EarlyHIIRegionExpansion1D``
-     - Early spherical H II region expansion with hydrodynamics and a
+   * - ``example/HIIRegionExpansion1D``
+     - Spherical H II region expansion with hydrodynamics and a
        simplified piecewise-isothermal neutral/ionized equation of state.
    * - ``example/Inflow1D``
      - Cartesian inflow setup.
