@@ -56,6 +56,9 @@ Units can be written inline in the YAML file using ``value`` and ``unit``
 fields, as in ``timesim`` and ``outdeltatime`` in the bundled examples. See
 :doc:`parameters` for the complete runtime parameter reference.
 
+See :doc:`icparams` for a standalone description of the initial-condition
+parameters used by the bundled YAML examples.
+
 To use explicit output times instead of a fixed cadence, set
 `outputtimefilename` to a txt file whose first non-empty line is the time unit
 and whose remaining lines are the output times. For example, the bundled
@@ -105,7 +108,11 @@ implementation:
 For fixed-density Stromgren-style tests, use
 :meth:`radhydropy.rsim.Rsim.EvolveStaticThermochemistry`, which evolves the
 static thermo-chemistry/radiative-transfer state without a hydrodynamic flux
-update.
+update. See :doc:`thermo_chemistry` for a standalone description of the
+thermo-chemistry solver and its example workflows.
+
+See :doc:`hydrodynamics` for a standalone description of the finite-volume
+Euler update, reconstruction order, fluxes, and boundary handling.
 
 Initial-Condition Files
 -----------------------

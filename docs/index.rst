@@ -22,6 +22,9 @@ The package is organized around a small simulation workflow:
    installation
    quickstart
    parameters
+   icparams
+   hydrodynamics
+   thermo_chemistry
    radiative_transfer
    examples
 
