@@ -36,16 +36,10 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('static_stromgren_sphere1d.yaml')
 
 
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    config_filename = Path(config_filename)
-    runparams, icparams = load_example_parameters(config_filename, rundir)
-    return runparams, icparams
-
-
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, icparams = load_parameters(config_filename, rundir)
+    runparams, icparams = load_example_parameters(config_filename, rundir)
     config = {**runparams, **icparams}
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)

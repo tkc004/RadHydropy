@@ -115,22 +115,9 @@ See :doc:`hydrodynamics` for a standalone description of the finite-volume
 Euler update, reconstruction order, fluxes, and boundary handling.
 See :doc:`boundary_conditions` for a standalone description of the supported
 boundary-condition modes and the geometry-specific ghost-cell treatment.
-
-Initial-Condition Files
------------------------
-
-Initial-condition files use a compact HDF5 layout:
-
-* ``Header`` contains ``Coordinate_System``, ``Number_Grids``, ``Time``, and
-  ``BoxSize``.
-* ``Data`` contains ``Boundary``, ``Density``, ``Velocity``, ``Temperature``,
-  and ``Mol_weight``. The optional ``NeutralFraction`` dataset stores
-  ``xHI = nHI / nH`` for hydrogen thermo-chemistry runs.
-* Datasets with units store the unit string in a ``units`` attribute.
-
-Use :func:`radhydropy.io.writehdf5` to write this layout and
-:func:`radhydropy.io.readhdf5` to load it. The bundled examples include small
-wrapper classes that create initial conditions before launching a run.
+See :doc:`initial_conditions` for the HDF5 structure used to build
+``InitialCondition.hdf5``.
+See :doc:`snapshots` for the HDF5 structure written by output snapshots.
 
 Plotting Output
 ---------------

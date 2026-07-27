@@ -36,12 +36,6 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_photoionization1d.yaml')
 
 
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    config_filename = Path(config_filename)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    return runparams, ICparams
-
-
 def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):
     """Run the fixed-field photoionization example until neutral fraction falls."""
     return sim.RunAll(
@@ -56,7 +50,7 @@ def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_parameters(config_filename, rundir)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
 
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric, runparams['ICfilename'])

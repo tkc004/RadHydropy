@@ -26,6 +26,8 @@ The package is organized around a small simulation workflow:
    hydrodynamics
    thermo_chemistry
    boundary_conditions
+   initial_conditions
+   snapshots
    radiative_transfer
    examples
 

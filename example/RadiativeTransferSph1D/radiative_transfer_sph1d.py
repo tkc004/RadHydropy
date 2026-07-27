@@ -39,12 +39,6 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('radiative_transfer_sph1d.ya
 start_time = time.time()
 
 
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    config_filename = Path(config_filename)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    return runparams, ICparams
-
-
 def RunRadiativeTransferOnly(sim):
     """Apply radiative transfer once and write a single HDF5 snapshot."""
     print("--- Initization finished. Start running ... ---")
@@ -64,7 +58,7 @@ def RunRadiativeTransferOnly(sim):
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_parameters(config_filename, rundir)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
     config = {**runparams, **ICparams}
 
     par, mesh, fluid, solver = et.build_problem(config)

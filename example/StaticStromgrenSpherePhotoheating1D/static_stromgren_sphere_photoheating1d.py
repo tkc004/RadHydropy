@@ -41,10 +41,11 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 )
 
 
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    config_filename = Path(config_filename)
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
     runparams, icparams = load_example_parameters(config_filename, rundir)
-    config_dir = config_filename.resolve().parent
+    config_dir = Path(config_filename).resolve().parent
     for key in (
         'temperature_reference_filename',
         'neutral_fraction_reference_filename',
@@ -53,13 +54,6 @@ def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
             value = Path(icparams[key])
             if not value.is_absolute():
                 icparams[key] = str(config_dir / value)
-    return runparams, icparams
-
-
-def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print('rundir', rundir)
-    runparams, icparams = load_parameters(config_filename, rundir)
     config = {**runparams, **icparams}
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)

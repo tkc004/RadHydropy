@@ -35,16 +35,10 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_photoheating1d.yaml')
 
 
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    config_filename = Path(config_filename)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    return runparams, ICparams
-
-
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_parameters(config_filename, rundir)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
 
     reference = et.reference_values(
         runparams['photon_flux'],
