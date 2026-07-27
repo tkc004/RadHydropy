@@ -6,6 +6,9 @@ API Reference
 
    package
    core
+   example_config
+   thermo_chemistry
+   thermo_networks
    io
    utilities
    plotting

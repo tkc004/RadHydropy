@@ -18,8 +18,7 @@ The code currently provides:
 - HDF5 input/output helpers; and
 - plotting utilities for one-dimensional outputs.
 
-Full documentation: 
-https://tkc004.github.io/RadHydropy/
+Full documentation: https://tkc004.github.io/RadHydropy/
 
 ## Installation
 
@@ -171,6 +170,14 @@ docs/           Sphinx documentation
 ```
 
 ## Documentation
+
+The rendered docs include the installation guide, quickstart, example gallery,
+and API reference:
+
+- [Installation guide](docs/installation.rst)
+- [Quickstart](docs/quickstart.rst)
+- [Examples](docs/examples.rst)
+- [API reference](docs/api/index.rst)
 
 Build the Sphinx documentation from the project root:
 

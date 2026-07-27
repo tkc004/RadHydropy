@@ -1,43 +1,41 @@
 Quickstart
 ==========
 
-RadHydropy runs from an HDF5 initial-condition file plus a run-parameter
-dictionary. The high-level :class:`radhydropy.rsim.Rsim` class reads the initial
-condition, prepares mesh and fluid state, advances the solver, and writes HDF5
-outputs.
+RadHydropy runs from a YAML example configuration plus an HDF5
+initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
+reads the initial condition, prepares mesh and fluid state, advances the
+solver, and writes HDF5 outputs.
 
-Minimal Runner
---------------
+YAML-Driven Example Runner
+--------------------------
 
 .. code-block:: python
 
-   import unyt
-   from radhydropy.rsim import Rsim
+   from pathlib import Path
 
-   runparams = {
-       "simname": "SodShock1d",
-       "ICfilename": "InitialCondition.hdf5",
-       "outdir": ".",
-       "outfileprefix": "Output",
-       "coordsys": "cartesian",
-       "EOStype": "polytropic",
-       "gamma": 1.4,
-       "timesim": 1.0 * unyt.s,
-       "outdeltatime": 0.1 * unyt.s,
-       "outputtimefilename": None,
-       "CFL": 0.1,
-       "boundcond": "Periodic",
-       "order": 1,
-       "dtmin": 2.0e-8 * unyt.s,
-       "dtmax": 2.0e-1 * unyt.s,
-   }
+   import radhydropy.io as rio
+   from radhydropy.example_config import load_example_parameters
+   from radhydropy.rsim import Rsim
+   import tools as et
+
+   config = Path("example/SodShock1D/sodshock1d.yaml")
+   runparams, ICparams = load_example_parameters(config)
+
+   ric = et.Simwrap(ICparams)
+   rio.writehdf5(ric, runparams["ICfilename"])
 
    sim = Rsim(runparams)
-   sim.RunAll(outputtime=1)
+   sim.RunAll()
+
+The bundled example scripts follow the same pattern: load the YAML file,
+generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run with
+``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
+``outputtimefilename``, and ``savedir`` paths against the example directory.
 
 To use explicit output times instead of a fixed cadence, set
 `outputtimefilename` to a txt file whose first non-empty line is the time unit
-and whose remaining lines are the output times. For example:
+and whose remaining lines are the output times. For example, the bundled
+example configs typically point to files such as ``output_times.txt``:
 
 .. code-block:: text
 
@@ -49,7 +47,7 @@ and whose remaining lines are the output times. For example:
 Stepping API
 ------------
 
-The high-level runner now exposes a canonical stepping interface through
+The high-level runner also exposes a canonical stepping interface through
 :meth:`radhydropy.rsim.Rsim.Step` and :meth:`radhydropy.rsim.Rsim.Evolve`.
 This keeps hydrodynamics, source terms, and output scheduling on a single code
 path.
