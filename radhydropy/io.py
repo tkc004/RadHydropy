@@ -13,14 +13,20 @@ def writehdf5(ric,ICfilename):
     group for mesh and fluid arrays. Units are stored as HDF5 attributes.
     """
     print("--- writing "+ICfilename+" --- ")
+    if hasattr(ric.fluid, "time"):
+        output_time = ric.fluid.time
+        if hasattr(ric.par, "time"):
+            ric.par.time = output_time.copy()
+    else:
+        output_time = ric.par.time
     with h5py.File(ICfilename, 'w') as fic:
         # saving initial condition
         # first, save header:
         header = fic.create_group("Header")
         header.attrs['Coordinate_System'] = ric.par.coordsys
         header.attrs['Number_Grids'] = ric.par.nogrid
-        header.create_dataset("Time", data=ric.par.time)
-        header["Time"].attrs['units'] = str(ric.par.time.units)
+        header.create_dataset("Time", data=output_time)
+        header["Time"].attrs['units'] = str(output_time.units)
         header.create_dataset("BoxSize", data=ric.par.boxsize)
         header["BoxSize"].attrs['units'] = str(ric.par.boxsize.units)   
 
@@ -60,6 +66,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
         time = header["Time"][:] 
         time_unit = header["Time"].attrs['units'] 
         par.time = time * unyt.Unit(time_unit)
+        fluid.time = par.time.copy()
         boxsize = header["BoxSize"][:]
         boxsize_unit = header["BoxSize"].attrs['units']
         par.boxsize = boxsize * unyt.Unit(boxsize_unit) 

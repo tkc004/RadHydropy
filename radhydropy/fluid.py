@@ -18,7 +18,7 @@ class Fluid():
 
     # import mesh and EOS information into Fluid
     def __init__(self):
-        pass 
+        self.time = 0.0 * unyt.s
 
     def SetPressure(self):
         """Set gas pressure from density, temperature, and mean molecular weight."""

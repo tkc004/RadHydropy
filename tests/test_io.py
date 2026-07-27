@@ -35,6 +35,7 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
+        self.assertEqual(loaded_fluid.time, loaded_par.time)
         np.testing.assert_array_equal(loaded_fluid.xHI, fluid.xHI)
 
     def test_hdf5_roundtrip_preserves_photon_number_density_when_present(self):
@@ -63,6 +64,7 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
+        self.assertEqual(loaded_fluid.time, loaded_par.time)
         self.assertEqual(loaded_fluid.ngamma.units, fluid.ngamma.units)
         np.testing.assert_array_equal(loaded_fluid.ngamma.value, fluid.ngamma.value)
 

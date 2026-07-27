@@ -74,13 +74,9 @@ def time_value(sim, units):
     return float(np.ravel(sim.fluid.time.to_value(units))[0])
 
 
-def _interior_slice(noghost, nogrid):
-    return slice(noghost, noghost + nogrid)
-
-
 def load_history_from_outputs(outputfiles, icparams, noghost):
     history = {'time_yr': [], 'temperature_K': [], 'ionized_fraction': []}
-    interior = _interior_slice(noghost, icparams['nogrid'])
+    interior = slice(noghost, noghost + icparams['nogrid'])
 
     for outfilename in sorted(outputfiles):
         rout = Simwrap(icparams)
@@ -96,29 +92,9 @@ def load_history_from_outputs(outputfiles, icparams, noghost):
     return history
 
 
-def write_output(sim, outindex):
-    sim.fluid.SetTemperature()
-    sim.par.time = sim.fluid.time
-    filename = (
-        sim.par.outdir
-        + '/'
-        + sim.par.outfileprefix
-        + '_%03d' % outindex
-        + '.hdf5'
-    )
-    rio.writehdf5(sim, filename)
-    return time_value(sim, unyt.s)
-
-
 def output_files(outdir, outfileprefix):
     pattern = outdir + '/' + outfileprefix + '_*.hdf5'
     return glob.glob(pattern)
-
-
-def append_history(sim, history):
-    history['time_yr'].append(time_value(sim, unyt.yr))
-    history['temperature_K'].append(mean_temperature(sim).to_value(unyt.K))
-    history['ionized_fraction'].append(mean_ionized_fraction(sim))
 
 
 def save_history_plot(history, filename, icparams, target_neutral_fraction):
