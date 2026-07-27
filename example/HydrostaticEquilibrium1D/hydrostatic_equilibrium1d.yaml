@@ -3,18 +3,22 @@ runparams:
   ICfilename: InitialCondition.hdf5
   outdir: .
   outfileprefix: Output
+  outputtimefilename: hydrostatic_equilibrium1d_output_times.txt
   savedir: .
   coordsys: cartesian
   EOStype: isothermal
   gamma: 1.0
   timesim:
-    value: 0.05
-    unit: Myr
-  outdeltatime:
-    value: 0.05
+    value: 0.0001
     unit: Myr
   CFL: 0.2
-  boundcond: Open
+  dtmin:
+    value: 1.0e-8
+    unit: s
+  dtmax:
+    value: 1.0e12
+    unit: s
+  boundcond: Reflecting
   verbose: 0
   order: 0
   noghost: 2

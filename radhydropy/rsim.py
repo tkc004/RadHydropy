@@ -11,6 +11,7 @@ from radhydropy.solver import Solver
 from pathlib import Path
 import unyt
 import numpy as np
+import yaml
 import time
 start_time = time.time()
 
@@ -67,6 +68,47 @@ class Rsim():
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid)
         self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
+
+    def _parameter_tree(self, value):
+        """Convert a parameter value into a YAML-safe, human-readable object."""
+        if isinstance(value, dict):
+            return {
+                str(key): self._parameter_tree(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, (list, tuple)):
+            return [self._parameter_tree(item) for item in value]
+        if hasattr(value, "units"):
+            quantity = np.asarray(value.to_value(value.units))
+            if quantity.shape == ():
+                return f"{quantity.item()} {value.units}"
+            return f"{quantity.tolist()} {value.units}"
+        if callable(value):
+            return getattr(value, "__name__", value.__class__.__name__)
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if hasattr(value, "__dict__") and not isinstance(value, type):
+            return {
+                key: self._parameter_tree(item)
+                for key, item in vars(value).items()
+                if not key.startswith("_")
+            }
+        if isinstance(value, Path):
+            return str(value)
+        return value
+
+    def WriteUsedParameters(self, filename="used_parameters.txt"):
+        """Write the active runtime parameters to a text file in the CWD."""
+        path = Path.cwd() / filename
+        payload = {
+            key: self._parameter_tree(value)
+            for key, value in sorted(vars(self.par).items())
+            if not key.startswith("_")
+        }
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("# RadHydropy used parameters\n")
+            yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
+        return path
 
     def GetStepTime(self, dt=None, final_time=None):
         """Return a timestep, clipped to ``final_time`` when supplied."""
@@ -646,6 +688,7 @@ class Rsim():
         step_backend_kwargs=None,
     ):
         """Run the simulation loop and write periodic HDF5 outputs."""
+        self.WriteUsedParameters()
         if getattr(self.par, 'outputtimefilename', None):
             self._run_with_output_times(
                 outputtime=outputtime,

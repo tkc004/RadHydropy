@@ -72,8 +72,14 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertTrue(
+            runparams['outputtimefilename'].endswith(
+                'hydrostatic_equilibrium1d_output_times.txt'
+            )
+        )
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.0001)
         self.assertEqual(runparams['EOStype'], 'isothermal')
-        self.assertEqual(runparams['boundcond'], 'Open')
+        self.assertEqual(runparams['boundcond'], 'Reflecting')
         self.assertEqual(icparams['nogrid'], 256)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 10.0)
         self.assertAlmostEqual(

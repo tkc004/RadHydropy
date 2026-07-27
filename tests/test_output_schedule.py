@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import importlib.util
 import sys
+import os
 
 import numpy as np
 import unyt
@@ -135,6 +136,37 @@ class Testing(unittest.TestCase):
                 [0.0, 2.0, 3.0],
             )
             self.assertEqual(fluid.time, 3.0 * unyt.s)
+
+    def test_run_writes_used_parameters_in_current_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmpdir)
+                fluid = SimpleNamespace(
+                    time=0.0 * unyt.s,
+                    SetTemperature=lambda: None,
+                )
+                par = SimpleNamespace(
+                    timesim=0.0 * unyt.s,
+                    outdir=str(tmpdir),
+                    outfileprefix='Output',
+                    outdeltatime=1.0 * unyt.s,
+                    simname='test_run',
+                )
+                sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+                sim._write_numbered_hdf5 = lambda index: None
+                sim.Evolve = lambda **kwargs: None
+
+                sim.Run()
+
+                used_parameters = Path(tmpdir) / 'used_parameters.txt'
+                self.assertTrue(used_parameters.exists())
+                text = used_parameters.read_text()
+                self.assertIn('timesim:', text)
+                self.assertIn('simname:', text)
+                self.assertIn('test_run', text)
+            finally:
+                os.chdir(cwd)
 
     def test_hydrogen_recombination_helper_uses_source_only_wrapper(self):
         example_dir = (
