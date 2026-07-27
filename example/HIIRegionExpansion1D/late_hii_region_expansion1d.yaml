@@ -1,0 +1,79 @@
+runparams:
+  simname: LateHIIRegionExpansion1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outputtimefilename: output_times_late.txt
+  savedir: .
+
+ICparams:
+  source_photon_rate:
+    value: 1.0e49
+    unit: 1/s
+  rho_initial:
+    value: 5.21e-21
+    unit: g/cm**3
+  neutral_temperature:
+    value: 1.0e3
+    unit: K
+  ionized_temperature:
+    value: 1.0e4
+    unit: K
+  ionized_sound_speed:
+    value: 12.85
+    unit: km/s
+  sigma_gamma:
+    value: 6.3e-18
+    unit: cm**2
+  alpha_B_coefficient:
+    value: 2.7e-13
+    unit: cm**3/s
+  boxsize:
+    value: 7.0
+    unit: pc
+  final_time:
+    value: 3.0
+    unit: Myr
+  hydro_cfl: 0.5
+  hydro_order: 1
+  source_cfl: 0.1
+  hydro_timestep_max:
+    value: 2.0e-4
+    unit: Myr
+  source_timestep_min:
+    value: 1.0e-12
+    unit: Myr
+  number_of_cells: 512
+  comparison_time:
+    value: 3.0
+    unit: Myr
+  show_stagnation_radius: true
+  output_snapshots:
+    - time:
+        value: 0.0
+        unit: Myr
+    - time:
+        value: 0.05
+        unit: Myr
+      label: 0p05
+    - time:
+        value: 0.10
+        unit: Myr
+    - time:
+        value: 0.20
+        unit: Myr
+      label: 0p20
+    - time:
+        value: 0.50
+        unit: Myr
+    - time:
+        value: 0.80
+        unit: Myr
+      label: 0p80
+    - time:
+        value: 1.50
+        unit: Myr
+    - time:
+        value: 3.0
+        unit: Myr
+      label: 3p00

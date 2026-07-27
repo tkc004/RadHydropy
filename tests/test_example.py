@@ -121,6 +121,46 @@ class Testing(unittest.TestCase):
             )
         )
 
+    def test_early_hii_region_expansion1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HIIRegionExpansion1D'
+            / 'early_hii_region_expansion1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(icparams['number_of_cells'], 512)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 2.0)
+        self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 0.14)
+        self.assertTrue(Path(runparams['outputtimefilename']).exists())
+        self.assertEqual(len(icparams['output_snapshots']), 8)
+        self.assertEqual(
+            icparams['output_snapshots'][1]['label'],
+            '0p005',
+        )
+
+    def test_late_hii_region_expansion1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HIIRegionExpansion1D'
+            / 'late_hii_region_expansion1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(icparams['number_of_cells'], 512)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 7.0)
+        self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 3.0)
+        self.assertTrue(Path(runparams['outputtimefilename']).exists())
+        self.assertTrue(icparams['show_stagnation_radius'])
+        self.assertEqual(
+            icparams['output_snapshots'][-1]['label'],
+            '3p00',
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

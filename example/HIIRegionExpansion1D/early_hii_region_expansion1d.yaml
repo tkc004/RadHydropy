@@ -1,0 +1,78 @@
+runparams:
+  simname: EarlyHIIRegionExpansion1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outputtimefilename: output_times_early.txt
+  savedir: .
+
+ICparams:
+  source_photon_rate:
+    value: 1.0e49
+    unit: 1/s
+  rho_initial:
+    value: 5.21e-21
+    unit: g/cm**3
+  neutral_temperature:
+    value: 1.0e2
+    unit: K
+  ionized_temperature:
+    value: 1.0e4
+    unit: K
+  ionized_sound_speed:
+    value: 12.85
+    unit: km/s
+  sigma_gamma:
+    value: 6.3e-18
+    unit: cm**2
+  alpha_B_coefficient:
+    value: 2.7e-13
+    unit: cm**3/s
+  boxsize:
+    value: 2.0
+    unit: pc
+  final_time:
+    value: 0.14
+    unit: Myr
+  hydro_cfl: 0.5
+  hydro_order: 1
+  source_cfl: 0.1
+  hydro_timestep_max:
+    value: 2.0e-4
+    unit: Myr
+  source_timestep_min:
+    value: 1.0e-12
+    unit: Myr
+  number_of_cells: 512
+  comparison_time:
+    value: 0.14
+    unit: Myr
+  output_snapshots:
+    - time:
+        value: 0.0
+        unit: Myr
+    - time:
+        value: 0.005
+        unit: Myr
+      label: 0p005
+    - time:
+        value: 0.010
+        unit: Myr
+    - time:
+        value: 0.020
+        unit: Myr
+      label: 0p020
+    - time:
+        value: 0.040
+        unit: Myr
+    - time:
+        value: 0.080
+        unit: Myr
+      label: 0p080
+    - time:
+        value: 0.120
+        unit: Myr
+    - time:
+        value: 0.140
+        unit: Myr
+      label: 0p140

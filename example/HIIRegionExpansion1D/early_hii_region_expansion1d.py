@@ -13,16 +13,19 @@ ionized media are both treated with a simplified isothermal closure:
 * neutral gas: ``T = 10^2 K``;
 * ionized gas: ``T = 10^4 K``.
 
-The plotted ionization-front radius is defined by ``xHII = 0.5``.
+The example is YAML-driven, writes HDF5 snapshots, reloads those snapshots, and
+plots the ionization-front history and density profiles from the saved outputs.
 """
 
+import argparse
 import os
 import sys
 import tempfile
+from pathlib import Path
 
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
+repo_root = Path(__file__).resolve().parents[2]
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
@@ -33,145 +36,76 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
-import radhydropy.hydrogen as rh
 from radhydropy.rsim import Rsim
 import tools as et
 
 
-rundir = os.path.dirname(os.path.abspath(__file__))
-figure_filename = os.path.join(rundir, 'EarlyHIIRegionExpansion1D_IFront.jpg')
-density_output_specs = (
-    (0.005 * unyt.Myr, '0p005'),
-    (0.020 * unyt.Myr, '0p020'),
-    (0.080 * unyt.Myr, '0p080'),
-    (0.140 * unyt.Myr, '0p140'),
-)
-density_figure_filenames = [
-    os.path.join(
-        rundir,
-        'EarlyHIIRegionExpansion1D_Density_%sMyr.jpg' % label,
-    )
-    for _, label in density_output_specs
-]
-
-# Physical parameters
-# This is Lyman continuum photon rate:
-source_photon_rate = 1.0e49 / unyt.s
-rho_initial = 5.21e-21 * unyt.g / unyt.cm**3
-neutral_temperature = 1.0e2 * unyt.K
-ionized_temperature = 1.0e4 * unyt.K
-ionized_sound_speed = 12.85 * unyt.km / unyt.s
-# Lyman continuum photoionization cross-section at 13.6 eV:
-sigma_gamma = 6.3e-18 * unyt.cm**2
-# Approximate recombination coefficient for hydrogen at 10^4 K, case B:
-alpha_B_coefficient = 2.7e-13 * unyt.cm**3 / unyt.s
-boxsize = 2.0 * unyt.pc
-final_time = 0.14 * unyt.Myr
-hydro_cfl = 0.5
-hydro_order = 1
-source_cfl = 0.1
-hydro_timestep_max = 2.0e-4 * unyt.Myr
-source_timestep_min = 1.0e-12 * unyt.Myr
-number_of_cells = 512
-comparison_time = 0.14 * unyt.Myr
+DEFAULT_CONFIG = Path(__file__).resolve().with_name('early_hii_region_expansion1d.yaml')
 
 
-def main():
-    config = {
-        'source_photon_rate': source_photon_rate,
-        'rho_initial': rho_initial,
-        'neutral_temperature': neutral_temperature,
-        'ionized_temperature': ionized_temperature,
-        'ionized_sound_speed': ionized_sound_speed,
-        'sigma_gamma': sigma_gamma,
-        'alpha_B_coefficient': alpha_B_coefficient,
-        'boxsize': boxsize,
-        'final_time': final_time,
-        'hydro_cfl': hydro_cfl,
-        'hydro_order': hydro_order,
-        'source_cfl': source_cfl,
-        'hydro_timestep_max': hydro_timestep_max,
-        'source_timestep_min': source_timestep_min,
-        'number_of_cells': number_of_cells,
-    }
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
+    runparams, icparams = et.load_parameters(config_filename, rundir)
+    config = {**runparams, **icparams}
+
+    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
+    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+
     par, mesh, fluid, solver = et.build_problem(config)
     sim = Rsim.FromComponents(par, mesh, fluid, solver)
-    et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
-
-    history = {
-        'time_Myr': [],
-        'front_radius_pc': [],
-    }
-    density_snapshots = []
-    density_snapshot_times = [time for time, _ in density_output_specs]
-    next_density_snapshot = 0
-    counters = {
-        'hydro_steps': 0,
-        'source_steps': 0,
-    }
-    et.append_history(history, sim.mesh, sim.fluid, sim.par)
-    while sim.fluid.time < final_time:
-        step_final_time = final_time
-        if next_density_snapshot < len(density_snapshot_times):
-            step_final_time = min(
-                final_time,
-                density_snapshot_times[next_density_snapshot],
-            )
-        dt = sim.GetStepTime(final_time=step_final_time)
-        step = sim.Step(
-            dt=dt,
-            mode='hydro_sources',
-            fast_thermochemistry=True,
-        )
-        counters['hydro_steps'] += step['hydro_steps']
-        counters['source_steps'] += step['source_steps']
-        et.apply_piecewise_isothermal_state(
-            sim.mesh,
-            sim.fluid,
-            sim.par,
-            sim.solver,
-            config,
-        )
-        et.append_history(history, sim.mesh, sim.fluid, sim.par)
-        while next_density_snapshot < len(density_snapshot_times):
-            current_time_myr = sim.fluid.time.to_value(unyt.Myr)
-            snapshot_time_myr = density_snapshot_times[
-                next_density_snapshot
-            ].to_value(unyt.Myr)
-            if current_time_myr + 1.0e-12 < snapshot_time_myr:
-                break
-            density_snapshots.append(
-                et.density_snapshot(sim.mesh, sim.fluid, sim.par)
-            )
-            next_density_snapshot += 1
-
-    sim.solver.TraceSphericalPhotonDensityFast(sim.mesh, sim.fluid, sim.par)
-    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
-    et.save_front_plot(history, config, figure_filename)
-    et.save_density_profile_plots(
-        density_snapshots,
-        config,
-        density_figure_filenames,
+    sim.fluid.eos.apply_piecewise_isothermal_state(
+        sim.fluid,
+        sim.par,
+        config['neutral_temperature'],
+        config['ionized_temperature'],
     )
+    et.refresh_state(sim.mesh, sim.fluid, sim.par, sim.solver)
 
-    comparison_time_myr = comparison_time.to_value(unyt.Myr)
+    output_specs = icparams['output_snapshots']
+    step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
+    sim.Run(
+        outputtime=0,
+        mode='hydro_sources',
+        fast_thermochemistry=True,
+        step_backend=step_backend,
+    )
+    outputfilenames = et.output_files(runparams['outdir'], runparams['outfileprefix'])
+
+    history = et.load_history_from_outputs(outputfilenames, config)
+
+    figure_filename = Path(runparams['savedir']) / 'EarlyHIIRegionExpansion1D_IFront.jpg'
+    et.save_front_plot(history, config, figure_filename)
+
+    density_figure_filenames = []
+    for label, snapshot in et.load_labeled_density_snapshots(
+        outputfilenames,
+        config,
+        output_specs,
+    ):
+        density_figure_filename = Path(runparams['savedir']) / (
+            f"EarlyHIIRegionExpansion1D_Density_{label}Myr.jpg"
+        )
+        et.save_density_profile_plot(snapshot, config, density_figure_filename)
+        density_figure_filenames.append(density_figure_filename)
+
+    comparison_time_myr = icparams['comparison_time'].to_value(unyt.Myr)
     simulation_radius_pc = et.front_radius_at_time(
         history,
-        comparison_time,
+        icparams['comparison_time'],
     ).to_value(unyt.pc)
     spitzer_radius_pc = et.spitzer_radius(
-        comparison_time,
+        icparams['comparison_time'],
         config,
     ).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = et.hosokawa_inutsuka_radius(
-        comparison_time,
+        icparams['comparison_time'],
         config,
     ).to_value(unyt.pc)
 
     print('time = %s' % sim.fluid.time)
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
-    print('hydro steps = %d' % counters['hydro_steps'])
-    print('source steps = %d' % counters['source_steps'])
+    print('output files = %d' % len(outputfilenames))
     print(
         'final ionization-front radius = %.3e pc'
         % history['front_radius_pc'][-1]
@@ -191,7 +125,22 @@ def main():
     print('figure = %s' % figure_filename)
     for density_figure_filename in density_figure_filenames:
         print('density figure = %s' % density_figure_filename)
+    for outputfilename in outputfilenames:
+        print('output file = %s' % outputfilename)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Run the early HII region expansion example.',
+    )
+    parser.add_argument(
+        '--config',
+        default=DEFAULT_CONFIG,
+        help='YAML file containing runparams and ICparams.',
+    )
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    main(args.config)

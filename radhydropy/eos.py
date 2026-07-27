@@ -108,3 +108,24 @@ class EOS:
         qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5
         return Fmass, qmass, Fmom, qmom, FEn, qEn
 
+    def apply_piecewise_isothermal_state(
+        self,
+        fluid,
+        par,
+        neutral_temperature,
+        ionized_temperature,
+    ):
+        """Apply the piecewise-isothermal closure used by HII-region examples."""
+        if not self.is_isothermal:
+            raise ValueError('piecewise isothermal state requires an isothermal EOS')
+
+        interior = slice(par.noghost, par.noghost + par.nogrid)
+        ionized_fraction = 1.0 - np.clip(fluid.xHI[interior], 0.0, 1.0)
+        fluid.temp[interior] = (
+            neutral_temperature
+            + ionized_fraction * (ionized_temperature - neutral_temperature)
+        )
+        fluid.SetHydrogenMu(
+            hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
+        )
+        fluid.SetPressure()

@@ -1,7 +1,9 @@
 """Utilities for the early isothermal H II region expansion example."""
 
+import glob
 import os
 from types import SimpleNamespace
+from pathlib import Path
 
 import matplotlib
 matplotlib.use('Agg')
@@ -10,6 +12,7 @@ import numpy as np
 import unyt
 
 import radhydropy.hydrogen as rh
+import radhydropy.io as rio
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
@@ -22,6 +25,12 @@ def build_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
+        boxsize=config['boxsize'],
+        outdir=config.get('outdir', '.'),
+        outfileprefix=config.get('outfileprefix', 'Output'),
+        savedir=config.get('savedir', config.get('outdir', '.')),
+        outputtimefilename=config.get('outputtimefilename', None),
+        timesim=config.get('final_time', config.get('timesim', None)),
         area=1.0 * unyt.cm**2,
         EOStype='isothermal',
         gamma=1.0,
@@ -79,24 +88,78 @@ def build_problem(config):
     return par, mesh, fluid, solver
 
 
+def load_output_state(outputfilename, config):
+    par, mesh, fluid, _ = build_problem(config)
+    rio.readhdf5(par, mesh, fluid, outputfilename)
+    return par, mesh, fluid
+
+
+def load_parameters(config_filename, rundir=None):
+    from radhydropy.example_config import load_example_parameters
+
+    config_filename = Path(config_filename)
+    runparams, icparams = load_example_parameters(config_filename, rundir)
+    return runparams, icparams
+
+
+def load_labeled_density_snapshots(outputfilenames, config, output_specs):
+    snapshots = []
+    for index, spec in enumerate(output_specs):
+        label = spec.get('label', None)
+        if label is None:
+            continue
+        out_par, out_mesh, out_fluid = load_output_state(outputfilenames[index], config)
+        snapshots.append(
+            (
+                label,
+                density_snapshot(out_mesh, out_fluid, out_par),
+            )
+        )
+    return snapshots
+
+
+def output_files(outdir, outfileprefix):
+    pattern = os.path.join(outdir, f'{outfileprefix}_*.hdf5')
+    return sorted(glob.glob(pattern))
+
+
 def interior_slice(par):
     return slice(par.noghost, par.noghost + par.nogrid)
 
 
-def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
-    interior = interior_slice(par)
-    ionized_fraction = 1.0 - np.clip(fluid.xHI[interior], 0.0, 1.0)
-    fluid.temp[interior] = (
-        config['neutral_temperature']
-        + ionized_fraction
-        * (config['ionized_temperature'] - config['neutral_temperature'])
-    )
-    fluid.SetHydrogenMu(
-        hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
-    )
-    fluid.SetPressure()
+def refresh_state(mesh, fluid, par, solver):
     solver.SetBoundary(mesh, fluid, par)
     solver.SetConserved(mesh, fluid)
+
+
+def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
+    fluid.eos.apply_piecewise_isothermal_state(
+        fluid,
+        par,
+        config['neutral_temperature'],
+        config['ionized_temperature'],
+    )
+    refresh_state(mesh, fluid, par, solver)
+
+
+def make_piecewise_isothermal_step_backend(sim, config):
+    def step_backend(dt=None, mode='hydro_sources', fast_thermochemistry=False, advect_chemistry=True):
+        result = sim.Step(
+            dt=dt,
+            mode=mode,
+            fast_thermochemistry=fast_thermochemistry,
+            advect_chemistry=advect_chemistry,
+        )
+        apply_piecewise_isothermal_state(
+            sim.mesh,
+            sim.fluid,
+            sim.par,
+            sim.solver,
+            config,
+        )
+        return result
+
+    return step_backend
 
 
 def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
@@ -125,6 +188,17 @@ def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
 def append_history(history, mesh, fluid, par):
     history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
     history['front_radius_pc'].append(ionization_front_position(mesh, fluid, par))
+
+
+def load_history_from_outputs(outputfilenames, config):
+    history = {
+        'time_Myr': [],
+        'front_radius_pc': [],
+    }
+    for outputfilename in outputfilenames:
+        par, mesh, fluid = load_output_state(outputfilename, config)
+        append_history(history, mesh, fluid, par)
+    return history
 
 
 def density_snapshot(mesh, fluid, par):
