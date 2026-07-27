@@ -16,6 +16,7 @@ __all__ = [
     "io",
     "params",
     "solver",
+    "gravity",
     "hydrogen",
     "thermo_chemistry",
     "thermo_networks",

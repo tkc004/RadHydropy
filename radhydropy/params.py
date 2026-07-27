@@ -11,6 +11,12 @@ refparams = {
     'outputtimefilename': None,
     'savedir':'./',
     'coordsys':'cartesian', #
+    'selfgravity': False,
+    'externalgravity': False,
+    'gravity': None,
+    'gravity_potential': None,
+    'gravity_coordinate': None,
+    'gravity_acceleration': None,
     'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
     'gamma':1.4, # for polytropic, the polytropic index
     'timesim':2.0*unyt.s, # final simulation time

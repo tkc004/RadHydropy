@@ -123,6 +123,7 @@ class Rsim():
 
     def FinalizeHydroStep(self, dt, old_mass, mass_flux, advect_chemistry=True):
         """Complete a hydro step after conserved variables have been advanced."""
+        self.solver.ApplyExternalGravity(dt, self.mesh, self.fluid, self.par)
         if advect_chemistry:
             self.AdvectChemistryScalars(dt, old_mass, mass_flux)
         self.solver.SetPrimitive(self.mesh, self.fluid)

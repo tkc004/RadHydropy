@@ -4,6 +4,7 @@ import radhydropy.utils as ru
 import radhydropy.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
+import radhydropy.gravity as rg
 import unyt
 import numpy as np
 
@@ -302,6 +303,39 @@ class Solver():
 
         # advance time
         fluid.time += dt
+
+    def _gravity_model(self, par):
+        """Return the configured gravity model, if any."""
+        gravity = getattr(par, "gravity", None)
+        if isinstance(gravity, rg.Gravity):
+            return gravity
+        if gravity is not None and hasattr(gravity, "acceleration_on_mesh"):
+            return gravity
+        if not getattr(par, "externalgravity", False):
+            return None
+        return rg.Gravity(
+            selfgravity=getattr(par, "selfgravity", False),
+            externalgravity=getattr(par, "externalgravity", False),
+            potential=getattr(par, "gravity_potential", None),
+            coordinate=getattr(par, "gravity_coordinate", None),
+            acceleration=getattr(par, "gravity_acceleration", None),
+        )
+
+    def ApplyExternalGravity(self, dt, mesh, fluid, par):
+        """Apply a source update from an optional external gravitational field."""
+        gravity = self._gravity_model(par)
+        if gravity is None or not gravity.externalgravity:
+            return 0
+        acceleration = gravity.acceleration_on_mesh(mesh)
+        if np.shape(acceleration) != np.shape(fluid.rho):
+            raise ValueError(
+                "Gravity acceleration shape %s does not match fluid state shape %s"
+                % (np.shape(acceleration), np.shape(fluid.rho))
+            )
+        fluid.Mom += fluid.rho * acceleration * mesh.vol * dt
+        fluid.Energy += fluid.rho * fluid.vel * acceleration * mesh.vol * dt
+        self._zero_spherical_center_momentum(mesh, fluid)
+        return 1
 
     def AdvectIonizationFraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
         """Advect the chemistry fraction consistently with the mass flux."""

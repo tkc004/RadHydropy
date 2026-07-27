@@ -176,6 +176,7 @@ and API reference, plus standalone pages for the main simulation subsystems:
 - [Quickstart](docs/quickstart.rst)
 - [Initial-condition parameters](docs/icparams.rst)
 - [Hydrodynamics solver](docs/hydrodynamics.rst)
+- [Gravity](docs/gravity.rst)
 - [Thermo-chemistry solver](docs/thermo_chemistry.rst)
 - [Boundary conditions](docs/boundary_conditions.rst)
 - [Radiative transfer](docs/radiative_transfer.rst)
