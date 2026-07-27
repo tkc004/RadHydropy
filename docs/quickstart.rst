@@ -6,8 +6,8 @@ initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
 reads the initial condition, prepares mesh and fluid state, advances the
 solver, and writes HDF5 outputs.
 
-YAML-Driven Example Runner
---------------------------
+Minimum Runner
+--------------
 
 .. code-block:: python
 
@@ -27,10 +27,34 @@ YAML-Driven Example Runner
    sim = Rsim(runparams)
    sim.RunAll()
 
-The bundled example scripts follow the same pattern: load the YAML file,
-generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run with
-``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
+This is the same pattern used by the bundled example scripts: load the YAML
+file, generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run
+with ``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
 ``outputtimefilename``, and ``savedir`` paths against the example directory.
+
+Run Parameters
+--------------
+
+The ``runparams`` block controls how the runner loads the problem and writes
+outputs. The minimum keys used by the bundled examples are:
+
+* ``simname``: label shown in logs and filenames.
+* ``ICfilename``: path to the HDF5 initial-condition file to read or write.
+* ``outdir`` and ``outfileprefix``: where numbered HDF5 outputs are written.
+* ``savedir``: directory for any plots or derived figures saved by the
+  example script.
+* ``coordsys``: geometry, usually ``cartesian`` or ``spherical``.
+* ``EOStype`` and ``gamma``: equation-of-state settings.
+* ``timesim``: final simulation time.
+* ``outdeltatime`` or ``outputtimefilename``: fixed output cadence or explicit
+  output times.
+* ``CFL``, ``order``, ``dtmin``, and ``dtmax``: timestep and reconstruction
+  controls.
+* ``boundcond``: boundary condition name.
+
+Units can be written inline in the YAML file using ``value`` and ``unit``
+fields, as in ``timesim`` and ``outdeltatime`` in the bundled examples. See
+:doc:`parameters` for the complete runtime parameter reference.
 
 To use explicit output times instead of a fixed cadence, set
 `outputtimefilename` to a txt file whose first non-empty line is the time unit
