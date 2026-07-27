@@ -83,41 +83,54 @@ available and now delegate to the same shared stepping path.
 
 ## Minimal Simulation Runner
 
-RadHydropy simulations are driven by a runtime-parameter dictionary and an
-HDF5 initial-condition file. A typical YAML-driven runner looks like this:
+RadHydropy runs from a YAML example configuration plus an HDF5
+initial-condition file. The high-level `Rsim` class reads the initial
+condition, prepares mesh and fluid state, advances the solver, and writes HDF5
+outputs.
 
 ```python
-import unyt
-from radhydropy.rsim import Rsim
+from pathlib import Path
 
-runparams = {
-    "simname": "SodShock1d",
-    "ICfilename": "InitialCondition.hdf5",
-    "outdir": ".",
-    "outfileprefix": "Output",
-    "coordsys": "cartesian",
-    "EOStype": "polytropic",
-    "gamma": 1.4,
-    "timesim": 1.0 * unyt.s,
-    "outdeltatime": 0.1 * unyt.s,
-    "outputtimefilename": None,
-    "CFL": 0.1,
-    "boundcond": "Periodic",
-    "order": 1,
-    "dtmin": 2.0e-8 * unyt.s,
-    "dtmax": 2.0e-1 * unyt.s,
-}
+from radhydropy.analysis import rplot1d
+import radhydropy.io as rio
+from radhydropy.example_config import load_example_parameters
+from radhydropy.rsim import Rsim
+import tools as et
+import matplotlib.pyplot as plt
+
+config = Path("example/SodShock1D/sodshock1d.yaml")
+runparams, ICparams = load_example_parameters(config)
+
+ric = et.Simwrap(ICparams)
+rio.writehdf5(ric, runparams["ICfilename"])
 
 sim = Rsim(runparams)
-sim.RunAll(outputtime=1)
+sim.RunAll()
+
+rio.readhdf5(sim.par, sim.mesh, sim.fluid, "Output_001.hdf5")
+rplot1d(sim, yquan="rho")
+plt.show()
 ```
 
-To use explicit output times, set `outputtimefilename` to a txt file whose
-first non-empty line is the time unit and whose remaining lines are the output
-times.
+This is the same pattern used by the bundled example scripts: load the YAML
+file, generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run
+with ``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
+``outputtimefilename``, and ``savedir`` paths against the example directory.
+The plotting step reloads the first output snapshot and renders the density
+profile with the built-in plotting helper.
 
-The `ICfilename` file must already exist. You can create it with
-`radhydropy.io.writehdf5`, as shown in the scripts under `example/`.
+To use explicit output times instead of a fixed cadence, set
+`outputtimefilename` to a txt file whose first non-empty line is the time unit
+and whose remaining lines are the output times. For example, the bundled
+example configs typically point to files such as ``output_times.txt``:
+
+```text
+yr
+0.0
+1.0e4
+2.0e4
+```
+
 
 If you want manual control over the evolution loop, use the canonical stepping
 API directly:
@@ -133,26 +146,6 @@ print(counters)
 For fixed-density thermo-chemistry tests such as the static Stromgren sphere,
 `Rsim.EvolveStaticThermochemistry(...)` evolves the thermo-chemistry and
 radiative-transfer source terms without a hydrodynamic update.
-
-## Initial-Condition File Format
-
-Initial-condition and output files use a compact HDF5 structure:
-
-- `Header`
-  - `Coordinate_System`
-  - `Number_Grids`
-  - `Time`
-  - `BoxSize`
-- `Data`
-  - `Boundary`
-  - `Density`
-  - `Velocity`
-  - `Temperature`
-  - `Mol_weight`
-  - `NeutralFraction` (optional; used by the hydrogen thermo-chemistry
-    network)
-
-Datasets with physical units store the unit string in a `units` attribute.
 
 ## Project Layout
 
