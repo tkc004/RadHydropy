@@ -15,6 +15,7 @@ analytic optically thin spherical dilution solution.
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 import tempfile
 
@@ -35,12 +36,29 @@ import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('radiative_transfer_sph1d.yaml')
+start_time = time.time()
 
 
 def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
     config_filename = Path(config_filename)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
     return runparams, ICparams
+
+
+def RunRadiativeTransferOnly(sim):
+    """Apply radiative transfer once and write a single HDF5 snapshot."""
+    print("--- Initization finished. Start running ... ---")
+    print("--- %s seconds ---" % (time.time() - start_time))
+    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+    sim.solver.SetConserved(sim.mesh, sim.fluid)
+    result = sim.solver.ApplyRadiativeTransfer(sim.mesh, sim.fluid, sim.par)
+    if not hasattr(sim.fluid, 'time'):
+        sim.fluid.SetFluidTime(0.0 * unyt.s)
+    sim.fluid.SetTemperature()
+    sim._write_numbered_hdf5(0)
+    print("--- Simulation finished. ---")
+    print("--- %s seconds ---" % (time.time() - start_time))
+    return result
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -51,7 +69,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     par, mesh, fluid, solver = et.build_problem(config)
     sim = Rsim.FromComponents(par, mesh, fluid, solver)
-    result = sim.RunRadiativeTransferOnly()
+    result = RunRadiativeTransferOnly(sim)
 
     output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)

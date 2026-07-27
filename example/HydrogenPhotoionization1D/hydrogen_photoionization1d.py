@@ -42,6 +42,17 @@ def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
     return runparams, ICparams
 
 
+def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):
+    """Run the fixed-field photoionization example until neutral fraction falls."""
+    return sim.RunAll(
+        outputtime=outputtime,
+        mode="hydro_sources",
+        stop_condition=lambda runner: (
+            et.mean_neutral_fraction(runner) <= target_neutral_fraction
+        ),
+    )
+
+
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
@@ -51,7 +62,8 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(ric, runparams['ICfilename'])
 
     sim = Rsim(runparams)
-    sim.RunHydrogenPhotoionization(
+    RunHydrogenPhotoionization(
+        sim,
         runparams['target_neutral_fraction'],
         outputtime=0,
     )

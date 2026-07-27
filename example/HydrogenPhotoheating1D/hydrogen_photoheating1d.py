@@ -62,7 +62,8 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.RunHydrogenPhotoheating(
+    et.RunHydrogenPhotoheating(
+        sim,
         runparams['source_switch_time'],
         reference['photon_density_on'],
         outputtime=0,

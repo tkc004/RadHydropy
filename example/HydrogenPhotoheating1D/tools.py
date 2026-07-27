@@ -6,9 +6,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+import time
 
 import radhydropy.io as rio
 import hydrogen_photoheating_reference as hpr
+
+
+start_time = time.time()
 
 
 class Par:
@@ -136,6 +140,84 @@ def load_history_from_outputs(outputfiles, icparams, noghost):
 
 def output_files(outdir, outfileprefix):
     return sorted(glob.glob(outdir + '/' + outfileprefix + '_*.hdf5'))
+
+
+def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputtime=0):
+    """Run the optically thin photoheating example with source switching."""
+    print("--- Initization finished. Start running ... ---")
+    print("--- %s seconds ---" % (time.time() - start_time))
+    sim._write_numbered_hdf5(0)
+
+    final_time = sim.par.timesim
+    output_times = sim._load_output_time_list()
+    if output_times is not None:
+        target_unit = final_time.units
+        output_times = np.unique(
+            np.asarray(output_times.to_value(target_unit), dtype=float)
+        )
+        output_times = [
+            value * target_unit
+            for value in output_times
+            if value * target_unit > sim.fluid.time and value * target_unit <= final_time
+        ]
+    else:
+        output_interval = getattr(sim.par, 'outdeltatime', None)
+        next_output_time = (
+            output_interval.copy() if output_interval is not None else None
+        )
+    last_output_time = sim.fluid.time.copy()
+    outindex = 1
+    next_output_index = 0
+
+    while sim.fluid.time < final_time:
+        current_time = sim.fluid.time
+        dt = final_time - current_time
+        if output_times is not None and next_output_index < len(output_times):
+            target_output_time = output_times[next_output_index]
+            if current_time < target_output_time < current_time + dt:
+                dt = target_output_time - current_time
+        elif (
+            next_output_time is not None
+            and current_time < next_output_time < current_time + dt
+        ):
+            dt = next_output_time - current_time
+        if current_time < source_switch_time < current_time + dt:
+            dt = source_switch_time - current_time
+
+        if current_time < source_switch_time:
+            ngamma = photon_density_on
+        else:
+            ngamma = 0.0 * sim.fluid.ngamma.units
+        sim.fluid.ngamma[:] = ngamma.to(sim.fluid.ngamma.units)
+
+        sim.solver.ApplyThermochemistry(dt, sim.mesh, sim.fluid, sim.par)
+        sim.solver.SetPrimitive(sim.mesh, sim.fluid)
+        sim.fluid.time += dt
+        sim.fluid.SetTemperature()
+
+        if outputtime == 1:
+            print("time, dt", sim.fluid.time, dt)
+
+        if output_times is not None:
+            while (
+                next_output_index < len(output_times)
+                and sim.fluid.time >= output_times[next_output_index]
+            ):
+                sim._write_numbered_hdf5(outindex)
+                last_output_time = sim.fluid.time.copy()
+                outindex += 1
+                next_output_index += 1
+        elif next_output_time is not None and sim.fluid.time >= next_output_time:
+            sim._write_numbered_hdf5(outindex)
+            last_output_time = sim.fluid.time.copy()
+            outindex += 1
+            next_output_time += output_interval
+
+    if sim.fluid.time != last_output_time:
+        sim._write_numbered_hdf5(outindex)
+
+    print("--- Simulation finished. ---")
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 
 def save_history_plot(history, filename, reference):
