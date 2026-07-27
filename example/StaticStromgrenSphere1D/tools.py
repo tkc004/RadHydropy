@@ -10,6 +10,7 @@ import unyt
 
 from radhydropy.fluid import Fluid
 import radhydropy.hydrogen as rh
+import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
 import stromgren_analytic as sa
@@ -21,6 +22,10 @@ def build_static_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
+        boxsize=config['boxsize'],
+        outdir=config.get('outdir', '.'),
+        outfileprefix=config.get('outfileprefix', 'Output'),
+        savedir=config.get('savedir', config.get('outdir', '.')),
         area=1.0 * unyt.cm**2,
         hydrogen_chemistry=True,
         hydrogen_mass_fraction=1.0,
@@ -76,6 +81,12 @@ def build_static_problem(config):
     solver.SetBoundary(mesh, fluid, par)
     solver.ApplyRadiativeTransfer(mesh, fluid, par)
     return par, mesh, fluid, solver
+
+
+def load_output_state(outputfilename, config):
+    par, mesh, fluid, _ = build_static_problem(config)
+    rio.readhdf5(par, mesh, fluid, outputfilename)
+    return par, mesh, fluid
 
 
 def interior_slice(par):

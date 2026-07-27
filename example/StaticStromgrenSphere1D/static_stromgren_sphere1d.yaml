@@ -1,0 +1,41 @@
+runparams:
+  simname: StaticStromgrenSphere1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  savedir: .
+
+ICparams:
+  hydrogen_number_density:
+    value: 1.0e-3
+    unit: 1/cm**3
+  alpha_B_coefficient:
+    value: 2.59e-13
+    unit: cm**3/s
+  sigma_gamma:
+    value: 8.13e-18
+    unit: cm**2
+  source_photon_rate:
+    value: 5.0e48
+    unit: 1/s
+  boxsize:
+    value: 20.0
+    unit: kpc
+  plot_radius_max:
+    value: 7.5
+    unit: kpc
+  final_time:
+    value: 500.0
+    unit: Myr
+  chemistry_timestep:
+    value: 5.0
+    unit: Myr
+  chemistry_timestep_min:
+    value: 1.0e-3
+    unit: Myr
+  chemistry_timestep_cfl: 0.1
+  radiative_transfer_update_interval: 5
+  number_of_cells: 256
+  analytic_inner_radius:
+    value: 0.1
+    unit: kpc

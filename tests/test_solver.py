@@ -508,6 +508,51 @@ class Testing(unittest.TestCase):
         self.assertEqual(fluid.time, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
 
+    def test_rsim_evolve_uses_custom_step_backend(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = False
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.eos = EOS()
+        fluid.rho = np.ones(8) * unyt.g/unyt.cm**3
+        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
+        fluid.temp = np.zeros(8) * unyt.K
+        fluid.mu = np.ones(8)
+        fluid.SetPressure()
+        fluid.time = 0.0 * unyt.s
+        sim = Rsim.FromComponents(par, mesh, fluid)
+        history = []
+        backend_calls = []
+
+        def fail_step(*args, **kwargs):
+            raise AssertionError('Step should not be called when backend is provided')
+
+        def custom_backend(dt=None, mode=None, **kwargs):
+            backend_calls.append((dt, mode, kwargs))
+            fluid.time += dt
+            return {'dt': dt, 'hydro_steps': 0, 'source_steps': 0}
+
+        sim.Step = fail_step
+        sim.GetStepTime = lambda dt=None, final_time=None: min(
+            0.2 * unyt.s,
+            final_time - fluid.time,
+        )
+
+        counters = sim.Evolve(
+            final_time=0.5 * unyt.s,
+            mode='sources',
+            history_callback=lambda current_sim: history.append(
+                current_sim.fluid.time.to_value(unyt.s)
+            ),
+            step_backend=custom_backend,
+        )
+
+        self.assertEqual(counters['hydro_steps'], 0)
+        self.assertEqual(counters['source_steps'], 0)
+        self.assertEqual(len(backend_calls), 3)
+        self.assertEqual(fluid.time, 0.5 * unyt.s)
+        np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -195,10 +195,16 @@ class Rsim():
         history_callback=None,
         output_callback=None,
         stop_condition=None,
+        step_backend=None,
+        step_backend_kwargs=None,
     ):
-        """Evolve the simulation with the canonical :meth:`Step` loop."""
+        """Evolve the simulation with a pluggable step backend."""
         if final_time is None:
             final_time = self.par.timesim
+        if step_backend is None:
+            step_backend = self.Step
+        if step_backend_kwargs is None:
+            step_backend_kwargs = {}
         counters = {"hydro_steps": 0, "source_steps": 0}
         if history_callback is not None:
             history_callback(self)
@@ -206,11 +212,12 @@ class Rsim():
             if stop_condition is not None and stop_condition(self):
                 break
             dt = self.GetStepTime(final_time=final_time)
-            step = self.Step(
+            step = step_backend(
                 dt=dt,
                 mode=mode,
                 fast_thermochemistry=fast_thermochemistry,
                 advect_chemistry=advect_chemistry,
+                **step_backend_kwargs,
             )
             counters["hydro_steps"] += step["hydro_steps"]
             counters["source_steps"] += step["source_steps"]
@@ -244,20 +251,6 @@ class Rsim():
             fast_thermochemistry=fast_thermochemistry,
         )
         return step["dt"], step["source_steps"]
-
-    def EvolveCoupledHydroSources(
-        self,
-        final_time,
-        fast_thermochemistry=False,
-        history_callback=None,
-    ):
-        """Evolve hydro plus source terms to ``final_time`` and return counters."""
-        return self.Evolve(
-            final_time=final_time,
-            mode="hydro_sources",
-            fast_thermochemistry=fast_thermochemistry,
-            history_callback=history_callback,
-        )
 
     def _static_front_radius_from_state(self, state, neutral_fraction=0.5):
         ionized = state['xHI'] <= neutral_fraction
@@ -536,8 +529,14 @@ class Rsim():
         fast_thermochemistry=False,
         advect_chemistry=True,
         stop_condition=None,
+        step_backend=None,
+        step_backend_kwargs=None,
     ):
         """Run the simulation using an explicit list of output times."""
+        if step_backend is None:
+            step_backend = self.Step
+        if step_backend_kwargs is None:
+            step_backend_kwargs = {}
         print("--- Initization finished. Start running ... ---")
         print("--- %s seconds ---" % (time.time() - start_time))
         self._write_numbered_hdf5(0)
@@ -569,11 +568,12 @@ class Rsim():
                 dt = self.GetStepTime(final_time=target_time)
                 if outputtime == 1:
                     print("time, dt", self.fluid.time, dt)
-                self.Step(
+                step_backend(
                     dt=dt,
                     mode=mode,
                     fast_thermochemistry=fast_thermochemistry,
                     advect_chemistry=advect_chemistry,
+                    **step_backend_kwargs,
                 )
             if stop_condition is not None and stop_condition(self):
                 break
@@ -589,11 +589,12 @@ class Rsim():
             dt = self.GetStepTime(final_time=final_time)
             if outputtime == 1:
                 print("time, dt", self.fluid.time, dt)
-            self.Step(
+            step_backend(
                 dt=dt,
                 mode=mode,
                 fast_thermochemistry=fast_thermochemistry,
                 advect_chemistry=advect_chemistry,
+                **step_backend_kwargs,
             )
 
         if (
@@ -647,6 +648,8 @@ class Rsim():
         fast_thermochemistry=False,
         advect_chemistry=True,
         stop_condition=None,
+        step_backend=None,
+        step_backend_kwargs=None,
     ):
         """Run the simulation loop and write periodic HDF5 outputs."""
         if getattr(self.par, 'outputtimefilename', None):
@@ -656,6 +659,8 @@ class Rsim():
                 fast_thermochemistry=fast_thermochemistry,
                 advect_chemistry=advect_chemistry,
                 stop_condition=stop_condition,
+                step_backend=step_backend,
+                step_backend_kwargs=step_backend_kwargs,
             )
             return
         print("--- Initization finished. Start running ... ---") 
@@ -676,6 +681,8 @@ class Rsim():
                 output_state=output_state,
             ),
             stop_condition=stop_condition,
+            step_backend=step_backend,
+            step_backend_kwargs=step_backend_kwargs,
         )
         if stop_condition is not None:
             self.fluid.SetTemperature()
@@ -690,6 +697,8 @@ class Rsim():
         fast_thermochemistry=False,
         advect_chemistry=True,
         stop_condition=None,
+        step_backend=None,
+        step_backend_kwargs=None,
     ):
         """Run the full workflow from initial-condition read through outputs."""
         self.Callreadhdf5()
@@ -702,6 +711,8 @@ class Rsim():
             fast_thermochemistry=fast_thermochemistry,
             advect_chemistry=advect_chemistry,
             stop_condition=stop_condition,
+            step_backend=step_backend,
+            step_backend_kwargs=step_backend_kwargs,
         )
 
     def checkparams(self):

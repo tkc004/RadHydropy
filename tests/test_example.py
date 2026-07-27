@@ -77,6 +77,27 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 1.0)
         self.assertEqual(icparams['source_photon_rate'].to_value(1.0 / unyt.s), 1.0e49)
 
+    def test_static_stromgren_sphere1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StaticStromgrenSphere1D'
+            / 'static_stromgren_sphere1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(icparams['number_of_cells'], 256)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(
+            icparams['source_photon_rate'].to_value(1.0 / unyt.s),
+            5.0e48,
+        )
+        self.assertAlmostEqual(
+            icparams['chemistry_timestep_cfl'],
+            0.1,
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

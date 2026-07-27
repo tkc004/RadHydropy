@@ -79,7 +79,6 @@ implementation:
 * :meth:`radhydropy.rsim.Rsim.RunOneStep`
 * :meth:`radhydropy.rsim.Rsim.RunHydroStep`
 * :meth:`radhydropy.rsim.Rsim.RunCoupledHydroSourceStep`
-* :meth:`radhydropy.rsim.Rsim.EvolveCoupledHydroSources`
 * :meth:`radhydropy.rsim.Rsim.Run`
 
 For fixed-density Stromgren-style tests, use

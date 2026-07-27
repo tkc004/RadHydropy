@@ -7,13 +7,15 @@ fraction is advanced with the implicit chemistry solver. Hydrodynamics,
 heating, and cooling are disabled.
 """
 
+import argparse
 import os
 import sys
 import tempfile
+from pathlib import Path
 
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
+repo_root = Path(__file__).resolve().parents[2]
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
@@ -24,80 +26,79 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
+from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
+import radhydropy.io as rio
 import stromgren_analytic as sa
 import tools as et
 
 
-rundir = os.path.dirname(os.path.abspath(__file__))
-figure_filename = os.path.join(rundir, 'StaticStromgrenSphere1D.jpg')
-front_figure_filename = os.path.join(rundir, 'StaticStromgrenSphere1D_IFront.jpg')
-budget_figure_filename = os.path.join(
-    rundir,
-    'StaticStromgrenSphere1D_PhotonBudget.jpg',
-)
-
-hydrogen_number_density = 1.0e-3 / unyt.cm**3
-alpha_B_coefficient = 2.59e-13 * unyt.cm**3 / unyt.s
-sigma_gamma = 8.13e-18 * unyt.cm**2
-source_photon_rate = 5.0e48 / unyt.s
-boxsize = 20.0 * unyt.kpc
-plot_radius_max = 7.5 * unyt.kpc
-final_time = 500.0 * unyt.Myr
-chemistry_timestep = 5.0 * unyt.Myr
-chemistry_timestep_min = 1.0e-3 * unyt.Myr
-chemistry_timestep_cfl = 0.1
-radiative_transfer_update_interval = 5
-number_of_cells = 256
-analytic_inner_radius = 0.1 * unyt.kpc
+DEFAULT_CONFIG = Path(__file__).resolve().with_name('static_stromgren_sphere1d.yaml')
 
 
-def main():
-    config = {
-        'hydrogen_number_density': hydrogen_number_density,
-        'alpha_B_coefficient': alpha_B_coefficient,
-        'sigma_gamma': sigma_gamma,
-        'source_photon_rate': source_photon_rate,
-        'boxsize': boxsize,
-        'plot_radius_max': plot_radius_max,
-        'number_of_cells': number_of_cells,
-        'analytic_inner_radius': analytic_inner_radius,
-        'chemistry_timestep_min': chemistry_timestep_min,
-        'chemistry_timestep_cfl': chemistry_timestep_cfl,
-        'radiative_transfer_update_interval': radiative_transfer_update_interval,
-    }
+def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
+    config_filename = Path(config_filename)
+    runparams, icparams = load_example_parameters(config_filename, rundir)
+    return runparams, icparams
+
+
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
+    runparams, icparams = load_parameters(config_filename, rundir)
+    config = {**runparams, **icparams}
+
+    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
+    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+
     par, mesh, fluid, solver = et.build_static_problem(config)
     sim = Rsim.FromComponents(par, mesh, fluid, solver)
+
+    rio.writehdf5(sim, runparams['ICfilename'])
+
     front_history = sim.EvolveStaticThermochemistry(
-        final_time,
-        chemistry_timestep,
+        config['final_time'],
+        config['chemistry_timestep'],
     )
-    et.save_plot(mesh, fluid, par, config, figure_filename)
+
+    output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
+    rio.writehdf5(sim, output_filename)
+
+    out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
+    figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D.jpg'
+    front_figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D_IFront.jpg'
+    budget_figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
+
+    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
     et.save_front_history_plot(front_history, config, front_figure_filename)
     photon_budget = et.save_photon_budget_plot(
         front_history,
         budget_figure_filename,
     )
-    print('time = %s' % fluid.time)
+
+    print('time = %s' % out_fluid.time)
     print(
         'recombination time = %s'
-        % sa.recombination_time(hydrogen_number_density, alpha_B_coefficient)
+        % sa.recombination_time(
+            config['hydrogen_number_density'],
+            config['alpha_B_coefficient'],
+        )
     )
     print(
         'stromgren radius = %s'
         % sa.stromgren_radius(
-            source_photon_rate,
-            hydrogen_number_density,
-            alpha_B_coefficient,
+            config['source_photon_rate'],
+            config['hydrogen_number_density'],
+            config['alpha_B_coefficient'],
         ).to(unyt.kpc)
     )
     print(
         'analytic front radius = %s'
         % sa.ionization_front_radius(
-            final_time,
-            source_photon_rate,
-            hydrogen_number_density,
-            alpha_B_coefficient,
+            config['final_time'],
+            config['source_photon_rate'],
+            config['hydrogen_number_density'],
+            config['alpha_B_coefficient'],
         ).to(unyt.kpc)
     )
     print(
@@ -126,10 +127,25 @@ def main():
             front_history['radiative_transfer_updates'],
         )
     )
+    print('IC file = %s' % runparams['ICfilename'])
+    print('output file = %s' % output_filename)
     print('figure = %s' % figure_filename)
     print('front figure = %s' % front_figure_filename)
     print('photon budget figure = %s' % budget_figure_filename)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Run the static Stromgren sphere example.',
+    )
+    parser.add_argument(
+        '--config',
+        default=DEFAULT_CONFIG,
+        help='YAML file containing runparams and ICparams.',
+    )
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    main(args.config)
