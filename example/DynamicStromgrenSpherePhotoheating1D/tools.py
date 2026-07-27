@@ -1,6 +1,8 @@
 """Utilities for the dynamic photoheated Stromgren sphere example."""
 
+import glob
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import matplotlib
@@ -11,8 +13,37 @@ import unyt
 
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
+import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
+
+
+def load_parameters(config_filename, rundir=None):
+    from radhydropy.example_config import load_example_parameters
+
+    config_filename = Path(config_filename)
+    runparams, icparams = load_example_parameters(config_filename, rundir)
+    aliases = {
+        'alpha_B_coefficient': 'hydrogen_alpha_B',
+        'sigma_gamma': 'hydrogen_sigma_gamma',
+        'epsilon_gamma': 'hydrogen_epsilon_gamma',
+        'source_photon_rate': 'radiative_transfer_source_photon_rate',
+    }
+    for alias, source in aliases.items():
+        if alias not in runparams and source in runparams:
+            runparams[alias] = runparams[source]
+    config_dir = config_filename.resolve().parent
+    for key in (
+        'density_reference_filename',
+        'velocity_reference_filename',
+        'pressure_reference_filename',
+        'neutral_fraction_reference_filename',
+    ):
+        if key in icparams:
+            value = Path(icparams[key])
+            if not value.is_absolute():
+                icparams[key] = str(config_dir / value)
+    return runparams, icparams
 
 
 def build_problem(config):
@@ -21,6 +52,7 @@ def build_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
+        boxsize=config['boxsize'],
         area=1.0 * unyt.cm**2,
         EOStype='polytropic',
         gamma=5.0 / 3.0,
@@ -59,7 +91,6 @@ def build_problem(config):
         config['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
-    mesh.SetUpMesh(par)
 
     fluid = Fluid()
     fluid.eos = EOS(par.EOStype, par.gamma)
@@ -72,14 +103,25 @@ def build_problem(config):
     fluid.temp = np.ones(par.nogrid) * config['initial_temperature']
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.SetUpFluid(par)
     fluid.SetFluidTime(0.0 * unyt.Myr)
 
     solver = Solver()
-    solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid)
-    solver.ApplyRadiativeTransfer(mesh, fluid, par)
     return par, mesh, fluid, solver
+
+
+def load_output_state(outputfilename, config):
+    par, mesh, fluid, _ = build_problem(config)
+    rio.readhdf5(par, mesh, fluid, outputfilename)
+    if getattr(par, 'noghost', 0) > 0:
+        mesh.boundary = mesh.boundary[par.noghost : -par.noghost]
+    mesh.SetUpMesh(par)
+    fluid.SetPressure()
+    return par, mesh, fluid
+
+
+def output_files(outdir, outfileprefix):
+    pattern = os.path.join(outdir, f'{outfileprefix}_*.hdf5')
+    return sorted(glob.glob(pattern))
 
 
 def interior_slice(par):
@@ -124,6 +166,18 @@ def append_history(history, mesh, fluid, par):
     history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
     history['front_radius_kpc'].append(ionization_front_position(mesh, fluid, par))
     history['mean_ionized_temperature_K'].append(mean_ionized_temperature(fluid, par))
+
+
+def load_history_from_outputs(outputfilenames, config):
+    history = {
+        'time_Myr': [],
+        'front_radius_kpc': [],
+        'mean_ionized_temperature_K': [],
+    }
+    for outputfilename in outputfilenames:
+        par, mesh, fluid = load_output_state(outputfilename, config)
+        append_history(history, mesh, fluid, par)
+    return history
 
 
 def stromgren_radius(config):
@@ -208,11 +262,13 @@ def save_front_plot(history, config, figure_filename):
     tau_recombination = recombination_time(config)
     ci = ionized_sound_speed_from_history(history, 5.0 / 3.0)
     spitzer_valid = time >= tau_recombination
-    radius_spitzer = shifted_spitzer_radius(
-        time[spitzer_valid],
-        config,
-        ci,
-    ).to_value(unyt.kpc)
+    radius_spitzer = None
+    if np.any(spitzer_valid):
+        radius_spitzer = shifted_spitzer_radius(
+            time[spitzer_valid],
+            config,
+            ci,
+        ).to_value(unyt.kpc)
     plot_radius_max = config['plot_radius_max'].to_value(unyt.kpc)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
@@ -223,18 +279,19 @@ def save_front_plot(history, config, figure_filename):
         lw=2.0,
         label=r'RadHydropy $x_{\rm HI}=0.5$',
     )
-    ax.plot(
-        time[spitzer_valid].to_value(unyt.Myr),
-        radius_spitzer,
-        color='black',
-        lw=1.7,
-        ls='--',
-        label=(
-            r'Spitzer after $\tau_{\rm rec}$, '
-            r'$c_i=%.1f$ km s$^{-1}$'
-            % ci.to_value(unyt.km / unyt.s)
-        ),
-    )
+    if radius_spitzer is not None:
+        ax.plot(
+            time[spitzer_valid].to_value(unyt.Myr),
+            radius_spitzer,
+            color='black',
+            lw=1.7,
+            ls='--',
+            label=(
+                r'Spitzer after $\tau_{\rm rec}$, '
+                r'$c_i=%.1f$ km s$^{-1}$'
+                % ci.to_value(unyt.km / unyt.s)
+            ),
+        )
     ax.axvline(
         tau_recombination.to_value(unyt.Myr),
         color='0.45',
@@ -250,7 +307,10 @@ def save_front_plot(history, config, figure_filename):
         label=r'$R_{\rm S}$',
     )
     ax.set_xlim(0.0, time[-1].to_value(unyt.Myr))
-    ax.set_ylim(0.0, max(plot_radius_max, 1.05 * np.nanmax(radius_spitzer)))
+    if radius_spitzer is not None:
+        ax.set_ylim(0.0, max(plot_radius_max, 1.05 * np.nanmax(radius_spitzer)))
+    else:
+        ax.set_ylim(0.0, plot_radius_max)
     ax.set_xlabel('Time [Myr]')
     ax.set_ylabel('Ionization-front radius [kpc]')
     ax.grid(True, alpha=0.25)

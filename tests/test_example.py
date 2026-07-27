@@ -121,6 +121,34 @@ class Testing(unittest.TestCase):
             )
         )
 
+    def test_dynamic_stromgren_sphere_photoheating1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'DynamicStromgrenSpherePhotoheating1D'
+            / 'dynamic_stromgren_sphere_photoheating1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertTrue(Path(runparams['outputtimefilename']).exists())
+        self.assertEqual(icparams['number_of_cells'], 1024)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(
+            runparams['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            5.0e48,
+        )
+        self.assertTrue(
+            icparams['density_reference_filename'].endswith(
+                'Stromgren3D_rhd_n_r_zeusmp_t200.csv'
+            )
+        )
+        self.assertEqual(
+            runparams['hydrogen_source_dtmin'].to_value(unyt.Myr),
+            1.0e-3,
+        )
+
     def test_early_hii_region_expansion1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
