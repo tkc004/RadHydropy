@@ -1,7 +1,16 @@
+import argparse
+import os
+import sys
+from pathlib import Path
+import tempfile
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import unyt
-import os
-import tempfile
 
 os.environ.setdefault(
     'MPLCONFIGDIR',
@@ -13,55 +22,26 @@ import matplotlib.pyplot as plt
 import radhydropy.io as rio
 import tools as et
 
-
 et.set_plot_style()
 
-#to get the current working directory
-rundir = os.getcwd()
-print('rundir',rundir)
+DEFAULT_CONFIG = Path(__file__).resolve().with_name('SedovTaylor1D.yaml')
 
 
-runparams = {
-    'simname':'SedovTaylorSph1d',
-    'ICfilename':rundir+'/InitialCondition.hdf5',
-    'outdir':rundir,
-    'outfileprefix':'Output', 
-    'outdeltatime':1.0*unyt.s *0.1,
-    'savedir':rundir,
-    'coordsys':'cartesian', #
-    'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
-    'gamma':1.4, # for polytropic, the polytropic index
-    'timesim':1.01*unyt.s, # final simulation time
-    'area': 1.0 * unyt.cm**2, 
-    'CFL':0.1, # CFL condition for time-step
-    'boundcond':'Periodic',
-    'noghost': 10, #number of ghost cells in front (equal number of ghost cell after)
-    'verbose':0, # speak out details?
-    'order': 0,
-    'dtmin': 2.0e-8*unyt.s,
-    'dtmax': 2.0e-1*unyt.s,   
-}
+def main(config_filename=DEFAULT_CONFIG):
+    rundir = Path.cwd().resolve()
+    print('rundir', rundir)
+    runparams, ICparams = load_example_parameters(config_filename, rundir)
 
-ICparams = {
-    'nogrid':1001, # number of grid points
-    'coordsys':'cartesian', #
-    'boxsize':2.0*unyt.cm, # the simulation box size
-    'time':0.0*unyt.s, # initial time
-    'rhoini': 1.0 * unyt.g/unyt.cm**3,
-    'Eini': 1.0 * unyt.erg, # the total energy in central region
-    'rini': 0.2 * unyt.cm, # radius of central region
-    'muini': 1.0,
-}
-
-
-def main():
     ric = et.Simwrap(ICparams, runparams)
-    rio.writehdf5(ric,runparams['ICfilename'])
+    rio.writehdf5(ric, runparams['ICfilename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
-    for outindex in range(1,5,1):
-        outfilename = runparams['outdir']+'/'+runparams['outfileprefix']+'_%03d'%outindex+'.hdf5'
+    for outindex in range(1, 5, 1):
+        outfilename = os.path.join(
+            runparams['outdir'],
+            runparams['outfileprefix'] + '_%03d' % outindex + '.hdf5',
+        )
         et.ReadandPlot(
             outfilename,
             ICparams,
@@ -73,11 +53,19 @@ def main():
             color=next(ax._get_lines.prop_cycler)['color'],
         )
         #plt.ylim(ymax=2.0)
-    figure_filename = rundir + '/SedovTaylor1D.jpg'
+    figure_filename = os.path.join(runparams['savedir'], 'SedovTaylor1D.jpg')
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
     print('figure = %s' % figure_filename)
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Run the 1D Sedov-Taylor example.')
+    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with runparams and ICparams.')
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args.config)

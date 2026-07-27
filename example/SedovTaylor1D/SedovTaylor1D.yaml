@@ -1,0 +1,49 @@
+runparams:
+  simname: SedovTaylorSph1d
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outdeltatime:
+    value: 0.1
+    unit: s
+  savedir: .
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.4
+  timesim:
+    value: 1.01
+    unit: s
+  area:
+    value: 1.0
+    unit: cm**2
+  CFL: 0.1
+  boundcond: Periodic
+  noghost: 10
+  verbose: 0
+  order: 0
+  dtmin:
+    value: 2.0e-8
+    unit: s
+  dtmax:
+    value: 2.0e-1
+    unit: s
+
+ICparams:
+  nogrid: 1001
+  coordsys: cartesian
+  boxsize:
+    value: 2.0
+    unit: cm
+  time:
+    value: 0.0
+    unit: s
+  rhoini:
+    value: 1.0
+    unit: g/cm**3
+  Eini:
+    value: 1.0
+    unit: erg
+  rini:
+    value: 0.2
+    unit: cm
+  muini: 1.0

@@ -1,0 +1,47 @@
+runparams:
+  simname: SodShock1d
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  savedir: .
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.4
+  timesim:
+    value: 1.0
+    unit: s
+  outdeltatime:
+    value: 0.1
+    unit: s
+  CFL: 0.1
+  boundcond: Periodic
+  verbose: 0
+  order: 1
+  dtmin:
+    value: 2.0e-8
+    unit: s
+  dtmax:
+    value: 2.0e-1
+    unit: s
+
+ICparams:
+  nogrid: 1000
+  coordsys: cartesian
+  boxsize:
+    value: 4.0
+    unit: cm
+  time:
+    value: 0.0
+    unit: s
+  rhoini:
+    value: 1.0
+    unit: g/cm**3
+  vini:
+    value: 0.0
+    unit: km/s
+  tempini:
+    value: 1.5506894880146205e-08
+    unit: K
+  muini: 1.0
+  rhoratio: 0.1
+  tempratio: 0.8

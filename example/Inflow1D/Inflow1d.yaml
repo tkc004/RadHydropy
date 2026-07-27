@@ -1,0 +1,50 @@
+runparams:
+  simname: Inflow1d
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outdeltatime:
+    value: 0.1
+    unit: s
+  savedir: .
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.4
+  timesim:
+    value: 2.0
+    unit: s
+  CFL: 0.1
+  boundcond: InflowSph
+  vel_inflow:
+    value: -1.0
+    unit: cm/s
+  rho_inflow:
+    value: 1.0
+    unit: g/cm**3
+  temp_inflow:
+    value: 0.0
+    unit: K
+  mu_inflow: 1.0
+  verbose: 0
+  order: 0
+  noghost: 5
+
+ICparams:
+  nogrid: 100
+  coordsys: cartesian
+  boxsize:
+    value: 2.0
+    unit: cm
+  time:
+    value: 0.0
+    unit: s
+  tempini:
+    value: 0.0
+    unit: K
+  muini: 1.0
+  vini:
+    value: 0.0
+    unit: cm/s
+  rhoini:
+    value: 0.001
+    unit: g/cm**3

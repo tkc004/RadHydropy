@@ -1,0 +1,39 @@
+runparams:
+  simname: advection1d
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outdeltatime:
+    value: 0.1
+    unit: s
+  savedir: .
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.4
+  timesim:
+    value: 1.0
+    unit: s
+  CFL: 0.1
+  boundcond: OpenSph
+  verbose: 0
+  order: 0
+
+ICparams:
+  nogrid: 1000
+  coordsys: spherical
+  boxsize:
+    value: 4.0
+    unit: cm
+  time:
+    value: 0.0
+    unit: s
+  tempini:
+    value: 0.0
+    unit: K
+  muini: 1.0
+  vini:
+    value: 1.0
+    unit: cm/s
+  rhoini:
+    value: 1.0
+    unit: g/cm**3
