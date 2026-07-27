@@ -83,22 +83,41 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
+    nghost = int(runparams.get('noghost', 0))
+    xall = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    if nghost > 0:
+        xcoord = xall[nghost:-nghost]
+        rho_num = rout.fluid.rho[nghost:-nghost]
+        vel_num = rout.fluid.vel[nghost:-nghost]
+    else:
+        xcoord = xall
+        rho_num = rout.fluid.rho
+        vel_num = rout.fluid.vel
     rho_analytic = hydrostatic_density_profile(
-        rout.mesh.coordinate,
+        xcoord,
         icparams['rho_ref'],
         icparams['tempini'],
         icparams['muini'],
         icparams['gravity_strength'],
     )
-    zero_velocity = np.zeros(len(rout.mesh.coordinate)) * unyt.cm / unyt.s
+    zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
 
     plt.subplot(1, 2, 1)
-    rplot1d(rout, yquan='rho', showfig=0, showhalf=0, **kwargs)
-    plt.plot(rout.mesh.coordinate, rho_analytic, ls='dashed', color=color)
+    plt.plot(xcoord.in_cgs(), rho_num.in_cgs(), **kwargs)
+    plt.plot(
+        xcoord.in_cgs(),
+        rho_analytic.in_cgs(),
+        ls='dashed',
+        color=color,
+    )
     plt.ylabel(r"$\rho$")
 
     plt.subplot(1, 2, 2)
-    rplot1d(rout, yquan='vel', showfig=0, showhalf=0, **kwargs)
-    plt.plot(rout.mesh.coordinate, zero_velocity, ls='dashed', color=color)
+    plt.plot(xcoord.in_cgs(), vel_num.in_cgs(), **kwargs)
+    plt.plot(
+        xcoord.in_cgs(),
+        zero_velocity.in_cgs(),
+        ls='dashed',
+        color=color,
+    )
     plt.ylabel(r"$v$")
-
