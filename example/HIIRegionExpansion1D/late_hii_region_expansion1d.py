@@ -61,7 +61,6 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Run(
         outputtime=0,
         mode='hydro_sources',
-        fast_thermochemistry=True,
         step_backend=step_backend,
     )
     outputfilenames = et.output_files(runparams['outdir'], runparams['outfileprefix'])

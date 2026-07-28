@@ -143,11 +143,10 @@ def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
 
 
 def make_piecewise_isothermal_step_backend(sim, config):
-    def step_backend(dt=None, mode='hydro_sources', fast_thermochemistry=False, advect_chemistry=True):
+    def step_backend(dt=None, mode='hydro_sources', advect_chemistry=True):
         result = sim.Step(
             dt=dt,
             mode=mode,
-            fast_thermochemistry=fast_thermochemistry,
             advect_chemistry=advect_chemistry,
         )
         apply_piecewise_isothermal_state(

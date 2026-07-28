@@ -15,6 +15,7 @@ import numpy as np
 import yaml
 import time
 start_time = time.time()
+_CM3_PER_S = unyt.cm**3 / unyt.s
 
 class Rsim():
     """Coordinate parameters, mesh, fluid state, solver, and output."""
@@ -199,18 +200,14 @@ class Rsim():
             self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
         self._sync_hydro_state(fluid=fluid)
 
-    def ApplyThermochemistrySources(self, dt, fast_thermochemistry=False):
+    def ApplyThermochemistrySources(self, dt):
         """Apply radiative-transfer and thermo-chemistry source updates."""
-        if fast_thermochemistry:
-            return self.solver.ApplyThermochemistryFast(
-                dt,
-                self.mesh,
-                self.fluid,
-                self.par,
-            )
-        self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
-        self.solver.ApplyThermochemistry(dt, self.mesh, self.fluid, self.par)
-        return 1
+        return self.solver.ApplyThermochemistryFast(
+            dt,
+            self.mesh,
+            self.fluid,
+            self.par,
+        )
 
     def _clone_fluid(self, fluid=None):
         """Return a deep copy of the supplied fluid state."""
@@ -275,7 +272,6 @@ class Rsim():
         self,
         dt=None,
         mode="hydro_sources",
-        fast_thermochemistry=False,
         advect_chemistry=True,
         hydro_integrator="euler",
     ):
@@ -319,7 +315,6 @@ class Rsim():
         if mode in ("hydro_sources", "sources"):
             result["source_steps"] = self.ApplyThermochemistrySources(
                 dt,
-                fast_thermochemistry=fast_thermochemistry,
             )
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
@@ -334,7 +329,6 @@ class Rsim():
         self,
         final_time=None,
         mode="hydro_sources",
-        fast_thermochemistry=False,
         advect_chemistry=True,
         history_callback=None,
         output_callback=None,
@@ -359,7 +353,6 @@ class Rsim():
             step = step_backend(
                 dt=dt,
                 mode=mode,
-                fast_thermochemistry=fast_thermochemistry,
                 advect_chemistry=advect_chemistry,
                 **step_backend_kwargs,
             )
@@ -401,20 +394,22 @@ class Rsim():
             state['radius_kpc'][right] - state['radius_kpc'][left]
         )
 
-    def _append_static_history(self, history, state, ngamma, time_s, recombined_photons):
+    def _append_static_history(
+        self,
+        history,
+        state,
+        ngamma,
+        time_s,
+        recombined_photons,
+        source_rate_s,
+        seconds_to_myr,
+    ):
         ionized = 1.0 - state['xHI']
         ionized_atoms = np.sum(ionized * state['nH_cm3'] * state['volume_cm3'])
         volume_photons = np.sum(ngamma * state['volume_cm3'])
-        history['time_Myr'].append((time_s * unyt.s).to_value(unyt.Myr))
+        history['time_Myr'].append(time_s * seconds_to_myr)
         history['front_radius_kpc'].append(self._static_front_radius_from_state(state))
-        history['injected_photons'].append(
-            getattr(
-                self.par,
-                'radiative_transfer_source_photon_rate',
-                0.0 / unyt.s,
-            ).to_value(1.0 / unyt.s)
-            * time_s
-        )
+        history['injected_photons'].append(source_rate_s * time_s)
         history['ionized_atoms'].append(ionized_atoms)
         history['recombined_photons'].append(recombined_photons)
         history['volume_photons'].append(volume_photons)
@@ -473,9 +468,13 @@ class Rsim():
         alpha = getattr(self.par, 'hydrogen_alpha_B', None)
         if alpha is None:
             return 0.0
+        if hasattr(alpha, 'to_value'):
+            alpha_value = alpha.to_value(_CM3_PER_S)
+        else:
+            alpha_value = float(alpha)
         ionized = 1.0 - state['xHI']
         return np.sum(
-            alpha.to_value(unyt.cm**3 / unyt.s)
+            alpha_value
             * ionized**2
             * state['nH_cm3']**2
             * state['volume_cm3']
@@ -497,7 +496,7 @@ class Rsim():
         )
         self.solver.UpdateStaticTemperatureFromEnergy(state, self.par)
 
-    def _advance_static_thermochemistry_state(self, state, ngamma, dt_s, thermal_rate):
+    def _advance_source_thermochemistry_state(self, state, ngamma, dt_s, thermal_rate):
         recombination_rate_start = self._static_recombination_rate(state)
         self._apply_static_thermal_update(state, ngamma, thermal_rate, dt_s)
         self.solver.StaticIonizationFractionImplicitUpdate(
@@ -546,6 +545,16 @@ class Rsim():
         final_time_s = final_time.to_value(unyt.s)
         dtmax_s = source_timestep.to_value(unyt.s)
         reference_time_s = self._static_reference_time_seconds(reference_time)
+        source_rate = getattr(
+            self.par,
+            'radiative_transfer_source_photon_rate',
+            0.0 / unyt.s,
+        )
+        if hasattr(source_rate, 'to_value'):
+            source_rate_s = source_rate.to_value(1.0 / unyt.s)
+        else:
+            source_rate_s = float(source_rate)
+        seconds_to_myr = (1.0 * unyt.s).to_value(unyt.Myr)
         rt_update_interval = max(
             1,
             int(getattr(self.par, 'radiative_transfer_update_interval', 1)),
@@ -553,7 +562,15 @@ class Rsim():
         history = self._initial_static_history(
             include_thermal_history=include_thermal_history
         )
-        self._append_static_history(history, state, ngamma, time_s, recombined_photons)
+        self._append_static_history(
+            history,
+            state,
+            ngamma,
+            time_s,
+            recombined_photons,
+            source_rate_s,
+            seconds_to_myr,
+        )
         step = 0
         rt_updates = 1
         while time_s < final_time_s:
@@ -571,7 +588,7 @@ class Rsim():
                 remaining_s,
                 dtmax_step_s,
             )
-            recombined_photons += self._advance_static_thermochemistry_state(
+            recombined_photons += self._advance_source_thermochemistry_state(
                 state,
                 ngamma,
                 dt_s,
@@ -601,6 +618,8 @@ class Rsim():
                 ngamma,
                 time_s,
                 recombined_photons,
+                source_rate_s,
+                seconds_to_myr,
             )
 
         self._finish_static_thermochemistry(state, time_s)
@@ -658,7 +677,6 @@ class Rsim():
         self,
         outputtime=0,
         mode="hydro_sources",
-        fast_thermochemistry=False,
         advect_chemistry=True,
         stop_condition=None,
         step_backend=None,
@@ -705,7 +723,6 @@ class Rsim():
                 step_backend(
                     dt=dt,
                     mode=mode,
-                    fast_thermochemistry=fast_thermochemistry,
                     advect_chemistry=advect_chemistry,
                     **step_backend_kwargs,
                 )
@@ -726,7 +743,6 @@ class Rsim():
             step_backend(
                 dt=dt,
                 mode=mode,
-                fast_thermochemistry=fast_thermochemistry,
                 advect_chemistry=advect_chemistry,
                 **step_backend_kwargs,
             )
@@ -781,7 +797,6 @@ class Rsim():
         self,
         outputtime=0,
         mode="hydro_sources",
-        fast_thermochemistry=False,
         advect_chemistry=True,
         stop_condition=None,
         step_backend=None,
@@ -793,7 +808,6 @@ class Rsim():
             self._run_with_output_times(
                 outputtime=outputtime,
                 mode=mode,
-                fast_thermochemistry=fast_thermochemistry,
                 advect_chemistry=advect_chemistry,
                 stop_condition=stop_condition,
                 step_backend=step_backend,
@@ -813,7 +827,6 @@ class Rsim():
         self.Evolve(
             final_time=self.par.timesim,
             mode=mode,
-            fast_thermochemistry=fast_thermochemistry,
             advect_chemistry=advect_chemistry,
             output_callback=self._hdf5_output_callback(
                 outputtime=outputtime,
@@ -833,7 +846,6 @@ class Rsim():
         self,
         outputtime=0,
         mode="hydro_sources",
-        fast_thermochemistry=False,
         advect_chemistry=True,
         stop_condition=None,
         step_backend=None,
@@ -847,7 +859,6 @@ class Rsim():
         self.Run(
             outputtime=outputtime,
             mode=mode,
-            fast_thermochemistry=fast_thermochemistry,
             advect_chemistry=advect_chemistry,
             stop_condition=stop_condition,
             step_backend=step_backend,

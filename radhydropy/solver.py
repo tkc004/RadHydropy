@@ -352,64 +352,54 @@ class Solver():
         """Update ``ngamma`` with a lightweight spherical long-characteristic trace."""
         return rtc.trace_spherical_photon_density_fast(mesh, fluid, par)
 
-    def StaticThermochemistryState(self, mesh, fluid, par):
-        """Return a float state for fixed-density static thermo-chemistry tests."""
-        return rtc.static_thermochemistry_state(mesh, fluid, par)
+    def SourceState(self, mesh, fluid, par):
+        """Return a float source state for thermo-chemistry tests."""
+        return rtc.source_state(mesh, fluid, par)
 
-    def TraceStaticSphericalPhotonDensity(self, state, par):
-        """Trace a central source through a static spherical float state."""
-        return rtc.trace_static_spherical_photon_density(state, par)
+    def TraceSphericalPhotonDensity(self, state, par):
+        """Trace a central source through a float source state."""
+        return rtc.trace_spherical_photon_density(state, par)
 
-    def StaticIonizationFractionRate(self, state, ngamma, par):
-        """Return the chemistry fraction rate for a static float state."""
-        return rtc.static_ionization_fraction_rate(state, ngamma, par)
+    def IonizationFractionRate(self, state, ngamma, par):
+        """Return the chemistry fraction rate for a float source state."""
+        return rtc.ionization_fraction_rate(state, ngamma, par)
 
-    def StaticThermalRate(self, state, ngamma, par):
-        """Return thermal source rate for a static float state."""
-        return rtc.static_thermal_rate(state, ngamma, par)
+    def ThermalRate(self, state, ngamma, par):
+        """Return thermal source rate for a float source state."""
+        return rtc.thermal_rate(state, ngamma, par)
 
-    def GetStaticThermochemistryTimeStep(self, state, ngamma, par, remaining_s, dtmax_s):
-        """Return a source substep for a static thermo-chemistry state."""
-        return rtc.get_static_thermochemistry_timestep(
+    def GetTimestep(self, state, ngamma, par, remaining_s, dtmax_s):
+        """Return a source substep for a float source state."""
+        return rtc.get_timestep(
             state,
             ngamma,
-            par,
             remaining_s,
             dtmax_s,
         )
 
-    def UpdateStaticTemperatureFromEnergy(self, state, par=None):
-        """Update temperature in a static float state from specific energy."""
-        return rtc.update_static_temperature_from_energy(state, par)
+    def UpdateTemperatureFromEnergy(self, state):
+        """Update temperature in a float source state from specific energy."""
+        return rtc.update_temperature_from_energy(state)
 
-    def StaticIonizationFractionImplicitUpdate(self, state, ngamma, dt_s, par):
-        """Implicitly update the chemistry fraction for a static float state."""
-        return rtc.static_ionization_fraction_implicit_update(
+    def IonizationFractionImplicitUpdate(self, state, ngamma, dt_s, par):
+        """Implicitly update the chemistry fraction for a float source state."""
+        return rtc.ionization_fraction_implicit_update(
             state,
             ngamma,
             dt_s,
-            par,
         )
 
-    def ApplyStaticThermochemistryState(self, state, fluid, par):
-        """Copy a static float state back to a fluid object."""
-        return rtc.apply_static_thermochemistry_state(state, fluid, par)
+    def ApplyState(self, state, fluid, par):
+        """Copy a float source state back to a fluid object."""
+        return rtc.apply_state(state, fluid, par)
 
-    def GetThermochemistrySourceTimeStepFast(self, mesh, fluid, par, remaining):
+    def GetSourceTimestepFast(self, mesh, fluid, par, remaining):
         """Return a source substep for RT-coupled heating/chemistry."""
         return rtc.get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining)
 
     def ApplyThermochemistryFast(self, dt, mesh, fluid, par):
         """Fast source update for RT-coupled thermo-chemistry tests."""
         return rtc.apply_thermochemistry_fast(dt, mesh, fluid, par)
-
-    def GetThermochemistryTimeStep(self, mesh, fluid, par):
-        """Return a thermo-chemistry source subcycle timestep."""
-        return rtc.get_thermochemistry_timestep(mesh, fluid, par)
-
-    def ApplyThermochemistry(self, dt, mesh, fluid, par):
-        """Subcycle cooling explicitly and chemistry implicitly."""
-        return rtc.apply_thermochemistry(dt, mesh, fluid, par)
 
 
     def SetBoundary(self, mesh, fluid, par):
