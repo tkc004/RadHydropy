@@ -18,17 +18,17 @@ Available Examples
    * - ``example/AdvectionSph1D``
      - Spherical one-dimensional advection.
    * - ``example/HIIRegionExpansion1D``
-     - Spherical H II region expansion with hydrodynamics and a
-       simplified piecewise-isothermal neutral/ionized equation of state.
+     - Spherical H II region expansion with hydrodynamics and a simplified
+       piecewise-isothermal neutral/ionized equation of state.
    * - ``example/HydrostaticEquilibrium1D``
-     - Cartesian isothermal atmosphere in a constant gravitational field used
-       as a hydrostatic-equilibrium check.
+     - Cartesian isothermal atmosphere in a constant gravitational field used as
+       a hydrostatic-equilibrium check.
    * - ``example/HydrostaticEquilibriumSphericalPointMass1D``
      - Spherical isothermal hydrostatic equilibrium in a point-mass potential
        without including the origin.
    * - ``example/BallisticInfallSphericalPointMass1D``
-     - Spherical ballistic infall in a point-mass potential without including
-       the origin.
+     - Spherical ballistic infall in a point-mass potential without including the
+       origin.
    * - ``example/Inflow1D``
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``
@@ -46,10 +46,10 @@ Available Examples
        energy-driven shell reference.
    * - ``example/RadiativeTransferSph1D``
      - Spherical central-source long-characteristic radiative transfer without
-     hydrodynamic or thermo-chemical evolution.
+       hydrodynamic or thermo-chemical evolution.
    * - ``example/StaticStromgrenSphere1D``
-     - Static spherical Stromgren benchmark with constant density,
-       temperature, radiative transfer, and implicit hydrogen chemistry.
+     - Static spherical Stromgren benchmark with constant density, temperature,
+       radiative transfer, and implicit hydrogen chemistry.
    * - ``example/SedovTaylor1D``
      - Cartesian Sedov-Taylor blast-wave setup with analytic helper.
    * - ``example/SedovTaylorSph1d``
