@@ -25,10 +25,16 @@ Fluid
 .. automodule:: radhydropy.fluid
    :members:
 
-Hydrogen
---------
+Chemistry
+---------
 
-.. automodule:: radhydropy.hydrogen
+.. automodule:: radhydropy.chemistry
+   :members:
+
+Species Helpers
+---------------
+
+.. automodule:: radhydropy.chemistry_species.hydrogen
    :members:
 
 Radiative Transfer

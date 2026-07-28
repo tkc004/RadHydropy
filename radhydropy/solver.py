@@ -1,7 +1,7 @@
 """Finite-volume hydrodynamics solver operations."""
 
 import radhydropy.utils as ru
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg

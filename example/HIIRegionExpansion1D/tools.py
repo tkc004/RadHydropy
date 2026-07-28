@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.io as rio
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid

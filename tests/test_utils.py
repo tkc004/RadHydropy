@@ -1,6 +1,6 @@
 import unittest
 import radhydropy.utils as ru
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 import unyt
 import numpy as np
 

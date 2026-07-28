@@ -13,8 +13,9 @@ The code currently provides:
 - a finite-volume hydrodynamics solver with GLF/Rusanov interface fluxes;
 - boundary-condition handling for periodic, open, reflecting, spherical open,
   inflow, and outflow modes;
-- an optional hydrogen thermo-chemistry network with implicit neutral-fraction
-  evolution and source-term subcycling;
+- an optional chemistry composition selector with hydrogen microphysics now
+  organized under `radhydropy/chemistry_species/`, alongside implicit
+  neutral-fraction evolution and source-term subcycling;
 - optional one-dimensional long-characteristic radiative transfer coupled to
   photon number density;
 - HDF5 input/output helpers; and
@@ -151,20 +152,26 @@ radiative-transfer source terms without a hydrodynamic update.
 
 ```text
 radhydropy/
-  analysis.py   plotting helpers
-  eos.py        equation-of-state setup
-  fluid.py      primitive fluid state helpers
-  io.py         HDF5 read/write helpers
-  mesh.py       mesh and geometry setup
-  params.py     default runtime parameters
-  radiative_transfer.py optional long-characteristic photon transport
-  rsim.py       high-level simulation runner
-  solver.py     finite-volume update operations
-  utils.py      numerical and thermodynamic utilities
+  analysis.py            plotting helpers
+  eos.py                 equation-of-state helpers
+  example_config.py      example YAML parameter loaders
+  fluid.py               primitive and conserved fluid state helpers
+  gravity.py             gravity helpers and potentials
+  chemistry.py           composition selector for chemistry modules
+  chemistry_species/      species microphysics helpers
+  io.py                  HDF5 read/write helpers
+  mesh.py                mesh and geometry setup
+  params.py              default runtime parameters
+  radiative_transfer.py  one-dimensional radiative-transfer routines
+  rsim.py                high-level simulation runner
+  solver.py              finite-volume update operations
+  thermo_chemistry.py    thermo-chemistry source terms
+  thermo_networks/       thermo-network implementations
+  utils.py               numerical and thermodynamic utilities
 
-example/        runnable example problems
-tests/          unit tests
-docs/           Sphinx documentation
+example/                 runnable example problems
+tests/                   unit tests
+docs/                    Sphinx documentation
 ```
 
 ## Documentation
@@ -183,12 +190,5 @@ and API reference, plus standalone pages for the main simulation subsystems:
 - [Examples](docs/examples.rst)
 - [API reference](docs/api/index.rst)
 
-Build the Sphinx documentation from the project root:
-
-```bash
-python -m pip install -e ".[docs]"
-sphinx-build -b html docs docs/_build/html
-```
-
-Open `docs/_build/html/index.html` after the build finishes. You can also run
-`make html` from inside the `docs/` directory.
+For HTML documentation builds, see the
+[installation guide](docs/installation.rst).

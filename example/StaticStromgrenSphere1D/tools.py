@@ -9,8 +9,9 @@ import numpy as np
 import unyt
 
 from radhydropy.fluid import Fluid
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.io as rio
+from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
 import stromgren_analytic as sa
@@ -70,6 +71,7 @@ def build_static_problem(config):
         * config['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
+    fluid.eos = EOS('polytropic', 5.0 / 3.0)
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * 1.0e4 * unyt.K
     fluid.mu = np.ones(par.nogrid)

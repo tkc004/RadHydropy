@@ -8,7 +8,7 @@ dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 import numpy as np
 import unyt
 
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.utils as ru
 from radhydropy.thermo_networks.base import ThermochemistryNetwork

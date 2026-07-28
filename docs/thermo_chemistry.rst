@@ -1,18 +1,20 @@
 Thermo-Chemistry Solver
 =======================
 
-RadHydropy includes an optional hydrogen thermo-chemistry network for neutral
-fraction and thermal source terms. It is controlled by the run parameters and
-is usually coupled to the hydrodynamics and radiative-transfer updates through
-:class:`radhydropy.rsim.Rsim`.
+RadHydropy includes an optional thermo-chemistry subsystem for neutral-fraction
+and thermal source terms. The species-level microphysics lives under
+``radhydropy.chemistry_species`` and the composition presets are selected
+through :mod:`radhydropy.chemistry`. The active source-term network is
+controlled by the run parameters and is usually coupled to the hydrodynamics
+and radiative-transfer updates through :class:`radhydropy.rsim.Rsim`.
 
 Activation and Coupling
 -----------------------
 
 The thermo-chemistry network is enabled with ``hydrogen_chemistry=True`` and
-the active network is currently ``hydrogen``. When enabled, the runner can
-evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together with heating
-and cooling source terms.
+the active source-term network is currently ``hydrogen``. When enabled, the
+runner can evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together
+with heating and cooling source terms.
 
 In the standard coupled update, RadHydropy:
 
@@ -30,7 +32,10 @@ Useful Runtime Parameters
 The full parameter table lives in :doc:`parameters`. The thermo-chemistry
 controls most commonly used by the bundled examples are:
 
-* ``thermochemistry_network``: selects the network, currently ``hydrogen``.
+* ``thermochemistry_network``: selects the source-term network, currently
+  ``hydrogen``.
+* ``chemistry_key``: selects the composition preset, such as ``H`` or
+  ``HHe``.
 * ``hydrogen_chemistry``: enables hydrogen thermal and neutral-fraction
   updates.
 * ``hydrogen_mass_fraction``: hydrogen mass fraction used to compute ``nH``.
@@ -68,3 +73,7 @@ The bundled thermo-chemistry examples include:
 
 These examples demonstrate both coupled hydrodynamic runs and static source
 evolution with a fixed density field.
+
+Composition presets such as ``H``, ``HHe``, ``HHeM``, ``HHeMol``, and
+``HHeMMol`` are exposed through :mod:`radhydropy.chemistry` for future multi-
+species extensions.

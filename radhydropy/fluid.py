@@ -2,7 +2,7 @@
 
 import numpy as np
 import unyt
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh

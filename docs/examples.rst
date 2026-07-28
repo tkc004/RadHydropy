@@ -57,17 +57,6 @@ Available Examples
    * - ``example/SodShock1D``
      - Sod shock tube setup with analytic helper.
 
-Detailed Example Pages
-----------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   stellar_wind_bubble1d
-   static_stromgren_sphere1d
-   static_stromgren_sphere_photoheating1d
-   hii_region_expansion1d
-   dynamic_stromgren_sphere_photoheating1d
 
 Running An Example
 ------------------
@@ -82,3 +71,18 @@ helper imports resolve correctly:
 
 Most scripts write ``InitialCondition.hdf5`` and one or more ``Output_*.hdf5``
 files in the example directory.
+
+
+
+Detailed Example Pages
+----------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   stellar_wind_bubble1d
+   static_stromgren_sphere1d
+   static_stromgren_sphere_photoheating1d
+   hii_region_expansion1d
+   dynamic_stromgren_sphere_photoheating1d
+

@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import unyt
 
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 
 
 class Testing(unittest.TestCase):

@@ -3,7 +3,7 @@
 import numpy as np
 import unyt
 
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 
 
 def photon_number_density_from_flux(photon_flux):

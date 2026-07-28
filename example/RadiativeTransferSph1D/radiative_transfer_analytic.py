@@ -3,7 +3,7 @@
 import numpy as np
 import unyt
 
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 
 
 def finite_volume_density(boundary, volume, source_photon_rate):

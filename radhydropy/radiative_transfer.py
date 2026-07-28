@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import numpy as np
 import unyt
 
-import radhydropy.hydrogen as rh
+import radhydropy.chemistry_species.hydrogen as rh
 
 
 PHOTON_FLUX_UNIT = 1.0 / (unyt.cm**2 * unyt.s)

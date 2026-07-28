@@ -6,6 +6,7 @@ API Reference
 
    package
    core
+   chemistry
    example_config
    thermo_chemistry
    thermo_networks

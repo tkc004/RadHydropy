@@ -1,5 +1,5 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
-setup(packages=["radhydropy"])
+setup(packages=find_packages())
