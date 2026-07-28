@@ -87,6 +87,30 @@ class Testing(unittest.TestCase):
             1.0e-7,
         )
 
+    def test_spherical_point_mass_hydrostatic_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrostaticEquilibriumSphericalPointMass1D'
+            / 'hydrostatic_equilibrium_spherical_point_mass1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertEqual(runparams['boundcond'], 'Reflecting')
+        self.assertTrue(
+            runparams['outputtimefilename'].endswith(
+                'hydrostatic_equilibrium_spherical_point_mass1d_output_times.txt'
+            )
+        )
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.0001)
+        self.assertEqual(icparams['nogrid'], 256)
+        self.assertEqual(icparams['coordsys'], 'spherical')
+        self.assertEqual(icparams['rmin'].to_value(unyt.pc), 2.0)
+        self.assertEqual(icparams['rmax'].to_value(unyt.pc), 20.0)
+        self.assertEqual(icparams['point_mass'].to_value(unyt.g), 1.0e38)
+
     def test_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

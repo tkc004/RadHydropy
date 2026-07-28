@@ -23,6 +23,9 @@ Available Examples
    * - ``example/HydrostaticEquilibrium1D``
      - Cartesian isothermal atmosphere in a constant gravitational field used
        as a hydrostatic-equilibrium check.
+   * - ``example/HydrostaticEquilibriumSphericalPointMass1D``
+     - Spherical isothermal hydrostatic equilibrium in a point-mass potential
+       without including the origin.
    * - ``example/Inflow1D``
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``
