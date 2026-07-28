@@ -134,7 +134,7 @@ class Testing(unittest.TestCase):
             simwrap.mesh.boundary[-1] + par.noghost * dx,
             par.noghost,
         )
-        full_boundary = unyt.uconcatenate(
+        full_boundary = np.concatenate(
             (left_boundary, simwrap.mesh.boundary, right_boundary)
         )
         full_coordinate = 0.5 * (full_boundary[:-1] + full_boundary[1:])
@@ -145,35 +145,35 @@ class Testing(unittest.TestCase):
         mu = simwrap.fluid.mu
         pre = simwrap.fluid.pre
 
-        full_rho = unyt.uconcatenate(
+        full_rho = np.concatenate(
             (
                 np.ones(par.noghost) * rho[0],
                 rho,
                 np.ones(par.noghost) * rho[-1],
             )
         )
-        full_vel = unyt.uconcatenate(
+        full_vel = np.concatenate(
             (
                 np.ones(par.noghost) * vel[0],
                 vel,
                 np.ones(par.noghost) * vel[-1],
             )
         )
-        full_temp = unyt.uconcatenate(
+        full_temp = np.concatenate(
             (
                 np.ones(par.noghost) * temp[0],
                 temp,
                 np.ones(par.noghost) * temp[-1],
             )
         )
-        full_mu = unyt.uconcatenate(
+        full_mu = np.concatenate(
             (
                 np.ones(par.noghost) * mu[0],
                 mu,
                 np.ones(par.noghost) * mu[-1],
             )
         )
-        full_pre = unyt.uconcatenate(
+        full_pre = np.concatenate(
             (
                 np.ones(par.noghost) * pre[0],
                 pre,

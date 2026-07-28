@@ -1,0 +1,59 @@
+runparams:
+  simname: stellar_wind_bubble1d
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outdeltatime:
+    value: 0.01
+    unit: Myr
+  savedir: .
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 0.1
+    unit: Myr
+  CFL: 0.1
+  boundcond: OutflowSph
+  vel_outflow:
+    value: 1000.0
+    unit: km/s
+  rho_outflow:
+    value: 1.0e-22
+    unit: g/cm**3
+  temp_outflow:
+    value: 0.0
+    unit: K
+  mu_outflow: 0.62
+  verbose: 0
+  order: 0
+  noghost: 100
+  dtmin:
+    value: 1.0e-10
+    unit: Myr
+  dtmax:
+    value: 1.0e-3
+    unit: Myr
+
+ICparams:
+  nogrid: 1024
+  coordsys: spherical
+  boxsize:
+    value: 25.0
+    unit: pc
+  rinj:
+    value: 0.1
+    unit: pc
+  time:
+    value: 0.0
+    unit: Myr
+  tempini:
+    value: 100.0
+    unit: K
+  muini: 0.62
+  vini:
+    value: 0.0
+    unit: km/s
+  rhoini:
+    value: 1.0e-24
+    unit: g/cm**3

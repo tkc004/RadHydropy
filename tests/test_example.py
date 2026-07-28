@@ -153,6 +153,29 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 1.0)
         self.assertEqual(icparams['source_photon_rate'].to_value(1.0 / unyt.s), 1.0e49)
 
+    def test_stellar_wind_bubble1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StellarWindBubble1D'
+            / 'stellar_wind_bubble1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertEqual(runparams['boundcond'], 'OutflowSph')
+        self.assertEqual(runparams['EOStype'], 'polytropic')
+        self.assertEqual(icparams['nogrid'], 1024)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 25.0)
+        self.assertEqual(icparams['rinj'].to_value(unyt.pc), 0.1)
+        self.assertEqual(icparams['rhoini'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
+        self.assertEqual(runparams['vel_outflow'].to_value(unyt.km / unyt.s), 1000.0)
+        self.assertEqual(runparams['rho_outflow'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
+        self.assertEqual(icparams['time'].to_value(unyt.Myr), 0.0)
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.1)
+        self.assertEqual(runparams['outdeltatime'].to_value(unyt.Myr), 0.01)
+
     def test_static_stromgren_sphere1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
