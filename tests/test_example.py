@@ -1,9 +1,40 @@
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+import importlib.util
+import sys
 
 import unyt
 
 from radhydropy.example_config import load_example_parameters
+
+STELLAR_WIND_TOOLS_PATH = (
+    Path(__file__).resolve().parents[1]
+    / 'example'
+    / 'StellarWindBubble1D'
+    / 'tools.py'
+)
+WEAVER_ANALYTIC_PATH = (
+    Path(__file__).resolve().parents[1]
+    / 'example'
+    / 'StellarWindBubble1D'
+    / 'weaver_analytic.py'
+)
+WEAVER_ANALYTIC_SPEC = importlib.util.spec_from_file_location(
+    'weaver_analytic',
+    WEAVER_ANALYTIC_PATH,
+)
+weaver_analytic = importlib.util.module_from_spec(WEAVER_ANALYTIC_SPEC)
+assert WEAVER_ANALYTIC_SPEC.loader is not None
+sys.modules['weaver_analytic'] = weaver_analytic
+WEAVER_ANALYTIC_SPEC.loader.exec_module(weaver_analytic)
+STELLAR_WIND_TOOLS_SPEC = importlib.util.spec_from_file_location(
+    'stellar_wind_bubble1d_tools_for_tests',
+    STELLAR_WIND_TOOLS_PATH,
+)
+stellar_wind_tools = importlib.util.module_from_spec(STELLAR_WIND_TOOLS_SPEC)
+assert STELLAR_WIND_TOOLS_SPEC.loader is not None
+STELLAR_WIND_TOOLS_SPEC.loader.exec_module(stellar_wind_tools)
 
 
 class Testing(unittest.TestCase):
@@ -166,15 +197,47 @@ class Testing(unittest.TestCase):
         self.assertEqual(runparams['coordsys'], 'spherical')
         self.assertEqual(runparams['boundcond'], 'OutflowSph')
         self.assertEqual(runparams['EOStype'], 'polytropic')
+        self.assertTrue(
+            runparams['outputtimefilename'].endswith(
+                'stellar_wind_bubble1d_output_times.txt'
+            )
+        )
+        self.assertEqual(
+            runparams['shell_edge_density_threshold_factor'],
+            1.0,
+        )
+        self.assertEqual(runparams['order'], 1)
         self.assertEqual(icparams['nogrid'], 1024)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 25.0)
-        self.assertEqual(icparams['rinj'].to_value(unyt.pc), 0.1)
+        self.assertEqual(icparams['rinj'].to_value(unyt.pc), 0.05)
         self.assertEqual(icparams['rhoini'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
         self.assertEqual(runparams['vel_outflow'].to_value(unyt.km / unyt.s), 1000.0)
         self.assertEqual(runparams['rho_outflow'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
         self.assertEqual(icparams['time'].to_value(unyt.Myr), 0.0)
         self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.1)
-        self.assertEqual(runparams['outdeltatime'].to_value(unyt.Myr), 0.01)
+
+    def test_stellar_wind_shell_edge_radius_uses_inner_shell(self):
+        boundary = unyt.unyt_array(
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            unyt.pc,
+        )
+        density = unyt.unyt_array(
+            [2.0, 2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 0.0],
+            unyt.g / unyt.cm**3,
+        ) * 1.0e-24
+        rout = SimpleNamespace(
+            mesh=SimpleNamespace(boundary=boundary),
+            fluid=SimpleNamespace(rho=density),
+        )
+
+        radius = stellar_wind_tools.shell_inner_edge_radius(
+            rout,
+            unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
+            threshold_factor=1.0,
+        )
+
+        self.assertIsNotNone(radius)
+        self.assertAlmostEqual(radius.to_value(unyt.pc), 5.0, places=2)
 
     def test_static_stromgren_sphere1d_uses_yaml_config(self):
         config_filename = (
