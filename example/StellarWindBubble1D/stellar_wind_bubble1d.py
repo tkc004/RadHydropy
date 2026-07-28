@@ -71,6 +71,26 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     plt.close(radius_figure)
     print('figure = %s' % radius_figure_filename)
 
+    velocity_figure = et.make_velocity_figure(snapshots, ICparams, runparams)
+    if velocity_figure is not None:
+        velocity_figure_filename = os.path.join(
+            runparams['savedir'],
+            'StellarWindBubble1D_velocity.jpg',
+        )
+        velocity_figure.savefig(velocity_figure_filename, dpi=200)
+        plt.close(velocity_figure)
+        print('figure = %s' % velocity_figure_filename)
+
+    pressure_figure = et.make_pressure_figure(snapshots, ICparams, runparams)
+    if pressure_figure is not None:
+        pressure_figure_filename = os.path.join(
+            runparams['savedir'],
+            'StellarWindBubble1D_pressure.jpg',
+        )
+        pressure_figure.savefig(pressure_figure_filename, dpi=200)
+        plt.close(pressure_figure)
+        print('figure = %s' % pressure_figure_filename)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run the spherical stellar-wind bubble example.')

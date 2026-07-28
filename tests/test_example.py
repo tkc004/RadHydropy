@@ -239,6 +239,85 @@ class Testing(unittest.TestCase):
         self.assertIsNotNone(radius)
         self.assertAlmostEqual(radius.to_value(unyt.pc), 5.0, places=2)
 
+    def test_stellar_wind_shell_diagnostics_include_velocity_and_pressure(self):
+        def make_snapshot(time_myr, shell_start_index):
+            boundary = unyt.unyt_array(
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                unyt.pc,
+            )
+            rho = [0.5e-24] * shell_start_index + [2.0e-24] * (
+                len(boundary) - 1 - shell_start_index
+            )
+            temp = [2.0e6] * shell_start_index + [1.0e4] * (
+                len(boundary) - 1 - shell_start_index
+            )
+            return SimpleNamespace(
+                par=SimpleNamespace(time=unyt.unyt_quantity(time_myr, unyt.Myr)),
+                mesh=SimpleNamespace(boundary=boundary),
+                fluid=SimpleNamespace(
+                    rho=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
+                    temp=unyt.unyt_array(temp, unyt.K),
+                    mu=unyt.unyt_array([0.62] * (len(boundary) - 1)),
+                ),
+            )
+
+        snapshots = [make_snapshot(1.0, 5), make_snapshot(2.0, 6)]
+        runparams = {
+            'shell_edge_density_threshold_factor': 1.0,
+            'rho_outflow': unyt.unyt_quantity(1.0e-22, unyt.g / unyt.cm**3),
+            'vel_outflow': unyt.unyt_quantity(1000.0, unyt.km / unyt.s),
+        }
+        icparams = {
+            'rhoini': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
+            'rinj': unyt.unyt_quantity(0.05, unyt.pc),
+        }
+
+        diagnostics = stellar_wind_tools.collect_shell_diagnostics(
+            snapshots,
+            icparams,
+            runparams,
+        )
+
+        self.assertIsNotNone(diagnostics)
+        self.assertEqual(diagnostics['times'].to_value(unyt.Myr).tolist(), [1.0, 2.0])
+        self.assertAlmostEqual(
+            diagnostics['radii'][0].to_value(unyt.pc),
+            4.833333333333333,
+            places=12,
+        )
+        self.assertAlmostEqual(
+            diagnostics['radii'][1].to_value(unyt.pc),
+            5.833333333333333,
+            places=12,
+        )
+        expected_velocity = (1.0 * unyt.pc / unyt.Myr).to_value(unyt.km / unyt.s)
+        self.assertAlmostEqual(
+            diagnostics['velocities'][0].to_value(unyt.km / unyt.s),
+            expected_velocity,
+            places=6,
+        )
+        self.assertAlmostEqual(
+            diagnostics['velocities'][1].to_value(unyt.km / unyt.s),
+            expected_velocity,
+            places=6,
+        )
+        expected_pressure = (
+            0.5e-24 * unyt.g / unyt.cm**3
+            / (0.62 * unyt.mp)
+            * unyt.kb
+            * 2.0e6 * unyt.K
+        ).to_value(unyt.dyn / unyt.cm**2)
+        self.assertAlmostEqual(
+            diagnostics['pressures'][0].to_value(unyt.dyn / unyt.cm**2),
+            expected_pressure,
+            places=12,
+        )
+        self.assertAlmostEqual(
+            diagnostics['pressures'][1].to_value(unyt.dyn / unyt.cm**2),
+            expected_pressure,
+            places=12,
+        )
+
     def test_static_stromgren_sphere1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

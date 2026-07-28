@@ -193,6 +193,15 @@ def weaver_forward_shock_radius(rout, icparams, runparams):
     )
 
 
+def _snapshot_coordinate(rout, xunit=unyt.pc):
+    """Return nonnegative cell-center coordinates for a snapshot."""
+
+    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    coordinate_values = coordinate.to_value(xunit)
+    nonnegative = coordinate_values >= 0.0
+    return coordinate[nonnegative], coordinate_values[nonnegative]
+
+
 def plot_density_snapshot(ax, rout, **kwargs):
     """Plot one density snapshot on a supplied axis."""
 
@@ -217,7 +226,9 @@ def plot_profile_snapshot(ax, rout, yquan, xunit=unyt.pc, **kwargs):
     nonnegative = coordinate_values >= 0.0
     ax.plot(
         coordinate_values[nonnegative],
-        getattr(rout.fluid, yquan).to_value(getattr(rout.fluid, yquan).units)[nonnegative],
+        getattr(rout.fluid, yquan).to_value(getattr(rout.fluid, yquan).units)[
+            nonnegative
+        ],
         **kwargs,
     )
     ax.set_yscale('log')
@@ -331,6 +342,168 @@ def make_radius_figure(snapshots, icparams, runparams):
     ax_radius.set_ylabel(r'$R_{\rm in}$ [pc]')
     ax_radius.legend(loc='best')
     ax_radius.grid(alpha=0.2)
+    figure.tight_layout()
+    return figure
+
+
+def numerical_bubble_pressure(rout, shell_radius):
+    """Estimate the cavity pressure from cells interior to the shell edge."""
+
+    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    coordinate_values = coordinate.to_value(unyt.pc)
+    nonnegative = coordinate_values >= 0.0
+    coordinate_values = coordinate_values[nonnegative]
+    shell_radius_value = shell_radius.to_value(unyt.pc)
+    pressure = (
+        rout.fluid.rho
+        / (rout.fluid.mu * unyt.mp)
+        * unyt.kb
+        * rout.fluid.temp
+    ).to(unyt.dyn / unyt.cm**2)
+    pressure_values = pressure.to_value(pressure.units)[nonnegative]
+
+    if pressure_values.size < 2:
+        return None
+
+    cavity = coordinate_values < shell_radius_value
+    if not np.any(cavity):
+        return None
+
+    return unyt.unyt_quantity(np.median(pressure_values[cavity]), pressure.units)
+
+
+def collect_shell_diagnostics(snapshots, icparams, runparams):
+    """Collect shell radius, velocity, and pressure comparison data."""
+
+    shell_threshold_factor = runparams['shell_edge_density_threshold_factor']
+    times = []
+    radii = []
+    pressures = []
+
+    for rout in snapshots:
+        if rout.par.time <= 0 * rout.par.time.units:
+            continue
+        shell_radius = shell_inner_edge_radius(
+            rout,
+            icparams['rhoini'],
+            shell_threshold_factor,
+        )
+        if shell_radius is None:
+            continue
+        bubble_pressure = numerical_bubble_pressure(rout, shell_radius)
+        if bubble_pressure is None:
+            continue
+        times.append(rout.par.time)
+        radii.append(shell_radius)
+        pressures.append(bubble_pressure)
+
+    if not times:
+        return None
+
+    times = unyt.unyt_array([time.to_value(unyt.Myr) for time in times], unyt.Myr)
+    radii = unyt.unyt_array([radius.to_value(unyt.pc) for radius in radii], unyt.pc)
+    pressures = unyt.unyt_array(
+        [pressure.to_value(unyt.dyn / unyt.cm**2) for pressure in pressures],
+        unyt.dyn / unyt.cm**2,
+    )
+    time_values = np.array([float(time.to_value(unyt.Myr)) for time in times], dtype=float)
+    radius_values = np.array(
+        [float(radius.to_value(unyt.pc)) for radius in radii],
+        dtype=float,
+    )
+    velocities = np.gradient(radius_values, time_values)
+    velocities = unyt.unyt_array(velocities, unyt.pc / unyt.Myr).to(unyt.km / unyt.s)
+    weaver_radii = []
+    weaver_velocities = []
+    weaver_pressures = []
+    for time in times:
+        radius, velocity, pressure = wa.weaver_solution(
+            time,
+            icparams['rhoini'],
+            runparams['rho_outflow'],
+            runparams['vel_outflow'],
+            icparams['rinj'],
+        )
+        weaver_radii.append(radius.to_value(unyt.pc))
+        weaver_velocities.append(velocity.to_value(unyt.km / unyt.s))
+        weaver_pressures.append(pressure.to_value(unyt.dyn / unyt.cm**2))
+
+    return {
+        'times': times.to(unyt.Myr),
+        'radii': radii.to(unyt.pc),
+        'velocities': velocities,
+        'pressures': pressures,
+        'weaver_radii': unyt.unyt_array(weaver_radii, unyt.pc),
+        'weaver_velocities': unyt.unyt_array(weaver_velocities, unyt.km / unyt.s),
+        'weaver_pressures': unyt.unyt_array(weaver_pressures, unyt.dyn / unyt.cm**2),
+    }
+
+
+def make_velocity_figure(snapshots, icparams, runparams):
+    """Build the shock-velocity comparison figure."""
+
+    diagnostics = collect_shell_diagnostics(snapshots, icparams, runparams)
+    if diagnostics is None:
+        return None
+
+    figure, ax = plt.subplots(1, 1, figsize=(8.5, 6.0))
+    ax.plot(
+        diagnostics['times'].to_value(unyt.Myr),
+        diagnostics['velocities'].to_value(unyt.km / unyt.s),
+        color='k',
+        lw=2.0,
+        marker='o',
+        label='simulation',
+    )
+    ax.plot(
+        diagnostics['times'].to_value(unyt.Myr),
+        diagnostics['weaver_velocities'].to_value(unyt.km / unyt.s),
+        color='k',
+        lw=2.0,
+        ls='--',
+        marker='x',
+        label='Weaver 1977',
+    )
+    ax.set_title('Shock velocity evolution')
+    ax.set_xlabel('Time [Myr]')
+    ax.set_ylabel(r'$V_{\rm shock}$ [km s$^{-1}$]')
+    ax.legend(loc='best')
+    ax.grid(alpha=0.2)
+    figure.tight_layout()
+    return figure
+
+
+def make_pressure_figure(snapshots, icparams, runparams):
+    """Build the bubble-pressure comparison figure."""
+
+    diagnostics = collect_shell_diagnostics(snapshots, icparams, runparams)
+    if diagnostics is None:
+        return None
+
+    figure, ax = plt.subplots(1, 1, figsize=(8.5, 6.0))
+    ax.plot(
+        diagnostics['times'].to_value(unyt.Myr),
+        diagnostics['pressures'].to_value(unyt.dyn / unyt.cm**2),
+        color='k',
+        lw=2.0,
+        marker='o',
+        label='simulation',
+    )
+    ax.plot(
+        diagnostics['times'].to_value(unyt.Myr),
+        diagnostics['weaver_pressures'].to_value(unyt.dyn / unyt.cm**2),
+        color='k',
+        lw=2.0,
+        ls='--',
+        marker='x',
+        label='Weaver 1977',
+    )
+    ax.set_yscale('log')
+    ax.set_title('Bubble pressure evolution')
+    ax.set_xlabel('Time [Myr]')
+    ax.set_ylabel(r'$P_{\rm bubble}$ [dyn cm$^{-2}$]')
+    ax.legend(loc='best')
+    ax.grid(alpha=0.2)
     figure.tight_layout()
     return figure
 
