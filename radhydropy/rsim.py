@@ -1,5 +1,6 @@
 """High-level simulation runner."""
 
+import copy
 import radhydropy.utils as ru
 import radhydropy.io as rio
 import radhydropy.thermo_chemistry as rtc
@@ -121,59 +122,82 @@ class Rsim():
             dt = final_time - self.fluid.time
         return dt
 
-    def PrepareConservedStep(self):
+    def PrepareConservedStep(self, fluid=None):
         """Apply boundaries and refresh conserved variables before a step."""
-        self.solver.SetBoundary(self.mesh, self.fluid, self.par)
-        self.solver.SetConserved(self.mesh, self.fluid)
+        if fluid is None:
+            fluid = self.fluid
+        self.solver.SetBoundary(self.mesh, fluid, self.par)
+        self.solver.SetConserved(self.mesh, fluid)
 
-    def AdvanceHydroFluxes(self, dt):
+    def AdvanceHydroFluxes(self, dt, fluid=None):
         """Advance the Euler flux update and return mass data for scalar advection."""
-        old_mass = self.fluid.Mass.copy()
+        if fluid is None:
+            fluid = self.fluid
+        old_mass = fluid.Mass.copy()
         self.solver.SetInterFaceFlux(
             self.mesh,
-            self.fluid,
+            fluid,
             self.par.boundcond,
             order=self.par.order,
         )
-        mass_flux = self.fluid.Mass.flux.copy()
-        self.solver.AddFluxes(dt, self.mesh, self.fluid, self.par.boundcond)
+        mass_flux = fluid.Mass.flux.copy()
+        self.solver.AddFluxes(dt, self.mesh, fluid, self.par.boundcond)
         return old_mass, mass_flux
 
-    def AdvectChemistryScalars(self, dt, old_mass, mass_flux):
+    def AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=None):
         """Advect passive thermo-chemistry scalars after a hydro flux update."""
+        if fluid is None:
+            fluid = self.fluid
         self.solver.AdvectIonizationFraction(
             dt,
             self.mesh,
-            self.fluid,
+            fluid,
             self.par,
             old_mass,
             mass_flux,
         )
 
-    def UpdateThermochemistryPrimitiveState(self, update_pressure=True):
+    def UpdateThermochemistryPrimitiveState(self, update_pressure=True, fluid=None):
         """Refresh temperature, mean molecular weight, and optionally pressure."""
-        if not rtc.thermochemistry_enabled(self.fluid, self.par):
+        if fluid is None:
+            fluid = self.fluid
+        if not rtc.thermochemistry_enabled(fluid, self.par):
             return
         if getattr(self.par, 'hydrogen_update_mu', False):
-            self.fluid.SetHydrogenMu(
+            fluid.SetHydrogenMu(
                 hydrogen_mass_fraction=getattr(
                     self.par,
                     'hydrogen_mass_fraction',
                     1.0,
                 )
             )
-        self.fluid.SetTemperature()
+        fluid.SetTemperature()
         if update_pressure:
-            self.fluid.SetPressure()
+            fluid.SetPressure()
 
-    def FinalizeHydroStep(self, dt, old_mass, mass_flux, advect_chemistry=True):
+    def _sync_hydro_state(self, fluid=None):
+        """Refresh primitive and conserved variables after a hydro update."""
+        if fluid is None:
+            fluid = self.fluid
+        self.solver.SetPrimitive(self.mesh, fluid)
+        self.UpdateThermochemistryPrimitiveState(update_pressure=True, fluid=fluid)
+        self.solver.SetConserved(self.mesh, fluid)
+
+    def FinalizeHydroStep(
+        self,
+        dt,
+        old_mass,
+        mass_flux,
+        advect_chemistry=True,
+        fluid=None,
+    ):
         """Complete a hydro step after conserved variables have been advanced."""
-        self.solver.ApplyExternalGravity(dt, self.mesh, self.fluid, self.par)
+        if fluid is None:
+            fluid = self.fluid
+        self.solver.ApplyExternalGravity(dt, self.mesh, fluid, self.par)
         if advect_chemistry:
-            self.AdvectChemistryScalars(dt, old_mass, mass_flux)
-        self.solver.SetPrimitive(self.mesh, self.fluid)
-        self.UpdateThermochemistryPrimitiveState(update_pressure=True)
-        self.solver.SetConserved(self.mesh, self.fluid)
+            self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
+        self._sync_hydro_state(fluid=fluid)
 
     def ApplyThermochemistrySources(self, dt, fast_thermochemistry=False):
         """Apply radiative-transfer and thermo-chemistry source updates."""
@@ -188,12 +212,72 @@ class Rsim():
         self.solver.ApplyThermochemistry(dt, self.mesh, self.fluid, self.par)
         return 1
 
+    def _clone_fluid(self, fluid=None):
+        """Return a deep copy of the supplied fluid state."""
+        if fluid is None:
+            fluid = self.fluid
+        return copy.deepcopy(fluid)
+
+    def _hydro_step_once(self, dt, fluid=None, advect_chemistry=True):
+        """Advance one explicit hydro step on the supplied fluid state."""
+        if fluid is None:
+            fluid = self.fluid
+        self.PrepareConservedStep(fluid=fluid)
+        old_mass, mass_flux = self.AdvanceHydroFluxes(dt, fluid=fluid)
+        self.FinalizeHydroStep(
+            dt,
+            old_mass,
+            mass_flux,
+            advect_chemistry=advect_chemistry,
+            fluid=fluid,
+        )
+        return {
+            "dt": dt,
+            "hydro_steps": 1,
+            "source_steps": 0,
+        }
+
+    def _hydro_step_ssprk2(self, dt, advect_chemistry=True):
+        """Advance hydro variables with the SSPRK2 strong-stability-preserving scheme."""
+        self.PrepareConservedStep()
+        initial_state = self._clone_fluid()
+        stage1 = self._clone_fluid()
+        self._hydro_step_once(
+            dt,
+            fluid=stage1,
+            advect_chemistry=advect_chemistry,
+        )
+        stage2 = self._clone_fluid(stage1)
+        self._hydro_step_once(
+            dt,
+            fluid=stage2,
+            advect_chemistry=advect_chemistry,
+        )
+
+        for attr in ("Mass", "Mom", "Energy"):
+            setattr(
+                self.fluid,
+                attr,
+                0.5 * getattr(initial_state, attr) + 0.5 * getattr(stage2, attr),
+            )
+        if advect_chemistry and hasattr(initial_state, "xHI") and hasattr(stage2, "xHI"):
+            self.fluid.xHI = 0.5 * initial_state.xHI + 0.5 * stage2.xHI
+
+        self.fluid.time = initial_state.time + dt
+        self._sync_hydro_state()
+        return {
+            "dt": dt,
+            "hydro_steps": 1,
+            "source_steps": 0,
+        }
+
     def Step(
         self,
         dt=None,
         mode="hydro_sources",
         fast_thermochemistry=False,
         advect_chemistry=True,
+        hydro_integrator="euler",
     ):
         """Advance one canonical simulation step in the requested mode."""
         valid_modes = ("hydro", "hydro_sources", "sources")
@@ -201,6 +285,12 @@ class Rsim():
             raise ValueError(
                 "Unknown step mode %r; valid modes are %s"
                 % (mode, ", ".join(valid_modes))
+            )
+        valid_hydro_integrators = ("euler", "ssprk2")
+        if hydro_integrator not in valid_hydro_integrators:
+            raise ValueError(
+                "Unknown hydro integrator %r; valid options are %s"
+                % (hydro_integrator, ", ".join(valid_hydro_integrators))
             )
         dt = self.GetStepTime(dt=dt)
         result = {
@@ -210,15 +300,21 @@ class Rsim():
         }
 
         if mode in ("hydro", "hydro_sources"):
-            self.PrepareConservedStep()
-            old_mass, mass_flux = self.AdvanceHydroFluxes(dt)
-            self.FinalizeHydroStep(
-                dt,
-                old_mass,
-                mass_flux,
-                advect_chemistry=advect_chemistry,
-            )
-            result["hydro_steps"] = 1
+            if hydro_integrator == "ssprk2":
+                result = self._hydro_step_ssprk2(
+                    dt,
+                    advect_chemistry=advect_chemistry,
+                )
+            else:
+                self.PrepareConservedStep()
+                old_mass, mass_flux = self.AdvanceHydroFluxes(dt)
+                self.FinalizeHydroStep(
+                    dt,
+                    old_mass,
+                    mass_flux,
+                    advect_chemistry=advect_chemistry,
+                )
+                result["hydro_steps"] = 1
 
         if mode in ("hydro_sources", "sources"):
             result["source_steps"] = self.ApplyThermochemistrySources(
@@ -279,12 +375,13 @@ class Rsim():
         """Advance one hydro-plus-source timestep and return that timestep."""
         return self.Step(mode="hydro_sources")["dt"]
 
-    def RunHydroStep(self, dt=None, advect_chemistry=True):
+    def RunHydroStep(self, dt=None, advect_chemistry=True, hydro_integrator="euler"):
         """Advance one hydrodynamic step, optionally advecting chemistry scalars."""
         return self.Step(
             dt=dt,
             mode="hydro",
             advect_chemistry=advect_chemistry,
+            hydro_integrator=hydro_integrator,
         )["dt"]
 
     def _static_front_radius_from_state(self, state, neutral_fraction=0.5):

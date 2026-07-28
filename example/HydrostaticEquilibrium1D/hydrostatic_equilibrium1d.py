@@ -39,7 +39,12 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(ICparams['gravity_strength']),
     )
-    mainrun.RunAll(outputtime=0, mode='hydro')
+    # Demonstrate the optional second-order hydro integrator in a runnable example.
+    mainrun.RunAll(
+        outputtime=0,
+        mode='hydro',
+        step_backend_kwargs={'hydro_integrator': 'ssprk2'},
+    )
 
     final_outfile = os.path.join(
         runparams['outdir'],
@@ -77,4 +82,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-

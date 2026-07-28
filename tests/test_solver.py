@@ -464,6 +464,63 @@ class Testing(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unknown step mode'):
             sim.Step(dt=1.0 * unyt.s, mode='unknown')
 
+    def test_rsim_hydro_step_supports_ssprk2(self):
+        par = Par('Periodic')
+        par.hydrogen_chemistry = False
+        mesh = Mesh()
+        fluid = RealFluid()
+        fluid.time = 0.0 * unyt.s
+        fluid.Mass = np.ones(8) * unyt.g
+        fluid.Mom = np.ones(8) * (unyt.g * unyt.cm / unyt.s)
+        fluid.Energy = np.ones(8) * (unyt.g * unyt.cm**2 / unyt.s**2)
+        sim = Rsim.FromComponents(par, mesh, fluid)
+
+        call_counts = {
+            'prepare': 0,
+            'advance': 0,
+            'finalize': 0,
+            'sync': 0,
+        }
+
+        def fake_prepare(fluid=None):
+            call_counts['prepare'] += 1
+
+        def fake_advance(dt, fluid=None):
+            call_counts['advance'] += 1
+            old_mass = fluid.Mass.copy()
+            mass_flux = np.ones_like(fluid.Mass) * (
+                unyt.g / (unyt.cm**2 * unyt.s)
+            )
+            return old_mass, mass_flux
+
+        def fake_finalize(dt, old_mass, mass_flux, advect_chemistry=True, fluid=None):
+            call_counts['finalize'] += 1
+            fluid.Mass = fluid.Mass + 1.0 * unyt.g
+            fluid.Mom = fluid.Mom + 2.0 * (unyt.g * unyt.cm / unyt.s)
+            fluid.Energy = fluid.Energy + 3.0 * (unyt.g * unyt.cm**2 / unyt.s**2)
+            fluid.time += dt
+
+        def fake_sync(fluid=None):
+            call_counts['sync'] += 1
+
+        sim.PrepareConservedStep = fake_prepare
+        sim.AdvanceHydroFluxes = fake_advance
+        sim.FinalizeHydroStep = fake_finalize
+        sim._sync_hydro_state = fake_sync
+
+        result = sim.Step(dt=0.25 * unyt.s, mode='hydro', hydro_integrator='ssprk2')
+
+        self.assertEqual(result['hydro_steps'], 1)
+        self.assertEqual(result['source_steps'], 0)
+        self.assertEqual(call_counts['prepare'], 2)
+        self.assertEqual(call_counts['advance'], 2)
+        self.assertEqual(call_counts['finalize'], 2)
+        self.assertEqual(call_counts['sync'], 1)
+        self.assertEqual(fluid.time, 0.25 * unyt.s)
+        np.testing.assert_allclose(fluid.Mass.value, np.full(8, 2.0))
+        np.testing.assert_allclose(fluid.Mom.value, np.full(8, 3.0))
+        np.testing.assert_allclose(fluid.Energy.value, np.full(8, 4.0))
+
     def test_rsim_source_step_advances_time_without_hydro_step(self):
         par = Par('Periodic')
         par.hydrogen_chemistry = False

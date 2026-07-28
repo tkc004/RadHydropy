@@ -78,11 +78,16 @@ class Par():
 
     def __init__(self,params) -> None:
             self.runparams = dict(params)
+            verbose = int(params.get('verbose', refparams.get('verbose', 0)))
+            missing_keys = []
             for key, value in refparams.items():
                 if key in params:
                     setattr(self, key, params[key])
                 else:
                     if value is not None:
-                        print("key %s not find in params"%key)
-                        print(str(value) +"is used")
+                        missing_keys.append((key, value))
                     setattr(self, key, value)
+            if verbose > 0 and missing_keys:
+                for key, value in missing_keys:
+                    print("key %s not found in params" % key)
+                    print(str(value) + " is used")

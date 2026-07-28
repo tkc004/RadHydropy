@@ -91,6 +91,9 @@ Available ``mode`` values are:
 * ``"sources"`` for thermo-chemistry and radiative-transfer sources only; and
 * ``"hydro_sources"`` for the coupled update used by the standard run loop.
 
+For hydro-only steps, ``hydro_integrator="ssprk2"`` enables the optional
+second-order SSP Runge-Kutta update.
+
 Use :meth:`radhydropy.rsim.Rsim.Evolve` to advance until a target time:
 
 .. code-block:: python

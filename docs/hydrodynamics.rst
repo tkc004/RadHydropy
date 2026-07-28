@@ -48,4 +48,10 @@ If you want only the hydrodynamics update, call:
    step = sim.Step(mode="hydro")
    print(step["dt"])
 
+The hydro step also supports an optional SSPRK2 time integrator:
+
+.. code-block:: python
+
+   step = sim.Step(mode="hydro", hydro_integrator="ssprk2")
+
 For a full coupled update, use ``mode="hydro_sources"`` instead.
