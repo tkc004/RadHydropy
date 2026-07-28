@@ -26,6 +26,9 @@ Available Examples
    * - ``example/HydrostaticEquilibriumSphericalPointMass1D``
      - Spherical isothermal hydrostatic equilibrium in a point-mass potential
        without including the origin.
+   * - ``example/BallisticInfallSphericalPointMass1D``
+     - Spherical ballistic infall in a point-mass potential without including
+       the origin.
    * - ``example/Inflow1D``
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``

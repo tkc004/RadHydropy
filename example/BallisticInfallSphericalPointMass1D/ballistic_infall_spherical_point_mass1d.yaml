@@ -1,0 +1,50 @@
+runparams:
+  simname: BallisticInfallSphericalPointMass1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outputtimefilename: ballistic_infall_spherical_point_mass1d_output_times.txt
+  savedir: .
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.4
+  timesim:
+    value: 0.0001
+    unit: Myr
+  CFL: 0.2
+  dtmin:
+    value: 1.0e-8
+    unit: s
+  dtmax:
+    value: 1.0e12
+    unit: s
+  boundcond: Reflecting
+  verbose: 0
+  order: 0
+  noghost: 2
+
+ICparams:
+  nogrid: 256
+  coordsys: spherical
+  boxsize:
+    value: 20.0
+    unit: pc
+  time:
+    value: 0.0
+    unit: s
+  rmin:
+    value: 2.0
+    unit: pc
+  rmax:
+    value: 20.0
+    unit: pc
+  rho_ref:
+    value: 1.0e-24
+    unit: g/cm**3
+  tempini:
+    value: 1.0
+    unit: K
+  muini: 1.0
+  point_mass:
+    value: 1.0e38
+    unit: g
