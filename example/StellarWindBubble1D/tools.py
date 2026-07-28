@@ -347,7 +347,7 @@ def make_radius_figure(snapshots, icparams, runparams):
 
 
 def numerical_bubble_pressure(rout, shell_radius):
-    """Estimate the cavity pressure from cells interior to the shell edge."""
+    """Estimate the bubble pressure from a cavity-side annulus."""
 
     coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
     coordinate_values = coordinate.to_value(unyt.pc)
@@ -365,11 +365,14 @@ def numerical_bubble_pressure(rout, shell_radius):
     if pressure_values.size < 2:
         return None
 
-    cavity = coordinate_values < shell_radius_value
-    if not np.any(cavity):
+    shell_width = max(0.05 * shell_radius_value, 0.1)
+    cavity_band = (coordinate_values < shell_radius_value) & (
+        coordinate_values >= shell_radius_value - shell_width
+    )
+    if not np.any(cavity_band):
         return None
 
-    return unyt.unyt_quantity(np.median(pressure_values[cavity]), pressure.units)
+    return unyt.unyt_quantity(np.median(pressure_values[cavity_band]), pressure.units)
 
 
 def collect_shell_diagnostics(snapshots, icparams, runparams):

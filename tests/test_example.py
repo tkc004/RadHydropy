@@ -242,7 +242,7 @@ class Testing(unittest.TestCase):
     def test_stellar_wind_shell_diagnostics_include_velocity_and_pressure(self):
         def make_snapshot(time_myr, shell_start_index):
             boundary = unyt.unyt_array(
-                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                [0.1 * idx for idx in range(51)],
                 unyt.pc,
             )
             rho = [0.5e-24] * shell_start_index + [2.0e-24] * (
@@ -261,7 +261,7 @@ class Testing(unittest.TestCase):
                 ),
             )
 
-        snapshots = [make_snapshot(1.0, 5), make_snapshot(2.0, 6)]
+        snapshots = [make_snapshot(1.0, 25), make_snapshot(2.0, 26)]
         runparams = {
             'shell_edge_density_threshold_factor': 1.0,
             'rho_outflow': unyt.unyt_quantity(1.0e-22, unyt.g / unyt.cm**3),
@@ -282,15 +282,15 @@ class Testing(unittest.TestCase):
         self.assertEqual(diagnostics['times'].to_value(unyt.Myr).tolist(), [1.0, 2.0])
         self.assertAlmostEqual(
             diagnostics['radii'][0].to_value(unyt.pc),
-            4.833333333333333,
+            2.4833333333333334,
             places=12,
         )
         self.assertAlmostEqual(
             diagnostics['radii'][1].to_value(unyt.pc),
-            5.833333333333333,
+            2.5833333333333335,
             places=12,
         )
-        expected_velocity = (1.0 * unyt.pc / unyt.Myr).to_value(unyt.km / unyt.s)
+        expected_velocity = (0.1 * unyt.pc / unyt.Myr).to_value(unyt.km / unyt.s)
         self.assertAlmostEqual(
             diagnostics['velocities'][0].to_value(unyt.km / unyt.s),
             expected_velocity,
