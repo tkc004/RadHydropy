@@ -208,14 +208,13 @@ class Solver():
         """
         # Start from neighbor-shifted cell states, then optionally replace them
         # with reconstructed face values for second-order updates.
-        Lroll = 1
         if order == 0 or order == 1:
             fluid.rho.R = fluid.rho
-            fluid.rho.L = np.roll(fluid.rho, Lroll)
+            fluid.rho.L = ru.periodic_roll(fluid.rho, 1)
             fluid.vel.R = fluid.vel
-            fluid.vel.L = np.roll(fluid.vel, Lroll)
+            fluid.vel.L = ru.periodic_roll(fluid.vel, 1)
             fluid.pre.R = fluid.pre
-            fluid.pre.L = np.roll(fluid.pre, Lroll)
+            fluid.pre.L = ru.periodic_roll(fluid.pre, 1)
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
@@ -278,19 +277,17 @@ class Solver():
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=0, order=0):
         """Set interface fluxes using GLF or Rusanov numerical fluxes."""
         if method=='GLF' or method=='Rusanov':
-            #numpy roll Rroll, put the right value to this cell
-            Lroll = 1
             if method=='GLF':
                 # Global Lax Friedrich scheme
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
                 # simple to implement but very diffusive
                 # calculate cmax
-                fluid.cmax = mesh.xdelta/np.amin(self.dt)
+                fluid.cmax = mesh.xdelta / np.amin(self.dt)
             elif method=='Rusanov':
                 # Local Lax Friedrich schem
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
                 # simple to implement but less diffusive
-                fluid.cmax = np.maximum(fluid.vsignal, np.roll(fluid.vsignal,Lroll))
+                fluid.cmax = np.maximum(fluid.vsignal, ru.periodic_roll(fluid.vsignal, 1))
             
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
             self.SetFluxOnFace(fluid, boundcond, order=order)
@@ -307,15 +304,14 @@ class Solver():
         """Apply interface fluxes to conserved quantities and advance time."""
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
-        Rroll = -1
         area = mesh.area
-        df_Mass = fluid.Mass.flux*area - np.roll(fluid.Mass.flux*area,Rroll)
-        df_Mom = fluid.Mom.flux*area - np.roll(fluid.Mom.flux*area,Rroll)
-        df_Energy = fluid.Energy.flux*area - np.roll(fluid.Energy.flux*area,Rroll)
+        df_Mass = fluid.Mass.flux * area - ru.periodic_roll(fluid.Mass.flux * area, -1)
+        df_Mom = fluid.Mom.flux * area - ru.periodic_roll(fluid.Mom.flux * area, -1)
+        df_Energy = fluid.Energy.flux * area - ru.periodic_roll(fluid.Energy.flux * area, -1)
         if getattr(mesh, 'coordsys', None) == 'spherical':
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
-            area_right = np.roll(area, Rroll)
+            area_right = ru.periodic_roll(area, -1)
             df_Mom += fluid.pre * (area_right - area)
 
         fluid.Mass += df_Mass*dt

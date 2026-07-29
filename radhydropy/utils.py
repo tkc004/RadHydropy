@@ -4,6 +4,21 @@ import numpy as np
 import unyt
 from radhydropy.arrays import as_named_array
 
+
+def periodic_roll(values, shift):
+    """Return a 1D periodic shift without calling ``np.roll``."""
+    out = np.empty_like(values)
+    if out.size == 0:
+        return out
+
+    shift = int(shift) % out.shape[0]
+    if shift == 0:
+        out[...] = values
+    else:
+        out[:shift] = values[-shift:]
+        out[shift:] = values[:-shift]
+    return out
+
 def SafeDivide(numerator, denominator):
     """Divide two ``unyt`` quantities and return zero where the denominator is zero."""
     if hasattr(numerator, "units") or hasattr(denominator, "units"):
@@ -103,7 +118,7 @@ def gaussiansph(r, sig):
 def CalGradient(quan,xdelta):
     """Calculate a centered periodic gradient."""
     # only work for periodic boundary condition!
-    dqdx = ( np.roll(quan,-1) - np.roll(quan,1) ) / (2. * xdelta)
+    dqdx = (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2. * xdelta)
     return dqdx
 
 def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cmax: float) -> float:
@@ -130,16 +145,14 @@ def CalFluxLimiter(rlim, limiter='minmod'):
 def extrapolateToFace(fluxarray: float, xb:float, fgrad:float, order=1):
     """Extrapolate cell-centered values to left and right faces."""
     #numpy roll Rroll, put the right value to this cell
-    Lroll = 1
-    Rroll = -1
     if order == 0:
         flux_R = fluxarray
-        flux_L = np.roll(fluxarray,Lroll)
+        flux_L = periodic_roll(fluxarray, 1)
     elif order == 1:    
         xdhalf = 0.5*(xb[1:]-xb[:-1])
         flux_R = fluxarray - fgrad * xdhalf
         # the following is correct in the first order case
-        flux_L = np.roll(fluxarray+fgrad*xdhalf , Lroll) 
+        flux_L = periodic_roll(fluxarray + fgrad * xdhalf, 1)
     else:
         raise ValueError("order unknown: %s"%order)
     return flux_L, flux_R
@@ -173,10 +186,10 @@ def CalFluxFromLR(rho_L,rho_R,u_L,u_R,p_L,p_R,gamma,cmax):
 def ApplyFluxLimiter(q,flux_1,flux_0):
     """Blend first-order and second-order fluxes using a minmod limiter."""
     #numpy roll Rroll, put the right value to this cell
-    L2roll = 2
-    Lroll = 1
-    bottom = q - np.roll(q,Lroll)
-    top = np.roll(q,Lroll)-np.roll(q,L2roll)
+    q_l1 = periodic_roll(q, 1)
+    q_l2 = periodic_roll(q, 2)
+    bottom = q - q_l1
+    top = q_l1 - q_l2
     rlim = np.ones(len(q)) * 1000.0
     nonzero = bottom != 0.0
     rlim[nonzero] = np.asarray(top[nonzero] / bottom[nonzero])
