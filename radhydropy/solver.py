@@ -5,7 +5,15 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-from radhydropy.units import photon_number_density
+from radhydropy.units import (
+    CGS_AREA_UNIT,
+    CGS_MASS_DENSITY_UNIT,
+    CGS_NUMBER_DENSITY_UNIT,
+    CGS_PHOTON_FLUX_UNIT,
+    CGS_RATE_UNIT,
+    CGS_VOLUME_UNIT,
+    _as_cgs_float,
+)
 import numpy as np
 from types import SimpleNamespace
 import unyt
@@ -51,37 +59,37 @@ class Solver():
         if not getattr(par, 'radiative_transfer', False):
             return None
         if not hasattr(fluid, 'ngamma'):
-            fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float) * (
-                1.0 / unyt.cm**3
-            )
+            fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float) * CGS_NUMBER_DENSITY_UNIT
         interior = self._interior_slice(par)
         submesh = SimpleNamespace(
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
-            boundary=mesh.boundary[interior.start : interior.stop + 1],
-            vol=mesh.vol[interior],
+            boundary=mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm),
+            vol=mesh.vol[interior].to_value(CGS_VOLUME_UNIT),
         )
         if hasattr(mesh, 'area'):
-            submesh.area = mesh.area[interior]
+            submesh.area = mesh.area[interior].to_value(CGS_AREA_UNIT)
+        sigma_gamma_cm2 = _as_cgs_float(
+            getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA),
+            CGS_AREA_UNIT,
+        )
         result = rrt.trace_long_characteristics(
             submesh,
-            fluid.rho[interior],
-            fluid.xHI[interior],
+            fluid.rho[interior].to_value(CGS_MASS_DENSITY_UNIT),
+            np.asarray(fluid.xHI[interior], dtype=float),
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-            sigma_gamma=rrt._optional_photon_quantity(
-                getattr(par, 'hydrogen_sigma_gamma', None),
-                rh.DEFAULT_SIGMA_GAMMA,
-                unyt.cm**2,
+            sigma_gamma=sigma_gamma_cm2,
+            boundary_flux=_as_cgs_float(
+                getattr(par, 'radiative_transfer_boundary_flux', 0.0),
+                CGS_PHOTON_FLUX_UNIT,
             ),
-            boundary_flux=rrt._as_photon_flux(
-                getattr(par, 'radiative_transfer_boundary_flux', None)
-            ),
-            source_photon_rate=rrt._as_photon_rate(
-                getattr(par, 'radiative_transfer_source_photon_rate', None)
+            source_photon_rate=_as_cgs_float(
+                getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
+                CGS_RATE_UNIT,
             ),
             direction=getattr(par, 'radiative_transfer_direction', 1),
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
         )
-        fluid.ngamma[interior] = result.cell_photon_density.to(fluid.ngamma.units)
+        fluid.ngamma[interior] = result.cell_photon_density.to_value(fluid.ngamma.units)
         return result
 
     def _spherical_center_cell_index(self, mesh):
@@ -510,7 +518,7 @@ class Solver():
             if hasattr(fluid, 'ngamma'):
                 right_values['ngamma'] = photon_number_density(
                     getattr(par, 'hydrogen_ngamma_inflow', 0.0)
-                ).to(fluid.ngamma.units)
+                ).to_value(fluid.ngamma.units)
             copy_right(right_values)
         elif btype == 'OutflowSph':
             pre_outflow = ru.CalPressure(par.rho_outflow,par.temp_outflow,par.mu_outflow)
@@ -524,7 +532,7 @@ class Solver():
             if hasattr(fluid, 'ngamma'):
                 left_values['ngamma'] = photon_number_density(
                     getattr(par, 'hydrogen_ngamma_outflow', 0.0)
-                ).to(fluid.ngamma.units)
+                ).to_value(fluid.ngamma.units)
             copy_left(left_values)
             right_values = {
                 'rho': fluid.rho[nolast],

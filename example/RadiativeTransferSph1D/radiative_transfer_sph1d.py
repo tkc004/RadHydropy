@@ -40,6 +40,7 @@ import radhydropy.radiative_transfer as rrt
 from radhydropy.rsim import Rsim
 import example_utils as eu
 import tools as et
+from radhydropy.units import _as_cgs_float
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('radiative_transfer_sph1d.yaml')
@@ -57,16 +58,17 @@ def RunRadiativeTransferOnly(sim):
         sim.fluid.rho,
         sim.fluid.xHI,
         hydrogen_mass_fraction=getattr(sim.par, 'hydrogen_mass_fraction', 1.0),
-        sigma_gamma=rrt._optional_photon_quantity(
-            getattr(sim.par, 'hydrogen_sigma_gamma', None),
-            rrt.rh.DEFAULT_SIGMA_GAMMA,
+        sigma_gamma=_as_cgs_float(
+            getattr(sim.par, 'hydrogen_sigma_gamma', rrt.rh.DEFAULT_SIGMA_GAMMA),
             unyt.cm**2,
         ),
-        boundary_flux=rrt._as_photon_flux(
-            getattr(sim.par, 'radiative_transfer_boundary_flux', None)
+        boundary_flux=_as_cgs_float(
+            getattr(sim.par, 'radiative_transfer_boundary_flux', 0.0),
+            1.0 / (unyt.cm**2 * unyt.s),
         ),
-        source_photon_rate=rrt._as_photon_rate(
-            getattr(sim.par, 'radiative_transfer_source_photon_rate', None)
+        source_photon_rate=_as_cgs_float(
+            getattr(sim.par, 'radiative_transfer_source_photon_rate', 0.0),
+            1.0 / unyt.s,
         ),
         direction=getattr(sim.par, 'radiative_transfer_direction', 1),
         coordsys=getattr(sim.mesh, 'coordsys', 'cartesian'),

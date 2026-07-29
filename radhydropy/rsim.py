@@ -393,7 +393,6 @@ class Rsim():
 
     def _hydro_step_ssprk2(self, dt, advect_chemistry=True):
         """Advance hydro variables with the SSPRK2 strong-stability-preserving scheme."""
-        self.PrepareConservedStep()
         initial_state = self._clone_fluid()
         stage1 = self._clone_fluid()
         self._hydro_step_once(

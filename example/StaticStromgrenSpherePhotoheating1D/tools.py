@@ -16,7 +16,7 @@ from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, _as_cgs_float
 
 static_stromgren_dir = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', 'StaticStromgrenSphere1D')
@@ -138,16 +138,17 @@ def build_static_problem(config):
         fluid.rho,
         fluid.xHI,
         hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-        sigma_gamma=rrt._optional_photon_quantity(
-            getattr(par, 'hydrogen_sigma_gamma', None),
-            rrt.rh.DEFAULT_SIGMA_GAMMA,
+        sigma_gamma=_as_cgs_float(
+            getattr(par, 'hydrogen_sigma_gamma', rrt.rh.DEFAULT_SIGMA_GAMMA),
             unyt.cm**2,
         ),
-        boundary_flux=rrt._as_photon_flux(
-            getattr(par, 'radiative_transfer_boundary_flux', None)
+        boundary_flux=_as_cgs_float(
+            getattr(par, 'radiative_transfer_boundary_flux', 0.0),
+            1.0 / (unyt.cm**2 * unyt.s),
         ),
-        source_photon_rate=rrt._as_photon_rate(
-            getattr(par, 'radiative_transfer_source_photon_rate', None)
+        source_photon_rate=_as_cgs_float(
+            getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
+            1.0 / unyt.s,
         ),
         direction=getattr(par, 'radiative_transfer_direction', 1),
         coordsys=getattr(mesh, 'coordsys', 'cartesian'),
