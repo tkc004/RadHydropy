@@ -14,6 +14,8 @@ conversion, the solver, geometry, gravity, and source-term updates operate in
 the internal unit system instead of repeatedly converting units on the hot
 paths.
 
+If ``CodeUnits`` is omitted, the default internal unit system is cgs.
+
 Example helpers can still accept ``unyt`` quantities at the script boundary,
 but they should convert to code units or plain floats internally before they
 enter any repeated solver loop or gravity calculation.

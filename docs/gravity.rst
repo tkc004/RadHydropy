@@ -10,6 +10,9 @@ internal code-unit helpers in ``radhydropy.units``. That keeps tabulated
 profiles, callables, and solver source terms on the same internal unit system
 after startup conversion.
 
+If no ``CodeUnits`` block is provided, the default internal unit system is
+cgs.
+
 For example scripts, the recommended pattern is to keep the public helper
 interface ``unyt``-friendly while converting to code units or floats inside the
 helper itself. That lets the example remain readable at the YAML boundary
