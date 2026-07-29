@@ -399,19 +399,6 @@ class Rsim():
                 output_callback(self, step)
         return counters
 
-    def RunOneStep(self):
-        """Advance one hydro-plus-source timestep and return that timestep."""
-        return self.Step(mode="hydro_sources")["dt"]
-
-    def RunHydroStep(self, dt=None, advect_chemistry=True, hydro_integrator="euler"):
-        """Advance one hydrodynamic step, optionally advecting chemistry scalars."""
-        return self.Step(
-            dt=dt,
-            mode="hydro",
-            advect_chemistry=advect_chemistry,
-            hydro_integrator=hydro_integrator,
-        )["dt"]
-
     def _static_front_radius_from_state(self, state, neutral_fraction=0.5):
         ionized = state['xHI'] <= neutral_fraction
         if not np.any(ionized):

@@ -113,12 +113,7 @@ Use :meth:`radhydropy.rsim.Rsim.Evolve` to advance until a target time:
    counters = sim.Evolve(final_time=sim.par.timesim, mode="hydro_sources")
    print(counters["hydro_steps"], counters["source_steps"])
 
-The convenience wrappers remain available and now call the same canonical
-implementation:
-
-* :meth:`radhydropy.rsim.Rsim.RunOneStep`
-* :meth:`radhydropy.rsim.Rsim.RunHydroStep`
-* :meth:`radhydropy.rsim.Rsim.Run`
+The main runner helper remains :meth:`radhydropy.rsim.Rsim.Run`.
 
 For fixed-density Stromgren-style tests, use
 :meth:`radhydropy.rsim.Rsim.EvolveStaticThermochemistry`, which evolves the
