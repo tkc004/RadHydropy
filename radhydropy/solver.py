@@ -459,7 +459,8 @@ class Solver():
         def apply_spherical_inner_boundary():
             mirror_start = first
             if mesh is not None and hasattr(mesh, 'boundary'):
-                origin = 0.0 * mesh.boundary.units
+                boundary_units = getattr(mesh.boundary, 'units', None)
+                origin = 0.0 * boundary_units if boundary_units is not None else 0.0
                 if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
                     mirror_start = first + 1
             left_values = {
