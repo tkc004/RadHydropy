@@ -40,12 +40,179 @@ def _code_units(par):
     return getattr(par, "code_units", getattr(par, "CodeUnits", None))
 
 
+@dataclass(frozen=True)
+class _CodeUnitGroup:
+    target: str
+    specs: tuple[tuple[str, str], ...]
+
+
+_CODE_UNIT_GROUPS = (
+    _CodeUnitGroup(
+        'mesh',
+        (
+            ('boundary', 'length'),
+            ('xdelta', 'length'),
+            ('oneoverdx', 'length_inv'),
+            ('coordinate', 'length'),
+            ('area', 'area'),
+            ('vol', 'volume'),
+        ),
+    ),
+    _CodeUnitGroup(
+        'fluid',
+        (
+            ('rho', 'density'),
+            ('vel', 'velocity'),
+            ('pre', 'pressure'),
+            ('temp', 'temperature'),
+            ('Mass', 'mass'),
+            ('Mom', 'momentum'),
+            ('Energy', 'energy'),
+            ('ngamma', 'number_density'),
+            ('cs', 'velocity'),
+            ('vsignal', 'velocity'),
+            ('flux', 'mass_flux'),
+        ),
+    ),
+    _CodeUnitGroup(
+        'par',
+        (
+            ('time', 'time'),
+            ('timesim', 'time'),
+            ('dtmin', 'time'),
+            ('dtmax', 'time'),
+            ('outdeltatime', 'time'),
+            ('boxsize', 'length'),
+            ('area', 'area'),
+            ('rho_inflow', 'density'),
+            ('rho_outflow', 'density'),
+            ('vel_inflow', 'velocity'),
+            ('vel_outflow', 'velocity'),
+            ('temp_inflow', 'temperature'),
+            ('temp_outflow', 'temperature'),
+            ('hydrogen_ngamma_initial', 'number_density'),
+            ('hydrogen_ngamma_inflow', 'number_density'),
+            ('hydrogen_ngamma_outflow', 'number_density'),
+            ('radiative_transfer_boundary_flux', 'photon_flux'),
+            ('radiative_transfer_source_photon_rate', 'photon_rate'),
+            ('hydrogen_sigma_gamma', 'area'),
+            ('hydrogen_epsilon_gamma', 'energy'),
+            ('hydrogen_alpha_B', 'alpha'),
+            ('hydrogen_beta', 'alpha'),
+        ),
+    ),
+)
+
+
 def _to_code_quantity(value, unit):
     if value is None:
         return None
     if hasattr(value, "to"):
         return value.to(unit)
     return np.asarray(value, dtype=float) * unit
+
+
+def code_units_from_system(code):
+    """Return the core unit mapping used for runtime conversions."""
+    return {
+        "length": code.unit_system["length"],
+        "mass": code.unit_system["mass"],
+        "time": code.unit_system["time"],
+        "velocity": code.unit_system["velocity"],
+        "temperature": code.unit_system["temperature"],
+        "density": code.unit_system["density"],
+        "pressure": code.unit_system["pressure"],
+        "energy": code.unit_system["energy"],
+    }
+
+
+def to_code_value(value, unit):
+    """Return a plain NumPy array in code units.
+
+    When ``value`` carries units, it is converted to the supplied unit and the
+    unit metadata is stripped. Plain arrays are treated as already being in
+    code units and are returned unchanged as ``float`` arrays.
+    """
+    if value is None:
+        return None
+    if hasattr(value, "to_value"):
+        return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float)
+
+
+def apply_code_unit_specs(obj, specs, units):
+    """Apply code-unit conversions for each named attribute in ``specs``."""
+    for attr, unit_key in specs:
+        if hasattr(obj, attr):
+            setattr(obj, attr, to_code_value(getattr(obj, attr), units[unit_key]))
+
+
+def time_seconds(value, code_units=None):
+    """Return a time value in seconds as a float."""
+    if hasattr(value, "to_value"):
+        return float(np.ravel(value.to_value(unyt.s))[0])
+    if code_units is not None:
+        return float(np.asarray(value, dtype=float) * code_unit_scales(code_units)["time_s"])
+    return float(np.asarray(value, dtype=float))
+
+
+def time_code_value(value, code_units):
+    """Return a time value in code units as a float."""
+    if hasattr(value, "to_value"):
+        return float(np.asarray(value.to_value(code_units.time_unit), dtype=float))
+    return float(np.asarray(value, dtype=float))
+
+
+def code_unit_scales(code):
+    """Return cgs scale factors for the supplied code-unit system."""
+    if code is None:
+        return None
+    length_cm = float(code.length_in_cgs)
+    mass_g = float(code.mass_in_cgs)
+    velocity_cm_s = float(code.velocity_in_cgs)
+    time_s = length_cm / velocity_cm_s
+    area_cm2 = length_cm**2
+    volume_cm3 = length_cm**3
+    density_g_cm3 = mass_g / volume_cm3
+    pressure_erg_cm3 = mass_g / (length_cm * time_s**2)
+    energy_erg = mass_g * velocity_cm_s**2
+    return {
+        "length_cm": length_cm,
+        "mass_g": mass_g,
+        "velocity_cm_s": velocity_cm_s,
+        "time_s": time_s,
+        "temperature_K": float(code.temperature_in_cgs),
+        "area_cm2": area_cm2,
+        "volume_cm3": volume_cm3,
+        "density_g_cm3": density_g_cm3,
+        "pressure_erg_cm3": pressure_erg_cm3,
+        "energy_erg": energy_erg,
+        "specific_energy_erg_g": velocity_cm_s**2,
+        "momentum_g_cm_s": mass_g * velocity_cm_s,
+        "mass_flux_g_cm2_s": mass_g / (area_cm2 * time_s),
+        "energy_flux_erg_cm2_s": energy_erg / (area_cm2 * time_s),
+        "number_density_cm3": 1.0 / volume_cm3,
+        "photon_flux_per_cm2_s": 1.0 / (area_cm2 * time_s),
+        "photon_rate_per_s": 1.0 / time_s,
+        "alpha_cm3_s": volume_cm3 / time_s,
+        "acceleration_cm_s2": length_cm / time_s**2,
+    }
+
+
+def code_quantity_to_cgs(value, code, scale_key):
+    """Convert a code-unit quantity or float to a cgs float array."""
+    scales = code_unit_scales(code)
+    if scales is None:
+        return np.asarray(value, dtype=float)
+    return np.asarray(value, dtype=float) * scales[scale_key]
+
+
+def cgs_quantity_to_code(value, code, scale_key):
+    """Convert a cgs float quantity to code units."""
+    scales = code_unit_scales(code)
+    if scales is None:
+        return np.asarray(value, dtype=float)
+    return np.asarray(value, dtype=float) / scales[scale_key]
 
 
 def photon_number_density(ngamma):

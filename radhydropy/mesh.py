@@ -2,7 +2,8 @@
 
 import numpy as np
 import unyt
-from radhydropy.units import _code_units, _to_code_quantity
+from radhydropy.units import _code_units, to_code_value
+from radhydropy.arrays import as_named_array
 
 
 # set up the underlying mesh for fluid
@@ -53,7 +54,7 @@ class Mesh:
         # add ghost cells:
         noghost = par.noghost
         if code_units is not None:
-            self.boundary = _to_code_quantity(self.boundary, code_units.length_unit)
+            self.boundary = as_named_array(to_code_value(self.boundary, code_units.length_unit))
         dx = self.boundary[1] - self.boundary[0] 
         start = self.boundary[0] - dx * noghost
         end = self.boundary[-1] + dx * noghost 
@@ -62,16 +63,19 @@ class Mesh:
         self.boundary = np.concatenate((ghost_front,self.boundary,ghost_back))
 
         # mesh size
-        self.xdelta = self.boundary[1:] - self.boundary[:-1]
-        self.oneoverdx = 1.0/self.xdelta
+        self.xdelta = as_named_array(self.boundary[1:] - self.boundary[:-1])
+        self.oneoverdx = as_named_array(1.0/self.xdelta)
         if par.coordsys == 'cartesian':
             if not hasattr(par, 'area'):
                 raise AttributeError("area does not exist in params; quitting.")
             # coordinate is the midpoint of boundary
-            self.coordinate = 0.5 * (self.boundary[1:]+self.boundary[:-1])
-            area_unit = code_units.area_unit if code_units is not None else getattr(par.area, 'units', 1.0)
-            self.area = np.ones(par.nogrid+noghost*2) * _to_code_quantity(par.area, area_unit)
-            self.vol = (self.boundary[1:] - self.boundary[:-1]) * self.area
+            self.coordinate = as_named_array(0.5 * (self.boundary[1:]+self.boundary[:-1]))
+            if code_units is not None:
+                area_value = to_code_value(par.area, code_units.area_unit)
+            else:
+                area_value = _to_code_quantity(par.area, getattr(par.area, 'units', 1.0))
+            self.area = as_named_array(np.ones(par.nogrid+noghost*2, dtype=float) * np.asarray(area_value, dtype=float))
+            self.vol = as_named_array((self.boundary[1:] - self.boundary[:-1]) * self.area)
         elif par.coordsys == 'spherical':
             # check if any value is <0:
             #if len(self.boundary[self.boundary<0.0]) > 0:
@@ -79,11 +83,11 @@ class Mesh:
             # coordinate is the centroid of the volume (center of gravity?):
             # see Mignone+14
             #area to the left
-            self.area = (self.boundary[:-1]**2)*4.0*np.pi
+            self.area = as_named_array((self.boundary[:-1]**2)*4.0*np.pi)
             #cell volume
-            self.vol = np.absolute((self.boundary[1:]**3 - self.boundary[:-1]**3))*4.0*np.pi/3.0
+            self.vol = as_named_array(np.absolute((self.boundary[1:]**3 - self.boundary[:-1]**3))*4.0*np.pi/3.0)
             vol_denom = self.boundary[1:]**3 - self.boundary[:-1]**3
-            self.coordinate = 0.5 * (self.boundary[1:] + self.boundary[:-1])
+            self.coordinate = as_named_array(0.5 * (self.boundary[1:] + self.boundary[:-1]))
             nonzero_vol_denom = vol_denom != 0.0
             self.coordinate[nonzero_vol_denom] = 0.75 * (
                 self.boundary[1:][nonzero_vol_denom]**4
@@ -91,10 +95,10 @@ class Mesh:
             ) / vol_denom[nonzero_vol_denom]
             for ig in range(len(self.vol)):
                 # This is the inner sphere
-                if ((self.boundary[ig].value < 0.0) and (self.boundary[ig+1].value > 0.0)):
+                if ((self.boundary[ig] < 0.0) and (self.boundary[ig+1] > 0.0)):
                     self.vol[ig] = (self.boundary[ig+1]**3)*4.0*np.pi/3.0
                     self.coordinate[ig] = 0.75 * self.boundary[ig+1]
-                    self.area[ig] = 0.0 * self.area.units
+                    self.area[ig] = 0.0
                     
 
         else:

@@ -11,7 +11,7 @@ import unyt
 import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.utils as ru
-from radhydropy.units import _code_units
+from radhydropy.units import _code_units, code_unit_scales
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 
 
@@ -60,6 +60,12 @@ def _cgs_scales_from_code_units(par):
 def _code_quantity_to_cgs(value, scale):
     raw = value.value if hasattr(value, 'value') else value
     return np.asarray(raw, dtype=float) * scale
+
+
+def _as_cgs_float_or_scale(value, unit, scale):
+    if hasattr(value, "to_value"):
+        return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float) * scale
 
 
 def _optional_code_quantity_to_cgs(value, scale, default=None, default_unit=None):
@@ -408,12 +414,25 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
 
 def source_state(mesh, fluid, par):
     """Return a float state for fixed-density thermo-chemistry tests."""
-    scales = _cgs_scales_from_code_units(par)
+    code = _code_units(par)
+    scales = code_unit_scales(code)
     interior = interior_slice(par)
-    boundary = mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm)
+    boundary = _as_cgs_float_or_scale(
+        mesh.boundary[interior.start : interior.stop + 1],
+        unyt.cm,
+        scales['length_cm'],
+    )
     xHI = np.asarray(fluid.xHI[interior], dtype=float).copy()
-    temperature = _code_quantity_to_cgs(fluid.temp[interior], scales['temperature_K']).copy()
-    rho = _code_quantity_to_cgs(fluid.rho[interior], scales['density_g_cm3'])
+    temperature = _as_cgs_float_or_scale(
+        fluid.temp[interior],
+        unyt.K,
+        scales['temperature_K'],
+    ).copy()
+    rho = _as_cgs_float_or_scale(
+        fluid.rho[interior],
+        unyt.g / unyt.cm**3,
+        scales['density_g_cm3'],
+    )
     gamma = getattr(
         getattr(fluid, 'eos', None),
         'gamma',
@@ -452,8 +471,16 @@ def source_state(mesh, fluid, par):
         'interior': interior,
         'boundary_cm': boundary,
         'width_cm': np.diff(boundary),
-        'volume_cm3': mesh.vol[interior].to_value(unyt.cm**3),
-        'radius_kpc': mesh.coordinate[interior].to_value(unyt.kpc),
+        'volume_cm3': _as_cgs_float_or_scale(
+            mesh.vol[interior],
+            unyt.cm**3,
+            scales['volume_cm3'],
+        ),
+        'radius_kpc': _as_cgs_float_or_scale(
+            mesh.coordinate[interior],
+            unyt.kpc,
+            np.asarray(mesh.coordinate[interior], dtype=float),
+        ),
         'xHI': xHI,
         'temperature_K': temperature,
         'specific_energy_erg_g': specific_energy,
@@ -617,15 +644,18 @@ def apply_state(state, fluid, par):
     interior = state['interior']
     fluid.xHI[interior] = state['xHI']
     if hasattr(fluid, 'ngamma') and 'ngamma' in state:
-        fluid.ngamma[interior] = state['ngamma'] / unyt.cm**3
+        scales = code_unit_scales(_code_units(par))
+        fluid.ngamma[interior] = state['ngamma'] / scales['number_density_cm3']
     if hasattr(fluid, 'temp') and 'temperature_K' in state:
-        fluid.temp[interior] = state['temperature_K'] * unyt.K
+        scales = code_unit_scales(_code_units(par))
+        fluid.temp[interior] = state['temperature_K'] / scales['temperature_K']
     if hasattr(fluid, 'xHI') and getattr(getattr(fluid, 'eos', None), 'gamma', None) is not None:
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )
         fluid.SetPressure()
-    fluid.time = (state['time_s'] * unyt.s).to(unyt.Myr)
+    scales = code_unit_scales(_code_units(par))
+    fluid.time = state['time_s'] / scales['time_s']
 
 
 def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
@@ -651,18 +681,19 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
 
 def _fast_source_state(mesh, fluid, par):
     """Return a cgs float snapshot for the fast thermo-chemistry path."""
-    scales = _cgs_scales_from_code_units(par)
+    code = _code_units(par)
+    scales = code_unit_scales(code)
     interior = slice(par.noghost, par.noghost + par.nogrid)
-    rho_g_cm3 = fluid.rho[interior].to_value(unyt.g / unyt.cm**3)
-    temperature_K = fluid.temp[interior].to_value(unyt.K)
-    vel_cm_s = fluid.vel[interior].to_value(unyt.cm / unyt.s)
-    mass_g = fluid.Mass[interior].to_value(unyt.g)
-    energy_erg = fluid.Energy[interior].to_value(unyt.erg)
+    rho_g_cm3 = np.asarray(fluid.rho[interior], dtype=float) * scales['density_g_cm3']
+    temperature_K = np.asarray(fluid.temp[interior], dtype=float) * scales['temperature_K']
+    vel_cm_s = np.asarray(fluid.vel[interior], dtype=float) * scales['velocity_cm_s']
+    mass_g = np.asarray(fluid.Mass[interior], dtype=float) * scales['mass_g']
+    energy_erg = np.asarray(fluid.Energy[interior], dtype=float) * scales['energy_erg']
     state = {
         'interior': interior,
-        'boundary_cm': mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm),
-        'width_cm': mesh.xdelta[interior].to_value(unyt.cm),
-        'volume_cm3': mesh.vol[interior].to_value(unyt.cm**3),
+        'boundary_cm': np.asarray(mesh.boundary[interior.start : interior.stop + 1], dtype=float) * scales['length_cm'],
+        'width_cm': np.asarray(mesh.xdelta[interior], dtype=float) * scales['length_cm'],
+        'volume_cm3': np.asarray(mesh.vol[interior], dtype=float) * scales['volume_cm3'],
         'rho_g_cm3': rho_g_cm3,
         'temperature_K': temperature_K,
         'xHI': np.asarray(
@@ -689,7 +720,7 @@ def _fast_source_state(mesh, fluid, par):
             default=rh.DEFAULT_SIGMA_GAMMA,
         ),
         'ngamma_cm3': (
-            _code_quantity_to_cgs(fluid.ngamma[interior], scales['number_density_cm3'])
+            np.asarray(fluid.ngamma[interior], dtype=float) * scales['number_density_cm3']
             if (
                 getattr(par, 'hydrogen_radiation_field', False)
                 or getattr(par, 'radiative_transfer', False)
@@ -786,17 +817,16 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         specific_internal_energy = (
             state['specific_total_energy_erg_g']
             - state['specific_kinetic_energy_erg_g']
-        ) * (unyt.erg / unyt.g)
+        )
         fluid.pre[interior] = (
             specific_internal_energy
-            * fluid.rho[interior]
+            * np.asarray(fluid.rho[interior], dtype=float)
             * (fluid.eos.gamma - 1.0)
-        ).to(fluid.pre.units)
+        )
         fluid.Energy[interior] = (
             state['specific_total_energy_erg_g']
-            * (unyt.erg / unyt.g)
-            * fluid.Mass[interior]
-        ).to(fluid.Energy.units)
+            * np.asarray(fluid.Mass[interior], dtype=float)
+        )
     if state.get('hydrogen_update_mu', False) and hasattr(fluid, 'xHI') and getattr(getattr(fluid, 'eos', None), 'gamma', None) is not None:
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=state['hydrogen_mass_fraction']

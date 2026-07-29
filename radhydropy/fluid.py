@@ -3,10 +3,11 @@
 import numpy as np
 import unyt
 import radhydropy.chemistry_species.hydrogen as rh
-from radhydropy.units import _code_units, _to_code_quantity, photon_number_density
+from radhydropy.units import _code_units, _to_code_quantity, photon_number_density, to_code_value
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
+from radhydropy.arrays import as_named_array
 
 
 # set up fluid properties
@@ -20,7 +21,7 @@ class Fluid():
 
     # import mesh and EOS information into Fluid
     def __init__(self):
-        self.time = 0.0 * unyt.s
+        self.time = 0.0
 
     def SetPressure(self):
         """Set gas pressure from density, temperature, and mean molecular weight."""
@@ -61,8 +62,7 @@ class Fluid():
         """
         code_units = _code_units(par)
         self.code_units = code_units
-        if code_units is not None:
-            self.time = 0.0 * code_units.time_unit
+        self.time = 0.0
 
         # check if the required attributes exist
         attrlist = ['rho','temp','mu','vel'] 
@@ -72,13 +72,13 @@ class Fluid():
                 raise Exception("%s does not exist in fluid; quitting."%attr)
 
         if code_units is not None:
-            self.rho = _to_code_quantity(self.rho, code_units.density_unit)
-            self.temp = _to_code_quantity(self.temp, code_units.temperature_unit)
-            self.vel = _to_code_quantity(self.vel, code_units.velocity_unit)
+            self.rho = as_named_array(to_code_value(self.rho, code_units.density_unit))
+            self.temp = as_named_array(to_code_value(self.temp, code_units.temperature_unit))
+            self.vel = as_named_array(to_code_value(self.vel, code_units.velocity_unit))
 
         if getattr(par, 'hydrogen_chemistry', False) and not hasattr(self, 'xHI'):
             self.xHI = (
-                np.ones(np.shape(self.rho), dtype=float)
+                as_named_array(np.ones(np.shape(self.rho), dtype=float))
                 * getattr(par, 'hydrogen_xHI_initial', 1.0)
             )
         if hasattr(self, 'xHI'):
@@ -96,23 +96,19 @@ class Fluid():
                 code_units.number_density_unit if code_units is not None else 1.0 / unyt.cm**3
             )
             self.ngamma = (
-                np.ones(np.shape(self.rho), dtype=float)
-                * _to_code_quantity(
+                as_named_array(np.ones(np.shape(self.rho), dtype=float))
+                * to_code_value(
                     photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                     ngamma_unit,
                 )
             )
         if hasattr(self, 'ngamma'):
             attrlist.append('ngamma')
-            ngamma_initial = _to_code_quantity(
+            ngamma_initial = to_code_value(
                 photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                 code_units.number_density_unit if code_units is not None else 1.0 / unyt.cm**3,
             )
-            valuelist.append(
-                ngamma_initial.to_value(self.ngamma.units)
-                if hasattr(ngamma_initial, 'to_value')
-                else float(ngamma_initial)
-            )
+            valuelist.append(float(np.asarray(ngamma_initial, dtype=float)))
             
 
         #add ghost cells:
@@ -120,13 +116,10 @@ class Fluid():
         for iattr, attr in enumerate(attrlist): 
             quan = getattr(self, attr)
             #print('attr,qaun',attr,quan)
-            try:
-                units = quan.units
-            except AttributeError:
-                units = 1.0
-            if units == 1.0:
+            units = getattr(quan, 'units', None)
+            if units is None:
                 ghost = np.ones(noghost, dtype=float) * valuelist[iattr]
-                quan = np.concatenate((ghost, np.asarray(quan), ghost))
+                quan = as_named_array(np.concatenate((ghost, np.asarray(quan, dtype=float), ghost)))
             else:
                 values = np.concatenate(
                     (
@@ -135,7 +128,7 @@ class Fluid():
                         np.ones(noghost, dtype=float) * valuelist[iattr],
                     )
                 )
-                quan = values * units
+                quan = as_named_array(values * units)
             setattr(self, attr, quan)
         if hasattr(self, 'xHI'):
             self.xHI = rh.clip_neutral_fraction(self.xHI)

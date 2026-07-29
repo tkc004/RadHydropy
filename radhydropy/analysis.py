@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from radhydropy.units import code_unit_scales
 
 def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
     """Plot a one-dimensional fluid quantity against cell-center position.
@@ -20,13 +21,40 @@ def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
     **kwargs
         Additional keyword arguments passed to ``matplotlib.pyplot.plot``.
     """
-    xb = rsim.mesh.boundary.in_cgs()
-    xq = 0.5*(xb[1:]+xb[:-1])
-    yq = getattr(rsim.fluid,yquan)
-    yq = yq.in_cgs()
+    code_units = getattr(rsim.par, "code_units", getattr(rsim.par, "CodeUnits", None))
+    scales = code_unit_scales(code_units)
+    if hasattr(rsim.mesh.boundary, "in_cgs"):
+        xb = rsim.mesh.boundary.in_cgs()
+        xq = 0.5 * (xb[1:] + xb[:-1])
+        yq = getattr(rsim.fluid, yquan).in_cgs()
+        xlabel = r'$' + xq.in_cgs().units.latex_repr + '$'
+        ylabel = r'$' + yq.in_cgs().units.latex_repr + '$'
+    else:
+        xb = np.asarray(rsim.mesh.boundary, dtype=float) * scales["length_cm"] * unyt.cm
+        xq = 0.5 * (xb[1:] + xb[:-1])
+        yraw = np.asarray(getattr(rsim.fluid, yquan), dtype=float)
+        if yquan == 'rho':
+            yq = yraw * scales["density_g_cm3"] * (unyt.g / unyt.cm**3)
+            ylabel = r'$\\rho$'
+        elif yquan == 'vel':
+            yq = yraw * scales["velocity_cm_s"] * (unyt.cm / unyt.s)
+            ylabel = r'$v$'
+        elif yquan == 'pre':
+            yq = yraw * scales["pressure_erg_cm3"] * (unyt.erg / unyt.cm**3)
+            ylabel = r'$P$'
+        else:
+            yq = yraw
+            ylabel = yquan
+        xlabel = r'$r$'
     plt.plot(xq,yq,**kwargs)
-    plt.xlabel(r'$'+xq.in_cgs().units.latex_repr+'$',fontsize=24)
-    plt.ylabel(r'$'+yq.in_cgs().units.latex_repr+'$',fontsize=24)
+    if hasattr(xq, "in_cgs"):
+        plt.xlabel(r'$'+xq.in_cgs().units.latex_repr+'$',fontsize=24)
+    else:
+        plt.xlabel(xlabel, fontsize=24)
+    if hasattr(yq, "in_cgs"):
+        plt.ylabel(r'$'+yq.in_cgs().units.latex_repr+'$',fontsize=24)
+    else:
+        plt.ylabel(ylabel, fontsize=24)
     if showhalf==1:
         plt.xlim(xmax=0.5*np.amax(xq))
     if showhalf==2:

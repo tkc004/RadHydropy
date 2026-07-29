@@ -3,6 +3,7 @@
 import numpy as np
 import unyt
 import radhydropy.utils as ru
+from radhydropy.arrays import as_named_array
 
 
 class EOS:
@@ -39,50 +40,47 @@ class EOS:
     def pressure(self, rho, temp, mu):
         """Return pressure from density, temperature, and mean molecular weight."""
         if self.code_units is not None:
-            rho_value = self.code_units.to_value(rho, self.code_units.density_unit)
-            temp_value = self.code_units.to_value(temp, self.code_units.temperature_unit)
+            rho_value = np.asarray(rho, dtype=float)
+            temp_value = np.asarray(temp, dtype=float)
             mu_value = np.asarray(mu, dtype=float)
-            pressure_value = (
+            return as_named_array(
+                (
                 rho_value
                 * self.code_units.boltzmann_code
                 * temp_value
                 / (mu_value * self.code_units.proton_mass_code)
+                )
             )
-            return pressure_value * self.code_units.pressure_unit
         return rho / (mu * unyt.mp) * unyt.kb * temp
 
     def temperature(self, rho, pressure, mu):
         """Return temperature from density, pressure, and mean molecular weight."""
         if self.code_units is not None:
-            rho_value = self.code_units.to_value(rho, self.code_units.density_unit)
-            pressure_value = self.code_units.to_value(pressure, self.code_units.pressure_unit)
+            rho_value = np.asarray(rho, dtype=float)
+            pressure_value = np.asarray(pressure, dtype=float)
             mu_value = np.asarray(mu, dtype=float)
-            temperature_value = (
+            return as_named_array(
+                (
                 (pressure_value / rho_value)
                 * (mu_value * self.code_units.proton_mass_code)
                 / self.code_units.boltzmann_code
+                )
             )
-            return temperature_value * self.code_units.temperature_unit
         pressure_over_rho = ru.SafeDivide(pressure, rho)
         return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
     def thermal_energy_density(self, pressure):
         """Return thermal energy density for the selected EOS."""
         if self.is_isothermal:
-            return np.zeros_like(np.asarray(pressure.value, dtype=float)) * (
-                pressure.units
-            )
+            return np.zeros_like(np.asarray(pressure, dtype=float))
         return pressure / (self.gamma - 1.0)
 
     def sound_speed(self, rho, pressure, temp=None, mu=None):
         """Return the characteristic sound speed for the selected EOS."""
         if self.code_units is not None:
             gamma_factor = 1.0 if self.is_isothermal else self.gamma
-            pressure_over_rho = (
-                self.code_units.to_value(pressure, self.code_units.pressure_unit)
-                / self.code_units.to_value(rho, self.code_units.density_unit)
-            )
-            return np.sqrt(gamma_factor * pressure_over_rho) * self.code_units.velocity_unit
+            pressure_over_rho = np.asarray(pressure, dtype=float) / np.asarray(rho, dtype=float)
+            return as_named_array(np.sqrt(gamma_factor * pressure_over_rho))
         pressure_over_rho = ru.SafeDivide(pressure, rho)
         gamma_factor = 1.0 if self.is_isothermal else self.gamma
         soundspeed = np.sqrt(gamma_factor * pressure_over_rho).to(unyt.cm / unyt.s)
@@ -103,11 +101,10 @@ class EOS:
                 )
             return self.pressure(rho, temp, mu)
         if self.code_units is not None:
-            rho_value = self.code_units.to_value(rho, self.code_units.density_unit)
-            vel_value = self.code_units.to_value(vel, self.code_units.velocity_unit)
-            energy_value = self.code_units.to_value(energy_density, self.code_units.pressure_unit)
-            pressure_value = (energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0)
-            return pressure_value * self.code_units.pressure_unit
+            rho_value = np.asarray(rho, dtype=float)
+            vel_value = np.asarray(vel, dtype=float)
+            energy_value = np.asarray(energy_density, dtype=float)
+            return as_named_array((energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0))
         return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
 
     def fluxes(self, rho, vel, pressure):
@@ -115,16 +112,12 @@ class EOS:
         Fmass = rho * vel
         qmass = rho
         Fmom = rho * vel * vel
-        Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0] ** 2
+        Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0
         Fmom += pressure
         qmom = rho * vel
         if self.is_isothermal:
-            zero_energy_flux = np.zeros_like(np.asarray(Fmass.value, dtype=float)) * (
-                unyt.g / unyt.s**3
-            )
-            zero_energy_density = np.zeros_like(
-                np.asarray(qmass.value, dtype=float)
-            ) * (unyt.g / (unyt.cm * unyt.s**2))
+            zero_energy_flux = as_named_array(np.zeros_like(np.asarray(Fmass, dtype=float)))
+            zero_energy_density = as_named_array(np.zeros_like(np.asarray(qmass, dtype=float)))
             return Fmass, qmass, Fmom, qmom, zero_energy_flux, zero_energy_density
         FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)
         qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5

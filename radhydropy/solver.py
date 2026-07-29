@@ -12,11 +12,13 @@ from radhydropy.units import (
     CGS_PHOTON_FLUX_UNIT,
     CGS_RATE_UNIT,
     CGS_VOLUME_UNIT,
+    code_unit_scales,
     _as_cgs_float,
 )
 import numpy as np
 from types import SimpleNamespace
 import unyt
+from radhydropy.arrays import as_named_array
 
 class Solver():
     """Advance one-dimensional Euler equations on a RadHydropy mesh."""
@@ -58,23 +60,27 @@ class Solver():
         """Refresh photon density from the shared radiative-transfer solver."""
         if not getattr(par, 'radiative_transfer', False):
             return None
+        code_units = getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
+        scales = code_unit_scales(code_units)
         if not hasattr(fluid, 'ngamma'):
-            fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float) * CGS_NUMBER_DENSITY_UNIT
+            fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float)
         interior = self._interior_slice(par)
+        boundary = np.asarray(mesh.boundary[interior.start : interior.stop + 1], dtype=float)
+        volume = np.asarray(mesh.vol[interior], dtype=float)
         submesh = SimpleNamespace(
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
-            boundary=mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm),
-            vol=mesh.vol[interior].to_value(CGS_VOLUME_UNIT),
+            boundary=boundary * scales['length_cm'],
+            vol=volume * scales['volume_cm3'],
         )
         if hasattr(mesh, 'area'):
-            submesh.area = mesh.area[interior].to_value(CGS_AREA_UNIT)
+            submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cm2']
         sigma_gamma_cm2 = _as_cgs_float(
             getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA),
             CGS_AREA_UNIT,
         )
         result = rrt.trace_long_characteristics(
             submesh,
-            fluid.rho[interior].to_value(CGS_MASS_DENSITY_UNIT),
+            np.asarray(fluid.rho[interior], dtype=float) * scales['density_g_cm3'],
             np.asarray(fluid.xHI[interior], dtype=float),
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
             sigma_gamma=sigma_gamma_cm2,
@@ -89,18 +95,21 @@ class Solver():
             direction=getattr(par, 'radiative_transfer_direction', 1),
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
         )
-        fluid.ngamma[interior] = result.cell_photon_density.to_value(fluid.ngamma.units)
+        fluid.ngamma[interior] = (
+            np.asarray(result.cell_photon_density.to_value(unyt.cm**-3), dtype=float)
+            / scales['number_density_cm3']
+        )
         return result
 
     def _spherical_center_cell_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
-        origin = 0.0 * getattr(mesh.boundary, 'units', 1.0)
-        origin_faces = np.where(mesh.boundary[:-1] == origin)[0]
+        boundary = np.asarray(mesh.boundary, dtype=float)
+        origin_faces = np.where(boundary[:-1] == 0.0)[0]
         if len(origin_faces) > 0:
             return int(origin_faces[0])
         origin_cells = np.where(
-            np.logical_and(mesh.boundary[:-1] < origin, mesh.boundary[1:] > origin)
+            np.logical_and(boundary[:-1] < 0.0, boundary[1:] > 0.0)
         )[0]
         if len(origin_cells) > 0:
             return int(origin_cells[0])
@@ -109,8 +118,8 @@ class Solver():
     def _spherical_origin_face_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
-        origin = 0.0 * getattr(mesh.boundary, 'units', 1.0)
-        origin_faces = np.where(mesh.boundary[:-1] == origin)[0]
+        boundary = np.asarray(mesh.boundary, dtype=float)
+        origin_faces = np.where(boundary[:-1] == 0.0)[0]
         if len(origin_faces) > 0:
             return int(origin_faces[0])
         return None
@@ -119,30 +128,22 @@ class Solver():
         origin_face = self._spherical_origin_face_index(mesh)
         if origin_face is None:
             return
-        if hasattr(fluid.Mass.flux, 'units'):
-            fluid.Mass.flux[origin_face] = 0.0 * fluid.Mass.flux.units
-            fluid.Mom.flux[origin_face] = 0.0 * fluid.Mom.flux.units
-            fluid.Energy.flux[origin_face] = 0.0 * fluid.Energy.flux.units
-        else:
-            fluid.Mass.flux[origin_face] = 0.0
-            fluid.Mom.flux[origin_face] = 0.0
-            fluid.Energy.flux[origin_face] = 0.0
+        fluid.Mass.flux[origin_face] = 0.0
+        fluid.Mom.flux[origin_face] = 0.0
+        fluid.Energy.flux[origin_face] = 0.0
 
     def _zero_spherical_center_momentum(self, mesh, fluid):
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is None:
             return
-        if hasattr(fluid.Mom, 'units'):
-            fluid.Mom[center_cell] = 0.0 * fluid.Mom.units
-        else:
-            fluid.Mom[center_cell] = 0.0
+        fluid.Mom[center_cell] = 0.0
 
     def SetPrimitive(self, mesh, fluid, verbose=0):
         """Update primitive variables from conserved quantities."""
         vol = mesh.vol
-        fluid.rho = self._safe_divide(fluid.Mass, vol)
-        fluid.vel = self._safe_divide(fluid.Mom, fluid.Mass)
-        energy_density = self._safe_divide(fluid.Energy, vol)
+        fluid.rho = as_named_array(self._safe_divide(fluid.Mass, vol))
+        fluid.vel = as_named_array(self._safe_divide(fluid.Mom, fluid.Mass))
+        energy_density = as_named_array(self._safe_divide(fluid.Energy, vol))
         fluid.pre = fluid.eos.pressure_from_conserved(
             fluid.rho,
             fluid.vel,
@@ -164,13 +165,13 @@ class Solver():
     def SetConserved(self, mesh, fluid, verbose=0):
         """Update conserved mass, momentum, and energy from primitive variables."""
         vol = mesh.vol
-        fluid.Mass = fluid.rho * vol
-        fluid.Mom = fluid.rho * fluid.vel * vol
-        fluid.Energy = fluid.eos.total_energy_density(
+        fluid.Mass = as_named_array(fluid.rho * vol)
+        fluid.Mom = as_named_array(fluid.rho * fluid.vel * vol)
+        fluid.Energy = as_named_array(fluid.eos.total_energy_density(
             fluid.rho,
             fluid.vel,
             fluid.pre,
-        ) * vol
+        ) * vol)
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         self._zero_spherical_center_momentum(mesh, fluid)
@@ -352,10 +353,10 @@ class Solver():
         code_units = getattr(par, "code_units", getattr(par, "CodeUnits", None))
         if code_units is not None:
             target_unit = code_units.length_unit / code_units.time_unit**2
-            if hasattr(acceleration, "to"):
-                acceleration = acceleration.to(target_unit)
+            if hasattr(acceleration, "to_value"):
+                acceleration = np.asarray(acceleration.to_value(target_unit), dtype=float)
             else:
-                acceleration = np.asarray(acceleration, dtype=float) * target_unit
+                acceleration = np.asarray(acceleration, dtype=float)
         if np.shape(acceleration) != np.shape(fluid.rho):
             raise ValueError(
                 "Gravity acceleration shape %s does not match fluid state shape %s"
@@ -430,6 +431,8 @@ class Solver():
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
         btype = par.boundcond
+        code_units = getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
+        scales = code_unit_scales(code_units)
         noghost = par.noghost
         nogrid = par.nogrid
         nolast = noghost + nogrid -1
@@ -506,7 +509,7 @@ class Solver():
                 right_values['ngamma'] = fluid.ngamma[nolast]
             copy_right(right_values)
         elif btype == 'InflowSph':
-            pre_inflow = ru.CalPressure(par.rho_inflow,par.temp_inflow,par.mu_inflow)
+            pre_inflow = fluid.eos.pressure(par.rho_inflow, par.temp_inflow, par.mu_inflow)
             apply_spherical_inner_boundary()
             right_values = {
                 'rho': par.rho_inflow,
@@ -516,12 +519,18 @@ class Solver():
             if hasattr(fluid, 'xHI'):
                 right_values['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
             if hasattr(fluid, 'ngamma'):
-                right_values['ngamma'] = photon_number_density(
-                    getattr(par, 'hydrogen_ngamma_inflow', 0.0)
-                ).to_value(fluid.ngamma.units)
+                right_values['ngamma'] = (
+                    np.asarray(
+                        photon_number_density(
+                            getattr(par, 'hydrogen_ngamma_inflow', 0.0)
+                        ).to_value(unyt.cm**-3),
+                        dtype=float,
+                    )
+                    / scales['number_density_cm3']
+                )
             copy_right(right_values)
         elif btype == 'OutflowSph':
-            pre_outflow = ru.CalPressure(par.rho_outflow,par.temp_outflow,par.mu_outflow)
+            pre_outflow = fluid.eos.pressure(par.rho_outflow, par.temp_outflow, par.mu_outflow)
             left_values = {
                 'rho': par.rho_outflow,
                 'vel': par.vel_outflow,
@@ -530,9 +539,15 @@ class Solver():
             if hasattr(fluid, 'xHI'):
                 left_values['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
             if hasattr(fluid, 'ngamma'):
-                left_values['ngamma'] = photon_number_density(
-                    getattr(par, 'hydrogen_ngamma_outflow', 0.0)
-                ).to_value(fluid.ngamma.units)
+                left_values['ngamma'] = (
+                    np.asarray(
+                        photon_number_density(
+                            getattr(par, 'hydrogen_ngamma_outflow', 0.0)
+                        ).to_value(unyt.cm**-3),
+                        dtype=float,
+                    )
+                    / scales['number_density_cm3']
+                )
             copy_left(left_values)
             right_values = {
                 'rho': fluid.rho[nolast],
@@ -562,7 +577,7 @@ class Solver():
             elif vsignal[interior].shape == xdelta.shape:
                 vsignal = vsignal[interior]
         dt_array = self._safe_divide(CFL * xdelta, vsignal)
-        dtmax = par.dtmax.to(dt_array.units) if hasattr(par.dtmax, "to") else par.dtmax
+        dtmax = float(np.asarray(par.dtmax, dtype=float))
         dt_array = np.where(vsignal != 0.0, dt_array, dtmax)
         dt = np.amin(dt_array)
         fluid.vsignal = vsignal
@@ -572,11 +587,11 @@ class Solver():
             print('fluid.vel', fluid.vel)
             print('fluid.cs', fluid.cs)
             raise Exception(" time step is nan")
-        if dt < par.dtmin:
+        if dt < float(np.asarray(par.dtmin, dtype=float)):
             raise ValueError(
                 " time step %.2e smaller than the minimum time step %.2e"
                 % (dt, par.dtmin)
             )
-        if dt > par.dtmax:
-            dt = par.dtmax
+        if dt > dtmax:
+            dt = dtmax
         return dt

@@ -1,13 +1,18 @@
 """High-level simulation runner."""
 
 import copy
-from dataclasses import dataclass
 import radhydropy.utils as ru
 import radhydropy.io as rio
 import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
-from radhydropy.units import _to_code_quantity
+from radhydropy.units import (
+    _CODE_UNIT_GROUPS,
+    apply_code_unit_specs,
+    code_units_from_system,
+    time_seconds,
+    to_code_value,
+)
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
@@ -16,74 +21,8 @@ from radhydropy.solver import Solver
 from pathlib import Path
 import unyt
 import numpy as np
-import yaml
 import time
 start_time = time.time()
-_CM3_PER_S = unyt.cm**3 / unyt.s
-
-
-@dataclass(frozen=True)
-class _CodeUnitGroup:
-    target: str
-    specs: tuple[tuple[str, str], ...]
-
-
-_CODE_UNIT_GROUPS = (
-    _CodeUnitGroup(
-        'mesh',
-        (
-            ('boundary', 'length'),
-            ('xdelta', 'length'),
-            ('oneoverdx', 'length_inv'),
-            ('coordinate', 'length'),
-            ('area', 'area'),
-            ('vol', 'volume'),
-        ),
-    ),
-    _CodeUnitGroup(
-        'fluid',
-        (
-            ('rho', 'density'),
-            ('vel', 'velocity'),
-            ('pre', 'pressure'),
-            ('temp', 'temperature'),
-            ('Mass', 'mass'),
-            ('Mom', 'momentum'),
-            ('Energy', 'energy'),
-            ('ngamma', 'number_density'),
-            ('cs', 'velocity'),
-            ('vsignal', 'velocity'),
-            ('flux', 'mass_flux'),
-        ),
-    ),
-    _CodeUnitGroup(
-        'par',
-        (
-            ('time', 'time'),
-            ('timesim', 'time'),
-            ('dtmin', 'time'),
-            ('dtmax', 'time'),
-            ('outdeltatime', 'time'),
-            ('boxsize', 'length'),
-            ('area', 'area'),
-            ('rho_inflow', 'density'),
-            ('rho_outflow', 'density'),
-            ('vel_inflow', 'velocity'),
-            ('vel_outflow', 'velocity'),
-            ('temp_inflow', 'temperature'),
-            ('temp_outflow', 'temperature'),
-            ('hydrogen_ngamma_initial', 'number_density'),
-            ('hydrogen_ngamma_inflow', 'number_density'),
-            ('hydrogen_ngamma_outflow', 'number_density'),
-            ('radiative_transfer_boundary_flux', 'photon_flux'),
-            ('radiative_transfer_source_photon_rate', 'photon_rate'),
-            ('hydrogen_sigma_gamma', 'area'),
-            ('hydrogen_epsilon_gamma', 'energy'),
-            ('hydrogen_alpha_B', 'alpha'),
-            ('hydrogen_beta', 'alpha'),
-        ),
-    ),
-)
 
 class Rsim():
     """Coordinate parameters, mesh, fluid state, solver, and output."""
@@ -117,7 +56,7 @@ class Rsim():
         """Read the configured initial-condition HDF5 file."""
         print("--- Read Initial Condition ---")
         print("--- %s seconds ---" % (time.time() - start_time))
-        rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename)
+        rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename, preserve_units=False)
         self.checkparams()
         self.fluid.SetFluidTime(self.par.time)
         print("--- Start Initial Time ---")
@@ -144,23 +83,6 @@ class Rsim():
         self.solver.SetConserved(self.mesh,self.fluid)
         self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
 
-    def _code_units_from_system(self, code):
-        return {
-            'length': code.unit_system['length'],
-            'mass': code.unit_system['mass'],
-            'time': code.unit_system['time'],
-            'velocity': code.unit_system['velocity'],
-            'temperature': code.unit_system['temperature'],
-            'density': code.unit_system['density'],
-            'pressure': code.unit_system['pressure'],
-            'energy': code.unit_system['energy'],
-        }
-
-    def _apply_code_unit_specs(self, obj, specs, units):
-        for attr, unit_key in specs:
-            if hasattr(obj, attr):
-                setattr(obj, attr, _to_code_quantity(getattr(obj, attr), units[unit_key]))
-
     def ConvertToCodeUnits(self):
         """Convert the runtime mesh and fluid state into the internal unit system."""
         code = getattr(self.par, 'CodeUnits', None)
@@ -169,7 +91,7 @@ class Rsim():
         if getattr(self, '_runtime_converted_to_code_units', False):
             return
 
-        units = self._code_units_from_system(code)
+        units = code_units_from_system(code)
         length_unit = units['length']
         mass_unit = units['mass']
         time_unit = units['time']
@@ -192,7 +114,7 @@ class Rsim():
         unit_map = {**units, **derived_units}
 
         for group in _CODE_UNIT_GROUPS:
-            self._apply_code_unit_specs(getattr(self, group.target), group.specs, unit_map)
+            apply_code_unit_specs(getattr(self, group.target), group.specs, unit_map)
         self._runtime_converted_to_code_units = True
 
     def ConvertParametersToCodeUnits(self):
@@ -203,7 +125,7 @@ class Rsim():
         if getattr(self, '_runtime_parameters_converted_to_code_units', False):
             return
 
-        units = self._code_units_from_system(code)
+        units = code_units_from_system(code)
         length_unit = units['length']
         mass_unit = units['mass']
         time_unit = units['time']
@@ -219,57 +141,12 @@ class Rsim():
             'photon_rate': 1.0 / time_unit,
             'alpha': length_unit ** 3 / time_unit,
         }
-        self._apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
+        apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
         self._runtime_parameters_converted_to_code_units = True
-
-    def _parameter_tree(self, value):
-        """Convert a parameter value into a YAML-safe, human-readable object."""
-        if isinstance(value, np.generic):
-            return value.item()
-        if isinstance(value, unyt.unit_object.Unit):
-            return str(value)
-        if isinstance(value, dict):
-            return {
-                str(key): self._parameter_tree(item)
-                for key, item in value.items()
-            }
-        if isinstance(value, (list, tuple)):
-            return [self._parameter_tree(item) for item in value]
-        if hasattr(value, "to_dict") and callable(value.to_dict):
-            return self._parameter_tree(value.to_dict())
-        if hasattr(value, "units"):
-            quantity = np.asarray(value.to_value(value.units))
-            if quantity.shape == ():
-                return f"{quantity.item()} {value.units}"
-            return f"{quantity.tolist()} {value.units}"
-        if callable(value):
-            return getattr(value, "__name__", value.__class__.__name__)
-        if isinstance(value, np.ndarray):
-            return value.tolist()
-        if hasattr(value, "__dict__") and not isinstance(value, type):
-            return {
-                key: self._parameter_tree(item)
-                for key, item in vars(value).items()
-                if not key.startswith("_")
-            }
-        if isinstance(value, Path):
-            return str(value)
-        return str(value)
 
     def WriteUsedParameters(self, filename="used_parameters.yaml"):
         """Write the active runtime parameters to a text file in the CWD."""
-        path = Path.cwd() / filename
-        payload = {
-            "runparams": {
-                key: self._parameter_tree(value)
-                for key, value in sorted(vars(self.par).items())
-                if not key.startswith("_") and key not in {"runparams", "ICparams"}
-            },
-            "ICparams": self._parameter_tree(getattr(self.par, "ICparams", None)),
-        }
-        with path.open("w", encoding="utf-8") as handle:
-            yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
-        return path
+        return rio.write_used_parameters(Path.cwd() / filename, self.par)
 
     def GetStepTime(self, dt=None, final_time=None):
         """Return a timestep, clipped to ``final_time`` when supplied."""
@@ -584,7 +461,7 @@ class Rsim():
 
     def _snapshot_static_state(self, state, time_s):
         return {
-            'time_Myr': (time_s * unyt.s).to_value(unyt.Myr),
+            'time_Myr': time_s,
             'radius_kpc': state['radius_kpc'].copy(),
             'xHI': state['xHI'].copy(),
             'temperature_K': state['temperature_K'].copy(),
@@ -607,7 +484,10 @@ class Rsim():
     def _static_reference_time_seconds(self, reference_time):
         if reference_time is None:
             return None
-        return reference_time.to_value(unyt.s)
+        return time_seconds(
+            reference_time,
+            getattr(self.par, 'code_units', getattr(self.par, 'CodeUnits', None)),
+        )
 
     def _static_step_limit_seconds(self, time_s, final_time_s, dtmax_s, reference_time_s, history):
         remaining_s = final_time_s - time_s
@@ -625,7 +505,7 @@ class Rsim():
         if alpha is None:
             return 0.0
         if hasattr(alpha, 'to_value'):
-            alpha_value = alpha.to_value(_CM3_PER_S)
+            alpha_value = alpha.to_value(unyt.cm**3 / unyt.s)
         else:
             alpha_value = float(alpha)
         ionized = 1.0 - state['xHI']
@@ -689,8 +569,9 @@ class Rsim():
         ngamma = rrt.trace_photon_density(state, self.par)
         recombined_photons = 0.0
         time_s = 0.0
-        final_time_s = final_time.to_value(unyt.s)
-        dtmax_s = source_timestep.to_value(unyt.s)
+        code_units = getattr(self.par, 'code_units', getattr(self.par, 'CodeUnits', None))
+        final_time_s = time_seconds(final_time, code_units)
+        dtmax_s = time_seconds(source_timestep, code_units)
         reference_time_s = self._static_reference_time_seconds(reference_time)
         source_rate = getattr(
             self.par,
@@ -701,7 +582,7 @@ class Rsim():
             source_rate_s = source_rate.to_value(1.0 / unyt.s)
         else:
             source_rate_s = float(source_rate)
-        seconds_to_myr = (1.0 * unyt.s).to_value(unyt.Myr)
+        seconds_to_myr = 1.0
         rt_update_interval = max(
             1,
             int(getattr(self.par, 'radiative_transfer_update_interval', 1)),
@@ -775,171 +656,6 @@ class Rsim():
         history['radiative_transfer_updates'] = rt_updates
         return history
 
-    def _write_numbered_hdf5(self, outindex):
-        filename = (
-            self.par.outdir
-            + '/'
-            + self.par.outfileprefix
-            + '_%03d' % outindex
-            + '.hdf5'
-        )
-        rio.writehdf5(self, filename)
-
-    def _load_output_time_list(self):
-        """Load explicit HDF5 output times from a text file when configured."""
-        filename = getattr(self.par, 'outputtimefilename', None)
-        if not filename:
-            return None
-
-        outputtimepath = Path(filename)
-        if not outputtimepath.exists():
-            raise FileNotFoundError(
-                f"Output-time file not found: {outputtimepath}"
-            )
-
-        unit = None
-        output_times = []
-        with outputtimepath.open() as handle:
-            for raw_line in handle:
-                line = raw_line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                tokens = line.split()
-                if unit is None:
-                    unit = tokens[0]
-                    for token in tokens[1:]:
-                        output_times.append(float(token))
-                    continue
-                for token in tokens:
-                    output_times.append(float(token))
-
-        if unit is None:
-            raise ValueError(
-                f"Output-time file is empty: {outputtimepath}"
-            )
-
-        return np.asarray(output_times, dtype=float) * unyt.Unit(unit)
-
-    def _run_with_output_times(
-        self,
-        outputtime=0,
-        mode="hydro_sources",
-        advect_chemistry=True,
-        stop_condition=None,
-        step_backend=None,
-        step_backend_kwargs=None,
-    ):
-        """Run the simulation using an explicit list of output times."""
-        if step_backend is None:
-            step_backend = self.Step
-        if step_backend_kwargs is None:
-            step_backend_kwargs = {}
-        print("--- Initization finished. Start running ... ---")
-        print("--- %s seconds ---" % (time.time() - start_time))
-        self._write_numbered_hdf5(0)
-        last_output_time_s = float(np.ravel(self.fluid.time.to_value(unyt.s))[0])
-
-        current_time = self.fluid.time
-        final_time = self.par.timesim
-        output_times = self._load_output_time_list()
-        if output_times is None:
-            output_times = []
-        else:
-            target_unit = final_time.units
-            sorted_values = np.unique(
-                np.asarray(output_times.to_value(target_unit), dtype=float)
-            )
-            # Keep only explicit output times that are still ahead of the
-            # current state and do not overshoot the requested final time.
-            output_times = [
-                value * target_unit
-                for value in sorted_values
-                if value * target_unit > current_time and value * target_unit <= final_time
-            ]
-
-        outindex = 1
-        for target_time in output_times:
-            if stop_condition is not None and stop_condition(self):
-                break
-            while self.fluid.time < target_time:
-                if stop_condition is not None and stop_condition(self):
-                    break
-                dt = self.GetStepTime(final_time=target_time)
-                if outputtime == 1:
-                    print("time, dt", self.fluid.time, dt)
-                step_backend(
-                    dt=dt,
-                    mode=mode,
-                    advect_chemistry=advect_chemistry,
-                    **step_backend_kwargs,
-                )
-            if stop_condition is not None and stop_condition(self):
-                break
-            if self.fluid.time == target_time:
-                self.fluid.SetTemperature()
-                self._write_numbered_hdf5(outindex)
-                last_output_time_s = float(np.ravel(self.fluid.time.to_value(unyt.s))[0])
-                outindex += 1
-
-        while self.fluid.time < final_time:
-            if stop_condition is not None and stop_condition(self):
-                break
-            dt = self.GetStepTime(final_time=final_time)
-            if outputtime == 1:
-                print("time, dt", self.fluid.time, dt)
-            step_backend(
-                dt=dt,
-                mode=mode,
-                advect_chemistry=advect_chemistry,
-                **step_backend_kwargs,
-            )
-
-        if (
-            stop_condition is not None
-            and float(np.ravel(self.fluid.time.to_value(unyt.s))[0]) != last_output_time_s
-        ):
-            self.fluid.SetTemperature()
-            self._write_numbered_hdf5(outindex)
-
-        print("--- Simulation finished. ---")
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-    def _hdf5_output_callback(self, outputtime=0, output_state=None):
-        if output_state is None:
-            output_state = {
-                'outtime': 0.0 * self.par.timesim,
-                'outindex': 1,
-                'last_output_time_s': float(np.ravel(self.fluid.time.to_value(unyt.s))[0]),
-            }
-        else:
-            output_state.setdefault('outtime', 0.0 * self.par.timesim)
-            output_state.setdefault('outindex', 1)
-            output_state.setdefault(
-                'last_output_time_s',
-                float(np.ravel(self.fluid.time.to_value(unyt.s))[0]),
-            )
-
-        def callback(sim, step):
-            dt = step["dt"]
-            if getattr(dt, "shape", None) == (1,):
-                dt = dt[0]
-            if outputtime == 1:
-                print("time, dt", sim.fluid.time, dt)
-            # `outtime` measures elapsed simulation time since the last file
-            # write, not wall-clock time.
-            if output_state['outtime'] >= sim.par.outdeltatime:
-                sim.fluid.SetTemperature()
-                sim._write_numbered_hdf5(output_state['outindex'])
-                output_state['last_output_time_s'] = float(
-                    np.ravel(sim.fluid.time.to_value(unyt.s))[0]
-                )
-                output_state['outtime'] = 0.0 * sim.par.timesim
-                output_state['outindex'] += 1
-            else:
-                output_state['outtime'] += dt
-
-        return callback
-
     def Run(
         self,
         outputtime=0,
@@ -952,7 +668,8 @@ class Rsim():
         """Run the simulation loop and write periodic HDF5 outputs."""
         self.WriteUsedParameters()
         if getattr(self.par, 'outputtimefilename', None):
-            self._run_with_output_times(
+            rio.run_with_output_times(
+                self,
                 outputtime=outputtime,
                 mode=mode,
                 advect_chemistry=advect_chemistry,
@@ -965,19 +682,14 @@ class Rsim():
         # whenever `outtime` reaches `outdeltatime`.
         print("--- Initization finished. Start running ... ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
-        self._write_numbered_hdf5(0)
-        output_state = {
-            'outtime': 0.0 * self.par.timesim,
-            'outindex': 1,
-            'last_output_time_s': float(np.ravel(self.fluid.time.to_value(unyt.s))[0]),
-        }
+        rio.write_numbered_hdf5(self, 0)
         self.Evolve(
             final_time=self.par.timesim,
             mode=mode,
             advect_chemistry=advect_chemistry,
-            output_callback=self._hdf5_output_callback(
+            output_callback=rio.hdf5_output_callback(
+                self,
                 outputtime=outputtime,
-                output_state=output_state,
             ),
             stop_condition=stop_condition,
             step_backend=step_backend,
@@ -985,7 +697,7 @@ class Rsim():
         )
         if stop_condition is not None:
             self.fluid.SetTemperature()
-            self._write_numbered_hdf5(output_state['outindex'])
+            rio.write_numbered_hdf5(self, 0)
         print("--- Simulation finished. ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
 

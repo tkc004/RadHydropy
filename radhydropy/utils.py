@@ -2,12 +2,29 @@
 
 import numpy as np
 import unyt
+from radhydropy.arrays import as_named_array
 
 def SafeDivide(numerator, denominator):
     """Divide two ``unyt`` quantities and return zero where the denominator is zero."""
+    if hasattr(numerator, "units") or hasattr(denominator, "units"):
+        numerator_value, denominator_value = np.broadcast_arrays(
+            np.asarray(getattr(numerator, "value", numerator), dtype=float),
+            np.asarray(getattr(denominator, "value", denominator), dtype=float),
+        )
+        quotient = np.zeros_like(denominator_value, dtype=float)
+        with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+            np.divide(
+                numerator_value,
+                denominator_value,
+                out=quotient,
+                where=denominator_value != 0.0,
+            )
+        numerator_units = getattr(numerator, "units", 1.0)
+        denominator_units = getattr(denominator, "units", 1.0)
+        return quotient * (numerator_units / denominator_units)
     numerator_value, denominator_value = np.broadcast_arrays(
-        np.asarray(numerator.value, dtype=float),
-        np.asarray(denominator.value, dtype=float),
+        np.asarray(numerator, dtype=float),
+        np.asarray(denominator, dtype=float),
     )
     quotient = np.zeros_like(denominator_value, dtype=float)
     with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
@@ -17,25 +34,32 @@ def SafeDivide(numerator, denominator):
             out=quotient,
             where=denominator_value != 0.0,
         )
-    return quotient * (numerator.units / denominator.units)
+    return as_named_array(quotient)
 
 def CalPressure(rho,temp,mu):
     """Calculate ideal-gas pressure from density, temperature, and molecular weight."""
-    pressure = rho / (mu * unyt.mp) * unyt.kb * temp
-    return pressure
+    if hasattr(rho, "units") or hasattr(temp, "units"):
+        return rho / (mu * unyt.mp) * unyt.kb * temp
+    return np.asarray(rho, dtype=float) * np.asarray(temp, dtype=float) / np.asarray(mu, dtype=float)
 
 def CalTemperature(rho,pressure,mu):
     """Calculate ideal-gas temperature from density, pressure, and molecular weight."""
+    if not (hasattr(rho, "units") or hasattr(pressure, "units")):
+        return np.asarray(pressure, dtype=float) / np.asarray(rho, dtype=float) * np.asarray(mu, dtype=float)
     pressure_over_rho = SafeDivide(pressure, rho)
     return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
 def CalEnergyDensity(pressure, gamma):
     """Calculate thermal energy density for a polytropic gas."""
-    energydensity = pressure / (gamma-1.0)
-    return energydensity
+    return pressure / (gamma-1.0)
 
 def CalSoundSpeed(pressure,rho, gamma):
     """Calculate adiabatic sound speed and zero invalid values."""
+    if not (hasattr(pressure, "units") or hasattr(rho, "units")):
+        pressure_over_rho = SafeDivide(pressure, rho)
+        soundspeed = np.sqrt(gamma * pressure_over_rho)
+        soundspeed[np.isnan(soundspeed)] = 0.0
+        return soundspeed
     pressure_over_rho = SafeDivide(pressure, rho)
     soundspeed = np.sqrt(gamma * pressure_over_rho).to(unyt.cm / unyt.s)
     soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm/unyt.s
@@ -61,6 +85,8 @@ def CheckParamDimen(params):
 
 def CheckDimension(a,dimcheck):
     """Raise a ``unyt`` error if ``a`` is not dimensionally compatible."""
+    if not hasattr(a, "units"):
+        return
     dummy = a+dimcheck
     pass
 
