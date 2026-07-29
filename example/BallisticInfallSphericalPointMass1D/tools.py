@@ -7,6 +7,15 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from radhydropy.units import code_unit_scales
+
+
+GRAVITATIONAL_CONSTANT_CGS = float(
+    unyt.physical_constants.gravitational_constant.to_value(
+        unyt.cm**3 / (unyt.g * unyt.s**2)
+    )
+)
+ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
 
 class Par:
@@ -32,38 +41,48 @@ def spherical_cell_centers(boundary):
     return coordinate
 
 
-def point_mass_acceleration(point_mass, softening=0.0 * unyt.cm, code_units=None):
+def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
     """Return a callable for a point-mass gravitational acceleration field."""
-    length_unit = code_units.length_unit if code_units is not None else unyt.cm
-    mass_unit = code_units.mass_unit if code_units is not None else unyt.g
-    accel_unit = (
-        code_units.length_unit / code_units.time_unit**2
-        if code_units is not None
-        else unyt.cm / unyt.s**2
-    )
-    point_mass = (
-        point_mass.to(mass_unit)
-        if hasattr(point_mass, 'to')
-        else float(point_mass) * mass_unit
-    )
-    softening = (
-        softening.to(length_unit)
-        if hasattr(softening, 'to')
-        else float(softening) * length_unit
-    )
+    if code_units is not None:
+        scales = code_unit_scales(code_units)
+        point_mass = (
+            point_mass.to_value(unyt.g)
+            if hasattr(point_mass, "to_value")
+            else float(point_mass) * scales["mass_g"]
+        )
+        softening = (
+            softening.to_value(unyt.cm)
+            if hasattr(softening, "to_value")
+            else float(softening) * scales["length_cm"]
+        )
+        coord_unit = code_units.length_unit
+        accel_unit = ACCELERATION_UNIT
+    else:
+        point_mass = (
+            point_mass.to_value(unyt.g)
+            if hasattr(point_mass, "to_value")
+            else float(point_mass)
+        )
+        softening = (
+            softening.to_value(unyt.cm)
+            if hasattr(softening, "to_value")
+            else float(softening)
+        )
+        coord_unit = unyt.cm
+        accel_unit = ACCELERATION_UNIT
 
     def _acceleration(coordinate):
         radius = (
-            coordinate.to(length_unit)
-            if hasattr(coordinate, 'to')
-            else np.asarray(coordinate, dtype=float) * length_unit
+            coordinate.to_value(coord_unit)
+            if hasattr(coordinate, "to_value")
+            else np.asarray(coordinate, dtype=float)
         )
+        if code_units is not None:
+            radius = radius * scales["length_cm"]
         radius = np.maximum(radius, softening)
         return (
-            -unyt.physical_constants.gravitational_constant
-            * point_mass
-            / radius**2
-        ).to(accel_unit)
+            -GRAVITATIONAL_CONSTANT_CGS * point_mass / radius**2
+        ) * accel_unit
 
     return _acceleration
 
@@ -73,9 +92,14 @@ def ballistic_density_profile(coordinate, rho_ref):
     return np.ones(np.shape(coordinate), dtype=float) * rho_ref
 
 
-def ballistic_velocity_profile(coordinate, point_mass, time, softening=0.0 * unyt.cm):
+def ballistic_velocity_profile(coordinate, point_mass, time, softening=0.0):
     """Return the short-time free-fall velocity under a point mass."""
-    return point_mass_acceleration(point_mass, softening=softening)(coordinate) * time
+    acceleration = point_mass_acceleration(
+        point_mass,
+        softening=softening,
+        code_units=None,
+    )(coordinate)
+    return acceleration * time
 
 
 class Simwrap:

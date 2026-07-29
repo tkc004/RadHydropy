@@ -3,80 +3,100 @@
 import numpy as np
 import unyt
 
-from radhydropy.units import _code_units, _to_code_quantity
+from radhydropy.units import _code_units, to_code_value
+
+
+GRAVITATIONAL_CONSTANT_CGS = float(
+    unyt.physical_constants.gravitational_constant.to_value(
+        unyt.cm**3 / (unyt.g * unyt.s**2)
+    )
+)
+
+
+def _require_code_units(code_units):
+    if code_units is None:
+        raise ValueError("gravity helpers require code_units")
+    return code_units
+
+
+def _as_quantity(value, unit):
+    if hasattr(value, "to_value"):
+        return np.asarray(value.to_value(unit), dtype=float) * unit
+    return np.asarray(value, dtype=float) * unit
+
+
+def _as_float_array(value, unit):
+    if value is None:
+        raise ValueError("value must be provided")
+    if hasattr(value, "to_value"):
+        return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float)
+
+
+def _potential_unit(code_units):
+    if code_units is None:
+        return unyt.cm**2 / unyt.s**2
+    return code_units.velocity_unit**2
+
+
+def _acceleration_unit(code_units):
+    if code_units is None:
+        return unyt.cm / unyt.s**2
+    return code_units.length_unit / code_units.time_unit**2
+
+
+def _gravitational_constant_code(code_units):
+    """Return the gravitational constant in the supplied code units."""
+    code_units = _require_code_units(code_units)
+    return (
+        GRAVITATIONAL_CONSTANT_CGS
+        * code_units.mass_in_cgs
+        / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
+    )
 
 
 def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None):
-    r"""Return the gravitational potential of a softened point mass.
-
-    The potential is
-
-    .. math::
-
-       \Phi(r) = -\frac{GM}{\max(r, \epsilon)}.
-
-    Parameters
-    ----------
-    radius : array-like or ``unyt`` quantity
-        Radius at which to evaluate the potential.
-    mass : array-like or ``unyt`` quantity
-        Point mass.
-    softening : array-like or ``unyt`` quantity, optional
-        Small radius floor used to avoid the singularity at ``r = 0``.
-    """
-    length_unit = code_units.length_unit if code_units is not None else unyt.cm
-    mass_unit = code_units.mass_unit if code_units is not None else unyt.g
-    potential_unit = (
-        code_units.velocity_unit**2
-        if code_units is not None
-        else unyt.cm**2 / unyt.s**2
-    )
-    radius = _to_code_quantity(radius, length_unit)
-    mass = _to_code_quantity(mass, mass_unit)
-    softening = _to_code_quantity(softening, length_unit)
-    radius_eff = np.maximum(radius, softening)
-    return (-unyt.physical_constants.gravitational_constant * mass / radius_eff).to(
-        potential_unit
-    )
+    r"""Return the gravitational potential of a softened point mass."""
+    if code_units is None:
+        radius_q = _as_quantity(radius, unyt.cm)
+        mass_q = _as_quantity(mass, unyt.g)
+        softening_q = _as_quantity(softening, unyt.cm)
+        radius_eff = np.maximum(radius_q, softening_q)
+        return (-unyt.physical_constants.gravitational_constant * mass_q / radius_eff).to(
+            _potential_unit(None)
+        )
+    radius_value = to_code_value(radius, code_units.length_unit)
+    mass_value = to_code_value(mass, code_units.mass_unit)
+    softening_value = to_code_value(softening, code_units.length_unit)
+    radius_eff = np.maximum(radius_value, softening_value)
+    potential_value = -_gravitational_constant_code(code_units) * mass_value / radius_eff
+    return potential_value * _potential_unit(code_units)
 
 
-def singular_isothermal_potential(radius, sigma, reference_radius=1.0 * unyt.cm, softening=0.0 * unyt.cm, code_units=None):
-    r"""Return the potential for a singular isothermal sphere.
-
-    The potential is defined up to an additive constant as
-
-    .. math::
-
-       \Phi(r) = 2 \sigma^2 \ln\left(\frac{r}{r_0}\right).
-
-    Parameters
-    ----------
-    radius : array-like or ``unyt`` quantity
-        Radius at which to evaluate the potential.
-    sigma : array-like or ``unyt`` quantity
-        One-dimensional velocity dispersion.
-    reference_radius : array-like or ``unyt`` quantity, optional
-        Fiducial radius ``r_0`` that sets the zero-point of the potential.
-    softening : array-like or ``unyt`` quantity, optional
-        Small radius floor used to avoid the logarithmic singularity.
-    """
-    length_unit = code_units.length_unit if code_units is not None else unyt.cm
-    velocity_unit = (
-        code_units.velocity_unit if code_units is not None else unyt.cm / unyt.s
-    )
-    potential_unit = (
-        code_units.velocity_unit**2
-        if code_units is not None
-        else unyt.cm**2 / unyt.s**2
-    )
-    radius = _to_code_quantity(radius, length_unit)
-    sigma = _to_code_quantity(sigma, velocity_unit)
-    reference_radius = _to_code_quantity(reference_radius, length_unit)
-    softening = _to_code_quantity(softening, length_unit)
-    radius_eff = np.maximum(radius, softening)
-    return (2.0 * sigma**2 * np.log(radius_eff / reference_radius)).to(
-        potential_unit
-    )
+def singular_isothermal_potential(
+    radius,
+    sigma,
+    reference_radius=1.0 * unyt.cm,
+    softening=0.0 * unyt.cm,
+    code_units=None,
+):
+    r"""Return the potential for a singular isothermal sphere."""
+    if code_units is None:
+        radius_q = _as_quantity(radius, unyt.cm)
+        sigma_q = _as_quantity(sigma, unyt.cm / unyt.s)
+        reference_radius_q = _as_quantity(reference_radius, unyt.cm)
+        softening_q = _as_quantity(softening, unyt.cm)
+        radius_eff = np.maximum(radius_q, softening_q)
+        return (2.0 * sigma_q**2 * np.log(radius_eff / reference_radius_q)).to(
+            _potential_unit(None)
+        )
+    radius_value = to_code_value(radius, code_units.length_unit)
+    sigma_value = to_code_value(sigma, code_units.velocity_unit)
+    reference_radius_value = to_code_value(reference_radius, code_units.length_unit)
+    softening_value = to_code_value(softening, code_units.length_unit)
+    radius_eff = np.maximum(radius_value, softening_value)
+    potential_value = 2.0 * sigma_value**2 * np.log(radius_eff / reference_radius_value)
+    return potential_value * _potential_unit(code_units)
 
 
 def nfw_potential(
@@ -86,69 +106,49 @@ def nfw_potential(
     softening=0.0 * unyt.cm,
     code_units=None,
 ):
-    r"""Return the gravitational potential for an NFW halo.
-
-    The potential is written in the common zero-at-infinity convention,
-
-    .. math::
-
-       \Phi(r) = -4 \pi G \rho_s r_s^2 \frac{\ln(1 + x)}{x},
-
-    where ``x = r / r_s`` and the ``x -> 0`` limit is ``1``.
-
-    Parameters
-    ----------
-    radius : array-like or ``unyt`` quantity
-        Radius at which to evaluate the potential.
-    rho_s : array-like or ``unyt`` quantity
-        Characteristic NFW density.
-    r_s : array-like or ``unyt`` quantity
-        NFW scale radius.
-    softening : array-like or ``unyt`` quantity, optional
-        Small radius floor used to avoid the numerical singularity at
-    ``r = 0`` when evaluating ``ln(1 + x) / x``.
-    """
-    length_unit = code_units.length_unit if code_units is not None else unyt.cm
-    density_unit = (
-        code_units.density_unit if code_units is not None else unyt.g / unyt.cm**3
-    )
-    potential_unit = (
-        code_units.velocity_unit**2
-        if code_units is not None
-        else unyt.cm**2 / unyt.s**2
-    )
-    radius = _to_code_quantity(radius, length_unit)
-    rho_s = _to_code_quantity(rho_s, density_unit)
-    r_s = _to_code_quantity(r_s, length_unit)
-    softening = _to_code_quantity(softening, length_unit)
-    radius_eff = np.maximum(radius, softening)
-    x = radius_eff / r_s
-    x_value = np.asarray(x.to_value(unyt.dimensionless), dtype=float)
+    r"""Return the gravitational potential for an NFW halo."""
+    if code_units is None:
+        radius_q = _as_quantity(radius, unyt.cm)
+        rho_s_q = _as_quantity(rho_s, unyt.g / unyt.cm**3)
+        r_s_q = _as_quantity(r_s, unyt.cm)
+        softening_q = _as_quantity(softening, unyt.cm)
+        radius_eff = np.maximum(radius_q, softening_q)
+        x = radius_eff / r_s_q
+        x_value = np.asarray(x.to_value(unyt.dimensionless), dtype=float)
+        log_over_x = np.ones_like(x_value)
+        nonzero = x_value != 0.0
+        log_over_x[nonzero] = np.log1p(x_value[nonzero]) / x_value[nonzero]
+        potential = (
+            -4.0
+            * np.pi
+            * unyt.physical_constants.gravitational_constant
+            * rho_s_q
+            * r_s_q**2
+            * log_over_x
+        )
+        return potential.to(_potential_unit(None))
+    radius_value = to_code_value(radius, code_units.length_unit)
+    rho_s_value = to_code_value(rho_s, code_units.density_unit)
+    r_s_value = to_code_value(r_s, code_units.length_unit)
+    softening_value = to_code_value(softening, code_units.length_unit)
+    radius_eff = np.maximum(radius_value, softening_value)
+    x_value = np.asarray(radius_eff / r_s_value, dtype=float)
     log_over_x = np.ones_like(x_value)
     nonzero = x_value != 0.0
     log_over_x[nonzero] = np.log1p(x_value[nonzero]) / x_value[nonzero]
-    potential = -4.0 * np.pi * unyt.physical_constants.gravitational_constant * rho_s * r_s**2 * log_over_x
-    return potential.to(potential_unit)
+    potential_value = (
+        -4.0
+        * np.pi
+        * _gravitational_constant_code(code_units)
+        * rho_s_value
+        * r_s_value**2
+        * log_over_x
+    )
+    return potential_value * _potential_unit(code_units)
 
 
 class Gravity:
-    """Store gravity settings and evaluate an optional external potential.
-
-    Parameters
-    ----------
-    selfgravity : bool, optional
-        Flag reserved for future self-gravity support.
-    externalgravity : bool, optional
-        Enable an externally supplied gravitational potential.
-    potential : callable, array-like, or ``unyt`` quantity, optional
-        Gravitational potential ``Phi``. When an array is supplied, it is
-        interpreted on ``coordinate``.
-    coordinate : array-like or ``unyt`` quantity, optional
-        Coordinate values associated with a tabulated potential.
-    acceleration : callable, array-like, or ``unyt`` quantity, optional
-        Direct gravitational acceleration. When omitted, it is derived from the
-        potential via ``g = -dPhi/dx``.
-    """
+    """Store gravity settings and evaluate an optional external potential."""
 
     def __init__(
         self,
@@ -182,75 +182,51 @@ class Gravity:
 
     def _tabulated_quantity(self, values, coordinate, label):
         """Interpolate a tabulated quantity onto the requested coordinates."""
+        code_units = _require_code_units(_code_units(self))
         if coordinate is None:
             raise ValueError(f"{label} requires coordinates when it is tabulated")
-        code_units = _code_units(self)
-        coord_unit = code_units.length_unit if code_units is not None else unyt.cm
-        value_unit = (
-            code_units.velocity_unit**2
-            if label == "potential"
-            else (
-                code_units.length_unit / code_units.time_unit**2
-                if code_units is not None
-                else unyt.cm / unyt.s**2
-            )
-        )
-        values = _to_code_quantity(values, value_unit)
-        coord = _to_code_quantity(coordinate, coord_unit)
+
+        coord_unit = code_units.length_unit
+        value_unit = _potential_unit(code_units) if label == "potential" else _acceleration_unit(code_units)
+        values = to_code_value(values, value_unit)
+        coordinate = to_code_value(coordinate, coord_unit)
         if self.coordinate is None:
-            if np.shape(values) != np.shape(coord):
+            if np.shape(values) != np.shape(coordinate):
                 raise ValueError(f"{label} requires a tabulated coordinate axis")
-            return values.to(value_unit)
-        grid = _to_code_quantity(self.coordinate, coord_unit)
-        grid_values = np.asarray(grid.to_value(coord_unit), dtype=float)
-        sample_values = np.asarray(values.to_value(value_unit), dtype=float)
-        target_values = np.asarray(coord.to_value(coord_unit), dtype=float)
-        interpolated = np.interp(target_values, grid_values, sample_values)
-        return interpolated * value_unit
+            return values
+
+        grid = to_code_value(self.coordinate, coord_unit)
+        if np.shape(grid) != np.shape(values):
+            raise ValueError(f"{label} requires tabulated values with the same shape as coordinate")
+        return np.interp(coordinate, grid, values)
 
     def potential_on(self, coordinate):
         """Return the external gravitational potential on ``coordinate``."""
+        code_units = _require_code_units(_code_units(self))
         if self.potential is None:
             raise ValueError("No gravitational potential has been configured")
         if callable(self.potential):
-            code_units = _code_units(self)
-            potential_unit = (
-                code_units.velocity_unit**2
-                if code_units is not None
-                else unyt.cm**2 / unyt.s**2
-            )
-            return _to_code_quantity(self.potential(coordinate), potential_unit)
+            return to_code_value(self.potential(coordinate), _potential_unit(code_units))
         return self._tabulated_quantity(self.potential, coordinate, "potential")
 
     def acceleration_on(self, coordinate):
         """Return the gravitational acceleration on ``coordinate``."""
-        code_units = _code_units(self)
-        acc_unit = (
-            code_units.length_unit / code_units.time_unit**2
-            if code_units is not None
-            else unyt.cm / unyt.s**2
-        )
+        code_units = _require_code_units(_code_units(self))
         if self.acceleration is not None:
             if callable(self.acceleration):
-                return _to_code_quantity(self.acceleration(coordinate), acc_unit)
-            if hasattr(self.acceleration, "units"):
-                return self._tabulated_quantity(self.acceleration, coordinate, "acceleration")
-            return np.asarray(self.acceleration, dtype=float) * acc_unit
+                return to_code_value(self.acceleration(coordinate), _acceleration_unit(code_units))
+            return self._tabulated_quantity(self.acceleration, coordinate, "acceleration")
 
         if self.potential is None:
             raise ValueError("Either a potential or an acceleration must be configured")
 
-        coord_unit = code_units.length_unit if code_units is not None else unyt.cm
-        coord = _to_code_quantity(coordinate, coord_unit)
+        coord = to_code_value(coordinate, code_units.length_unit)
         potential = self.potential_on(coord)
-        coord_values = np.asarray(coord.to_value(coord.units), dtype=float)
-        potential_values = np.asarray(potential.to_value(potential.units), dtype=float)
-
-        if potential_values.size < 2:
+        if potential.size < 2:
             raise ValueError("At least two coordinate points are required to differentiate the potential")
 
-        gradient = np.gradient(potential_values, coord_values)
-        return (-gradient) * potential.units / coord.units
+        gradient = np.gradient(potential, coord)
+        return -gradient
 
     def potential_on_mesh(self, mesh):
         """Return the potential evaluated on a mesh coordinate array."""
@@ -266,4 +242,4 @@ class Gravity:
 
     def force_density_on_mesh(self, mesh, rho):
         """Return the gravitational force density ``rho * g`` on a mesh."""
-        return rho * self.acceleration_on_mesh(mesh)
+        return np.asarray(rho, dtype=float) * self.acceleration_on_mesh(mesh)

@@ -22,6 +22,30 @@ def _read_quantity(group, name):
     return np.asarray(dataset[()]) * unyt.Unit(dataset.attrs['units'])
 
 
+def _scale_unit_for_key(scale_key):
+    return {
+        "length_cm": unyt.cm,
+        "mass_g": unyt.g,
+        "velocity_cm_s": unyt.cm / unyt.s,
+        "time_s": unyt.s,
+        "temperature_K": unyt.K,
+        "area_cm2": unyt.cm**2,
+        "volume_cm3": unyt.cm**3,
+        "density_g_cm3": unyt.g / unyt.cm**3,
+        "pressure_erg_cm3": unyt.erg / unyt.cm**3,
+        "energy_erg": unyt.erg,
+        "specific_energy_erg_g": unyt.erg / unyt.g,
+        "momentum_g_cm_s": unyt.g * unyt.cm / unyt.s,
+        "mass_flux_g_cm2_s": unyt.g / (unyt.cm**2 * unyt.s),
+        "energy_flux_erg_cm2_s": unyt.erg / (unyt.cm**2 * unyt.s),
+        "number_density_cm3": 1.0 / unyt.cm**3,
+        "photon_flux_per_cm2_s": 1.0 / (unyt.cm**2 * unyt.s),
+        "photon_rate_per_s": 1.0 / unyt.s,
+        "alpha_cm3_s": unyt.cm**3 / unyt.s,
+        "acceleration_cm_s2": unyt.cm / unyt.s**2,
+    }.get(scale_key, None)
+
+
 def _read_runtime_quantity(group, name, code_units=None, scale_key=None, preserve_units=False):
     dataset = group[name]
     data = np.asarray(dataset[()], dtype=float)
@@ -29,6 +53,12 @@ def _read_runtime_quantity(group, name, code_units=None, scale_key=None, preserv
         return data * unyt.Unit(dataset.attrs['units'])
     if code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
+        unit_name = dataset.attrs.get("units", None)
+        if unit_name:
+            stored_unit = unyt.Unit(unit_name)
+            cgs_unit = _scale_unit_for_key(scale_key)
+            if cgs_unit is not None:
+                data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
         return as_named_array(data / scales[scale_key])
     return data * unyt.Unit(dataset.attrs['units'])
 
@@ -69,6 +99,12 @@ def _read_any_dataset(dataset, code_units=None, scale_key=None, preserve_units=F
         return data * unyt.Unit(unit_name) if unit_name else data
     if code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
+        unit_name = dataset.attrs.get("units", None)
+        if unit_name:
+            stored_unit = unyt.Unit(unit_name)
+            cgs_unit = _scale_unit_for_key(scale_key)
+            if cgs_unit is not None:
+                data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
         return as_named_array(data / scales[scale_key])
     unit_name = dataset.attrs.get("units", None)
     return as_named_array(data * unyt.Unit(unit_name)) if unit_name else as_named_array(data)
@@ -314,6 +350,7 @@ def run_with_output_times(
 
     current_time = sim.fluid.time
     final_time = sim.par.timesim
+    time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
     output_times = load_output_time_list(getattr(sim.par, 'outputtimefilename', None))
     if output_times is None:
         output_times = []
@@ -344,7 +381,8 @@ def run_with_output_times(
     for target_time in output_times:
         if stop_condition is not None and stop_condition(sim):
             break
-        while sim.fluid.time < target_time:
+        target_time_value = float(np.asarray(target_time, dtype=float))
+        while float(np.asarray(sim.fluid.time, dtype=float)) < target_time_value - time_tol:
             if stop_condition is not None and stop_condition(sim):
                 break
             dt = sim.GetStepTime(final_time=target_time)
@@ -358,13 +396,14 @@ def run_with_output_times(
             )
         if stop_condition is not None and stop_condition(sim):
             break
-        if sim.fluid.time == target_time:
+        if abs(float(np.asarray(sim.fluid.time, dtype=float)) - target_time_value) <= time_tol:
             sim.fluid.SetTemperature()
             write_numbered_hdf5(sim, outindex)
             last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))
             outindex += 1
 
-    while sim.fluid.time < final_time:
+    final_time_value = float(np.asarray(final_time, dtype=float))
+    while float(np.asarray(sim.fluid.time, dtype=float)) < final_time_value - time_tol:
         if stop_condition is not None and stop_condition(sim):
             break
         dt = sim.GetStepTime(final_time=final_time)
@@ -377,7 +416,7 @@ def run_with_output_times(
             **step_backend_kwargs,
         )
 
-    if stop_condition is not None and float(np.asarray(sim.fluid.time, dtype=float)) != last_output_time_s:
+    if stop_condition is not None and abs(float(np.asarray(sim.fluid.time, dtype=float)) - last_output_time_s) > time_tol:
         sim.fluid.SetTemperature()
         write_numbered_hdf5(sim, outindex)
 

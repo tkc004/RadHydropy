@@ -8,6 +8,14 @@ import unyt
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits, code_unit_scales
+
+
+K_BOLTZMANN_CGS = float(unyt.kb.to_value(unyt.erg / unyt.K))
+PROTON_MASS_CGS = float(unyt.mp.to_value(unyt.g))
+SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
+DENSITY_UNIT = unyt.g / unyt.cm**3
+ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
 
 class Par:
@@ -22,32 +30,80 @@ class Fluid:
     pass
 
 
-def sound_speed_squared(temp, mu):
+def sound_speed_squared(temp, mu, code_units=None):
     """Return the isothermal sound speed squared."""
-    return (unyt.kb * temp / (mu * unyt.mp)).to(unyt.cm**2 / unyt.s**2)
+    if hasattr(temp, "to_value"):
+        temp_value = float(temp.to_value(unyt.K))
+    elif code_units is not None:
+        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_K"]
+    else:
+        temp_value = float(temp)
+    mu_value = float(np.asarray(mu, dtype=float))
+    return (
+        K_BOLTZMANN_CGS
+        * temp_value
+        / (mu_value * PROTON_MASS_CGS)
+    ) * SPEED_SQUARED_UNIT
 
 
-def hydrostatic_density_profile(coordinate, rho_ref, temp, mu, gravity_strength):
+def hydrostatic_density_profile(
+    coordinate,
+    rho_ref,
+    temp,
+    mu,
+    gravity_strength,
+    code_units=None,
+):
     """Return the exact isothermal hydrostatic density profile."""
-    c_s2 = sound_speed_squared(temp, mu)
-    scale_height = c_s2 / gravity_strength
-    return rho_ref * np.exp(-coordinate / scale_height)
+    c_s2 = sound_speed_squared(temp, mu, code_units=code_units)
+    c_s2_value = c_s2.to_value(unyt.cm**2 / unyt.s**2)
+    if hasattr(coordinate, "to_value"):
+        coord_value = coordinate.to_value(unyt.cm)
+    elif code_units is not None:
+        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cm"]
+    else:
+        coord_value = np.asarray(coordinate, dtype=float)
+    if hasattr(rho_ref, "to_value"):
+        rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
+    elif code_units is not None:
+        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_g_cm3"]
+    else:
+        rho_value = float(rho_ref)
+    if hasattr(gravity_strength, "to_value"):
+        gravity_value = gravity_strength.to_value(unyt.cm / unyt.s**2)
+    elif code_units is not None:
+        gravity_value = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cm_s2"]
+    else:
+        gravity_value = float(gravity_strength)
+    scale_height = c_s2_value / gravity_value
+    profile = rho_value * np.exp(-np.asarray(coord_value, dtype=float) / scale_height)
+    return profile * DENSITY_UNIT
 
 
-def constant_gravity_acceleration(gravity_strength):
+def constant_gravity_acceleration(gravity_strength, code_units=None):
     """Return a callable for a uniform downward acceleration field."""
+    if hasattr(gravity_strength, "to_value"):
+        gravity_strength = gravity_strength.to_value(unyt.cm / unyt.s**2)
+    elif code_units is not None:
+        gravity_strength = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cm_s2"]
+    else:
+        gravity_strength = float(gravity_strength)
+    gravity_strength = float(np.asarray(gravity_strength, dtype=float))
+    scale = ACCELERATION_UNIT
 
     def _acceleration(coordinate):
-        return -gravity_strength * np.ones(np.shape(coordinate))
+        return -gravity_strength * np.ones(np.shape(coordinate), dtype=float) * scale
 
     return _acceleration
 
 
 class Simwrap:
-    def __init__(self, icparams):
+    def __init__(self, icparams, code_units=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
+        self.par.code_units = code_units
+        self.par.CodeUnits = code_units
 
         self.par.nogrid = icparams['nogrid']
         self.par.coordsys = icparams['coordsys']
@@ -75,12 +131,14 @@ class Simwrap:
             icparams['tempini'],
             icparams['muini'],
             icparams['gravity_strength'],
+            code_units=code_units,
         )
 
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
-    rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout = Simwrap(icparams, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('noghost', 0))
@@ -99,23 +157,26 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         icparams['tempini'],
         icparams['muini'],
         icparams['gravity_strength'],
+        code_units=code_units,
     )
+    xplot = xcoord.in_cgs() if hasattr(xcoord, 'in_cgs') else xcoord * unyt.cm
+    rho_plot = rho_analytic.in_cgs() if hasattr(rho_analytic, 'in_cgs') else rho_analytic * (unyt.g / unyt.cm**3)
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
 
     plt.subplot(1, 2, 1)
-    plt.plot(xcoord.in_cgs(), rho_num.in_cgs(), **kwargs)
+    plt.plot(xplot, rho_num.in_cgs(), **kwargs)
     plt.plot(
-        xcoord.in_cgs(),
-        rho_analytic.in_cgs(),
+        xplot,
+        rho_plot,
         ls='dashed',
         color=color,
     )
     plt.ylabel(r"$\rho$")
 
     plt.subplot(1, 2, 2)
-    plt.plot(xcoord.in_cgs(), vel_num.in_cgs(), **kwargs)
+    plt.plot(xplot, vel_num.in_cgs(), **kwargs)
     plt.plot(
-        xcoord.in_cgs(),
+        xplot,
         zero_velocity.in_cgs(),
         ls='dashed',
         color=color,

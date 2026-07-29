@@ -10,7 +10,9 @@ The runtime now expects a ``CodeUnits`` block in ``runparams``. Example
 configurations define an internal unit system with ``InternalUnitSystem`` and
 RadHydropy converts the mesh, fluid, gravity, and source-term inputs into that
 code-unit system at startup. This keeps the hot paths in a consistent internal
-unit space even when the YAML files are written in physical units.
+unit space even when the YAML files are written in physical units. Example
+helpers can still accept ``unyt`` objects at the boundary, but they should
+move to code units or plain floats internally before repeated evaluation.
 
 Minimum Runner
 --------------
@@ -37,6 +39,9 @@ This is the same pattern used by the bundled example scripts: load the YAML
 file, generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run
 with ``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
 ``outputtimefilename``, and ``savedir`` paths against the example directory.
+Gravity examples such as the hydrostatic point-mass and ballistic-infall
+benchmarks follow the same pattern but also pass ``CodeUnits`` into their
+analytic gravity helpers so the internal math stays float-first.
 
 Run Parameters
 --------------
@@ -67,8 +72,9 @@ parameters used by the bundled YAML examples.
 
 To use explicit output times instead of a fixed cadence, set
 `outputtimefilename` to a txt file whose first non-empty line is the time unit
-and whose remaining lines are the output times. For example, the bundled
-example configs typically point to files such as ``output_times.txt``:
+and whose remaining lines are the output times. Include the final simulation
+time if you want the last state written as an output snapshot. For example,
+the bundled example configs typically point to files such as ``output_times.txt``:
 
 .. code-block:: text
 

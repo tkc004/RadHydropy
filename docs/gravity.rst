@@ -10,6 +10,11 @@ internal code-unit helpers in ``radhydropy.units``. That keeps tabulated
 profiles, callables, and solver source terms on the same internal unit system
 after startup conversion.
 
+For example scripts, the recommended pattern is to keep the public helper
+interface ``unyt``-friendly while converting to code units or floats inside the
+helper itself. That lets the example remain readable at the YAML boundary
+without paying repeated unit-conversion overhead in the solver loop.
+
 Point-Mass Potential Example
 ----------------------------
 
@@ -44,7 +49,10 @@ You can define it with ``unyt`` quantities like this:
 
 When the solver runs with ``par.gravity = gravity`` or with
 ``externalgravity=True`` plus ``gravity_potential`` configured, it uses the
-potential to compute the source term for momentum and energy.
+potential to compute the source term for momentum and energy. The same
+pattern applies to the bundled point-mass and hydrostatic examples: they pass
+``CodeUnits`` into the helper at setup time, then evaluate the gravity source
+in code units internally.
 
 NFW Potential Example
 ---------------------

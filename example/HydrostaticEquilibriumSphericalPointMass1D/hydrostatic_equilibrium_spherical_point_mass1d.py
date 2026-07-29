@@ -14,6 +14,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import point_mass_potential
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     'MPLCONFIGDIR',
@@ -37,8 +38,9 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
     eu.clean_previous_outputs(runparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
 
-    ric = et.Simwrap(ICparams)
+    ric = et.Simwrap(ICparams, code_units=code_units)
     rio.writehdf5(ric, runparams['ICfilename'])
 
     mainrun = Rsim(runparams)
@@ -51,6 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.par.gravity_potential = point_mass_potential(
         mainrun.par.gravity_coordinate,
         ICparams['point_mass'],
+        code_units=mainrun.par.code_units,
     )
     mainrun.Run(mode='hydro')
 
@@ -58,6 +61,11 @@ def main(config_filename=DEFAULT_CONFIG):
         runparams['outdir'],
         runparams['outfileprefix'] + '_001.hdf5',
     )
+    if not os.path.exists(final_outfile):
+        raise FileNotFoundError(
+            'Expected an evolved snapshot at %s, but it was not written.'
+            % final_outfile
+        )
     et.ReadandPlot(
         final_outfile,
         ICparams,

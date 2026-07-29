@@ -21,14 +21,17 @@ Available Examples
      - Spherical H II region expansion with hydrodynamics and a simplified
        piecewise-isothermal neutral/ionized equation of state.
    * - ``example/HydrostaticEquilibrium1D``
-     - Cartesian isothermal atmosphere in a constant gravitational field used as
-       a hydrostatic-equilibrium check.
+     - Cartesian isothermal atmosphere in a constant gravitational field used
+       as a hydrostatic-equilibrium check. The helper stays ``unyt``-friendly
+       at the boundary but evaluates gravity internally in code units.
    * - ``example/HydrostaticEquilibriumSphericalPointMass1D``
      - Spherical isothermal hydrostatic equilibrium in a point-mass potential
-       without including the origin.
+       without including the origin. The example writes a real evolved output
+       snapshot and compares it against the analytic profile.
    * - ``example/BallisticInfallSphericalPointMass1D``
-     - Spherical ballistic infall in a point-mass potential without including the
-       origin.
+     - Spherical ballistic infall in a point-mass potential without including
+       the origin. The point-mass helper now converts to code units internally
+       and the example compares against the analytic free-fall profile.
    * - ``example/Inflow1D``
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``
@@ -85,4 +88,3 @@ Detailed Example Pages
    static_stromgren_sphere_photoheating1d
    hii_region_expansion1d
    dynamic_stromgren_sphere_photoheating1d
-

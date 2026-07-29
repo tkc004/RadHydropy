@@ -140,6 +140,8 @@ class Rsim():
             'photon_flux': 1.0 / (length_unit ** 2 * time_unit),
             'photon_rate': 1.0 / time_unit,
             'alpha': length_unit ** 3 / time_unit,
+            'acceleration': length_unit / time_unit ** 2,
+            'potential': units['velocity'] ** 2,
         }
         apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
         self._runtime_parameters_converted_to_code_units = True

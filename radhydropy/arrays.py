@@ -16,6 +16,12 @@ class NamedArray(np.ndarray):
         if obj is None:
             return
 
+    def __deepcopy__(self, memo):
+        """Return a clean copy without recursive solver scratch metadata."""
+        copied = np.array(self, copy=True).view(type(self))
+        memo[id(self)] = copied
+        return copied
+
 
 def as_named_array(value, dtype=float):
     """Return ``value`` as a mutable NumPy subclass with attribute support."""

@@ -14,6 +14,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     'MPLCONFIGDIR',
@@ -35,6 +36,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
     eu.clean_previous_outputs(runparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
 
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric, runparams['ICfilename'])
@@ -42,14 +44,13 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun = Rsim(runparams)
     mainrun.par.gravity = Gravity(
         externalgravity=True,
-        acceleration=et.constant_gravity_acceleration(ICparams['gravity_strength']),
+        acceleration=et.constant_gravity_acceleration(
+            ICparams['gravity_strength'],
+            code_units=code_units,
+        ),
+        code_units=code_units,
     )
-    # Demonstrate the optional second-order hydro integrator in a runnable example.
-    mainrun.RunAll(
-        outputtime=0,
-        mode='hydro',
-        step_backend_kwargs={'hydro_integrator': 'ssprk2'},
-    )
+    mainrun.RunAll(outputtime=0, mode='hydro')
 
     final_outfile = os.path.join(
         runparams['outdir'],

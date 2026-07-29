@@ -24,7 +24,9 @@ The code currently provides:
 The runtime expects a ``CodeUnits`` block in the run parameters. Physical
 inputs are converted to that internal unit system at initialization, so the
 solver and source terms can work in a consistent code-unit space while the
-example YAML files still use readable physical units.
+example YAML files still use readable physical units. Example-side helper
+functions can still present ``unyt``-friendly interfaces, but they should
+convert to code units or plain floats internally on hot paths.
 
 Full documentation: https://tkc004.github.io/RadHydropy/
 
@@ -87,8 +89,10 @@ CodeUnits:
 ```
 
 That block is required for the current runtime path. The example loaders and
-startup conversion step use it to convert mesh, fluid, gravity, and source-term
-inputs once at initialization.
+startup conversion step use it to convert mesh, fluid, gravity, and
+source-term inputs once at initialization. Example helpers such as gravity
+profiles and hydrostatic reference solutions should accept ``unyt`` quantities
+at the script boundary but evaluate in code units or floats internally.
 
 The runner also exposes lower-level stepping methods when an example or test
 needs finer control:
@@ -144,8 +148,9 @@ profile with the built-in plotting helper.
 
 To use explicit output times instead of a fixed cadence, set
 `outputtimefilename` to a txt file whose first non-empty line is the time unit
-and whose remaining lines are the output times. For example, the bundled
-example configs typically point to files such as ``output_times.txt``:
+and whose remaining lines are the output times. Include the final simulation
+time if you want the last state written as an output snapshot. For example,
+the bundled example configs typically point to files such as ``output_times.txt``:
 
 ```text
 yr

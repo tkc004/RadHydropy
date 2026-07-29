@@ -99,6 +99,10 @@ _CODE_UNIT_GROUPS = (
             ('hydrogen_epsilon_gamma', 'energy'),
             ('hydrogen_alpha_B', 'alpha'),
             ('hydrogen_beta', 'alpha'),
+            ('gravity_coordinate', 'length'),
+            ('gravity_potential', 'potential'),
+            ('gravity_acceleration', 'acceleration'),
+            ('gravity_strength', 'acceleration'),
         ),
     ),
 )
