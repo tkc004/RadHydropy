@@ -1,9 +1,9 @@
 # RadHydropy
 
 RadHydropy is a Python package for idealized one-dimensional hydrodynamics
-simulations. It is designed for Cartesian and spherical test problems, uses
-`unyt` quantities for physical units, and reads/writes simulation state through
-HDF5 files.
+simulations. It is designed for Cartesian and spherical test problems, uses a
+shared internal code-unit system for runtime calculations, and reads/writes
+simulation state through HDF5 files.
 
 The code currently provides:
 
@@ -20,6 +20,11 @@ The code currently provides:
   photon number density;
 - HDF5 input/output helpers; and
 - plotting utilities for one-dimensional outputs.
+
+The runtime expects a ``CodeUnits`` block in the run parameters. Physical
+inputs are converted to that internal unit system at initialization, so the
+solver and source terms can work in a consistent code-unit space while the
+example YAML files still use readable physical units.
 
 Full documentation: https://tkc004.github.io/RadHydropy/
 
@@ -64,9 +69,26 @@ Most examples follow the same pattern:
 
 1. load `runparams` and `ICparams` from the example YAML file;
 2. create or load an HDF5 initial-condition file from `ICparams`;
-3. construct `Rsim` with the runtime parameters;
+3. construct `Rsim` with the runtime parameters, including `CodeUnits`;
 4. call `RunAll()`; and
 5. inspect or plot the output files.
+
+The bundled YAML files define the internal unit system with a block like:
+
+```yaml
+CodeUnits:
+  name: galactic_unit_system
+  InternalUnitSystem:
+    UnitMass_in_cgs:     4.92e31
+    UnitLength_in_cgs:   3.08567758e21
+    UnitVelocity_in_cgs: 1.0e5
+    UnitCurrent_in_cgs:  1.0
+    UnitTemp_in_cgs:     1.0
+```
+
+That block is required for the current runtime path. The example loaders and
+startup conversion step use it to convert mesh, fluid, gravity, and source-term
+inputs once at initialization.
 
 The runner also exposes lower-level stepping methods when an example or test
 needs finer control:

@@ -5,6 +5,11 @@ RadHydropy can use an optional external gravitational field through
 :class:`radhydropy.gravity.Gravity`. The field can be supplied either as a
 tabulated potential, a callable, or a direct acceleration profile.
 
+Like the rest of the runtime, gravity inputs are normalized through the shared
+internal code-unit helpers in ``radhydropy.units``. That keeps tabulated
+profiles, callables, and solver source terms on the same internal unit system
+after startup conversion.
+
 Point-Mass Potential Example
 ----------------------------
 

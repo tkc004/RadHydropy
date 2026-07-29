@@ -6,6 +6,12 @@ initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
 reads the initial condition, prepares mesh and fluid state, advances the
 solver, and writes HDF5 outputs.
 
+The runtime now expects a ``CodeUnits`` block in ``runparams``. Example
+configurations define an internal unit system with ``InternalUnitSystem`` and
+RadHydropy converts the mesh, fluid, gravity, and source-term inputs into that
+code-unit system at startup. This keeps the hot paths in a consistent internal
+unit space even when the YAML files are written in physical units.
+
 Minimum Runner
 --------------
 

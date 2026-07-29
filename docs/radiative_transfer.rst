@@ -8,6 +8,11 @@ cell-averaged photon number density and writes it to ``fluid.ngamma`` before
 the hydrogen source terms use ``n_gamma`` for photo-ionization and
 photo-heating.
 
+The implementation uses the shared internal code-unit helpers in
+``radhydropy.units``. Runtime inputs such as boundary fluxes, source photon
+rates, and photon densities are converted once into the internal unit system at
+startup, then the ray tracer works in that consistent code-unit space.
+
 Governing Idea
 --------------
 

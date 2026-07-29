@@ -4,6 +4,33 @@ Run Parameters
 Runtime parameters are passed to :class:`radhydropy.params.Par` as a dictionary.
 Missing keys are filled from :data:`radhydropy.params.refparams`.
 
+Unit System
+-----------
+
+Every run must define a ``CodeUnits`` block in ``runparams``. RadHydropy uses
+that block to build a shared internal code-unit system and converts runtime
+state into those code units during initialization. After that startup
+conversion, the solver, geometry, gravity, and source-term updates operate in
+the internal unit system instead of repeatedly converting units on the hot
+paths.
+
+The YAML form used by the examples is:
+
+.. code-block:: yaml
+
+   CodeUnits:
+     name: galactic_unit_system
+     InternalUnitSystem:
+       UnitMass_in_cgs:     4.92e31
+       UnitLength_in_cgs:   3.08567758e21
+       UnitVelocity_in_cgs: 1.0e5
+       UnitCurrent_in_cgs:  1.0
+       UnitTemp_in_cgs:     1.0
+
+If you already have a :class:`unyt.unit_systems.UnitSystem`, it can also be
+passed as ``CodeUnits``. The loader converts that object into the same
+``CodeUnits`` dataclass used by the runtime.
+
 Common Runtime Keys
 -------------------
 
