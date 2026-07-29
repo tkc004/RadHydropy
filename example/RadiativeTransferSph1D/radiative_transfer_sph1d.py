@@ -19,6 +19,8 @@ import time
 from pathlib import Path
 import tempfile
 
+import unyt
+
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
@@ -34,6 +36,7 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 from radhydropy.example_config import load_example_parameters
+import radhydropy.radiative_transfer as rrt
 from radhydropy.rsim import Rsim
 import example_utils as eu
 import tools as et
@@ -49,7 +52,26 @@ def RunRadiativeTransferOnly(sim):
     print("--- %s seconds ---" % (time.time() - start_time))
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid)
-    result = sim.solver.ApplyRadiativeTransfer(sim.mesh, sim.fluid, sim.par)
+    result = rrt.trace_long_characteristics(
+        sim.mesh,
+        sim.fluid.rho,
+        sim.fluid.xHI,
+        hydrogen_mass_fraction=getattr(sim.par, 'hydrogen_mass_fraction', 1.0),
+        sigma_gamma=rrt._optional_photon_quantity(
+            getattr(sim.par, 'hydrogen_sigma_gamma', None),
+            rrt.rh.DEFAULT_SIGMA_GAMMA,
+            unyt.cm**2,
+        ),
+        boundary_flux=rrt._as_photon_flux(
+            getattr(sim.par, 'radiative_transfer_boundary_flux', None)
+        ),
+        source_photon_rate=rrt._as_photon_rate(
+            getattr(sim.par, 'radiative_transfer_source_photon_rate', None)
+        ),
+        direction=getattr(sim.par, 'radiative_transfer_direction', 1),
+        coordsys=getattr(sim.mesh, 'coordsys', 'cartesian'),
+    )
+    sim.fluid.ngamma[:] = result.cell_photon_density.to(sim.fluid.ngamma.units)
     if not hasattr(sim.fluid, 'time'):
         sim.fluid.SetFluidTime(0.0 * unyt.s)
     sim.fluid.SetTemperature()

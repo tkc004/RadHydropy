@@ -19,13 +19,7 @@ class ThermochemistryNetwork:
     def advect_ionization_fraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
         raise NotImplementedError
 
-    def trace_spherical_photon_density_fast(self, mesh, fluid, par):
-        raise NotImplementedError
-
     def source_state(self, mesh, fluid, par):
-        raise NotImplementedError
-
-    def trace_spherical_photon_density(self, state):
         raise NotImplementedError
 
     def ionization_fraction_rate(self, state, ngamma):

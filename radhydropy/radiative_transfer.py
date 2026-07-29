@@ -85,18 +85,6 @@ def _face_flux_from_rate(face_rate, face_area):
     return flux
 
 
-def _optical_depth(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):
-    if hasattr(rho, "to_value"):
-        rho_g_cm3 = np.asarray(rho.to_value(unyt.g / unyt.cm**3), dtype=float)
-    else:
-        rho_g_cm3 = np.asarray(rho, dtype=float)
-    nH = rth._cgs_hydrogen_number_density(rho_g_cm3, hydrogen_mass_fraction) * PHOTON_DENSITY_UNIT
-    xHI = rh.clip_neutral_fraction(xHI)
-    sigma = rh.photon_cross_section(sigma_gamma)
-    tau = (sigma * nH * xHI * _cell_widths(mesh)).to_value(unyt.dimensionless)
-    return np.maximum(tau, 0.0)
-
-
 def _trace_cartesian(mesh, optical_depth, boundary_flux, direction):
     ncell = len(optical_depth)
     face_area = _face_areas(mesh, "cartesian")
@@ -225,7 +213,7 @@ def trace_long_characteristics(
     if coordsys not in ("cartesian", "spherical"):
         raise ValueError("coordsys unknown: %s" % coordsys)
 
-    optical_depth = _optical_depth(
+    optical_depth = rth.trace_spherical_tau(
         mesh,
         rho,
         xHI,
@@ -243,54 +231,78 @@ def trace_long_characteristics(
     )
 
 
-def _interior_slice(par):
-    first = par.noghost
-    return slice(first, first + par.nogrid)
-
-
-def _interior_mesh(mesh, interior):
-    attrs = dict(
-        coordsys=getattr(mesh, "coordsys", "cartesian"),
-        boundary=mesh.boundary[interior.start : interior.stop + 1],
-        vol=mesh.vol[interior],
+def _state_mesh_for_radiative_transfer(state, par):
+    """Build a minimal mesh view for the RT helper."""
+    noghost = int(getattr(par, "noghost", 0))
+    boundary = np.asarray(state["boundary_cm"], dtype=float)
+    if boundary.size < 2:
+        raise ValueError("radiative transfer requires at least two cell faces")
+    widths = np.asarray(state["width_cm"], dtype=float)
+    if noghost > 0:
+        left = boundary[0] - np.arange(noghost, 0, -1, dtype=float) * float(widths[0])
+        right = boundary[-1] + np.arange(1, noghost + 1, dtype=float) * float(widths[-1])
+        boundary = np.concatenate((left, boundary, right))
+    full_boundary = boundary * unyt.cm
+    volumes = np.asarray(state["volume_cm3"], dtype=float)
+    if noghost > 0:
+        volumes = np.concatenate(
+            (
+                np.full(noghost, volumes[0], dtype=float),
+                volumes,
+                np.full(noghost, volumes[-1], dtype=float),
+            )
+        )
+    return SimpleNamespace(
+        coordsys=getattr(par, "coordsys", "spherical"),
+        boundary=full_boundary,
+        vol=volumes * (unyt.cm**3),
     )
-    if hasattr(mesh, "area"):
-        attrs["area"] = mesh.area[interior]
-    return SimpleNamespace(**attrs)
 
 
-def apply_long_characteristics_to_fluid(mesh, fluid, par):
-    """Update ``fluid.ngamma`` with a long-characteristic photon field."""
+def _state_fluid_for_radiative_transfer(state, par):
+    """Build a minimal fluid view for the RT helper."""
+    noghost = int(getattr(par, "noghost", 0))
+    rho = np.asarray(state["rho_g_cm3"], dtype=float)
+    xHI = np.asarray(state["xHI"], dtype=float)
+    ngamma = np.asarray(state.get("ngamma_cm3", np.zeros_like(rho)), dtype=float)
+    if noghost > 0:
+        rho = np.concatenate((np.full(noghost, rho[0]), rho, np.full(noghost, rho[-1])))
+        xHI = np.concatenate((np.full(noghost, xHI[0]), xHI, np.full(noghost, xHI[-1])))
+        ngamma = np.concatenate(
+            (np.zeros(noghost, dtype=float), ngamma, np.zeros(noghost, dtype=float))
+        )
+    return SimpleNamespace(
+        rho=rho * (unyt.g / unyt.cm**3),
+        xHI=xHI,
+        ngamma=ngamma * (1.0 / unyt.cm**3),
+    )
 
+
+def trace_photon_density(state, par):
+    """Trace photons through the selected radiative-transfer implementation."""
     if not getattr(par, "radiative_transfer", False):
-        return None
-    method = getattr(par, "radiative_transfer_method", "long_characteristics")
-    if method != "long_characteristics":
-        raise ValueError("radiative transfer method unknown: %s" % method)
-    if not hasattr(fluid, "xHI"):
-        raise AttributeError("xHI is required for long-characteristic opacity")
-    if not hasattr(fluid, "ngamma"):
-        fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float) * PHOTON_DENSITY_UNIT
-
-    sigma_gamma = getattr(par, "hydrogen_sigma_gamma", None)
-    boundary_flux = getattr(par, "radiative_transfer_boundary_flux", None)
-    source_photon_rate = getattr(par, "radiative_transfer_source_photon_rate", None)
-
-    interior = _interior_slice(par)
+        return np.asarray(state.get("ngamma_cm3", 0.0), dtype=float)
+    mesh = _state_mesh_for_radiative_transfer(state, par)
+    fluid = _state_fluid_for_radiative_transfer(state, par)
     result = trace_long_characteristics(
-        _interior_mesh(mesh, interior),
-        fluid.rho[interior],
-        fluid.xHI[interior],
+        mesh,
+        fluid.rho,
+        fluid.xHI,
         hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
         sigma_gamma=_optional_photon_quantity(
-            sigma_gamma,
+            getattr(par, "hydrogen_sigma_gamma", None),
             rh.DEFAULT_SIGMA_GAMMA,
             unyt.cm**2,
         ),
-        boundary_flux=_as_photon_flux(boundary_flux),
-        source_photon_rate=_as_photon_rate(source_photon_rate),
+        boundary_flux=_as_photon_flux(getattr(par, "radiative_transfer_boundary_flux", None)),
+        source_photon_rate=_as_photon_rate(
+            getattr(par, "radiative_transfer_source_photon_rate", None)
+        ),
         direction=getattr(par, "radiative_transfer_direction", 1),
-        coordsys=getattr(mesh, "coordsys", "cartesian"),
+        coordsys=getattr(par, "coordsys", "spherical"),
     )
-    fluid.ngamma[interior] = result.cell_photon_density.to(fluid.ngamma.units)
-    return result
+    interior = slice(
+        int(getattr(par, "noghost", 0)),
+        int(getattr(par, "noghost", 0)) + int(getattr(par, "nogrid", len(state["xHI"]))),
+    )
+    return np.asarray(result.cell_photon_density[interior].to_value(1.0 / unyt.cm**3), dtype=float)

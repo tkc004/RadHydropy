@@ -55,19 +55,9 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     )
 
 
-def trace_spherical_photon_density_fast(mesh, fluid, par):
-    """Update ``ngamma`` with the selected network's fast RT-coupled trace."""
-    return get_network(par).trace_spherical_photon_density_fast(mesh, fluid, par)
-
-
 def source_state(mesh, fluid, par):
     """Return a thermo-chemistry source state for the selected network."""
     return get_network(par).source_state(mesh, fluid, par)
-
-
-def trace_spherical_photon_density(state, par):
-    """Trace a central source through a thermo-chemistry source state."""
-    return get_network(par).trace_spherical_photon_density(state)
 
 
 def ionization_fraction_rate(state, ngamma, par):

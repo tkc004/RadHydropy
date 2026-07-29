@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
+import radhydropy.radiative_transfer as rrt
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
@@ -132,7 +133,26 @@ def build_static_problem(config):
     solver = Solver()
     solver.SetBoundary(mesh, fluid, par)
     solver.SetConserved(mesh, fluid)
-    solver.ApplyRadiativeTransfer(mesh, fluid, par)
+    result = rrt.trace_long_characteristics(
+        mesh,
+        fluid.rho,
+        fluid.xHI,
+        hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
+        sigma_gamma=rrt._optional_photon_quantity(
+            getattr(par, 'hydrogen_sigma_gamma', None),
+            rrt.rh.DEFAULT_SIGMA_GAMMA,
+            unyt.cm**2,
+        ),
+        boundary_flux=rrt._as_photon_flux(
+            getattr(par, 'radiative_transfer_boundary_flux', None)
+        ),
+        source_photon_rate=rrt._as_photon_rate(
+            getattr(par, 'radiative_transfer_source_photon_rate', None)
+        ),
+        direction=getattr(par, 'radiative_transfer_direction', 1),
+        coordsys=getattr(mesh, 'coordsys', 'cartesian'),
+    )
+    fluid.ngamma[:] = result.cell_photon_density.to(fluid.ngamma.units)
     return par, mesh, fluid, solver
 
 

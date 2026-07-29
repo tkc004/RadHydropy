@@ -388,10 +388,6 @@ def thermochemistry_radiation_evolution_enabled(fluid, par):
     )
 
 
-def apply_radiative_transfer(mesh, fluid, par):
-    return rrt.apply_long_characteristics_to_fluid(mesh, fluid, par)
-
-
 def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     """Advect the chemistry fraction consistently with the mass flux."""
     if not hasattr(fluid, 'xHI'):
@@ -408,58 +404,6 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     ) * dt
     xHI = ru.SafeDivide(neutral_mass, fluid.Mass)
     fluid.xHI = rh.clip_neutral_fraction(np.asarray(xHI.value, dtype=float))
-
-
-def trace_spherical_photon_density_fast(mesh, fluid, par):
-    """Update ``ngamma`` with a lightweight spherical long-characteristic trace."""
-    if getattr(mesh, 'coordsys', None) != 'spherical':
-        apply_radiative_transfer(mesh, fluid, par)
-        return fluid.ngamma[interior_slice(par)]
-    if not hasattr(fluid, 'ngamma'):
-        return None
-
-    scales = _cgs_scales_from_code_units(par)
-    interior = interior_slice(par)
-    boundary = mesh.boundary[interior.start : interior.stop + 1].to_value(unyt.cm)
-    width = np.diff(boundary)
-    volume = mesh.vol[interior].to_value(unyt.cm**3)
-    rho = _code_quantity_to_cgs(fluid.rho[interior], scales['density_g_cm3'])
-    nH = rho * getattr(par, 'hydrogen_mass_fraction', 1.0) / _PROTON_MASS_G
-    xHI = np.clip(np.asarray(fluid.xHI[interior], dtype=float), 0.0, 1.0)
-    sigma = _optional_code_quantity_to_cgs(
-        getattr(par, 'hydrogen_sigma_gamma', None),
-        scales['area_cm2'],
-        default=rh.DEFAULT_SIGMA_GAMMA,
-        default_unit=unyt.cm**2,
-    )
-    source_rate = _optional_code_quantity_to_cgs(
-        getattr(par, 'radiative_transfer_source_photon_rate', None),
-        scales['photon_rate_per_s'],
-        default=0.0,
-    )
-    c_light = rh.SPEED_OF_LIGHT.to_value(unyt.cm / unyt.s)
-
-    tau = sigma * nH * xHI * width
-    attenuation = np.exp(-np.clip(tau, 0.0, 700.0))
-    mean_attenuation = np.ones_like(tau)
-    valid = np.abs(tau) > 1.0e-10
-    mean_attenuation[valid] = -np.expm1(-tau[valid]) / tau[valid]
-
-    face_rate = np.zeros(len(xHI) + 1)
-    ngamma = np.zeros_like(xHI)
-    face_rate[0] = source_rate
-    for i in range(len(xHI)):
-        face_rate[i + 1] = face_rate[i] * attenuation[i]
-        ngamma[i] = (
-            face_rate[i]
-            * width[i]
-            * mean_attenuation[i]
-            / volume[i]
-            / c_light
-        )
-
-    fluid.ngamma[interior] = ngamma / unyt.cm**3
-    return fluid.ngamma[interior]
 
 
 def source_state(mesh, fluid, par):
@@ -538,28 +482,19 @@ def source_state(mesh, fluid, par):
     }
 
 
-def trace_spherical_photon_density(state):
-    """Trace a central source through a float source state."""
-    sigma = state['sigma_gamma_cm2']
-    source_rate = state['source_rate_s']
-    tau = sigma * state['nH_cm3'] * np.clip(state['xHI'], 0.0, 1.0) * state['width_cm']
-    attenuation = np.exp(-np.clip(tau, 0.0, 700.0))
-    mean_attenuation = np.ones_like(tau)
-    valid = np.abs(tau) > 1.0e-10
-    mean_attenuation[valid] = -np.expm1(-tau[valid]) / tau[valid]
-    face_rate = np.zeros(len(state['xHI']) + 1)
-    ngamma = np.zeros_like(state['xHI'])
-    face_rate[0] = source_rate
-    for i in range(len(state['xHI'])):
-        face_rate[i + 1] = face_rate[i] * attenuation[i]
-        ngamma[i] = (
-            face_rate[i]
-            * state['width_cm'][i]
-            * mean_attenuation[i]
-            / state['volume_cm3'][i]
-            / _SPEED_OF_LIGHT_CMS
-        )
-    return ngamma
+def trace_spherical_tau(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):
+    """Return the hydrogen optical depth per cell."""
+    if hasattr(rho, "to_value"):
+        rho_g_cm3 = np.asarray(rho.to_value(unyt.g / unyt.cm**3), dtype=float)
+    else:
+        rho_g_cm3 = np.asarray(rho, dtype=float)
+    nH = _cgs_hydrogen_number_density(rho_g_cm3, hydrogen_mass_fraction) * (1.0 / unyt.cm**3)
+    xHI = rh.clip_neutral_fraction(xHI)
+    sigma = rh.photon_cross_section(sigma_gamma)
+    tau = (sigma * nH * xHI * np.abs(mesh.boundary[1:] - mesh.boundary[:-1]).to(unyt.cm)).to_value(
+        unyt.dimensionless
+    )
+    return np.maximum(tau, 0.0)
 
 
 def ionization_fraction_rate(state, ngamma):
@@ -702,7 +637,7 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
         else np.asarray(remaining, dtype=float)
     )
     if getattr(par, 'radiative_transfer', False):
-        state['ngamma_cm3'] = trace_spherical_photon_density(state)
+        state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
     sub_dt_s, thermal_rate = get_timestep(
         state,
         state.get('ngamma_cm3'),
@@ -885,7 +820,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
     source_steps = 0
     while remaining_s > zero_time_s:
         if getattr(par, 'radiative_transfer', False):
-            state['ngamma_cm3'] = trace_spherical_photon_density(state)
+            state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
         if state['hydrogen_update_mu']:
             state['mu'] = rh.mean_molecular_weight_mu(
                 state['xHI'],
@@ -920,12 +855,8 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
             _fast_update_temperature_from_energy(state)
         remaining_s -= sub_dt_s
         source_steps += 1
-    if getattr(par, 'radiative_transfer', False):
-        state['ngamma_cm3'] = trace_spherical_photon_density(state)
     _fast_sync_state_to_fluid(state, fluid, par)
     return source_steps
-
-
 class HydrogenNetwork(ThermochemistryNetwork):
     """Hydrogen-only thermo-chemistry network."""
 
@@ -944,14 +875,8 @@ class HydrogenNetwork(ThermochemistryNetwork):
     def advect_ionization_fraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
         return advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux)
 
-    def trace_spherical_photon_density_fast(self, mesh, fluid, par):
-        return trace_spherical_photon_density_fast(mesh, fluid, par)
-
     def source_state(self, mesh, fluid, par):
         return source_state(mesh, fluid, par)
-
-    def trace_spherical_photon_density(self, state):
-        return trace_spherical_photon_density(state)
 
     def ionization_fraction_rate(self, state, ngamma):
         return ionization_fraction_rate(state, ngamma)

@@ -7,6 +7,8 @@ import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
 from radhydropy.units import photon_number_density
 import numpy as np
+from types import SimpleNamespace
+import unyt
 
 class Solver():
     """Advance one-dimensional Euler equations on a RadHydropy mesh."""
@@ -45,8 +47,42 @@ class Solver():
         )
 
     def ApplyRadiativeTransfer(self, mesh, fluid, par):
-        """Update optional radiative-transfer photon fields."""
-        return rrt.apply_long_characteristics_to_fluid(mesh, fluid, par)
+        """Refresh photon density from the shared radiative-transfer solver."""
+        if not getattr(par, 'radiative_transfer', False):
+            return None
+        if not hasattr(fluid, 'ngamma'):
+            fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float) * (
+                1.0 / unyt.cm**3
+            )
+        interior = self._interior_slice(par)
+        submesh = SimpleNamespace(
+            coordsys=getattr(mesh, 'coordsys', 'cartesian'),
+            boundary=mesh.boundary[interior.start : interior.stop + 1],
+            vol=mesh.vol[interior],
+        )
+        if hasattr(mesh, 'area'):
+            submesh.area = mesh.area[interior]
+        result = rrt.trace_long_characteristics(
+            submesh,
+            fluid.rho[interior],
+            fluid.xHI[interior],
+            hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
+            sigma_gamma=rrt._optional_photon_quantity(
+                getattr(par, 'hydrogen_sigma_gamma', None),
+                rh.DEFAULT_SIGMA_GAMMA,
+                unyt.cm**2,
+            ),
+            boundary_flux=rrt._as_photon_flux(
+                getattr(par, 'radiative_transfer_boundary_flux', None)
+            ),
+            source_photon_rate=rrt._as_photon_rate(
+                getattr(par, 'radiative_transfer_source_photon_rate', None)
+            ),
+            direction=getattr(par, 'radiative_transfer_direction', 1),
+            coordsys=getattr(mesh, 'coordsys', 'cartesian'),
+        )
+        fluid.ngamma[interior] = result.cell_photon_density.to(fluid.ngamma.units)
+        return result
 
     def _spherical_center_cell_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
@@ -333,17 +369,13 @@ class Solver():
             mass_flux,
         )
 
-    def TraceSphericalPhotonDensityFast(self, mesh, fluid, par):
-        """Update ``ngamma`` with a lightweight spherical long-characteristic trace."""
-        return rtc.trace_spherical_photon_density_fast(mesh, fluid, par)
-
     def SourceState(self, mesh, fluid, par):
         """Return a float source state for thermo-chemistry tests."""
         return rtc.source_state(mesh, fluid, par)
 
-    def TraceSphericalPhotonDensity(self, state, par):
-        """Trace a central source through a float source state."""
-        return rtc.trace_spherical_photon_density(state, par)
+    def TracePhotonDensity(self, state, par):
+        """Trace a photon field through a float source state."""
+        return rrt.trace_photon_density(state, par)
 
     def IonizationFractionRate(self, state, ngamma, par):
         """Return the chemistry fraction rate for a float source state."""

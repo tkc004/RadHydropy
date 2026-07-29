@@ -4,6 +4,8 @@ import copy
 from dataclasses import dataclass
 import radhydropy.utils as ru
 import radhydropy.io as rio
+import radhydropy.chemistry_species.hydrogen as rh
+import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 from radhydropy.units import _to_code_quantity
 from radhydropy.eos import EOS
@@ -140,7 +142,7 @@ class Rsim():
         self.ConvertParametersToCodeUnits()
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid)
-        self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
+        self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
 
     def _code_units_from_system(self, code):
         return {
@@ -356,6 +358,7 @@ class Rsim():
 
     def ApplyThermochemistrySources(self, dt):
         """Apply radiative-transfer and thermo-chemistry source updates."""
+        self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
         return self.solver.ApplyThermochemistryFast(
             dt,
             self.mesh,
@@ -658,7 +661,7 @@ class Rsim():
     def _refresh_static_photon_density(self, state, step, time_s, final_time_s, rt_update_interval):
         if step % rt_update_interval != 0 and time_s < final_time_s:
             return None, 0
-        ngamma = rtc.trace_spherical_photon_density(state, self.par)
+        ngamma = rrt.trace_photon_density(state, self.par)
         return ngamma, 1
 
     def _store_static_reference_snapshot(self, history, state, time_s, reference_time_s):
@@ -670,7 +673,7 @@ class Rsim():
             history['reference_snapshot'] = self._snapshot_static_state(state, time_s)
 
     def _finish_static_thermochemistry(self, state, time_s):
-        state['ngamma'] = rtc.trace_spherical_photon_density(state, self.par)
+        state['ngamma'] = rrt.trace_photon_density(state, self.par)
         state['time_s'] = time_s
         rtc.apply_state(state, self.fluid, self.par)
         self.solver.SetBoundary(self.mesh, self.fluid, self.par)
@@ -684,7 +687,7 @@ class Rsim():
     ):
         """Evolve fixed-density thermo-chemistry/radiation source terms."""
         state = rtc.source_state(self.mesh, self.fluid, self.par)
-        ngamma = rtc.trace_spherical_photon_density(state, self.par)
+        ngamma = rrt.trace_photon_density(state, self.par)
         recombined_photons = 0.0
         time_s = 0.0
         final_time_s = final_time.to_value(unyt.s)
