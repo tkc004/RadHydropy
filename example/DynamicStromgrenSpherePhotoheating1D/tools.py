@@ -10,13 +10,14 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+import example_utils as eu
 
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
-from radhydropy.params import CodeUnits
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
 
 
 def _to_runtime_quantity(value, unit):
@@ -50,6 +51,7 @@ def load_parameters(config_filename, rundir=None):
             value = Path(icparams[key])
             if not value.is_absolute():
                 icparams[key] = str(config_dir / value)
+    eu.clean_previous_outputs(runparams)
     return runparams, icparams
 
 

@@ -3,13 +3,13 @@
 import numpy as np
 import unyt
 
-import radhydropy.chemistry_species.hydrogen as rh
+import radhydropy.thermo_networks.hydrogen as rth
 
 
 def recombination_rate(temperature, hydrogen_number_density):
     """Return ``nH alpha_B``."""
 
-    alpha_B = rh.alpha_B(temperature).to(unyt.cm**3 / unyt.s)
+    alpha_B = rth._cgs_alpha_B(temperature.to_value(unyt.K))
     nH = hydrogen_number_density.to(1.0 / unyt.cm**3)
     return (alpha_B * nH).to(1.0 / unyt.s)
 
@@ -17,7 +17,13 @@ def recombination_rate(temperature, hydrogen_number_density):
 def photoionization_rate(photon_number_density, sigma_gamma):
     """Return ``c sigma_gamma n_gamma``."""
 
-    return rh.photoionization_frequency(photon_number_density, sigma_gamma)
+    return (
+        rth._cgs_photoionization_frequency(
+            photon_number_density.to_value(1.0 / unyt.cm**3),
+            sigma_gamma.to_value(unyt.cm**2),
+        )
+        * (1.0 / unyt.s)
+    )
 
 
 def neutral_fraction(

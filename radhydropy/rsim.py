@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import radhydropy.utils as ru
 import radhydropy.io as rio
 import radhydropy.thermo_chemistry as rtc
+from radhydropy.units import _to_code_quantity
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
@@ -141,15 +142,6 @@ class Rsim():
         self.solver.SetConserved(self.mesh,self.fluid)
         self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
 
-    def _to_code_quantity(self, value, unit):
-        if value is None:
-            return None
-        if hasattr(value, "to_value"):
-            raw_value = np.asarray(value.to_value(unit), dtype=float)
-        else:
-            raw_value = np.asarray(value, dtype=float)
-        return raw_value * unit
-
     def _code_units_from_system(self, code):
         return {
             'length': code.unit_system['length'],
@@ -165,7 +157,7 @@ class Rsim():
     def _apply_code_unit_specs(self, obj, specs, units):
         for attr, unit_key in specs:
             if hasattr(obj, attr):
-                setattr(obj, attr, self._to_code_quantity(getattr(obj, attr), units[unit_key]))
+                setattr(obj, attr, _to_code_quantity(getattr(obj, attr), units[unit_key]))
 
     def ConvertToCodeUnits(self):
         """Convert the runtime mesh and fluid state into the internal unit system."""

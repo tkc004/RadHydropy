@@ -23,8 +23,11 @@ os.environ.setdefault(
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import unyt
 import yaml
@@ -32,6 +35,7 @@ import yaml
 from radhydropy.rsim import Rsim
 from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
+import example_utils as eu
 import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_recombination1d.yaml')
@@ -52,6 +56,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config_filename,
         rundir,
     )
+    eu.clean_previous_outputs(runparams)
 
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric, runparams['ICfilename'])

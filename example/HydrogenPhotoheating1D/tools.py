@@ -190,10 +190,8 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
             ngamma = 0.0 * sim.fluid.ngamma.units
         sim.fluid.ngamma[:] = ngamma.to(sim.fluid.ngamma.units)
 
-        sim.solver.ApplyThermochemistry(dt, sim.mesh, sim.fluid, sim.par)
-        sim.solver.SetPrimitive(sim.mesh, sim.fluid)
+        sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
         sim.fluid.time += dt
-        sim.fluid.SetTemperature()
 
         if outputtime == 1:
             print("time, dt", sim.fluid.time, dt)

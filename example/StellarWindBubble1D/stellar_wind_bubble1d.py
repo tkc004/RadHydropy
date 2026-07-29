@@ -5,8 +5,11 @@ from pathlib import Path
 import tempfile
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
@@ -20,6 +23,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import radhydropy.io as rio
+import example_utils as eu
 import tools as et
 
 
@@ -44,6 +48,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
+    eu.clean_previous_outputs(runparams)
 
     if not plot_only:
         ric = et.Simwrap(ICparams)

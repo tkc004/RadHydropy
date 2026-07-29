@@ -10,11 +10,12 @@ import unyt
 
 from radhydropy.fluid import Fluid
 import radhydropy.chemistry_species.hydrogen as rh
+import radhydropy.thermo_networks.hydrogen as rth
 import radhydropy.io as rio
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
-from radhydropy.params import CodeUnits
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
 import stromgren_analytic as sa
 
 
@@ -156,8 +157,8 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
 
 def ionized_hydrogen_atoms(mesh, fluid, par):
     interior = interior_slice(par)
-    nH = rh.hydrogen_number_density(
-        fluid.rho[interior],
+    nH = rth._cgs_hydrogen_number_density(
+        fluid.rho[interior].to_value(unyt.g / unyt.cm**3),
         par.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
@@ -173,8 +174,8 @@ def photons_in_volume(mesh, fluid, par):
 
 def total_recombination_rate(mesh, fluid, par):
     interior = interior_slice(par)
-    nH = rh.hydrogen_number_density(
-        fluid.rho[interior],
+    nH = rth._cgs_hydrogen_number_density(
+        fluid.rho[interior].to_value(unyt.g / unyt.cm**3),
         par.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])

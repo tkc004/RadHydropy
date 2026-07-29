@@ -10,12 +10,13 @@ def SafeDivide(numerator, denominator):
         np.asarray(denominator.value, dtype=float),
     )
     quotient = np.zeros_like(denominator_value, dtype=float)
-    np.divide(
-        numerator_value,
-        denominator_value,
-        out=quotient,
-        where=denominator_value != 0.0,
-    )
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        np.divide(
+            numerator_value,
+            denominator_value,
+            out=quotient,
+            where=denominator_value != 0.0,
+        )
     return quotient * (numerator.units / denominator.units)
 
 def CalPressure(rho,temp,mu):

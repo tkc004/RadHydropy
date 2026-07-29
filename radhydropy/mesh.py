@@ -2,18 +2,7 @@
 
 import numpy as np
 import unyt
-
-
-def _code_units(par):
-    return getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
-
-
-def _to_code_quantity(value, unit):
-    if value is None:
-        return None
-    if hasattr(value, 'to'):
-        return value.to(unit)
-    return np.asarray(value, dtype=float) * unit
+from radhydropy.units import _code_units, _to_code_quantity
 
 
 # set up the underlying mesh for fluid

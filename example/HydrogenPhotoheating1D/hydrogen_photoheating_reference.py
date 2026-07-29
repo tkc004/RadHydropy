@@ -4,6 +4,8 @@ import numpy as np
 import unyt
 
 import radhydropy.chemistry_species.hydrogen as rh
+import radhydropy.radiative_transfer as rrt
+import radhydropy.thermo_networks.hydrogen as rth
 
 
 def photon_number_density_from_flux(photon_flux):
@@ -27,7 +29,9 @@ def thermal_equilibrium_temperature(photoionization_temperature):
 def recombination_timescale_at_temperature(hydrogen_number_density, temperature):
     """Return ``1 / (nH alpha_B(T))``."""
 
-    rate = hydrogen_number_density * rh.alpha_B(temperature)
+    rate = hydrogen_number_density.to_value(1.0 / unyt.cm**3) * rth._cgs_alpha_B(
+        temperature.to_value(unyt.K)
+    )
     return (1.0 / rate).to(unyt.yr)
 
 
@@ -39,7 +43,7 @@ def photoionization_timescale(sigma_gamma, photon_number_density):
         / (
             rh.SPEED_OF_LIGHT
             * rh.photon_cross_section(sigma_gamma)
-            * rh.photon_number_density(photon_number_density)
+            * rrt.photon_number_density(photon_number_density)
         )
     ).to(unyt.yr)
 

@@ -11,6 +11,7 @@ import unyt
 import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.utils as ru
+from radhydropy.units import _code_units
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 
 
@@ -22,16 +23,10 @@ _CM3_PER_S = unyt.cm**3 / unyt.s
 _ERG = unyt.erg
 _PER_S = 1.0 / unyt.s
 
-
-def _code_unit_system(par):
-    code = getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
+def _cgs_scales_from_code_units(par):
+    code = _code_units(par)
     if code is None:
         raise ValueError('hydrogen thermo-chemistry requires par.code_units')
-    return code
-
-
-def _cgs_scales_from_code_units(par):
-    code = _code_unit_system(par)
     length_cm = float(code.length_in_cgs)
     mass_g = float(code.mass_in_cgs)
     velocity_cm_s = float(code.velocity_in_cgs)
@@ -79,6 +74,8 @@ def _optional_code_quantity_to_cgs(value, scale, default=None, default_unit=None
 
 def _quantity_to_cgs(value, unit, default=0.0):
     if value is None:
+        if default is None:
+            return None
         return np.asarray(default, dtype=float)
     if hasattr(value, 'to_value'):
         return np.asarray(value.to_value(unit), dtype=float)
@@ -327,14 +324,39 @@ def _cgs_static_neutral_fraction_implicit_update(
     )
     c = xHI + dt_value * recombination_rate_s
     discriminant = np.maximum(b**2 - 4.0 * a * c, 0.0)
-    denominator = -b + np.sqrt(discriminant)
+    sqrt_discriminant = np.sqrt(discriminant)
     updated = np.array(xHI, copy=True, dtype=float)
-    updated = np.divide(
-        2.0 * c,
-        denominator,
-        out=updated,
-        where=denominator != 0.0,
-    )
+    nonzero = a != 0.0
+    if np.any(nonzero):
+        root_low = np.divide(
+            -b - sqrt_discriminant,
+            2.0 * a,
+            out=np.array(xHI, copy=True, dtype=float),
+            where=nonzero,
+        )
+        root_high = np.divide(
+            -b + sqrt_discriminant,
+            2.0 * a,
+            out=np.array(xHI, copy=True, dtype=float),
+            where=nonzero,
+        )
+        selected = np.where(
+            (root_low >= 0.0) & (root_low <= 1.0),
+            root_low,
+            root_high,
+        )
+        updated = np.where(nonzero, selected, updated)
+    zero = ~nonzero
+    if np.any(zero):
+        linear_denominator = b[zero]
+        linear_numerator = -c[zero]
+        linear_updated = np.divide(
+            linear_numerator,
+            linear_denominator,
+            out=np.array(xHI[zero], copy=True, dtype=float),
+            where=linear_denominator != 0.0,
+        )
+        updated[zero] = linear_updated
     return np.clip(updated, 1.0e-12, 1.0 - 1.0e-12)
 
 
@@ -413,8 +435,7 @@ def trace_spherical_photon_density_fast(mesh, fluid, par):
     source_rate = _optional_code_quantity_to_cgs(
         getattr(par, 'radiative_transfer_source_photon_rate', None),
         scales['photon_rate_per_s'],
-        default=0.0 / unyt.s,
-        default_unit=1.0 / unyt.s,
+        default=0.0,
     )
     c_light = rh.SPEED_OF_LIGHT.to_value(unyt.cm / unyt.s)
 
@@ -469,8 +490,7 @@ def source_state(mesh, fluid, par):
     source_rate = _optional_code_quantity_to_cgs(
         getattr(par, 'radiative_transfer_source_photon_rate', None),
         scales['photon_rate_per_s'],
-        default=0.0 / unyt.s,
-        default_unit=1.0 / unyt.s,
+        default=0.0,
     )
     epsilon_gamma = _optional_code_quantity_to_cgs(
         getattr(par, 'hydrogen_epsilon_gamma', None),
@@ -504,8 +524,7 @@ def source_state(mesh, fluid, par):
         'dtmin_s': _optional_code_quantity_to_cgs(
             getattr(par, 'hydrogen_source_dtmin', None),
             scales['time_s'],
-            default=0.0 * unyt.s,
-            default_unit=unyt.s,
+            default=0.0,
         ),
         'recombination': getattr(par, 'hydrogen_recombination', True),
         'collisional_ionization': getattr(
@@ -720,7 +739,7 @@ def _fast_source_state(mesh, fluid, par):
         'mu': (
             np.asarray(fluid.mu[interior], dtype=float)
             if hasattr(fluid, 'mu')
-            else rh.pure_hydrogen_mu(
+            else rh.mean_molecular_weight_mu(
                 np.asarray(
                     fluid.xHI[interior] if hasattr(fluid, 'xHI') else np.ones(par.nogrid),
                     dtype=float,
@@ -734,31 +753,45 @@ def _fast_source_state(mesh, fluid, par):
             unyt.cm**2,
             default=rh.DEFAULT_SIGMA_GAMMA,
         ),
-        'source_rate_s': _quantity_to_cgs(
-            getattr(par, 'radiative_transfer_source_photon_rate', None),
-            1.0 / unyt.s,
+        'ngamma_cm3': (
+            _code_quantity_to_cgs(fluid.ngamma[interior], scales['number_density_cm3'])
+            if (
+                getattr(par, 'hydrogen_radiation_field', False)
+                or getattr(par, 'radiative_transfer', False)
+            )
+            and hasattr(fluid, 'ngamma')
+            else None
         ),
-        'epsilon_gamma_erg': _quantity_to_cgs(
+        'source_rate_s': _optional_code_quantity_to_cgs(
+            getattr(par, 'radiative_transfer_source_photon_rate', None),
+            scales['photon_rate_per_s'],
+            default=0.0,
+        ),
+        'epsilon_gamma_erg': _optional_code_quantity_to_cgs(
             getattr(par, 'hydrogen_epsilon_gamma', None),
-            unyt.erg,
+            scales['energy_erg'],
             default=rh.DEFAULT_EPSILON_GAMMA,
+            default_unit=unyt.erg,
         ),
         'source_CFL': getattr(par, 'hydrogen_source_CFL', 0.1),
-        'dtmin_s': _quantity_to_cgs(
+        'dtmin_s': _optional_code_quantity_to_cgs(
             getattr(par, 'hydrogen_source_dtmin', None),
-            unyt.s,
+            scales['time_s'],
+            default=0.0,
         ),
         'recombination': getattr(par, 'hydrogen_recombination', True),
         'collisional_ionization': getattr(par, 'hydrogen_collisional_ionization', True),
         'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True),
         'hydrogen_update_mu': getattr(par, 'hydrogen_update_mu', False),
-        'alpha_B_cm3_s': _quantity_to_cgs(
+        'alpha_B_cm3_s': _optional_code_quantity_to_cgs(
             getattr(par, 'hydrogen_alpha_B', None),
-            unyt.cm**3 / unyt.s,
+            scales['alpha_cm3_s'],
+            default=None,
         ),
-        'beta_cm3_s': _quantity_to_cgs(
+        'beta_cm3_s': _optional_code_quantity_to_cgs(
             getattr(par, 'hydrogen_beta', None),
-            unyt.cm**3 / unyt.s,
+            scales['alpha_cm3_s'],
+            default=None,
         ),
     }
     if state['thermal_coupling']:
@@ -780,7 +813,7 @@ def _fast_update_temperature_from_energy(state):
         0.0,
     )
     if state.get('hydrogen_update_mu', False):
-        state['mu'] = rh.pure_hydrogen_mu(
+        state['mu'] = rh.mean_molecular_weight_mu(
             state['xHI'],
             hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
         )
@@ -854,7 +887,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
         if getattr(par, 'radiative_transfer', False):
             state['ngamma_cm3'] = trace_spherical_photon_density(state)
         if state['hydrogen_update_mu']:
-            state['mu'] = rh.pure_hydrogen_mu(
+            state['mu'] = rh.mean_molecular_weight_mu(
                 state['xHI'],
                 hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
             )
@@ -879,7 +912,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
             sub_dt_s,
         )
         if state['hydrogen_update_mu']:
-            state['mu'] = rh.pure_hydrogen_mu(
+            state['mu'] = rh.mean_molecular_weight_mu(
                 state['xHI'],
                 hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
             )

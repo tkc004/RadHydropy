@@ -3,34 +3,7 @@
 import numpy as np
 import unyt
 
-
-def _as_quantity(value, unit=None):
-    """Return ``value`` as a quantity in ``unit`` when one is provided."""
-    if hasattr(value, "to"):
-        return value.to(unit) if unit is not None else value
-    if unit is not None:
-        return np.asarray(value, dtype=float) * unit
-    return np.asarray(value, dtype=float)
-
-
-def _length_unit(code_units=None):
-    return code_units.length_unit if code_units is not None else unyt.cm
-
-
-def _mass_unit(code_units=None):
-    return code_units.mass_unit if code_units is not None else unyt.g
-
-
-def _time_unit(code_units=None):
-    return code_units.time_unit if code_units is not None else unyt.s
-
-
-def _potential_unit(code_units=None):
-    return code_units.velocity_unit**2 if code_units is not None else unyt.cm**2 / unyt.s**2
-
-
-def _acceleration_unit(code_units=None):
-    return code_units.length_unit / code_units.time_unit**2 if code_units is not None else unyt.cm / unyt.s**2
+from radhydropy.units import _code_units, _to_code_quantity
 
 
 def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None):
@@ -51,12 +24,19 @@ def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None)
     softening : array-like or ``unyt`` quantity, optional
         Small radius floor used to avoid the singularity at ``r = 0``.
     """
-    radius = _as_quantity(radius, _length_unit(code_units))
-    mass = _as_quantity(mass, _mass_unit(code_units))
-    softening = _as_quantity(softening, _length_unit(code_units))
+    length_unit = code_units.length_unit if code_units is not None else unyt.cm
+    mass_unit = code_units.mass_unit if code_units is not None else unyt.g
+    potential_unit = (
+        code_units.velocity_unit**2
+        if code_units is not None
+        else unyt.cm**2 / unyt.s**2
+    )
+    radius = _to_code_quantity(radius, length_unit)
+    mass = _to_code_quantity(mass, mass_unit)
+    softening = _to_code_quantity(softening, length_unit)
     radius_eff = np.maximum(radius, softening)
     return (-unyt.physical_constants.gravitational_constant * mass / radius_eff).to(
-        _potential_unit(code_units)
+        potential_unit
     )
 
 
@@ -80,13 +60,22 @@ def singular_isothermal_potential(radius, sigma, reference_radius=1.0 * unyt.cm,
     softening : array-like or ``unyt`` quantity, optional
         Small radius floor used to avoid the logarithmic singularity.
     """
-    radius = _as_quantity(radius, _length_unit(code_units))
-    sigma = _as_quantity(sigma, code_units.velocity_unit if code_units is not None else unyt.cm / unyt.s)
-    reference_radius = _as_quantity(reference_radius, _length_unit(code_units))
-    softening = _as_quantity(softening, _length_unit(code_units))
+    length_unit = code_units.length_unit if code_units is not None else unyt.cm
+    velocity_unit = (
+        code_units.velocity_unit if code_units is not None else unyt.cm / unyt.s
+    )
+    potential_unit = (
+        code_units.velocity_unit**2
+        if code_units is not None
+        else unyt.cm**2 / unyt.s**2
+    )
+    radius = _to_code_quantity(radius, length_unit)
+    sigma = _to_code_quantity(sigma, velocity_unit)
+    reference_radius = _to_code_quantity(reference_radius, length_unit)
+    softening = _to_code_quantity(softening, length_unit)
     radius_eff = np.maximum(radius, softening)
     return (2.0 * sigma**2 * np.log(radius_eff / reference_radius)).to(
-        _potential_unit(code_units)
+        potential_unit
     )
 
 
@@ -117,12 +106,21 @@ def nfw_potential(
         NFW scale radius.
     softening : array-like or ``unyt`` quantity, optional
         Small radius floor used to avoid the numerical singularity at
-        ``r = 0`` when evaluating ``ln(1 + x) / x``.
+    ``r = 0`` when evaluating ``ln(1 + x) / x``.
     """
-    radius = _as_quantity(radius, _length_unit(code_units))
-    rho_s = _as_quantity(rho_s, code_units.density_unit if code_units is not None else unyt.g / unyt.cm**3)
-    r_s = _as_quantity(r_s, _length_unit(code_units))
-    softening = _as_quantity(softening, _length_unit(code_units))
+    length_unit = code_units.length_unit if code_units is not None else unyt.cm
+    density_unit = (
+        code_units.density_unit if code_units is not None else unyt.g / unyt.cm**3
+    )
+    potential_unit = (
+        code_units.velocity_unit**2
+        if code_units is not None
+        else unyt.cm**2 / unyt.s**2
+    )
+    radius = _to_code_quantity(radius, length_unit)
+    rho_s = _to_code_quantity(rho_s, density_unit)
+    r_s = _to_code_quantity(r_s, length_unit)
+    softening = _to_code_quantity(softening, length_unit)
     radius_eff = np.maximum(radius, softening)
     x = radius_eff / r_s
     x_value = np.asarray(x.to_value(unyt.dimensionless), dtype=float)
@@ -130,7 +128,7 @@ def nfw_potential(
     nonzero = x_value != 0.0
     log_over_x[nonzero] = np.log1p(x_value[nonzero]) / x_value[nonzero]
     potential = -4.0 * np.pi * unyt.physical_constants.gravitational_constant * rho_s * r_s**2 * log_over_x
-    return potential.to(_potential_unit(code_units))
+    return potential.to(potential_unit)
 
 
 class Gravity:
@@ -186,15 +184,24 @@ class Gravity:
         """Interpolate a tabulated quantity onto the requested coordinates."""
         if coordinate is None:
             raise ValueError(f"{label} requires coordinates when it is tabulated")
-        coord_unit = _length_unit(self.code_units)
-        value_unit = _potential_unit(self.code_units) if label == "potential" else _acceleration_unit(self.code_units)
-        values = _as_quantity(values, value_unit)
-        coord = _as_quantity(coordinate, coord_unit)
+        code_units = _code_units(self)
+        coord_unit = code_units.length_unit if code_units is not None else unyt.cm
+        value_unit = (
+            code_units.velocity_unit**2
+            if label == "potential"
+            else (
+                code_units.length_unit / code_units.time_unit**2
+                if code_units is not None
+                else unyt.cm / unyt.s**2
+            )
+        )
+        values = _to_code_quantity(values, value_unit)
+        coord = _to_code_quantity(coordinate, coord_unit)
         if self.coordinate is None:
             if np.shape(values) != np.shape(coord):
                 raise ValueError(f"{label} requires a tabulated coordinate axis")
             return values.to(value_unit)
-        grid = _as_quantity(self.coordinate, coord_unit)
+        grid = _to_code_quantity(self.coordinate, coord_unit)
         grid_values = np.asarray(grid.to_value(coord_unit), dtype=float)
         sample_values = np.asarray(values.to_value(value_unit), dtype=float)
         target_values = np.asarray(coord.to_value(coord_unit), dtype=float)
@@ -206,15 +213,26 @@ class Gravity:
         if self.potential is None:
             raise ValueError("No gravitational potential has been configured")
         if callable(self.potential):
-            return _as_quantity(self.potential(coordinate), _potential_unit(self.code_units))
+            code_units = _code_units(self)
+            potential_unit = (
+                code_units.velocity_unit**2
+                if code_units is not None
+                else unyt.cm**2 / unyt.s**2
+            )
+            return _to_code_quantity(self.potential(coordinate), potential_unit)
         return self._tabulated_quantity(self.potential, coordinate, "potential")
 
     def acceleration_on(self, coordinate):
         """Return the gravitational acceleration on ``coordinate``."""
-        acc_unit = _acceleration_unit(self.code_units)
+        code_units = _code_units(self)
+        acc_unit = (
+            code_units.length_unit / code_units.time_unit**2
+            if code_units is not None
+            else unyt.cm / unyt.s**2
+        )
         if self.acceleration is not None:
             if callable(self.acceleration):
-                return _as_quantity(self.acceleration(coordinate), acc_unit)
+                return _to_code_quantity(self.acceleration(coordinate), acc_unit)
             if hasattr(self.acceleration, "units"):
                 return self._tabulated_quantity(self.acceleration, coordinate, "acceleration")
             return np.asarray(self.acceleration, dtype=float) * acc_unit
@@ -222,7 +240,8 @@ class Gravity:
         if self.potential is None:
             raise ValueError("Either a potential or an acceleration must be configured")
 
-        coord = _as_quantity(coordinate, _length_unit(self.code_units))
+        coord_unit = code_units.length_unit if code_units is not None else unyt.cm
+        coord = _to_code_quantity(coordinate, coord_unit)
         potential = self.potential_on(coord)
         coord_values = np.asarray(coord.to_value(coord.units), dtype=float)
         potential_values = np.asarray(potential.to_value(potential.units), dtype=float)

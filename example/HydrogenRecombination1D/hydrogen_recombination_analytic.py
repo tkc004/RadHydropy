@@ -3,13 +3,13 @@
 import numpy as np
 import unyt
 
-import radhydropy.chemistry_species.hydrogen as rh
+import radhydropy.thermo_networks.hydrogen as rth
 
 
 def recombination_rate(temperature, hydrogen_number_density):
     """Return ``nH alpha_B`` for case-B recombination."""
 
-    alpha_B = rh.alpha_B(temperature).to_value(unyt.cm**3 / unyt.s)
+    alpha_B = rth._cgs_alpha_B(temperature.to_value(unyt.K))
     nH = hydrogen_number_density.to_value(1.0 / unyt.cm**3)
     return alpha_B * nH / unyt.s
 

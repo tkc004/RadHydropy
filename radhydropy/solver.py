@@ -5,6 +5,7 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
+from radhydropy.units import photon_number_density
 import numpy as np
 
 class Solver():
@@ -475,7 +476,7 @@ class Solver():
             if hasattr(fluid, 'xHI'):
                 right_values['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
             if hasattr(fluid, 'ngamma'):
-                right_values['ngamma'] = rh.photon_number_density(
+                right_values['ngamma'] = photon_number_density(
                     getattr(par, 'hydrogen_ngamma_inflow', 0.0)
                 ).to(fluid.ngamma.units)
             copy_right(right_values)
@@ -489,7 +490,7 @@ class Solver():
             if hasattr(fluid, 'xHI'):
                 left_values['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
             if hasattr(fluid, 'ngamma'):
-                left_values['ngamma'] = rh.photon_number_density(
+                left_values['ngamma'] = photon_number_density(
                     getattr(par, 'hydrogen_ngamma_outflow', 0.0)
                 ).to(fluid.ngamma.units)
             copy_left(left_values)
@@ -513,12 +514,16 @@ class Solver():
             CFL = par.CFL
         fluid.SetSoundSpeed()
         vsignal = np.absolute(fluid.vel) + fluid.cs
-        dt_array = np.divide(
-            CFL * mesh.xdelta,
-            vsignal,
-            out=np.ones_like(vsignal.value) * par.dtmax,
-            where=vsignal != 0.0,
-        )
+        xdelta = mesh.xdelta
+        if xdelta.shape != vsignal.shape:
+            interior = self._interior_slice(par)
+            if xdelta[interior].shape == vsignal.shape:
+                xdelta = xdelta[interior]
+            elif vsignal[interior].shape == xdelta.shape:
+                vsignal = vsignal[interior]
+        dt_array = self._safe_divide(CFL * xdelta, vsignal)
+        dtmax = par.dtmax.to(dt_array.units) if hasattr(par.dtmax, "to") else par.dtmax
+        dt_array = np.where(vsignal != 0.0, dt_array, dtmax)
         dt = np.amin(dt_array)
         fluid.vsignal = vsignal
         self.dt = dt

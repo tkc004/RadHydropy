@@ -10,14 +10,16 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+import example_utils as eu
 
 import radhydropy.chemistry_species.hydrogen as rh
+import radhydropy.thermo_networks.hydrogen as rth
 import radhydropy.io as rio
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
-from radhydropy.params import CodeUnits
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
 
 
 def build_problem(config):
@@ -104,6 +106,7 @@ def load_parameters(config_filename, rundir=None):
 
     config_filename = Path(config_filename)
     runparams, icparams = load_example_parameters(config_filename, rundir)
+    eu.clean_previous_outputs(runparams)
     return runparams, icparams
 
 
@@ -225,8 +228,8 @@ def front_radius_at_time(history, time):
 
 
 def stromgren_radius(config):
-    nH = rh.hydrogen_number_density(
-        config['rho_initial'],
+    nH = rth._cgs_hydrogen_number_density(
+        config['rho_initial'].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
     )
     radius = (

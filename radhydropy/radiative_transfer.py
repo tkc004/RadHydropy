@@ -7,12 +7,17 @@ import numpy as np
 import unyt
 
 import radhydropy.chemistry_species.hydrogen as rh
-
-
-PHOTON_FLUX_UNIT = 1.0 / (unyt.cm**2 * unyt.s)
-PHOTON_RATE_UNIT = 1.0 / unyt.s
-PHOTON_DENSITY_UNIT = 1.0 / unyt.cm**3
-PHOTON_ABSORPTION_RATE_UNIT = 1.0 / (unyt.cm**3 * unyt.s)
+import radhydropy.thermo_networks.hydrogen as rth
+from radhydropy.units import (
+    PHOTON_ABSORPTION_RATE_UNIT,
+    PHOTON_DENSITY_UNIT,
+    PHOTON_FLUX_UNIT,
+    PHOTON_RATE_UNIT,
+    _as_photon_flux,
+    _as_photon_rate,
+    _optional_photon_quantity,
+    photon_number_density,
+)
 
 
 @dataclass
@@ -25,30 +30,6 @@ class LongCharacteristicResult:
     cell_photon_flux: unyt.unyt_array
     cell_photon_density: unyt.unyt_array
     absorbed_photon_rate: unyt.unyt_array
-
-
-def _as_photon_flux(value):
-    if value is None:
-        return 0.0 * PHOTON_FLUX_UNIT
-    if hasattr(value, "to"):
-        return value.to(PHOTON_FLUX_UNIT)
-    return np.asarray(value, dtype=float) * PHOTON_FLUX_UNIT
-
-
-def _as_photon_rate(value):
-    if value is None:
-        return 0.0 * PHOTON_RATE_UNIT
-    if hasattr(value, "to"):
-        return value.to(PHOTON_RATE_UNIT)
-    return np.asarray(value, dtype=float) * PHOTON_RATE_UNIT
-
-
-def _optional_photon_quantity(value, default, units):
-    if value is None:
-        value = default
-    if hasattr(value, "to"):
-        return value.to(units)
-    return np.asarray(value, dtype=float) * units
 
 
 def _safe_exp_neg(tau):
@@ -105,7 +86,11 @@ def _face_flux_from_rate(face_rate, face_area):
 
 
 def _optical_depth(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):
-    nH = rh.hydrogen_number_density(rho, hydrogen_mass_fraction)
+    if hasattr(rho, "to_value"):
+        rho_g_cm3 = np.asarray(rho.to_value(unyt.g / unyt.cm**3), dtype=float)
+    else:
+        rho_g_cm3 = np.asarray(rho, dtype=float)
+    nH = rth._cgs_hydrogen_number_density(rho_g_cm3, hydrogen_mass_fraction) * PHOTON_DENSITY_UNIT
     xHI = rh.clip_neutral_fraction(xHI)
     sigma = rh.photon_cross_section(sigma_gamma)
     tau = (sigma * nH * xHI * _cell_widths(mesh)).to_value(unyt.dimensionless)

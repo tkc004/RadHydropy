@@ -3,21 +3,10 @@
 import numpy as np
 import unyt
 import radhydropy.chemistry_species.hydrogen as rh
+from radhydropy.units import _code_units, _to_code_quantity, photon_number_density
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
-
-
-def _code_units(par):
-    return getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
-
-
-def _to_code_quantity(value, unit):
-    if value is None:
-        return None
-    if hasattr(value, 'to'):
-        return value.to(unit)
-    return np.asarray(value, dtype=float) * unit
 
 
 # set up fluid properties
@@ -52,7 +41,7 @@ class Fluid():
 
     def SetHydrogenMu(self, hydrogen_mass_fraction=1.0):
         """Set mean molecular weight from hydrogen neutral fraction."""
-        self.mu = rh.pure_hydrogen_mu(
+        self.mu = rh.mean_molecular_weight_mu(
             self.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
         )
@@ -109,14 +98,14 @@ class Fluid():
             self.ngamma = (
                 np.ones(np.shape(self.rho), dtype=float)
                 * _to_code_quantity(
-                    rh.photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
+                    photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                     ngamma_unit,
                 )
             )
         if hasattr(self, 'ngamma'):
             attrlist.append('ngamma')
             ngamma_initial = _to_code_quantity(
-                rh.photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
+                photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                 code_units.number_density_unit if code_units is not None else 1.0 / unyt.cm**3,
             )
             valuelist.append(

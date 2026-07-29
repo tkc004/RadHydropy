@@ -22,19 +22,22 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import unyt
 
 from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
+import example_utils as eu
 import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_photoionization1d.yaml')
-
 
 def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):
     """Run the fixed-field photoionization example until neutral fraction falls."""
@@ -51,6 +54,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
+    eu.clean_previous_outputs(runparams)
 
     ric = et.Simwrap(ICparams)
     rio.writehdf5(ric, runparams['ICfilename'])

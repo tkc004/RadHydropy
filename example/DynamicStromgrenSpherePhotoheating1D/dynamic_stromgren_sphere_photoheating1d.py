@@ -12,8 +12,11 @@ import tempfile
 from pathlib import Path
 
 repo_root = Path(__file__).resolve().parents[2]
+example_root = Path(__file__).resolve().parents[1]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
+if str(example_root) not in sys.path:
+    sys.path.insert(0, str(example_root))
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')

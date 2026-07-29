@@ -14,8 +14,8 @@ from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
-from radhydropy.params import CodeUnits
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
 
 static_stromgren_dir = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', 'StaticStromgrenSphere1D')

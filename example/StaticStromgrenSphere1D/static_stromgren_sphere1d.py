@@ -16,6 +16,9 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
+example_root = Path(__file__).resolve().parents[1]
+if str(example_root) not in sys.path:
+    sys.path.insert(0, str(example_root))
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
@@ -30,6 +33,7 @@ from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 import stromgren_analytic as sa
+import example_utils as eu
 import tools as et
 
 
@@ -40,6 +44,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     runparams, icparams = load_example_parameters(config_filename, rundir)
+    eu.clean_previous_outputs(runparams)
     config = {**runparams, **icparams}
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
