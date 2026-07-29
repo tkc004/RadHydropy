@@ -28,8 +28,7 @@ Fluid
 Chemistry
 ---------
 
-.. automodule:: radhydropy.chemistry
-   :members:
+See :doc:`chemistry` for the composition preset selector and species helpers.
 
 Species Helpers
 ---------------
