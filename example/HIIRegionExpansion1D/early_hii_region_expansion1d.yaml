@@ -5,6 +5,14 @@ runparams:
   outfileprefix: Output
   outputtimefilename: output_times_early.txt
   savedir: .
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
 
 ICparams:
   source_photon_rate:

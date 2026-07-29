@@ -14,6 +14,7 @@ from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
+from radhydropy.params import CodeUnits
 from radhydropy.solver import Solver
 
 static_stromgren_dir = os.path.abspath(
@@ -25,48 +26,85 @@ if static_stromgren_dir not in sys.path:
 import stromgren_analytic as sa
 
 
+def _to_runtime_quantity(value, unit):
+    if hasattr(value, 'to'):
+        return value.to(unit)
+    return float(value) * unit
+
+
 def build_static_problem(config):
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys='spherical',
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
-        boxsize=config['boxsize'],
+        boxsize=_to_runtime_quantity(config['boxsize'], code_units.length_unit),
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
-        area=1.0 * unyt.cm**2,
+        area=_to_runtime_quantity(
+            config.get('area', 1.0 * unyt.cm**2),
+            code_units.area_unit,
+        ),
         EOStype='polytropic',
         gamma=5.0 / 3.0,
-        dtmin=1.0e-6 * unyt.Myr,
-        dtmax=1.0 * unyt.Myr,
+        dtmin=_to_runtime_quantity(1.0e-6 * unyt.Myr, code_units.time_unit),
+        dtmax=_to_runtime_quantity(1.0 * unyt.Myr, code_units.time_unit),
         hydrogen_chemistry=True,
         hydrogen_mass_fraction=1.0,
         hydrogen_xHI_initial=1.0,
         hydrogen_xHI_inflow=1.0,
         hydrogen_xHI_outflow=1.0,
         hydrogen_source_CFL=config.get('evolution_timestep_cfl', 0.1),
-        hydrogen_source_dtmin=config.get('evolution_timestep_min', 0.0 * unyt.s),
+        hydrogen_source_dtmin=_to_runtime_quantity(
+            config.get('evolution_timestep_min', 0.0 * unyt.s),
+            code_units.time_unit,
+        ),
         hydrogen_update_mu=True,
         hydrogen_thermal_coupling=True,
         hydrogen_recombination=True,
         hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=config['alpha_B_coefficient'],
-        hydrogen_beta=0.0 * unyt.cm**3 / unyt.s,
+        hydrogen_alpha_B=_to_runtime_quantity(
+            config['alpha_B_coefficient'],
+            code_units.volume_unit / code_units.time_unit,
+        ),
+        hydrogen_beta=_to_runtime_quantity(
+            0.0 * unyt.cm**3 / unyt.s,
+            code_units.volume_unit / code_units.time_unit,
+        ),
         hydrogen_radiation_field=False,
         hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=0.0 / unyt.cm**3,
-        hydrogen_sigma_gamma=config['sigma_gamma'],
-        hydrogen_epsilon_gamma=config['epsilon_gamma'],
+        hydrogen_ngamma_initial=_to_runtime_quantity(
+            0.0 / unyt.cm**3,
+            code_units.number_density_unit,
+        ),
+        hydrogen_sigma_gamma=_to_runtime_quantity(
+            config['sigma_gamma'],
+            code_units.area_unit,
+        ),
+        hydrogen_epsilon_gamma=_to_runtime_quantity(
+            config['epsilon_gamma'],
+            code_units.energy_unit,
+        ),
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=0.0 / (unyt.cm**2 * unyt.s),
-        radiative_transfer_source_photon_rate=config['source_photon_rate'],
+        radiative_transfer_boundary_flux=_to_runtime_quantity(
+            0.0 / (unyt.cm**2 * unyt.s),
+            1.0 / (code_units.area_unit * code_units.time_unit),
+        ),
+        radiative_transfer_source_photon_rate=_to_runtime_quantity(
+            config['source_photon_rate'],
+            1.0 / code_units.time_unit,
+        ),
         radiative_transfer_direction=1,
         radiative_transfer_update_interval=config.get(
             'radiative_transfer_update_interval',
             1,
         ),
+        CodeUnits=code_units,
+        code_units=code_units,
+        unit_system=code_units.unit_system,
     )
 
     mesh = Mesh()

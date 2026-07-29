@@ -5,7 +5,6 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-import unyt
 import numpy as np
 
 class Solver():
@@ -51,7 +50,7 @@ class Solver():
     def _spherical_center_cell_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
-        origin = 0.0 * mesh.boundary.units
+        origin = 0.0 * getattr(mesh.boundary, 'units', 1.0)
         origin_faces = np.where(mesh.boundary[:-1] == origin)[0]
         if len(origin_faces) > 0:
             return int(origin_faces[0])
@@ -65,7 +64,7 @@ class Solver():
     def _spherical_origin_face_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
-        origin = 0.0 * mesh.boundary.units
+        origin = 0.0 * getattr(mesh.boundary, 'units', 1.0)
         origin_faces = np.where(mesh.boundary[:-1] == origin)[0]
         if len(origin_faces) > 0:
             return int(origin_faces[0])
@@ -75,15 +74,23 @@ class Solver():
         origin_face = self._spherical_origin_face_index(mesh)
         if origin_face is None:
             return
-        fluid.Mass.flux[origin_face] = 0.0 * fluid.Mass.flux.units
-        fluid.Mom.flux[origin_face] = 0.0 * fluid.Mom.flux.units
-        fluid.Energy.flux[origin_face] = 0.0 * fluid.Energy.flux.units
+        if hasattr(fluid.Mass.flux, 'units'):
+            fluid.Mass.flux[origin_face] = 0.0 * fluid.Mass.flux.units
+            fluid.Mom.flux[origin_face] = 0.0 * fluid.Mom.flux.units
+            fluid.Energy.flux[origin_face] = 0.0 * fluid.Energy.flux.units
+        else:
+            fluid.Mass.flux[origin_face] = 0.0
+            fluid.Mom.flux[origin_face] = 0.0
+            fluid.Energy.flux[origin_face] = 0.0
 
     def _zero_spherical_center_momentum(self, mesh, fluid):
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is None:
             return
-        fluid.Mom[center_cell] = 0.0 * fluid.Mom.units
+        if hasattr(fluid.Mom, 'units'):
+            fluid.Mom[center_cell] = 0.0 * fluid.Mom.units
+        else:
+            fluid.Mom[center_cell] = 0.0
 
     def SetPrimitive(self, mesh, fluid, verbose=0):
         """Update primitive variables from conserved quantities."""
@@ -99,17 +106,16 @@ class Solver():
             mu=getattr(fluid, 'mu', None),
         )
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
-        fluid.vel[np.isnan(fluid.vel)] = 0.0 * fluid.vel.units
-        fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0            
+        fluid.vel[np.isnan(fluid.vel)] = 0.0
+        fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is not None:
-            fluid.vel[center_cell] = 0.0 * fluid.vel.units
+            fluid.vel[center_cell] = 0.0
         if verbose == 1:
             print('fluid.rho',fluid.rho)
             print('fluid.vel',fluid.vel)
             print('fluid.pre',fluid.pre)            
-        
-        
+    
     def SetConserved(self, mesh, fluid, verbose=0):
         """Update conserved mass, momentum, and energy from primitive variables."""
         vol = mesh.vol
@@ -133,8 +139,8 @@ class Solver():
         """Calculate centered gradients for density, velocity, and pressure."""
         xdelta = mesh.xdelta
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
-        fluid.vel.grad   = ru.CalGradient(fluid.vel, xdelta)
-        fluid.pre.grad   = ru.CalGradient(fluid.pre, xdelta)
+        fluid.vel.grad = ru.CalGradient(fluid.vel, xdelta)
+        fluid.pre.grad = ru.CalGradient(fluid.pre, xdelta)
         
         
     def SetConservedDensityFlux(self, fluid):
@@ -191,8 +197,6 @@ class Solver():
             FEn_R,
             qEn_R,
         ) = fluid.eos.fluxes(fluid.rho.R, fluid.vel.R, fluid.pre.R)
-        # Compute a diffusive baseline flux first; order=1 later blends this
-        # with the reconstructed flux through a limiter.
         Mass_flux_0 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
         Mom_flux_0 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
         Energy_flux_0 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
@@ -215,42 +219,15 @@ class Solver():
                 FEn_R,
                 qEn_R,
             ) = fluid.eos.fluxes(fluid.rho.R.first, fluid.vel.R.first, fluid.pre.R.first)
-            Mass_flux_1 = ru.CalInterFaceFluxGLF(
-                Fmass_L,
-                Fmass_R,
-                qmass_L,
-                qmass_R,
-                fluid.cmax,
-            )
-            Mom_flux_1 = ru.CalInterFaceFluxGLF(
-                Fmom_L,
-                Fmom_R,
-                qmom_L,
-                qmom_R,
-                fluid.cmax,
-            )
-            Energy_flux_1 = ru.CalInterFaceFluxGLF(
-                FEn_L,
-                FEn_R,
-                qEn_L,
-                qEn_R,
-                fluid.cmax,
-            )
-            # Limit the reconstructed flux back toward the baseline flux when
-            # the face-centered state would otherwise introduce oscillations.
+            Mass_flux_1 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
+            Mom_flux_1 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
+            Energy_flux_1 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
             self.SetConservedDensityFlux(fluid)
-            fluid.Mass.flux, fluid.philim_Mass= ru.ApplyFluxLimiter(fluid.Mass.q,Mass_flux_1,Mass_flux_0)
-            fluid.Mom.flux, fluid.philim_Mom  = ru.ApplyFluxLimiter(fluid.Mom.q,Mom_flux_1,Mom_flux_0)
-            fluid.Energy.flux, fluid.philim_Energy  = ru.ApplyFluxLimiter(fluid.Energy.q,Energy_flux_1,Energy_flux_0)
-            
+            fluid.Mass.flux, fluid.philim_Mass = ru.ApplyFluxLimiter(fluid.Mass.q, Mass_flux_1, Mass_flux_0)
+            fluid.Mom.flux, fluid.philim_Mom = ru.ApplyFluxLimiter(fluid.Mom.q, Mom_flux_1, Mom_flux_0)
+            fluid.Energy.flux, fluid.philim_Energy = ru.ApplyFluxLimiter(fluid.Energy.q, Energy_flux_1, Energy_flux_0)
         else:
             raise ValueError('order unknown: %s'%order)
-        #zero out all flux at the center for symmetric boundary at origin:
-        #if boundcond == 'OpenSph':
-        #    fluid.Mass.flux[0] = 0.0 * unyt.g / unyt.cm**2 / unyt.s 
-        #    fluid.Mom.flux[0] = 0.0 * unyt.g / unyt.cm / unyt.s **2
-        #    fluid.Energy.flux[0] = 0.0 * unyt.g / unyt.s**3
-
         
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=0, order=0):
         """Set interface fluxes using GLF or Rusanov numerical fluxes."""
@@ -285,7 +262,6 @@ class Solver():
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
         Rroll = -1
-
         area = mesh.area
         df_Mass = fluid.Mass.flux*area - np.roll(fluid.Mass.flux*area,Rroll)
         df_Mom = fluid.Mom.flux*area - np.roll(fluid.Mom.flux*area,Rroll)
@@ -319,6 +295,7 @@ class Solver():
             potential=getattr(par, "gravity_potential", None),
             coordinate=getattr(par, "gravity_coordinate", None),
             acceleration=getattr(par, "gravity_acceleration", None),
+            code_units=getattr(par, "code_units", getattr(par, "CodeUnits", None)),
         )
 
     def ApplyExternalGravity(self, dt, mesh, fluid, par):
@@ -327,6 +304,13 @@ class Solver():
         if gravity is None or not gravity.externalgravity:
             return 0
         acceleration = gravity.acceleration_on_mesh(mesh)
+        code_units = getattr(par, "code_units", getattr(par, "CodeUnits", None))
+        if code_units is not None:
+            target_unit = code_units.length_unit / code_units.time_unit**2
+            if hasattr(acceleration, "to"):
+                acceleration = acceleration.to(target_unit)
+            else:
+                acceleration = np.asarray(acceleration, dtype=float) * target_unit
         if np.shape(acceleration) != np.shape(fluid.rho):
             raise ValueError(
                 "Gravity acceleration shape %s does not match fluid state shape %s"
@@ -535,18 +519,19 @@ class Solver():
             out=np.ones_like(vsignal.value) * par.dtmax,
             where=vsignal != 0.0,
         )
-        self.dt = np.amin(dt_array)
+        dt = np.amin(dt_array)
         fluid.vsignal = vsignal
-        dt = np.amin(self.dt)
         self.dt = dt
-        if np.isnan(np.array(dt)):
+        if np.isnan(np.asarray(dt)):
             print('vsignal', vsignal)
-            print('fluid.vel',fluid.vel)
-            print('fluid.cs',fluid.cs)
+            print('fluid.vel', fluid.vel)
+            print('fluid.cs', fluid.cs)
             raise Exception(" time step is nan")
         if dt < par.dtmin:
-            raise ValueError(" time step %.2e smaller than the minimum time step %.2e"%(dt,par.dtmin))
+            raise ValueError(
+                " time step %.2e smaller than the minimum time step %.2e"
+                % (dt, par.dtmin)
+            )
         if dt > par.dtmax:
             dt = par.dtmax
-            #raise Exception(" time step %.2e larger than the maximum time step %.2e"%(dt,par.dtmax))
         return dt

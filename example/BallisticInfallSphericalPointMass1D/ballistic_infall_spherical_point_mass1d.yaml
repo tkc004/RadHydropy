@@ -5,6 +5,14 @@ runparams:
   outfileprefix: Output
   outputtimefilename: ballistic_infall_spherical_point_mass1d_output_times.txt
   savedir: .
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
   coordsys: spherical
   EOStype: polytropic
   gamma: 1.4

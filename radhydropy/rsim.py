@@ -1,6 +1,7 @@
 """High-level simulation runner."""
 
 import copy
+from dataclasses import dataclass
 import radhydropy.utils as ru
 import radhydropy.io as rio
 import radhydropy.thermo_chemistry as rtc
@@ -17,6 +18,70 @@ import time
 start_time = time.time()
 _CM3_PER_S = unyt.cm**3 / unyt.s
 
+
+@dataclass(frozen=True)
+class _CodeUnitGroup:
+    target: str
+    specs: tuple[tuple[str, str], ...]
+
+
+_CODE_UNIT_GROUPS = (
+    _CodeUnitGroup(
+        'mesh',
+        (
+            ('boundary', 'length'),
+            ('xdelta', 'length'),
+            ('oneoverdx', 'length_inv'),
+            ('coordinate', 'length'),
+            ('area', 'area'),
+            ('vol', 'volume'),
+        ),
+    ),
+    _CodeUnitGroup(
+        'fluid',
+        (
+            ('rho', 'density'),
+            ('vel', 'velocity'),
+            ('pre', 'pressure'),
+            ('temp', 'temperature'),
+            ('Mass', 'mass'),
+            ('Mom', 'momentum'),
+            ('Energy', 'energy'),
+            ('ngamma', 'number_density'),
+            ('cs', 'velocity'),
+            ('vsignal', 'velocity'),
+            ('flux', 'mass_flux'),
+        ),
+    ),
+    _CodeUnitGroup(
+        'par',
+        (
+            ('time', 'time'),
+            ('timesim', 'time'),
+            ('dtmin', 'time'),
+            ('dtmax', 'time'),
+            ('outdeltatime', 'time'),
+            ('boxsize', 'length'),
+            ('area', 'area'),
+            ('rho_inflow', 'density'),
+            ('rho_outflow', 'density'),
+            ('vel_inflow', 'velocity'),
+            ('vel_outflow', 'velocity'),
+            ('temp_inflow', 'temperature'),
+            ('temp_outflow', 'temperature'),
+            ('hydrogen_ngamma_initial', 'number_density'),
+            ('hydrogen_ngamma_inflow', 'number_density'),
+            ('hydrogen_ngamma_outflow', 'number_density'),
+            ('radiative_transfer_boundary_flux', 'photon_flux'),
+            ('radiative_transfer_source_photon_rate', 'photon_rate'),
+            ('hydrogen_sigma_gamma', 'area'),
+            ('hydrogen_epsilon_gamma', 'energy'),
+            ('hydrogen_alpha_B', 'alpha'),
+            ('hydrogen_beta', 'alpha'),
+        ),
+    ),
+)
+
 class Rsim():
     """Coordinate parameters, mesh, fluid state, solver, and output."""
 
@@ -28,7 +93,11 @@ class Rsim():
         self.mesh  = Mesh()
         self.par    = Par(params)
         self.solver = Solver()
-        self.fluid.eos = EOS(self.par.EOStype,self.par.gamma)
+        self.fluid.eos = EOS(
+            self.par.EOStype,
+            self.par.gamma,
+            getattr(self.par, 'code_units', getattr(self.par, 'CodeUnits', None)),
+        )
 
     @classmethod
     def FromComponents(cls, par, mesh, fluid, solver=None):
@@ -67,14 +136,104 @@ class Rsim():
         """Apply initial boundaries and populate conserved variables."""
         print("--- Fill up the fluid---") 
         print("--- %s seconds ---" % (time.time() - start_time))
+        self.ConvertParametersToCodeUnits()
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid)
         self.solver.ApplyRadiativeTransfer(self.mesh,self.fluid,self.par)
+
+    def _to_code_quantity(self, value, unit):
+        if value is None:
+            return None
+        if hasattr(value, "to_value"):
+            raw_value = np.asarray(value.to_value(unit), dtype=float)
+        else:
+            raw_value = np.asarray(value, dtype=float)
+        return raw_value * unit
+
+    def _code_units_from_system(self, code):
+        return {
+            'length': code.unit_system['length'],
+            'mass': code.unit_system['mass'],
+            'time': code.unit_system['time'],
+            'velocity': code.unit_system['velocity'],
+            'temperature': code.unit_system['temperature'],
+            'density': code.unit_system['density'],
+            'pressure': code.unit_system['pressure'],
+            'energy': code.unit_system['energy'],
+        }
+
+    def _apply_code_unit_specs(self, obj, specs, units):
+        for attr, unit_key in specs:
+            if hasattr(obj, attr):
+                setattr(obj, attr, self._to_code_quantity(getattr(obj, attr), units[unit_key]))
+
+    def ConvertToCodeUnits(self):
+        """Convert the runtime mesh and fluid state into the internal unit system."""
+        code = getattr(self.par, 'CodeUnits', None)
+        if code is None:
+            return
+        if getattr(self, '_runtime_converted_to_code_units', False):
+            return
+
+        units = self._code_units_from_system(code)
+        length_unit = units['length']
+        mass_unit = units['mass']
+        time_unit = units['time']
+        velocity_unit = units['velocity']
+        area_unit = length_unit ** 2
+        volume_unit = length_unit ** 3
+        mass_flux_unit = mass_unit / (length_unit ** 2 * time_unit)
+
+        derived_units = {
+            'length_inv': 1.0 / length_unit,
+            'area': area_unit,
+            'volume': volume_unit,
+            'number_density': 1.0 / volume_unit,
+            'momentum': mass_unit * velocity_unit,
+            'mass_flux': mass_flux_unit,
+            'photon_flux': 1.0 / (area_unit * time_unit),
+            'photon_rate': 1.0 / time_unit,
+            'alpha': length_unit ** 3 / time_unit,
+        }
+        unit_map = {**units, **derived_units}
+
+        for group in _CODE_UNIT_GROUPS:
+            self._apply_code_unit_specs(getattr(self, group.target), group.specs, unit_map)
+        self._runtime_converted_to_code_units = True
+
+    def ConvertParametersToCodeUnits(self):
+        """Convert only the runtime parameters into the internal unit system."""
+        code = getattr(self.par, 'CodeUnits', None)
+        if code is None:
+            return
+        if getattr(self, '_runtime_parameters_converted_to_code_units', False):
+            return
+
+        units = self._code_units_from_system(code)
+        length_unit = units['length']
+        mass_unit = units['mass']
+        time_unit = units['time']
+        unit_map = {
+            **units,
+            'length_inv': 1.0 / length_unit,
+            'area': length_unit ** 2,
+            'volume': length_unit ** 3,
+            'number_density': 1.0 / (length_unit ** 3),
+            'momentum': mass_unit * units['velocity'],
+            'mass_flux': mass_unit / (length_unit ** 2 * time_unit),
+            'photon_flux': 1.0 / (length_unit ** 2 * time_unit),
+            'photon_rate': 1.0 / time_unit,
+            'alpha': length_unit ** 3 / time_unit,
+        }
+        self._apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
+        self._runtime_parameters_converted_to_code_units = True
 
     def _parameter_tree(self, value):
         """Convert a parameter value into a YAML-safe, human-readable object."""
         if isinstance(value, np.generic):
             return value.item()
+        if isinstance(value, unyt.unit_object.Unit):
+            return str(value)
         if isinstance(value, dict):
             return {
                 str(key): self._parameter_tree(item)
@@ -82,6 +241,8 @@ class Rsim():
             }
         if isinstance(value, (list, tuple)):
             return [self._parameter_tree(item) for item in value]
+        if hasattr(value, "to_dict") and callable(value.to_dict):
+            return self._parameter_tree(value.to_dict())
         if hasattr(value, "units"):
             quantity = np.asarray(value.to_value(value.units))
             if quantity.shape == ():
@@ -99,20 +260,21 @@ class Rsim():
             }
         if isinstance(value, Path):
             return str(value)
-        return value
+        return str(value)
 
     def WriteUsedParameters(self, filename="used_parameters.yaml"):
         """Write the active runtime parameters to a text file in the CWD."""
         path = Path.cwd() / filename
-        rio.update_used_parameters_yaml(
-            path,
-            runparams={
-                key: value
+        payload = {
+            "runparams": {
+                key: self._parameter_tree(value)
                 for key, value in sorted(vars(self.par).items())
                 if not key.startswith("_") and key not in {"runparams", "ICparams"}
             },
-            icparams=getattr(self.par, "ICparams", None),
-        )
+            "ICparams": self._parameter_tree(getattr(self.par, "ICparams", None)),
+        }
+        with path.open("w", encoding="utf-8") as handle:
+            yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
         return path
 
     def GetStepTime(self, dt=None, final_time=None):
@@ -484,36 +646,27 @@ class Rsim():
         if not getattr(self.par, 'hydrogen_thermal_coupling', True):
             return
         if thermal_rate is None:
-            thermal_rate = self.solver.StaticThermalRate(
-                state,
-                ngamma,
-                self.par,
-            )
+            thermal_rate = rtc.thermal_rate(state, ngamma, self.par)
         state['specific_energy_erg_g'] += thermal_rate / state['rho_g_cm3'] * dt_s
         state['specific_energy_erg_g'] = np.maximum(
             state['specific_energy_erg_g'],
             1.0e6,
         )
-        self.solver.UpdateStaticTemperatureFromEnergy(state, self.par)
+        rtc.update_temperature_from_energy(state)
 
     def _advance_source_thermochemistry_state(self, state, ngamma, dt_s, thermal_rate):
         recombination_rate_start = self._static_recombination_rate(state)
         self._apply_static_thermal_update(state, ngamma, thermal_rate, dt_s)
-        self.solver.StaticIonizationFractionImplicitUpdate(
-            state,
-            ngamma,
-            dt_s,
-            self.par,
-        )
+        rtc.ionization_fraction_implicit_update(state, ngamma, dt_s, self.par)
         if getattr(self.par, 'hydrogen_thermal_coupling', True):
-            self.solver.UpdateStaticTemperatureFromEnergy(state, self.par)
+            rtc.update_temperature_from_energy(state)
         recombination_rate_end = self._static_recombination_rate(state)
         return 0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
 
     def _refresh_static_photon_density(self, state, step, time_s, final_time_s, rt_update_interval):
         if step % rt_update_interval != 0 and time_s < final_time_s:
             return None, 0
-        ngamma = self.solver.TraceStaticSphericalPhotonDensity(state, self.par)
+        ngamma = rtc.trace_spherical_photon_density(state, self.par)
         return ngamma, 1
 
     def _store_static_reference_snapshot(self, history, state, time_s, reference_time_s):
@@ -525,9 +678,9 @@ class Rsim():
             history['reference_snapshot'] = self._snapshot_static_state(state, time_s)
 
     def _finish_static_thermochemistry(self, state, time_s):
-        state['ngamma'] = self.solver.TraceStaticSphericalPhotonDensity(state, self.par)
+        state['ngamma'] = rtc.trace_spherical_photon_density(state, self.par)
         state['time_s'] = time_s
-        self.solver.ApplyStaticThermochemistryState(state, self.fluid, self.par)
+        rtc.apply_state(state, self.fluid, self.par)
         self.solver.SetBoundary(self.mesh, self.fluid, self.par)
 
     def EvolveStaticThermochemistry(
@@ -538,8 +691,8 @@ class Rsim():
         reference_time=None,
     ):
         """Evolve fixed-density thermo-chemistry/radiation source terms."""
-        state = self.solver.StaticThermochemistryState(self.mesh, self.fluid, self.par)
-        ngamma = self.solver.TraceStaticSphericalPhotonDensity(state, self.par)
+        state = rtc.source_state(self.mesh, self.fluid, self.par)
+        ngamma = rtc.trace_spherical_photon_density(state, self.par)
         recombined_photons = 0.0
         time_s = 0.0
         final_time_s = final_time.to_value(unyt.s)
@@ -581,7 +734,7 @@ class Rsim():
                 reference_time_s,
                 history,
             )
-            dt_s, thermal_rate = self.solver.GetStaticThermochemistryTimeStep(
+            dt_s, thermal_rate = rtc.get_timestep(
                 state,
                 ngamma,
                 self.par,

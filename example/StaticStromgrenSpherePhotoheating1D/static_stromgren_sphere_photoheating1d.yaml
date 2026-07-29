@@ -4,6 +4,14 @@ runparams:
   outdir: .
   outfileprefix: Output
   savedir: .
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
 
 ICparams:
   hydrogen_number_density:
@@ -40,7 +48,7 @@ ICparams:
     value: 1.0
     unit: Myr
   evolution_timestep_min:
-    value: 1.0e-3
+    value: 0.0
     unit: Myr
   evolution_timestep_cfl: 0.1
   radiative_transfer_update_interval: 5

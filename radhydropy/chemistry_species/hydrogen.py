@@ -31,6 +31,8 @@ def hydrogen_number_density(rho, hydrogen_mass_fraction=1.0):
 
 def photon_number_density(ngamma):
     """Return photon number density in ``cm**-3`` units."""
+    if ngamma is None:
+        return 0.0 * (1.0 / unyt.cm**3)
     if hasattr(ngamma, "to"):
         return ngamma.to(1.0 / unyt.cm**3)
     return np.asarray(ngamma, dtype=float) * (1.0 / unyt.cm**3)
@@ -38,6 +40,8 @@ def photon_number_density(ngamma):
 
 def photon_cross_section(sigma_gamma=DEFAULT_SIGMA_GAMMA):
     """Return the photon absorption cross-section in ``cm**2`` units."""
+    if sigma_gamma is None:
+        return DEFAULT_SIGMA_GAMMA
     if hasattr(sigma_gamma, "to"):
         return sigma_gamma.to(unyt.cm**2)
     return sigma_gamma * unyt.cm**2
@@ -45,6 +49,8 @@ def photon_cross_section(sigma_gamma=DEFAULT_SIGMA_GAMMA):
 
 def photon_excess_energy(epsilon_gamma=DEFAULT_EPSILON_GAMMA):
     """Return photoheating energy per ionization in ``erg`` units."""
+    if epsilon_gamma is None:
+        return DEFAULT_EPSILON_GAMMA
     if hasattr(epsilon_gamma, "to"):
         return epsilon_gamma.to(unyt.erg)
     return epsilon_gamma * unyt.erg

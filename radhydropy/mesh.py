@@ -3,6 +3,19 @@
 import numpy as np
 import unyt
 
+
+def _code_units(par):
+    return getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
+
+
+def _to_code_quantity(value, unit):
+    if value is None:
+        return None
+    if hasattr(value, 'to'):
+        return value.to(unit)
+    return np.asarray(value, dtype=float) * unit
+
+
 # set up the underlying mesh for fluid
 class Mesh:
     """Store cell faces, cell centers, areas, and volumes.
@@ -30,6 +43,8 @@ class Mesh:
         ValueError
             If the mesh dimensions or coordinate system are invalid.
         """
+        code_units = _code_units(par)
+        self.code_units = code_units
         self.coordsys = par.coordsys
         attr = 'boundary'
         if not hasattr(self, attr):
@@ -48,6 +63,8 @@ class Mesh:
 
         # add ghost cells:
         noghost = par.noghost
+        if code_units is not None:
+            self.boundary = _to_code_quantity(self.boundary, code_units.length_unit)
         dx = self.boundary[1] - self.boundary[0] 
         start = self.boundary[0] - dx * noghost
         end = self.boundary[-1] + dx * noghost 
@@ -63,7 +80,8 @@ class Mesh:
                 raise AttributeError("area does not exist in params; quitting.")
             # coordinate is the midpoint of boundary
             self.coordinate = 0.5 * (self.boundary[1:]+self.boundary[:-1])
-            self.area = np.ones(par.nogrid+noghost*2) * par.area
+            area_unit = code_units.area_unit if code_units is not None else getattr(par.area, 'units', 1.0)
+            self.area = np.ones(par.nogrid+noghost*2) * _to_code_quantity(par.area, area_unit)
             self.vol = (self.boundary[1:] - self.boundary[:-1]) * self.area
         elif par.coordsys == 'spherical':
             # check if any value is <0:

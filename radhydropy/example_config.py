@@ -23,6 +23,20 @@ def _resolve_path(value, rundir):
     return str(rundir / path)
 
 
+def _default_code_units():
+    return {
+        'CodeUnits': {
+            'InternalUnitSystem': {
+                'UnitMass_in_cgs': 1.0,
+                'UnitLength_in_cgs': 1.0,
+                'UnitVelocity_in_cgs': 1.0,
+                'UnitCurrent_in_cgs': 1.0,
+                'UnitTemp_in_cgs': 1.0,
+            }
+        }
+    }
+
+
 def load_example_parameters(config_filename, rundir=None):
     """Load ``runparams`` and ``ICparams`` from an example YAML file."""
     config_filename = Path(config_filename)
@@ -32,6 +46,8 @@ def load_example_parameters(config_filename, rundir=None):
 
     runparams = _load_yaml_value(config['runparams'])
     icparams = _load_yaml_value(config['ICparams'])
+    if 'CodeUnits' not in runparams and 'InternalUnitSystem' not in runparams:
+        runparams.update(_default_code_units())
     for key in {'ICfilename', 'outdir', 'outputtimefilename', 'savedir'}:
         if key in runparams:
             runparams[key] = _resolve_path(runparams[key], rundir)

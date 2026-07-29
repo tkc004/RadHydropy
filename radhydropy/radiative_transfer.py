@@ -28,15 +28,27 @@ class LongCharacteristicResult:
 
 
 def _as_photon_flux(value):
+    if value is None:
+        return 0.0 * PHOTON_FLUX_UNIT
     if hasattr(value, "to"):
         return value.to(PHOTON_FLUX_UNIT)
     return np.asarray(value, dtype=float) * PHOTON_FLUX_UNIT
 
 
 def _as_photon_rate(value):
+    if value is None:
+        return 0.0 * PHOTON_RATE_UNIT
     if hasattr(value, "to"):
         return value.to(PHOTON_RATE_UNIT)
     return np.asarray(value, dtype=float) * PHOTON_RATE_UNIT
+
+
+def _optional_photon_quantity(value, default, units):
+    if value is None:
+        value = default
+    if hasattr(value, "to"):
+        return value.to(units)
+    return np.asarray(value, dtype=float) * units
 
 
 def _safe_exp_neg(tau):
@@ -275,23 +287,23 @@ def apply_long_characteristics_to_fluid(mesh, fluid, par):
     if not hasattr(fluid, "ngamma"):
         fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float) * PHOTON_DENSITY_UNIT
 
+    sigma_gamma = getattr(par, "hydrogen_sigma_gamma", None)
+    boundary_flux = getattr(par, "radiative_transfer_boundary_flux", None)
+    source_photon_rate = getattr(par, "radiative_transfer_source_photon_rate", None)
+
     interior = _interior_slice(par)
     result = trace_long_characteristics(
         _interior_mesh(mesh, interior),
         fluid.rho[interior],
         fluid.xHI[interior],
         hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
-        sigma_gamma=getattr(par, "hydrogen_sigma_gamma", rh.DEFAULT_SIGMA_GAMMA),
-        boundary_flux=getattr(
-            par,
-            "radiative_transfer_boundary_flux",
-            0.0 * PHOTON_FLUX_UNIT,
+        sigma_gamma=_optional_photon_quantity(
+            sigma_gamma,
+            rh.DEFAULT_SIGMA_GAMMA,
+            unyt.cm**2,
         ),
-        source_photon_rate=getattr(
-            par,
-            "radiative_transfer_source_photon_rate",
-            0.0 * PHOTON_RATE_UNIT,
-        ),
+        boundary_flux=_as_photon_flux(boundary_flux),
+        source_photon_rate=_as_photon_rate(source_photon_rate),
         direction=getattr(par, "radiative_transfer_direction", 1),
         coordsys=getattr(mesh, "coordsys", "cartesian"),
     )

@@ -43,7 +43,11 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.SetInitFluid()
     mainrun.par.gravity = Gravity(
         externalgravity=True,
-        acceleration=et.point_mass_acceleration(ICparams['point_mass']),
+        acceleration=et.point_mass_acceleration(
+            ICparams['point_mass'],
+            code_units=mainrun.par.code_units,
+        ),
+        code_units=mainrun.par.code_units,
     )
     mainrun.Run(mode='hydro')
 

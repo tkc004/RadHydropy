@@ -5,6 +5,14 @@ runparams:
   outfileprefix: Output
   outputtimefilename: output_times.txt
   savedir: .
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
   coordsys: spherical
   EOStype: polytropic
   gamma: 1.6666666666666667
@@ -26,21 +34,21 @@ runparams:
     value: 1.0
     unit: Myr
   hydro_cfl: 0.5
-  source_cfl: 0.1
+  source_cfl: 1.0
   hydro_timestep_max:
     value: 1.0
     unit: Myr
   source_timestep_min:
-    value: 1.0e-3
+    value: 0.0
     unit: Myr
   hydrogen_chemistry: true
   hydrogen_mass_fraction: 1.0
   hydrogen_xHI_initial: 1.0
   hydrogen_xHI_inflow: 1.0
   hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 0.1
+  hydrogen_source_CFL: 1.0
   hydrogen_source_dtmin:
-    value: 1.0e-3
+    value: 0.0
     unit: Myr
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true

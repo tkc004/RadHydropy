@@ -32,23 +32,45 @@ def spherical_cell_centers(boundary):
     return coordinate
 
 
-def point_mass_acceleration(point_mass, softening=0.0 * unyt.cm):
+def point_mass_acceleration(point_mass, softening=0.0 * unyt.cm, code_units=None):
     """Return a callable for a point-mass gravitational acceleration field."""
+    length_unit = code_units.length_unit if code_units is not None else unyt.cm
+    mass_unit = code_units.mass_unit if code_units is not None else unyt.g
+    accel_unit = (
+        code_units.length_unit / code_units.time_unit**2
+        if code_units is not None
+        else unyt.cm / unyt.s**2
+    )
+    point_mass = (
+        point_mass.to(mass_unit)
+        if hasattr(point_mass, 'to')
+        else float(point_mass) * mass_unit
+    )
+    softening = (
+        softening.to(length_unit)
+        if hasattr(softening, 'to')
+        else float(softening) * length_unit
+    )
 
     def _acceleration(coordinate):
-        radius = np.maximum(coordinate, softening)
+        radius = (
+            coordinate.to(length_unit)
+            if hasattr(coordinate, 'to')
+            else np.asarray(coordinate, dtype=float) * length_unit
+        )
+        radius = np.maximum(radius, softening)
         return (
             -unyt.physical_constants.gravitational_constant
             * point_mass
             / radius**2
-        ).to(unyt.cm / unyt.s**2)
+        ).to(accel_unit)
 
     return _acceleration
 
 
 def ballistic_density_profile(coordinate, rho_ref):
     """Return a constant-density profile for the ballistic infall example."""
-    return np.ones_like(coordinate) * rho_ref
+    return np.ones(np.shape(coordinate), dtype=float) * rho_ref
 
 
 def ballistic_velocity_profile(coordinate, point_mass, time, softening=0.0 * unyt.cm):

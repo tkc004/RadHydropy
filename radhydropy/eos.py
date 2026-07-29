@@ -16,9 +16,10 @@ class EOS:
         Adiabatic index for a polytropic gas. ``gamma`` must not be 1.
     """
 
-    def __init__(self, EOStype: str, gamma=5.0 / 3.0):
+    def __init__(self, EOStype: str, gamma=5.0 / 3.0, code_units=None):
         self.EOStype = EOStype
         self.gamma = gamma
+        self.code_units = code_units
         if ((self.EOStype != 'polytropic') and (self.EOStype != 'isothermal')):
             raise Exception("EOS not recognized: only polytropic or isothermal")
         if self.is_polytropic and gamma == 1.0:
@@ -34,7 +35,7 @@ class EOS:
         """Return ``True`` for an isothermal closure."""
         return self.EOStype == 'isothermal'
 
-    def _safe_divide(self, numerator, denominator):
+    def _quantity_safe_divide(self, numerator, denominator):
         numerator_value, denominator_value = np.broadcast_arrays(
             np.asarray(numerator.value, dtype=float),
             np.asarray(denominator.value, dtype=float),
@@ -48,13 +49,51 @@ class EOS:
         )
         return quotient * (numerator.units / denominator.units)
 
+    def _quantity_values(self, quantity):
+        return np.asarray(getattr(quantity, "value", quantity), dtype=float)
+
+    def _quantity_code_values(self, quantity, unit):
+        if hasattr(quantity, "to_value"):
+            return np.asarray(quantity.to_value(unit), dtype=float)
+        return np.asarray(quantity, dtype=float)
+
+    def _pressure_unit(self):
+        return self.code_units.pressure_unit if self.code_units is not None else None
+
+    def _temperature_unit(self):
+        return self.code_units.temperature_unit if self.code_units is not None else None
+
+    def _velocity_unit(self):
+        return self.code_units.velocity_unit if self.code_units is not None else None
+
     def pressure(self, rho, temp, mu):
         """Return pressure from density, temperature, and mean molecular weight."""
+        if self.code_units is not None:
+            rho_value = self._quantity_code_values(rho, self.code_units.density_unit)
+            temp_value = self._quantity_code_values(temp, self._temperature_unit())
+            mu_value = self._quantity_values(mu)
+            pressure_value = (
+                rho_value
+                * self.code_units.boltzmann_code
+                * temp_value
+                / (mu_value * self.code_units.proton_mass_code)
+            )
+            return pressure_value * self._pressure_unit()
         return rho / (mu * unyt.mp) * unyt.kb * temp
 
     def temperature(self, rho, pressure, mu):
         """Return temperature from density, pressure, and mean molecular weight."""
-        pressure_over_rho = self._safe_divide(pressure, rho)
+        if self.code_units is not None:
+            rho_value = self._quantity_code_values(rho, self.code_units.density_unit)
+            pressure_value = self._quantity_code_values(pressure, self._pressure_unit())
+            mu_value = self._quantity_values(mu)
+            temperature_value = (
+                (pressure_value / rho_value)
+                * (mu_value * self.code_units.proton_mass_code)
+                / self.code_units.boltzmann_code
+            )
+            return temperature_value * self._temperature_unit()
+        pressure_over_rho = self._quantity_safe_divide(pressure, rho)
         return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
     def thermal_energy_density(self, pressure):
@@ -67,7 +106,14 @@ class EOS:
 
     def sound_speed(self, rho, pressure, temp=None, mu=None):
         """Return the characteristic sound speed for the selected EOS."""
-        pressure_over_rho = self._safe_divide(pressure, rho)
+        if self.code_units is not None:
+            gamma_factor = 1.0 if self.is_isothermal else self.gamma
+            pressure_over_rho = (
+                self._quantity_code_values(pressure, self._pressure_unit())
+                / self._quantity_code_values(rho, self.code_units.density_unit)
+            )
+            return np.sqrt(gamma_factor * pressure_over_rho) * self._velocity_unit()
+        pressure_over_rho = self._quantity_safe_divide(pressure, rho)
         gamma_factor = 1.0 if self.is_isothermal else self.gamma
         soundspeed = np.sqrt(gamma_factor * pressure_over_rho).to(unyt.cm / unyt.s)
         soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm / unyt.s
@@ -86,6 +132,12 @@ class EOS:
                     "isothermal pressure reconstruction requires temperature and mu"
                 )
             return self.pressure(rho, temp, mu)
+        if self.code_units is not None:
+            rho_value = self._quantity_code_values(rho, self.code_units.density_unit)
+            vel_value = self._quantity_code_values(vel, self._velocity_unit())
+            energy_value = self._quantity_code_values(energy_density, self._pressure_unit())
+            pressure_value = (energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0)
+            return pressure_value * self._pressure_unit()
         return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
 
     def fluxes(self, rho, vel, pressure):

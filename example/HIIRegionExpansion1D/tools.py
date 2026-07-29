@@ -16,10 +16,12 @@ import radhydropy.io as rio
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
+from radhydropy.params import CodeUnits
 from radhydropy.solver import Solver
 
 
 def build_problem(config):
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys='spherical',
         boundcond='OpenSph',
@@ -61,6 +63,9 @@ def build_problem(config):
         radiative_transfer_boundary_flux=0.0 / (unyt.cm**2 * unyt.s),
         radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
+        CodeUnits=code_units,
+        code_units=code_units,
+        unit_system=code_units.unit_system if code_units is not None else None,
     )
 
     mesh = Mesh()

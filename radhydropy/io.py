@@ -23,6 +23,8 @@ def _yaml_config_value(value):
     """Convert a value to a YAML config friendly representation."""
     if isinstance(value, np.generic):
         return value.item()
+    if hasattr(value, "to_dict") and callable(value.to_dict):
+        return _yaml_config_value(value.to_dict())
     if hasattr(value, "units"):
         raw_value = np.asarray(value.to_value(value.units))
         if raw_value.shape == () or raw_value.size == 1:
