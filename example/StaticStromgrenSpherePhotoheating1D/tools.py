@@ -16,7 +16,10 @@ from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, _as_cgs_float
+from radhydropy.units import (
+    CodeUnits,
+    _as_cgs_float,
+)
 
 static_stromgren_dir = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', 'StaticStromgrenSphere1D')
@@ -27,12 +30,6 @@ if static_stromgren_dir not in sys.path:
 import stromgren_analytic as sa
 
 
-def _to_runtime_quantity(value, unit):
-    if hasattr(value, 'to'):
-        return value.to(unit)
-    return float(value) * unit
-
-
 def build_static_problem(config):
     code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
@@ -40,64 +37,38 @@ def build_static_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
-        boxsize=_to_runtime_quantity(config['boxsize'], code_units.length_unit),
+        boxsize=config['boxsize'],
+        verbose=config.get('verbose', 0),
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
-        area=_to_runtime_quantity(
-            config.get('area', 1.0 * unyt.cm**2),
-            code_units.area_unit,
-        ),
+        area=config['area'],
         EOStype='polytropic',
         gamma=5.0 / 3.0,
-        dtmin=_to_runtime_quantity(1.0e-6 * unyt.Myr, code_units.time_unit),
-        dtmax=_to_runtime_quantity(1.0 * unyt.Myr, code_units.time_unit),
+        dtmin=config['dtmin'],
+        dtmax=config['dtmax'],
         hydrogen_chemistry=True,
         hydrogen_mass_fraction=1.0,
         hydrogen_xHI_initial=1.0,
         hydrogen_xHI_inflow=1.0,
         hydrogen_xHI_outflow=1.0,
         hydrogen_source_CFL=config.get('evolution_timestep_cfl', 0.1),
-        hydrogen_source_dtmin=_to_runtime_quantity(
-            config.get('evolution_timestep_min', 0.0 * unyt.s),
-            code_units.time_unit,
-        ),
+        hydrogen_source_dtmin=config['hydrogen_source_dtmin'],
         hydrogen_update_mu=True,
         hydrogen_thermal_coupling=True,
         hydrogen_recombination=True,
         hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=_to_runtime_quantity(
-            config['alpha_B_coefficient'],
-            code_units.volume_unit / code_units.time_unit,
-        ),
-        hydrogen_beta=_to_runtime_quantity(
-            0.0 * unyt.cm**3 / unyt.s,
-            code_units.volume_unit / code_units.time_unit,
-        ),
+        hydrogen_alpha_B=config['alpha_B_coefficient'],
+        hydrogen_beta=config['hydrogen_beta'],
         hydrogen_radiation_field=False,
         hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=_to_runtime_quantity(
-            0.0 / unyt.cm**3,
-            code_units.number_density_unit,
-        ),
-        hydrogen_sigma_gamma=_to_runtime_quantity(
-            config['sigma_gamma'],
-            code_units.area_unit,
-        ),
-        hydrogen_epsilon_gamma=_to_runtime_quantity(
-            config['epsilon_gamma'],
-            code_units.energy_unit,
-        ),
+        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
+        hydrogen_sigma_gamma=config['sigma_gamma'],
+        hydrogen_epsilon_gamma=config['epsilon_gamma'],
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=_to_runtime_quantity(
-            0.0 / (unyt.cm**2 * unyt.s),
-            1.0 / (code_units.area_unit * code_units.time_unit),
-        ),
-        radiative_transfer_source_photon_rate=_to_runtime_quantity(
-            config['source_photon_rate'],
-            1.0 / code_units.time_unit,
-        ),
+        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
+        radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
         radiative_transfer_update_interval=config.get(
             'radiative_transfer_update_interval',
@@ -117,7 +88,7 @@ def build_static_problem(config):
     mesh.SetUpMesh(par)
 
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma)
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
     fluid.rho = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']
@@ -132,7 +103,7 @@ def build_static_problem(config):
 
     solver = Solver()
     solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid)
+    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
     result = rrt.trace_long_characteristics(
         mesh,
         fluid.rho,
@@ -153,7 +124,7 @@ def build_static_problem(config):
         direction=getattr(par, 'radiative_transfer_direction', 1),
         coordsys=getattr(mesh, 'coordsys', 'cartesian'),
     )
-    fluid.ngamma[:] = result.cell_photon_density.to(fluid.ngamma.units)
+    fluid.ngamma[:] = np.asarray(result.cell_photon_density, dtype=float)
     return par, mesh, fluid, solver
 
 
@@ -223,13 +194,23 @@ def load_log_reference_profile(filename, radius_unit):
 
 def save_plot(mesh, fluid, par, history, config, figure_filename):
     interior = interior_slice(par)
-    radius = mesh.coordinate[interior].to(unyt.kpc)
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    if hasattr(mesh.coordinate[interior], 'to_value'):
+        radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
+    else:
+        radius_kpc = np.asarray(mesh.coordinate[interior], dtype=float)
+    radius = radius_kpc * unyt.kpc
     snapshot = history.get('reference_snapshot', None)
     if snapshot is None:
-        radius_kpc = radius.to_value(unyt.kpc)
-        xHI = fluid.xHI[interior]
-        temperature_K = fluid.temp[interior].to_value(unyt.K)
-        profile_time_Myr = fluid.time.to_value(unyt.Myr)
+        xHI = np.asarray(fluid.xHI[interior], dtype=float)
+        if hasattr(fluid.temp[interior], 'to_value'):
+            temperature_K = fluid.temp[interior].to_value(unyt.K)
+        else:
+            temperature_K = np.asarray(fluid.temp[interior], dtype=float)
+        if hasattr(fluid.time, 'to_value'):
+            profile_time_Myr = float(fluid.time.to_value(unyt.Myr))
+        else:
+            profile_time_Myr = float(np.asarray(fluid.time, dtype=float))
     else:
         radius_kpc = snapshot['radius_kpc']
         xHI = snapshot['xHI']

@@ -3,13 +3,12 @@
 import numpy as np
 import unyt
 
-from radhydropy.units import _code_units, to_code_value
-
-
-GRAVITATIONAL_CONSTANT_CGS = float(
-    unyt.physical_constants.gravitational_constant.to_value(
-        unyt.cm**3 / (unyt.g * unyt.s**2)
-    )
+from radhydropy.units import (
+    _acceleration_unit,
+    _gravitational_constant_code,
+    _potential_unit,
+    _code_units,
+    to_code_value,
 )
 
 
@@ -23,36 +22,6 @@ def _as_quantity(value, unit):
     if hasattr(value, "to_value"):
         return np.asarray(value.to_value(unit), dtype=float) * unit
     return np.asarray(value, dtype=float) * unit
-
-
-def _as_float_array(value, unit):
-    if value is None:
-        raise ValueError("value must be provided")
-    if hasattr(value, "to_value"):
-        return np.asarray(value.to_value(unit), dtype=float)
-    return np.asarray(value, dtype=float)
-
-
-def _potential_unit(code_units):
-    if code_units is None:
-        return unyt.cm**2 / unyt.s**2
-    return code_units.velocity_unit**2
-
-
-def _acceleration_unit(code_units):
-    if code_units is None:
-        return unyt.cm / unyt.s**2
-    return code_units.length_unit / code_units.time_unit**2
-
-
-def _gravitational_constant_code(code_units):
-    """Return the gravitational constant in the supplied code units."""
-    code_units = _require_code_units(code_units)
-    return (
-        GRAVITATIONAL_CONSTANT_CGS
-        * code_units.mass_in_cgs
-        / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
-    )
 
 
 def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None):

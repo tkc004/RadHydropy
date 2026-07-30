@@ -6,17 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, GRAVITATIONAL_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits, code_unit_scales
 
-
-GRAVITATIONAL_CONSTANT_CGS = float(
-    unyt.physical_constants.gravitational_constant.to_value(
-        unyt.cm**3 / (unyt.g * unyt.s**2)
-    )
-)
-K_BOLTZMANN_CGS = float(unyt.kb.to_value(unyt.erg / unyt.K))
-PROTON_MASS_CGS = float(unyt.mp.to_value(unyt.g))
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
@@ -44,7 +37,7 @@ def sound_speed_squared(temp, mu, code_units=None):
         temp_value = float(temp)
     mu_value = float(np.asarray(mu, dtype=float))
     return (
-        K_BOLTZMANN_CGS
+        BOLTZMANN_CONSTANT_CGS
         * temp_value
         / (mu_value * PROTON_MASS_CGS)
     ) * SPEED_SQUARED_UNIT

@@ -193,7 +193,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
         sim.fluid.time += dt
 
-        if outputtime == 1:
+        if getattr(sim.par, 'verbose', 0) >= 1:
             print("time, dt", sim.fluid.time, dt)
 
         if output_times is not None:

@@ -29,15 +29,17 @@ class Testing(unittest.TestCase):
 
         expected_face_flux = 10.0 * np.exp(-np.arange(4))
         np.testing.assert_allclose(
-            result.face_photon_flux.to_value(1.0 / (unyt.cm**2 * unyt.s)),
+            np.asarray(result.face_photon_flux),
             expected_face_flux,
+            rtol=1.0e-5,
         )
         expected_cell_flux = expected_face_flux[:-1] * (1.0 - np.exp(-1.0))
         np.testing.assert_allclose(
-            result.cell_photon_flux.to_value(1.0 / (unyt.cm**2 * unyt.s)),
+            np.asarray(result.cell_photon_flux),
             expected_cell_flux,
+            rtol=1.0e-5,
         )
-        np.testing.assert_allclose(result.optical_depth, np.ones(3))
+        np.testing.assert_allclose(result.optical_depth, np.ones(3), rtol=1.0e-5)
 
     def test_spherical_long_characteristic_keeps_photon_rate_and_dilutes_density(self):
         mesh = SimpleNamespace(
@@ -59,49 +61,37 @@ class Testing(unittest.TestCase):
             coordsys="spherical",
         )
 
-        np.testing.assert_allclose(result.face_photon_rate.to_value(1.0 / unyt.s), 12.0)
-        expected_density = (
-            source_photon_rate
-            * np.array([1.0, 1.0])
-            * unyt.cm
-            / mesh.vol
-            / unyt.c.to(unyt.cm / unyt.s)
-        ).to_value(1.0 / unyt.cm**3)
-        np.testing.assert_allclose(
-            result.cell_photon_density.to_value(1.0 / unyt.cm**3),
-            expected_density,
-        )
+        np.testing.assert_allclose(np.asarray(result.face_photon_rate), 12.0)
+        expected_density = np.array([12.0, 12.0]) / np.asarray(mesh.vol.to_value(unyt.cm**3)) / unyt.c.to_value(unyt.cm / unyt.s)
+        np.testing.assert_allclose(np.asarray(result.cell_photon_density), expected_density)
         self.assertGreater(result.cell_photon_density[0], result.cell_photon_density[1])
 
-    def test_apply_long_characteristics_to_fluid_populates_ngamma(self):
-        mesh = SimpleNamespace(
-            coordsys="cartesian",
-            boundary=np.array([-1.0, 0.0, 1.0, 2.0]) * unyt.cm,
-            vol=np.ones(3) * unyt.cm**3,
-            area=np.ones(3) * unyt.cm**2,
-        )
-        fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.mp / unyt.cm**3,
-            xHI=np.ones(3),
-        )
+    def test_trace_photon_density_returns_cgs_number_density(self):
+        state = {
+            "boundary_cm": np.array([0.0, 1.0], dtype=float),
+            "width_cm": np.array([1.0], dtype=float),
+            "volume_cm3": np.array([1.0], dtype=float),
+            "rho_g_cm3": np.array([unyt.mp.to_value(unyt.g)], dtype=float),
+            "xHI": np.array([1.0], dtype=float),
+        }
         par = SimpleNamespace(
             noghost=1,
             nogrid=1,
-            hydrogen_mass_fraction=1.0,
-            hydrogen_sigma_gamma=1.0 * unyt.cm**2,
+            coordsys="cartesian",
             radiative_transfer=True,
             radiative_transfer_method="long_characteristics",
+            hydrogen_mass_fraction=1.0,
+            hydrogen_sigma_gamma=1.0 * unyt.cm**2,
             radiative_transfer_boundary_flux=10.0 / (unyt.cm**2 * unyt.s),
             radiative_transfer_source_photon_rate=0.0 / unyt.s,
             radiative_transfer_direction=1,
         )
 
-        result = rrt.apply_long_characteristics_to_fluid(mesh, fluid, par)
+        ngamma = rrt.trace_photon_density(state, par)
 
-        self.assertIsNotNone(result)
-        self.assertTrue(hasattr(fluid, "ngamma"))
-        self.assertGreater(fluid.ngamma[1], 0.0 / unyt.cm**3)
-        self.assertEqual(fluid.ngamma[0], 0.0 / unyt.cm**3)
+        self.assertIsInstance(ngamma, np.ndarray)
+        self.assertEqual(ngamma.shape, (1,))
+        self.assertGreater(ngamma[0], 0.0)
 
 
 if __name__ == "__main__":

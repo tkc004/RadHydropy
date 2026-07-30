@@ -26,6 +26,9 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
+example_root = Path(__file__).resolve().parents[1]
+if str(example_root) not in sys.path:
+    sys.path.insert(0, str(example_root))
 
 cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
 mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
@@ -64,11 +67,13 @@ def main(config_filename=DEFAULT_CONFIG):
 
     output_specs = icparams['output_snapshots']
     step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
+    print('starting hydro_sources evolution; this may take a while...')
     sim.Run(
-        outputtime=0,
+        outputtime=1,
         mode='hydro_sources',
         step_backend=step_backend,
     )
+    print('finished evolution; loading saved outputs and building plots...')
     outputfilenames = et.output_files(runparams['outdir'], runparams['outfileprefix'])
 
     history = et.load_history_from_outputs(outputfilenames, config)

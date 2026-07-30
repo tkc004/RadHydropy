@@ -6,7 +6,7 @@ import numpy as np
 class NamedArray(np.ndarray):
     """A plain NumPy array that can carry extra attributes."""
 
-    def __new__(cls, input_array, dtype=float, copy=False):
+    def __new__(cls, input_array, unit=None, dtype=float, copy=False, **kwargs):
         obj = np.array(input_array, dtype=dtype, copy=copy).view(cls)
         return obj
 

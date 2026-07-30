@@ -35,13 +35,14 @@ def build_problem(config):
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
         outputtimefilename=config.get('outputtimefilename', None),
-        timesim=config.get('final_time', config.get('timesim', None)),
-        area=1.0 * unyt.cm**2,
+        verbose=config.get('verbose', 0),
+        timesim=config['final_time'],
+        area=config['area'],
         EOStype='isothermal',
         gamma=1.0,
         CFL=config['hydro_cfl'],
         order=config['hydro_order'],
-        dtmin=1.0e-10 * unyt.Myr,
+        dtmin=config['dtmin'],
         dtmax=config['hydro_timestep_max'],
         hydrogen_chemistry=True,
         hydrogen_mass_fraction=1.0,
@@ -55,17 +56,18 @@ def build_problem(config):
         hydrogen_recombination=True,
         hydrogen_collisional_ionization=False,
         hydrogen_alpha_B=config['alpha_B_coefficient'],
-        hydrogen_beta=0.0 * unyt.cm**3 / unyt.s,
+        hydrogen_beta=config['hydrogen_beta'],
         hydrogen_radiation_field=False,
         hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=0.0 / unyt.cm**3,
+        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
         hydrogen_sigma_gamma=config['sigma_gamma'],
-        hydrogen_epsilon_gamma=0.0 * unyt.erg,
+        hydrogen_epsilon_gamma=config['hydrogen_epsilon_gamma'],
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=0.0 / (unyt.cm**2 * unyt.s),
+        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
         radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
+        radiative_transfer_update_interval=config.get('radiative_transfer_update_interval', 1),
         CodeUnits=code_units,
         code_units=code_units,
         unit_system=code_units.unit_system if code_units is not None else None,
@@ -80,7 +82,7 @@ def build_problem(config):
     mesh.SetUpMesh(par)
 
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma)
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
     fluid.rho = np.ones(par.nogrid) * config['rho_initial']
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * config['neutral_temperature']
@@ -91,28 +93,8 @@ def build_problem(config):
 
     solver = Solver()
     solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid)
-    result = rrt.trace_long_characteristics(
-        mesh,
-        fluid.rho,
-        fluid.xHI,
-        hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-        sigma_gamma=_as_cgs_float(
-            getattr(par, 'hydrogen_sigma_gamma', rrt.rh.DEFAULT_SIGMA_GAMMA),
-            unyt.cm**2,
-        ),
-        boundary_flux=_as_cgs_float(
-            getattr(par, 'radiative_transfer_boundary_flux', 0.0),
-            1.0 / (unyt.cm**2 * unyt.s),
-        ),
-        source_photon_rate=_as_cgs_float(
-            getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
-            1.0 / unyt.s,
-        ),
-        direction=getattr(par, 'radiative_transfer_direction', 1),
-        coordsys=getattr(mesh, 'coordsys', 'cartesian'),
-    )
-    fluid.ngamma[:] = result.cell_photon_density.to(fluid.ngamma.units)
+    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
+    solver.ApplyRadiativeTransfer(mesh, fluid, par)
     return par, mesh, fluid, solver
 
 
@@ -158,7 +140,7 @@ def interior_slice(par):
 
 def refresh_state(mesh, fluid, par, solver):
     solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid)
+    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
 
 
 def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
@@ -190,9 +172,20 @@ def make_piecewise_isothermal_step_backend(sim, config):
     return step_backend
 
 
+def _value_in_unit(value, unit):
+    if hasattr(value, 'to_value'):
+        return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float)
+
+
+def _scalar_in_unit(value, unit):
+    values = _value_in_unit(value, unit)
+    return float(np.reshape(values, -1)[0])
+
+
 def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
     interior = interior_slice(par)
-    radius = mesh.coordinate[interior].to_value(unyt.pc)
+    radius = _value_in_unit(mesh.coordinate[interior], unyt.pc)
     xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
 
     ionized = xHII >= ionized_fraction
@@ -214,7 +207,7 @@ def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
+    history['time_Myr'].append(_scalar_in_unit(fluid.time, unyt.Myr))
     history['front_radius_pc'].append(ionization_front_position(mesh, fluid, par))
 
 
@@ -232,9 +225,9 @@ def load_history_from_outputs(outputfilenames, config):
 def density_snapshot(mesh, fluid, par):
     interior = interior_slice(par)
     return {
-        'time_Myr': fluid.time.to_value(unyt.Myr),
-        'radius_pc': mesh.coordinate[interior].to_value(unyt.pc).copy(),
-        'density_g_cm3': fluid.rho[interior].to_value(unyt.g / unyt.cm**3).copy(),
+        'time_Myr': _scalar_in_unit(fluid.time, unyt.Myr),
+        'radius_pc': _value_in_unit(mesh.coordinate[interior], unyt.pc).copy(),
+        'density_g_cm3': _value_in_unit(fluid.rho[interior], unyt.g / unyt.cm**3).copy(),
     }
 
 
@@ -242,9 +235,12 @@ def front_radius_at_time(history, time):
     time_myr = np.asarray(history['time_Myr'])
     front_radius_pc = np.asarray(history['front_radius_pc'])
     target_time_myr = time.to_value(unyt.Myr)
-    if target_time_myr < time_myr[0] or target_time_myr > time_myr[-1]:
+    if time_myr.size == 0:
+        raise ValueError('history is empty')
+    tol = max(1.0e-12 * max(1.0, np.max(np.abs(time_myr)), abs(target_time_myr)), 1.0e-30)
+    if target_time_myr < time_myr[0] - tol or target_time_myr > time_myr[-1] + tol:
         raise ValueError('requested time is outside the recorded history')
-
+    target_time_myr = float(np.clip(target_time_myr, time_myr[0], time_myr[-1]))
     return np.interp(target_time_myr, time_myr, front_radius_pc) * unyt.pc
 
 
@@ -252,7 +248,7 @@ def stromgren_radius(config):
     nH = rth._cgs_hydrogen_number_density(
         config['rho_initial'].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
-    )
+    ) * (1.0 / unyt.cm**3)
     radius = (
         3.0
         * config['source_photon_rate']

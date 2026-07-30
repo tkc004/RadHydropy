@@ -17,6 +17,9 @@ ICparams:
   hydrogen_number_density:
     value: 1.0e-3
     unit: 1/cm**3
+  area:
+    value: 1.0
+    unit: kpc**2
   alpha_B_coefficient:
     value: 2.59e-13
     unit: cm**3/s
@@ -32,6 +35,12 @@ ICparams:
   boxsize:
     value: 20.0
     unit: kpc
+  dtmin:
+    value: 1.0e-6
+    unit: Myr
+  dtmax:
+    value: 1.0
+    unit: Myr
   plot_radius_max:
     value: 7.5
     unit: kpc
@@ -47,12 +56,21 @@ ICparams:
   evolution_timestep:
     value: 1.0
     unit: Myr
-  evolution_timestep_min:
+  hydrogen_source_dtmin:
     value: 0.0
     unit: Myr
   evolution_timestep_cfl: 0.1
   radiative_transfer_update_interval: 5
   number_of_cells: 1024
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
   analytic_inner_radius:
     value: 0.1
     unit: kpc

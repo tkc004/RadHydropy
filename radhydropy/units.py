@@ -5,30 +5,20 @@ from dataclasses import dataclass
 import numpy as np
 import unyt
 
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
+
 
 PHOTON_FLUX_UNIT = 1.0 / (unyt.cm**2 * unyt.s)
 PHOTON_RATE_UNIT = 1.0 / unyt.s
 PHOTON_DENSITY_UNIT = 1.0 / unyt.cm**3
-PHOTON_ABSORPTION_RATE_UNIT = 1.0 / (unyt.cm**3 * unyt.s)
 
-CGS_MASS_UNIT = unyt.g
 CGS_LENGTH_UNIT = unyt.cm
-CGS_TIME_UNIT = unyt.s
-CGS_VELOCITY_UNIT = CGS_LENGTH_UNIT / CGS_TIME_UNIT
 CGS_AREA_UNIT = CGS_LENGTH_UNIT**2
 CGS_VOLUME_UNIT = CGS_LENGTH_UNIT**3
-CGS_MASS_DENSITY_UNIT = CGS_MASS_UNIT / CGS_VOLUME_UNIT
+CGS_MASS_DENSITY_UNIT = unyt.g / CGS_VOLUME_UNIT
 CGS_NUMBER_DENSITY_UNIT = 1.0 / CGS_VOLUME_UNIT
-CGS_RATE_UNIT = 1.0 / CGS_TIME_UNIT
-CGS_PHOTON_FLUX_UNIT = 1.0 / (CGS_AREA_UNIT * CGS_TIME_UNIT)
-CGS_PHOTON_ABSORPTION_RATE_UNIT = 1.0 / (CGS_VOLUME_UNIT * CGS_TIME_UNIT)
-CGS_ACCELERATION_UNIT = CGS_LENGTH_UNIT / CGS_TIME_UNIT**2
-CGS_FLUX_UNIT = CGS_LENGTH_UNIT / (CGS_TIME_UNIT * CGS_AREA_UNIT)
-
-PROTON_MASS_CGS = float(unyt.mp.to_value(CGS_MASS_UNIT))
-SPEED_OF_LIGHT_CGS = float(unyt.c.to_value(CGS_VELOCITY_UNIT))
-GAS_CONSTANT_BOLTZMANN_CGS = float(unyt.kb.to_value(unyt.erg / unyt.K))
-
+CGS_RATE_UNIT = 1.0 / unyt.s
+CGS_PHOTON_FLUX_UNIT = 1.0 / (CGS_AREA_UNIT * unyt.s)
 
 def _as_cgs_float(value, unit):
     if hasattr(value, "to_value"):
@@ -108,12 +98,16 @@ _CODE_UNIT_GROUPS = (
 )
 
 
-def _to_code_quantity(value, unit):
+def to_quantity(value, unit):
+    """Convert a quantity-like value to the supplied unit."""
     if value is None:
         return None
     if hasattr(value, "to"):
         return value.to(unit)
     return np.asarray(value, dtype=float) * unit
+
+
+_to_code_quantity = to_quantity
 
 
 def code_units_from_system(code):
@@ -141,6 +135,35 @@ def to_code_value(value, unit):
         return None
     if hasattr(value, "to_value"):
         return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float)
+
+
+def code_to_cgs_value(value, unit):
+    """Return a plain NumPy array in cgs units.
+
+    ``value`` may already be a quantity or may be a raw float/array expressed in
+    code units. ``unit`` should be the corresponding code-unit quantity that
+    represents one code unit in cgs.
+    """
+    if value is None:
+        return None
+    if hasattr(unit, "to_value"):
+        scale = np.asarray(unit.to_value(unit.units), dtype=float)
+        if hasattr(value, "to_value"):
+            return np.asarray(value.to_value(unit.units), dtype=float)
+        return np.asarray(value, dtype=float) * scale
+    return np.asarray(value, dtype=float)
+
+
+def cgs_to_code_value(value, unit):
+    """Return a plain NumPy array in code units from cgs input."""
+    if value is None:
+        return None
+    if hasattr(unit, "to_value"):
+        scale = np.asarray(unit.to_value(unit.units), dtype=float)
+        if hasattr(value, "to_value"):
+            return np.asarray(value.to_value(unit.units), dtype=float) / scale
+        return np.asarray(value, dtype=float) / scale
     return np.asarray(value, dtype=float)
 
 
@@ -217,6 +240,31 @@ def cgs_quantity_to_code(value, code, scale_key):
     if scales is None:
         return np.asarray(value, dtype=float)
     return np.asarray(value, dtype=float) / scales[scale_key]
+
+
+def _gravitational_constant_code(code_units):
+    """Return the gravitational constant in the supplied code units."""
+    if code_units is None:
+        raise ValueError("gravity helpers require code_units")
+    return (
+        GRAVITATIONAL_CONSTANT_CGS
+        * code_units.mass_in_cgs
+        / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
+    )
+
+
+def _potential_unit(code_units):
+    """Return the gravitational potential unit for the supplied code system."""
+    if code_units is None:
+        return unyt.cm**2 / unyt.s**2
+    return code_units.velocity_unit**2
+
+
+def _acceleration_unit(code_units):
+    """Return the gravitational acceleration unit for the supplied code system."""
+    if code_units is None:
+        return unyt.cm / unyt.s**2
+    return code_units.length_unit / code_units.time_unit**2
 
 
 def photon_number_density(ngamma):

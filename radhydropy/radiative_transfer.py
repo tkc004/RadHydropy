@@ -4,21 +4,16 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
-import unyt
 
+from radhydropy.constants import DEFAULT_SIGMA_GAMMA, PROTON_MASS_CGS, SPEED_OF_LIGHT_CGS
 import radhydropy.chemistry_species.hydrogen as rh
 from radhydropy.units import (
     CGS_AREA_UNIT,
     CGS_LENGTH_UNIT,
     CGS_MASS_DENSITY_UNIT,
-    CGS_NUMBER_DENSITY_UNIT,
     CGS_VOLUME_UNIT,
-    PHOTON_ABSORPTION_RATE_UNIT,
-    PHOTON_DENSITY_UNIT,
     PHOTON_FLUX_UNIT,
     PHOTON_RATE_UNIT,
-    PROTON_MASS_CGS,
-    SPEED_OF_LIGHT_CGS,
     _as_cgs_float,
 )
 
@@ -28,11 +23,11 @@ class LongCharacteristicResult:
     """Photon field returned by a one-dimensional long-characteristic trace."""
 
     optical_depth: np.ndarray
-    face_photon_flux: unyt.unyt_array
-    face_photon_rate: unyt.unyt_array
-    cell_photon_flux: unyt.unyt_array
-    cell_photon_density: unyt.unyt_array
-    absorbed_photon_rate: unyt.unyt_array
+    face_photon_flux: np.ndarray
+    face_photon_rate: np.ndarray
+    cell_photon_flux: np.ndarray
+    cell_photon_density: np.ndarray
+    absorbed_photon_rate: np.ndarray
 
 
 def _safe_exp_neg(tau):
@@ -127,11 +122,11 @@ def _trace_cartesian(mesh, optical_depth, boundary_flux, direction):
     cell_density = cell_flux / speed_of_light
     return LongCharacteristicResult(
         optical_depth=optical_depth,
-        face_photon_flux=face_flux * PHOTON_FLUX_UNIT,
-        face_photon_rate=face_rate * PHOTON_RATE_UNIT,
-        cell_photon_flux=cell_flux * PHOTON_FLUX_UNIT,
-        cell_photon_density=cell_density * PHOTON_DENSITY_UNIT,
-        absorbed_photon_rate=absorbed_rate * PHOTON_ABSORPTION_RATE_UNIT,
+        face_photon_flux=np.asarray(face_flux, dtype=float),
+        face_photon_rate=np.asarray(face_rate, dtype=float),
+        cell_photon_flux=np.asarray(cell_flux, dtype=float),
+        cell_photon_density=np.asarray(cell_density, dtype=float),
+        absorbed_photon_rate=np.asarray(absorbed_rate, dtype=float),
     )
 
 
@@ -205,11 +200,11 @@ def _trace_spherical(
     cell_flux = cell_density * speed_of_light
     return LongCharacteristicResult(
         optical_depth=optical_depth,
-        face_photon_flux=face_flux * PHOTON_FLUX_UNIT,
-        face_photon_rate=face_rate * PHOTON_RATE_UNIT,
-        cell_photon_flux=cell_flux * PHOTON_FLUX_UNIT,
-        cell_photon_density=cell_density * PHOTON_DENSITY_UNIT,
-        absorbed_photon_rate=absorbed_rate * PHOTON_ABSORPTION_RATE_UNIT,
+        face_photon_flux=np.asarray(face_flux, dtype=float),
+        face_photon_rate=np.asarray(face_rate, dtype=float),
+        cell_photon_flux=np.asarray(cell_flux, dtype=float),
+        cell_photon_density=np.asarray(cell_density, dtype=float),
+        absorbed_photon_rate=np.asarray(absorbed_rate, dtype=float),
     )
 
 
@@ -218,9 +213,9 @@ def trace_long_characteristics(
     rho,
     xHI,
     hydrogen_mass_fraction=1.0,
-    sigma_gamma=rh.DEFAULT_SIGMA_GAMMA,
-    boundary_flux=0.0 * PHOTON_FLUX_UNIT,
-    source_photon_rate=0.0 * PHOTON_RATE_UNIT,
+    sigma_gamma=DEFAULT_SIGMA_GAMMA,
+    boundary_flux=0.0,
+    source_photon_rate=0.0,
     direction=1,
     coordsys=None,
 ):
@@ -237,7 +232,7 @@ def trace_long_characteristics(
     rho_g_cm3 = _as_cgs_array(rho, CGS_MASS_DENSITY_UNIT)
     xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
     sigma_gamma_cm2 = _as_cgs_float(
-        rh.DEFAULT_SIGMA_GAMMA if sigma_gamma is None else sigma_gamma,
+        DEFAULT_SIGMA_GAMMA if sigma_gamma is None else sigma_gamma,
         CGS_AREA_UNIT,
     )
     optical_depth = np.maximum(
@@ -262,24 +257,10 @@ def trace_long_characteristics(
 
 def _state_mesh_for_radiative_transfer(state, par):
     """Build a minimal mesh view for the RT helper."""
-    noghost = int(getattr(par, "noghost", 0))
     boundary = np.asarray(state["boundary_cm"], dtype=float)
     if boundary.size < 2:
         raise ValueError("radiative transfer requires at least two cell faces")
-    widths = np.asarray(state["width_cm"], dtype=float)
-    if noghost > 0:
-        left = boundary[0] - np.arange(noghost, 0, -1, dtype=float) * float(widths[0])
-        right = boundary[-1] + np.arange(1, noghost + 1, dtype=float) * float(widths[-1])
-        boundary = np.concatenate((left, boundary, right))
     volumes = np.asarray(state["volume_cm3"], dtype=float)
-    if noghost > 0:
-        volumes = np.concatenate(
-            (
-                np.full(noghost, volumes[0], dtype=float),
-                volumes,
-                np.full(noghost, volumes[-1], dtype=float),
-            )
-        )
     return SimpleNamespace(
         coordsys=getattr(par, "coordsys", "spherical"),
         boundary=boundary,
@@ -289,16 +270,9 @@ def _state_mesh_for_radiative_transfer(state, par):
 
 def _state_fluid_for_radiative_transfer(state, par):
     """Build a minimal fluid view for the RT helper."""
-    noghost = int(getattr(par, "noghost", 0))
     rho = np.asarray(state["rho_g_cm3"], dtype=float)
     xHI = np.asarray(state["xHI"], dtype=float)
     ngamma = np.asarray(state.get("ngamma_cm3", np.zeros_like(rho)), dtype=float)
-    if noghost > 0:
-        rho = np.concatenate((np.full(noghost, rho[0]), rho, np.full(noghost, rho[-1])))
-        xHI = np.concatenate((np.full(noghost, xHI[0]), xHI, np.full(noghost, xHI[-1])))
-        ngamma = np.concatenate(
-            (np.zeros(noghost, dtype=float), ngamma, np.zeros(noghost, dtype=float))
-        )
     return SimpleNamespace(
         rho=rho,
         xHI=xHI,
@@ -313,7 +287,7 @@ def trace_photon_density(state, par):
     mesh = _state_mesh_for_radiative_transfer(state, par)
     fluid = _state_fluid_for_radiative_transfer(state, par)
     sigma_gamma_cm2 = _as_cgs_float(
-        getattr(par, "hydrogen_sigma_gamma", rh.DEFAULT_SIGMA_GAMMA),
+        getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA),
         CGS_AREA_UNIT,
     )
     result = trace_long_characteristics(
@@ -333,11 +307,4 @@ def trace_photon_density(state, par):
         direction=getattr(par, "radiative_transfer_direction", 1),
         coordsys=getattr(par, "coordsys", "spherical"),
     )
-    interior = slice(
-        int(getattr(par, "noghost", 0)),
-        int(getattr(par, "noghost", 0)) + int(getattr(par, "nogrid", len(state["xHI"]))),
-    )
-    return np.asarray(
-        result.cell_photon_density[interior].to_value(CGS_NUMBER_DENSITY_UNIT),
-        dtype=float,
-    )
+    return np.asarray(result.cell_photon_density, dtype=float)

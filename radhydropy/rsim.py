@@ -80,7 +80,7 @@ class Rsim():
         print("--- %s seconds ---" % (time.time() - start_time))
         self.ConvertParametersToCodeUnits()
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
-        self.solver.SetConserved(self.mesh,self.fluid)
+        self.solver.SetConserved(self.mesh,self.fluid, verbose=getattr(self.par, 'verbose', 0))
         self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
 
     def ConvertToCodeUnits(self):
@@ -154,8 +154,18 @@ class Rsim():
         """Return a timestep, clipped to ``final_time`` when supplied."""
         if dt is None:
             dt = self.solver.GetTimeStep(self.mesh, self.fluid, self.par)
-        if final_time is not None and self.fluid.time + dt > final_time:
-            dt = final_time - self.fluid.time
+        current_time = self.fluid.time
+        if final_time is not None:
+            if hasattr(final_time, "units"):
+                target_units = final_time.units
+                if not hasattr(current_time, "to_value"):
+                    current_time = current_time * target_units
+                if not hasattr(dt, "to_value"):
+                    dt = dt * target_units
+            elif hasattr(current_time, "units") and not hasattr(dt, "to_value"):
+                dt = dt * current_time.units
+        if final_time is not None and current_time + dt > final_time:
+            dt = final_time - current_time
         return dt
 
     def PrepareConservedStep(self, fluid=None):
@@ -163,7 +173,7 @@ class Rsim():
         if fluid is None:
             fluid = self.fluid
         self.solver.SetBoundary(self.mesh, fluid, self.par)
-        self.solver.SetConserved(self.mesh, fluid)
+        self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
 
     def AdvanceHydroFluxes(self, dt, fluid=None):
         """Advance the Euler flux update and return mass data for scalar advection."""
@@ -174,6 +184,7 @@ class Rsim():
             self.mesh,
             fluid,
             self.par.boundcond,
+            verbose=getattr(self.par, 'verbose', 0),
             order=self.par.order,
         )
         mass_flux = fluid.Mass.flux.copy()
@@ -215,9 +226,9 @@ class Rsim():
         """Refresh primitive and conserved variables after a hydro update."""
         if fluid is None:
             fluid = self.fluid
-        self.solver.SetPrimitive(self.mesh, fluid)
+        self.solver.SetPrimitive(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
         self.UpdateThermochemistryPrimitiveState(update_pressure=True, fluid=fluid)
-        self.solver.SetConserved(self.mesh, fluid)
+        self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
 
     def FinalizeHydroStep(
         self,
@@ -356,7 +367,7 @@ class Rsim():
             if mode == "sources":
                 self.fluid.time += dt
             self.solver.SetBoundary(self.mesh, self.fluid, self.par)
-            self.solver.SetConserved(self.mesh, self.fluid)
+            self.solver.SetConserved(self.mesh, self.fluid, verbose=getattr(self.par, 'verbose', 0))
 
         return result
 

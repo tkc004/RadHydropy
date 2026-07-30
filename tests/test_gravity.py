@@ -1,6 +1,7 @@
 import numpy as np
 import unyt
 
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 from radhydropy.gravity import (
     Gravity,
     nfw_potential,
@@ -9,9 +10,6 @@ from radhydropy.gravity import (
 )
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
-
-
-GRAVITATIONAL_CONSTANT_CGS = 6.67430e-8
 
 
 class DummyMesh:

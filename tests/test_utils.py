@@ -1,6 +1,7 @@
 import unittest
 import radhydropy.utils as ru
 import radhydropy.chemistry_species.hydrogen as rh
+from radhydropy.constants import SPEED_OF_LIGHT_CGS
 import radhydropy.thermo_networks.hydrogen as rth
 import unyt
 import numpy as np
@@ -128,6 +129,20 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(updated.units, (1.0/unyt.cm**3).units)
         np.testing.assert_allclose(updated.value, expected.value)
+
+    def test_hydrogen_species_helpers_return_cgs_scalars(self):
+        sigma_gamma = rh.photon_cross_section(1.62e-18)
+        epsilon_gamma = rh.photon_excess_energy(0.0)
+        xhi = rh.clip_neutral_fraction(np.array([-0.2, 0.5, 1.2]))
+        mu = rh.mean_molecular_weight_mu(np.array([0.0, 0.5, 1.0]), hydrogen_mass_fraction=1.0)
+
+        self.assertIsInstance(sigma_gamma, np.ndarray)
+        self.assertIsInstance(epsilon_gamma, np.ndarray)
+        self.assertEqual(float(sigma_gamma), 1.62e-18)
+        self.assertEqual(float(epsilon_gamma), 0.0)
+        np.testing.assert_allclose(xhi, np.array([0.0, 0.5, 1.0]))
+        np.testing.assert_allclose(mu, np.array([0.5, 2.0 / 3.0, 1.0]))
+        self.assertAlmostEqual(SPEED_OF_LIGHT_CGS, 2.99792458e10)
 
 if __name__ == '__main__':
     unittest.main()

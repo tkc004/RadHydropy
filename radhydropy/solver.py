@@ -5,6 +5,7 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
+from radhydropy.constants import DEFAULT_SIGMA_GAMMA
 from radhydropy.units import (
     CGS_AREA_UNIT,
     CGS_MASS_DENSITY_UNIT,
@@ -75,7 +76,7 @@ class Solver():
         if hasattr(mesh, 'area'):
             submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cm2']
         sigma_gamma_cm2 = _as_cgs_float(
-            getattr(par, 'hydrogen_sigma_gamma', rh.DEFAULT_SIGMA_GAMMA),
+            getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA),
             CGS_AREA_UNIT,
         )
         result = rrt.trace_long_characteristics(
@@ -96,7 +97,7 @@ class Solver():
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
         )
         fluid.ngamma[interior] = (
-            np.asarray(result.cell_photon_density.to_value(unyt.cm**-3), dtype=float)
+            np.asarray(result.cell_photon_density, dtype=float)
             / scales['number_density_cm3']
         )
         return result
@@ -138,8 +139,10 @@ class Solver():
             return
         fluid.Mom[center_cell] = 0.0
 
-    def SetPrimitive(self, mesh, fluid, verbose=0):
+    def SetPrimitive(self, mesh, fluid, verbose=None):
         """Update primitive variables from conserved quantities."""
+        if verbose is None:
+            verbose = 0
         vol = mesh.vol
         fluid.rho = as_named_array(self._safe_divide(fluid.Mass, vol))
         fluid.vel = as_named_array(self._safe_divide(fluid.Mom, fluid.Mass))
@@ -162,8 +165,10 @@ class Solver():
             print('fluid.vel',fluid.vel)
             print('fluid.pre',fluid.pre)            
     
-    def SetConserved(self, mesh, fluid, verbose=0):
+    def SetConserved(self, mesh, fluid, verbose=None):
         """Update conserved mass, momentum, and energy from primitive variables."""
+        if verbose is None:
+            verbose = 0
         vol = mesh.vol
         fluid.Mass = as_named_array(fluid.rho * vol)
         fluid.Mom = as_named_array(fluid.rho * fluid.vel * vol)
@@ -274,8 +279,10 @@ class Solver():
         else:
             raise ValueError('order unknown: %s'%order)
         
-    def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=0, order=0):
+    def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=None, order=0):
         """Set interface fluxes using GLF or Rusanov numerical fluxes."""
+        if verbose is None:
+            verbose = 0
         if method=='GLF' or method=='Rusanov':
             if method=='GLF':
                 # Global Lax Friedrich scheme
@@ -591,4 +598,20 @@ class Solver():
             )
         if dt > dtmax:
             dt = dtmax
+        if getattr(par, 'verbose', 0) >= 1:
+            min_index = int(np.argmin(dt_array))
+            print(
+                '[hydro dt] t=%s dt=%s idx=%d xdelta=%s vel=%s cs=%s vsignal=%s dtmin=%s dtmax=%s'
+                % (
+                    fluid.time,
+                    dt,
+                    min_index,
+                    xdelta[min_index],
+                    fluid.vel[min_index],
+                    fluid.cs[min_index],
+                    vsignal[min_index],
+                    par.dtmin,
+                    par.dtmax,
+                )
+            )
         return dt

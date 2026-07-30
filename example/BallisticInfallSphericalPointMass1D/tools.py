@@ -6,15 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
 from radhydropy.units import code_unit_scales
 
 
-GRAVITATIONAL_CONSTANT_CGS = float(
-    unyt.physical_constants.gravitational_constant.to_value(
-        unyt.cm**3 / (unyt.g * unyt.s**2)
-    )
-)
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
 

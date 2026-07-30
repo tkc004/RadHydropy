@@ -20,6 +20,9 @@ ICparams:
   alpha_B_coefficient:
     value: 2.59e-13
     unit: cm**3/s
+  area:
+    value: 1.0
+    unit: cm**2
   sigma_gamma:
     value: 8.13e-18
     unit: cm**2
@@ -38,12 +41,24 @@ ICparams:
   chemistry_timestep:
     value: 5.0
     unit: Myr
-  chemistry_timestep_min:
+  hydrogen_source_dtmin:
     value: 1.0e-3
     unit: Myr
   chemistry_timestep_cfl: 0.1
   radiative_transfer_update_interval: 5
   number_of_cells: 256
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  hydrogen_epsilon_gamma:
+    value: 0.0
+    unit: erg
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
   analytic_inner_radius:
     value: 0.1
     unit: kpc

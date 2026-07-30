@@ -2,7 +2,7 @@
 
 import numpy as np
 import unyt
-from radhydropy.units import _code_units, to_code_value
+from radhydropy.units import _code_units, _to_code_quantity, to_code_value
 from radhydropy.arrays import as_named_array
 
 

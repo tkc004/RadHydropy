@@ -52,7 +52,7 @@ def RunRadiativeTransferOnly(sim):
     print("--- Initization finished. Start running ... ---")
     print("--- %s seconds ---" % (time.time() - start_time))
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
-    sim.solver.SetConserved(sim.mesh, sim.fluid)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, 'verbose', 0))
     result = rrt.trace_long_characteristics(
         sim.mesh,
         sim.fluid.rho,

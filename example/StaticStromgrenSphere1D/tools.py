@@ -20,12 +20,6 @@ from radhydropy.units import CodeUnits, _as_cgs_float
 import stromgren_analytic as sa
 
 
-def _to_runtime_quantity(value, unit):
-    if hasattr(value, 'to'):
-        return value.to(unit)
-    return float(value) * unit
-
-
 def build_static_problem(config):
     code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
@@ -33,57 +27,34 @@ def build_static_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
-        boxsize=_to_runtime_quantity(config['boxsize'], code_units.length_unit),
+        boxsize=config['boxsize'],
+        verbose=config.get('verbose', 0),
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
-        area=_to_runtime_quantity(config.get('area', 1.0 * unyt.cm**2), code_units.area_unit),
+        area=config['area'],
         hydrogen_chemistry=True,
         hydrogen_mass_fraction=1.0,
         hydrogen_xHI_initial=1.0,
         hydrogen_xHI_inflow=1.0,
         hydrogen_xHI_outflow=1.0,
         hydrogen_source_CFL=config.get('chemistry_timestep_cfl', 0.1),
-        hydrogen_source_dtmin=_to_runtime_quantity(
-            config.get('chemistry_timestep_min', 0.0 * unyt.s),
-            code_units.time_unit,
-        ),
+        hydrogen_source_dtmin=config['hydrogen_source_dtmin'],
         hydrogen_update_mu=False,
         hydrogen_thermal_coupling=False,
         hydrogen_recombination=True,
         hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=_to_runtime_quantity(
-            config['alpha_B_coefficient'],
-            code_units.volume_unit / code_units.time_unit,
-        ),
-        hydrogen_beta=_to_runtime_quantity(
-            0.0 * unyt.cm**3 / unyt.s,
-            code_units.volume_unit / code_units.time_unit,
-        ),
+        hydrogen_alpha_B=config['alpha_B_coefficient'],
+        hydrogen_beta=config['hydrogen_beta'],
         hydrogen_radiation_field=False,
         hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=_to_runtime_quantity(
-            0.0 / unyt.cm**3,
-            code_units.number_density_unit,
-        ),
-        hydrogen_sigma_gamma=_to_runtime_quantity(
-            config['sigma_gamma'],
-            code_units.area_unit,
-        ),
-        hydrogen_epsilon_gamma=_to_runtime_quantity(
-            0.0 * unyt.erg,
-            code_units.energy_unit,
-        ),
+        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
+        hydrogen_sigma_gamma=config['sigma_gamma'],
+        hydrogen_epsilon_gamma=config['hydrogen_epsilon_gamma'],
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=_to_runtime_quantity(
-            0.0 / (unyt.cm**2 * unyt.s),
-            1.0 / (code_units.area_unit * code_units.time_unit),
-        ),
-        radiative_transfer_source_photon_rate=_to_runtime_quantity(
-            config['source_photon_rate'],
-            1.0 / code_units.time_unit,
-        ),
+        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
+        radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
         radiative_transfer_update_interval=config.get(
             'radiative_transfer_update_interval',
@@ -108,7 +79,7 @@ def build_static_problem(config):
         * config['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
-    fluid.eos = EOS('polytropic', 5.0 / 3.0)
+    fluid.eos = EOS('polytropic', 5.0 / 3.0, code_units)
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * 1.0e4 * unyt.K
     fluid.mu = np.ones(par.nogrid)
@@ -138,7 +109,7 @@ def build_static_problem(config):
         direction=getattr(par, 'radiative_transfer_direction', 1),
         coordsys=getattr(mesh, 'coordsys', 'cartesian'),
     )
-    fluid.ngamma[:] = result.cell_photon_density.to(fluid.ngamma.units)
+    fluid.ngamma[:] = np.asarray(result.cell_photon_density, dtype=float)
     return par, mesh, fluid, solver
 
 
@@ -229,9 +200,14 @@ def append_history(history, mesh, fluid, par, config, recombined_photons):
 
 def save_plot(mesh, fluid, par, config, figure_filename):
     interior = interior_slice(par)
-    radius = mesh.coordinate[interior].to(unyt.kpc)
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    if hasattr(mesh.coordinate[interior], 'to_value'):
+        radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
+    else:
+        radius_kpc = np.asarray(mesh.coordinate[interior], dtype=float)
+    radius = radius_kpc * unyt.kpc
     plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
-    xHI = fluid.xHI[interior]
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = 1.0 - xHI
     xHI_analytic = sa.neutral_fraction_profile(
         radius,
@@ -251,21 +227,21 @@ def save_plot(mesh, fluid, par, config, figure_filename):
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
-        radius.to_value(unyt.kpc),
+        radius_kpc,
         np.clip(xHI, plot_floor, 1.0),
         color='tab:blue',
         lw=2.0,
         label=r'$x_{\rm HI}$ numerical',
     )
     ax.plot(
-        radius.to_value(unyt.kpc),
+        radius_kpc,
         np.clip(xHII, plot_floor, 1.0),
         color='tab:red',
         lw=2.0,
         label=r'$x_{\rm HII}$ numerical',
     )
     ax.plot(
-        radius.to_value(unyt.kpc),
+        radius_kpc,
         np.clip(xHI_analytic, plot_floor, 1.0),
         color='tab:blue',
         lw=1.6,
@@ -273,7 +249,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
         label=r'$x_{\rm HI}$ analytic',
     )
     ax.plot(
-        radius.to_value(unyt.kpc),
+        radius_kpc,
         np.clip(xHII_analytic, plot_floor, 1.0),
         color='tab:red',
         lw=1.6,

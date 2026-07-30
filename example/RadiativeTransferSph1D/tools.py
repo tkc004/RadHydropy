@@ -23,6 +23,7 @@ def build_problem(config):
         nogrid=config['number_of_cells'],
         noghost=2,
         boxsize=config['boxsize'],
+        verbose=config.get('verbose', 0),
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
@@ -58,7 +59,7 @@ def build_problem(config):
 
     solver = Solver()
     solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid)
+    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
     return par, mesh, fluid, solver
 
 

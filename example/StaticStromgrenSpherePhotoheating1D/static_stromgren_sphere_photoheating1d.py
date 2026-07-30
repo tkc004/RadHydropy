@@ -60,6 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
             if not value.is_absolute():
                 icparams[key] = str(config_dir / value)
     config = {**runparams, **icparams}
+    print('config', config)
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)

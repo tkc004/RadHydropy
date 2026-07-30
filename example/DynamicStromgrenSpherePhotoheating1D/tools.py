@@ -20,12 +20,6 @@ from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 
 
-def _to_runtime_quantity(value, unit):
-    if hasattr(value, 'to'):
-        return value.to(unit)
-    return float(value) * unit
-
-
 def load_parameters(config_filename, rundir=None):
     from radhydropy.example_config import load_example_parameters
 
@@ -62,63 +56,37 @@ def build_problem(config):
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
         noghost=2,
-        boxsize=_to_runtime_quantity(config['boxsize'], code_units.length_unit),
-        area=_to_runtime_quantity(
-            config.get('area', 1.0 * unyt.cm**2),
-            code_units.area_unit,
-        ),
+        boxsize=config['boxsize'],
+        verbose=config.get('verbose', 0),
+        area=config['area'],
         EOStype='polytropic',
         gamma=5.0 / 3.0,
         CFL=config['hydro_cfl'],
         order=0,
-        dtmin=_to_runtime_quantity(1.0e-8 * unyt.Myr, code_units.time_unit),
-        dtmax=_to_runtime_quantity(config['hydro_timestep_max'], code_units.time_unit),
+        dtmin=config['dtmin'],
+        dtmax=config['dtmax'],
         hydrogen_chemistry=True,
         hydrogen_mass_fraction=1.0,
         hydrogen_xHI_initial=1.0,
         hydrogen_xHI_inflow=1.0,
         hydrogen_xHI_outflow=1.0,
         hydrogen_source_CFL=config['source_cfl'],
-        hydrogen_source_dtmin=_to_runtime_quantity(
-            config['source_timestep_min'],
-            code_units.time_unit,
-        ),
+        hydrogen_source_dtmin=config['hydrogen_source_dtmin'],
         hydrogen_update_mu=True,
         hydrogen_thermal_coupling=True,
         hydrogen_recombination=True,
         hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=_to_runtime_quantity(
-            config['alpha_B_coefficient'],
-            code_units.volume_unit / code_units.time_unit,
-        ),
-        hydrogen_beta=_to_runtime_quantity(
-            0.0 * unyt.cm**3 / unyt.s,
-            code_units.volume_unit / code_units.time_unit,
-        ),
+        hydrogen_alpha_B=config['hydrogen_alpha_B'],
+        hydrogen_beta=config['hydrogen_beta'],
         hydrogen_radiation_field=False,
         hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=_to_runtime_quantity(
-            0.0 / unyt.cm**3,
-            code_units.number_density_unit,
-        ),
-        hydrogen_sigma_gamma=_to_runtime_quantity(
-            config['sigma_gamma'],
-            code_units.area_unit,
-        ),
-        hydrogen_epsilon_gamma=_to_runtime_quantity(
-            config['epsilon_gamma'],
-            code_units.energy_unit,
-        ),
+        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
+        hydrogen_sigma_gamma=config['hydrogen_sigma_gamma'],
+        hydrogen_epsilon_gamma=config['hydrogen_epsilon_gamma'],
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=_to_runtime_quantity(
-            0.0 / (unyt.cm**2 * unyt.s),
-            1.0 / (code_units.area_unit * code_units.time_unit),
-        ),
-        radiative_transfer_source_photon_rate=_to_runtime_quantity(
-            config['source_photon_rate'],
-            1.0 / code_units.time_unit,
-        ),
+        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
+        radiative_transfer_source_photon_rate=config['radiative_transfer_source_photon_rate'],
         radiative_transfer_direction=1,
         CodeUnits=code_units,
         code_units=code_units,
@@ -133,7 +101,7 @@ def build_problem(config):
     ) * unyt.cm
 
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma)
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
     fluid.rho = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']

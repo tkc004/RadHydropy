@@ -5,6 +5,7 @@ runparams:
   outfileprefix: Output
   outputtimefilename: output_times_early.txt
   savedir: .
+  verbose: 0
   CodeUnits:
     name: galactic_unit_system
     InternalUnitSystem:
@@ -18,6 +19,9 @@ ICparams:
   source_photon_rate:
     value: 1.0e49
     unit: 1/s
+  area:
+    value: 1.0
+    unit: cm**2
   rho_initial:
     value: 5.21e-21
     unit: g/cm**3
@@ -39,6 +43,9 @@ ICparams:
   boxsize:
     value: 2.0
     unit: pc
+  dtmin:
+    value: 1.0e-10
+    unit: Myr
   final_time:
     value: 0.14
     unit: Myr
@@ -51,7 +58,20 @@ ICparams:
   source_timestep_min:
     value: 1.0e-12
     unit: Myr
-  number_of_cells: 512
+  number_of_cells: 128
+  radiative_transfer_update_interval: 100
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_epsilon_gamma:
+    value: 0.0
+    unit: erg
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
   comparison_time:
     value: 0.14
     unit: Myr

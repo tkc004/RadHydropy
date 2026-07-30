@@ -182,7 +182,7 @@ def _write_quantity(group, name, value, code_units=None, scale_key=None, default
     elif code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
         data = np.asarray(value, dtype=float) * scales[scale_key]
-        unit = str(default_unit)
+        unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
     else:
         data = np.asarray(value)
         unit = str(default_unit) if default_unit is not None else "dimensionless"
@@ -312,7 +312,7 @@ def hdf5_output_callback(sim, outputtime=0, output_state=None):
         dt = step["dt"]
         if getattr(dt, "shape", None) == (1,):
             dt = dt[0]
-        if outputtime == 1:
+        if getattr(sim.par, 'verbose', 0) >= 1:
             print("time, dt", sim.fluid.time, dt)
         if output_state['outtime'] >= sim.par.outdeltatime:
             sim.fluid.SetTemperature()
@@ -386,7 +386,7 @@ def run_with_output_times(
             if stop_condition is not None and stop_condition(sim):
                 break
             dt = sim.GetStepTime(final_time=target_time)
-            if outputtime == 1:
+            if getattr(sim.par, 'verbose', 0) >= 1:
                 print("time, dt", sim.fluid.time, dt)
             step_backend(
                 dt=dt,
@@ -407,7 +407,7 @@ def run_with_output_times(
         if stop_condition is not None and stop_condition(sim):
             break
         dt = sim.GetStepTime(final_time=final_time)
-        if outputtime == 1:
+        if getattr(sim.par, 'verbose', 0) >= 1:
             print("time, dt", sim.fluid.time, dt)
         step_backend(
             dt=dt,
