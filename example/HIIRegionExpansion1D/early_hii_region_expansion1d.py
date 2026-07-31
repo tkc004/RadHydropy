@@ -58,17 +58,22 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
-    par, mesh, fluid, solver = et.build_problem(config)
-    sim = Rsim.FromComponents(par, mesh, fluid, solver)
-    sim.fluid.eos.apply_piecewise_isothermal_state(
-        sim.fluid,
-        sim.par,
-        config['neutral_temperature'],
-        config['ionized_temperature'],
-    )
-    et.refresh_state(sim.mesh, sim.fluid, sim.par, sim.solver)
+    et.write_initial_condition(config, runparams)
 
     output_specs = icparams['output_snapshots']
+    sim = Rsim(runparams)
+    sim.Callreadhdf5()
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
+    et.apply_piecewise_isothermal_state(
+        sim.mesh,
+        sim.fluid,
+        sim.par,
+        sim.solver,
+        config,
+    )
+
     step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
     print('starting hydro_sources evolution; this may take a while...')
     sim.Run(

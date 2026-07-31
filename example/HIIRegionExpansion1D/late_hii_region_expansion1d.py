@@ -41,19 +41,17 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
-import radhydropy.io as rio
 from radhydropy.rsim import Rsim
-from radhydropy.units import code_unit_scales
+from radhydropy.units import CodeUnits, code_quantity_to_cgs
 import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('late_hii_region_expansion1d.yaml')
 
 
-def write_initial_condition(sim, runparams):
-    """Replace any stale late-phase initial condition snapshot."""
-    Path(runparams['ICfilename']).unlink(missing_ok=True)
-    rio.writehdf5(sim, runparams['ICfilename'])
+def _time_myr(value, code_units):
+    myr_in_s = (1.0 * unyt.Myr).to_value(unyt.s)
+    return float(code_quantity_to_cgs(value, code_units, 'time_s') / myr_in_s)
 
 
 def print_startup_diagnostics(sim, config, icparams):
@@ -64,16 +62,14 @@ def print_startup_diagnostics(sim, config, icparams):
     temp = np.asarray(sim.fluid.temp[interior], dtype=float)
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma = np.asarray(sim.fluid.ngamma[interior], dtype=float) if hasattr(sim.fluid, 'ngamma') else None
-    code_units = getattr(sim.par, 'CodeUnits', None)
+    code_units = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
     ngamma_cgs = None
-    scales = None
-    if ngamma is not None and code_units is not None:
-        scales = code_unit_scales(code_units)
-        ngamma_cgs = ngamma * scales['number_density_cm3']
+    if ngamma is not None:
+        ngamma_cgs = code_quantity_to_cgs(ngamma, code_units, 'number_density_cm3')
 
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.nogrid)
-    print('time = %s' % sim.fluid.time)
+    print('time = %.6e Myr' % _time_myr(sim.fluid.time, code_units))
     print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho), np.max(rho)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel)) / 1.0e5))
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp), np.max(temp)))
@@ -82,13 +78,16 @@ def print_startup_diagnostics(sim, config, icparams):
         print('ngamma range = [%.3e, %.3e] code units' % (np.min(ngamma), np.max(ngamma)))
         if ngamma_cgs is not None:
             print('ngamma range = [%.3e, %.3e] cm^-3' % (np.min(ngamma_cgs), np.max(ngamma_cgs)))
-            boundary = np.asarray(sim.mesh.boundary[interior.start : interior.start + 2], dtype=float)
-            if scales is not None:
-                inner_radius_cm = 0.5 * (boundary[0] + boundary[1]) * scales['length_cm']
-                thin_estimate = config['source_photon_rate'].to_value(1 / unyt.s) / (
-                    4.0 * np.pi * inner_radius_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
-                )
-                print('optically thin inner-cell ngamma estimate = %.3e cm^-3' % thin_estimate)
+            boundary_cm = code_quantity_to_cgs(
+                sim.mesh.boundary[interior.start : interior.start + 2],
+                code_units,
+                'length_cm',
+            )
+            inner_radius_cm = 0.5 * (boundary_cm[0] + boundary_cm[1])
+            thin_estimate = config['source_photon_rate'].to_value(1 / unyt.s) / (
+                4.0 * np.pi * inner_radius_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
+            )
+            print('optically thin inner-cell ngamma estimate = %.3e cm^-3' % thin_estimate)
     print('neutral sound speed = %.3e km/s' % et.neutral_sound_speed(config).to_value(unyt.km / unyt.s))
     print(
         'ionized sound speed (config) = %.3e km/s'
@@ -131,6 +130,7 @@ def print_startup_diagnostics(sim, config, icparams):
 def make_logging_step_backend(sim, config, max_logged_steps=5):
     """Wrap the isothermal step backend with a short startup trace."""
     base_step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
+    code_units = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
     state = {'count': 0}
     interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
 
@@ -139,8 +139,8 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         should_log = step_index < max_logged_steps
         if should_log:
             print(
-                '--- step %d begin: time=%s dt=%s mode=%s ---'
-                % (step_index + 1, sim.fluid.time, dt, mode)
+                '--- step %d begin: time=%.6e Myr dt=%s mode=%s ---'
+                % (step_index + 1, _time_myr(sim.fluid.time, code_units), dt, mode)
             )
         result = base_step_backend(
             dt=dt,
@@ -154,10 +154,10 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
             vmax = np.max(np.abs(vel)) / 1.0e5
             front_radius = et.ionization_front_position(sim.mesh, sim.fluid, sim.par)
             print(
-                '--- step %d end: time=%s hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
+                '--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
                 % (
                     step_index + 1,
-                    sim.fluid.time,
+                    _time_myr(sim.fluid.time, code_units),
                     result['hydro_steps'],
                     result['source_steps'],
                     front_radius,
@@ -185,10 +185,14 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
-    par, mesh, fluid, solver = et.build_problem(config)
-    sim = Rsim.FromComponents(par, mesh, fluid, solver)
+    et.write_initial_condition(config, runparams)
+
+    sim = Rsim(runparams)
+    sim.Callreadhdf5()
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
     et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
-    write_initial_condition(sim, runparams)
     print_startup_diagnostics(sim, config, icparams)
 
     output_specs = icparams['output_snapshots']
@@ -234,7 +238,8 @@ def main(config_filename=DEFAULT_CONFIG):
     ).to_value(unyt.pc)
     stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
-    print('time = %s' % sim.fluid.time)
+    code_units = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
+    print('time = %.6e Myr' % _time_myr(sim.fluid.time, code_units))
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
     print('stagnation radius = %.3e pc' % stagnation_radius_pc)
     print('output files = %d' % len(outputfilenames))

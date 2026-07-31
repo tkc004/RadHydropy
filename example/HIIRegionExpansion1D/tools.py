@@ -20,7 +20,14 @@ from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, _as_cgs_float
+from radhydropy.units import CodeUnits
+
+
+def _config_value(config, *keys, default=None):
+    for key in keys:
+        if key in config:
+            return config[key]
+    return default
 
 
 def build_problem(config):
@@ -29,44 +36,59 @@ def build_problem(config):
         coordsys='spherical',
         boundcond='OpenSph',
         nogrid=config['number_of_cells'],
-        noghost=2,
+        noghost=config.get('noghost', 2),
         boxsize=config['boxsize'],
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
         outputtimefilename=config.get('outputtimefilename', None),
         verbose=config.get('verbose', 0),
-        timesim=config['final_time'],
+        timesim=_config_value(config, 'timesim', 'final_time'),
         area=config['area'],
         EOStype='isothermal',
         gamma=1.0,
-        CFL=config['hydro_cfl'],
-        order=config['hydro_order'],
-        dtmin=config['dtmin'],
-        dtmax=config['hydro_timestep_max'],
+        CFL=_config_value(config, 'CFL', 'hydro_cfl'),
+        order=_config_value(config, 'order', 'hydro_order'),
+        dtmin=_config_value(config, 'dtmin', 'hydro_timestep_min'),
+        dtmax=_config_value(config, 'dtmax', 'hydro_timestep_max'),
         hydrogen_chemistry=True,
-        hydrogen_mass_fraction=1.0,
-        hydrogen_xHI_initial=1.0,
-        hydrogen_xHI_inflow=1.0,
-        hydrogen_xHI_outflow=1.0,
-        hydrogen_source_CFL=config['source_cfl'],
-        hydrogen_source_dtmin=config['source_timestep_min'],
-        hydrogen_update_mu=True,
-        hydrogen_thermal_coupling=False,
-        hydrogen_recombination=True,
-        hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=config['alpha_B_coefficient'],
-        hydrogen_beta=config['hydrogen_beta'],
-        hydrogen_radiation_field=False,
-        hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
-        hydrogen_sigma_gamma=config['sigma_gamma'],
-        hydrogen_epsilon_gamma=config['hydrogen_epsilon_gamma'],
-        radiative_transfer=True,
-        radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
-        radiative_transfer_source_photon_rate=config['source_photon_rate'],
-        radiative_transfer_direction=1,
+        hydrogen_mass_fraction=_config_value(config, 'hydrogen_mass_fraction', default=1.0),
+        hydrogen_xHI_initial=_config_value(config, 'hydrogen_xHI_initial', default=1.0),
+        hydrogen_xHI_inflow=_config_value(config, 'hydrogen_xHI_inflow', default=1.0),
+        hydrogen_xHI_outflow=_config_value(config, 'hydrogen_xHI_outflow', default=1.0),
+        hydrogen_source_CFL=_config_value(config, 'hydrogen_source_CFL', 'source_cfl'),
+        hydrogen_source_dtmin=_config_value(config, 'hydrogen_source_dtmin', 'source_timestep_min'),
+        hydrogen_update_mu=_config_value(config, 'hydrogen_update_mu', default=True),
+        hydrogen_thermal_coupling=_config_value(config, 'hydrogen_thermal_coupling', default=False),
+        hydrogen_recombination=_config_value(config, 'hydrogen_recombination', default=True),
+        hydrogen_collisional_ionization=_config_value(
+            config,
+            'hydrogen_collisional_ionization',
+            default=False,
+        ),
+        hydrogen_alpha_B=_config_value(config, 'hydrogen_alpha_B', 'alpha_B_coefficient'),
+        hydrogen_beta=_config_value(config, 'hydrogen_beta'),
+        hydrogen_radiation_field=_config_value(config, 'hydrogen_radiation_field', default=False),
+        hydrogen_radiation_evolution=_config_value(config, 'hydrogen_radiation_evolution', default=False),
+        hydrogen_ngamma_initial=_config_value(config, 'hydrogen_ngamma_initial', default=0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=_config_value(config, 'hydrogen_sigma_gamma', 'sigma_gamma'),
+        hydrogen_epsilon_gamma=_config_value(config, 'hydrogen_epsilon_gamma', default=0.0 * unyt.erg),
+        radiative_transfer=_config_value(config, 'radiative_transfer', default=True),
+        radiative_transfer_method=_config_value(
+            config,
+            'radiative_transfer_method',
+            default='long_characteristics',
+        ),
+        radiative_transfer_boundary_flux=_config_value(
+            config,
+            'radiative_transfer_boundary_flux',
+        ),
+        radiative_transfer_source_photon_rate=_config_value(
+            config,
+            'radiative_transfer_source_photon_rate',
+            'source_photon_rate',
+        ),
+        radiative_transfer_direction=_config_value(config, 'radiative_transfer_direction', default=1),
         CodeUnits=code_units,
         unit_system=code_units.unit_system if code_units is not None else None,
     )
@@ -77,7 +99,6 @@ def build_problem(config):
         config['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
-    mesh.SetUpMesh(par)
 
     fluid = Fluid()
     fluid.eos = EOS(par.EOStype, par.gamma, code_units)
@@ -86,30 +107,33 @@ def build_problem(config):
     fluid.temp = np.ones(par.nogrid) * config['neutral_temperature']
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.SetUpFluid(par)
     fluid.SetFluidTime(0.0 * unyt.Myr)
 
     solver = Solver()
-    solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
-    solver.ApplyRadiativeTransfer(mesh, fluid, par)
     return par, mesh, fluid, solver
+
+
+def write_initial_condition(config, runparams):
+    """Build the raw IC state and write it to ``ICfilename``."""
+    par, mesh, fluid, _ = build_problem(config)
+    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    Path(runparams['ICfilename']).unlink(missing_ok=True)
+    rio.writehdf5(sim, runparams['ICfilename'])
 
 
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    code_units = getattr(par, 'CodeUnits', None)
-    if code_units is not None:
-        par.time = np.asarray(par.time, dtype=float) * code_units.time_unit
-        par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units.length_unit
-        fluid.time = np.asarray(fluid.time, dtype=float) * code_units.time_unit
-        mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units.length_unit
-        fluid.rho = np.asarray(fluid.rho, dtype=float) * code_units.density_unit
-        fluid.vel = np.asarray(fluid.vel, dtype=float) * code_units.velocity_unit
-        fluid.temp = np.asarray(fluid.temp, dtype=float) * code_units.temperature_unit
-        if hasattr(fluid, 'ngamma'):
-            fluid.ngamma = np.asarray(fluid.ngamma, dtype=float) * code_units.number_density_unit
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par.time = np.asarray(par.time, dtype=float) * code_units.time_unit
+    par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units.length_unit
+    fluid.time = np.asarray(fluid.time, dtype=float) * code_units.time_unit
+    mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units.length_unit
+    fluid.rho = np.asarray(fluid.rho, dtype=float) * code_units.density_unit
+    fluid.vel = np.asarray(fluid.vel, dtype=float) * code_units.velocity_unit
+    fluid.temp = np.asarray(fluid.temp, dtype=float) * code_units.temperature_unit
+    if hasattr(fluid, 'ngamma'):
+        fluid.ngamma = np.asarray(fluid.ngamma, dtype=float) * code_units.number_density_unit
     # ``readhdf5`` restores the saved boundary and fluid state, but it does not
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's
