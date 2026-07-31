@@ -44,6 +44,14 @@ import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('late_hii_region_expansion1d.yaml')
+
+
+def write_initial_condition(config, runparams):
+    icfilename = Path(runparams['ICfilename'])
+    icfilename.unlink(missing_ok=True)
+    et.rio.writehdf5(config, str(icfilename))
+
+
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)

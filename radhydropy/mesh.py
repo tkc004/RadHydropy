@@ -1,7 +1,7 @@
 """Mesh construction utilities for one-dimensional simulations."""
 
 import numpy as np
-from radhydropy.units import _code_units, _to_code_quantity, to_code_value
+from radhydropy.units import _code_units, _to_code_quantity, quantity_to_value
 from radhydropy.arrays import as_named_array
 
 
@@ -33,6 +33,8 @@ class Mesh:
             If the mesh dimensions or coordinate system are invalid.
         """
         code_units = _code_units(par)
+        if code_units is None:
+            raise ValueError("SetUpMesh requires par.CodeUnits")
         self.code_units = code_units
         self.coordsys = par.coordsys
         attr = 'boundary'
@@ -52,8 +54,7 @@ class Mesh:
 
         # add ghost cells:
         noghost = par.noghost
-        if code_units is not None:
-            self.boundary = as_named_array(to_code_value(self.boundary, code_units.length_unit))
+        self.boundary = as_named_array(quantity_to_value(self.boundary, code_units.length_unit))
         dx = self.boundary[1] - self.boundary[0] 
         start = self.boundary[0] - dx * noghost
         end = self.boundary[-1] + dx * noghost 
@@ -69,11 +70,10 @@ class Mesh:
                 raise AttributeError("area does not exist in params; quitting.")
             # coordinate is the midpoint of boundary
             self.coordinate = as_named_array(0.5 * (self.boundary[1:]+self.boundary[:-1]))
-            if code_units is not None:
-                area_value = to_code_value(par.area, code_units.area_unit)
-            else:
-                area_value = _to_code_quantity(par.area, getattr(par.area, 'units', 1.0))
-            self.area = as_named_array(np.ones(par.nogrid+noghost*2, dtype=float) * np.asarray(area_value, dtype=float))
+            area_value = quantity_to_value(par.area, code_units.area_unit)
+            self.area = as_named_array(
+                np.ones(par.nogrid + noghost * 2, dtype=float) * np.asarray(area_value, dtype=float)
+            )
             self.vol = as_named_array((self.boundary[1:] - self.boundary[:-1]) * self.area)
         elif par.coordsys == 'spherical':
             # check if any value is <0:

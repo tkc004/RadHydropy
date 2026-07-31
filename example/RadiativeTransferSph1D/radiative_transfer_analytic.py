@@ -9,11 +9,11 @@ from radhydropy.units import CodeUnits, code_quantity_to_cgs, code_unit_scales
 
 def _normalize_code_units(code_units):
     if code_units is None:
-        return None
+        raise ValueError("code_units is required")
     return CodeUnits.from_mapping(code_units)
 
 
-def finite_volume_density(boundary, volume, source_photon_rate, code_units=None):
+def finite_volume_density(boundary, volume, source_photon_rate, code_units):
     """Return the finite-volume average photon density."""
 
     code_units = _normalize_code_units(code_units)
@@ -28,20 +28,17 @@ def finite_volume_density(boundary, volume, source_photon_rate, code_units=None)
     if hasattr(source_photon_rate, 'to_value'):
         source_rate_s = source_photon_rate.to_value(1.0 / unyt.s)
     else:
-        if code_units is None:
-            source_rate_s = float(source_photon_rate)
-        else:
-            source_rate_s = (
-                np.asarray(source_photon_rate, dtype=float)
-                * code_unit_scales(code_units)['photon_rate_per_s']
-            )
+        source_rate_s = (
+            np.asarray(source_photon_rate, dtype=float)
+            * code_unit_scales(code_units)['photon_rate_per_s']
+        )
     dr = boundary_cm[1:] - boundary_cm[:-1]
     speed_of_light = SPEED_OF_LIGHT_CGS
     density = source_rate_s * dr / volume_cm3 / speed_of_light
     return density * (1.0 / unyt.cm**3)
 
 
-def point_density(radius, source_photon_rate, code_units=None):
+def point_density(radius, source_photon_rate, code_units):
     """Return pointwise ``Q / (4 pi r^2 c)`` photon density."""
 
     code_units = _normalize_code_units(code_units)
@@ -52,13 +49,10 @@ def point_density(radius, source_photon_rate, code_units=None):
     if hasattr(source_photon_rate, 'to_value'):
         source_rate_s = source_photon_rate.to_value(1.0 / unyt.s)
     else:
-        if code_units is None:
-            source_rate_s = float(source_photon_rate)
-        else:
-            source_rate_s = (
-                np.asarray(source_photon_rate, dtype=float)
-                * code_unit_scales(code_units)['photon_rate_per_s']
-            )
+        source_rate_s = (
+            np.asarray(source_photon_rate, dtype=float)
+            * code_unit_scales(code_units)['photon_rate_per_s']
+        )
     speed_of_light = SPEED_OF_LIGHT_CGS
     density = source_rate_s / (4.0 * np.pi * radius_cm**2 * speed_of_light)
     return density * (1.0 / unyt.cm**3)

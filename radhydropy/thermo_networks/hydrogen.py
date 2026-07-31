@@ -18,7 +18,11 @@ from radhydropy.constants import (
 import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.utils as ru
-from radhydropy.units import _code_units, cgs_to_code_value, code_to_cgs_value, to_code_value
+from radhydropy.units import (
+    _code_units,
+    cgs_quantity_to_code_value,
+    code_quantity_to_cgs_value,
+)
 from radhydropy.arrays import as_named_array
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 
@@ -26,21 +30,31 @@ from radhydropy.thermo_networks.base import ThermochemistryNetwork
 SPEED_OF_LIGHT_CMS = SPEED_OF_LIGHT_CGS
 
 
-def _code_quantity_to_cgs(value, unit):
-    code_value = to_code_value(value, unit)
-    return code_to_cgs_value(code_value, unit)
+def _require_numeric_array(value, label):
+    if hasattr(value, "to_value"):
+        raise TypeError(f"{label} must be a plain numeric array, not a unyt quantity")
+    return np.asarray(value, dtype=float)
 
 
-def _cgs_quantity_to_code(value, unit):
-    return cgs_to_code_value(value, unit)
+def _numeric_array_with_unit(value, unit):
+    return code_quantity_to_cgs_value(value, unit)
 
 
-def _optional_code_quantity_to_cgs(value, unit, default=None):
+def _numeric_array_from_cgs(value, unit):
+    return cgs_quantity_to_code_value(value, unit)
+
+
+def _optional_numeric_value(value, unit, default=None):
     if value is None:
         if default is None:
             return None
-        return code_to_cgs_value(default, unit)
-    return _code_quantity_to_cgs(value, unit)
+        return code_quantity_to_cgs_value(default, unit)
+    return code_quantity_to_cgs_value(value, unit)
+
+
+_code_quantity_to_cgs = _numeric_array_with_unit
+_cgs_quantity_to_code = _numeric_array_from_cgs
+_optional_code_quantity_to_cgs = _optional_numeric_value
 
 
 def _cgs_alpha_B(temperature_K):

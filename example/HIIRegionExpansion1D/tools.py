@@ -90,7 +90,7 @@ def build_problem(config):
         ),
         radiative_transfer_direction=_config_value(config, 'radiative_transfer_direction', default=1),
         CodeUnits=code_units,
-        unit_system=code_units.unit_system if code_units is not None else None,
+        unit_system=code_units.unit_system,
     )
 
     mesh = Mesh()

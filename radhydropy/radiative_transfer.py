@@ -9,9 +9,6 @@ from radhydropy.constants import DEFAULT_SIGMA_GAMMA, PROTON_MASS_CGS, SPEED_OF_
 import radhydropy.chemistry_species.hydrogen as rh
 from radhydropy.units import (
     CGS_AREA_UNIT,
-    CGS_LENGTH_UNIT,
-    CGS_MASS_DENSITY_UNIT,
-    CGS_VOLUME_UNIT,
     PHOTON_FLUX_UNIT,
     PHOTON_RATE_UNIT,
     _as_cgs_float,
@@ -47,12 +44,6 @@ def _attenuation_mean(tau):
     return mean
 
 
-def _as_cgs_array(value, unit):
-    if hasattr(value, "to_value"):
-        return np.asarray(value.to_value(unit), dtype=float)
-    return np.asarray(value, dtype=float)
-
-
 def _quantity_or_code_to_cgs(value, code_units, cgs_unit, scale_key):
     if hasattr(value, "to_value"):
         return _as_cgs_float(value, cgs_unit)
@@ -62,7 +53,7 @@ def _quantity_or_code_to_cgs(value, code_units, cgs_unit, scale_key):
 
 
 def _mesh_boundary_cm(mesh):
-    return _as_cgs_array(mesh.boundary, CGS_LENGTH_UNIT)
+    return np.asarray(mesh.boundary, dtype=float)
 
 
 def _cell_widths_cm(mesh):
@@ -72,7 +63,7 @@ def _cell_widths_cm(mesh):
 
 def _cell_volumes_cm3(mesh, coordsys):
     if hasattr(mesh, "vol"):
-        return _as_cgs_array(mesh.vol, CGS_VOLUME_UNIT)
+        return np.asarray(mesh.vol, dtype=float)
     boundary = _mesh_boundary_cm(mesh)
     if coordsys == "spherical":
         return np.absolute(boundary[1:] ** 3 - boundary[:-1] ** 3) * 4.0 * np.pi / 3.0
@@ -84,7 +75,7 @@ def _face_areas_cm2(mesh, coordsys):
     if coordsys == "spherical":
         return 4.0 * np.pi * boundary**2
     if hasattr(mesh, "area") and mesh.area is not None:
-        area = _as_cgs_array(mesh.area, CGS_AREA_UNIT)
+        area = np.asarray(mesh.area, dtype=float)
         if len(area) == len(boundary):
             return area
         if len(area) == len(boundary) - 1:
@@ -239,7 +230,7 @@ def trace_long_characteristics(
     if coordsys not in ("cartesian", "spherical"):
         raise ValueError("coordsys unknown: %s" % coordsys)
 
-    rho_g_cm3 = _as_cgs_array(rho, CGS_MASS_DENSITY_UNIT)
+    rho_g_cm3 = np.asarray(rho, dtype=float)
     xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
     sigma_gamma_cm2 = _as_cgs_float(
         DEFAULT_SIGMA_GAMMA if sigma_gamma is None else sigma_gamma,

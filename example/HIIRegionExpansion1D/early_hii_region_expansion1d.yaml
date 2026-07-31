@@ -98,7 +98,7 @@ ICparams:
   boxsize:
     value: 2.0
     unit: pc
-  number_of_cells: 512
+  number_of_cells: 2048
   final_time:
     value: 0.14
     unit: Myr

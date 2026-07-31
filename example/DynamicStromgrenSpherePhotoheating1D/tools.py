@@ -193,7 +193,7 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     if getattr(par, 'noghost', 0) > 0:
-        mesh.boundary = mesh.boundary[par.noghost : -par.noghost]
+        mesh.boundary = np.asarray(mesh.boundary[par.noghost : -par.noghost], dtype=float)
     mesh.SetUpMesh(par)
     fluid.SetPressure()
     return par, mesh, fluid

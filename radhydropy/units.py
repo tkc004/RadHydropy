@@ -124,12 +124,12 @@ def code_units_from_system(code):
     }
 
 
-def to_code_value(value, unit):
-    """Return a plain NumPy array in code units.
+def quantity_to_value(value, unit):
+    """Return a plain NumPy array in the requested unit.
 
     When ``value`` carries units, it is converted to the supplied unit and the
-    unit metadata is stripped. Plain arrays are treated as already being in
-    code units and are returned unchanged as ``float`` arrays.
+    unit metadata is stripped. Plain arrays are treated as already being in the
+    requested unit and are returned unchanged as ``float`` arrays.
     """
     if value is None:
         return None
@@ -137,13 +137,12 @@ def to_code_value(value, unit):
         return np.asarray(value.to_value(unit), dtype=float)
     return np.asarray(value, dtype=float)
 
-
-def code_to_cgs_value(value, unit):
+def code_quantity_to_cgs_value(value, unit):
     """Return a plain NumPy array in cgs units.
 
-    ``value`` may already be a quantity or may be a raw float/array expressed in
-    code units. ``unit`` should be the corresponding code-unit quantity that
-    represents one code unit in cgs.
+    Quantity-like inputs are converted to the supplied cgs unit and stripped of
+    metadata. Plain NumPy inputs are assumed to already be code-unit values and
+    are scaled into cgs as raw floats.
     """
     if value is None:
         return None
@@ -154,9 +153,13 @@ def code_to_cgs_value(value, unit):
         return np.asarray(value, dtype=float) * scale
     return np.asarray(value, dtype=float)
 
+def cgs_quantity_to_code_value(value, unit):
+    """Return a plain NumPy array in code units.
 
-def cgs_to_code_value(value, unit):
-    """Return a plain NumPy array in code units from cgs input."""
+    Quantity-like inputs are converted to the supplied code unit and stripped of
+    metadata. Plain NumPy inputs are assumed to already be code-unit values and
+    are returned unchanged as ``float`` arrays.
+    """
     if value is None:
         return None
     if hasattr(unit, "to_value"):
@@ -166,12 +169,11 @@ def cgs_to_code_value(value, unit):
         return np.asarray(value, dtype=float) / scale
     return np.asarray(value, dtype=float)
 
-
 def apply_code_unit_specs(obj, specs, units):
     """Apply code-unit conversions for each named attribute in ``specs``."""
     for attr, unit_key in specs:
         if hasattr(obj, attr):
-            setattr(obj, attr, to_code_value(getattr(obj, attr), units[unit_key]))
+            setattr(obj, attr, quantity_to_value(getattr(obj, attr), units[unit_key]))
 
 
 def time_seconds(value, code_units=None):
@@ -408,6 +410,8 @@ class CodeUnits:
         """Build a code-unit system from a YAML block or a UnitSystem."""
         if isinstance(mapping, cls):
             return mapping
+        if mapping is None:
+            raise ValueError("CodeUnits requires a mapping or UnitSystem")
         if isinstance(mapping, unyt.unit_systems.UnitSystem):
             base_units = mapping.base_units
             length_unit = base_units[unyt.dimensions.length]
@@ -425,7 +429,7 @@ class CodeUnits:
                 unit_system=mapping,
             )
 
-        data = dict(mapping or {})
+        data = dict(mapping)
         internal = data.get("InternalUnitSystem", data)
         if not isinstance(internal, dict):
             raise TypeError(

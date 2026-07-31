@@ -47,7 +47,7 @@ def build_static_problem(config):
     )
 
     mesh = SimpleNamespace()
-    mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
+    mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1)
 
     fluid = SimpleNamespace()
     fluid.rho = np.ones(par.nogrid) * unyt.mp / unyt.cm**3

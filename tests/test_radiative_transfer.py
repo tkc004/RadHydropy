@@ -12,11 +12,11 @@ class Testing(unittest.TestCase):
     def test_cartesian_long_characteristic_attenuates_exponentially(self):
         mesh = SimpleNamespace(
             coordsys="cartesian",
-            boundary=np.array([0.0, 1.0, 2.0, 3.0]) * unyt.cm,
-            vol=np.ones(3) * unyt.cm**3,
-            area=np.ones(3) * unyt.cm**2,
+            boundary=np.array([0.0, 1.0, 2.0, 3.0], dtype=float),
+            vol=np.ones(3, dtype=float),
+            area=np.ones(3, dtype=float),
         )
-        rho = np.ones(3) * unyt.mp / unyt.cm**3
+        rho = np.ones(3, dtype=float) * unyt.mp.to_value(unyt.g)
         xHI = np.ones(3)
         boundary_flux = 10.0 / (unyt.cm**2 * unyt.s)
 
@@ -45,11 +45,11 @@ class Testing(unittest.TestCase):
     def test_spherical_long_characteristic_keeps_photon_rate_and_dilutes_density(self):
         mesh = SimpleNamespace(
             coordsys="spherical",
-            boundary=np.array([0.0, 1.0, 2.0]) * unyt.cm,
-            vol=np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0]) * unyt.cm**3,
-            area=np.array([0.0, 4.0 * np.pi]) * unyt.cm**2,
+            boundary=np.array([0.0, 1.0, 2.0], dtype=float),
+            vol=np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float),
+            area=np.array([0.0, 4.0 * np.pi], dtype=float),
         )
-        rho = np.ones(2) * unyt.mp / unyt.cm**3
+        rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
         xHI = np.ones(2)
         source_photon_rate = 12.0 / unyt.s
 
@@ -63,7 +63,11 @@ class Testing(unittest.TestCase):
         )
 
         np.testing.assert_allclose(np.asarray(result.face_photon_rate), 12.0)
-        expected_density = np.array([12.0, 12.0]) / np.asarray(mesh.vol.to_value(unyt.cm**3)) / unyt.c.to_value(unyt.cm / unyt.s)
+        expected_density = (
+            np.array([12.0, 12.0], dtype=float)
+            / np.asarray(mesh.vol, dtype=float)
+            / unyt.c.to_value(unyt.cm / unyt.s)
+        )
         np.testing.assert_allclose(np.asarray(result.cell_photon_density), expected_density)
         self.assertGreater(result.cell_photon_density[0], result.cell_photon_density[1])
 
@@ -109,10 +113,9 @@ class Testing(unittest.TestCase):
         )
         scales = code_unit_scales(code_units)
         state = {
-            "boundary_cm": np.array([0.0, 1.0, 2.0], dtype=float) * unyt.cm,
-            "width_cm": np.array([1.0, 1.0], dtype=float) * unyt.cm,
-            "volume_cm3": np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float)
-            * unyt.cm**3,
+            "boundary_cm": np.array([0.0, 1.0, 2.0], dtype=float),
+            "width_cm": np.array([1.0, 1.0], dtype=float),
+            "volume_cm3": np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float),
             "rho_g_cm3": np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g),
             "xHI": np.ones(2, dtype=float),
         }

@@ -134,7 +134,8 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
-    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    code_units_mapping = runparams.get('CodeUnits')
+    code_units = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
     rout = Simwrap(icparams, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')

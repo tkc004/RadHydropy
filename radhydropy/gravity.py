@@ -8,7 +8,7 @@ from radhydropy.units import (
     _gravitational_constant_code,
     _potential_unit,
     _code_units,
-    to_code_value,
+    quantity_to_value,
 )
 
 
@@ -34,9 +34,9 @@ def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None)
         return (-unyt.physical_constants.gravitational_constant * mass_q / radius_eff).to(
             _potential_unit(None)
         )
-    radius_value = to_code_value(radius, code_units.length_unit)
-    mass_value = to_code_value(mass, code_units.mass_unit)
-    softening_value = to_code_value(softening, code_units.length_unit)
+    radius_value = quantity_to_value(radius, code_units.length_unit)
+    mass_value = quantity_to_value(mass, code_units.mass_unit)
+    softening_value = quantity_to_value(softening, code_units.length_unit)
     radius_eff = np.maximum(radius_value, softening_value)
     potential_value = -_gravitational_constant_code(code_units) * mass_value / radius_eff
     return potential_value * _potential_unit(code_units)
@@ -59,10 +59,10 @@ def singular_isothermal_potential(
         return (2.0 * sigma_q**2 * np.log(radius_eff / reference_radius_q)).to(
             _potential_unit(None)
         )
-    radius_value = to_code_value(radius, code_units.length_unit)
-    sigma_value = to_code_value(sigma, code_units.velocity_unit)
-    reference_radius_value = to_code_value(reference_radius, code_units.length_unit)
-    softening_value = to_code_value(softening, code_units.length_unit)
+    radius_value = quantity_to_value(radius, code_units.length_unit)
+    sigma_value = quantity_to_value(sigma, code_units.velocity_unit)
+    reference_radius_value = quantity_to_value(reference_radius, code_units.length_unit)
+    softening_value = quantity_to_value(softening, code_units.length_unit)
     radius_eff = np.maximum(radius_value, softening_value)
     potential_value = 2.0 * sigma_value**2 * np.log(radius_eff / reference_radius_value)
     return potential_value * _potential_unit(code_units)
@@ -96,10 +96,10 @@ def nfw_potential(
             * log_over_x
         )
         return potential.to(_potential_unit(None))
-    radius_value = to_code_value(radius, code_units.length_unit)
-    rho_s_value = to_code_value(rho_s, code_units.density_unit)
-    r_s_value = to_code_value(r_s, code_units.length_unit)
-    softening_value = to_code_value(softening, code_units.length_unit)
+    radius_value = quantity_to_value(radius, code_units.length_unit)
+    rho_s_value = quantity_to_value(rho_s, code_units.density_unit)
+    r_s_value = quantity_to_value(r_s, code_units.length_unit)
+    softening_value = quantity_to_value(softening, code_units.length_unit)
     radius_eff = np.maximum(radius_value, softening_value)
     x_value = np.asarray(radius_eff / r_s_value, dtype=float)
     log_over_x = np.ones_like(x_value)
@@ -157,14 +157,14 @@ class Gravity:
 
         coord_unit = code_units.length_unit
         value_unit = _potential_unit(code_units) if label == "potential" else _acceleration_unit(code_units)
-        values = to_code_value(values, value_unit)
-        coordinate = to_code_value(coordinate, coord_unit)
+        values = quantity_to_value(values, value_unit)
+        coordinate = quantity_to_value(coordinate, coord_unit)
         if self.coordinate is None:
             if np.shape(values) != np.shape(coordinate):
                 raise ValueError(f"{label} requires a tabulated coordinate axis")
             return values
 
-        grid = to_code_value(self.coordinate, coord_unit)
+        grid = quantity_to_value(self.coordinate, coord_unit)
         if np.shape(grid) != np.shape(values):
             raise ValueError(f"{label} requires tabulated values with the same shape as coordinate")
         return np.interp(coordinate, grid, values)
@@ -175,7 +175,7 @@ class Gravity:
         if self.potential is None:
             raise ValueError("No gravitational potential has been configured")
         if callable(self.potential):
-            return to_code_value(self.potential(coordinate), _potential_unit(code_units))
+            return quantity_to_value(self.potential(coordinate), _potential_unit(code_units))
         return self._tabulated_quantity(self.potential, coordinate, "potential")
 
     def acceleration_on(self, coordinate):
@@ -183,13 +183,13 @@ class Gravity:
         code_units = _require_code_units(_code_units(self))
         if self.acceleration is not None:
             if callable(self.acceleration):
-                return to_code_value(self.acceleration(coordinate), _acceleration_unit(code_units))
+                return quantity_to_value(self.acceleration(coordinate), _acceleration_unit(code_units))
             return self._tabulated_quantity(self.acceleration, coordinate, "acceleration")
 
         if self.potential is None:
             raise ValueError("Either a potential or an acceleration must be configured")
 
-        coord = to_code_value(coordinate, code_units.length_unit)
+        coord = quantity_to_value(coordinate, code_units.length_unit)
         potential = self.potential_on(coord)
         if potential.size < 2:
             raise ValueError("At least two coordinate points are required to differentiate the potential")

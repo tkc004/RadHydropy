@@ -620,7 +620,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(runparams['CFL'], 0.5)
         self.assertEqual(runparams['order'], 1)
         self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.14)
-        self.assertEqual(icparams['number_of_cells'], 128)
+        self.assertEqual(icparams['number_of_cells'], 2048)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 2.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 0.14)
         self.assertTrue(Path(runparams['outputtimefilename']).exists())

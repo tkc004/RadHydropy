@@ -3,7 +3,7 @@
 import numpy as np
 import unyt
 import radhydropy.chemistry_species.hydrogen as rh
-from radhydropy.units import _code_units, _to_code_quantity, photon_number_density, to_code_value
+from radhydropy.units import _code_units, _to_code_quantity, photon_number_density, quantity_to_value
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
@@ -61,6 +61,8 @@ class Fluid():
             If any required primitive quantity is missing.
         """
         code_units = _code_units(par)
+        if code_units is None:
+            raise ValueError("SetUpFluid requires par.CodeUnits")
         self.code_units = code_units
         self.time = 0.0
 
@@ -71,10 +73,9 @@ class Fluid():
             if not hasattr(self, attr):
                 raise Exception("%s does not exist in fluid; quitting."%attr)
 
-        if code_units is not None:
-            self.rho = as_named_array(to_code_value(self.rho, code_units.density_unit))
-            self.temp = as_named_array(to_code_value(self.temp, code_units.temperature_unit))
-            self.vel = as_named_array(to_code_value(self.vel, code_units.velocity_unit))
+        self.rho = as_named_array(quantity_to_value(self.rho, code_units.density_unit))
+        self.temp = as_named_array(quantity_to_value(self.temp, code_units.temperature_unit))
+        self.vel = as_named_array(quantity_to_value(self.vel, code_units.velocity_unit))
 
         if getattr(par, 'hydrogen_chemistry', False) and not hasattr(self, 'xHI'):
             self.xHI = (
@@ -92,21 +93,19 @@ class Fluid():
             )
             and not hasattr(self, 'ngamma')
         ):
-            ngamma_unit = (
-                code_units.number_density_unit if code_units is not None else 1.0 / unyt.cm**3
-            )
+            ngamma_unit = code_units.number_density_unit
             self.ngamma = (
                 as_named_array(np.ones(np.shape(self.rho), dtype=float))
-                * to_code_value(
+                * quantity_to_value(
                     photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                     ngamma_unit,
                 )
             )
         if hasattr(self, 'ngamma'):
             attrlist.append('ngamma')
-            ngamma_initial = to_code_value(
+            ngamma_initial = quantity_to_value(
                 photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
-                code_units.number_density_unit if code_units is not None else 1.0 / unyt.cm**3,
+                code_units.number_density_unit,
             )
             valuelist.append(float(np.asarray(ngamma_initial, dtype=float)))
             

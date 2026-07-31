@@ -11,7 +11,7 @@ from radhydropy.units import (
     apply_code_unit_specs,
     code_units_from_system,
     time_seconds,
-    to_code_value,
+    quantity_to_value,
 )
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
