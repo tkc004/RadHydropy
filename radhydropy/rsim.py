@@ -537,8 +537,8 @@ class Rsim():
         recombination_rate_end = self._static_recombination_rate(state)
         return 0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
 
-    def _refresh_static_photon_density(self, state, step, time_s, final_time_s, rt_update_interval):
-        if step % rt_update_interval != 0 and time_s < final_time_s:
+    def _refresh_static_photon_density(self, state, step, time_s, final_time_s):
+        if time_s < final_time_s:
             return None, 0
         ngamma = rrt.trace_photon_density(state, self.par)
         return ngamma, 1
@@ -624,8 +624,7 @@ class Rsim():
                 state,
                 step,
                 time_s,
-                final_time_s,
-                1,
+                final_time_s
             )
             if updated_ngamma is not None:
                 ngamma = updated_ngamma
