@@ -28,19 +28,38 @@ def top_hat_density_profile(
     left_fraction=0.25,
     right_fraction=0.75,
 ):
-    """Return the advected top-hat density reference profile."""
+    """Return the spherical advected top-hat density reference profile.
 
-    x1 = left_fraction * boxsize + time * velocity
-    x2 = right_fraction * boxsize + time * velocity
-    rho = density_high * np.ones(len(radius))
-    if x1 > boxsize:
-        x1 -= boxsize
-    if x2 > boxsize:
-        x2 -= boxsize
-    if x2 > x1:
-        rho[np.logical_or(radius < x1, radius > x2)] = (
-            density_low_factor * density_high
+    The cartesian reference used a pure translation.  In spherical symmetry,
+    a fluid element conserves ``rho * r^2`` along characteristics for a
+    constant radial velocity, so the density acquires a geometric dilution
+    factor of ``(r0 / r)^2`` where ``r0 = r - v t`` is the launch radius.
+    """
+
+    if hasattr(radius, "to_value"):
+        radius = radius.to_value()
+    radius = np.asarray(radius, dtype=float)
+    if hasattr(time, "to_value"):
+        time = time.to_value()
+    if hasattr(velocity, "to_value"):
+        velocity = velocity.to_value()
+    if hasattr(boxsize, "to_value"):
+        boxsize = boxsize.to_value()
+    launch_radius = radius - time * velocity
+    initial_density = density_low_factor * density_high * np.ones_like(radius)
+
+    inside = np.logical_and(launch_radius >= 0.0, launch_radius <= boxsize)
+    initial_density[
+        np.logical_and(
+            launch_radius >= left_fraction * boxsize,
+            launch_radius <= right_fraction * boxsize,
         )
-    if x1 > x2:
-        rho[radius < x1] = density_low_factor * density_high
+    ] = density_high
+
+    rho = np.zeros_like(radius)
+    positive = radius > 0.0
+    rho[inside & positive] = (
+        initial_density[inside & positive]
+        * (launch_radius[inside & positive] / radius[inside & positive]) ** 2.0
+    )
     return rho

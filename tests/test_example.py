@@ -105,6 +105,23 @@ HYDROGEN_PHOTOIONIZATION_ANALYTIC_SPEC.loader.exec_module(
     hydrogen_photoionization_analytic
 )
 
+ADVECTION_SPH_EXAMPLE_ROOT = EXAMPLE_ROOT / 'AdvectionSph1D'
+if str(ADVECTION_SPH_EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(ADVECTION_SPH_EXAMPLE_ROOT))
+
+ADVECTION_SPH_ANALYTIC_PATH = (
+    ADVECTION_SPH_EXAMPLE_ROOT / 'advection_sph_analytic.py'
+)
+ADVECTION_SPH_ANALYTIC_SPEC = importlib.util.spec_from_file_location(
+    'advection_sph_analytic_for_tests',
+    ADVECTION_SPH_ANALYTIC_PATH,
+)
+advection_sph_analytic = importlib.util.module_from_spec(
+    ADVECTION_SPH_ANALYTIC_SPEC
+)
+assert ADVECTION_SPH_ANALYTIC_SPEC.loader is not None
+ADVECTION_SPH_ANALYTIC_SPEC.loader.exec_module(advection_sph_analytic)
+
 
 class Testing(unittest.TestCase):
     def test_inflow1d_uses_explicit_output_time_schedule(self):
@@ -164,6 +181,26 @@ class Testing(unittest.TestCase):
         )
 
         self.assertAlmostEqual(float(neutral_fraction), 1.0, places=12)
+
+    def test_advection_sph1d_analytic_uses_spherical_dilution(self):
+        radius = np.array([0.5, 1.5, 3.0], dtype=float)
+        density = advection_sph_analytic.top_hat_density_profile(
+            radius,
+            time=1.0,
+            velocity=1.0,
+            boxsize=4.0,
+            density_high=10.0,
+            density_low_factor=0.1,
+            left_fraction=0.25,
+            right_fraction=0.75,
+        )
+
+        expected = np.array([
+            0.0,
+            10.0 * 0.1 * (0.5 / 1.5) ** 2,
+            10.0 * (2.0 / 3.0) ** 2,
+        ])
+        np.testing.assert_allclose(density, expected, rtol=1e-12, atol=1e-12)
 
     def test_hydrogen_photoheating1d_uses_yaml_config(self):
         config_filename = (
