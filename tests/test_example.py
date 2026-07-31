@@ -457,16 +457,34 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(icparams['number_of_cells'], 256)
-        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertEqual(runparams['boundcond'], 'OpenSph')
+        self.assertEqual(runparams['noghost'], 2)
+        self.assertEqual(runparams['EOStype'], 'polytropic')
+        self.assertEqual(runparams['gamma'], 1.6666666666666667)
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(runparams['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(runparams['chemistry_timestep'].to_value(unyt.Myr), 5.0)
         self.assertEqual(
-            icparams['source_photon_rate'].to_value(1.0 / unyt.s),
+            runparams['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
         )
-        self.assertAlmostEqual(
-            icparams['chemistry_timestep_cfl'],
-            0.1,
+        self.assertEqual(
+            runparams['hydrogen_alpha_B'].to_value(unyt.cm**3 / unyt.s),
+            2.59e-13,
         )
+        self.assertEqual(
+            runparams['hydrogen_sigma_gamma'].to_value(unyt.cm**2),
+            8.13e-18,
+        )
+        self.assertEqual(
+            runparams['hydrogen_source_dtmin'].to_value(unyt.Myr),
+            1.0e-3,
+        )
+        self.assertEqual(runparams['plot_radius_max'].to_value(unyt.kpc), 7.5)
+        self.assertEqual(icparams['number_of_cells'], 256)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(icparams['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
 
     def test_static_stromgren_sphere_photoheating1d_uses_yaml_config(self):
         config_filename = (

@@ -46,18 +46,29 @@ def main(config_filename=DEFAULT_CONFIG):
     runparams, icparams = load_example_parameters(config_filename, rundir)
     eu.clean_previous_outputs(runparams)
     config = {**runparams, **icparams}
+    for alias, source in (
+        ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
+        ('alpha_B_coefficient', 'hydrogen_alpha_B'),
+        ('sigma_gamma', 'hydrogen_sigma_gamma'),
+    ):
+        if source in runparams and alias not in runparams:
+            runparams[alias] = runparams[source]
+    config = {**runparams, **icparams}
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
-    par, mesh, fluid, solver = et.build_static_problem(config)
-    sim = Rsim.FromComponents(par, mesh, fluid, solver)
+    et.write_initial_condition(config, runparams)
 
-    rio.writehdf5(sim, runparams['ICfilename'])
+    sim = Rsim(runparams)
+    sim.Callreadhdf5()
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
 
     front_history = sim.EvolveStaticThermochemistry(
-        config['final_time'],
-        config['chemistry_timestep'],
+        runparams['final_time'],
+        runparams['chemistry_timestep'],
     )
 
     output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
@@ -79,25 +90,25 @@ def main(config_filename=DEFAULT_CONFIG):
     print(
         'recombination time = %s'
         % sa.recombination_time(
-            config['hydrogen_number_density'],
-            config['alpha_B_coefficient'],
+            icparams['hydrogen_number_density'],
+            runparams['alpha_B_coefficient'],
         )
     )
     print(
         'stromgren radius = %s'
         % sa.stromgren_radius(
-            config['source_photon_rate'],
-            config['hydrogen_number_density'],
-            config['alpha_B_coefficient'],
+            runparams['source_photon_rate'],
+            icparams['hydrogen_number_density'],
+            runparams['alpha_B_coefficient'],
         ).to(unyt.kpc)
     )
     print(
         'analytic front radius = %s'
         % sa.ionization_front_radius(
-            config['final_time'],
-            config['source_photon_rate'],
-            config['hydrogen_number_density'],
-            config['alpha_B_coefficient'],
+            runparams['final_time'],
+            runparams['source_photon_rate'],
+            icparams['hydrogen_number_density'],
+            runparams['alpha_B_coefficient'],
         ).to(unyt.kpc)
     )
     print(
