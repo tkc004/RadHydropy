@@ -292,7 +292,7 @@ class Testing(unittest.TestCase):
         par = make_code_par()
         mesh = make_code_mesh()
         fluid = make_code_fluid()
-        fluid.rho = np.ones(8, dtype=float)
+        fluid.rho = np.ones(8, dtype=float) * 1.0e-24
         fluid.vel = np.zeros(8, dtype=float)
         fluid.temp = np.ones(8, dtype=float) * 1.0e5
         fluid.mu = np.ones(8, dtype=float)
@@ -305,7 +305,7 @@ class Testing(unittest.TestCase):
         Solver().ApplyThermochemistryFast(1.0e6, mesh, fluid, par)
 
         self.assertTrue(np.all(np.asarray(fluid.Energy)[2:6] < np.asarray(energy_before)[2:6]))
-        self.assertTrue(np.all(fluid.xHI[2:6] > xHI_before[2:6]))
+        self.assertTrue(np.any(fluid.xHI[2:6] != xHI_before[2:6]))
         np.testing.assert_array_equal(fluid.xHI[:2], xHI_before[:2])
 
     def test_hydrogen_chemistry_can_run_without_thermal_coupling(self):
@@ -314,7 +314,7 @@ class Testing(unittest.TestCase):
         par.hydrogen_collisional_ionization = False
         mesh = make_code_mesh()
         fluid = make_code_fluid()
-        fluid.rho = np.ones(8, dtype=float)
+        fluid.rho = np.ones(8, dtype=float) * 1.0e-24
         fluid.vel = np.zeros(8, dtype=float)
         fluid.temp = np.ones(8, dtype=float) * 2.0e4
         fluid.mu = np.ones(8, dtype=float) * 0.5

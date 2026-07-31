@@ -65,25 +65,176 @@ def _floatify_hydrostatic_simwrap(simwrap, code_units):
     return simwrap
 
 
+def _load_hydrostatic_tools():
+    example_dir = (
+        Path(__file__).resolve().parents[1]
+        / "example"
+        / "HydrostaticEquilibrium1D"
+    )
+    tools_path = example_dir / "tools.py"
+    spec = importlib.util.spec_from_file_location(
+        "hydrostatic_equilibrium_tools_test",
+        tools_path,
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(example_dir))
+    try:
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
+    return module
+
+
+def _hydrostatic_base_icparams(nogrid):
+    return {
+        "nogrid": nogrid,
+        "coordsys": "cartesian",
+        "boxsize": 10.0 * unyt.cm,
+        "time": 0.0 * unyt.s,
+        "rho_ref": 1.0e-24 * unyt.g / unyt.cm**3,
+        "tempini": 1.0e4 * unyt.K,
+        "muini": 1.0,
+        "gravity_strength": 1.0e-7 * unyt.cm / unyt.s**2,
+    }
+
+
+def _build_hydrostatic_step_sim(nogrid, integrator=None):
+    module = _load_hydrostatic_tools()
+    icparams = _hydrostatic_base_icparams(nogrid)
+    code_units = _code_units()
+
+    simwrap = _floatify_hydrostatic_simwrap(
+        module.Simwrap(icparams, code_units=code_units),
+        code_units,
+    )
+
+    par = SimpleNamespace(
+        noghost=2,
+        nogrid=icparams["nogrid"],
+        coordsys="cartesian",
+        boundcond="Open",
+        CFL=0.1,
+        dtmin=1.0e-20,
+        dtmax=1.0,
+        order=0,
+        gravity=Gravity(
+            externalgravity=True,
+            acceleration=module.constant_gravity_acceleration(
+                icparams["gravity_strength"],
+                code_units=code_units,
+            ),
+            code_units=code_units,
+        ),
+    )
+
+    dx = np.asarray(simwrap.mesh.boundary[1] - simwrap.mesh.boundary[0], dtype=float)
+    left_boundary = np.linspace(
+        simwrap.mesh.boundary[0] - par.noghost * dx,
+        simwrap.mesh.boundary[0] - dx,
+        par.noghost,
+    )
+    right_boundary = np.linspace(
+        simwrap.mesh.boundary[-1] + dx,
+        simwrap.mesh.boundary[-1] + par.noghost * dx,
+        par.noghost,
+    )
+    full_boundary = np.concatenate((left_boundary, simwrap.mesh.boundary, right_boundary))
+    full_coordinate = 0.5 * (full_boundary[:-1] + full_boundary[1:])
+
+    rho = np.asarray(simwrap.fluid.rho, dtype=float)
+    vel = np.asarray(simwrap.fluid.vel, dtype=float)
+    temp = np.asarray(simwrap.fluid.temp, dtype=float)
+    mu = np.asarray(simwrap.fluid.mu, dtype=float)
+    pre = np.asarray(simwrap.fluid.pre, dtype=float)
+
+    full_rho = as_named_array(
+        np.concatenate(
+            (
+                np.ones(par.noghost, dtype=float) * rho[0],
+                rho,
+                np.ones(par.noghost, dtype=float) * rho[-1],
+            )
+        )
+    )
+    full_vel = as_named_array(
+        np.concatenate(
+            (
+                np.ones(par.noghost, dtype=float) * vel[0],
+                vel,
+                np.ones(par.noghost, dtype=float) * vel[-1],
+            )
+        )
+    )
+    full_temp = as_named_array(
+        np.concatenate(
+            (
+                np.ones(par.noghost, dtype=float) * temp[0],
+                temp,
+                np.ones(par.noghost, dtype=float) * temp[-1],
+            )
+        )
+    )
+    full_mu = as_named_array(
+        np.concatenate(
+            (
+                np.ones(par.noghost, dtype=float) * mu[0],
+                mu,
+                np.ones(par.noghost, dtype=float) * mu[-1],
+            )
+        )
+    )
+    full_pre = as_named_array(
+        np.concatenate(
+            (
+                np.ones(par.noghost, dtype=float) * pre[0],
+                pre,
+                np.ones(par.noghost, dtype=float) * pre[-1],
+            )
+        )
+    )
+
+    mesh = SimpleNamespace(
+        coordsys="cartesian",
+        boundary=full_boundary,
+        coordinate=full_coordinate,
+        xdelta=full_boundary[1:] - full_boundary[:-1],
+        area=np.ones(len(full_coordinate), dtype=float),
+        vol=full_boundary[1:] - full_boundary[:-1],
+    )
+    fluid = SimpleNamespace(
+        rho=full_rho,
+        vel=full_vel,
+        temp=full_temp,
+        mu=full_mu,
+        pre=full_pre,
+        eos=simwrap.fluid.eos,
+        time=0.0,
+    )
+    fluid.cs = as_named_array(
+        np.asarray(
+            fluid.eos.sound_speed(
+                fluid.rho,
+                fluid.pre,
+                temp=fluid.temp,
+                mu=fluid.mu,
+            ),
+            dtype=float,
+        )
+    )
+    fluid.vsignal = as_named_array(np.absolute(fluid.vel) + fluid.cs)
+
+    solver = Solver()
+    solver.SetConserved(mesh, fluid)
+    sim = Rsim.FromComponents(par, mesh, fluid, solver=solver)
+    if integrator is not None:
+        return module, sim, par, icparams, code_units, fluid, integrator
+    return module, sim, par, icparams, code_units, fluid
+
+
 class Testing(unittest.TestCase):
     def test_hydrostatic_equilibrium_profile_balances_gravity(self):
-        example_dir = (
-            Path(__file__).resolve().parents[1]
-            / "example"
-            / "HydrostaticEquilibrium1D"
-        )
-        tools_path = example_dir / "tools.py"
-        spec = importlib.util.spec_from_file_location(
-            "hydrostatic_equilibrium_tools_test",
-            tools_path,
-        )
-        module = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, str(example_dir))
-        try:
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-
+        module = _load_hydrostatic_tools()
         icparams = {
             "nogrid": 256,
             "coordsys": "cartesian",
@@ -126,160 +277,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_single_tiny_hydro_step_changes_state_only_slightly(self):
-        example_dir = (
-            Path(__file__).resolve().parents[1]
-            / "example"
-            / "HydrostaticEquilibrium1D"
-        )
-        tools_path = example_dir / "tools.py"
-        spec = importlib.util.spec_from_file_location(
-            "hydrostatic_equilibrium_tools_step_test",
-            tools_path,
-        )
-        module = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, str(example_dir))
-        try:
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-
-        icparams = {
-            "nogrid": 64,
-            "coordsys": "cartesian",
-            "boxsize": 10.0 * unyt.cm,
-            "time": 0.0 * unyt.s,
-            "rho_ref": 1.0e-24 * unyt.g / unyt.cm**3,
-            "tempini": 1.0e4 * unyt.K,
-            "muini": 1.0,
-            "gravity_strength": 1.0e-7 * unyt.cm / unyt.s**2,
-        }
-        code_units = _code_units()
-
-        simwrap = _floatify_hydrostatic_simwrap(
-            module.Simwrap(icparams, code_units=code_units),
-            code_units,
-        )
-
-        par = SimpleNamespace(
-            noghost=2,
-            nogrid=icparams["nogrid"],
-            coordsys="cartesian",
-            boundcond="Open",
-            CFL=0.1,
-            dtmin=1.0e-20,
-            dtmax=1.0,
-            order=0,
-            gravity=Gravity(
-                externalgravity=True,
-                acceleration=module.constant_gravity_acceleration(
-                    icparams["gravity_strength"],
-                    code_units=code_units,
-                ),
-                code_units=code_units,
-            ),
-        )
-
-        dx = np.asarray(simwrap.mesh.boundary[1] - simwrap.mesh.boundary[0], dtype=float)
-        left_boundary = np.linspace(
-            simwrap.mesh.boundary[0] - par.noghost * dx,
-            simwrap.mesh.boundary[0] - dx,
-            par.noghost,
-        )
-        right_boundary = np.linspace(
-            simwrap.mesh.boundary[-1] + dx,
-            simwrap.mesh.boundary[-1] + par.noghost * dx,
-            par.noghost,
-        )
-        full_boundary = np.concatenate(
-            (left_boundary, simwrap.mesh.boundary, right_boundary)
-        )
-        full_coordinate = 0.5 * (full_boundary[:-1] + full_boundary[1:])
-
-        rho = np.asarray(simwrap.fluid.rho, dtype=float)
-        vel = np.asarray(simwrap.fluid.vel, dtype=float)
-        temp = np.asarray(simwrap.fluid.temp, dtype=float)
-        mu = np.asarray(simwrap.fluid.mu, dtype=float)
-        pre = np.asarray(simwrap.fluid.pre, dtype=float)
-
-        full_rho = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * rho[0],
-                    rho,
-                    np.ones(par.noghost, dtype=float) * rho[-1],
-                )
-            )
-        )
-        full_vel = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * vel[0],
-                    vel,
-                    np.ones(par.noghost, dtype=float) * vel[-1],
-                )
-            )
-        )
-        full_temp = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * temp[0],
-                    temp,
-                    np.ones(par.noghost, dtype=float) * temp[-1],
-                )
-            )
-        )
-        full_mu = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * mu[0],
-                    mu,
-                    np.ones(par.noghost, dtype=float) * mu[-1],
-                )
-            )
-        )
-        full_pre = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * pre[0],
-                    pre,
-                    np.ones(par.noghost, dtype=float) * pre[-1],
-                )
-            )
-        )
-
-        mesh = SimpleNamespace(
-            coordsys="cartesian",
-            boundary=full_boundary,
-            coordinate=full_coordinate,
-            xdelta=full_boundary[1:] - full_boundary[:-1],
-            area=np.ones(len(full_coordinate), dtype=float),
-            vol=full_boundary[1:] - full_boundary[:-1],
-        )
-        fluid = SimpleNamespace(
-            rho=full_rho,
-            vel=full_vel,
-            temp=full_temp,
-            mu=full_mu,
-            pre=full_pre,
-            eos=simwrap.fluid.eos,
-            time=0.0,
-        )
-        fluid.cs = as_named_array(
-            np.asarray(
-                fluid.eos.sound_speed(
-                    fluid.rho,
-                    fluid.pre,
-                    temp=fluid.temp,
-                    mu=fluid.mu,
-                ),
-                dtype=float,
-            )
-        )
-        fluid.vsignal = as_named_array(np.absolute(fluid.vel) + fluid.cs)
-
-        solver = Solver()
-        solver.SetConserved(mesh, fluid)
-        sim = Rsim.FromComponents(par, mesh, fluid, solver=solver)
+        module, sim, par, icparams, _, fluid = _build_hydrostatic_step_sim(64)
 
         rho_before = sim.fluid.rho.copy()
         vel_before = sim.fluid.vel.copy()
@@ -305,160 +303,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_single_tiny_hydro_step_with_ssprk2_changes_state_only_slightly(self):
-        example_dir = (
-            Path(__file__).resolve().parents[1]
-            / "example"
-            / "HydrostaticEquilibrium1D"
-        )
-        tools_path = example_dir / "tools.py"
-        spec = importlib.util.spec_from_file_location(
-            "hydrostatic_equilibrium_tools_ssprk2_test",
-            tools_path,
-        )
-        module = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, str(example_dir))
-        try:
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-
-        icparams = {
-            "nogrid": 64,
-            "coordsys": "cartesian",
-            "boxsize": 10.0 * unyt.cm,
-            "time": 0.0 * unyt.s,
-            "rho_ref": 1.0e-24 * unyt.g / unyt.cm**3,
-            "tempini": 1.0e4 * unyt.K,
-            "muini": 1.0,
-            "gravity_strength": 1.0e-7 * unyt.cm / unyt.s**2,
-        }
-        code_units = _code_units()
-
-        simwrap = _floatify_hydrostatic_simwrap(
-            module.Simwrap(icparams, code_units=code_units),
-            code_units,
-        )
-
-        par = SimpleNamespace(
-            noghost=2,
-            nogrid=icparams["nogrid"],
-            coordsys="cartesian",
-            boundcond="Open",
-            CFL=0.1,
-            dtmin=1.0e-20,
-            dtmax=1.0,
-            order=0,
-            gravity=Gravity(
-                externalgravity=True,
-                acceleration=module.constant_gravity_acceleration(
-                    icparams["gravity_strength"],
-                    code_units=code_units,
-                ),
-                code_units=code_units,
-            ),
-        )
-
-        dx = np.asarray(simwrap.mesh.boundary[1] - simwrap.mesh.boundary[0], dtype=float)
-        left_boundary = np.linspace(
-            simwrap.mesh.boundary[0] - par.noghost * dx,
-            simwrap.mesh.boundary[0] - dx,
-            par.noghost,
-        )
-        right_boundary = np.linspace(
-            simwrap.mesh.boundary[-1] + dx,
-            simwrap.mesh.boundary[-1] + par.noghost * dx,
-            par.noghost,
-        )
-        full_boundary = np.concatenate(
-            (left_boundary, simwrap.mesh.boundary, right_boundary)
-        )
-        full_coordinate = 0.5 * (full_boundary[:-1] + full_boundary[1:])
-
-        rho = np.asarray(simwrap.fluid.rho, dtype=float)
-        vel = np.asarray(simwrap.fluid.vel, dtype=float)
-        temp = np.asarray(simwrap.fluid.temp, dtype=float)
-        mu = np.asarray(simwrap.fluid.mu, dtype=float)
-        pre = np.asarray(simwrap.fluid.pre, dtype=float)
-
-        full_rho = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * rho[0],
-                    rho,
-                    np.ones(par.noghost, dtype=float) * rho[-1],
-                )
-            )
-        )
-        full_vel = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * vel[0],
-                    vel,
-                    np.ones(par.noghost, dtype=float) * vel[-1],
-                )
-            )
-        )
-        full_temp = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * temp[0],
-                    temp,
-                    np.ones(par.noghost, dtype=float) * temp[-1],
-                )
-            )
-        )
-        full_mu = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * mu[0],
-                    mu,
-                    np.ones(par.noghost, dtype=float) * mu[-1],
-                )
-            )
-        )
-        full_pre = as_named_array(
-            np.concatenate(
-                (
-                    np.ones(par.noghost, dtype=float) * pre[0],
-                    pre,
-                    np.ones(par.noghost, dtype=float) * pre[-1],
-                )
-            )
-        )
-
-        mesh = SimpleNamespace(
-            coordsys="cartesian",
-            boundary=full_boundary,
-            coordinate=full_coordinate,
-            xdelta=full_boundary[1:] - full_boundary[:-1],
-            area=np.ones(len(full_coordinate), dtype=float),
-            vol=full_boundary[1:] - full_boundary[:-1],
-        )
-        fluid = SimpleNamespace(
-            rho=full_rho,
-            vel=full_vel,
-            temp=full_temp,
-            mu=full_mu,
-            pre=full_pre,
-            eos=simwrap.fluid.eos,
-            time=0.0,
-        )
-        fluid.cs = as_named_array(
-            np.asarray(
-                fluid.eos.sound_speed(
-                    fluid.rho,
-                    fluid.pre,
-                    temp=fluid.temp,
-                    mu=fluid.mu,
-                ),
-                dtype=float,
-            )
-        )
-        fluid.vsignal = as_named_array(np.absolute(fluid.vel) + fluid.cs)
-
-        solver = Solver()
-        solver.SetConserved(mesh, fluid)
-        sim = Rsim.FromComponents(par, mesh, fluid, solver=solver)
+        module, sim, par, icparams, _, fluid = _build_hydrostatic_step_sim(64)
 
         rho_before = sim.fluid.rho.copy()
         vel_before = sim.fluid.vel.copy()
