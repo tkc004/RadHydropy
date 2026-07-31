@@ -625,7 +625,7 @@ class Rsim():
                 step,
                 time_s,
                 final_time_s,
-                rt_update_interval,
+                1,
             )
             if updated_ngamma is not None:
                 ngamma = updated_ngamma
