@@ -111,7 +111,7 @@ def load_parameters(config_filename, rundir=None):
     return runparams, icparams
 
 
-def build_problem(config):
+def build_static_problem(config):
     code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys='spherical',
@@ -178,8 +178,19 @@ def build_problem(config):
     return par, mesh, fluid, solver
 
 
+build_problem = build_static_problem
+
+
+def write_initial_condition(config, runparams):
+    """Build and write the initial-condition snapshot."""
+    par, mesh, fluid, _ = build_static_problem(config)
+    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    Path(runparams['ICfilename']).unlink(missing_ok=True)
+    rio.writehdf5(sim, runparams['ICfilename'])
+
+
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_problem(config)
+    par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     if getattr(par, 'noghost', 0) > 0:
         mesh.boundary = mesh.boundary[par.noghost : -par.noghost]

@@ -26,7 +26,6 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 from radhydropy.rsim import Rsim
-import radhydropy.io as rio
 import tools as et
 
 
@@ -44,9 +43,7 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
-    par, mesh, fluid, solver = et.build_problem(config)
-    ric = Rsim.FromComponents(par, mesh, fluid, solver)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    et.write_initial_condition(config, runparams)
 
     sim = Rsim(runparams)
     sim.RunAll(outputtime=0)
