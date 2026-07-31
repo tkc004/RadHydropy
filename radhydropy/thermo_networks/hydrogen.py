@@ -20,14 +20,13 @@ import radhydropy.radiative_transfer as rrt
 import radhydropy.utils as ru
 from radhydropy.units import (
     _code_units,
-    cgs_quantity_to_code_value,
-    code_quantity_to_cgs_value,
+    from_unit_value,
+    to_unit_value,
 )
 from radhydropy.arrays import as_named_array
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 
 
-SPEED_OF_LIGHT_CMS = SPEED_OF_LIGHT_CGS
 
 
 def _require_numeric_array(value, label):
@@ -35,26 +34,12 @@ def _require_numeric_array(value, label):
         raise TypeError(f"{label} must be a plain numeric array, not a unyt quantity")
     return np.asarray(value, dtype=float)
 
-
-def _numeric_array_with_unit(value, unit):
-    return code_quantity_to_cgs_value(value, unit)
-
-
-def _numeric_array_from_cgs(value, unit):
-    return cgs_quantity_to_code_value(value, unit)
-
-
 def _optional_numeric_value(value, unit, default=None):
     if value is None:
         if default is None:
             return None
-        return code_quantity_to_cgs_value(default, unit)
-    return code_quantity_to_cgs_value(value, unit)
-
-
-_code_quantity_to_cgs = _numeric_array_with_unit
-_cgs_quantity_to_code = _numeric_array_from_cgs
-_optional_code_quantity_to_cgs = _optional_numeric_value
+        return to_unit_value(default, unit)
+    return to_unit_value(value, unit)
 
 
 def _cgs_alpha_B(temperature_K):
@@ -153,7 +138,7 @@ def _cgs_hydrogen_number_density(rho_g_cm3, hydrogen_mass_fraction=1.0):
 
 
 def _cgs_photoionization_frequency(ngamma_cm3, sigma_gamma_cm2):
-    return SPEED_OF_LIGHT_CMS * np.asarray(sigma_gamma_cm2, dtype=float) * np.asarray(
+    return SPEED_OF_LIGHT_CGS * np.asarray(sigma_gamma_cm2, dtype=float) * np.asarray(
         ngamma_cm3,
         dtype=float,
     )
@@ -389,16 +374,16 @@ def source_state(mesh, fluid, par):
     kpc_in_cm = float((1.0 * unyt.kpc).to_value(unyt.cm))
     interior = interior_slice(par)
     boundary = as_named_array(
-        _code_quantity_to_cgs(
+        to_unit_value(
             mesh.boundary[interior.start : interior.stop + 1],
             code.length_unit,
         )
     )
     xHI = as_named_array(np.asarray(fluid.xHI[interior], dtype=float).copy())
     temperature = as_named_array(
-        _code_quantity_to_cgs(fluid.temp[interior], code.temperature_unit).copy()
+        to_unit_value(fluid.temp[interior], code.temperature_unit).copy()
     )
-    rho = as_named_array(_code_quantity_to_cgs(fluid.rho[interior], code.density_unit))
+    rho = as_named_array(to_unit_value(fluid.rho[interior], code.density_unit))
     gamma = getattr(
         getattr(fluid, 'eos', None),
         'gamma',
@@ -410,39 +395,39 @@ def source_state(mesh, fluid, par):
         * temperature
         / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
-    sigma_gamma = _optional_code_quantity_to_cgs(
+    sigma_gamma = _optional_numeric_value(
         getattr(par, 'hydrogen_sigma_gamma', None),
         code.area_unit,
         default=DEFAULT_SIGMA_GAMMA,
     )
-    source_rate = _optional_code_quantity_to_cgs(
+    source_rate = _optional_numeric_value(
         getattr(par, 'radiative_transfer_source_photon_rate', None),
         code.time_unit ** -1,
         default=0.0,
     )
-    epsilon_gamma = _optional_code_quantity_to_cgs(
+    epsilon_gamma = _optional_numeric_value(
         getattr(par, 'hydrogen_epsilon_gamma', None),
         code.energy_unit,
         default=DEFAULT_EPSILON_GAMMA,
     )
     alpha_B = getattr(par, 'hydrogen_alpha_B', None)
     if alpha_B is not None:
-        alpha_B = _code_quantity_to_cgs(alpha_B, code.volume_unit / code.time_unit)
+        alpha_B = to_unit_value(alpha_B, code.volume_unit / code.time_unit)
     beta = getattr(par, 'hydrogen_beta', None)
     if beta is not None:
-        beta = _code_quantity_to_cgs(beta, code.volume_unit / code.time_unit)
+        beta = to_unit_value(beta, code.volume_unit / code.time_unit)
     return {
         'interior': interior,
         'boundary_cm': boundary,
         'width_cm': np.diff(boundary),
         'volume_cm3': as_named_array(
-            _code_quantity_to_cgs(mesh.vol[interior], code.volume_unit)
+            to_unit_value(mesh.vol[interior], code.volume_unit)
         ),
         'radius_cm': as_named_array(
-            _code_quantity_to_cgs(mesh.coordinate[interior], code.length_unit)
+            to_unit_value(mesh.coordinate[interior], code.length_unit)
         ),
         'radius_kpc': np.asarray(
-            _code_quantity_to_cgs(mesh.coordinate[interior], code.length_unit) / kpc_in_cm,
+            to_unit_value(mesh.coordinate[interior], code.length_unit) / kpc_in_cm,
             dtype=float,
         ),
         'xHI': xHI,
@@ -456,7 +441,7 @@ def source_state(mesh, fluid, par):
         'source_rate_s': source_rate,
         'epsilon_gamma_erg': epsilon_gamma,
         'source_CFL': getattr(par, 'hydrogen_source_CFL', 0.1),
-        'dtmin_s': _optional_code_quantity_to_cgs(
+        'dtmin_s': _optional_numeric_value(
             getattr(par, 'hydrogen_source_dtmin', None),
             code.time_unit,
             default=0.0,
@@ -480,9 +465,9 @@ def trace_spherical_tau(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):
     explicit at the mesh boundary.
     """
     code = mesh.code_units
-    rho_g_cm3 = _code_quantity_to_cgs(rho, code.density_unit)
-    sigma_cm2 = _code_quantity_to_cgs(rh.photon_cross_section(sigma_gamma), code.area_unit)
-    width_cm = _code_quantity_to_cgs(
+    rho_g_cm3 = to_unit_value(rho, code.density_unit)
+    sigma_cm2 = to_unit_value(rh.photon_cross_section(sigma_gamma), code.area_unit)
+    width_cm = to_unit_value(
         np.abs(mesh.boundary[1:] - mesh.boundary[:-1]),
         code.length_unit,
     )
@@ -655,12 +640,12 @@ def apply_state(state, fluid, par):
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     if hasattr(fluid, 'ngamma') and 'ngamma_cm3' in state:
-        fluid.ngamma[interior] = _cgs_quantity_to_code(
+        fluid.ngamma[interior] = from_unit_value(
             state['ngamma_cm3'],
             code.number_density_unit,
         )
     if hasattr(fluid, 'temp') and 'temperature_K' in state:
-        fluid.temp[interior] = _cgs_quantity_to_code(
+        fluid.temp[interior] = from_unit_value(
             state['temperature_K'],
             code.temperature_unit,
         )
@@ -669,7 +654,7 @@ def apply_state(state, fluid, par):
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )
         fluid.SetPressure()
-    fluid.time = _cgs_quantity_to_code(state['time_s'], code.time_unit)
+    fluid.time = from_unit_value(state['time_s'], code.time_unit)
 
 
 def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
@@ -678,7 +663,7 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
-    remaining_s = _code_quantity_to_cgs(remaining, code.time_unit)
+    remaining_s = to_unit_value(remaining, code.time_unit)
     if getattr(par, 'radiative_transfer', False):
         state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
     sub_dt_s, thermal_rate = get_timestep(
@@ -698,18 +683,18 @@ def _fast_source_state(mesh, fluid, par):
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     interior = slice(par.noghost, par.noghost + par.nogrid)
-    rho_g_cm3 = _code_quantity_to_cgs(fluid.rho[interior], code.density_unit)
-    temperature_K = _code_quantity_to_cgs(fluid.temp[interior], code.temperature_unit)
-    vel_cm_s = _code_quantity_to_cgs(fluid.vel[interior], code.velocity_unit)
-    mass_g = _code_quantity_to_cgs(fluid.Mass[interior], code.mass_unit)
-    energy_erg = _code_quantity_to_cgs(fluid.Energy[interior], code.energy_unit)
+    rho_g_cm3 = to_unit_value(fluid.rho[interior], code.density_unit)
+    temperature_K = to_unit_value(fluid.temp[interior], code.temperature_unit)
+    vel_cm_s = to_unit_value(fluid.vel[interior], code.velocity_unit)
+    mass_g = to_unit_value(fluid.Mass[interior], code.mass_unit)
+    energy_erg = to_unit_value(fluid.Energy[interior], code.energy_unit)
     state = {
         'interior': interior,
         'boundary_cm': as_named_array(
-            _code_quantity_to_cgs(mesh.boundary[interior.start : interior.stop + 1], code.length_unit)
+            to_unit_value(mesh.boundary[interior.start : interior.stop + 1], code.length_unit)
         ),
-        'width_cm': as_named_array(_code_quantity_to_cgs(mesh.xdelta[interior], code.length_unit)),
-        'volume_cm3': as_named_array(_code_quantity_to_cgs(mesh.vol[interior], code.volume_unit)),
+        'width_cm': as_named_array(to_unit_value(mesh.xdelta[interior], code.length_unit)),
+        'volume_cm3': as_named_array(to_unit_value(mesh.vol[interior], code.volume_unit)),
         'rho_g_cm3': rho_g_cm3,
         'temperature_K': temperature_K,
         'xHI': as_named_array(
@@ -729,13 +714,13 @@ def _fast_source_state(mesh, fluid, par):
             )
         ),
         'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 1.0),
-        'sigma_gamma_cm2': _optional_code_quantity_to_cgs(
+        'sigma_gamma_cm2': _optional_numeric_value(
             getattr(par, 'hydrogen_sigma_gamma', None),
             code.area_unit,
             default=DEFAULT_SIGMA_GAMMA,
         ),
         'ngamma_cm3': (
-            _code_quantity_to_cgs(fluid.ngamma[interior], code.number_density_unit)
+            to_unit_value(fluid.ngamma[interior], code.number_density_unit)
             if (
                 getattr(par, 'hydrogen_radiation_field', False)
                 or getattr(par, 'radiative_transfer', False)
@@ -743,18 +728,18 @@ def _fast_source_state(mesh, fluid, par):
             and hasattr(fluid, 'ngamma')
             else None
         ),
-        'source_rate_s': _optional_code_quantity_to_cgs(
+        'source_rate_s': _optional_numeric_value(
             getattr(par, 'radiative_transfer_source_photon_rate', None),
             1.0 / code.time_unit,
             default=0.0,
         ),
-        'epsilon_gamma_erg': _optional_code_quantity_to_cgs(
+        'epsilon_gamma_erg': _optional_numeric_value(
             getattr(par, 'hydrogen_epsilon_gamma', None),
             code.energy_unit,
             default=DEFAULT_EPSILON_GAMMA,
         ),
         'source_CFL': getattr(par, 'hydrogen_source_CFL', 0.1),
-        'dtmin_s': _optional_code_quantity_to_cgs(
+        'dtmin_s': _optional_numeric_value(
             getattr(par, 'hydrogen_source_dtmin', None),
             code.time_unit,
             default=0.0,
@@ -763,12 +748,12 @@ def _fast_source_state(mesh, fluid, par):
         'collisional_ionization': getattr(par, 'hydrogen_collisional_ionization', True),
         'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True),
         'hydrogen_update_mu': getattr(par, 'hydrogen_update_mu', False),
-        'alpha_B_cm3_s': _optional_code_quantity_to_cgs(
+        'alpha_B_cm3_s': _optional_numeric_value(
             getattr(par, 'hydrogen_alpha_B', None),
             code.volume_unit / code.time_unit,
             default=None,
         ),
-        'beta_cm3_s': _optional_code_quantity_to_cgs(
+        'beta_cm3_s': _optional_numeric_value(
             getattr(par, 'hydrogen_beta', None),
             code.volume_unit / code.time_unit,
             default=None,
@@ -824,14 +809,14 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     fluid.xHI[interior] = state['xHI']
     if hasattr(fluid, 'ngamma') and state.get('ngamma_cm3') is not None:
         code = _code_units(par)
-        fluid.ngamma[interior] = _cgs_quantity_to_code(
+        fluid.ngamma[interior] = from_unit_value(
             state['ngamma_cm3'],
             code.number_density_unit,
         )
     if hasattr(fluid, 'mu'):
         fluid.mu[interior] = state['mu']
     code = _code_units(par)
-    fluid.temp[interior] = _cgs_quantity_to_code(state['temperature_K'], code.temperature_unit)
+    fluid.temp[interior] = from_unit_value(state['temperature_K'], code.temperature_unit)
     if state.get('thermal_coupling', False):
         specific_internal_energy = (
             state['specific_total_energy_erg_g']
@@ -863,7 +848,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
-    remaining_s = _code_quantity_to_cgs(dt, code.time_unit)
+    remaining_s = to_unit_value(dt, code.time_unit)
     zero_time_s = 0.0
     source_steps = 0
     while remaining_s > zero_time_s:

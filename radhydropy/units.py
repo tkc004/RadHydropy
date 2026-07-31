@@ -137,12 +137,12 @@ def quantity_to_value(value, unit):
         return np.asarray(value.to_value(unit), dtype=float)
     return np.asarray(value, dtype=float)
 
-def code_quantity_to_cgs_value(value, unit):
-    """Return a plain NumPy array in cgs units.
+def to_unit_value(value, unit):
+    """Return a plain NumPy array expressed in the supplied unit.
 
-    Quantity-like inputs are converted to the supplied cgs unit and stripped of
-    metadata. Plain NumPy inputs are assumed to already be code-unit values and
-    are scaled into cgs as raw floats.
+    Quantity-like inputs are converted to the supplied unit and stripped of
+    metadata. Plain NumPy inputs are treated as unitful numeric values and are
+    scaled into the requested unit as raw floats.
     """
     if value is None:
         return None
@@ -153,12 +153,12 @@ def code_quantity_to_cgs_value(value, unit):
         return np.asarray(value, dtype=float) * scale
     return np.asarray(value, dtype=float)
 
-def cgs_quantity_to_code_value(value, unit):
-    """Return a plain NumPy array in code units.
+def from_unit_value(value, unit):
+    """Return a plain NumPy array converted from the supplied unit scale.
 
-    Quantity-like inputs are converted to the supplied code unit and stripped of
-    metadata. Plain NumPy inputs are assumed to already be code-unit values and
-    are returned unchanged as ``float`` arrays.
+    Quantity-like inputs are converted to the supplied unit and stripped of
+    metadata. Plain NumPy inputs are treated as unitful numeric values and are
+    scaled back from the requested unit as raw floats.
     """
     if value is None:
         return None
