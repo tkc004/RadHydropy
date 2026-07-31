@@ -1,6 +1,7 @@
 """Helper utilities for the spherical radiative-transfer example."""
 
 from types import SimpleNamespace
+from pathlib import Path
 
 import matplotlib
 matplotlib.use('Agg')
@@ -9,65 +10,104 @@ import unyt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.eos import EOS
-from radhydropy.fluid import Fluid
-from radhydropy.mesh import Mesh
-from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, code_quantity_to_cgs
 import radiative_transfer_analytic as rta
 
 
-def build_problem(config):
+PC_IN_CM = unyt.unyt_quantity(1.0, unyt.pc).to_value(unyt.cm)
+
+
+def build_static_problem(config):
     par = SimpleNamespace(
-        coordsys='spherical',
-        boundcond='OpenSph',
+        coordsys=config.get('coordsys', 'spherical'),
+        boundcond=config.get('boundcond', 'OpenSph'),
         nogrid=config['number_of_cells'],
-        noghost=2,
+        noghost=config.get('noghost', 2),
         boxsize=config['boxsize'],
         verbose=config.get('verbose', 0),
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
-        area=1.0 * unyt.cm**2,
-        hydrogen_chemistry=False,
-        hydrogen_mass_fraction=1.0,
-        hydrogen_ngamma_initial=0.0 / unyt.cm**3,
-        hydrogen_sigma_gamma=0.0 * unyt.cm**2,
-        radiative_transfer=True,
-        radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=0.0 / (unyt.cm**2 * unyt.s),
-        radiative_transfer_source_photon_rate=config['source_photon_rate'],
-        radiative_transfer_direction=1,
+        area=config.get('area', 1.0 * unyt.cm**2),
+        hydrogen_chemistry=config.get('hydrogen_chemistry', False),
+        hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_ngamma_initial=config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=config.get('hydrogen_sigma_gamma', 0.0 * unyt.cm**2),
+        radiative_transfer=config.get('radiative_transfer', True),
+        radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_boundary_flux=config.get(
+            'radiative_transfer_boundary_flux',
+            0.0 / (unyt.cm**2 * unyt.s),
+        ),
+        radiative_transfer_source_photon_rate=config.get(
+            'radiative_transfer_source_photon_rate',
+            config.get('source_photon_rate', 0.0 / unyt.s),
+        ),
+        radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
     )
 
-    mesh = Mesh()
-    mesh.boundary = np.linspace(
-        0.0,
-        config['boxsize'].to_value(unyt.cm),
-        par.nogrid + 1,
-    ) * unyt.cm
-    mesh.SetUpMesh(par)
+    mesh = SimpleNamespace()
+    mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
 
-    fluid = Fluid()
-    fluid.eos = EOS('polytropic', 5.0 / 3.0)
+    fluid = SimpleNamespace()
     fluid.rho = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * unyt.K
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.SetUpFluid(par)
-    fluid.SetFluidTime(0.0 * unyt.s)
+    fluid.time = 0.0 * unyt.s
 
-    solver = Solver()
-    solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
+    solver = SimpleNamespace()
     return par, mesh, fluid, solver
 
 
+build_problem = build_static_problem
+
+
+def _refresh_mesh_geometry(mesh, par):
+    mesh.xdelta = mesh.boundary[1:] - mesh.boundary[:-1]
+    mesh.oneoverdx = 1.0 / mesh.xdelta
+    if par.coordsys == 'cartesian':
+        mesh.coordinate = 0.5 * (mesh.boundary[1:] + mesh.boundary[:-1])
+        if hasattr(par, 'area'):
+            mesh.area = np.ones(len(mesh.xdelta)) * par.area
+        else:
+            mesh.area = np.ones(len(mesh.xdelta))
+        mesh.vol = mesh.xdelta * mesh.area
+    elif par.coordsys == 'spherical':
+        mesh.area = (mesh.boundary[:-1] ** 2) * 4.0 * np.pi
+        mesh.vol = np.absolute((mesh.boundary[1:] ** 3 - mesh.boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
+        vol_denom = mesh.boundary[1:] ** 3 - mesh.boundary[:-1] ** 3
+        mesh.coordinate = 0.5 * (mesh.boundary[1:] + mesh.boundary[:-1])
+        nonzero_vol_denom = vol_denom != 0.0
+        mesh.coordinate[nonzero_vol_denom] = 0.75 * (
+            mesh.boundary[1:][nonzero_vol_denom] ** 4 - mesh.boundary[:-1][nonzero_vol_denom] ** 4
+        ) / vol_denom[nonzero_vol_denom]
+        for ig in range(len(mesh.vol)):
+            if (mesh.boundary[ig] < 0.0) and (mesh.boundary[ig + 1] > 0.0):
+                mesh.vol[ig] = (mesh.boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.coordinate[ig] = 0.75 * mesh.boundary[ig + 1]
+                mesh.area[ig] = 0.0
+    else:
+        raise ValueError("coordsys unknown: %s" % par.coordsys)
+
+
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_problem(config)
+    par, mesh, fluid, _ = build_static_problem(config)
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par.CodeUnits = code_units
+    par.unit_system = code_units.unit_system
     rio.readhdf5(par, mesh, fluid, outputfilename)
+    _refresh_mesh_geometry(mesh, par)
     return par, mesh, fluid
+
+
+def write_initial_condition(config, runparams):
+    par, mesh, fluid, _ = build_static_problem(config)
+    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    icfilename = Path(runparams['ICfilename'])
+    icfilename.unlink(missing_ok=True)
+    rio.writehdf5(sim, icfilename)
 
 
 def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=None):
@@ -77,14 +117,18 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
     if hasattr(radius_values, 'to_value'):
         radius = radius_values.to_value(unyt.pc) * unyt.pc
     else:
-        radius_cm = code_quantity_to_cgs(radius_values, code_units, 'length_cm')
-        radius = radius_cm * unyt.cm
-
+        radius = (
+            code_quantity_to_cgs(radius_values, code_units, 'length_cm')
+            / PC_IN_CM
+        ) * unyt.pc
     simulated_values = fluid.ngamma[interior]
     if hasattr(simulated_values, 'to_value'):
         simulated = simulated_values.to_value(1.0 / unyt.cm**3) * (1.0 / unyt.cm**3)
     else:
-        simulated = np.asarray(simulated_values, dtype=float) * (1.0 / unyt.cm**3)
+        simulated = (
+            code_quantity_to_cgs(simulated_values, code_units, 'number_density_cm3')
+            * (1.0 / unyt.cm**3)
+        )
     analytic_fv = rta.finite_volume_density(
         mesh.boundary[interior.start : interior.stop + 1],
         mesh.vol[interior],
@@ -94,17 +138,25 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
 
     r_min = mesh.boundary[interior.start + 1]
     r_max = mesh.boundary[interior.stop]
-    if hasattr(r_min, 'to_value'):
-        r_min_value = r_min.to_value(unyt.pc)
-    else:
-        r_min_value = float(np.asarray(r_min, dtype=float))
-    if hasattr(r_max, 'to_value'):
-        r_max_value = r_max.to_value(unyt.pc)
-    else:
-        r_max_value = float(np.asarray(r_max, dtype=float))
     radius_line = np.geomspace(
-        r_min_value,
-        r_max_value,
+        float(
+            np.asarray(
+                code_quantity_to_cgs(r_min, code_units, 'length_cm'),
+                dtype=float,
+            )
+            / PC_IN_CM
+        )
+        if not hasattr(r_min, 'to_value')
+        else float(np.asarray(r_min.to_value(unyt.pc), dtype=float)),
+        float(
+            np.asarray(
+                code_quantity_to_cgs(r_max, code_units, 'length_cm'),
+                dtype=float,
+            )
+            / PC_IN_CM
+        )
+        if not hasattr(r_max, 'to_value')
+        else float(np.asarray(r_max.to_value(unyt.pc), dtype=float)),
         512,
     ) * unyt.pc
     analytic_point = rta.point_density(
@@ -113,9 +165,9 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
         code_units=code_units,
     )
 
-    relative_error = np.max(
-        np.abs((simulated - analytic_fv) / analytic_fv).to_value('')
-    )
+    simulated_cgs = simulated.to_value(1.0 / unyt.cm**3)
+    analytic_cgs = analytic_fv.to_value(1.0 / unyt.cm**3)
+    relative_error = np.max(np.abs((simulated_cgs - analytic_cgs) / analytic_cgs))
 
     fig, ax = plt.subplots(figsize=(7.0, 4.8))
     ax.plot(

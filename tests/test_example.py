@@ -309,9 +309,17 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertEqual(runparams['boundcond'], 'OpenSph')
+        self.assertEqual(runparams['noghost'], 2)
+        self.assertEqual(runparams['hydrogen_chemistry'], False)
+        self.assertEqual(runparams['radiative_transfer'], True)
+        self.assertEqual(
+            runparams['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            1.0e49,
+        )
+        self.assertIn('CodeUnits', runparams)
         self.assertEqual(icparams['number_of_cells'], 256)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 1.0)
-        self.assertEqual(icparams['source_photon_rate'].to_value(1.0 / unyt.s), 1.0e49)
 
     def test_stellar_wind_bubble1d_uses_yaml_config(self):
         config_filename = (
