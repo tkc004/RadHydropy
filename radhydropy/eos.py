@@ -40,17 +40,17 @@ class EOS:
     def pressure(self, rho, temp, mu):
         """Return pressure from density, temperature, and mean molecular weight."""
         if self.code_units is not None:
-            rho_value = np.asarray(rho, dtype=float)
-            temp_value = np.asarray(temp, dtype=float)
-            mu_value = np.asarray(mu, dtype=float)
-            return as_named_array(
-                (
-                rho_value
-                * self.code_units.boltzmann_code
-                * temp_value
-                / (mu_value * self.code_units.proton_mass_code)
-                )
+            rho_value = np.asarray(rho, dtype=np.longdouble)
+            temp_value = np.asarray(temp, dtype=np.longdouble)
+            mu_value = np.asarray(mu, dtype=np.longdouble)
+            pressure_factor = np.longdouble(
+                self.code_units.boltzmann_code / self.code_units.proton_mass_code
             )
+            pressure_value = rho_value * temp_value * pressure_factor
+            quotient = np.zeros_like(pressure_value, dtype=np.longdouble)
+            with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+                np.divide(pressure_value, mu_value, out=quotient, where=mu_value != 0)
+            return as_named_array(np.asarray(quotient, dtype=float))
         return rho / (mu * unyt.mp) * unyt.kb * temp
 
     def temperature(self, rho, pressure, mu):

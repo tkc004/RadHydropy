@@ -44,11 +44,6 @@ import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('early_hii_region_expansion1d.yaml')
-DEBUG_CONFIG = Path(__file__).resolve().with_name(
-    'early_hii_region_expansion1d_debug.yaml'
-)
-
-
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
@@ -60,24 +55,19 @@ def main(config_filename=DEFAULT_CONFIG):
 
     et.write_initial_condition(config, runparams)
 
-    output_specs = icparams['output_snapshots']
     sim = Rsim(runparams)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    et.apply_piecewise_isothermal_state(
-        sim.mesh,
-        sim.fluid,
-        sim.par,
-        sim.solver,
-        config,
-    )
+    et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
+    et.print_startup_diagnostics(sim, config, icparams)
 
-    step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
+    output_specs = icparams['output_snapshots']
+    step_backend = et.make_logging_step_backend(sim, config, max_logged_steps=5)
     print('starting hydro_sources evolution; this may take a while...')
     sim.Run(
-        outputtime=1,
+        outputtime=0,
         mode='hydro_sources',
         step_backend=step_backend,
     )
@@ -114,9 +104,11 @@ def main(config_filename=DEFAULT_CONFIG):
         icparams['comparison_time'],
         config,
     ).to_value(unyt.pc)
+    stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
-    print('time = %s' % sim.fluid.time)
+    print('time = %.6e Myr' % et.time_myr(sim.fluid.time, sim.par.CodeUnits))
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
+    print('stagnation radius = %.3e pc' % stagnation_radius_pc)
     print('output files = %d' % len(outputfilenames))
     print(
         'final ionization-front radius = %.3e pc'
@@ -146,19 +138,11 @@ def parse_args():
         description='Run the early HII region expansion example.',
     )
     parser.add_argument(
-        '--debug',
-        action='store_true',
-        help='Use the shorter debug configuration.',
-    )
-    parser.add_argument(
         '--config',
-        default=None,
+        default=DEFAULT_CONFIG,
         help='YAML file containing runparams and ICparams.',
     )
-    args = parser.parse_args()
-    if args.config is None:
-        args.config = DEBUG_CONFIG if args.debug else DEFAULT_CONFIG
-    return args
+    return parser.parse_args()
 
 
 if __name__ == '__main__':

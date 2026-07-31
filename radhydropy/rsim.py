@@ -214,6 +214,12 @@ class Rsim():
             fluid = self.fluid
         if not rtc.thermochemistry_enabled(fluid, self.par):
             return
+        if getattr(fluid.eos, 'is_isothermal', False) and not getattr(
+            self.par,
+            'hydrogen_thermal_coupling',
+            False,
+        ):
+            return
         if getattr(self.par, 'hydrogen_update_mu', False):
             fluid.SetHydrogenMu(
                 hydrogen_mass_fraction=getattr(

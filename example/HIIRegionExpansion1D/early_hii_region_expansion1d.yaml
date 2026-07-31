@@ -30,7 +30,7 @@ runparams:
   hydrogen_xHI_initial: 1.0
   hydrogen_xHI_inflow: 1.0
   hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 0.1
+  hydrogen_source_CFL: 10000.0
   hydrogen_source_dtmin:
     value: 1.0e-12
     unit: Myr
@@ -98,7 +98,7 @@ ICparams:
   boxsize:
     value: 2.0
     unit: pc
-  number_of_cells: 128
+  number_of_cells: 512
   final_time:
     value: 0.14
     unit: Myr
