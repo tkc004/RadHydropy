@@ -67,7 +67,6 @@ refparams = {
     'radiative_transfer_boundary_flux': 0.0 / (unyt.cm**2 * unyt.s),
     'radiative_transfer_source_photon_rate': 0.0 / unyt.s,
     'radiative_transfer_direction': 1,
-    'radiative_transfer_update_interval': 1,
 }
 
 

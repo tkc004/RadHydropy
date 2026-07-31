@@ -45,7 +45,6 @@ ICparams:
     value: 1.0e-3
     unit: Myr
   chemistry_timestep_cfl: 0.1
-  radiative_transfer_update_interval: 5
   number_of_cells: 256
   hydrogen_beta:
     value: 0.0

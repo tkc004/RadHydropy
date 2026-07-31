@@ -67,7 +67,6 @@ def build_problem(config):
         radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
         radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
-        radiative_transfer_update_interval=config.get('radiative_transfer_update_interval', 1),
         CodeUnits=code_units,
         code_units=code_units,
         unit_system=code_units.unit_system if code_units is not None else None,

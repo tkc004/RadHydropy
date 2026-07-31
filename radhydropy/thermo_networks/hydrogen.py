@@ -852,17 +852,11 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
     remaining_s = _code_quantity_to_cgs(dt, code.time_unit)
     zero_time_s = 0.0
     source_steps = 0
-    rt_update_interval = max(
-        1,
-        int(getattr(par, 'radiative_transfer_update_interval', 1)),
-    )
-    rt_step_counter = int(getattr(par, '_radiative_transfer_hydro_step', 0))
-    if getattr(par, 'radiative_transfer', False) and (
-        rt_step_counter % rt_update_interval == 0
-        or 'ngamma_cm3' not in state
-    ):
-        state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
     while remaining_s > zero_time_s:
+        # first update the photon density if RT is enabled and we are on the right step
+        if getattr(par, 'radiative_transfer', False):
+            state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
+
         if state['hydrogen_update_mu']:
             state['mu'] = rh.mean_molecular_weight_mu(
                 state['xHI'],
@@ -898,7 +892,6 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
             _fast_update_temperature_from_energy(state)
         remaining_s -= sub_dt_s
         source_steps += 1
-    setattr(par, '_radiative_transfer_hydro_step', rt_step_counter + 1)
     _fast_sync_state_to_fluid(state, fluid, par)
     return source_steps
 

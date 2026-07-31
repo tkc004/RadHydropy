@@ -583,10 +583,6 @@ class Rsim():
         else:
             source_rate_s = float(source_rate)
         seconds_to_myr = 1.0
-        rt_update_interval = max(
-            1,
-            int(getattr(self.par, 'radiative_transfer_update_interval', 1)),
-        )
         history = self._initial_static_history(
             include_thermal_history=include_thermal_history
         )

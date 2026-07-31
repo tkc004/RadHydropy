@@ -50,7 +50,7 @@ ICparams:
     unit: Myr
   hydro_cfl: 0.5
   hydro_order: 1
-  source_cfl: 0.1
+  source_cfl: 10000.0
   hydro_timestep_max:
     value: 2.0e-4
     unit: Myr

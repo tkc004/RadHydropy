@@ -458,6 +458,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['number_of_cells'], 512)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 7.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 3.0)
+        self.assertEqual(icparams['source_cfl'], 10000.0)
         self.assertTrue(Path(runparams['outputtimefilename']).exists())
         self.assertIn('CodeUnits', runparams)
         self.assertIsNotNone(runparams['CodeUnits'])

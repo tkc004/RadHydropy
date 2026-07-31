@@ -59,7 +59,6 @@ ICparams:
     value: 1.0e-12
     unit: Myr
   number_of_cells: 16
-  radiative_transfer_update_interval: 100
   hydrogen_beta:
     value: 0.0
     unit: cm**3/s
