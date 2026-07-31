@@ -15,6 +15,8 @@ from radhydropy.units import (
     PHOTON_FLUX_UNIT,
     PHOTON_RATE_UNIT,
     _as_cgs_float,
+    _code_units,
+    code_quantity_to_cgs,
 )
 
 
@@ -48,6 +50,14 @@ def _attenuation_mean(tau):
 def _as_cgs_array(value, unit):
     if hasattr(value, "to_value"):
         return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float)
+
+
+def _quantity_or_code_to_cgs(value, code_units, cgs_unit, scale_key):
+    if hasattr(value, "to_value"):
+        return _as_cgs_float(value, cgs_unit)
+    if code_units is not None:
+        return code_quantity_to_cgs(value, code_units, scale_key)
     return np.asarray(value, dtype=float)
 
 
@@ -284,11 +294,26 @@ def trace_photon_density(state, par):
     """Trace photons through the selected radiative-transfer implementation."""
     if not getattr(par, "radiative_transfer", False):
         return np.asarray(state.get("ngamma_cm3", 0.0), dtype=float)
+    code = _code_units(par)
     mesh = _state_mesh_for_radiative_transfer(state, par)
     fluid = _state_fluid_for_radiative_transfer(state, par)
-    sigma_gamma_cm2 = _as_cgs_float(
+    sigma_gamma_cm2 = _quantity_or_code_to_cgs(
         getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA),
+        code,
         CGS_AREA_UNIT,
+        "area_cm2",
+    )
+    boundary_flux = _quantity_or_code_to_cgs(
+        getattr(par, "radiative_transfer_boundary_flux", 0.0),
+        code,
+        PHOTON_FLUX_UNIT,
+        "photon_flux_per_cm2_s",
+    )
+    source_photon_rate = _quantity_or_code_to_cgs(
+        getattr(par, "radiative_transfer_source_photon_rate", 0.0),
+        code,
+        PHOTON_RATE_UNIT,
+        "photon_rate_per_s",
     )
     result = trace_long_characteristics(
         mesh,
@@ -296,14 +321,8 @@ def trace_photon_density(state, par):
         fluid.xHI,
         hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
         sigma_gamma=sigma_gamma_cm2,
-        boundary_flux=_as_cgs_float(
-            getattr(par, "radiative_transfer_boundary_flux", 0.0),
-            PHOTON_FLUX_UNIT,
-        ),
-        source_photon_rate=_as_cgs_float(
-            getattr(par, "radiative_transfer_source_photon_rate", 0.0),
-            PHOTON_RATE_UNIT,
-        ),
+        boundary_flux=boundary_flux,
+        source_photon_rate=source_photon_rate,
         direction=getattr(par, "radiative_transfer_direction", 1),
         coordsys=getattr(par, "coordsys", "spherical"),
     )

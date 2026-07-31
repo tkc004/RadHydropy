@@ -17,7 +17,69 @@ from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, _code_units, code_unit_scales
+
+
+def _runtime_scales(par):
+    code = _code_units(par)
+    if code is None:
+        return None
+    return code_unit_scales(code)
+
+
+def _to_kpc(values, par):
+    if hasattr(values, 'to_value'):
+        return np.asarray(values.to_value(unyt.kpc), dtype=float)
+    scales = _runtime_scales(par)
+    if scales is None:
+        return np.asarray(values, dtype=float)
+    return np.asarray(values, dtype=float) * scales['length_cm'] / (1.0 * unyt.kpc).to_value(unyt.cm)
+
+
+def _to_myr(values, par):
+    if hasattr(values, 'to_value'):
+        return np.asarray(values.to_value(unyt.Myr), dtype=float)
+    scales = _runtime_scales(par)
+    if scales is None:
+        return np.asarray(values, dtype=float)
+    return np.asarray(values, dtype=float) * scales['time_s'] / (1.0 * unyt.Myr).to_value(unyt.s)
+
+
+def _to_km_s(values, par):
+    if hasattr(values, 'to_value'):
+        return np.asarray(values.to_value(unyt.km / unyt.s), dtype=float)
+    scales = _runtime_scales(par)
+    if scales is None:
+        return np.asarray(values, dtype=float)
+    return np.asarray(values, dtype=float) * scales['velocity_cm_s'] / (1.0 * unyt.km).to_value(unyt.cm)
+
+
+def _to_number_density(values, par):
+    if hasattr(values, 'to_value'):
+        density = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
+        return density / (1.0 * unyt.mp).to_value(unyt.g)
+    scales = _runtime_scales(par)
+    if scales is None:
+        return np.asarray(values, dtype=float)
+    return np.asarray(values, dtype=float) * scales['density_g_cm3'] / (1.0 * unyt.mp).to_value(unyt.g)
+
+
+def _to_pressure(values, par):
+    if hasattr(values, 'to_value'):
+        return np.asarray(values.to_value(unyt.g / unyt.cm / unyt.s**2), dtype=float)
+    scales = _runtime_scales(par)
+    if scales is None:
+        return np.asarray(values, dtype=float)
+    return np.asarray(values, dtype=float) * scales['pressure_erg_cm3']
+
+
+def _to_temperature(values, par):
+    if hasattr(values, 'to_value'):
+        return np.asarray(values.to_value(unyt.K), dtype=float)
+    scales = _runtime_scales(par)
+    if scales is None:
+        return np.asarray(values, dtype=float)
+    return np.asarray(values, dtype=float) * scales['temperature_K']
 
 
 def load_parameters(config_filename, rundir=None):
@@ -139,7 +201,7 @@ def interior_slice(par):
 
 def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     interior = interior_slice(par)
-    radius = mesh.coordinate[interior].to_value(unyt.kpc)
+    radius = _to_kpc(mesh.coordinate[interior], par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
     ionized = xHI <= neutral_fraction
@@ -163,7 +225,7 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
 def mean_ionized_temperature(fluid, par):
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
-    temperature = fluid.temp[interior].to_value(unyt.K)
+    temperature = _to_temperature(fluid.temp[interior], par)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
@@ -171,7 +233,7 @@ def mean_ionized_temperature(fluid, par):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
+    history['time_Myr'].append(_to_myr(fluid.time, par))
     history['front_radius_kpc'].append(ionization_front_position(mesh, fluid, par))
     history['mean_ionized_temperature_K'].append(mean_ionized_temperature(fluid, par))
 
@@ -330,13 +392,11 @@ def save_front_plot(history, config, figure_filename):
 
 def save_plot(mesh, fluid, par, config, figure_filename):
     interior = interior_slice(par)
-    radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
-    number_density = (
-        fluid.rho[interior] / unyt.mp
-    ).to_value(1.0 / unyt.cm**3)
-    velocity = fluid.vel[interior].to_value(unyt.km / unyt.s)
+    radius_kpc = _to_kpc(mesh.coordinate[interior], par)
+    number_density = _to_number_density(fluid.rho[interior], par)
+    velocity = _to_km_s(fluid.vel[interior], par)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure = fluid.pre[interior].to_value(unyt.g / unyt.cm / unyt.s**2)
+    pressure = _to_pressure(fluid.pre[interior], par)
     plot_radius_max = config['plot_radius_max'].to_value(unyt.kpc)
     radius_unit = config.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

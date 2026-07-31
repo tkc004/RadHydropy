@@ -101,6 +101,37 @@ def build_problem(config):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
+    # ``readhdf5`` restores the saved boundary and fluid state, but it does not
+    # recompute the derived mesh geometry. Rebuild those cached geometric
+    # fields from the loaded boundary so post-processing uses the snapshot's
+    # actual coordinates instead of the constructor-time placeholders.
+    boundary = mesh.boundary
+    if par.coordsys == 'cartesian':
+        mesh.xdelta = boundary[1:] - boundary[:-1]
+        mesh.oneoverdx = 1.0 / mesh.xdelta
+        mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+        if hasattr(par, 'area'):
+            mesh.area = np.ones(len(mesh.xdelta)) * par.area
+        else:
+            mesh.area = np.ones(len(mesh.xdelta))
+        mesh.vol = mesh.xdelta * mesh.area
+    elif par.coordsys == 'spherical':
+        mesh.xdelta = boundary[1:] - boundary[:-1]
+        mesh.oneoverdx = 1.0 / mesh.xdelta
+        mesh.area = (boundary[:-1] ** 2) * 4.0 * np.pi
+        mesh.vol = np.absolute((boundary[1:] ** 3 - boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
+        vol_denom = boundary[1:] ** 3 - boundary[:-1] ** 3
+        mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+        nonzero_vol_denom = vol_denom != 0.0
+        mesh.coordinate[nonzero_vol_denom] = 0.75 * (
+            boundary[1:][nonzero_vol_denom] ** 4 - boundary[:-1][nonzero_vol_denom] ** 4
+        ) / vol_denom[nonzero_vol_denom]
+        if np.any((boundary[:-1] < 0.0) & (boundary[1:] > 0.0)):
+            crossing = np.where((boundary[:-1] < 0.0) & (boundary[1:] > 0.0))[0]
+            for ig in crossing:
+                mesh.vol[ig] = (boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.coordinate[ig] = 0.75 * boundary[ig + 1]
+                mesh.area[ig] = 0.0
     return par, mesh, fluid
 
 

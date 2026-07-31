@@ -857,12 +857,12 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
         int(getattr(par, 'radiative_transfer_update_interval', 1)),
     )
     rt_step_counter = int(getattr(par, '_radiative_transfer_hydro_step', 0))
+    if getattr(par, 'radiative_transfer', False) and (
+        rt_step_counter % rt_update_interval == 0
+        or 'ngamma_cm3' not in state
+    ):
+        state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
     while remaining_s > zero_time_s:
-        if getattr(par, 'radiative_transfer', False) and (
-            rt_step_counter % rt_update_interval == 0
-            or 'ngamma_cm3' not in state
-        ):
-            state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
         if state['hydrogen_update_mu']:
             state['mu'] = rh.mean_molecular_weight_mu(
                 state['xHI'],

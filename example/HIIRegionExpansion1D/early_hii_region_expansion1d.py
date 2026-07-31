@@ -44,6 +44,9 @@ import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('early_hii_region_expansion1d.yaml')
+DEBUG_CONFIG = Path(__file__).resolve().with_name(
+    'early_hii_region_expansion1d_debug.yaml'
+)
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -138,11 +141,19 @@ def parse_args():
         description='Run the early HII region expansion example.',
     )
     parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Use the shorter debug configuration.',
+    )
+    parser.add_argument(
         '--config',
-        default=DEFAULT_CONFIG,
+        default=None,
         help='YAML file containing runparams and ICparams.',
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.config is None:
+        args.config = DEBUG_CONFIG if args.debug else DEFAULT_CONFIG
+    return args
 
 
 if __name__ == '__main__':

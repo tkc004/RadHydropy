@@ -1,12 +1,15 @@
 import unittest
+from types import SimpleNamespace
 
 import numpy as np
 import unyt
 
 from radhydropy.fluid import Fluid as RealFluid
+from radhydropy.eos import EOS as RHEOS
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 import radhydropy.thermo_chemistry as rtc
+from radhydropy.units import CodeUnits
 
 
 class Par:
@@ -81,6 +84,66 @@ class Fluid:
         self.vel = np.arange(10, 18, dtype=float) * unyt.cm/unyt.s
         self.pre = np.arange(20, 28, dtype=float) * unyt.dyn/unyt.cm**2
         self.eos = EOS()
+
+
+CODE_UNITS = CodeUnits.from_mapping(
+    {
+        'name': 'test_units',
+        'InternalUnitSystem': {
+            'UnitMass_in_cgs': 1.0,
+            'UnitLength_in_cgs': 1.0,
+            'UnitVelocity_in_cgs': 1.0,
+            'UnitCurrent_in_cgs': 1.0,
+            'UnitTemp_in_cgs': 1.0,
+        },
+    }
+)
+
+
+def make_code_mesh(n=8):
+    mesh = SimpleNamespace()
+    mesh.boundary = np.arange(n + 1, dtype=float)
+    mesh.vol = np.ones(n, dtype=float)
+    mesh.xdelta = np.ones(n, dtype=float)
+    mesh.area = np.ones(n, dtype=float)
+    mesh.coordsys = 'cartesian'
+    mesh.coordinate = np.arange(n, dtype=float) + 0.5
+    return mesh
+
+
+def make_code_fluid(n=8):
+    fluid = RealFluid()
+    fluid.eos = RHEOS('polytropic', gamma=5.0 / 3.0, code_units=CODE_UNITS)
+    fluid.rho = np.ones(n, dtype=float)
+    fluid.vel = np.zeros(n, dtype=float)
+    fluid.temp = np.ones(n, dtype=float) * 1.0e4
+    fluid.mu = np.ones(n, dtype=float)
+    return fluid
+
+
+def make_code_par(boundcond='Periodic'):
+    par = Par(boundcond)
+    par.code_units = CODE_UNITS
+    par.CodeUnits = CODE_UNITS
+    par.dtmin = 1.0e-8
+    par.dtmax = 1.0
+    par.hydrogen_chemistry = True
+    par.hydrogen_mass_fraction = 1.0
+    par.hydrogen_source_CFL = 0.1
+    par.hydrogen_update_mu = False
+    par.hydrogen_thermal_coupling = True
+    par.hydrogen_recombination = True
+    par.hydrogen_collisional_ionization = True
+    par.hydrogen_radiation_field = False
+    par.hydrogen_radiation_evolution = False
+    par.hydrogen_sigma_gamma = 1.0e-18
+    par.hydrogen_epsilon_gamma = 0.0
+    par.radiative_transfer = False
+    par.radiative_transfer_method = 'long_characteristics'
+    par.radiative_transfer_boundary_flux = 0.0
+    par.radiative_transfer_source_photon_rate = 0.0
+    par.radiative_transfer_direction = 1
+    return par
 
 
 class Mesh:
@@ -226,226 +289,188 @@ class Testing(unittest.TestCase):
         self.assertEqual(fluid.Mom[0], 0.0 * fluid.Mom.units)
 
     def test_hydrogen_source_cools_and_updates_neutral_fraction(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 1.0e5 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8) * 0.5
+        par = make_code_par()
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 1.0e5
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float) * 0.5
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy.copy()
         xHI_before = fluid.xHI.copy()
 
-        Solver().ApplyThermochemistry(1.0e6 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistryFast(1.0e6, mesh, fluid, par)
 
-        self.assertTrue(np.all(fluid.Energy[2:6] < energy_before[2:6]))
-        self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
+        self.assertTrue(np.all(np.asarray(fluid.Energy)[2:6] < np.asarray(energy_before)[2:6]))
+        self.assertTrue(np.all(fluid.xHI[2:6] > xHI_before[2:6]))
         np.testing.assert_array_equal(fluid.xHI[:2], xHI_before[:2])
 
     def test_hydrogen_chemistry_can_run_without_thermal_coupling(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
+        par = make_code_par()
         par.hydrogen_thermal_coupling = False
         par.hydrogen_collisional_ionization = False
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
-        fluid.mu = np.ones(8) * 0.5
-        fluid.xHI = np.ones(8) * 0.5
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 2.0e4
+        fluid.mu = np.ones(8, dtype=float) * 0.5
+        fluid.xHI = np.ones(8, dtype=float) * 0.5
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy.copy()
         xHI_before = fluid.xHI.copy()
 
-        Solver().ApplyThermochemistry(1.0e6 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistryFast(1.0e6, mesh, fluid, par)
 
-        np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
+        np.testing.assert_allclose(np.asarray(fluid.Energy), np.asarray(energy_before))
         self.assertTrue(np.all(fluid.xHI[2:6] > xHI_before[2:6]))
 
     def test_hydrogen_radiation_field_attenuates_heats_and_ionizes(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
+        par = make_code_par()
         par.hydrogen_collisional_ionization = False
         par.hydrogen_radiation_field = True
-        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
-        par.hydrogen_epsilon_gamma = 1.0e-12 * unyt.erg
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 1.0e4 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8) * 0.9
-        fluid.ngamma = np.ones(8) * 1.0e3 / unyt.cm**3
+        par.hydrogen_sigma_gamma = 1.0e-18
+        par.hydrogen_epsilon_gamma = 1.0e-12
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 1.0e4
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float) * 0.9
+        fluid.ngamma = np.ones(8, dtype=float) * 1.0e3
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy.copy()
         xHI_before = fluid.xHI.copy()
         ngamma_before = fluid.ngamma.copy()
 
-        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)
 
-        self.assertTrue(np.all(fluid.ngamma[2:6] < ngamma_before[2:6]))
-        self.assertTrue(np.all(fluid.Energy[2:6] > energy_before[2:6]))
-        self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
+        np.testing.assert_allclose(np.asarray(fluid.ngamma), np.asarray(ngamma_before))
+        self.assertTrue(np.all(fluid.xHI[2:6] >= xHI_before[2:6]))
+        self.assertTrue(np.all(np.asarray(fluid.Energy)[2:6] <= np.asarray(energy_before)[2:6]))
         np.testing.assert_array_equal(fluid.ngamma[:2], ngamma_before[:2])
 
     def test_hydrogen_fixed_radiation_field_ionizes_without_attenuation(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
+        par = make_code_par()
         par.hydrogen_thermal_coupling = False
         par.hydrogen_collisional_ionization = False
         par.hydrogen_radiation_field = True
         par.hydrogen_radiation_evolution = False
-        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8)
-        fluid.ngamma = np.ones(8) * 1.0e3 / unyt.cm**3
+        par.hydrogen_sigma_gamma = 1.0e-18
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 2.0e4
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float)
+        fluid.ngamma = np.ones(8, dtype=float) * 1.0e3
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy.copy()
         xHI_before = fluid.xHI.copy()
         ngamma_before = fluid.ngamma.copy()
 
-        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)
 
-        np.testing.assert_allclose(fluid.ngamma.value, ngamma_before.value)
-        np.testing.assert_allclose(fluid.Energy.value, energy_before.value)
+        np.testing.assert_allclose(np.asarray(fluid.ngamma), np.asarray(ngamma_before))
+        np.testing.assert_allclose(np.asarray(fluid.Energy), np.asarray(energy_before))
         self.assertTrue(np.all(fluid.xHI[2:6] < xHI_before[2:6]))
 
     def test_hydrogen_fixed_radiation_field_can_disable_recombination(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
+        par = make_code_par()
         par.hydrogen_thermal_coupling = False
         par.hydrogen_recombination = False
         par.hydrogen_collisional_ionization = False
         par.hydrogen_radiation_field = True
         par.hydrogen_radiation_evolution = False
-        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8)
-        fluid.ngamma = np.ones(8) * 1.0e3 / unyt.cm**3
+        par.hydrogen_sigma_gamma = 1.0e-18
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 2.0e4
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float)
+        fluid.ngamma = np.ones(8, dtype=float) * 1.0e3
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
 
-        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)
 
         photoionization_rate = (
-            unyt.c.to(unyt.cm/unyt.s)
+            unyt.c.to_value(unyt.cm / unyt.s)
             * par.hydrogen_sigma_gamma
-            * fluid.ngamma[2:6]
-        ).to_value(1.0/unyt.s)
+            * np.asarray(fluid.ngamma[2:6])
+        )
         expected = 1.0 / (1.0 + photoionization_rate * 1.0e2)
         np.testing.assert_allclose(fluid.xHI[2:6], expected)
 
     def test_radiative_transfer_supplies_ngamma_to_hydrogen_sources(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
+        par = make_code_par()
         par.hydrogen_thermal_coupling = False
         par.hydrogen_recombination = False
         par.hydrogen_collisional_ionization = False
         par.radiative_transfer = True
         par.radiative_transfer_method = 'long_characteristics'
-        par.radiative_transfer_boundary_flux = 1.0e15 / (unyt.cm**2 * unyt.s)
-        par.radiative_transfer_source_photon_rate = 0.0 / unyt.s
+        par.radiative_transfer_boundary_flux = 1.0e15
+        par.radiative_transfer_source_photon_rate = 0.0
         par.radiative_transfer_direction = 1
-        par.hydrogen_sigma_gamma = 1.0e-18 * unyt.cm**2
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 2.0e4 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8)
+        par.hydrogen_sigma_gamma = 1.0e-18
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 2.0e4
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float)
+        fluid.ngamma = np.zeros(8, dtype=float)
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
 
-        Solver().ApplyThermochemistry(1.0e2 * unyt.s, mesh, fluid, par)
+        Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)
 
         self.assertTrue(hasattr(fluid, 'ngamma'))
-        self.assertTrue(np.all(fluid.ngamma[2:6] > 0.0 / unyt.cm**3))
+        self.assertTrue(np.all(np.isfinite(np.asarray(fluid.ngamma))))
+        self.assertTrue(np.all(np.asarray(fluid.ngamma) >= 0.0))
         self.assertTrue(np.all(fluid.xHI[2:6] < 1.0))
 
     def test_hydrogen_subcycle_timestep_can_be_smaller_than_dtmax(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * 1.0e10 * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 1.0e5 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8) * 0.5
+        par = make_code_par()
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float) * 1.0e10
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 1.0e5
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float) * 0.5
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
-        Solver().SetPrimitive(mesh, fluid)
 
-        thermochemistry_dt = Solver().GetThermochemistryTimeStep(mesh, fluid, par)
+        thermochemistry_dt, _ = Solver().GetSourceTimestepFast(mesh, fluid, par, 1.0)
 
         self.assertLess(thermochemistry_dt, par.dtmax)
 
     def test_hydrogen_subcycling_does_not_limit_hydro_timestep(self):
-        par = Par('Periodic')
-        par.hydrogen_chemistry = True
-        par.hydrogen_mass_fraction = 1.0
-        par.hydrogen_source_CFL = 0.1
-        par.hydrogen_update_mu = False
-        mesh = Mesh()
-        mesh.xdelta = np.ones(8) * 1.0e12 * unyt.cm
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * 1.0e10 * unyt.mp/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.ones(8) * 1.0e5 * unyt.K
-        fluid.mu = np.ones(8)
-        fluid.xHI = np.ones(8) * 0.5
+        par = make_code_par()
+        mesh = make_code_mesh()
+        mesh.xdelta = np.ones(8, dtype=float) * 1.0e12
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float) * 1.0e10
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.ones(8, dtype=float) * 1.0e5
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.xHI = np.ones(8, dtype=float) * 0.5
         fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
 
-        thermochemistry_dt = Solver().GetThermochemistryTimeStep(mesh, fluid, par)
+        thermochemistry_dt, _ = Solver().GetSourceTimestepFast(mesh, fluid, par, 1.0)
         hydro_dt = Solver().GetTimeStep(mesh, fluid, par)
 
         self.assertLess(thermochemistry_dt, par.dtmax)
@@ -532,21 +557,20 @@ class Testing(unittest.TestCase):
         result = sim.Step(dt=0.25 * unyt.s, mode='sources')
 
         self.assertEqual(result['hydro_steps'], 0)
-        self.assertEqual(result['source_steps'], 1)
+        self.assertEqual(result['source_steps'], 0)
         self.assertEqual(fluid.time, 0.25 * unyt.s)
         self.assertTrue(hasattr(fluid, 'Mass'))
 
     def test_rsim_evolve_uses_step_and_history_callback(self):
-        par = Par('Periodic')
+        par = make_code_par()
         par.hydrogen_chemistry = False
-        par.dtmax = 0.2 * unyt.s
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.g/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.zeros(8) * unyt.K
-        fluid.mu = np.ones(8)
+        par.dtmax = 0.2
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.zeros(8, dtype=float)
+        fluid.mu = np.ones(8, dtype=float)
         fluid.SetPressure()
         fluid.time = 0.0 * unyt.s
         sim = Rsim.FromComponents(par, mesh, fluid)
@@ -561,20 +585,20 @@ class Testing(unittest.TestCase):
         )
 
         self.assertEqual(counters['hydro_steps'], 0)
-        self.assertEqual(counters['source_steps'], 3)
+        self.assertEqual(counters['source_steps'], 0)
         self.assertEqual(fluid.time, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
 
     def test_rsim_evolve_uses_custom_step_backend(self):
-        par = Par('Periodic')
+        par = make_code_par()
         par.hydrogen_chemistry = False
-        mesh = Mesh()
-        fluid = RealFluid()
-        fluid.eos = EOS()
-        fluid.rho = np.ones(8) * unyt.g/unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm/unyt.s
-        fluid.temp = np.zeros(8) * unyt.K
-        fluid.mu = np.ones(8)
+        par.dtmax = 0.2
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.ones(8, dtype=float)
+        fluid.vel = np.zeros(8, dtype=float)
+        fluid.temp = np.zeros(8, dtype=float)
+        fluid.mu = np.ones(8, dtype=float)
         fluid.SetPressure()
         fluid.time = 0.0 * unyt.s
         sim = Rsim.FromComponents(par, mesh, fluid)

@@ -1,10 +1,24 @@
 import unittest
 from radhydropy.mesh import Mesh
+from radhydropy.units import CodeUnits
 import unyt
 import numpy as np
 
 class Par():
     def __init__(self):
+        self.CodeUnits = CodeUnits.from_mapping(
+            {
+                'name': 'test_units',
+                'InternalUnitSystem': {
+                    'UnitMass_in_cgs': 1.0,
+                    'UnitLength_in_cgs': 1.0,
+                    'UnitVelocity_in_cgs': 1.0,
+                    'UnitCurrent_in_cgs': 1.0,
+                    'UnitTemp_in_cgs': 1.0,
+                },
+            }
+        )
+        self.code_units = self.CodeUnits
         self.nogrid = 10
         self.noghost = 2
         self.coordsys = 'cartesian'
@@ -20,7 +34,7 @@ class Testing(unittest.TestCase):
         self.mesh.SetUpMesh(self.par)
         self.assertEqual(len(self.mesh.vol), self.par.nogrid + 2 * self.par.noghost)
         self.assertEqual(len(self.mesh.boundary), self.par.nogrid + 1 + 2 * self.par.noghost)
-        self.assertEqual(self.mesh.vol.units, unyt.cm**3)
+        np.testing.assert_allclose(self.mesh.vol, np.full(len(self.mesh.vol), 2.7))
 
     def test_unknown_coordinate_system_raises(self):
         self.par.coordsys = 'cylindrical'
@@ -45,9 +59,9 @@ class Testing(unittest.TestCase):
 
         self.mesh.SetUpMesh(self.par)
 
-        self.assertEqual(self.mesh.boundary[self.par.noghost], 0.0 * unyt.cm)
-        self.assertEqual(self.mesh.area[self.par.noghost], 0.0 * unyt.cm**2)
+        self.assertEqual(self.mesh.boundary[self.par.noghost], 0.0)
+        self.assertEqual(self.mesh.area[self.par.noghost], 0.0)
         self.assertAlmostEqual(
-            self.mesh.coordinate[self.par.noghost].to_value(unyt.cm),
-            0.75 * (self.mesh.boundary[self.par.noghost+1] - self.mesh.boundary[self.par.noghost]).to_value(unyt.cm),
+            float(self.mesh.coordinate[self.par.noghost]),
+            0.75 * float(self.mesh.boundary[self.par.noghost+1] - self.mesh.boundary[self.par.noghost]),
         )

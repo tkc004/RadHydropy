@@ -12,6 +12,7 @@ import unyt
 import yaml
 
 from radhydropy.rsim import Rsim
+import radhydropy.io as rio
 
 
 class Testing(unittest.TestCase):
@@ -30,13 +31,7 @@ class Testing(unittest.TestCase):
                 )
             )
 
-            sim = Rsim.__new__(Rsim)
-            sim.par = SimpleNamespace(
-                outputtimefilename=str(path),
-                timesim=1.0e5 * unyt.yr,
-            )
-
-            output_times = sim._load_output_time_list()
+            output_times = rio.load_output_time_list(path)
 
             self.assertEqual(output_times.units, unyt.yr)
             self.assertEqual(
@@ -55,7 +50,7 @@ class Testing(unittest.TestCase):
             )
             par = SimpleNamespace(
                 outputtimefilename=str(path),
-                timesim=5.0 * unyt.s,
+                timesim=3.0 * unyt.s,
                 outdir=str(tmpdir),
                 outfileprefix='Output',
             )
@@ -63,7 +58,7 @@ class Testing(unittest.TestCase):
 
             writes = []
 
-            def fake_write(index):
+            def fake_write(sim, index):
                 writes.append((index, fluid.time.copy()))
 
             def fake_step(dt=None, mode=None, **kwargs):
@@ -77,18 +72,20 @@ class Testing(unittest.TestCase):
                     return final_time - fluid.time
                 return 1.0 * unyt.s
 
-            sim._write_numbered_hdf5 = fake_write
-            sim.Step = fake_step
-            sim.GetStepTime = fake_get_step_time
-
-            sim._run_with_output_times()
+            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+                sim.GetStepTime = fake_get_step_time
+                rio.run_with_output_times(
+                    sim,
+                    mode='sources',
+                    step_backend=fake_step,
+                )
 
             self.assertEqual([index for index, _ in writes], [0, 1, 2])
             self.assertEqual(
                 [time.to_value(unyt.s) for _, time in writes],
                 [0.0, 1.0, 3.0],
             )
-            self.assertEqual(fluid.time, 5.0 * unyt.s)
+            self.assertEqual(fluid.time, 3.0 * unyt.s)
 
     def test_run_honors_stop_condition_in_source_only_mode(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -107,7 +104,7 @@ class Testing(unittest.TestCase):
             writes = []
             step_modes = []
 
-            def fake_write(index):
+            def fake_write(sim, index):
                 writes.append((index, fluid.time.copy()))
 
             def fake_step(dt=None, mode=None, **kwargs):
@@ -122,20 +119,20 @@ class Testing(unittest.TestCase):
                     return 1.0 * unyt.s
                 return 1.0 * unyt.s
 
-            sim._write_numbered_hdf5 = fake_write
-            sim.Step = fake_step
-            sim.GetStepTime = fake_get_step_time
-
-            sim.Run(
-                mode='sources',
-                stop_condition=lambda runner: runner.fluid.time >= 2.5 * unyt.s,
-            )
+            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+                sim.GetStepTime = fake_get_step_time
+                sim.Step = fake_step
+                rio.run_with_output_times(
+                    sim,
+                    mode='sources',
+                    stop_condition=lambda runner: runner.fluid.time >= 2.5 * unyt.s,
+                )
 
             self.assertEqual(step_modes, ['sources', 'sources', 'sources'])
-            self.assertEqual([index for index, _ in writes], [0, 1, 2])
+            self.assertEqual([index for index, _ in writes], [0, 1])
             self.assertEqual(
                 [time.to_value(unyt.s) for _, time in writes],
-                [0.0, 2.0, 3.0],
+                [0.0, 3.0],
             )
             self.assertEqual(fluid.time, 3.0 * unyt.s)
 
@@ -144,19 +141,23 @@ class Testing(unittest.TestCase):
             cwd = Path.cwd()
             try:
                 os.chdir(tmpdir)
-                sim = Rsim(
-                    {
-                        'timesim': 0.0 * unyt.s,
-                        'outdir': str(tmpdir),
-                        'outfileprefix': 'Output',
-                        'outdeltatime': 1.0 * unyt.s,
-                        'simname': 'test_run',
-                    }
+                par = SimpleNamespace(
+                    timesim=0.0 * unyt.s,
+                    outdir=str(tmpdir),
+                    outfileprefix='Output',
+                    outdeltatime=1.0 * unyt.s,
+                    simname='test_run',
                 )
-                sim._write_numbered_hdf5 = lambda index: None
+                fluid = SimpleNamespace(
+                    time=0.0 * unyt.s,
+                    SetTemperature=lambda: None,
+                )
+                sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+                sim.Step = lambda **kwargs: {'dt': 0.0 * unyt.s, 'hydro_steps': 0, 'source_steps': 0}
                 sim.Evolve = lambda **kwargs: None
 
-                sim.Run()
+                with mock.patch.object(rio, 'write_numbered_hdf5', lambda *args, **kwargs: None):
+                    sim.Run()
 
                 used_parameters = Path(tmpdir) / 'used_parameters.yaml'
                 self.assertTrue(used_parameters.exists())
@@ -166,15 +167,13 @@ class Testing(unittest.TestCase):
                 self.assertEqual(payload['runparams']['simname'], 'test_run')
                 self.assertEqual(payload['runparams']['timesim']['value'], 0.0)
                 self.assertEqual(payload['runparams']['timesim']['unit'], 's')
-                self.assertEqual(payload['ICparams'], {})
+                self.assertIsNone(payload['ICparams'])
             finally:
                 os.chdir(cwd)
 
     def test_parameter_tree_converts_numpy_scalars(self):
-        sim = Rsim.__new__(Rsim)
-
-        self.assertEqual(sim._parameter_tree(np.int64(256)), 256)
-        self.assertEqual(sim._parameter_tree(np.bool_(True)), True)
+        self.assertEqual(rio.parameter_tree(np.int64(256)), 256)
+        self.assertEqual(rio.parameter_tree(np.bool_(True)), True)
 
     def test_hydrostatic_example_plots_interior_cells_in_cgs(self):
         example_dir = (

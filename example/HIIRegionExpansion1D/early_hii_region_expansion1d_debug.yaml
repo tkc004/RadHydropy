@@ -1,10 +1,11 @@
 runparams:
-  simname: LateHIIRegionExpansion1D
+  simname: EarlyHIIRegionExpansion1D_debug
   ICfilename: InitialCondition.hdf5
   outdir: .
   outfileprefix: Output
-  outputtimefilename: output_times_late.txt
+  outputtimefilename: output_times_early_debug.txt
   savedir: .
+  verbose: 0
   CodeUnits:
     name: galactic_unit_system
     InternalUnitSystem:
@@ -25,7 +26,7 @@ ICparams:
     value: 5.21e-21
     unit: g/cm**3
   neutral_temperature:
-    value: 1.0e3
+    value: 1.0e2
     unit: K
   ionized_temperature:
     value: 1.0e4
@@ -40,24 +41,25 @@ ICparams:
     value: 2.7e-13
     unit: cm**3/s
   boxsize:
-    value: 7.0
+    value: 2.0
     unit: pc
   dtmin:
     value: 1.0e-10
     unit: Myr
   final_time:
-    value: 3.0
+    value: 0.001
     unit: Myr
   hydro_cfl: 0.5
   hydro_order: 1
-  source_cfl: 0.1
+  source_cfl: 1.0
   hydro_timestep_max:
     value: 2.0e-4
     unit: Myr
   source_timestep_min:
     value: 1.0e-12
     unit: Myr
-  number_of_cells: 512
+  number_of_cells: 16
+  radiative_transfer_update_interval: 100
   hydrogen_beta:
     value: 0.0
     unit: cm**3/s
@@ -71,35 +73,20 @@ ICparams:
     value: 0.0
     unit: 1/(cm**2*s)
   comparison_time:
-    value: 3.0
+    value: 0.001
     unit: Myr
-  show_stagnation_radius: true
   output_snapshots:
     - time:
         value: 0.0
         unit: Myr
     - time:
-        value: 0.05
+        value: 0.00025
         unit: Myr
-      label: 0p05
+      label: 0p00025
     - time:
-        value: 0.10
-        unit: Myr
-    - time:
-        value: 0.20
-        unit: Myr
-      label: 0p20
-    - time:
-        value: 0.50
+        value: 0.00050
         unit: Myr
     - time:
-        value: 0.80
+        value: 0.0010
         unit: Myr
-      label: 0p80
-    - time:
-        value: 1.50
-        unit: Myr
-    - time:
-        value: 3.0
-        unit: Myr
-      label: 3p00
+      label: 0p001

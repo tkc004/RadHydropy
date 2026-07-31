@@ -50,7 +50,8 @@ def _read_runtime_quantity(group, name, code_units=None, scale_key=None, preserv
     dataset = group[name]
     data = np.asarray(dataset[()], dtype=float)
     if preserve_units:
-        return data * unyt.Unit(dataset.attrs['units'])
+        unit_name = dataset.attrs.get("units", None)
+        return data * unyt.Unit(unit_name) if unit_name else data
     if code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
         unit_name = dataset.attrs.get("units", None)
@@ -60,7 +61,8 @@ def _read_runtime_quantity(group, name, code_units=None, scale_key=None, preserv
             if cgs_unit is not None:
                 data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
         return as_named_array(data / scales[scale_key])
-    return data * unyt.Unit(dataset.attrs['units'])
+    unit_name = dataset.attrs.get("units", None)
+    return data * unyt.Unit(unit_name) if unit_name else data
 
 
 def _read_dataset(group, name):
@@ -107,7 +109,7 @@ def _read_any_dataset(dataset, code_units=None, scale_key=None, preserve_units=F
                 data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
         return as_named_array(data / scales[scale_key])
     unit_name = dataset.attrs.get("units", None)
-    return as_named_array(data * unyt.Unit(unit_name)) if unit_name else as_named_array(data)
+    return data * unyt.Unit(unit_name) if unit_name else as_named_array(data)
 
 
 def _populate_group_targets(group, targets, code_units=None, preserve_units=False, scale_map=None):

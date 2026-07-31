@@ -6,12 +6,27 @@ import unyt
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
 
 
 class Mesh:
     def __init__(self):
-        self.boundary = np.linspace(0.0, 8.0, 9) * unyt.cm
-        self.vol = np.ones(8) * unyt.cm**3
+        self.boundary = np.linspace(0.0, 8.0, 9)
+        self.vol = np.ones(8)
+
+
+CODE_UNITS = CodeUnits.from_mapping(
+    {
+        "name": "test_units",
+        "InternalUnitSystem": {
+            "UnitMass_in_cgs": 1.0,
+            "UnitLength_in_cgs": 1.0,
+            "UnitVelocity_in_cgs": 1.0,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        },
+    }
+)
 
 
 class Testing(unittest.TestCase):
@@ -38,34 +53,34 @@ class Testing(unittest.TestCase):
 
     def test_isothermal_set_conserved_keeps_only_kinetic_energy(self):
         fluid = Fluid()
-        fluid.eos = EOS('isothermal', gamma=1.0)
-        fluid.rho = np.ones(8) * 2.0 * unyt.g / unyt.cm**3
-        fluid.vel = np.ones(8) * 3.0 * unyt.cm / unyt.s
-        fluid.temp = np.ones(8) * 100.0 * unyt.K
+        fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
+        fluid.rho = np.ones(8) * 2.0
+        fluid.vel = np.ones(8) * 3.0
+        fluid.temp = np.ones(8) * 100.0
         fluid.mu = np.ones(8)
         fluid.SetPressure()
 
         Solver().SetConserved(Mesh(), fluid)
 
-        expected = (0.5 * fluid.rho * fluid.vel**2 * Mesh().vol).to(fluid.Energy.units)
-        np.testing.assert_allclose(fluid.Energy.value, expected.value)
+        expected = 0.5 * fluid.rho * fluid.vel**2 * Mesh().vol
+        np.testing.assert_allclose(np.asarray(fluid.Energy), expected)
 
     def test_isothermal_set_primitive_recovers_pressure_from_temperature(self):
         mesh = Mesh()
         fluid = Fluid()
-        fluid.eos = EOS('isothermal', gamma=1.0)
-        fluid.rho = np.ones(8) * unyt.g / unyt.cm**3
-        fluid.vel = np.zeros(8) * unyt.cm / unyt.s
-        fluid.temp = np.ones(8) * 250.0 * unyt.K
+        fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
+        fluid.rho = np.ones(8)
+        fluid.vel = np.zeros(8)
+        fluid.temp = np.ones(8) * 250.0
         fluid.mu = np.ones(8)
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
 
-        fluid.Energy[:] = 0.0 * fluid.Energy.units
+        fluid.Energy[:] = 0.0
         Solver().SetPrimitive(mesh, fluid)
 
         expected_pressure = fluid.eos.pressure(fluid.rho, fluid.temp, fluid.mu)
-        np.testing.assert_allclose(fluid.pre.value, expected_pressure.value)
+        np.testing.assert_allclose(np.asarray(fluid.pre), np.asarray(expected_pressure))
 
 
 if __name__ == '__main__':

@@ -15,6 +15,8 @@ from radhydropy.units import (
     CGS_VOLUME_UNIT,
     code_unit_scales,
     _as_cgs_float,
+    _code_units,
+    code_quantity_to_cgs,
 )
 import numpy as np
 from types import SimpleNamespace
@@ -61,7 +63,7 @@ class Solver():
         """Refresh photon density from the shared radiative-transfer solver."""
         if not getattr(par, 'radiative_transfer', False):
             return None
-        code_units = getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
+        code_units = _code_units(par)
         scales = code_unit_scales(code_units)
         if not hasattr(fluid, 'ngamma'):
             fluid.ngamma = np.zeros(np.shape(fluid.rho), dtype=float)
@@ -75,24 +77,41 @@ class Solver():
         )
         if hasattr(mesh, 'area'):
             submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cm2']
-        sigma_gamma_cm2 = _as_cgs_float(
-            getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA),
-            CGS_AREA_UNIT,
-        )
+        sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA)
+        boundary_value = getattr(par, 'radiative_transfer_boundary_flux', 0.0)
+        source_value = getattr(par, 'radiative_transfer_source_photon_rate', 0.0)
+        if hasattr(sigma_value, 'to_value'):
+            sigma_gamma_cm2 = _as_cgs_float(sigma_value, CGS_AREA_UNIT)
+        else:
+            sigma_gamma_cm2 = code_quantity_to_cgs(
+                sigma_value,
+                code_units,
+                'area_cm2',
+            )
+        if hasattr(boundary_value, 'to_value'):
+            boundary_flux = _as_cgs_float(boundary_value, CGS_PHOTON_FLUX_UNIT)
+        else:
+            boundary_flux = code_quantity_to_cgs(
+                boundary_value,
+                code_units,
+                'photon_flux_per_cm2_s',
+            )
+        if hasattr(source_value, 'to_value'):
+            source_photon_rate = _as_cgs_float(source_value, CGS_RATE_UNIT)
+        else:
+            source_photon_rate = code_quantity_to_cgs(
+                source_value,
+                code_units,
+                'photon_rate_per_s',
+            )
         result = rrt.trace_long_characteristics(
             submesh,
             np.asarray(fluid.rho[interior], dtype=float) * scales['density_g_cm3'],
             np.asarray(fluid.xHI[interior], dtype=float),
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
             sigma_gamma=sigma_gamma_cm2,
-            boundary_flux=_as_cgs_float(
-                getattr(par, 'radiative_transfer_boundary_flux', 0.0),
-                CGS_PHOTON_FLUX_UNIT,
-            ),
-            source_photon_rate=_as_cgs_float(
-                getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
-                CGS_RATE_UNIT,
-            ),
+            boundary_flux=boundary_flux,
+            source_photon_rate=source_photon_rate,
             direction=getattr(par, 'radiative_transfer_direction', 1),
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
         )

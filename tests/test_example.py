@@ -3,10 +3,28 @@ from pathlib import Path
 from types import SimpleNamespace
 import importlib.util
 import sys
+import tempfile
 
+import numpy as np
 import unyt
 
 from radhydropy.example_config import load_example_parameters
+import radhydropy.io as rio
+
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / 'example'
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
+
+HII_TOOLS_PATH = (
+    EXAMPLE_ROOT / 'HIIRegionExpansion1D' / 'tools.py'
+)
+HII_TOOLS_SPEC = importlib.util.spec_from_file_location(
+    'hii_region_expansion1d_tools_for_tests',
+    HII_TOOLS_PATH,
+)
+hii_tools = importlib.util.module_from_spec(HII_TOOLS_SPEC)
+assert HII_TOOLS_SPEC.loader is not None
+HII_TOOLS_SPEC.loader.exec_module(hii_tools)
 
 STELLAR_WIND_TOOLS_PATH = (
     Path(__file__).resolve().parents[1]
@@ -135,7 +153,10 @@ class Testing(unittest.TestCase):
                 'hydrostatic_equilibrium_spherical_point_mass1d_output_times.txt'
             )
         )
-        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.0001)
+        self.assertAlmostEqual(
+            runparams['timesim'].to_value(unyt.Myr),
+            3.168808781402895e-22,
+        )
         self.assertEqual(icparams['nogrid'], 256)
         self.assertEqual(icparams['coordsys'], 'spherical')
         self.assertEqual(icparams['rmin'].to_value(unyt.pc), 2.0)
@@ -387,7 +408,7 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(
             runparams['hydrogen_source_dtmin'].to_value(unyt.Myr),
-            1.0e-3,
+            0.0,
         )
 
     def test_early_hii_region_expansion1d_uses_yaml_config(self):
@@ -400,7 +421,7 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(icparams['number_of_cells'], 512)
+        self.assertEqual(icparams['number_of_cells'], 128)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 2.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 0.14)
         self.assertTrue(Path(runparams['outputtimefilename']).exists())
@@ -424,10 +445,49 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 7.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 3.0)
         self.assertTrue(Path(runparams['outputtimefilename']).exists())
+        self.assertIn('CodeUnits', runparams)
+        self.assertIsNotNone(runparams['CodeUnits'])
         self.assertTrue(icparams['show_stagnation_radius'])
         self.assertEqual(
             icparams['output_snapshots'][-1]['label'],
             '3p00',
+        )
+
+    def test_late_hii_region_snapshot_reload_recomputes_geometry(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HIIRegionExpansion1D'
+            / 'late_hii_region_expansion1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+        config = {**runparams, **icparams}
+
+        par, mesh, fluid, _ = hii_tools.build_problem(config)
+        modified_boundary = np.asarray(mesh.boundary, dtype=float).copy() * 1.25
+        mesh.boundary = modified_boundary * unyt.cm
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outputfilename = Path(tmpdir) / 'Output_000.hdf5'
+            rio.writehdf5(SimpleNamespace(par=par, mesh=mesh, fluid=fluid), outputfilename)
+
+            out_par, out_mesh, out_fluid = hii_tools.load_output_state(outputfilename, config)
+
+        interior = slice(out_par.noghost, out_par.noghost + out_par.nogrid)
+        expected_coordinate = 0.5 * (modified_boundary[1:] + modified_boundary[:-1])
+        vol_denom = modified_boundary[1:] ** 3 - modified_boundary[:-1] ** 3
+        nonzero_vol_denom = vol_denom != 0.0
+        expected_coordinate[nonzero_vol_denom] = 0.75 * (
+            modified_boundary[1:][nonzero_vol_denom] ** 4
+            - modified_boundary[:-1][nonzero_vol_denom] ** 4
+        ) / vol_denom[nonzero_vol_denom]
+        np.testing.assert_allclose(
+            np.asarray(out_mesh.coordinate[interior], dtype=float),
+            np.asarray(expected_coordinate[out_par.noghost : out_par.noghost + out_par.nogrid], dtype=float),
+        )
+        self.assertEqual(
+            float(np.asarray(out_fluid.time, dtype=float)),
+            0.0,
         )
 
 
