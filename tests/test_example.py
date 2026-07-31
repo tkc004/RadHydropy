@@ -86,6 +86,25 @@ STATIC_STROMGREN_PHOTONHEATING_TOOLS_SPEC.loader.exec_module(
     static_stromgren_photoheating_tools
 )
 
+HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT = EXAMPLE_ROOT / 'HydrogenPhotoionization1D'
+if str(HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT))
+
+HYDROGEN_PHOTOIONIZATION_ANALYTIC_PATH = (
+    HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT / 'hydrogen_photoionization_analytic.py'
+)
+HYDROGEN_PHOTOIONIZATION_ANALYTIC_SPEC = importlib.util.spec_from_file_location(
+    'hydrogen_photoionization_analytic_for_tests',
+    HYDROGEN_PHOTOIONIZATION_ANALYTIC_PATH,
+)
+hydrogen_photoionization_analytic = importlib.util.module_from_spec(
+    HYDROGEN_PHOTOIONIZATION_ANALYTIC_SPEC
+)
+assert HYDROGEN_PHOTOIONIZATION_ANALYTIC_SPEC.loader is not None
+HYDROGEN_PHOTOIONIZATION_ANALYTIC_SPEC.loader.exec_module(
+    hydrogen_photoionization_analytic
+)
+
 
 class Testing(unittest.TestCase):
     def test_inflow1d_uses_explicit_output_time_schedule(self):
@@ -125,6 +144,26 @@ class Testing(unittest.TestCase):
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(icparams['nogrid'], 16)
         self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 1.0)
+
+    def test_hydrogen_photoionization1d_analytic_neutral_fraction_uses_units(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HydrogenPhotoionization1D'
+            / 'hydrogen_photoionization1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        neutral_fraction = hydrogen_photoionization_analytic.neutral_fraction(
+            0.0,
+            icparams['xHIini'],
+            icparams['tempini'],
+            icparams['nHini'],
+            icparams['ngammaini'],
+            runparams['hydrogen_sigma_gamma'],
+        )
+
+        self.assertAlmostEqual(float(neutral_fraction), 1.0, places=12)
 
     def test_hydrogen_photoheating1d_uses_yaml_config(self):
         config_filename = (

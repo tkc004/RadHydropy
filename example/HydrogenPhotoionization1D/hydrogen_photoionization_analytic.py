@@ -11,6 +11,10 @@ def recombination_rate(temperature, hydrogen_number_density):
 
     alpha_B = rth._cgs_alpha_B(temperature.to_value(unyt.K))
     nH = hydrogen_number_density.to(1.0 / unyt.cm**3)
+    # `_cgs_alpha_B` returns a bare recombination coefficient in cm^3/s.
+    # Attach the missing units before multiplying by the number density so the
+    # result carries a rate dimension and can be safely converted to 1/s.
+    alpha_B = alpha_B * unyt.cm**3 / unyt.s
     return (alpha_B * nH).to(1.0 / unyt.s)
 
 

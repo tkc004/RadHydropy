@@ -23,6 +23,18 @@ class Fluid:
     pass
 
 
+def _quantity_values(quantity, units=None):
+    """Return plain numeric values from a unit-aware or raw array."""
+    if hasattr(quantity, 'to_value'):
+        return quantity.to_value(units) if units is not None else quantity.to_value()
+    if hasattr(quantity, 'in_units'):
+        converted = quantity.in_units(units) if units is not None else quantity
+        if hasattr(converted, 'to_value'):
+            return converted.to_value(units) if units is not None else converted.to_value()
+        return np.asarray(converted)
+    return np.asarray(quantity)
+
+
 class Simwrap:
     def __init__(self, icparams):
         self.par = Par()
@@ -59,7 +71,7 @@ def interior_slice(sim):
 
 def mean_temperature(sim):
     interior = interior_slice(sim)
-    return np.mean(sim.fluid.temp[interior].to_value(unyt.K)) * unyt.K
+    return np.mean(_quantity_values(sim.fluid.temp[interior], unyt.K)) * unyt.K
 
 
 def mean_neutral_fraction(sim):
@@ -70,13 +82,16 @@ def mean_neutral_fraction(sim):
 def mean_photon_number_density(sim):
     interior = interior_slice(sim)
     return (
-        np.mean(sim.fluid.ngamma[interior].to_value(1.0 / unyt.cm**3))
+        np.mean(_quantity_values(sim.fluid.ngamma[interior], 1.0 / unyt.cm**3))
         / unyt.cm**3
     )
 
 
 def time_value(sim, units):
-    return float(np.ravel(sim.fluid.time.to_value(units))[0])
+    time = sim.fluid.time
+    if hasattr(time, 'to_value'):
+        return float(np.ravel(time.to_value(units))[0])
+    return float(np.ravel(time)[0])
 
 
 def load_history_from_outputs(outputfiles, icparams, noghost):
@@ -88,11 +103,11 @@ def load_history_from_outputs(outputfiles, icparams, noghost):
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(
-            np.mean(rout.fluid.temp[interior].to_value(unyt.K))
+            np.mean(_quantity_values(rout.fluid.temp[interior], unyt.K))
         )
         history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
         history['ngamma'].append(
-            np.mean(rout.fluid.ngamma[interior].to_value(1.0 / unyt.cm**3))
+            np.mean(_quantity_values(rout.fluid.ngamma[interior], 1.0 / unyt.cm**3))
         )
 
     return history
