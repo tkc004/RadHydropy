@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1320" viewBox="0 0 1600 1320" role="img" aria-labelledby="title desc">
+  <title id="title">RunAll call sequence for the dynamic Stromgren photoheating example</title>
+  <desc id="desc">A vertical call-sequence diagram showing the main startup path, the RunAll startup chain, the output-time driver, and the postprocessing steps.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f6f2; }
+      .title { font: 700 28px "DejaVu Sans", Arial, sans-serif; fill: #1f2933; }
+      .subtitle { font: 400 16px "DejaVu Sans", Arial, sans-serif; fill: #52606d; }
+      .box { fill: #ffffff; stroke: #334e68; stroke-width: 2; rx: 18; ry: 18; }
+      .step { font: 700 20px "DejaVu Sans", Arial, sans-serif; fill: #102a43; }
+      .body { font: 400 16px "DejaVu Sans", Arial, sans-serif; fill: #243b53; }
+      .note { font: italic 15px "DejaVu Sans", Arial, sans-serif; fill: #486581; }
+      .arrow { stroke: #334e68; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .lane { stroke: #d9e2ec; stroke-width: 2; stroke-dasharray: 8 8; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334e68"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1320"/>
+  <text class="title" x="800" y="48" text-anchor="middle">RunAll() call sequence</text>
+  <text class="subtitle" x="800" y="76" text-anchor="middle">Dynamic Stromgren Sphere Photoheating 1D</text>
+
+  <line class="lane" x1="800" y1="110" x2="800" y2="1230"/>
+
+  <rect class="box" x="190" y="130" width="1220" height="82"/>
+  <text class="step" x="220" y="164">1. main()</text>
+  <text class="body" x="220" y="190">Load YAML, create output directories, write the IC snapshot.</text>
+
+  <path class="arrow" d="M 800 212 L 800 248"/>
+
+  <rect class="box" x="190" y="250" width="1220" height="82"/>
+  <text class="step" x="220" y="284">2. Rsim(runparams)</text>
+  <text class="body" x="220" y="310">Build Par, Mesh, Fluid, Solver, and EOS objects.</text>
+
+  <path class="arrow" d="M 800 332 L 800 368"/>
+
+  <rect class="box" x="190" y="370" width="1220" height="82"/>
+  <text class="step" x="220" y="404">3. RunAll(outputtime=0)</text>
+  <text class="body" x="220" y="430">Enter the IC-driven startup path for the dynamic example.</text>
+
+  <path class="arrow" d="M 800 452 L 800 488"/>
+
+  <rect class="box" x="190" y="490" width="1220" height="96"/>
+  <text class="step" x="220" y="524">4. Callreadhdf5()</text>
+  <text class="body" x="220" y="550">Read InitialCondition.hdf5, validate dimensions, and set the start time.</text>
+  <text class="note" x="220" y="574">rio.readhdf5() + checkparams() + Fluid.SetFluidTime()</text>
+
+  <path class="arrow" d="M 800 586 L 800 622"/>
+
+  <rect class="box" x="190" y="624" width="1220" height="82"/>
+  <text class="step" x="220" y="658">5. SetMesh()</text>
+  <text class="body" x="220" y="684">Rebuild mesh geometry and ghost cells from the IC state.</text>
+
+  <path class="arrow" d="M 800 706 L 800 742"/>
+
+  <rect class="box" x="190" y="744" width="1220" height="82"/>
+  <text class="step" x="220" y="778">6. SetFluid()</text>
+  <text class="body" x="220" y="804">Initialize the fluid ghost cells and pressure from the IC state.</text>
+
+  <path class="arrow" d="M 800 826 L 800 862"/>
+
+  <rect class="box" x="190" y="864" width="1220" height="108"/>
+  <text class="step" x="220" y="898">7. SetInitFluid()</text>
+  <text class="body" x="220" y="924">Convert runtime parameters to code units, then populate the initial</text>
+  <text class="body" x="220" y="948">conserved state and apply the first radiative-transfer sweep.</text>
+  <text class="note" x="220" y="972">ConvertParametersToCodeUnits() -> Solver.SetBoundary() -> Solver.SetConserved() -> Solver.ApplyRadiativeTransfer()</text>
+
+  <path class="arrow" d="M 800 974 L 800 1010"/>
+
+  <rect class="box" x="190" y="1012" width="1220" height="112"/>
+  <text class="step" x="220" y="1046">8. Run()</text>
+  <text class="body" x="220" y="1072">Write used_parameters.yaml, then follow the output-time branch.</text>
+  <text class="body" x="220" y="1096">This example has outputtimefilename, so Run() dispatches to run_with_output_times().</text>
+
+  <path class="arrow" d="M 800 1124 L 800 1160"/>
+
+  <rect class="box" x="190" y="1162" width="1220" height="112"/>
+  <text class="step" x="220" y="1196">9. run_with_output_times()</text>
+  <text class="body" x="220" y="1222">Write output 0, step with Rsim.Step(), and write snapshots at target times.</text>
+  <text class="note" x="220" y="1246">Step() -> hydro update -> chemistry / radiation source update -> next step</text>
+
+  <text class="subtitle" x="800" y="1300" text-anchor="middle">Postprocessing: load saved outputs, reconstruct the final state, and save the profile and front plots.</text>
+</svg>

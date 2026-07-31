@@ -7,6 +7,12 @@ reference profiles. This example is useful for checking that the code captures
 both the radiative transfer and the thermal response consistently during the
 expansion.
 
+.. figure:: ../example/DynamicStromgrenSpherePhotoheating1D/RunAll_call_sequence.svg
+   :width: 100%
+   :alt: Call sequence for the dynamic photoheating example
+
+   Call sequence for ``RunAll()`` in the dynamic photoheating example.
+
 .. figure:: ../example/DynamicStromgrenSpherePhotoheating1D/DynamicStromgrenSpherePhotoheating1D_IFront.jpg
    :width: 100%
    :alt: Dynamic Stromgren sphere ionization-front comparison
