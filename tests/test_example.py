@@ -11,6 +11,9 @@ import unyt
 
 from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+import radhydropy.radiative_transfer as rrt
+import radhydropy.thermo_chemistry as rtc
 
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / 'example'
 if str(EXAMPLE_ROOT) not in sys.path:
@@ -64,6 +67,24 @@ STELLAR_WIND_TOOLS_SPEC = importlib.util.spec_from_file_location(
 stellar_wind_tools = importlib.util.module_from_spec(STELLAR_WIND_TOOLS_SPEC)
 assert STELLAR_WIND_TOOLS_SPEC.loader is not None
 STELLAR_WIND_TOOLS_SPEC.loader.exec_module(stellar_wind_tools)
+
+STATIC_STROMGREN_PHOTONHEATING_TOOLS_PATH = (
+    Path(__file__).resolve().parents[1]
+    / 'example'
+    / 'StaticStromgrenSpherePhotoheating1D'
+    / 'tools.py'
+)
+STATIC_STROMGREN_PHOTONHEATING_TOOLS_SPEC = importlib.util.spec_from_file_location(
+    'static_stromgren_sphere_photoheating1d_tools_for_tests',
+    STATIC_STROMGREN_PHOTONHEATING_TOOLS_PATH,
+)
+static_stromgren_photoheating_tools = importlib.util.module_from_spec(
+    STATIC_STROMGREN_PHOTONHEATING_TOOLS_SPEC
+)
+assert STATIC_STROMGREN_PHOTONHEATING_TOOLS_SPEC.loader is not None
+STATIC_STROMGREN_PHOTONHEATING_TOOLS_SPEC.loader.exec_module(
+    static_stromgren_photoheating_tools
+)
 
 
 class Testing(unittest.TestCase):
@@ -393,6 +414,47 @@ class Testing(unittest.TestCase):
                 'TTT1Dthin_Stromgren100Myr.txt'
             )
         )
+
+    def test_static_stromgren_sphere_photoheating1d_static_evolution_runs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StaticStromgrenSpherePhotoheating1D'
+            / 'static_stromgren_sphere_photoheating1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+        config = {**runparams, **icparams}
+
+        par, mesh, fluid, solver = static_stromgren_photoheating_tools.build_static_problem(
+            config
+        )
+        sim = Rsim.FromComponents(par, mesh, fluid, solver)
+
+        state = {
+            'xHI': np.array([1.0, 0.0, 1.0], dtype=float),
+            'nH_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
+            'volume_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
+            'temperature_K': np.array([100.0, 200.0, 150.0], dtype=float),
+            'radius_kpc': np.array([0.1, 0.2, 0.3], dtype=float),
+        }
+        refresh_calls = []
+
+        with mock.patch.object(rtc, 'source_state', return_value=state), \
+            mock.patch.object(rrt, 'trace_photon_density', return_value=np.array([0.0, 0.0, 0.0])), \
+            mock.patch.object(rtc, 'get_timestep', return_value=(1.0, None)), \
+            mock.patch.object(sim, '_advance_source_thermochemistry_state', return_value=0.0), \
+            mock.patch.object(sim, '_finish_static_thermochemistry', return_value=None), \
+            mock.patch.object(sim, '_refresh_static_photon_density', side_effect=lambda *args: refresh_calls.append(args[-1]) or (None, 0)):
+            history = sim.EvolveStaticThermochemistry(
+                1.0 * unyt.s,
+                1.0 * unyt.s,
+                include_thermal_history=True,
+                reference_time=None,
+            )
+
+        self.assertEqual(refresh_calls, [1])
+        self.assertEqual(history['evolution_steps'], 1)
+        self.assertIn('mean_ionized_temp_K', history)
 
     def test_dynamic_stromgren_sphere_photoheating1d_uses_yaml_config(self):
         config_filename = (

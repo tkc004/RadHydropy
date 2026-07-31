@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 import tempfile
 
+import numpy as np
 import unyt
 
 repo_root = Path(__file__).resolve().parents[2]
@@ -36,6 +37,7 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 from radhydropy.example_config import load_example_parameters
+import radhydropy.io as rio
 import radhydropy.radiative_transfer as rrt
 from radhydropy.rsim import Rsim
 import example_utils as eu
@@ -73,11 +75,10 @@ def RunRadiativeTransferOnly(sim):
         direction=getattr(sim.par, 'radiative_transfer_direction', 1),
         coordsys=getattr(sim.mesh, 'coordsys', 'cartesian'),
     )
-    sim.fluid.ngamma[:] = result.cell_photon_density.to(sim.fluid.ngamma.units)
+    sim.fluid.ngamma[:] = np.asarray(result.cell_photon_density, dtype=float)
     if not hasattr(sim.fluid, 'time'):
         sim.fluid.SetFluidTime(0.0 * unyt.s)
-    sim.fluid.SetTemperature()
-    sim._write_numbered_hdf5(0)
+    rio.write_numbered_hdf5(sim, 0)
     print("--- Simulation finished. ---")
     print("--- %s seconds ---" % (time.time() - start_time))
     return result
@@ -102,6 +103,7 @@ def main(config_filename=DEFAULT_CONFIG):
         out_par,
         config['source_photon_rate'],
         str(Path(runparams['savedir']) / 'RadiativeTransferSph1D.jpg'),
+        code_units=runparams.get('CodeUnits'),
     )
 
     print('outer face photon rate = %s' % result.face_photon_rate[-1])

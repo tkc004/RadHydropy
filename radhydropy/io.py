@@ -187,7 +187,7 @@ def _write_quantity(group, name, value, code_units=None, scale_key=None, default
         unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
     else:
         data = np.asarray(value)
-        unit = str(default_unit) if default_unit is not None else "dimensionless"
+        unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
     dataset = group.create_dataset(name, data=data)
     dataset.attrs["units"] = unit
     return dataset

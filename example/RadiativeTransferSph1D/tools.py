@@ -13,6 +13,7 @@ from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits, code_quantity_to_cgs
 import radiative_transfer_analytic as rta
 
 
@@ -69,24 +70,48 @@ def load_output_state(outputfilename, config):
     return par, mesh, fluid
 
 
-def save_plot(mesh, fluid, par, source_photon_rate, figure_filename):
+def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=None):
+    code_units = CodeUnits.from_mapping(code_units)
     interior = slice(par.noghost, par.noghost + par.nogrid)
-    radius = mesh.coordinate[interior].to(unyt.pc)
-    simulated = fluid.ngamma[interior].to(1.0 / unyt.cm**3)
+    radius_values = mesh.coordinate[interior]
+    if hasattr(radius_values, 'to_value'):
+        radius = radius_values.to_value(unyt.pc) * unyt.pc
+    else:
+        radius_cm = code_quantity_to_cgs(radius_values, code_units, 'length_cm')
+        radius = radius_cm * unyt.cm
+
+    simulated_values = fluid.ngamma[interior]
+    if hasattr(simulated_values, 'to_value'):
+        simulated = simulated_values.to_value(1.0 / unyt.cm**3) * (1.0 / unyt.cm**3)
+    else:
+        simulated = np.asarray(simulated_values, dtype=float) * (1.0 / unyt.cm**3)
     analytic_fv = rta.finite_volume_density(
         mesh.boundary[interior.start : interior.stop + 1],
         mesh.vol[interior],
         source_photon_rate,
+        code_units=code_units,
     )
 
     r_min = mesh.boundary[interior.start + 1]
     r_max = mesh.boundary[interior.stop]
+    if hasattr(r_min, 'to_value'):
+        r_min_value = r_min.to_value(unyt.pc)
+    else:
+        r_min_value = float(np.asarray(r_min, dtype=float))
+    if hasattr(r_max, 'to_value'):
+        r_max_value = r_max.to_value(unyt.pc)
+    else:
+        r_max_value = float(np.asarray(r_max, dtype=float))
     radius_line = np.geomspace(
-        r_min.to_value(unyt.pc),
-        r_max.to_value(unyt.pc),
+        r_min_value,
+        r_max_value,
         512,
     ) * unyt.pc
-    analytic_point = rta.point_density(radius_line, source_photon_rate)
+    analytic_point = rta.point_density(
+        radius_line,
+        source_photon_rate,
+        code_units=code_units,
+    )
 
     relative_error = np.max(
         np.abs((simulated - analytic_fv) / analytic_fv).to_value('')
