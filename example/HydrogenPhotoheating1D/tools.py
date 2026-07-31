@@ -97,9 +97,15 @@ def interior_slice(sim):
     return slice(first, first + sim.par.nogrid)
 
 
+def _values_in_unit(array, unit):
+    if hasattr(array, 'to_value'):
+        return np.asarray(array.to_value(unit), dtype=float)
+    return np.asarray(array, dtype=float)
+
+
 def mean_temperature(sim):
     interior = interior_slice(sim)
-    return np.mean(sim.fluid.temp[interior].to_value(unyt.K)) * unyt.K
+    return np.mean(_values_in_unit(sim.fluid.temp[interior], unyt.K)) * unyt.K
 
 
 def mean_neutral_fraction(sim):
@@ -110,13 +116,15 @@ def mean_neutral_fraction(sim):
 def mean_photon_number_density(sim):
     interior = interior_slice(sim)
     return (
-        np.mean(sim.fluid.ngamma[interior].to_value(1.0 / unyt.cm**3))
+        np.mean(_values_in_unit(sim.fluid.ngamma[interior], 1.0 / unyt.cm**3))
         / unyt.cm**3
     )
 
 
 def time_value(sim, units):
-    return float(np.ravel(sim.fluid.time.to_value(units))[0])
+    if hasattr(sim.fluid.time, 'to_value'):
+        return float(np.ravel(sim.fluid.time.to_value(units))[0])
+    return float(np.ravel(np.asarray(sim.fluid.time, dtype=float))[0])
 
 
 def load_history_from_outputs(outputfiles, icparams, noghost):
@@ -128,11 +136,13 @@ def load_history_from_outputs(outputfiles, icparams, noghost):
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(
-            np.mean(rout.fluid.temp[interior].to_value(unyt.K))
+            np.mean(_values_in_unit(rout.fluid.temp[interior], unyt.K))
         )
         history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
         history['ngamma'].append(
-            np.mean(rout.fluid.ngamma[interior].to_value(1.0 / unyt.cm**3))
+            np.mean(
+                _values_in_unit(rout.fluid.ngamma[interior], 1.0 / unyt.cm**3)
+            )
         )
 
     return history
@@ -146,10 +156,26 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
     """Run the optically thin photoheating example with source switching."""
     print("--- Initization finished. Start running ... ---")
     print("--- %s seconds ---" % (time.time() - start_time))
-    sim._write_numbered_hdf5(0)
+    rio.write_numbered_hdf5(sim, 0)
 
-    final_time = sim.par.timesim
-    output_times = sim._load_output_time_list()
+    time_unit = getattr(sim.fluid.time, 'units', unyt.s)
+
+    def _as_time_quantity(value, unit=time_unit):
+        if hasattr(value, 'to'):
+            return value
+        value_array = np.asarray(value, dtype=float)
+        if value_array.shape == ():
+            magnitude = float(value_array)
+        else:
+            magnitude = float(value_array.reshape(-1)[0])
+        return magnitude * unit
+
+    final_time = _as_time_quantity(sim.par.timesim)
+    source_switch_time = _as_time_quantity(source_switch_time, final_time.units)
+    sim.fluid.time = _as_time_quantity(sim.fluid.time, final_time.units)
+    output_times = rio.load_output_time_list(
+        getattr(sim.par, 'outputtimefilename', None)
+    )
     if output_times is not None:
         target_unit = final_time.units
         output_times = np.unique(
@@ -163,7 +189,9 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
     else:
         output_interval = getattr(sim.par, 'outdeltatime', None)
         next_output_time = (
-            output_interval.copy() if output_interval is not None else None
+            _as_time_quantity(output_interval, final_time.units)
+            if output_interval is not None
+            else None
         )
     last_output_time = sim.fluid.time.copy()
     outindex = 1
@@ -185,10 +213,12 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
             dt = source_switch_time - current_time
 
         if current_time < source_switch_time:
-            ngamma = photon_density_on
+            ngamma = float(
+                np.asarray(photon_density_on.to_value(1.0 / unyt.cm**3), dtype=float)
+            )
         else:
-            ngamma = 0.0 * sim.fluid.ngamma.units
-        sim.fluid.ngamma[:] = ngamma.to(sim.fluid.ngamma.units)
+            ngamma = 0.0
+        sim.fluid.ngamma[:] = ngamma
 
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
         sim.fluid.time += dt
@@ -201,18 +231,18 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
                 next_output_index < len(output_times)
                 and sim.fluid.time >= output_times[next_output_index]
             ):
-                sim._write_numbered_hdf5(outindex)
+                rio.write_numbered_hdf5(sim, outindex)
                 last_output_time = sim.fluid.time.copy()
                 outindex += 1
                 next_output_index += 1
         elif next_output_time is not None and sim.fluid.time >= next_output_time:
-            sim._write_numbered_hdf5(outindex)
+            rio.write_numbered_hdf5(sim, outindex)
             last_output_time = sim.fluid.time.copy()
             outindex += 1
             next_output_time += output_interval
 
     if sim.fluid.time != last_output_time:
-        sim._write_numbered_hdf5(outindex)
+        rio.write_numbered_hdf5(sim, outindex)
 
     print("--- Simulation finished. ---")
     print("--- %s seconds ---" % (time.time() - start_time))

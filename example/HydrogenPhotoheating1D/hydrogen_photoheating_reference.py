@@ -3,15 +3,15 @@
 import numpy as np
 import unyt
 
-import radhydropy.chemistry_species.hydrogen as rh
-import radhydropy.radiative_transfer as rrt
+from radhydropy.constants import SPEED_OF_LIGHT_CGS
 import radhydropy.thermo_networks.hydrogen as rth
 
 
 def photon_number_density_from_flux(photon_flux):
     """Return optically thin photon density from photon flux."""
 
-    return (photon_flux / rh.SPEED_OF_LIGHT).to(1.0 / unyt.cm**3)
+    speed_of_light = SPEED_OF_LIGHT_CGS * unyt.cm / unyt.s
+    return (photon_flux / speed_of_light).to(1.0 / unyt.cm**3)
 
 
 def photoionization_equilibrium_temperature(excess_photoionization_energy):
@@ -32,18 +32,20 @@ def recombination_timescale_at_temperature(hydrogen_number_density, temperature)
     rate = hydrogen_number_density.to_value(1.0 / unyt.cm**3) * rth._cgs_alpha_B(
         temperature.to_value(unyt.K)
     )
-    return (1.0 / rate).to(unyt.yr)
+    return unyt.unyt_quantity(1.0 / rate, unyt.s).to(unyt.yr)
 
 
 def photoionization_timescale(sigma_gamma, photon_number_density):
     """Return ``1 / (c sigma_gamma n_gamma)``."""
 
+    sigma_gamma = sigma_gamma.to(unyt.cm**2)
+    speed_of_light = SPEED_OF_LIGHT_CGS * unyt.cm / unyt.s
     return (
         1.0
         / (
-            rh.SPEED_OF_LIGHT
-            * rh.photon_cross_section(sigma_gamma)
-            * rrt.photon_number_density(photon_number_density)
+            speed_of_light
+            * sigma_gamma
+            * photon_number_density
         )
     ).to(unyt.yr)
 

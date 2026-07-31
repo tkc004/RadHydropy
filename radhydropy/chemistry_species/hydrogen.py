@@ -2,7 +2,10 @@
 
 import numpy as np
 
-from radhydropy.constants import DEFAULT_EPSILON_GAMMA, DEFAULT_SIGMA_GAMMA
+from radhydropy.constants import (
+    DEFAULT_EPSILON_GAMMA,
+    DEFAULT_SIGMA_GAMMA,
+)
 
 
 def photon_cross_section(sigma_gamma=DEFAULT_SIGMA_GAMMA):
