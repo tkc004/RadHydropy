@@ -3,6 +3,7 @@
 import os
 import sys
 from types import SimpleNamespace
+from pathlib import Path
 
 import matplotlib
 matplotlib.use('Agg')
@@ -10,15 +11,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
-import radhydropy.radiative_transfer as rrt
-from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
 from radhydropy.units import (
     CodeUnits,
-    _as_cgs_float,
 )
 
 static_stromgren_dir = os.path.abspath(
@@ -33,43 +31,52 @@ import stromgren_analytic as sa
 def build_static_problem(config):
     code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
-        coordsys='spherical',
-        boundcond='OpenSph',
+        coordsys=config.get('coordsys', 'spherical'),
+        boundcond=config.get('boundcond', 'OpenSph'),
         nogrid=config['number_of_cells'],
-        noghost=2,
+        noghost=config.get('noghost', 2),
         boxsize=config['boxsize'],
         verbose=config.get('verbose', 0),
         outdir=config.get('outdir', '.'),
         outfileprefix=config.get('outfileprefix', 'Output'),
         savedir=config.get('savedir', config.get('outdir', '.')),
-        area=config['area'],
-        EOStype='polytropic',
-        gamma=5.0 / 3.0,
-        dtmin=config['dtmin'],
-        dtmax=config['dtmax'],
-        hydrogen_chemistry=True,
-        hydrogen_mass_fraction=1.0,
-        hydrogen_xHI_initial=1.0,
-        hydrogen_xHI_inflow=1.0,
-        hydrogen_xHI_outflow=1.0,
-        hydrogen_source_CFL=config.get('evolution_timestep_cfl', 0.1),
-        hydrogen_source_dtmin=config['hydrogen_source_dtmin'],
-        hydrogen_update_mu=True,
-        hydrogen_thermal_coupling=True,
-        hydrogen_recombination=True,
-        hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=config['alpha_B_coefficient'],
-        hydrogen_beta=config['hydrogen_beta'],
-        hydrogen_radiation_field=False,
-        hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
-        hydrogen_sigma_gamma=config['sigma_gamma'],
-        hydrogen_epsilon_gamma=config['epsilon_gamma'],
-        radiative_transfer=True,
-        radiative_transfer_method='long_characteristics',
-        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
-        radiative_transfer_source_photon_rate=config['source_photon_rate'],
-        radiative_transfer_direction=1,
+        area=config.get('area', 1.0 * unyt.cm**2),
+        EOStype=config.get('EOStype', 'polytropic'),
+        gamma=config.get('gamma', 5.0 / 3.0),
+        dtmin=config.get('dtmin', 1.0e-6 * unyt.Myr),
+        dtmax=config.get('dtmax', 1.0 * unyt.Myr),
+        hydrogen_chemistry=config.get('hydrogen_chemistry', True),
+        hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_xHI_initial=config.get('hydrogen_xHI_initial', 1.0),
+        hydrogen_xHI_inflow=config.get('hydrogen_xHI_inflow', 1.0),
+        hydrogen_xHI_outflow=config.get('hydrogen_xHI_outflow', 1.0),
+        hydrogen_source_CFL=config.get(
+            'hydrogen_source_CFL',
+            config.get('evolution_timestep_cfl', 0.1),
+        ),
+        hydrogen_source_dtmin=config.get('hydrogen_source_dtmin', 0.0 * unyt.Myr),
+        hydrogen_update_mu=config.get('hydrogen_update_mu', True),
+        hydrogen_thermal_coupling=config.get('hydrogen_thermal_coupling', True),
+        hydrogen_recombination=config.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=config.get('hydrogen_collisional_ionization', False),
+        hydrogen_alpha_B=config.get('alpha_B_coefficient', config.get('hydrogen_alpha_B')),
+        hydrogen_beta=config.get('hydrogen_beta', 0.0 * unyt.cm**3 / unyt.s),
+        hydrogen_radiation_field=config.get('hydrogen_radiation_field', False),
+        hydrogen_radiation_evolution=config.get('hydrogen_radiation_evolution', False),
+        hydrogen_ngamma_initial=config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=config.get('sigma_gamma', config.get('hydrogen_sigma_gamma')),
+        hydrogen_epsilon_gamma=config.get('epsilon_gamma', config.get('hydrogen_epsilon_gamma')),
+        radiative_transfer=config.get('radiative_transfer', True),
+        radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_boundary_flux=config.get(
+            'radiative_transfer_boundary_flux',
+            0.0 / (unyt.cm**2 * unyt.s),
+        ),
+        radiative_transfer_source_photon_rate=config.get(
+            'source_photon_rate',
+            config.get('radiative_transfer_source_photon_rate'),
+        ),
+        radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
         CodeUnits=code_units,
         unit_system=code_units.unit_system,
     )
@@ -80,52 +87,64 @@ def build_static_problem(config):
         config['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
-    mesh.SetUpMesh(par)
 
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
     fluid.rho = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp = np.ones(par.nogrid) * config['initial_temperature']
+    fluid.temp = np.ones(par.nogrid) * config.get('initial_temperature', 1.0e4 * unyt.K)
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.SetUpFluid(par)
+    fluid.ngamma = np.ones(par.nogrid) * config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
     fluid.SetFluidTime(0.0 * unyt.Myr)
-
     solver = Solver()
-    solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
-    result = rrt.trace_long_characteristics(
-        mesh,
-        fluid.rho,
-        fluid.xHI,
-        hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-        sigma_gamma=_as_cgs_float(
-            getattr(par, 'hydrogen_sigma_gamma', rrt.rh.DEFAULT_SIGMA_GAMMA),
-            unyt.cm**2,
-        ),
-        boundary_flux=_as_cgs_float(
-            getattr(par, 'radiative_transfer_boundary_flux', 0.0),
-            1.0 / (unyt.cm**2 * unyt.s),
-        ),
-        source_photon_rate=_as_cgs_float(
-            getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
-            1.0 / unyt.s,
-        ),
-        direction=getattr(par, 'radiative_transfer_direction', 1),
-        coordsys=getattr(mesh, 'coordsys', 'cartesian'),
-    )
-    fluid.ngamma[:] = np.asarray(result.cell_photon_density, dtype=float)
     return par, mesh, fluid, solver
+
+
+def write_initial_condition(config, runparams):
+    """Build the raw IC state, replace any stale snapshot, and write it."""
+    par, mesh, fluid, _ = build_static_problem(config)
+    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    Path(runparams['ICfilename']).unlink(missing_ok=True)
+    rio.writehdf5(sim, runparams['ICfilename'])
+
+
+def _refresh_mesh_geometry(mesh, par):
+    """Recompute derived mesh geometry from an already ghosted boundary."""
+    mesh.xdelta = mesh.boundary[1:] - mesh.boundary[:-1]
+    mesh.oneoverdx = 1.0 / mesh.xdelta
+    if par.coordsys == 'cartesian':
+        mesh.coordinate = 0.5 * (mesh.boundary[1:] + mesh.boundary[:-1])
+        if hasattr(par, 'area'):
+            mesh.area = np.ones(len(mesh.xdelta)) * par.area
+        else:
+            mesh.area = np.ones(len(mesh.xdelta))
+        mesh.vol = mesh.xdelta * mesh.area
+    elif par.coordsys == 'spherical':
+        mesh.area = (mesh.boundary[:-1] ** 2) * 4.0 * np.pi
+        mesh.vol = np.absolute((mesh.boundary[1:] ** 3 - mesh.boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
+        vol_denom = mesh.boundary[1:] ** 3 - mesh.boundary[:-1] ** 3
+        mesh.coordinate = 0.5 * (mesh.boundary[1:] + mesh.boundary[:-1])
+        nonzero_vol_denom = vol_denom != 0.0
+        mesh.coordinate[nonzero_vol_denom] = 0.75 * (
+            mesh.boundary[1:][nonzero_vol_denom] ** 4 - mesh.boundary[:-1][nonzero_vol_denom] ** 4
+        ) / vol_denom[nonzero_vol_denom]
+        for ig in range(len(mesh.vol)):
+            if (mesh.boundary[ig] < 0.0) and (mesh.boundary[ig + 1] > 0.0):
+                mesh.vol[ig] = (mesh.boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.coordinate[ig] = 0.75 * mesh.boundary[ig + 1]
+                mesh.area[ig] = 0.0
+    else:
+        raise ValueError("coordsys unknown: %s" % par.coordsys)
 
 
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
+    _refresh_mesh_geometry(mesh, par)
     return par, mesh, fluid
 
 

@@ -55,30 +55,41 @@ def main(config_filename=DEFAULT_CONFIG):
         'temperature_reference_filename',
         'neutral_fraction_reference_filename',
     ):
-        if key in icparams:
-            value = Path(icparams[key])
+        if key in runparams:
+            value = Path(runparams[key])
             if not value.is_absolute():
-                icparams[key] = str(config_dir / value)
+                runparams[key] = str(config_dir / value)
     config = {**runparams, **icparams}
     print('config', config)
+    for alias, source in (
+        ('hydrogen_alpha_B', 'alpha_B_coefficient'),
+        ('hydrogen_sigma_gamma', 'sigma_gamma'),
+        ('hydrogen_epsilon_gamma', 'epsilon_gamma'),
+        ('radiative_transfer_source_photon_rate', 'source_photon_rate'),
+    ):
+        if source in runparams and alias not in runparams:
+            runparams[alias] = runparams[source]
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
-    par, mesh, fluid, solver = et.build_static_problem(config)
-    sim = Rsim.FromComponents(par, mesh, fluid, solver)
+    et.write_initial_condition(config, runparams)
 
-    rio.writehdf5(sim, runparams['ICfilename'])
+    mainrun = Rsim(runparams)
+    mainrun.Callreadhdf5()
+    mainrun.SetMesh()
+    mainrun.SetFluid()
+    mainrun.SetInitFluid()
 
-    history = sim.EvolveStaticThermochemistry(
-        icparams['final_time'],
-        icparams['evolution_timestep'],
+    history = mainrun.EvolveStaticThermochemistry(
+        runparams['final_time'],
+        runparams['evolution_timestep'],
         include_thermal_history=True,
-        reference_time=icparams['reference_time'],
+        reference_time=runparams['reference_time'],
     )
 
     output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
-    rio.writehdf5(sim, output_filename)
+    rio.writehdf5(mainrun, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
     figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSpherePhotoheating1D.jpg'
@@ -88,18 +99,18 @@ def main(config_filename=DEFAULT_CONFIG):
     print(
         'stromgren radius = %s'
         % sa.stromgren_radius(
-            icparams['source_photon_rate'],
+            runparams['source_photon_rate'],
             icparams['hydrogen_number_density'],
-            icparams['alpha_B_coefficient'],
+            runparams['alpha_B_coefficient'],
         ).to(unyt.kpc)
     )
     print(
         'analytic front radius = %s'
         % sa.ionization_front_radius(
-            icparams['final_time'],
-            icparams['source_photon_rate'],
+            runparams['final_time'],
+            runparams['source_photon_rate'],
             icparams['hydrogen_number_density'],
-            icparams['alpha_B_coefficient'],
+            runparams['alpha_B_coefficient'],
         ).to(unyt.kpc)
     )
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_K'][-1])

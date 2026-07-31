@@ -12,69 +12,105 @@ runparams:
       UnitVelocity_in_cgs: 1.0e5
       UnitCurrent_in_cgs: 1.0
       UnitTemp_in_cgs: 1.0
-
-ICparams:
-  hydrogen_number_density:
-    value: 1.0e-3
-    unit: 1/cm**3
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 500.0
+    unit: Myr
   area:
     value: 1.0
     unit: kpc**2
-  alpha_B_coefficient:
-    value: 2.59e-13
-    unit: cm**3/s
-  sigma_gamma:
-    value: 1.62e-18
-    unit: cm**2
-  source_photon_rate:
-    value: 5.0e48
-    unit: 1/s
-  epsilon_gamma:
-    value: 6.33
-    unit: eV
-  boxsize:
-    value: 20.0
-    unit: kpc
+  CFL: 0.5
+  boundcond: OpenSph
+  noghost: 2
+  verbose: 0
+  order: 0
   dtmin:
     value: 1.0e-6
     unit: Myr
   dtmax:
     value: 1.0
     unit: Myr
-  plot_radius_max:
-    value: 7.5
-    unit: kpc
+  hydro_cfl: 0.5
+  source_cfl: 1.0
+  hydro_timestep_max:
+    value: 1.0
+    unit: Myr
+  source_timestep_min:
+    value: 0.0
+    unit: Myr
+  hydrogen_chemistry: true
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 1.0
+  hydrogen_xHI_inflow: 1.0
+  hydrogen_xHI_outflow: 1.0
+  hydrogen_source_CFL: 0.1
+  hydrogen_source_dtmin:
+    value: 0.0
+    unit: Myr
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: true
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: false
+  alpha_B_coefficient:
+    value: 2.59e-13
+    unit: cm**3/s
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_radiation_field: false
+  hydrogen_radiation_evolution: false
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  sigma_gamma:
+    value: 1.62e-18
+    unit: cm**2
+  epsilon_gamma:
+    value: 6.33
+    unit: eV
+  radiative_transfer: true
+  radiative_transfer_method: long_characteristics
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
+  source_photon_rate:
+    value: 5.0e48
+    unit: 1/s
+  radiative_transfer_direction: 1
   final_time:
     value: 500.0
     unit: Myr
   reference_time:
     value: 100.0
     unit: Myr
-  reference_radius_unit:
-    value: 5.4
-    unit: kpc
   evolution_timestep:
     value: 1.0
     unit: Myr
-  hydrogen_source_dtmin:
-    value: 0.0
-    unit: Myr
-  evolution_timestep_cfl: 0.1
-  number_of_cells: 1024
-  hydrogen_beta:
-    value: 0.0
-    unit: cm**3/s
-  hydrogen_ngamma_initial:
-    value: 0.0
-    unit: 1/cm**3
-  radiative_transfer_boundary_flux:
-    value: 0.0
-    unit: 1/(cm**2*s)
-  analytic_inner_radius:
-    value: 0.1
+  plot_radius_max:
+    value: 7.5
     unit: kpc
+  reference_radius_unit:
+    value: 5.4
+    unit: kpc
+  temperature_reference_filename: TTT1Dthin_Stromgren100Myr.txt
+  neutral_fraction_reference_filename: xTT1Dthin_Stromgren100Myr.txt
+
+ICparams:
+  hydrogen_number_density:
+    value: 1.0e-3
+    unit: 1/cm**3
+  boxsize:
+    value: 20.0
+    unit: kpc
+  number_of_cells: 1024
   initial_temperature:
     value: 100.0
     unit: K
-  temperature_reference_filename: TTT1Dthin_Stromgren100Myr.txt
-  neutral_fraction_reference_filename: xTT1Dthin_Stromgren100Myr.txt
+  time:
+    value: 0.0
+    unit: Myr
+  analytic_inner_radius:
+    value: 0.1
+    unit: kpc

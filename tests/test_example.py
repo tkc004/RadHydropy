@@ -478,18 +478,38 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertEqual(runparams['coordsys'], 'spherical')
+        self.assertEqual(runparams['boundcond'], 'OpenSph')
+        self.assertEqual(runparams['noghost'], 2)
+        self.assertEqual(runparams['EOStype'], 'polytropic')
+        self.assertEqual(runparams['gamma'], 1.6666666666666667)
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(runparams['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(runparams['evolution_timestep'].to_value(unyt.Myr), 1.0)
+        self.assertEqual(runparams['reference_time'].to_value(unyt.Myr), 100.0)
+        self.assertEqual(runparams['source_photon_rate'].to_value(1.0 / unyt.s), 5.0e48)
+        self.assertEqual(
+            runparams['alpha_B_coefficient'].to_value(unyt.cm**3 / unyt.s),
+            2.59e-13,
+        )
+        self.assertEqual(
+            runparams['temperature_reference_filename'].endswith(
+                'TTT1Dthin_Stromgren100Myr.txt'
+            ),
+            True,
+        )
+        self.assertEqual(
+            runparams['neutral_fraction_reference_filename'].endswith(
+                'xTT1Dthin_Stromgren100Myr.txt'
+            ),
+            True,
+        )
         self.assertEqual(icparams['number_of_cells'], 1024)
         self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
-        self.assertEqual(
-            icparams['source_photon_rate'].to_value(1.0 / unyt.s),
-            5.0e48,
-        )
-        self.assertEqual(icparams['evolution_timestep'].to_value(unyt.Myr), 1.0)
-        self.assertTrue(
-            icparams['temperature_reference_filename'].endswith(
-                'TTT1Dthin_Stromgren100Myr.txt'
-            )
-        )
+        self.assertEqual(icparams['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
+        self.assertEqual(icparams['initial_temperature'].to_value(unyt.K), 100.0)
+        self.assertEqual(icparams['time'].to_value(unyt.Myr), 0.0)
+        self.assertEqual(icparams['analytic_inner_radius'].to_value(unyt.kpc), 0.1)
 
     def test_static_stromgren_sphere_photoheating1d_static_evolution_runs(self):
         config_filename = (

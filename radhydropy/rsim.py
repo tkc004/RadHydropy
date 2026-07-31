@@ -542,8 +542,9 @@ class Rsim():
         return 0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
 
     def _refresh_static_photon_density(self, state, step, time_s, final_time_s):
-        if time_s < final_time_s:
-            return None, 0
+        # The static thermo-chemistry path still needs the radiation field to
+        # follow the evolving neutral fraction. Refresh every source step so
+        # the next implicit update sees the current opacity.
         ngamma = rrt.trace_photon_density(state, self.par)
         return ngamma, 1
 
