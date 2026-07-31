@@ -1,6 +1,6 @@
 runparams:
   simname: LateHIIRegionExpansion1D
-  ICfilename: InitialCondition.hdf5
+  ICfilename: InitialCondition_lateHII.hdf5
   outdir: .
   outfileprefix: Output
   outputtimefilename: output_times_late.txt

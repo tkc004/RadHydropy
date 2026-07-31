@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import importlib.util
 import sys
 import tempfile
+from unittest import mock
 
 import numpy as np
 import unyt
@@ -14,10 +15,11 @@ import radhydropy.io as rio
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / 'example'
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
+HII_EXAMPLE_ROOT = EXAMPLE_ROOT / 'HIIRegionExpansion1D'
+if str(HII_EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(HII_EXAMPLE_ROOT))
 
-HII_TOOLS_PATH = (
-    EXAMPLE_ROOT / 'HIIRegionExpansion1D' / 'tools.py'
-)
+HII_TOOLS_PATH = HII_EXAMPLE_ROOT / 'tools.py'
 HII_TOOLS_SPEC = importlib.util.spec_from_file_location(
     'hii_region_expansion1d_tools_for_tests',
     HII_TOOLS_PATH,
@@ -25,6 +27,15 @@ HII_TOOLS_SPEC = importlib.util.spec_from_file_location(
 hii_tools = importlib.util.module_from_spec(HII_TOOLS_SPEC)
 assert HII_TOOLS_SPEC.loader is not None
 HII_TOOLS_SPEC.loader.exec_module(hii_tools)
+
+LATE_HII_PATH = HII_EXAMPLE_ROOT / 'late_hii_region_expansion1d.py'
+LATE_HII_SPEC = importlib.util.spec_from_file_location(
+    'late_hii_region_expansion1d_for_tests',
+    LATE_HII_PATH,
+)
+late_hii = importlib.util.module_from_spec(LATE_HII_SPEC)
+assert LATE_HII_SPEC.loader is not None
+LATE_HII_SPEC.loader.exec_module(late_hii)
 
 STELLAR_WIND_TOOLS_PATH = (
     Path(__file__).resolve().parents[1]
@@ -441,6 +452,9 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
+        self.assertTrue(
+            runparams['ICfilename'].endswith('InitialCondition_lateHII.hdf5')
+        )
         self.assertEqual(icparams['number_of_cells'], 512)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 7.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 3.0)
@@ -452,6 +466,19 @@ class Testing(unittest.TestCase):
             icparams['output_snapshots'][-1]['label'],
             '3p00',
         )
+
+    def test_late_hii_initial_condition_file_is_replaced(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            icfilename = Path(tmpdir) / 'InitialCondition_lateHII.hdf5'
+            icfilename.write_text('stale')
+            runparams = {'ICfilename': str(icfilename)}
+            sim = SimpleNamespace(name='dummy')
+
+            with mock.patch.object(rio, 'writehdf5') as write_mock:
+                late_hii.write_initial_condition(sim, runparams)
+
+            self.assertFalse(icfilename.exists())
+            write_mock.assert_called_once_with(sim, str(icfilename))
 
     def test_late_hii_region_snapshot_reload_recomputes_geometry(self):
         config_filename = (

@@ -10,7 +10,7 @@ region around a source at the origin. The gas is pure hydrogen, spherical,
 and evolved with hydrodynamics plus hydrogen photo-chemistry. The neutral and
 ionized media are both treated with a simplified isothermal closure:
 
-* neutral gas: ``T = 10^2 K``;
+* neutral gas: ``T = 10^3 K``;
 * ionized gas: ``T = 10^4 K``.
 
 The example is YAML-driven, writes HDF5 snapshots, reloads those snapshots,
@@ -22,6 +22,8 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+
+import numpy as np
 
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
@@ -39,11 +41,139 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
+import radhydropy.io as rio
 from radhydropy.rsim import Rsim
+from radhydropy.units import code_unit_scales
 import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('late_hii_region_expansion1d.yaml')
+
+
+def write_initial_condition(sim, runparams):
+    """Replace any stale late-phase initial condition snapshot."""
+    Path(runparams['ICfilename']).unlink(missing_ok=True)
+    rio.writehdf5(sim, runparams['ICfilename'])
+
+
+def print_startup_diagnostics(sim, config, icparams):
+    """Print the main physical scales before the long run starts."""
+    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    rho = np.asarray(sim.fluid.rho[interior], dtype=float)
+    vel = np.asarray(sim.fluid.vel[interior], dtype=float)
+    temp = np.asarray(sim.fluid.temp[interior], dtype=float)
+    xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
+    ngamma = np.asarray(sim.fluid.ngamma[interior], dtype=float) if hasattr(sim.fluid, 'ngamma') else None
+    code_units = getattr(sim.par, 'code_units', getattr(sim.par, 'CodeUnits', None))
+    ngamma_cgs = None
+    scales = None
+    if ngamma is not None and code_units is not None:
+        scales = code_unit_scales(code_units)
+        ngamma_cgs = ngamma * scales['number_density_cm3']
+
+    print('--- Startup diagnostics ---')
+    print('cells = %d' % sim.par.nogrid)
+    print('time = %s' % sim.fluid.time)
+    print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho), np.max(rho)))
+    print('vel max abs = %.3e km/s' % (np.max(np.abs(vel)) / 1.0e5))
+    print('temperature range = [%.3e, %.3e] K' % (np.min(temp), np.max(temp)))
+    print('neutral fraction range = [%.3e, %.3e]' % (np.min(xHI), np.max(xHI)))
+    if ngamma is not None:
+        print('ngamma range = [%.3e, %.3e] code units' % (np.min(ngamma), np.max(ngamma)))
+        if ngamma_cgs is not None:
+            print('ngamma range = [%.3e, %.3e] cm^-3' % (np.min(ngamma_cgs), np.max(ngamma_cgs)))
+            boundary = np.asarray(sim.mesh.boundary[interior.start : interior.start + 2], dtype=float)
+            if scales is not None:
+                inner_radius_cm = 0.5 * (boundary[0] + boundary[1]) * scales['length_cm']
+                thin_estimate = config['source_photon_rate'].to_value(1 / unyt.s) / (
+                    4.0 * np.pi * inner_radius_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
+                )
+                print('optically thin inner-cell ngamma estimate = %.3e cm^-3' % thin_estimate)
+    print('neutral sound speed = %.3e km/s' % et.neutral_sound_speed(config).to_value(unyt.km / unyt.s))
+    print(
+        'ionized sound speed (config) = %.3e km/s'
+        % config['ionized_sound_speed'].to_value(unyt.km / unyt.s)
+    )
+    print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
+    print('stagnation radius = %.3e pc' % et.stagnation_radius(config).to_value(unyt.pc))
+    print(
+        'Spitzer radius at final time = %.3e pc'
+        % et.spitzer_radius(icparams['final_time'], config).to_value(unyt.pc)
+    )
+    print(
+        'Hosokawa-Inutsuka radius at final time = %.3e pc'
+        % et.hosokawa_inutsuka_radius(icparams['final_time'], config).to_value(unyt.pc)
+    )
+    try:
+        hydro_dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
+        hydro_dt_s = hydro_dt.to_value(unyt.s) if hasattr(hydro_dt, 'to_value') else float(hydro_dt)
+        print('hydro timestep estimate = %.3e s' % hydro_dt_s)
+    except Exception as exc:
+        print('hydro timestep estimate failed: %s' % exc)
+        hydro_dt_s = None
+    try:
+        source_dt, thermal_rate = sim.solver.GetSourceTimestepFast(
+            sim.mesh,
+            sim.fluid,
+            sim.par,
+            sim.par.dtmax,
+        )
+        source_dt_s = source_dt.to_value(unyt.s) if hasattr(source_dt, 'to_value') else float(source_dt)
+        print('source timestep estimate = %.3e s' % source_dt_s)
+        if hydro_dt_s is not None and source_dt_s > 0.0:
+            print('estimated source substeps per hydro step = %.1f' % (hydro_dt_s / source_dt_s))
+        if thermal_rate is not None:
+            print('thermal rate range = [%.3e, %.3e]' % (np.min(np.asarray(thermal_rate, dtype=float)), np.max(np.asarray(thermal_rate, dtype=float))))
+    except Exception as exc:
+        print('source timestep estimate failed: %s' % exc)
+
+
+def make_logging_step_backend(sim, config, max_logged_steps=5):
+    """Wrap the isothermal step backend with a short startup trace."""
+    base_step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
+    state = {'count': 0}
+    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+
+    def step_backend(dt=None, mode='hydro_sources', advect_chemistry=True):
+        step_index = state['count']
+        should_log = step_index < max_logged_steps
+        if should_log:
+            print(
+                '--- step %d begin: time=%s dt=%s mode=%s ---'
+                % (step_index + 1, sim.fluid.time, dt, mode)
+            )
+        result = base_step_backend(
+            dt=dt,
+            mode=mode,
+            advect_chemistry=advect_chemistry,
+        )
+        if should_log:
+            vel = np.asarray(sim.fluid.vel[interior], dtype=float)
+            rho = np.asarray(sim.fluid.rho[interior], dtype=float)
+            xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
+            vmax = np.max(np.abs(vel)) / 1.0e5
+            front_radius = et.ionization_front_position(sim.mesh, sim.fluid, sim.par)
+            print(
+                '--- step %d end: time=%s hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
+                % (
+                    step_index + 1,
+                    sim.fluid.time,
+                    result['hydro_steps'],
+                    result['source_steps'],
+                    front_radius,
+                    vmax,
+                    np.min(rho),
+                    np.max(rho),
+                    np.min(xHI),
+                    np.max(xHI),
+                )
+            )
+            if step_index + 1 == max_logged_steps:
+                print('--- step logging disabled after %d steps ---' % max_logged_steps)
+        state['count'] += 1
+        return result
+
+    return step_backend
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -58,9 +188,11 @@ def main(config_filename=DEFAULT_CONFIG):
     par, mesh, fluid, solver = et.build_problem(config)
     sim = Rsim.FromComponents(par, mesh, fluid, solver)
     et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
+    write_initial_condition(sim, runparams)
+    print_startup_diagnostics(sim, config, icparams)
 
     output_specs = icparams['output_snapshots']
-    step_backend = et.make_piecewise_isothermal_step_backend(sim, config)
+    step_backend = make_logging_step_backend(sim, config, max_logged_steps=5)
     print('starting hydro_sources evolution; this may take a while...')
     sim.Run(
         outputtime=0,
