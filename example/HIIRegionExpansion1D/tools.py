@@ -68,7 +68,6 @@ def build_problem(config):
         radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
         CodeUnits=code_units,
-        code_units=code_units,
         unit_system=code_units.unit_system if code_units is not None else None,
     )
 
@@ -100,6 +99,17 @@ def build_problem(config):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
+    code_units = getattr(par, 'CodeUnits', None)
+    if code_units is not None:
+        par.time = np.asarray(par.time, dtype=float) * code_units.time_unit
+        par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units.length_unit
+        fluid.time = np.asarray(fluid.time, dtype=float) * code_units.time_unit
+        mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units.length_unit
+        fluid.rho = np.asarray(fluid.rho, dtype=float) * code_units.density_unit
+        fluid.vel = np.asarray(fluid.vel, dtype=float) * code_units.velocity_unit
+        fluid.temp = np.asarray(fluid.temp, dtype=float) * code_units.temperature_unit
+        if hasattr(fluid, 'ngamma'):
+            fluid.ngamma = np.asarray(fluid.ngamma, dtype=float) * code_units.number_density_unit
     # ``readhdf5`` restores the saved boundary and fluid state, but it does not
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's

@@ -38,7 +38,7 @@ class Rsim():
         self.fluid.eos = EOS(
             self.par.EOStype,
             self.par.gamma,
-            getattr(self.par, 'code_units', getattr(self.par, 'CodeUnits', None)),
+            getattr(self.par, 'CodeUnits', None),
         )
 
     @classmethod
@@ -56,7 +56,8 @@ class Rsim():
         """Read the configured initial-condition HDF5 file."""
         print("--- Read Initial Condition ---")
         print("--- %s seconds ---" % (time.time() - start_time))
-        rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename, preserve_units=False)
+        self._require_code_units()
+        rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename)
         self.checkparams()
         self.fluid.SetFluidTime(self.par.time)
         print("--- Start Initial Time ---")
@@ -85,9 +86,7 @@ class Rsim():
 
     def ConvertToCodeUnits(self):
         """Convert the runtime mesh and fluid state into the internal unit system."""
-        code = getattr(self.par, 'CodeUnits', None)
-        if code is None:
-            return
+        code = self._require_code_units()
         if getattr(self, '_runtime_converted_to_code_units', False):
             return
 
@@ -119,9 +118,7 @@ class Rsim():
 
     def ConvertParametersToCodeUnits(self):
         """Convert only the runtime parameters into the internal unit system."""
-        code = getattr(self.par, 'CodeUnits', None)
-        if code is None:
-            return
+        code = self._require_code_units()
         if getattr(self, '_runtime_parameters_converted_to_code_units', False):
             return
 
@@ -145,6 +142,13 @@ class Rsim():
         }
         apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
         self._runtime_parameters_converted_to_code_units = True
+
+    def _require_code_units(self):
+        """Return the active code-unit system or fail fast during startup."""
+        code = getattr(self.par, 'CodeUnits', None)
+        if code is None:
+            raise ValueError("simulation startup requires par.CodeUnits")
+        return code
 
     def WriteUsedParameters(self, filename="used_parameters.yaml"):
         """Write the active runtime parameters to a text file in the CWD."""
@@ -486,7 +490,7 @@ class Rsim():
             return None
         return time_seconds(
             reference_time,
-            getattr(self.par, 'code_units', getattr(self.par, 'CodeUnits', None)),
+            getattr(self.par, 'CodeUnits', None),
         )
 
     def _static_step_limit_seconds(self, time_s, final_time_s, dtmax_s, reference_time_s, history):
@@ -569,7 +573,7 @@ class Rsim():
         ngamma = rrt.trace_photon_density(state, self.par)
         recombined_photons = 0.0
         time_s = 0.0
-        code_units = getattr(self.par, 'code_units', getattr(self.par, 'CodeUnits', None))
+        code_units = getattr(self.par, 'CodeUnits', None)
         final_time_s = time_seconds(final_time, code_units)
         dtmax_s = time_seconds(source_timestep, code_units)
         reference_time_s = self._static_reference_time_seconds(reference_time)

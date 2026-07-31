@@ -363,7 +363,7 @@ class Solver():
             potential=getattr(par, "gravity_potential", None),
             coordinate=getattr(par, "gravity_coordinate", None),
             acceleration=getattr(par, "gravity_acceleration", None),
-            code_units=getattr(par, "code_units", getattr(par, "CodeUnits", None)),
+            code_units=getattr(par, "CodeUnits", None),
         )
 
     def ApplyExternalGravity(self, dt, mesh, fluid, par):
@@ -372,7 +372,7 @@ class Solver():
         if gravity is None or not gravity.externalgravity:
             return 0
         acceleration = gravity.acceleration_on_mesh(mesh)
-        code_units = getattr(par, "code_units", getattr(par, "CodeUnits", None))
+        code_units = getattr(par, "CodeUnits", None)
         if code_units is not None:
             target_unit = code_units.length_unit / code_units.time_unit**2
             if hasattr(acceleration, "to_value"):
@@ -453,7 +453,7 @@ class Solver():
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
         btype = par.boundcond
-        code_units = getattr(par, 'code_units', getattr(par, 'CodeUnits', None))
+        code_units = getattr(par, 'CodeUnits', None)
         scales = code_unit_scales(code_units)
         noghost = par.noghost
         nogrid = par.nogrid

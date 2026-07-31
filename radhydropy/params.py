@@ -97,7 +97,6 @@ class Par():
                         missing_keys.append((key, value))
                     setattr(self, key, value)
             self.CodeUnits = CodeUnits.from_mapping(code_units_value)
-            self.code_units = self.CodeUnits
             self.unit_system = self.CodeUnits.unit_system
             if verbose > 0 and missing_keys:
                 for key, value in missing_keys:

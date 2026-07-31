@@ -371,7 +371,7 @@ def source_state(mesh, fluid, par):
     """Return a float state for fixed-density thermo-chemistry tests."""
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.code_units")
+        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     kpc_in_cm = float((1.0 * unyt.kpc).to_value(unyt.cm))
     interior = interior_slice(par)
     boundary = as_named_array(
@@ -639,7 +639,7 @@ def apply_state(state, fluid, par):
     fluid.xHI[interior] = state['xHI']
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.code_units")
+        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     if hasattr(fluid, 'ngamma') and 'ngamma_cm3' in state:
         fluid.ngamma[interior] = _cgs_quantity_to_code(
             state['ngamma_cm3'],
@@ -663,7 +663,7 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     state = _fast_source_state(mesh, fluid, par)
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.code_units")
+        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     remaining_s = _code_quantity_to_cgs(remaining, code.time_unit)
     if getattr(par, 'radiative_transfer', False):
         state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
@@ -682,7 +682,7 @@ def _fast_source_state(mesh, fluid, par):
     """Return a cgs float snapshot for the fast thermo-chemistry path."""
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.code_units")
+        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     interior = slice(par.noghost, par.noghost + par.nogrid)
     rho_g_cm3 = _code_quantity_to_cgs(fluid.rho[interior], code.density_unit)
     temperature_K = _code_quantity_to_cgs(fluid.temp[interior], code.temperature_unit)
@@ -848,7 +848,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
     state = _fast_source_state(mesh, fluid, par)
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.code_units")
+        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     remaining_s = _code_quantity_to_cgs(dt, code.time_unit)
     zero_time_s = 0.0
     source_steps = 0

@@ -46,23 +46,23 @@ def _scale_unit_for_key(scale_key):
     }.get(scale_key, None)
 
 
-def _read_runtime_quantity(group, name, code_units=None, scale_key=None, preserve_units=False):
+def _read_runtime_quantity(group, name, code_units=None, scale_key=None):
     dataset = group[name]
     data = np.asarray(dataset[()], dtype=float)
-    if preserve_units:
-        unit_name = dataset.attrs.get("units", None)
-        return data * unyt.Unit(unit_name) if unit_name else data
+    unit_name = dataset.attrs.get("units", None)
     if code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
-        unit_name = dataset.attrs.get("units", None)
         if unit_name:
             stored_unit = unyt.Unit(unit_name)
             cgs_unit = _scale_unit_for_key(scale_key)
             if cgs_unit is not None:
                 data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
         return as_named_array(data / scales[scale_key])
-    unit_name = dataset.attrs.get("units", None)
-    return data * unyt.Unit(unit_name) if unit_name else data
+    if unit_name:
+        raise ValueError(
+            f"Cannot read dataset {name!r} with units {unit_name!r} without a code-unit mapping."
+        )
+    return as_named_array(data)
 
 
 def _read_dataset(group, name):
@@ -94,25 +94,25 @@ def _dataset_aliases(name):
     return alias_map.get(name, ())
 
 
-def _read_any_dataset(dataset, code_units=None, scale_key=None, preserve_units=False):
+def _read_any_dataset(dataset, code_units=None, scale_key=None):
     data = np.asarray(dataset[()], dtype=float)
-    if preserve_units:
-        unit_name = dataset.attrs.get("units", None)
-        return data * unyt.Unit(unit_name) if unit_name else data
+    unit_name = dataset.attrs.get("units", None)
     if code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
-        unit_name = dataset.attrs.get("units", None)
         if unit_name:
             stored_unit = unyt.Unit(unit_name)
             cgs_unit = _scale_unit_for_key(scale_key)
             if cgs_unit is not None:
                 data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
         return as_named_array(data / scales[scale_key])
-    unit_name = dataset.attrs.get("units", None)
-    return data * unyt.Unit(unit_name) if unit_name else as_named_array(data)
+    if unit_name:
+        raise ValueError(
+            f"Cannot read dataset {dataset.name!r} with units {unit_name!r} without a code-unit mapping."
+        )
+    return as_named_array(data)
 
 
-def _populate_group_targets(group, targets, code_units=None, preserve_units=False, scale_map=None):
+def _populate_group_targets(group, targets, code_units=None, scale_map=None):
     scale_map = scale_map or {}
     for name, dataset in group.items():
         if not isinstance(dataset, h5py.Dataset):
@@ -121,7 +121,6 @@ def _populate_group_targets(group, targets, code_units=None, preserve_units=Fals
             dataset,
             code_units=code_units,
             scale_key=scale_map.get(name),
-            preserve_units=preserve_units,
         )
         attr_name = _normalize_attr_name(name)
         for target in targets:
@@ -363,7 +362,7 @@ def run_with_output_times(
                 np.asarray(output_times.to_value(target_unit), dtype=float)
             )
         else:
-            code_units = getattr(sim.par, 'code_units', getattr(sim.par, 'CodeUnits', None))
+            code_units = getattr(sim.par, 'CodeUnits', None)
             sorted_values = np.unique(
                 np.asarray(output_times.to_value(unyt.s), dtype=float)
                 / code_unit_scales(code_units)['time_s']
@@ -520,15 +519,8 @@ def writehdf5(ric,ICfilename):
 
 
 
-def readhdf5(par, mesh, fluid, ICfilename, preserve_units=True): 
+def readhdf5(par, mesh, fluid, ICfilename): 
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
-
-    Parameters
-    ----------
-    preserve_units : bool, optional
-        When ``True``, return ``unyt`` quantities exactly as stored on disk.
-        When ``False`` and code units are available, convert the runtime state
-        into plain NumPy floats in code units for faster simulation.
     """
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
@@ -552,7 +544,6 @@ def readhdf5(par, mesh, fluid, ICfilename, preserve_units=True):
             header,
             (par,),
             code_units=code_units,
-            preserve_units=preserve_units,
             scale_map=header_scale_map,
         )
         par.time = getattr(par, "Time")
@@ -572,7 +563,6 @@ def readhdf5(par, mesh, fluid, ICfilename, preserve_units=True):
             gdata,
             (mesh, fluid),
             code_units=code_units,
-            preserve_units=preserve_units,
             scale_map=data_scale_map,
         )
 

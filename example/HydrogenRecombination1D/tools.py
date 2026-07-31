@@ -80,7 +80,7 @@ def time_value(sim, units):
     time = sim.fluid.time
     if hasattr(time, 'to_value'):
         return float(np.ravel(time.to_value(units))[0])
-    code = getattr(sim.par, 'code_units', getattr(sim.par, 'CodeUnits', None))
+    code = getattr(sim.par, 'CodeUnits', None)
     if code is not None:
         return float(
             np.ravel((np.asarray(time, dtype=float) * code.time_unit).to_value(units))[0]

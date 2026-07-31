@@ -50,9 +50,9 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         acceleration=et.point_mass_acceleration(
             ICparams['point_mass'],
-            code_units=mainrun.par.code_units,
+            code_units=mainrun.par.CodeUnits,
         ),
-        code_units=mainrun.par.code_units,
+        code_units=mainrun.par.CodeUnits,
     )
     mainrun.Run(mode='hydro')
 

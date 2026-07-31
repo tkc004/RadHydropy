@@ -64,7 +64,7 @@ def print_startup_diagnostics(sim, config, icparams):
     temp = np.asarray(sim.fluid.temp[interior], dtype=float)
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma = np.asarray(sim.fluid.ngamma[interior], dtype=float) if hasattr(sim.fluid, 'ngamma') else None
-    code_units = getattr(sim.par, 'code_units', getattr(sim.par, 'CodeUnits', None))
+    code_units = getattr(sim.par, 'CodeUnits', None)
     ngamma_cgs = None
     scales = None
     if ngamma is not None and code_units is not None:

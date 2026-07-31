@@ -6,7 +6,7 @@ import numpy as np
 
 class Par():
     def __init__(self):
-        self.CodeUnits = CodeUnits.from_mapping(
+        self.code_units = CodeUnits.from_mapping(
             {
                 'name': 'test_units',
                 'InternalUnitSystem': {
@@ -18,7 +18,6 @@ class Par():
                 },
             }
         )
-        self.code_units = self.CodeUnits
         self.nogrid = 10
         self.noghost = 2
         self.coordsys = 'cartesian'

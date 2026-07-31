@@ -57,7 +57,6 @@ def build_static_problem(config):
         radiative_transfer_source_photon_rate=config['source_photon_rate'],
         radiative_transfer_direction=1,
         CodeUnits=code_units,
-        code_units=code_units,
         unit_system=code_units.unit_system,
     )
 

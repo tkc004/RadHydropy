@@ -53,7 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.par.gravity_potential = point_mass_potential(
         mainrun.par.gravity_coordinate,
         ICparams['point_mass'],
-        code_units=mainrun.par.code_units,
+        code_units=mainrun.par.CodeUnits,
     )
     mainrun.Run(mode='hydro')
 

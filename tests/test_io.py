@@ -10,15 +10,35 @@ import yaml
 import h5py
 
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
+
+
+CODE_UNITS = CodeUnits.from_mapping(
+    {
+        'name': 'test_units',
+        'InternalUnitSystem': {
+            'UnitMass_in_cgs': 1.0,
+            'UnitLength_in_cgs': 1.0,
+            'UnitVelocity_in_cgs': 1.0,
+            'UnitCurrent_in_cgs': 1.0,
+            'UnitTemp_in_cgs': 1.0,
+        },
+    }
+)
 
 
 class Testing(unittest.TestCase):
+    @staticmethod
+    def _scalar_value(value):
+        return float(np.ravel(np.asarray(value))[0])
+
     def test_hdf5_roundtrip_handles_scalar_header_quantities(self):
         par = SimpleNamespace(
             coordsys='cartesian',
             nogrid=3,
             time=0.0 * unyt.s,
             boxsize=3.0 * unyt.cm,
+            code_units=CODE_UNITS,
         )
         mesh = SimpleNamespace(
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
@@ -30,7 +50,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian')
+        loaded_par = SimpleNamespace(coordsys='cartesian', code_units=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -38,9 +58,9 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(loaded_par.time, par.time)
-        self.assertEqual(loaded_par.boxsize, par.boxsize)
-        self.assertEqual(loaded_fluid.time, par.time)
+        self.assertEqual(self._scalar_value(loaded_par.time), 0.0)
+        self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
+        self.assertEqual(self._scalar_value(loaded_fluid.time), 0.0)
 
     def test_hdf5_roundtrip_preserves_neutral_fraction_when_present(self):
         par = SimpleNamespace(
@@ -48,6 +68,7 @@ class Testing(unittest.TestCase):
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
+            code_units=CODE_UNITS,
         )
         mesh = SimpleNamespace(
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
@@ -60,7 +81,7 @@ class Testing(unittest.TestCase):
             xHI=np.array([1.0, 0.5, 0.0]),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian')
+        loaded_par = SimpleNamespace(coordsys='cartesian', code_units=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -68,7 +89,7 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(loaded_fluid.time, loaded_par.time)
+        self.assertEqual(self._scalar_value(loaded_fluid.time), self._scalar_value(loaded_par.time))
         np.testing.assert_array_equal(loaded_fluid.xHI, fluid.xHI)
 
     def test_hdf5_roundtrip_preserves_photon_number_density_when_present(self):
@@ -77,6 +98,7 @@ class Testing(unittest.TestCase):
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
+            code_units=CODE_UNITS,
         )
         mesh = SimpleNamespace(
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
@@ -89,7 +111,7 @@ class Testing(unittest.TestCase):
             ngamma=np.array([0.0, 1.0, 2.0]) / unyt.cm**3,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian')
+        loaded_par = SimpleNamespace(coordsys='cartesian', code_units=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -97,16 +119,17 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(loaded_fluid.time, loaded_par.time)
-        self.assertEqual(loaded_fluid.ngamma.units, fluid.ngamma.units)
-        np.testing.assert_array_equal(loaded_fluid.ngamma.value, fluid.ngamma.value)
+        self.assertEqual(self._scalar_value(loaded_fluid.time), self._scalar_value(loaded_par.time))
+        self.assertFalse(hasattr(loaded_fluid.ngamma, "units"))
+        np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma), fluid.ngamma.value)
 
-    def test_readhdf5_loads_additional_datasets(self):
+    def test_readhdf5_errors_on_additional_datasets_with_units_when_not_preserving(self):
         par = SimpleNamespace(
             coordsys='cartesian',
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
+            code_units=CODE_UNITS,
         )
         mesh = SimpleNamespace(
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
@@ -118,7 +141,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian')
+        loaded_par = SimpleNamespace(coordsys='cartesian', code_units=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -127,14 +150,9 @@ class Testing(unittest.TestCase):
             with h5py.File(output.name, "a") as handle:
                 extra = handle["Data"].create_dataset("InternalEnergy", data=np.array([1.0, 2.0, 3.0]))
                 extra.attrs["units"] = "erg"
-            rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name, preserve_units=True)
 
-        self.assertTrue(hasattr(loaded_fluid, "InternalEnergy"))
-        np.testing.assert_array_equal(
-            loaded_fluid.InternalEnergy.value,
-            np.array([1.0, 2.0, 3.0]),
-        )
-        self.assertEqual(str(loaded_fluid.InternalEnergy.units), "erg")
+            with self.assertRaises(ValueError):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
     def test_writehdf5_appends_icparams_to_used_parameters_yaml(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -100,7 +100,6 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.code_units = code_units
         self.par.CodeUnits = code_units
 
         self.par.nogrid = icparams['nogrid']

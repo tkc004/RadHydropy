@@ -123,7 +123,6 @@ def make_code_fluid(n=8):
 
 def make_code_par(boundcond='Periodic'):
     par = Par(boundcond)
-    par.code_units = CODE_UNITS
     par.CodeUnits = CODE_UNITS
     par.dtmin = 1.0e-8
     par.dtmax = 1.0
@@ -158,6 +157,15 @@ class Mesh:
 
 
 class Testing(unittest.TestCase):
+    def test_callreadhdf5_requires_code_units(self):
+        sim = Rsim.__new__(Rsim)
+        sim.par = SimpleNamespace(ICfilename='dummy.hdf5')
+        sim.mesh = SimpleNamespace()
+        sim.fluid = SimpleNamespace()
+
+        with self.assertRaisesRegex(ValueError, "par\\.CodeUnits"):
+            sim.Callreadhdf5()
+
     def test_open_boundary_fills_all_ghost_cells(self):
         fluid = Fluid()
         Solver().SetBoundary(None, fluid, Par('Open'))
