@@ -95,6 +95,13 @@ def _dataset_aliases(name):
 
 
 def _read_any_dataset(dataset, code_units=None, scale_key=None):
+    """Read a dataset and normalize it into code-unit numeric arrays.
+
+    When ``code_units`` and ``scale_key`` are provided, the stored dataset is
+    interpreted in its declared unit, converted to the corresponding cgs scale
+    for that physical quantity, and then divided by the runtime code-unit
+    scale.
+    """
     data = np.asarray(dataset[()], dtype=float)
     unit_name = dataset.attrs.get("units", None)
     if code_units is not None and scale_key is not None:
@@ -521,6 +528,10 @@ def writehdf5(ric,ICfilename):
 
 def readhdf5(par, mesh, fluid, ICfilename): 
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
+
+    Datasets such as ``Density`` are restored into the runtime code-unit
+    system when ``CodeUnits`` is available, so ``fluid.rho`` comes back as a
+    plain numeric array in code units.
     """
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")

@@ -141,8 +141,8 @@ def to_unit_value(value, unit):
     """Return a plain NumPy array expressed in the supplied unit.
 
     Quantity-like inputs are converted to the supplied unit and stripped of
-    metadata. Plain NumPy inputs are treated as unitful numeric values and are
-    scaled into the requested unit as raw floats.
+    metadata. Plain NumPy inputs are treated as numeric values already in the
+    source scale and are scaled into the requested unit as raw floats.
     """
     if value is None:
         return None
@@ -157,8 +157,8 @@ def from_unit_value(value, unit):
     """Return a plain NumPy array converted from the supplied unit scale.
 
     Quantity-like inputs are converted to the supplied unit and stripped of
-    metadata. Plain NumPy inputs are treated as unitful numeric values and are
-    scaled back from the requested unit as raw floats.
+    metadata. Plain NumPy inputs are treated as numeric values already in the
+    supplied unit and are scaled back to the source scale as raw floats.
     """
     if value is None:
         return None

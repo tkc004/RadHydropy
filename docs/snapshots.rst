@@ -33,6 +33,11 @@ The ``Data`` group stores the evolved fluid fields:
 As with the initial-condition file, unit-bearing datasets store the unit string
 in a ``units`` attribute.
 
+When a snapshot is reloaded with ``CodeUnits`` configured, fields such as
+``Density`` are converted back into code-unit arrays during
+:func:`radhydropy.io.readhdf5`. The runtime solver therefore sees ``fluid.rho``
+as a plain numeric array in code units, not as a ``unyt`` quantity.
+
 Reading Snapshot Files
 ----------------------
 

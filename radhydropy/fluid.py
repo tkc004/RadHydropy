@@ -48,7 +48,8 @@ class Fluid():
         )
         
     def SetUpFluid(self, par):
-        """Append ghost cells to primitive quantities and initialize pressure.
+        """Normalize primitive quantities into code units, append ghost cells, and
+        initialize pressure.
 
         Parameters
         ----------
