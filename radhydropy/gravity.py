@@ -133,7 +133,7 @@ class Gravity:
         self.potential = potential
         self.coordinate = coordinate
         self.acceleration = acceleration
-        self.code_units = code_units
+        self.CodeUnits = code_units
 
     def has_external_field(self):
         """Return ``True`` when an external field has been configured."""

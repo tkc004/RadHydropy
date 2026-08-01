@@ -29,7 +29,7 @@ import stromgren_analytic as sa
 
 
 def build_static_problem(config):
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys=config.get('coordsys', 'spherical'),
         boundcond=config.get('boundcond', 'OpenSph'),
@@ -77,8 +77,8 @@ def build_static_problem(config):
             config.get('radiative_transfer_source_photon_rate'),
         ),
         radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
-        CodeUnits=code_units,
-        unit_system=code_units.unit_system,
+        CodeUnits=code_units_obj,
+        unit_system=code_units_obj.unit_system,
     )
 
     mesh = Mesh()
@@ -208,7 +208,7 @@ def load_log_reference_profile(filename, radius_unit):
 
 def save_plot(mesh, fluid, par, history, config, figure_filename):
     interior = interior_slice(par)
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     if hasattr(mesh.coordinate[interior], 'to_value'):
         radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
     else:

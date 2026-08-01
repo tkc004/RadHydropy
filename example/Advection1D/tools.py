@@ -60,11 +60,11 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
-    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout.par.CodeUnits = code_units
-    rout.par.unit_system = code_units.unit_system
+    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units_obj
+    rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    time = rout.par.time * code_units.time_unit
+    time = rout.par.time * code_units_obj.time_unit
     x = np.linspace(
         0.0 * icparams['boxsize'],
         icparams['boxsize'],

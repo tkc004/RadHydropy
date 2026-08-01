@@ -74,23 +74,22 @@ def load_snapshot(outfilename, icparams, runparams):
     """Load an output snapshot into a lightweight simulation wrapper."""
 
     rout = Simwrap(icparams)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    rout.par.CodeUnits = code_units
-    rout.par.code_units = code_units
+    code_units_obj = CodeUnits.from_mapping(runparams['CodeUnits'])
+    rout.par.CodeUnits = code_units_obj
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rout.par.time = unyt.unyt_array(np.asarray(rout.par.time, dtype=float), code_units.time_unit)
-    rout.par.boxsize = unyt.unyt_array(np.asarray(rout.par.boxsize, dtype=float), code_units.length_unit)
-    rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units.length_unit)
-    rout.fluid.vel = unyt.unyt_array(np.asarray(rout.fluid.vel, dtype=float), code_units.velocity_unit)
-    rout.fluid.temp = unyt.unyt_array(np.asarray(rout.fluid.temp, dtype=float), code_units.temperature_unit)
-    rout.fluid.rho = unyt.unyt_array(np.asarray(rout.fluid.rho, dtype=float), code_units.density_unit)
+    rout.par.time = unyt.unyt_array(np.asarray(rout.par.time, dtype=float), code_units_obj.time_unit)
+    rout.par.boxsize = unyt.unyt_array(np.asarray(rout.par.boxsize, dtype=float), code_units_obj.length_unit)
+    rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit)
+    rout.fluid.vel = unyt.unyt_array(np.asarray(rout.fluid.vel, dtype=float), code_units_obj.velocity_unit)
+    rout.fluid.temp = unyt.unyt_array(np.asarray(rout.fluid.temp, dtype=float), code_units_obj.temperature_unit)
+    rout.fluid.rho = unyt.unyt_array(np.asarray(rout.fluid.rho, dtype=float), code_units_obj.density_unit)
     rout.fluid.mu = np.asarray(rout.fluid.mu, dtype=float)
     if hasattr(rout.fluid, 'xHI'):
         rout.fluid.xHI = np.asarray(rout.fluid.xHI, dtype=float)
     if hasattr(rout.fluid, 'ngamma'):
         rout.fluid.ngamma = unyt.unyt_array(
             np.asarray(rout.fluid.ngamma, dtype=float),
-            code_units.number_density_unit,
+            code_units_obj.number_density_unit,
         )
     return rout
 

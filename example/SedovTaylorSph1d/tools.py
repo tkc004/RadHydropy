@@ -98,8 +98,8 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams, runparams)
-    rout.par.CodeUnits = CodeUnits.from_mapping(runparams['CodeUnits'])
-    rout.par.code_units = rout.par.CodeUnits
+    code_units_obj = CodeUnits.from_mapping(runparams['CodeUnits'])
+    rout.par.CodeUnits = code_units_obj
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rout.fluid.pre = ru.CalPressure(rout.fluid.rho, rout.fluid.temp, rout.fluid.mu)
     nu = 3

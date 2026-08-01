@@ -117,7 +117,7 @@ def load_parameters(config_filename, rundir=None):
 
 
 def build_static_problem(config):
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys='spherical',
         boundcond='OpenSph',
@@ -155,8 +155,8 @@ def build_static_problem(config):
         radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
         radiative_transfer_source_photon_rate=config['radiative_transfer_source_photon_rate'],
         radiative_transfer_direction=1,
-        CodeUnits=code_units,
-        unit_system=code_units.unit_system,
+        CodeUnits=code_units_obj,
+        unit_system=code_units_obj.unit_system,
     )
 
     mesh = Mesh()
@@ -167,7 +167,7 @@ def build_static_problem(config):
     ) * unyt.cm
 
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
     fluid.rho = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']

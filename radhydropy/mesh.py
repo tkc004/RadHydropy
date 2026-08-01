@@ -35,7 +35,7 @@ class Mesh:
         code_units = _code_units(par)
         if code_units is None:
             raise ValueError("SetUpMesh requires par.CodeUnits")
-        self.code_units = code_units
+        self.CodeUnits = code_units
         self.coordsys = par.coordsys
         attr = 'boundary'
         if not hasattr(self, attr):

@@ -21,7 +21,7 @@ def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
     **kwargs
         Additional keyword arguments passed to ``matplotlib.pyplot.plot``.
     """
-    code_units = getattr(rsim.par, "code_units", getattr(rsim.par, "CodeUnits", None))
+    code_units = getattr(rsim.par, "CodeUnits", None)
     scales = code_unit_scales(code_units)
     if hasattr(rsim.mesh.boundary, "in_cgs"):
         xb = rsim.mesh.boundary.in_cgs()

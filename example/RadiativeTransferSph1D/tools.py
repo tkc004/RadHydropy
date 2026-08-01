@@ -94,9 +94,9 @@ def _refresh_mesh_geometry(mesh, par):
 
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
-    par.CodeUnits = code_units
-    par.unit_system = code_units.unit_system
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par.CodeUnits = code_units_obj
+    par.unit_system = code_units_obj.unit_system
     rio.readhdf5(par, mesh, fluid, outputfilename)
     _refresh_mesh_geometry(mesh, par)
     return par, mesh, fluid
@@ -111,14 +111,14 @@ def write_initial_condition(config, runparams):
 
 
 def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=None):
-    code_units = CodeUnits.from_mapping(code_units)
+    code_units_obj = CodeUnits.from_mapping(code_units)
     interior = slice(par.noghost, par.noghost + par.nogrid)
     radius_values = mesh.coordinate[interior]
     if hasattr(radius_values, 'to_value'):
         radius = radius_values.to_value(unyt.pc) * unyt.pc
     else:
         radius = (
-            code_quantity_to_cgs(radius_values, code_units, 'length_cm')
+            code_quantity_to_cgs(radius_values, code_units_obj, 'length_cm')
             / PC_IN_CM
         ) * unyt.pc
     simulated_values = fluid.ngamma[interior]
@@ -126,14 +126,14 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
         simulated = simulated_values.to_value(1.0 / unyt.cm**3) * (1.0 / unyt.cm**3)
     else:
         simulated = (
-            code_quantity_to_cgs(simulated_values, code_units, 'number_density_cm3')
+            code_quantity_to_cgs(simulated_values, code_units_obj, 'number_density_cm3')
             * (1.0 / unyt.cm**3)
         )
     analytic_fv = rta.finite_volume_density(
         mesh.boundary[interior.start : interior.stop + 1],
         mesh.vol[interior],
         source_photon_rate,
-        code_units=code_units,
+        code_units=code_units_obj,
     )
 
     r_min = mesh.boundary[interior.start + 1]
@@ -141,7 +141,7 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
     radius_line = np.geomspace(
         float(
             np.asarray(
-                code_quantity_to_cgs(r_min, code_units, 'length_cm'),
+                code_quantity_to_cgs(r_min, code_units_obj, 'length_cm'),
                 dtype=float,
             )
             / PC_IN_CM
@@ -150,7 +150,7 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
         else float(np.asarray(r_min.to_value(unyt.pc), dtype=float)),
         float(
             np.asarray(
-                code_quantity_to_cgs(r_max, code_units, 'length_cm'),
+                code_quantity_to_cgs(r_max, code_units_obj, 'length_cm'),
                 dtype=float,
             )
             / PC_IN_CM
@@ -162,7 +162,7 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
     analytic_point = rta.point_density(
         radius_line,
         source_photon_rate,
-        code_units=code_units,
+        code_units=code_units_obj,
     )
 
     simulated_cgs = simulated.to_value(1.0 / unyt.cm**3)

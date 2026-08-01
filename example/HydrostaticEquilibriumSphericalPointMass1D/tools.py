@@ -175,10 +175,10 @@ class Simwrap:
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = runparams.get('CodeUnits')
-    code_units = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = Simwrap(icparams, code_units=code_units)
-    if code_units is not None:
-        rout.par.unit_system = code_units.unit_system
+    code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
+    rout = Simwrap(icparams, code_units=code_units_obj)
+    if code_units_obj is not None:
+        rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('noghost', 0))
@@ -198,16 +198,16 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         icparams['muini'],
         icparams['point_mass'],
         reference_radius=xcoord[0],
-        code_units=code_units,
+        code_units=code_units_obj,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
-    x_units = getattr(xcoord, 'units', code_units.length_unit.units if code_units is not None else unyt.cm)
-    rho_units = getattr(rho_num, 'units', code_units.density_unit.units if code_units is not None else unyt.g / unyt.cm**3)
-    vel_units = getattr(vel_num, 'units', code_units.velocity_unit.units if code_units is not None else unyt.cm / unyt.s)
-    xplot = code_quantity_to_cgs(xcoord, code_units, 'length_cm')
-    rho_num_plot = code_quantity_to_cgs(rho_num, code_units, 'density_g_cm3')
+    x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units if code_units_obj is not None else unyt.cm)
+    rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units if code_units_obj is not None else unyt.g / unyt.cm**3)
+    vel_units = getattr(vel_num, 'units', code_units_obj.velocity_unit.units if code_units_obj is not None else unyt.cm / unyt.s)
+    xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm')
+    rho_num_plot = code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
     rho_analytic_plot = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_plot = code_quantity_to_cgs(vel_num, code_units, 'velocity_cm_s')
+    vel_num_plot = code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cm_s')
     zero_velocity_plot = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 
     plt.subplot(1, 2, 1)

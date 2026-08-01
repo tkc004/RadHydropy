@@ -120,7 +120,7 @@ class Testing(unittest.TestCase):
             "xHI": np.ones(2, dtype=float),
         }
         par = SimpleNamespace(
-            code_units=code_units,
+            CodeUnits=code_units,
             noghost=1,
             nogrid=2,
             coordsys="spherical",

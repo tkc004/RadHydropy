@@ -64,7 +64,7 @@ class Fluid():
         code_units = _code_units(par)
         if code_units is None:
             raise ValueError("SetUpFluid requires par.CodeUnits")
-        self.code_units = code_units
+        self.CodeUnits = code_units
         self.time = 0.0
 
         # check if the required attributes exist

@@ -31,7 +31,7 @@ def _config_value(config, *keys, default=None):
 
 
 def build_problem(config):
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys='spherical',
         boundcond='OpenSph',
@@ -89,8 +89,8 @@ def build_problem(config):
             'source_photon_rate',
         ),
         radiative_transfer_direction=_config_value(config, 'radiative_transfer_direction', default=1),
-        CodeUnits=code_units,
-        unit_system=code_units.unit_system,
+        CodeUnits=code_units_obj,
+        unit_system=code_units_obj.unit_system,
     )
 
     mesh = Mesh()
@@ -101,7 +101,7 @@ def build_problem(config):
     ) * unyt.cm
 
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
     fluid.rho = np.ones(par.nogrid) * config['rho_initial']
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * config['neutral_temperature']
@@ -124,16 +124,16 @@ def write_initial_condition(config, runparams):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
-    par.time = np.asarray(par.time, dtype=float) * code_units.time_unit
-    par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units.length_unit
-    fluid.time = np.asarray(fluid.time, dtype=float) * code_units.time_unit
-    mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units.length_unit
-    fluid.rho = np.asarray(fluid.rho, dtype=float) * code_units.density_unit
-    fluid.vel = np.asarray(fluid.vel, dtype=float) * code_units.velocity_unit
-    fluid.temp = np.asarray(fluid.temp, dtype=float) * code_units.temperature_unit
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par.time = np.asarray(par.time, dtype=float) * code_units_obj.time_unit
+    par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units_obj.length_unit
+    fluid.time = np.asarray(fluid.time, dtype=float) * code_units_obj.time_unit
+    mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units_obj.length_unit
+    fluid.rho = np.asarray(fluid.rho, dtype=float) * code_units_obj.density_unit
+    fluid.vel = np.asarray(fluid.vel, dtype=float) * code_units_obj.velocity_unit
+    fluid.temp = np.asarray(fluid.temp, dtype=float) * code_units_obj.temperature_unit
     if hasattr(fluid, 'ngamma'):
-        fluid.ngamma = np.asarray(fluid.ngamma, dtype=float) * code_units.number_density_unit
+        fluid.ngamma = np.asarray(fluid.ngamma, dtype=float) * code_units_obj.number_density_unit
     # ``readhdf5`` restores the saved boundary and fluid state, but it does not
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's
@@ -230,14 +230,14 @@ def print_startup_diagnostics(sim, config, icparams):
     temp = np.asarray(sim.fluid.temp[interior], dtype=float)
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma = np.asarray(sim.fluid.ngamma[interior], dtype=float) if hasattr(sim.fluid, 'ngamma') else None
-    code_units = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
+    code_units_obj = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
     ngamma_cgs = None
     if ngamma is not None:
-        ngamma_cgs = code_quantity_to_cgs(ngamma, code_units, 'number_density_cm3')
+        ngamma_cgs = code_quantity_to_cgs(ngamma, code_units_obj, 'number_density_cm3')
 
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.nogrid)
-    print('time = %.6e Myr' % time_myr(sim.fluid.time, code_units))
+    print('time = %.6e Myr' % time_myr(sim.fluid.time, code_units_obj))
     print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho), np.max(rho)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel)) / 1.0e5))
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp), np.max(temp)))
@@ -248,7 +248,7 @@ def print_startup_diagnostics(sim, config, icparams):
             print('ngamma range = [%.3e, %.3e] cm^-3' % (np.min(ngamma_cgs), np.max(ngamma_cgs)))
             boundary_cm = code_quantity_to_cgs(
                 sim.mesh.boundary[interior.start : interior.start + 2],
-                code_units,
+                code_units_obj,
                 'length_cm',
             )
             inner_radius_cm = 0.5 * (boundary_cm[0] + boundary_cm[1])
@@ -304,7 +304,7 @@ def print_startup_diagnostics(sim, config, icparams):
 def make_logging_step_backend(sim, config, max_logged_steps=5):
     """Wrap the isothermal step backend with a short startup trace."""
     base_step_backend = make_piecewise_isothermal_step_backend(sim, config)
-    code_units = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
+    code_units_obj = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
     state = {'count': 0}
     interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
 
@@ -314,7 +314,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         if should_log:
             print(
                 '--- step %d begin: time=%.6e Myr dt=%s mode=%s ---'
-                % (step_index + 1, time_myr(sim.fluid.time, code_units), dt, mode)
+                % (step_index + 1, time_myr(sim.fluid.time, code_units_obj), dt, mode)
             )
         result = base_step_backend(
             dt=dt,

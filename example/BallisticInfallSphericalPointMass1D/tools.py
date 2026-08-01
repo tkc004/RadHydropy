@@ -153,9 +153,9 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the ballistic short-time profile."""
-    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout = Simwrap(icparams, code_units=code_units)
-    rout.par.unit_system = code_units.unit_system
+    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout = Simwrap(icparams, code_units=code_units_obj)
+    rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('noghost', 0))
@@ -173,16 +173,16 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         xcoord,
         icparams['point_mass'],
         rout.fluid.time,
-        code_units=code_units,
+        code_units=code_units_obj,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
-    x_units = getattr(xcoord, 'units', code_units.length_unit.units)
-    rho_units = getattr(rho_num, 'units', code_units.density_unit.units)
-    vel_units = getattr(vel_num, 'units', code_units.velocity_unit.units)
-    xcoord_cgs = code_quantity_to_cgs(xcoord, code_units, 'length_cm')
-    rho_num_cgs = code_quantity_to_cgs(rho_num, code_units, 'density_g_cm3')
+    x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
+    rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
+    vel_units = getattr(vel_num, 'units', code_units_obj.velocity_unit.units)
+    xcoord_cgs = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm')
+    rho_num_cgs = code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
     rho_analytic_cgs = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_cgs = code_quantity_to_cgs(vel_num, code_units, 'velocity_cm_s')
+    vel_num_cgs = code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cm_s')
     vel_analytic_cgs = quantity_to_value(vel_analytic, unyt.cm / unyt.s)
     zero_velocity_cgs = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 

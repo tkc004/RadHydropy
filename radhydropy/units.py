@@ -27,7 +27,7 @@ def _as_cgs_float(value, unit):
 
 
 def _code_units(par):
-    return getattr(par, "code_units", getattr(par, "CodeUnits", None))
+    return getattr(par, "CodeUnits", None)
 
 
 @dataclass(frozen=True)

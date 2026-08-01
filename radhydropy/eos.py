@@ -21,7 +21,7 @@ class EOS:
     def __init__(self, EOStype: str, gamma=5.0 / 3.0, code_units=None):
         self.EOStype = EOStype
         self.gamma = gamma
-        self.code_units = code_units
+        self.CodeUnits = code_units
         if ((self.EOStype != 'polytropic') and (self.EOStype != 'isothermal')):
             raise Exception("EOS not recognized: only polytropic or isothermal")
         if self.is_polytropic and gamma == 1.0:
@@ -39,12 +39,12 @@ class EOS:
 
     def pressure(self, rho, temp, mu):
         """Return pressure from density, temperature, and mean molecular weight."""
-        if self.code_units is not None:
+        if self.CodeUnits is not None:
             rho_value = np.asarray(rho, dtype=np.longdouble)
             temp_value = np.asarray(temp, dtype=np.longdouble)
             mu_value = np.asarray(mu, dtype=np.longdouble)
             pressure_factor = np.longdouble(
-                self.code_units.boltzmann_code / self.code_units.proton_mass_code
+                self.CodeUnits.boltzmann_code / self.CodeUnits.proton_mass_code
             )
             pressure_value = rho_value * temp_value * pressure_factor
             quotient = np.zeros_like(pressure_value, dtype=np.longdouble)
@@ -55,15 +55,15 @@ class EOS:
 
     def temperature(self, rho, pressure, mu):
         """Return temperature from density, pressure, and mean molecular weight."""
-        if self.code_units is not None:
+        if self.CodeUnits is not None:
             rho_value = np.asarray(rho, dtype=float)
             pressure_value = np.asarray(pressure, dtype=float)
             mu_value = np.asarray(mu, dtype=float)
             return as_named_array(
                 (
                 (pressure_value / rho_value)
-                * (mu_value * self.code_units.proton_mass_code)
-                / self.code_units.boltzmann_code
+                * (mu_value * self.CodeUnits.proton_mass_code)
+                / self.CodeUnits.boltzmann_code
                 )
             )
         pressure_over_rho = ru.SafeDivide(pressure, rho)
@@ -77,7 +77,7 @@ class EOS:
 
     def sound_speed(self, rho, pressure, temp=None, mu=None):
         """Return the characteristic sound speed for the selected EOS."""
-        if self.code_units is not None:
+        if self.CodeUnits is not None:
             gamma_factor = 1.0 if self.is_isothermal else self.gamma
             pressure_over_rho = np.asarray(pressure, dtype=float) / np.asarray(rho, dtype=float)
             return as_named_array(np.sqrt(gamma_factor * pressure_over_rho))
@@ -100,7 +100,7 @@ class EOS:
                     "isothermal pressure reconstruction requires temperature and mu"
                 )
             return self.pressure(rho, temp, mu)
-        if self.code_units is not None:
+        if self.CodeUnits is not None:
             rho_value = np.asarray(rho, dtype=float)
             vel_value = np.asarray(vel, dtype=float)
             energy_value = np.asarray(energy_density, dtype=float)

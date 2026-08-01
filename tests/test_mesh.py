@@ -6,7 +6,7 @@ import unyt
 
 class Par():
     def __init__(self):
-        self.code_units = CodeUnits.from_mapping(
+        self.CodeUnits = CodeUnits.from_mapping(
             {
                 'name': 'test_units',
                 'InternalUnitSystem': {

@@ -5,9 +5,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, code_quantity_to_cgs
 import outflow_sph_analytic as oa
 
 
@@ -47,23 +46,42 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
-    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout.par.CodeUnits = code_units
-    rout.par.unit_system = code_units.unit_system
+    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units_obj
+    rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout, yquan='rho', showhalf=0, showfig=0, **kwargs)
-    plt.axvline(
-        x=oa.front_position(
-            rout.par.time * code_units.time_unit,
-            runparams['vel_outflow'],
-        ),
-        color=kwargs['color'],
-        ls='dashed',
-    )
-    x = rout.mesh.boundary[:-1] * code_units.length_unit
-    rhoana = oa.density_profile(
-        x,
+    boundary = np.asarray(rout.mesh.boundary, dtype=float)
+    x_center = 0.5 * (boundary[1:] + boundary[:-1]) * code_units_obj.length_unit
+    rho_num = code_quantity_to_cgs(rout.fluid.rho, code_units_obj, 'density_g_cm3')
+    rho_num = rho_num * (1.0 * runparams['rho_outflow'].units)
+    rho_ana = oa.density_profile(
+        x_center,
         runparams['rho_outflow'],
         icparams['rinj'],
     )
-    plt.plot(x, rhoana, ls='dashed', color='k')
+    front = oa.front_position(
+        rout.par.time * code_units_obj.time_unit,
+        runparams['vel_outflow'],
+    )
+    x_values = x_center.to_value(icparams['boxsize'].units)
+    rho_values = np.asarray(rho_num.to_value(runparams['rho_outflow'].units), dtype=float)
+    rho_ana_values = np.asarray(rho_ana.to_value(runparams['rho_outflow'].units), dtype=float)
+    plt.plot(x_values, rho_values, **kwargs)
+    plt.plot(
+        x_values,
+        rho_ana_values,
+        ls='dashed',
+        color='k',
+    )
+    plt.axvline(
+        x=front.to_value(icparams['boxsize'].units),
+        color=kwargs['color'],
+        ls='dashed',
+    )
+    plt.xlim(
+        xmin=float(np.min(x_values)),
+        xmax=float(np.max(x_values)),
+    )
+    plt.yscale('log')
+    plt.xlabel(r'Radius [cm]')
+    plt.ylabel(r'$\rho$ [g/cm$^3$]')

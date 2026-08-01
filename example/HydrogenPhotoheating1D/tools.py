@@ -100,12 +100,12 @@ def interior_slice(sim):
 
 def mean_temperature(sim):
     interior = interior_slice(sim)
-    code_units = getattr(sim.par, 'CodeUnits', None)
+    code_units_obj = getattr(sim.par, 'CodeUnits', None)
     return (
         np.mean(
             code_quantity_to_cgs(
                 sim.fluid.temp[interior],
-                code_units,
+                code_units_obj,
                 'temperature_K',
             )
         )
@@ -142,19 +142,19 @@ def time_value(sim, units):
 def load_history_from_outputs(outputfiles, config, noghost):
     history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
     interior = slice(noghost, noghost + config['nogrid'])
-    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
 
     for outfilename in sorted(outputfiles):
         rout = Simwrap(config)
-        rout.par.CodeUnits = code_units
-        rout.par.unit_system = code_units.unit_system
+        rout.par.CodeUnits = code_units_obj
+        rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.temp[interior],
-                    code_units,
+                    code_units_obj,
                     'temperature_K',
                 )
             )
@@ -164,7 +164,7 @@ def load_history_from_outputs(outputfiles, config, noghost):
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.ngamma[interior],
-                    code_units,
+                    code_units_obj,
                     'number_density_cm3',
                 )
             )

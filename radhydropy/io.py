@@ -9,7 +9,7 @@ import unyt
 import numpy as np
 import yaml
 import radhydropy.utils as ru
-from radhydropy.units import code_unit_scales, _code_units
+from radhydropy.units import CodeUnits, code_unit_scales, _code_units
 from radhydropy.arrays import as_named_array
 try:
     from sympy.core.basic import Basic as SympyBasic
@@ -260,6 +260,59 @@ def write_used_parameters(path, par):
     return path
 
 
+def _header_attr_value(value):
+    """Convert a runtime parameter into an HDF5-attribute-friendly value."""
+    tree = parameter_tree(value)
+    if tree is None:
+        return yaml.safe_dump(None, sort_keys=True, default_flow_style=False)
+    if isinstance(tree, (str, bytes, int, float, bool)):
+        return tree
+    if isinstance(tree, np.generic):
+        return tree.item()
+    if isinstance(tree, np.ndarray):
+        if tree.dtype == object:
+            return yaml.safe_dump(tree.tolist(), sort_keys=True, default_flow_style=False)
+        return tree
+    if isinstance(tree, (list, tuple)) and all(
+        isinstance(item, (str, bytes, int, float, bool, np.generic))
+        for item in tree
+    ):
+        array = np.asarray(tree)
+        if array.dtype == object:
+            return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
+        return array
+    return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
+
+
+def _restore_header_attr_value(value):
+    """Convert a stored HDF5 header attribute back into a Python value."""
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, np.ndarray):
+        if value.shape == ():
+            return _restore_header_attr_value(value.item())
+        return np.asarray([_restore_header_attr_value(item) for item in value.tolist()])
+    if isinstance(value, str):
+        try:
+            loaded = yaml.safe_load(value)
+            if isinstance(loaded, str):
+                return loaded
+            return _restore_header_attr_value(loaded)
+        except yaml.YAMLError:
+            return value
+    if isinstance(value, dict):
+        if {'value', 'unit'} <= value.keys():
+            restored_value = _restore_header_attr_value(value['value'])
+            unit = unyt.Unit(value['unit'])
+            if isinstance(restored_value, list):
+                restored_value = np.asarray(restored_value)
+            return np.asarray(restored_value) * unit
+        return {key: _restore_header_attr_value(item) for key, item in value.items()}
+    return value
+
+
 def load_output_time_list(filename):
     """Load explicit output times from a text file."""
     if not filename:
@@ -447,12 +500,14 @@ def writehdf5(ric,ICfilename):
     else:
         output_time = ric.par.time
     with h5py.File(ICfilename, 'w') as fic:
-        code_units = getattr(ric.par, "code_units", getattr(ric.par, "CodeUnits", None))
+        code_units = getattr(ric.par, "CodeUnits", None)
         # saving initial condition
         # first, save header:
         header = fic.create_group("Header")
-        header.attrs['Coordinate_System'] = ric.par.coordsys
-        header.attrs['Number_Grids'] = ric.par.nogrid
+        for key, value in sorted(vars(ric.par).items()):
+            if key.startswith("_"):
+                continue
+            header.attrs[key] = _header_attr_value(value)
         _write_quantity(
             header,
             "Time",
@@ -538,17 +593,44 @@ def readhdf5(par, mesh, fluid, ICfilename):
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
     with h5py.File(ICfilename, 'r') as fic:
-        code_units = getattr(par, "code_units", getattr(par, "CodeUnits", None))
+        expected_coordsys = getattr(par, "coordsys", None)
+        expected_nogrid = getattr(par, "nogrid", None)
+        code_units = getattr(par, "CodeUnits", None)
         # saving initial condition
         # first, save header:
         header = fic["Header"]
-        coordsys = header.attrs['Coordinate_System']
-        if hasattr(par, "coordsys"): 
-            if coordsys != par.coordsys:
-                raise Exception("Coordinate systems in IC (%s) and run (%s) do not agree!"%(coordsys,par.coordsys))
-        else:
-            par.coordsys = coordsys
-        par.nogrid = header.attrs['Number_Grids']
+        if code_units is None and "CodeUnits" in header.attrs:
+            restored_code_units = _restore_header_attr_value(header.attrs["CodeUnits"])
+            if isinstance(restored_code_units, CodeUnits):
+                code_units = restored_code_units
+            elif isinstance(restored_code_units, dict):
+                try:
+                    code_units = CodeUnits.from_mapping(restored_code_units)
+                except Exception:
+                    code_units = None
+            if code_units is not None:
+                setattr(par, "CodeUnits", code_units)
+        for key, value in header.attrs.items():
+            restored = _restore_header_attr_value(value)
+            if key == "CodeUnits":
+                if isinstance(restored, dict):
+                    try:
+                        restored = CodeUnits.from_mapping(restored)
+                    except Exception:
+                        pass
+                setattr(par, "CodeUnits", restored)
+                continue
+            setattr(par, key, restored)
+        if expected_coordsys is not None and par.coordsys != expected_coordsys:
+            raise Exception(
+                "Coordinate systems in IC (%s) and run (%s) do not agree!"
+                % (par.coordsys, expected_coordsys)
+            )
+        if expected_nogrid is not None and par.nogrid != expected_nogrid:
+            raise Exception(
+                "Number of grids in IC (%s) and run (%s) do not agree!"
+                % (par.nogrid, expected_nogrid)
+            )
         header_scale_map = {
             "Time": "time_s",
             "BoxSize": "length_cm",

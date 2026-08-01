@@ -62,15 +62,15 @@ class Simwrap:
 
 
 def getAnalyticSolution(icparams, runparams, rout):
-    code_units = getattr(rout.par, 'CodeUnits', None)
-    if code_units is None:
-        code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    code_units_obj = getattr(rout.par, 'CodeUnits', None)
+    if code_units_obj is None:
+        code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
     time = rout.par.time
     if not hasattr(time, 'in_cgs'):
-        time = time * code_units.time_unit
+        time = time * code_units_obj.time_unit
     boundary = rout.mesh.boundary
     if not hasattr(boundary, 'in_cgs'):
-        boundary = np.asarray(boundary, dtype=float) * code_units.length_unit
+        boundary = np.asarray(boundary, dtype=float) * code_units_obj.length_unit
     p5 = ru.CalPressure(icparams['rhoini'], icparams['tempini'], icparams['muini'])
     p1 = ru.CalPressure(
         icparams['rhoini'] * icparams['rhoratio'],
@@ -110,9 +110,9 @@ def getAnalyticSolution(icparams, runparams, rout):
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
-    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout.par.CodeUnits = code_units
-    rout.par.unit_system = code_units.unit_system
+    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units_obj
+    rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho', showfig=0, showhalf=1, **kwargs)
     rho_ana, p_ana, v_ana = getAnalyticSolution(icparams, runparams, rout)
