@@ -49,10 +49,13 @@ def set_plot_style():
 
 
 class Simwrap:
-    def __init__(self, icparams):
+    def __init__(self, icparams, code_units=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
+        self.par.CodeUnits = code_units
+        if code_units is not None:
+            self.par.unit_system = code_units.unit_system
 
         self.par.nogrid = icparams['nogrid']
         self.par.coordsys = icparams['coordsys']

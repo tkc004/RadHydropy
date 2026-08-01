@@ -124,7 +124,7 @@ def write_initial_condition(config, runparams):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = par.CodeUnits
     par.time = np.asarray(par.time, dtype=float) * code_units_obj.time_unit
     par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units_obj.length_unit
     fluid.time = np.asarray(fluid.time, dtype=float) * code_units_obj.time_unit
@@ -331,7 +331,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
                 '--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
                 % (
                     step_index + 1,
-                    time_myr(sim.fluid.time, code_units),
+                    time_myr(sim.fluid.time, code_units_obj),
                     result['hydro_steps'],
                     result['source_steps'],
                     front_radius,

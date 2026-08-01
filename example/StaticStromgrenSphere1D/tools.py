@@ -134,7 +134,7 @@ def write_initial_condition(config, runparams):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = par.CodeUnits
     par.time = unyt.unyt_array(np.asarray(par.time, dtype=float), code_units_obj.time_unit)
     par.boxsize = unyt.unyt_array(np.asarray(par.boxsize, dtype=float), code_units_obj.length_unit)
     mesh.boundary = unyt.unyt_array(np.asarray(mesh.boundary, dtype=float), code_units_obj.length_unit)

@@ -18,6 +18,7 @@ PC_IN_CM = unyt.unyt_quantity(1.0, unyt.pc).to_value(unyt.cm)
 
 
 def build_static_problem(config):
+    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys=config.get('coordsys', 'spherical'),
         boundcond=config.get('boundcond', 'OpenSph'),
@@ -44,10 +45,12 @@ def build_static_problem(config):
             config.get('source_photon_rate', 0.0 / unyt.s),
         ),
         radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
+        CodeUnits=code_units_obj,
+        unit_system=code_units_obj.unit_system,
     )
 
     mesh = SimpleNamespace()
-    mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1)
+    mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
 
     fluid = SimpleNamespace()
     fluid.rho = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
@@ -94,9 +97,6 @@ def _refresh_mesh_geometry(mesh, par):
 
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
-    par.CodeUnits = code_units_obj
-    par.unit_system = code_units_obj.unit_system
     rio.readhdf5(par, mesh, fluid, outputfilename)
     _refresh_mesh_geometry(mesh, par)
     return par, mesh, fluid

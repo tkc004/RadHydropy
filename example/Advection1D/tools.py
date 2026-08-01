@@ -24,10 +24,13 @@ class Fluid:
 
 
 class Simwrap:
-    def __init__(self, icparams):
+    def __init__(self, icparams, code_units=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
+        self.par.CodeUnits = code_units
+        if code_units is not None:
+            self.par.unit_system = code_units.unit_system
 
         if ru.CheckParamDimen(icparams) != True:
             raise Exception('%s unit not correctly set in params' % ru.CheckParamDimen(icparams))

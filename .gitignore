@@ -10,6 +10,8 @@
 __pycache__/
 */__pycache__/*
 __pycache__
+.codex
+.pytest_cache
 
 build/
 dist/

@@ -13,6 +13,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 import unyt
 
 os.environ.setdefault(
@@ -35,8 +36,9 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
     eu.clean_previous_outputs(runparams)
+    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
 
-    ric = et.Simwrap(ICparams)
+    ric = et.Simwrap(ICparams, code_units=code_units_obj)
     rio.writehdf5(ric, runparams['ICfilename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll()

@@ -26,6 +26,14 @@ runparams:
   verbose: 0
   order: 0
   noghost: 5
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
 
 ICparams:
   nogrid: 100

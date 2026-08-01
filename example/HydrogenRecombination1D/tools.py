@@ -25,10 +25,13 @@ class Fluid:
 
 
 class Simwrap:
-    def __init__(self, icparams):
+    def __init__(self, icparams, code_units=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
+        self.par.CodeUnits = code_units
+        if code_units is not None:
+            self.par.unit_system = code_units.unit_system
 
         self.par.nogrid = icparams['nogrid']
         self.par.coordsys = icparams['coordsys']
@@ -93,7 +96,7 @@ def load_history_from_outputs(outputfiles, config, noghost):
     code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(config)
+        rout = Simwrap(config, code_units=code_units_obj)
         rout.par.CodeUnits = code_units_obj
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)

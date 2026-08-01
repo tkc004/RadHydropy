@@ -9,7 +9,7 @@ import unyt
 import numpy as np
 import yaml
 import radhydropy.utils as ru
-from radhydropy.units import CodeUnits, code_unit_scales, _code_units
+from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
 from radhydropy.arrays import as_named_array
 try:
     from sympy.core.basic import Basic as SympyBasic
@@ -43,6 +43,33 @@ def _scale_unit_for_key(scale_key):
         "photon_rate_per_s": 1.0 / unyt.s,
         "alpha_cm3_s": unyt.cm**3 / unyt.s,
         "acceleration_cm_s2": unyt.cm / unyt.s**2,
+    }.get(scale_key, None)
+
+
+def _code_unit_for_key(code_units, scale_key):
+    if code_units is None:
+        return None
+    return {
+        "length_cm": code_units.length_unit,
+        "mass_g": code_units.mass_unit,
+        "velocity_cm_s": code_units.velocity_unit,
+        "time_s": code_units.time_unit,
+        "temperature_K": code_units.temperature_unit,
+        "area_cm2": code_units.area_unit,
+        "volume_cm3": code_units.volume_unit,
+        "density_g_cm3": code_units.density_unit,
+        "pressure_erg_cm3": code_units.pressure_unit,
+        "energy_erg": code_units.energy_unit,
+        "specific_energy_erg_g": code_units.specific_energy_unit,
+        "momentum_g_cm_s": code_units.momentum_unit,
+        "mass_flux_g_cm2_s": code_units.mass_flux_unit,
+        "energy_flux_erg_cm2_s": code_units.energy_flux_unit,
+        "number_density_cm3": code_units.number_density_unit,
+        "photon_flux_per_cm2_s": 1.0 / (code_units.area_unit * code_units.time_unit),
+        "photon_rate_per_s": 1.0 / code_units.time_unit,
+        "alpha_cm3_s": code_units.volume_unit / code_units.time_unit,
+        "acceleration_cm_s2": code_units.length_unit / code_units.time_unit**2,
+        "potential": code_units.velocity_unit**2,
     }.get(scale_key, None)
 
 
@@ -184,13 +211,28 @@ def parameter_tree(value):
 
 
 def _write_quantity(group, name, value, code_units=None, scale_key=None, default_unit=None):
+    def _unit_label(unit_obj):
+        return str(getattr(unit_obj, "units", unit_obj))
+
+    if code_units is None and scale_key is not None:
+        raise ValueError(f"{name} requires code_units for HDF5 serialization")
+
     if hasattr(value, "to_value"):
-        data = np.asarray(value.to_value(value.units))
-        unit = str(value.units)
+        if code_units is not None and scale_key is not None:
+            unit_obj = _scale_unit_for_key(scale_key)
+            if unit_obj is None:
+                unit_obj = value.units
+            data = np.asarray(value.to_value(unit_obj))
+            unit = _unit_label(unit_obj)
+        else:
+            data = np.asarray(value.to_value(value.units))
+            unit = str(value.units)
     elif code_units is not None and scale_key is not None:
-        scales = code_unit_scales(code_units)
-        data = np.asarray(value, dtype=float) * scales[scale_key]
-        unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
+        unit_obj = _scale_unit_for_key(scale_key)
+        if unit_obj is None:
+            unit_obj = unyt.Unit(default_unit) if default_unit is not None else None
+        data = code_quantity_to_cgs(value, code_units, scale_key)
+        unit = _unit_label(unit_obj) if unit_obj is not None else "dimensionless"
     else:
         data = np.asarray(value)
         unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
@@ -587,37 +629,33 @@ def readhdf5(par, mesh, fluid, ICfilename):
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
 
     Datasets such as ``Density`` are restored into the runtime code-unit
-    system when ``CodeUnits`` is available, so ``fluid.rho`` comes back as a
-    plain numeric array in code units.
+    system when ``CodeUnits`` is available in the file header, so
+    ``fluid.rho`` comes back as a plain numeric array in code units.
     """
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
     with h5py.File(ICfilename, 'r') as fic:
         expected_coordsys = getattr(par, "coordsys", None)
         expected_nogrid = getattr(par, "nogrid", None)
-        code_units = getattr(par, "CodeUnits", None)
         # saving initial condition
         # first, save header:
         header = fic["Header"]
-        if code_units is None and "CodeUnits" in header.attrs:
-            restored_code_units = _restore_header_attr_value(header.attrs["CodeUnits"])
-            if isinstance(restored_code_units, CodeUnits):
-                code_units = restored_code_units
-            elif isinstance(restored_code_units, dict):
-                try:
-                    code_units = CodeUnits.from_mapping(restored_code_units)
-                except Exception:
-                    code_units = None
-            if code_units is not None:
-                setattr(par, "CodeUnits", code_units)
+        if "CodeUnits" not in header.attrs:
+            raise ValueError(
+                "IC file is missing Header.attrs['CodeUnits']; cannot read datasets without a code-unit mapping."
+            )
+        code_units = _restore_header_attr_value(header.attrs["CodeUnits"])
+        if isinstance(code_units, dict):
+            code_units = CodeUnits.from_mapping(code_units)
+        if not isinstance(code_units, CodeUnits):
+            raise ValueError(
+                "IC file Header.attrs['CodeUnits'] is not a valid CodeUnits mapping."
+            )
         for key, value in header.attrs.items():
             restored = _restore_header_attr_value(value)
             if key == "CodeUnits":
                 if isinstance(restored, dict):
-                    try:
-                        restored = CodeUnits.from_mapping(restored)
-                    except Exception:
-                        pass
+                    restored = CodeUnits.from_mapping(restored)
                 setattr(par, "CodeUnits", restored)
                 continue
             setattr(par, key, restored)

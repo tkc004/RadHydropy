@@ -267,6 +267,36 @@ class Testing(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
+    def test_readhdf5_errors_when_header_missing_code_units(self):
+        par = SimpleNamespace(
+            coordsys='cartesian',
+            nogrid=3,
+            time=np.array([0.0]) * unyt.s,
+            boxsize=np.array([3.0]) * unyt.cm,
+            CodeUnits=CODE_UNITS,
+        )
+        mesh = SimpleNamespace(
+            boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
+        )
+        fluid = SimpleNamespace(
+            rho=np.ones(3) * unyt.g / unyt.cm**3,
+            vel=np.zeros(3) * unyt.cm / unyt.s,
+            temp=np.ones(3) * unyt.K,
+            mu=np.ones(3),
+        )
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+        loaded_par = SimpleNamespace(coordsys='cartesian')
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, "a") as handle:
+                del handle["Header"].attrs["CodeUnits"]
+
+            with self.assertRaises(ValueError):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
     def test_writehdf5_appends_icparams_to_used_parameters_yaml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cwd = Path.cwd()
@@ -290,6 +320,7 @@ class Testing(unittest.TestCase):
                     nogrid=3,
                     time=0.0 * unyt.s,
                     boxsize=3.0 * unyt.cm,
+                    CodeUnits=CODE_UNITS,
                 )
                 mesh = SimpleNamespace(
                     boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
