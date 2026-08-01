@@ -227,8 +227,11 @@ def update_used_parameters_yaml(path, runparams=None, icparams=None):
     path = Path(path)
     existing = {}
     if path.exists():
-        with path.open("r", encoding="utf-8") as handle:
-            loaded = yaml.safe_load(handle)
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                loaded = yaml.safe_load(handle)
+        except yaml.YAMLError:
+            loaded = None
         if isinstance(loaded, dict):
             existing = loaded
     payload = _used_parameters_payload(
@@ -466,7 +469,6 @@ def writehdf5(ric,ICfilename):
             scale_key="length_cm",
             default_unit=unyt.cm,
         )
-        ric.par.time = np.asarray(output_time, dtype=float)
 
         #second, save mesh and fluid data:
         gdata = fic.create_group("Data")

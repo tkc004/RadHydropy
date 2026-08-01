@@ -38,7 +38,7 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
 
-    ric = et.Simwrap(ICparams)
+    ric = et.Simwrap(ICparams, code_units=code_units)
     rio.writehdf5(ric, runparams['ICfilename'])
 
     mainrun = Rsim(runparams)

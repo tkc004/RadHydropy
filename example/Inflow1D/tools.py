@@ -4,6 +4,7 @@ import numpy as np
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 
 
 class Par:
@@ -43,5 +44,8 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units
+    rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho', showhalf=0, showfig=0, **kwargs)

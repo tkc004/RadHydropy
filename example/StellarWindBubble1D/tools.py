@@ -8,6 +8,7 @@ import unyt
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 import weaver_analytic as wa
 
 
@@ -69,11 +70,28 @@ class Simwrap:
         self.fluid.mu = icparams['muini'] * np.ones(self.par.nogrid)
 
 
-def load_snapshot(outfilename, icparams):
+def load_snapshot(outfilename, icparams, runparams):
     """Load an output snapshot into a lightweight simulation wrapper."""
 
     rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    rout.par.CodeUnits = code_units
+    rout.par.code_units = code_units
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rout.par.time = unyt.unyt_array(np.asarray(rout.par.time, dtype=float), code_units.time_unit)
+    rout.par.boxsize = unyt.unyt_array(np.asarray(rout.par.boxsize, dtype=float), code_units.length_unit)
+    rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units.length_unit)
+    rout.fluid.vel = unyt.unyt_array(np.asarray(rout.fluid.vel, dtype=float), code_units.velocity_unit)
+    rout.fluid.temp = unyt.unyt_array(np.asarray(rout.fluid.temp, dtype=float), code_units.temperature_unit)
+    rout.fluid.rho = unyt.unyt_array(np.asarray(rout.fluid.rho, dtype=float), code_units.density_unit)
+    rout.fluid.mu = np.asarray(rout.fluid.mu, dtype=float)
+    if hasattr(rout.fluid, 'xHI'):
+        rout.fluid.xHI = np.asarray(rout.fluid.xHI, dtype=float)
+    if hasattr(rout.fluid, 'ngamma'):
+        rout.fluid.ngamma = unyt.unyt_array(
+            np.asarray(rout.fluid.ngamma, dtype=float),
+            code_units.number_density_unit,
+        )
     return rout
 
 
@@ -512,7 +530,7 @@ def make_pressure_figure(snapshots, icparams, runparams):
 
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
-    rout = load_snapshot(outfilename, icparams)
+    rout = load_snapshot(outfilename, icparams, runparams)
     plot_density_snapshot(plt.gca(), rout, **kwargs)
     if np.all(rout.par.time > 0 * rout.par.time.units):
         shock_radius = weaver_forward_shock_radius(rout, icparams, runparams)

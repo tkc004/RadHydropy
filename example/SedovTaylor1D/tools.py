@@ -10,6 +10,7 @@ import unyt
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
 import radhydropy.utils as ru
+from radhydropy.units import CodeUnits
 import SedovTaylor_analytic as sa
 
 
@@ -96,6 +97,9 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams, runparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units
+    rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rout.fluid.pre = ru.CalPressure(rout.fluid.rho, rout.fluid.temp, rout.fluid.mu)
     nu = 1
@@ -107,7 +111,7 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         E0 = icparams['Eini'] * 2.0
     rho1d0 = icparams['rhoini'] * runparams['area']
     A0 = rho1d0
-    t = rout.par.time
+    t = rout.par.time * code_units.time_unit
     r, rho, v, p, Rs = sa.get_blastwave_solution(E0, A0, nu, g, w, t)
     r = unyt.uconcatenate((r, unyt.unyt_array([1.0, 2] * Rs)))
     rho = unyt.uconcatenate((rho, unyt.unyt_array([rho1d0, rho1d0])))

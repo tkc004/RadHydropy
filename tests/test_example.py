@@ -86,6 +86,20 @@ STATIC_STROMGREN_PHOTONHEATING_TOOLS_SPEC.loader.exec_module(
     static_stromgren_photoheating_tools
 )
 
+STATIC_STROMGREN_TOOLS_PATH = (
+    Path(__file__).resolve().parents[1]
+    / 'example'
+    / 'StaticStromgrenSphere1D'
+    / 'tools.py'
+)
+STATIC_STROMGREN_TOOLS_SPEC = importlib.util.spec_from_file_location(
+    'static_stromgren_sphere1d_tools_for_tests',
+    STATIC_STROMGREN_TOOLS_PATH,
+)
+static_stromgren_tools = importlib.util.module_from_spec(STATIC_STROMGREN_TOOLS_SPEC)
+assert STATIC_STROMGREN_TOOLS_SPEC.loader is not None
+STATIC_STROMGREN_TOOLS_SPEC.loader.exec_module(static_stromgren_tools)
+
 HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT = EXAMPLE_ROOT / 'HydrogenPhotoionization1D'
 if str(HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(HYDROGEN_PHOTOIONIZATION_EXAMPLE_ROOT))
@@ -577,6 +591,44 @@ class Testing(unittest.TestCase):
         self.assertEqual(refresh_calls, [1])
         self.assertEqual(history['evolution_steps'], 1)
         self.assertIn('mean_ionized_temp_K', history)
+
+    def test_static_stromgren_sphere_photon_budget_uses_physical_units(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StaticStromgrenSphere1D'
+            / 'static_stromgren_sphere1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+        config = {**runparams, **icparams}
+
+        par, mesh, fluid, solver = static_stromgren_tools.build_static_problem(config)
+        sim = Rsim.FromComponents(par, mesh, fluid, solver)
+        sim.ConvertParametersToCodeUnits()
+
+        state = {
+            'xHI': np.array([1.0], dtype=float),
+            'nH_cm3': np.array([1.0], dtype=float),
+            'volume_cm3': np.array([1.0], dtype=float),
+            'temperature_K': np.array([1.0], dtype=float),
+            'radius_kpc': np.array([1.0], dtype=float),
+        }
+
+        with mock.patch.object(rtc, 'source_state', return_value=state), \
+            mock.patch.object(rrt, 'trace_photon_density', return_value=np.array([0.0])), \
+            mock.patch.object(rtc, 'get_timestep', return_value=(1.0, None)), \
+            mock.patch.object(sim, '_advance_source_thermochemistry_state', return_value=0.0), \
+            mock.patch.object(sim, '_finish_static_thermochemistry', return_value=None), \
+            mock.patch.object(sim, '_refresh_static_photon_density', return_value=(None, 0)):
+            history = sim.EvolveStaticThermochemistry(
+                1.0 * unyt.s,
+                1.0 * unyt.s,
+                include_thermal_history=False,
+                reference_time=None,
+            )
+
+        self.assertAlmostEqual(history['injected_photons'][-1], 5.0e48)
+        self.assertLess(history['time_Myr'][-1], 1.0e-12)
 
     def test_dynamic_stromgren_sphere_photoheating1d_uses_yaml_config(self):
         config_filename = (

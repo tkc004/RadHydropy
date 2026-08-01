@@ -8,6 +8,7 @@ import numpy as np
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
 import radhydropy.utils as ru
+from radhydropy.units import CodeUnits
 
 
 class Par:
@@ -59,15 +60,19 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units
+    rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    time = rout.par.time * code_units.time_unit
     x = np.linspace(
         0.0 * icparams['boxsize'],
         icparams['boxsize'],
         icparams['nogrid'],
     )
     rho = np.ones(icparams['nogrid']) * icparams['rhoini']
-    x1 = 0.25 * icparams['boxsize'] + rout.par.time * icparams['vini']
-    x2 = 0.75 * icparams['boxsize'] + rout.par.time * icparams['vini']
+    x1 = 0.25 * icparams['boxsize'] + time * icparams['vini']
+    x2 = 0.75 * icparams['boxsize'] + time * icparams['vini']
     if x1 > icparams['boxsize']:
         x1 -= icparams['boxsize']
     if x2 > icparams['boxsize']:

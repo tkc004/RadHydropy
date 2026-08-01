@@ -8,7 +8,12 @@ import unyt
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, GRAVITATIONAL_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits, code_unit_scales
+from radhydropy.units import (
+    CodeUnits,
+    code_quantity_to_cgs,
+    code_unit_scales,
+    quantity_to_value,
+)
 
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
@@ -169,8 +174,11 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
-    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    code_units_mapping = runparams.get('CodeUnits')
+    code_units = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
     rout = Simwrap(icparams, code_units=code_units)
+    if code_units is not None:
+        rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('noghost', 0))
@@ -193,23 +201,33 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         code_units=code_units,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
+    x_units = getattr(xcoord, 'units', code_units.length_unit.units if code_units is not None else unyt.cm)
+    rho_units = getattr(rho_num, 'units', code_units.density_unit.units if code_units is not None else unyt.g / unyt.cm**3)
+    vel_units = getattr(vel_num, 'units', code_units.velocity_unit.units if code_units is not None else unyt.cm / unyt.s)
+    xplot = code_quantity_to_cgs(xcoord, code_units, 'length_cm')
+    rho_num_plot = code_quantity_to_cgs(rho_num, code_units, 'density_g_cm3')
+    rho_analytic_plot = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
+    vel_num_plot = code_quantity_to_cgs(vel_num, code_units, 'velocity_cm_s')
+    zero_velocity_plot = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 
     plt.subplot(1, 2, 1)
-    plt.plot(xcoord.in_cgs(), rho_num.in_cgs(), **kwargs)
+    plt.plot(xplot, rho_num_plot, **kwargs)
     plt.plot(
-        xcoord.in_cgs(),
-        rho_analytic.in_cgs(),
+        xplot,
+        rho_analytic_plot,
         ls='dashed',
         color=color,
     )
-    plt.ylabel(r"$\rho$")
+    plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
+    plt.ylabel(rf"$\rho \; [{rho_units.latex_repr}]$")
 
     plt.subplot(1, 2, 2)
-    plt.plot(xcoord.in_cgs(), vel_num.in_cgs(), **kwargs)
+    plt.plot(xplot, vel_num_plot, **kwargs)
     plt.plot(
-        xcoord.in_cgs(),
-        zero_velocity.in_cgs(),
+        xplot,
+        zero_velocity_plot,
         ls='dashed',
         color=color,
     )
-    plt.ylabel(r"$v$")
+    plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
+    plt.ylabel(rf"$v \; [{vel_units.latex_repr}]$")

@@ -228,6 +228,42 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.vel[:2].value, [-14.0, -13.0])
         np.testing.assert_array_equal(fluid.vel[-2:].value, [15.0, 15.0])
 
+    def test_inflow_spherical_boundary_sets_inner_symmetry_and_inflow_state(self):
+        fluid = Fluid()
+        fluid.xHI = np.arange(8, dtype=float) / 10.0
+        fluid.ngamma = np.arange(8, dtype=float) / unyt.cm**3
+        par = Par('InflowSph')
+        par.CodeUnits = CODE_UNITS
+        par.hydrogen_xHI_inflow = 0.25
+        par.hydrogen_ngamma_inflow = 1.5 / unyt.cm**3
+
+        Solver().SetBoundary(Mesh(), fluid, par)
+
+        np.testing.assert_array_equal(fluid.rho[:2].value, [3.0, 2.0])
+        np.testing.assert_array_equal(fluid.vel[:2].value, [-13.0, -12.0])
+        np.testing.assert_array_equal(fluid.rho[-2:].value, [9.0, 9.0])
+        np.testing.assert_array_equal(fluid.vel[-2:].value, [8.0, 8.0])
+        np.testing.assert_array_equal(fluid.xHI[-2:], [0.25, 0.25])
+        np.testing.assert_array_equal(fluid.ngamma[-2:].value, [1.5, 1.5])
+
+    def test_outflow_spherical_boundary_sets_inner_outflow_state(self):
+        fluid = Fluid()
+        fluid.xHI = np.arange(8, dtype=float) / 10.0
+        fluid.ngamma = np.arange(8, dtype=float) / unyt.cm**3
+        par = Par('OutflowSph')
+        par.CodeUnits = CODE_UNITS
+        par.hydrogen_xHI_outflow = 0.75
+        par.hydrogen_ngamma_outflow = 2.5 / unyt.cm**3
+
+        Solver().SetBoundary(Mesh(), fluid, par)
+
+        np.testing.assert_array_equal(fluid.rho[:2].value, [7.0, 7.0])
+        np.testing.assert_array_equal(fluid.vel[:2].value, [6.0, 6.0])
+        np.testing.assert_array_equal(fluid.xHI[:2], [0.75, 0.75])
+        np.testing.assert_array_equal(fluid.ngamma[:2].value, [2.5, 2.5])
+        np.testing.assert_array_equal(fluid.rho[-2:].value, [5.0, 5.0])
+        np.testing.assert_array_equal(fluid.vel[-2:].value, [15.0, 15.0])
+
     def test_set_primitive_handles_zero_mass(self):
         fluid = Fluid()
         fluid.Mass = np.array([1.0, 0.0, 2.0]) * unyt.g

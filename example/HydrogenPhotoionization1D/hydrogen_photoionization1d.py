@@ -72,7 +72,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     history = et.load_history_from_outputs(
         outputfiles,
-        ICparams,
+        {**runparams, **ICparams},
         runparams['noghost'],
     )
 

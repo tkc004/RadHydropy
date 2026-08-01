@@ -10,6 +10,7 @@ import unyt
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
 import radhydropy.utils as ru
+from radhydropy.units import CodeUnits
 import SedovTaylor_analytic as sa
 
 
@@ -97,17 +98,26 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams, runparams)
+    rout.par.CodeUnits = CodeUnits.from_mapping(runparams['CodeUnits'])
+    rout.par.code_units = rout.par.CodeUnits
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rout.fluid.pre = ru.CalPressure(rout.fluid.rho, rout.fluid.temp, rout.fluid.mu)
     nu = 3
     g = runparams['gamma']
     w = 0.0
-    E0 = icparams['Eini']
-    A0 = icparams['rhoini']
-    t = rout.par.time
+    E0 = float(np.asarray(icparams['Eini'].to_value(unyt.erg), dtype=float))
+    A0 = float(np.asarray(icparams['rhoini'].to_value(unyt.g / unyt.cm**3), dtype=float))
+    t = float(np.asarray(rout.par.time, dtype=float))
     r, rho, v, p, Rs = sa.get_blastwave_solution(E0, A0, nu, g, w, t)
-    r = np.concatenate((r, unyt.unyt_array([1.0, 2] * Rs)))
-    rho = np.concatenate((rho, unyt.unyt_array([icparams['rhoini'], icparams['rhoini']])))
+    r = r * unyt.cm
+    rho = rho * (unyt.g / unyt.cm**3)
+    v = v * (unyt.cm / unyt.s)
+    p = p * (unyt.dyn / unyt.cm**2)
+    r = np.concatenate((r, unyt.unyt_array(np.array([1.0, 2.0]) * Rs) * unyt.cm))
+    rho = np.concatenate((
+        rho,
+        unyt.unyt_array([icparams['rhoini'], icparams['rhoini']]).to(unyt.g / unyt.cm**3),
+    ))
     v = np.concatenate((
         v,
         unyt.unyt_array([0.0 * unyt.cm / unyt.s, 0.0 * unyt.cm / unyt.s]),

@@ -134,6 +134,19 @@ def write_initial_condition(config, runparams):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par.time = unyt.unyt_array(np.asarray(par.time, dtype=float), code_units.time_unit)
+    par.boxsize = unyt.unyt_array(np.asarray(par.boxsize, dtype=float), code_units.length_unit)
+    mesh.boundary = unyt.unyt_array(np.asarray(mesh.boundary, dtype=float), code_units.length_unit)
+    fluid.rho = unyt.unyt_array(np.asarray(fluid.rho, dtype=float), code_units.density_unit)
+    fluid.vel = unyt.unyt_array(np.asarray(fluid.vel, dtype=float), code_units.velocity_unit)
+    fluid.temp = unyt.unyt_array(np.asarray(fluid.temp, dtype=float), code_units.temperature_unit)
+    fluid.time = par.time.copy()
+    if hasattr(fluid, 'ngamma'):
+        fluid.ngamma = unyt.unyt_array(
+            np.asarray(fluid.ngamma, dtype=float),
+            code_units.number_density_unit,
+        )
     _refresh_mesh_geometry(mesh, par)
     return par, mesh, fluid
 

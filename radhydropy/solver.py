@@ -17,6 +17,7 @@ from radhydropy.units import (
     _as_cgs_float,
     _code_units,
     code_quantity_to_cgs,
+    photon_number_density,
 )
 import numpy as np
 from types import SimpleNamespace
@@ -157,6 +158,156 @@ class Solver():
         if center_cell is None:
             return
         fluid.Mom[center_cell] = 0.0
+
+    def _boundary_field_names(self, fluid):
+        fields = ['rho', 'vel', 'pre']
+        if hasattr(fluid, 'xHI'):
+            fields.append('xHI')
+        if hasattr(fluid, 'ngamma'):
+            fields.append('ngamma')
+        return fields
+
+    def _copy_boundary_state(self, fluid, target_slice, values):
+        for attr, value in values.items():
+            getattr(fluid, attr)[target_slice] = value
+
+    def _boundary_state(
+        self,
+        fluid,
+        source,
+        include_velocity=True,
+        negate_velocity=False,
+        reverse=False,
+    ):
+        state = {
+            'rho': fluid.rho[source],
+            'pre': fluid.pre[source],
+        }
+        if include_velocity:
+            velocity = fluid.vel[source]
+            state['vel'] = -velocity if negate_velocity else velocity
+        if hasattr(fluid, 'xHI'):
+            state['xHI'] = fluid.xHI[source]
+        if hasattr(fluid, 'ngamma'):
+            state['ngamma'] = fluid.ngamma[source]
+        if reverse:
+            for key, value in list(state.items()):
+                state[key] = value[::-1]
+        return state
+
+    def _to_code_number_density(self, value, scales):
+        density = np.asarray(photon_number_density(value).to_value(unyt.cm**-3), dtype=float)
+        if scales is None:
+            return density
+        return density / scales['number_density_cm3']
+
+    def _apply_periodic_boundary(self, fluid, interior, left_ghost, right_ghost, noghost):
+        fields = self._boundary_field_names(fluid)
+        for attr in fields:
+            quan = getattr(fluid, attr)
+            quan[left_ghost] = quan[interior][-noghost:]
+            quan[right_ghost] = quan[interior][:noghost]
+
+    def _apply_open_boundary(self, fluid, first, nolast, left_ghost, right_ghost):
+        fields = self._boundary_field_names(fluid)
+        for attr in fields:
+            quan = getattr(fluid, attr)
+            quan[left_ghost] = quan[first]
+            quan[right_ghost] = quan[nolast]
+
+    def _apply_reflecting_boundary(self, fluid, interior, left_ghost, right_ghost, noghost):
+        for attr in ('rho', 'pre'):
+            quan = getattr(fluid, attr)
+            quan[left_ghost] = quan[interior][:noghost][::-1]
+            quan[right_ghost] = quan[interior][-noghost:][::-1]
+        fluid.vel[left_ghost] = -fluid.vel[interior][:noghost][::-1]
+        fluid.vel[right_ghost] = -fluid.vel[interior][-noghost:][::-1]
+
+    def _apply_spherical_inner_boundary(self, mesh, fluid, first, noghost):
+        mirror_start = first
+        if mesh is not None and hasattr(mesh, 'boundary'):
+            boundary_units = getattr(mesh.boundary, 'units', None)
+            origin = 0.0 * boundary_units if boundary_units is not None else 0.0
+            if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
+                mirror_start = first + 1
+        left_state = self._boundary_state(
+            fluid,
+            slice(mirror_start, mirror_start + noghost),
+            negate_velocity=True,
+            reverse=True,
+        )
+        self._copy_boundary_state(fluid, slice(0, noghost), left_state)
+
+    def _apply_open_spherical_boundary(
+        self,
+        mesh,
+        fluid,
+        par,
+        scales,
+        first,
+        nolast,
+        left_ghost,
+        right_ghost,
+        noghost,
+    ):
+        self._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
+        right_state = self._boundary_state(fluid, nolast)
+        self._copy_boundary_state(fluid, right_ghost, right_state)
+
+    def _apply_inflow_spherical_boundary(
+        self,
+        mesh,
+        fluid,
+        par,
+        scales,
+        first,
+        nolast,
+        left_ghost,
+        right_ghost,
+        noghost,
+    ):
+        self._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
+        right_state = {
+            'rho': par.rho_inflow,
+            'vel': par.vel_inflow,
+            'pre': fluid.eos.pressure(par.rho_inflow, par.temp_inflow, par.mu_inflow),
+        }
+        if hasattr(fluid, 'xHI'):
+            right_state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
+        if hasattr(fluid, 'ngamma'):
+            right_state['ngamma'] = self._to_code_number_density(
+                getattr(par, 'hydrogen_ngamma_inflow', 0.0),
+                scales,
+            )
+        self._copy_boundary_state(fluid, right_ghost, right_state)
+
+    def _apply_outflow_spherical_boundary(
+        self,
+        mesh,
+        fluid,
+        par,
+        scales,
+        first,
+        nolast,
+        left_ghost,
+        right_ghost,
+        noghost,
+    ):
+        left_state = {
+            'rho': par.rho_outflow,
+            'vel': par.vel_outflow,
+            'pre': fluid.eos.pressure(par.rho_outflow, par.temp_outflow, par.mu_outflow),
+        }
+        if hasattr(fluid, 'xHI'):
+            left_state['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
+        if hasattr(fluid, 'ngamma'):
+            left_state['ngamma'] = self._to_code_number_density(
+                getattr(par, 'hydrogen_ngamma_outflow', 0.0),
+                scales,
+            )
+        self._copy_boundary_state(fluid, left_ghost, left_state)
+        right_state = self._boundary_state(fluid, nolast)
+        self._copy_boundary_state(fluid, right_ghost, right_state)
 
     def SetPrimitive(self, mesh, fluid, verbose=None):
         """Update primitive variables from conserved quantities."""
@@ -463,125 +614,53 @@ class Solver():
         interior = slice(first, right_start)
         left_ghost = slice(0, noghost)
         right_ghost = slice(right_start, right_start + noghost)
-        fields = ['rho', 'vel', 'pre']
-        if hasattr(fluid, 'xHI'):
-            fields.append('xHI')
-        if hasattr(fluid, 'ngamma'):
-            fields.append('ngamma')
-        scalar_fields = [field for field in fields if field != 'vel']
-
-        def copy_left(values):
-            for attr, value in values.items():
-                getattr(fluid, attr)[left_ghost] = value
-
-        def copy_right(values):
-            for attr, value in values.items():
-                getattr(fluid, attr)[right_ghost] = value
-
-        def apply_spherical_inner_boundary():
-            mirror_start = first
-            if mesh is not None and hasattr(mesh, 'boundary'):
-                boundary_units = getattr(mesh.boundary, 'units', None)
-                origin = 0.0 * boundary_units if boundary_units is not None else 0.0
-                if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
-                    mirror_start = first + 1
-            left_values = {
-                'rho': fluid.rho[mirror_start:mirror_start+noghost][::-1],
-                'vel': -fluid.vel[mirror_start:mirror_start+noghost][::-1],
-                'pre': fluid.pre[mirror_start:mirror_start+noghost][::-1],
-            }
-            if hasattr(fluid, 'xHI'):
-                left_values['xHI'] = fluid.xHI[mirror_start:mirror_start+noghost][::-1]
-            if hasattr(fluid, 'ngamma'):
-                left_values['ngamma'] = fluid.ngamma[mirror_start:mirror_start+noghost][::-1]
-            copy_left(left_values)
-
         if btype == 'Periodic':
-            for attr in fields:
-                quan = getattr(fluid, attr)
-                quan[left_ghost] = quan[interior][-noghost:]
-                quan[right_ghost] = quan[interior][:noghost]
+            self._apply_periodic_boundary(fluid, interior, left_ghost, right_ghost, noghost)
         elif btype == 'Open':
             # open boundary condition does not mean the gradient is zero.
-            for attr in fields:
-                quan = getattr(fluid, attr)
-                quan[left_ghost] = quan[first]
-                quan[right_ghost] = quan[nolast]
-        elif btype == 'Reflecting': 
-            for attr in scalar_fields:
-                quan = getattr(fluid, attr)
-                quan[left_ghost] = quan[interior][:noghost][::-1]
-                quan[right_ghost] = quan[interior][-noghost:][::-1]
-            fluid.vel[left_ghost] = -fluid.vel[interior][:noghost][::-1]
-            fluid.vel[right_ghost] = -fluid.vel[interior][-noghost:][::-1]
+            self._apply_open_boundary(fluid, first, nolast, left_ghost, right_ghost)
+        elif btype == 'Reflecting':
+            self._apply_reflecting_boundary(fluid, interior, left_ghost, right_ghost, noghost)
         elif btype == 'OpenSph':
             # spherical open boundary condition
             # open only at outer boundary
             # symmetric at the center
-            # this means zero flux at r=0 
-            # imply zero gradient?
-            apply_spherical_inner_boundary()
-            right_values = {
-                'rho': fluid.rho[nolast],
-                'vel': fluid.vel[nolast],
-                'pre': fluid.pre[nolast],
-            }
-            if hasattr(fluid, 'xHI'):
-                right_values['xHI'] = fluid.xHI[nolast]
-            if hasattr(fluid, 'ngamma'):
-                right_values['ngamma'] = fluid.ngamma[nolast]
-            copy_right(right_values)
+            # this means zero flux at r=0
+            self._apply_open_spherical_boundary(
+                mesh,
+                fluid,
+                par,
+                scales,
+                first,
+                nolast,
+                left_ghost,
+                right_ghost,
+                noghost,
+            )
         elif btype == 'InflowSph':
-            pre_inflow = fluid.eos.pressure(par.rho_inflow, par.temp_inflow, par.mu_inflow)
-            apply_spherical_inner_boundary()
-            right_values = {
-                'rho': par.rho_inflow,
-                'vel': par.vel_inflow,
-                'pre': pre_inflow,
-            }
-            if hasattr(fluid, 'xHI'):
-                right_values['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
-            if hasattr(fluid, 'ngamma'):
-                right_values['ngamma'] = (
-                    np.asarray(
-                        photon_number_density(
-                            getattr(par, 'hydrogen_ngamma_inflow', 0.0)
-                        ).to_value(unyt.cm**-3),
-                        dtype=float,
-                    )
-                    / scales['number_density_cm3']
-                )
-            copy_right(right_values)
+            self._apply_inflow_spherical_boundary(
+                mesh,
+                fluid,
+                par,
+                scales,
+                first,
+                nolast,
+                left_ghost,
+                right_ghost,
+                noghost,
+            )
         elif btype == 'OutflowSph':
-            pre_outflow = fluid.eos.pressure(par.rho_outflow, par.temp_outflow, par.mu_outflow)
-            left_values = {
-                'rho': par.rho_outflow,
-                'vel': par.vel_outflow,
-                'pre': pre_outflow,
-            }
-            if hasattr(fluid, 'xHI'):
-                left_values['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
-            if hasattr(fluid, 'ngamma'):
-                left_values['ngamma'] = (
-                    np.asarray(
-                        photon_number_density(
-                            getattr(par, 'hydrogen_ngamma_outflow', 0.0)
-                        ).to_value(unyt.cm**-3),
-                        dtype=float,
-                    )
-                    / scales['number_density_cm3']
-                )
-            copy_left(left_values)
-            right_values = {
-                'rho': fluid.rho[nolast],
-                'vel': fluid.vel[nolast],
-                'pre': fluid.pre[nolast],
-            }
-            if hasattr(fluid, 'xHI'):
-                right_values['xHI'] = fluid.xHI[nolast]
-            if hasattr(fluid, 'ngamma'):
-                right_values['ngamma'] = fluid.ngamma[nolast]
-            copy_right(right_values)
+            self._apply_outflow_spherical_boundary(
+                mesh,
+                fluid,
+                par,
+                scales,
+                first,
+                nolast,
+                left_ghost,
+                right_ghost,
+                noghost,
+            )
         else:
             raise ValueError('Boundary condition unknown: %s'%btype) 
         

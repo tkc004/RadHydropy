@@ -7,6 +7,7 @@ import numpy as np
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 import advection_sph_analytic as asa
 
 
@@ -56,21 +57,22 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units
+    rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    time = rout.par.time * code_units.time_unit
+    radius = rout.mesh.boundary[:-1] * code_units.length_unit
     rplot1d(rout, yquan='rho', showfig=0, **kwargs)
     rout.mesh.vol = np.absolute(
         rout.mesh.boundary[1:]**3 - rout.mesh.boundary[:-1]**3
     ) * 4.0 * np.pi / 3.0
     mtot = np.sum(rout.fluid.rho * rout.mesh.vol)
     print('mtot', mtot)
-    x = np.linspace(
-        0.0 * icparams['boxsize'],
-        icparams['boxsize'],
-        icparams['nogrid'],
-    )
+    x = rout.mesh.boundary[:-1] * code_units.length_unit
     rho = asa.top_hat_density_profile(
-        x,
-        rout.par.time,
+        radius,
+        time,
         icparams['vini'],
         icparams['boxsize'],
         icparams['rhoini'],

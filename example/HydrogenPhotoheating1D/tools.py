@@ -9,6 +9,7 @@ import unyt
 import time
 
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 import hydrogen_photoheating_reference as hpr
 
 
@@ -124,15 +125,23 @@ def mean_photon_number_density(sim):
 def time_value(sim, units):
     if hasattr(sim.fluid.time, 'to_value'):
         return float(np.ravel(sim.fluid.time.to_value(units))[0])
+    code = getattr(sim.par, 'CodeUnits', None)
+    if code is not None:
+        return float(
+            np.ravel((np.asarray(sim.fluid.time, dtype=float) * code.time_unit).to_value(units))[0]
+        )
     return float(np.ravel(np.asarray(sim.fluid.time, dtype=float))[0])
 
 
-def load_history_from_outputs(outputfiles, icparams, noghost):
+def load_history_from_outputs(outputfiles, config, noghost):
     history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
-    interior = slice(noghost, noghost + icparams['nogrid'])
+    interior = slice(noghost, noghost + config['nogrid'])
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(icparams)
+        rout = Simwrap(config)
+        rout.par.CodeUnits = code_units
+        rout.par.unit_system = code_units.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(

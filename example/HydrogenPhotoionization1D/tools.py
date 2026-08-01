@@ -8,6 +8,7 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
 import hydrogen_photoionization_analytic as hpa
 
 
@@ -21,18 +22,6 @@ class Mesh:
 
 class Fluid:
     pass
-
-
-def _quantity_values(quantity, units=None):
-    """Return plain numeric values from a unit-aware or raw array."""
-    if hasattr(quantity, 'to_value'):
-        return quantity.to_value(units) if units is not None else quantity.to_value()
-    if hasattr(quantity, 'in_units'):
-        converted = quantity.in_units(units) if units is not None else quantity
-        if hasattr(converted, 'to_value'):
-            return converted.to_value(units) if units is not None else converted.to_value()
-        return np.asarray(converted)
-    return np.asarray(quantity)
 
 
 class Simwrap:
@@ -71,7 +60,13 @@ def interior_slice(sim):
 
 def mean_temperature(sim):
     interior = interior_slice(sim)
-    return np.mean(_quantity_values(sim.fluid.temp[interior], unyt.K)) * unyt.K
+    code_units = getattr(sim.par, 'CodeUnits', None)
+    temp_values = code_quantity_to_cgs(
+        sim.fluid.temp[interior],
+        code_units,
+        'temperature_K',
+    )
+    return np.mean(temp_values) * unyt.K
 
 
 def mean_neutral_fraction(sim):
@@ -82,32 +77,53 @@ def mean_neutral_fraction(sim):
 def mean_photon_number_density(sim):
     interior = interior_slice(sim)
     return (
-        np.mean(_quantity_values(sim.fluid.ngamma[interior], 1.0 / unyt.cm**3))
+        np.mean(
+            code_quantity_to_cgs(
+                sim.fluid.ngamma[interior],
+                getattr(sim.par, 'CodeUnits', None),
+                'number_density_cm3',
+            )
+        )
         / unyt.cm**3
     )
 
 
 def time_value(sim, units):
-    time = sim.fluid.time
-    if hasattr(time, 'to_value'):
-        return float(np.ravel(time.to_value(units))[0])
-    return float(np.ravel(time)[0])
+    code = getattr(sim.par, 'CodeUnits', None)
+    time_s = time_seconds(sim.fluid.time, code)
+    unit_seconds = float((1.0 * units).to_value(unyt.s))
+    return float(time_s / unit_seconds)
 
 
-def load_history_from_outputs(outputfiles, icparams, noghost):
+def load_history_from_outputs(outputfiles, config, noghost):
     history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
-    interior = slice(noghost, noghost + icparams['nogrid'])
+    interior = slice(noghost, noghost + config['nogrid'])
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(icparams)
+        rout = Simwrap(config)
+        rout.par.CodeUnits = code_units
+        rout.par.unit_system = code_units.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(
-            np.mean(_quantity_values(rout.fluid.temp[interior], unyt.K))
+            np.mean(
+                code_quantity_to_cgs(
+                    rout.fluid.temp[interior],
+                    code_units,
+                    'temperature_K',
+                )
+            )
         )
         history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
         history['ngamma'].append(
-            np.mean(_quantity_values(rout.fluid.ngamma[interior], 1.0 / unyt.cm**3))
+            np.mean(
+                code_quantity_to_cgs(
+                    rout.fluid.ngamma[interior],
+                    code_units,
+                    'number_density_cm3',
+                )
+            )
         )
 
     return history
@@ -120,8 +136,17 @@ def output_files(outdir, outfileprefix):
 def save_history_plot(history, filename, icparams, runparams, target_xHI):
     time_yr = np.asarray(history['time_yr'])
     xHI = np.asarray(history['xHI'])
+    positive_time_yr = time_yr[time_yr > 0.0]
+    if positive_time_yr.size > 0:
+        dense_time_yr = np.logspace(
+            np.log10(max(positive_time_yr.min() * 0.1, 1.0e-6)),
+            np.log10(positive_time_yr.max()),
+            400,
+        )
+    else:
+        dense_time_yr = np.maximum(time_yr, 1.0e-6)
     analytic = hpa.neutral_fraction(
-        time_yr,
+        dense_time_yr,
         icparams['xHIini'],
         icparams['tempini'],
         icparams['nHini'],
@@ -140,7 +165,7 @@ def save_history_plot(history, filename, icparams, runparams, target_xHI):
         label='RadHydropy',
     )
     ax.plot(
-        time_yr,
+        dense_time_yr,
         analytic,
         color='black',
         lw=2.0,
@@ -151,7 +176,8 @@ def save_history_plot(history, filename, icparams, runparams, target_xHI):
     ax.set_xlabel('Time [yr]')
     ax.set_ylabel('Neutral fraction')
     ax.set_yscale('log')
-    ax.set_ylim(2.0e-3, 1.2)
+    lower_ylim = min(analytic.min(), np.min(xHI), target_xHI) * 0.2
+    ax.set_ylim(max(lower_ylim, 1.0e-6), 1.2)
     ax.grid(True, which='both', alpha=0.25)
     ax.legend(frameon=False)
     fig.tight_layout()

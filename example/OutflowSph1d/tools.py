@@ -7,6 +7,7 @@ import numpy as np
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 import outflow_sph_analytic as oa
 
 
@@ -46,18 +47,20 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout.par.CodeUnits = code_units
+    rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho', showhalf=0, showfig=0, **kwargs)
     plt.axvline(
-        x=oa.front_position(rout.par.time, runparams['vel_outflow']),
+        x=oa.front_position(
+            rout.par.time * code_units.time_unit,
+            runparams['vel_outflow'],
+        ),
         color=kwargs['color'],
         ls='dashed',
     )
-    x = np.linspace(
-        icparams['rinj'],
-        icparams['rinj'] + icparams['boxsize'],
-        icparams['nogrid'],
-    )
+    x = rout.mesh.boundary[:-1] * code_units.length_unit
     rhoana = oa.density_profile(
         x,
         runparams['rho_outflow'],

@@ -39,7 +39,7 @@ def load_snapshots(runparams, ICparams, max_outputs=10, start_index=1):
             runparams['outdir'],
             runparams['outfileprefix'] + '_%03d' % outindex + '.hdf5',
         )
-        snapshots.append(et.load_snapshot(outfilename, ICparams))
+        snapshots.append(et.load_snapshot(outfilename, ICparams, runparams))
     return snapshots
 
 

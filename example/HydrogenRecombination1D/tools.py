@@ -8,6 +8,7 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 import hydrogen_recombination_analytic as hra
 
 
@@ -88,12 +89,15 @@ def time_value(sim, units):
     return float(np.ravel(np.asarray(time, dtype=float))[0])
 
 
-def load_history_from_outputs(outputfiles, icparams, noghost):
+def load_history_from_outputs(outputfiles, config, noghost):
     history = {'time_yr': [], 'temperature_K': [], 'ionized_fraction': []}
-    interior = slice(noghost, noghost + icparams['nogrid'])
+    interior = slice(noghost, noghost + config['nogrid'])
+    code_units = CodeUnits.from_mapping(config.get('CodeUnits'))
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(icparams)
+        rout = Simwrap(config)
+        rout.par.CodeUnits = code_units
+        rout.par.unit_system = code_units.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(

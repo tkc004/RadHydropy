@@ -8,7 +8,13 @@ import unyt
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
-from radhydropy.units import code_unit_scales
+from radhydropy.units import (
+    CodeUnits,
+    code_quantity_to_cgs,
+    code_unit_scales,
+    quantity_to_value,
+    time_seconds,
+)
 
 
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
@@ -88,21 +94,34 @@ def ballistic_density_profile(coordinate, rho_ref):
     return np.ones(np.shape(coordinate), dtype=float) * rho_ref
 
 
-def ballistic_velocity_profile(coordinate, point_mass, time, softening=0.0):
+def ballistic_velocity_profile(
+    coordinate,
+    point_mass,
+    time,
+    softening=0.0,
+    code_units=None,
+):
     """Return the short-time free-fall velocity under a point mass."""
     acceleration = point_mass_acceleration(
         point_mass,
         softening=softening,
-        code_units=None,
+        code_units=code_units,
     )(coordinate)
+    if code_units is not None:
+        time = time_seconds(time, code_units) * unyt.s
+    elif hasattr(time, 'to_value'):
+        time = time.to_value(unyt.s) * unyt.s
+    else:
+        time = float(time) * unyt.s
     return acceleration * time
 
 
 class Simwrap:
-    def __init__(self, icparams):
+    def __init__(self, icparams, code_units=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
+        self.par.CodeUnits = code_units
 
         self.par.nogrid = icparams['nogrid']
         self.par.coordsys = icparams['coordsys']
@@ -134,7 +153,9 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the ballistic short-time profile."""
-    rout = Simwrap(icparams)
+    code_units = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    rout = Simwrap(icparams, code_units=code_units)
+    rout.par.unit_system = code_units.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('noghost', 0))
@@ -152,14 +173,18 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         xcoord,
         icparams['point_mass'],
         rout.fluid.time,
+        code_units=code_units,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
-    xcoord_cgs = xcoord.in_cgs()
-    rho_num_cgs = rho_num.in_cgs()
-    rho_analytic_cgs = rho_analytic.in_cgs()
-    vel_num_cgs = vel_num.in_cgs()
-    vel_analytic_cgs = vel_analytic.in_cgs()
-    zero_velocity_cgs = zero_velocity.in_cgs()
+    x_units = getattr(xcoord, 'units', code_units.length_unit.units)
+    rho_units = getattr(rho_num, 'units', code_units.density_unit.units)
+    vel_units = getattr(vel_num, 'units', code_units.velocity_unit.units)
+    xcoord_cgs = code_quantity_to_cgs(xcoord, code_units, 'length_cm')
+    rho_num_cgs = code_quantity_to_cgs(rho_num, code_units, 'density_g_cm3')
+    rho_analytic_cgs = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
+    vel_num_cgs = code_quantity_to_cgs(vel_num, code_units, 'velocity_cm_s')
+    vel_analytic_cgs = quantity_to_value(vel_analytic, unyt.cm / unyt.s)
+    zero_velocity_cgs = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 
     plt.subplot(1, 2, 1)
     plt.plot(xcoord_cgs, rho_num_cgs, label='numerical', **kwargs)
@@ -170,8 +195,8 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         color=color,
         label='analytic',
     )
-    plt.xlabel(rf"$r \; [{xcoord_cgs.units.latex_repr}]$")
-    plt.ylabel(rf"$\rho \; [{rho_num_cgs.units.latex_repr}]$")
+    plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
+    plt.ylabel(rf"$\rho \; [{rho_units.latex_repr}]$")
     plt.legend(loc='best')
 
     plt.subplot(1, 2, 2)
@@ -190,6 +215,6 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         color='C2',
         label='zero velocity',
     )
-    plt.xlabel(rf"$r \; [{xcoord_cgs.units.latex_repr}]$")
-    plt.ylabel(rf"$v \; [{vel_num_cgs.units.latex_repr}]$")
+    plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
+    plt.ylabel(rf"$v \; [{vel_units.latex_repr}]$")
     plt.legend(loc='best')

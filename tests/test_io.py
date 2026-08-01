@@ -62,6 +62,31 @@ class Testing(unittest.TestCase):
         self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
         self.assertEqual(self._scalar_value(loaded_fluid.time), 0.0)
 
+    def test_writehdf5_does_not_mutate_par_time(self):
+        par = SimpleNamespace(
+            coordsys='cartesian',
+            nogrid=3,
+            time=1.5 * unyt.s,
+            boxsize=3.0 * unyt.cm,
+            code_units=CODE_UNITS,
+        )
+        mesh = SimpleNamespace(
+            boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
+        )
+        fluid = SimpleNamespace(
+            rho=np.ones(3) * unyt.g / unyt.cm**3,
+            vel=np.zeros(3) * unyt.cm / unyt.s,
+            temp=np.ones(3) * unyt.K,
+            mu=np.ones(3),
+            time=2.5 * unyt.s,
+        )
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+
+        self.assertEqual(par.time, 1.5 * unyt.s)
+
     def test_hdf5_roundtrip_preserves_neutral_fraction_when_present(self):
         par = SimpleNamespace(
             coordsys='cartesian',
@@ -198,6 +223,41 @@ class Testing(unittest.TestCase):
                 self.assertEqual(payload['ICparams']['nogrid'], 3)
                 self.assertEqual(payload['ICparams']['boxsize']['value'], 3.0)
                 self.assertEqual(payload['ICparams']['boxsize']['unit'], 'cm')
+            finally:
+                os.chdir(cwd)
+
+    def test_writehdf5_recovers_from_malformed_used_parameters_yaml(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmpdir)
+                Path('used_parameters.yaml').write_text('runparams: [unclosed\n')
+
+                par = SimpleNamespace(
+                    coordsys='cartesian',
+                    nogrid=3,
+                    time=0.0 * unyt.s,
+                    boxsize=3.0 * unyt.cm,
+                    code_units=CODE_UNITS,
+                )
+                mesh = SimpleNamespace(
+                    boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
+                )
+                fluid = SimpleNamespace(
+                    rho=np.ones(3) * unyt.g / unyt.cm**3,
+                    vel=np.zeros(3) * unyt.cm / unyt.s,
+                    temp=np.ones(3) * unyt.K,
+                    mu=np.ones(3),
+                )
+                sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+
+                rio.writehdf5(sim, 'InitialCondition.hdf5')
+
+                payload = yaml.safe_load(Path('used_parameters.yaml').read_text())
+                self.assertIn('runparams', payload)
+                self.assertIn('ICparams', payload)
+                self.assertEqual(payload['ICparams']['coordsys'], 'cartesian')
+                self.assertEqual(payload['ICparams']['nogrid'], 3)
             finally:
                 os.chdir(cwd)
 

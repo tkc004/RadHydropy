@@ -10,6 +10,7 @@ from radhydropy.units import (
     _CODE_UNIT_GROUPS,
     apply_code_unit_specs,
     code_units_from_system,
+    code_quantity_to_cgs,
     time_seconds,
     quantity_to_value,
 )
@@ -141,6 +142,21 @@ class Rsim():
             'potential': units['velocity'] ** 2,
         }
         apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
+        source_rate = getattr(
+            self.par,
+            'radiative_transfer_source_photon_rate',
+            0.0 / unyt.s,
+        )
+        if hasattr(source_rate, 'to_value'):
+            self.par._static_source_rate_s = float(source_rate.to_value(1.0 / unyt.s))
+        else:
+            self.par._static_source_rate_s = float(
+                code_quantity_to_cgs(
+                    source_rate,
+                    code,
+                    'photon_rate_per_s',
+                )
+            )
         self._runtime_parameters_converted_to_code_units = True
 
     def _require_code_units(self):
@@ -511,7 +527,9 @@ class Rsim():
         return remaining_s, dtmax_step_s
 
     def _static_recombination_rate(self, state):
-        alpha = getattr(self.par, 'hydrogen_alpha_B', None)
+        alpha = state.get('alpha_B_cm3_s', None)
+        if alpha is None:
+            alpha = getattr(self.par, 'hydrogen_alpha_B', None)
         if alpha is None:
             return 0.0
         if hasattr(alpha, 'to_value'):
@@ -584,16 +602,8 @@ class Rsim():
         final_time_s = time_seconds(final_time, code_units)
         dtmax_s = time_seconds(source_timestep, code_units)
         reference_time_s = self._static_reference_time_seconds(reference_time)
-        source_rate = getattr(
-            self.par,
-            'radiative_transfer_source_photon_rate',
-            0.0 / unyt.s,
-        )
-        if hasattr(source_rate, 'to_value'):
-            source_rate_s = source_rate.to_value(1.0 / unyt.s)
-        else:
-            source_rate_s = float(source_rate)
-        seconds_to_myr = 1.0
+        source_rate_s = getattr(self.par, '_static_source_rate_s', 0.0)
+        seconds_to_myr = 1.0 / (1.0 * unyt.Myr).to_value(unyt.s)
         history = self._initial_static_history(
             include_thermal_history=include_thermal_history
         )
