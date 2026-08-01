@@ -17,69 +17,74 @@ from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, _code_units, code_unit_scales
-
-
-def _runtime_scales(par):
-    code = _code_units(par)
-    if code is None:
-        return None
-    return code_unit_scales(code)
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 
 
 def _to_kpc(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.kpc), dtype=float)
-    scales = _runtime_scales(par)
-    if scales is None:
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(values, dtype=float) * scales['length_cm'] / (1.0 * unyt.kpc).to_value(unyt.cm)
+    return np.asarray(
+        code_quantity_to_cgs(values, code, 'length_cm') / (1.0 * unyt.kpc).to_value(unyt.cm),
+        dtype=float,
+    )
 
 
 def _to_myr(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.Myr), dtype=float)
-    scales = _runtime_scales(par)
-    if scales is None:
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(values, dtype=float) * scales['time_s'] / (1.0 * unyt.Myr).to_value(unyt.s)
+    return np.asarray(
+        code_quantity_to_cgs(values, code, 'time_s') / (1.0 * unyt.Myr).to_value(unyt.s),
+        dtype=float,
+    )
 
 
 def _to_km_s(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.km / unyt.s), dtype=float)
-    scales = _runtime_scales(par)
-    if scales is None:
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(values, dtype=float) * scales['velocity_cm_s'] / (1.0 * unyt.km).to_value(unyt.cm)
+    return np.asarray(
+        code_quantity_to_cgs(values, code, 'velocity_cm_s') / (1.0 * unyt.km).to_value(unyt.cm),
+        dtype=float,
+    )
 
 
 def _to_number_density(values, par):
     if hasattr(values, 'to_value'):
         density = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
         return density / (1.0 * unyt.mp).to_value(unyt.g)
-    scales = _runtime_scales(par)
-    if scales is None:
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(values, dtype=float) * scales['density_g_cm3'] / (1.0 * unyt.mp).to_value(unyt.g)
+    return np.asarray(
+        code_quantity_to_cgs(values, code, 'density_g_cm3') / (1.0 * unyt.mp).to_value(unyt.g),
+        dtype=float,
+    )
 
 
 def _to_pressure(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.g / unyt.cm / unyt.s**2), dtype=float)
-    scales = _runtime_scales(par)
-    if scales is None:
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(values, dtype=float) * scales['pressure_erg_cm3']
+    return np.asarray(code_quantity_to_cgs(values, code, 'pressure_erg_cm3'), dtype=float)
 
 
 def _to_temperature(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.K), dtype=float)
-    scales = _runtime_scales(par)
-    if scales is None:
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(values, dtype=float) * scales['temperature_K']
+    return np.asarray(code_quantity_to_cgs(values, code, 'temperature_K'), dtype=float)
 
 
 def load_parameters(config_filename, rundir=None):

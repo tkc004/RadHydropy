@@ -8,7 +8,7 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
 import hydrogen_recombination_analytic as hra
 
 
@@ -22,12 +22,6 @@ class Mesh:
 
 class Fluid:
     pass
-
-
-def _values_in_unit(array, unit):
-    if hasattr(array, 'to_value'):
-        return np.asarray(array.to_value(unit), dtype=float)
-    return np.asarray(array, dtype=float)
 
 
 class Simwrap:
@@ -65,7 +59,16 @@ def interior_slice(sim):
 
 def mean_temperature(sim):
     interior = interior_slice(sim)
-    return np.mean(_values_in_unit(sim.fluid.temp[interior], unyt.K)) * unyt.K
+    return (
+        np.mean(
+            code_quantity_to_cgs(
+                sim.fluid.temp[interior],
+                getattr(sim.par, 'CodeUnits', None),
+                'temperature_K',
+            )
+        )
+        * unyt.K
+    )
 
 
 def mean_neutral_fraction(sim):
@@ -78,15 +81,10 @@ def mean_ionized_fraction(sim):
 
 
 def time_value(sim, units):
-    time = sim.fluid.time
-    if hasattr(time, 'to_value'):
-        return float(np.ravel(time.to_value(units))[0])
     code = getattr(sim.par, 'CodeUnits', None)
-    if code is not None:
-        return float(
-            np.ravel((np.asarray(time, dtype=float) * code.time_unit).to_value(units))[0]
-        )
-    return float(np.ravel(np.asarray(time, dtype=float))[0])
+    time_s = time_seconds(sim.fluid.time, code)
+    unit_seconds = float((1.0 * units).to_value(unyt.s))
+    return float(time_s / unit_seconds)
 
 
 def load_history_from_outputs(outputfiles, config, noghost):
@@ -101,7 +99,13 @@ def load_history_from_outputs(outputfiles, config, noghost):
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_K'].append(
-            np.mean(_values_in_unit(rout.fluid.temp[interior], unyt.K))
+            np.mean(
+                code_quantity_to_cgs(
+                    rout.fluid.temp[interior],
+                    code_units,
+                    'temperature_K',
+                )
+            )
         )
         history['ionized_fraction'].append(
             1.0 - float(np.mean(rout.fluid.xHI[interior]))

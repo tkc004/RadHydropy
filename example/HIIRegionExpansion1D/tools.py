@@ -20,7 +20,7 @@ from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, code_quantity_to_cgs
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 
 
 def _config_value(config, *keys, default=None):
@@ -370,9 +370,7 @@ def make_piecewise_isothermal_step_backend(sim, config):
 
 
 def _value_in_unit(value, unit):
-    if hasattr(value, 'to_value'):
-        return np.asarray(value.to_value(unit), dtype=float)
-    return np.asarray(value, dtype=float)
+    return np.asarray(quantity_to_value(value, unit), dtype=float)
 
 
 def _scalar_in_unit(value, unit):
