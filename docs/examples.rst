@@ -2,7 +2,9 @@ Examples
 ========
 
 Example scripts live under ``example/``. They construct an initial-condition
-file, run :class:`radhydropy.rsim.Rsim`, and often plot the output.
+file, run :class:`radhydropy.rsim.Rsim`, and often plot the output. Every
+example uses a mandatory ``CodeUnits`` block in ``runparams`` and writes that
+unit system into the HDF5 initial-condition header before the run starts.
 
 Available Examples
 ------------------
@@ -73,7 +75,15 @@ helper imports resolve correctly:
    python sodshock1d.py
 
 Most scripts write ``InitialCondition.hdf5`` and one or more ``Output_*.hdf5``
-files in the example directory.
+files in the example directory. The typical flow is:
+
+1. load ``runparams`` and ``ICparams`` from the example YAML file;
+2. build a ``CodeUnits`` object from ``runparams["CodeUnits"]``;
+3. write ``InitialCondition.hdf5`` with that ``CodeUnits`` attached; and
+4. launch ``Rsim`` with the same run parameters.
+
+If an example reloads snapshots for plotting, it should use the file header
+``CodeUnits`` rather than re-parsing the YAML.
 
 
 

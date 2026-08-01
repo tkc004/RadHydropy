@@ -6,7 +6,8 @@ initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
 reads the initial condition, prepares mesh and fluid state, advances the
 solver, and writes HDF5 outputs.
 
-The runtime now expects a ``CodeUnits`` block in ``runparams``. Example
+The runtime requires a ``CodeUnits`` block in ``runparams``. This is
+mandatory: the current workflow does not fall back to cgs. Example
 configurations define an internal unit system with ``InternalUnitSystem`` and
 RadHydropy converts the mesh, fluid, gravity, and source-term inputs into that
 code-unit system at startup. This keeps the hot paths in a consistent internal
@@ -24,20 +25,23 @@ Minimum Runner
    import radhydropy.io as rio
    from radhydropy.example_config import load_example_parameters
    from radhydropy.rsim import Rsim
+   from radhydropy.units import CodeUnits
    import tools as et
 
    config = Path("example/SodShock1D/sodshock1d.yaml")
    runparams, ICparams = load_example_parameters(config)
+   code_units = CodeUnits.from_mapping(runparams["CodeUnits"])
 
-   ric = et.Simwrap(ICparams)
+   ric = et.Simwrap(ICparams, code_units=code_units)
    rio.writehdf5(ric, runparams["ICfilename"])
 
    sim = Rsim(runparams)
    sim.RunAll()
 
 This is the same pattern used by the bundled example scripts: load the YAML
-file, generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run
-with ``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
+file, generate ``InitialCondition.hdf5`` from ``ICparams`` with the mandatory
+``CodeUnits`` attached, then launch the run with ``Rsim``. The helper resolves
+relative ``ICfilename``, ``outdir``,
 ``outputtimefilename``, and ``savedir`` paths against the example directory.
 Gravity examples such as the hydrostatic point-mass and ballistic-infall
 benchmarks follow the same pattern but also pass ``CodeUnits`` into their

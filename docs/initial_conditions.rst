@@ -19,6 +19,7 @@ The ``Header`` group stores:
 * ``Number_Grids``
 * ``Time``
 * ``BoxSize``
+* ``CodeUnits``
 
 The ``Data`` group stores:
 
@@ -35,14 +36,17 @@ Unit-bearing datasets store the unit string in a ``units`` attribute.
 When ``CodeUnits`` is enabled, RadHydropy writes fields such as ``Density`` in
 their stored physical units and converts them back into code-unit numeric
 arrays when the file is loaded. In practice this means ``fluid.rho`` is read
-back as a plain array in the runtime code-unit system.
+back as a plain array in the runtime code-unit system. ``readhdf5`` now
+requires ``Header.attrs["CodeUnits"]`` to be present and raises an error if it
+is missing.
 
 Reading and Writing
 -------------------
 
 Use :func:`radhydropy.io.writehdf5` to write an initial-condition file and
 :func:`radhydropy.io.readhdf5` to load it into a simulation. The helper
-functions preserve the units attached to the stored quantities.
+functions preserve the units attached to the stored quantities, and the reader
+uses the header ``CodeUnits`` block to recover the runtime unit system.
 
 Practical Notes
 ---------------

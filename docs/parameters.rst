@@ -7,18 +7,17 @@ Missing keys are filled from :data:`radhydropy.params.refparams`.
 Unit System
 -----------
 
-Every run must define a ``CodeUnits`` block in ``runparams``. RadHydropy uses
-that block to build a shared internal code-unit system and converts runtime
-state into those code units during initialization. After that startup
-conversion, the solver, geometry, gravity, and source-term updates operate in
-the internal unit system instead of repeatedly converting units on the hot
-paths.
+Every run must define a mandatory ``CodeUnits`` block in ``runparams``.
+RadHydropy uses that block to build a shared internal code-unit system and
+converts runtime state into those code units during initialization. After that
+startup conversion, the solver, geometry, gravity, and source-term updates
+operate in the internal unit system instead of repeatedly converting units on
+the hot paths.
 
-Snapshot and initial-condition files still carry units in HDF5, but
-``radhydropy.io.readhdf5`` converts the stored quantities back into code-unit
-numeric arrays when the run starts.
-
-If ``CodeUnits`` is omitted, the default internal unit system is cgs.
+Snapshot and initial-condition files still carry units in HDF5, and
+``radhydropy.io.readhdf5`` now requires ``Header.attrs["CodeUnits"]`` to be
+present so it can convert the stored quantities back into code-unit numeric
+arrays when the run starts. There is no cgs fallback in the current workflow.
 
 Example helpers can still accept ``unyt`` quantities at the script boundary,
 but they should convert to code units or plain floats internally before they

@@ -21,12 +21,14 @@ The code currently provides:
 - HDF5 input/output helpers; and
 - plotting utilities for one-dimensional outputs.
 
-The runtime expects a ``CodeUnits`` block in the run parameters. Physical
-inputs are converted to that internal unit system at initialization, so the
-solver and source terms can work in a consistent code-unit space while the
-example YAML files still use readable physical units. Example-side helper
-functions can still present ``unyt``-friendly interfaces, but they should
-convert to code units or plain floats internally on hot paths.
+The runtime requires a ``CodeUnits`` block in the run parameters, and the same
+unit system must be written into the HDF5 header. This is compulsory: RadHydropy
+does not fall back to cgs for current example workflows. Physical inputs are
+converted to that internal unit system at initialization, so the solver and
+source terms can work in a consistent code-unit space while the example YAML
+files still use readable physical units. Example-side helper functions can
+still present ``unyt``-friendly interfaces, but they should convert to code
+units or plain floats internally on hot paths.
 
 Full documentation: https://tkc004.github.io/RadHydropy/
 
@@ -70,7 +72,8 @@ python sodshock1d.py
 Most examples follow the same pattern:
 
 1. load `runparams` and `ICparams` from the example YAML file;
-2. create or load an HDF5 initial-condition file from `ICparams`;
+2. create an HDF5 initial-condition file from `ICparams`, attaching
+   `CodeUnits` before calling `writehdf5`;
 3. construct `Rsim` with the runtime parameters, including `CodeUnits`;
 4. call `RunAll()`; and
 5. inspect or plot the output files.
@@ -88,11 +91,12 @@ CodeUnits:
     UnitTemp_in_cgs:     1.0
 ```
 
-That block is required for the current runtime path. The example loaders and
-startup conversion step use it to convert mesh, fluid, gravity, and
-source-term inputs once at initialization. Example helpers such as gravity
-profiles and hydrostatic reference solutions should accept ``unyt`` quantities
-at the script boundary but evaluate in code units or floats internally.
+That block is required for the current runtime path and must also be stored in
+the HDF5 header. The example loaders and startup conversion step use it to
+convert mesh, fluid, gravity, and source-term inputs once at initialization.
+Example helpers such as gravity profiles and hydrostatic reference solutions
+should accept ``unyt`` quantities at the script boundary but evaluate in code
+units or floats internally.
 
 The runner also exposes lower-level stepping methods when an example or test
 needs finer control:
@@ -119,13 +123,15 @@ from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
 from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 import tools as et
 import matplotlib.pyplot as plt
 
 config = Path("example/SodShock1D/sodshock1d.yaml")
 runparams, ICparams = load_example_parameters(config)
+code_units = CodeUnits.from_mapping(runparams["CodeUnits"])
 
-ric = et.Simwrap(ICparams)
+ric = et.Simwrap(ICparams, code_units=code_units)
 rio.writehdf5(ric, runparams["ICfilename"])
 
 sim = Rsim(runparams)
@@ -137,8 +143,9 @@ plt.show()
 ```
 
 This is the same pattern used by the bundled example scripts: load the YAML
-file, generate ``InitialCondition.hdf5`` from ``ICparams``, then launch the run
-with ``Rsim``. The helper resolves relative ``ICfilename``, ``outdir``,
+file, generate ``InitialCondition.hdf5`` from ``ICparams`` with the mandatory
+``CodeUnits`` attached, then launch the run with ``Rsim``. The helper resolves
+relative ``ICfilename``, ``outdir``,
 ``outputtimefilename``, and ``savedir`` paths against the example directory.
 The plotting step reloads the first output snapshot and renders the density
 profile with the built-in plotting helper.
