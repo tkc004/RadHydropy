@@ -19,6 +19,6 @@ assert spec.loader is not None
 sys.modules[spec.name] = _template
 spec.loader.exec_module(_template)
 
-for _name in dir(_template):
+for _name, _value in vars(_template).items():
     if not _name.startswith('__'):
-        globals()[_name] = getattr(_template, _name)
+        globals()[_name] = _value

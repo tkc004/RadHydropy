@@ -681,6 +681,30 @@ class Testing(unittest.TestCase):
             100.0,
         )
 
+    def test_dynamic_stromgren_sphere_stellar_wind_uses_requested_wind(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
+            / 'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(icparams['number_of_cells'], 512)
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 20.0)
+        self.assertEqual(
+            runparams['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            1.0e49,
+        )
+        self.assertEqual(
+            runparams['wind_mass_loss_rate'].to_value(unyt.Msun / unyt.yr),
+            1.0e-6,
+        )
+        self.assertEqual(
+            runparams['wind_velocity'].to_value(unyt.km / unyt.s),
+            1000.0,
+        )
+
     def test_radial_profile_csv_uses_cell_centers_and_skips_ghost_cells(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             hdf5_filename = Path(tmpdir) / 'Output_000.hdf5'

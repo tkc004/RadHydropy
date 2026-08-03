@@ -58,6 +58,9 @@ Available Examples
    * - ``example/DynamicStromgrenSpherePhotoheating20pc1D``
      - Dense 20 pc dynamic photoheated Stromgren sphere with ``n_H = 100``
        cm^-3, source rate ``10^49`` s^-1, and a 1 Myr runtime.
+   * - ``example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D``
+     - The same dense photoheated Stromgren sphere with a 10^-6 M☉ yr^-1,
+       1000 km s^-1 central stellar wind.
    * - ``example/SedovTaylor1D``
      - Cartesian Sedov-Taylor blast-wave setup with analytic helper.
    * - ``example/SedovTaylorSph1d``

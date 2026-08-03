@@ -82,6 +82,16 @@ class Testing(unittest.TestCase):
         expected_pressure = fluid.eos.pressure(fluid.rho, fluid.temp, fluid.mu)
         np.testing.assert_allclose(np.asarray(fluid.pre), np.asarray(expected_pressure))
 
+    def test_code_unit_temperature_is_zero_for_zero_density(self):
+        eos = EOS('polytropic', gamma=5.0 / 3.0, code_units=CODE_UNITS)
+        temperature = eos.temperature(
+            np.array([0.0, 2.0]),
+            np.array([0.0, 6.0]),
+            np.ones(2),
+        )
+        self.assertTrue(np.isfinite(temperature).all())
+        self.assertEqual(temperature[0], 0.0)
+
 
 if __name__ == '__main__':
     unittest.main()

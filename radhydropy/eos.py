@@ -59,9 +59,17 @@ class EOS:
             rho_value = np.asarray(rho, dtype=float)
             pressure_value = np.asarray(pressure, dtype=float)
             mu_value = np.asarray(mu, dtype=float)
+            pressure_over_rho = np.zeros_like(pressure_value, dtype=float)
+            with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+                np.divide(
+                    pressure_value,
+                    rho_value,
+                    out=pressure_over_rho,
+                    where=rho_value != 0,
+                )
             return as_named_array(
                 (
-                (pressure_value / rho_value)
+                pressure_over_rho
                 * (mu_value * self.CodeUnits.proton_mass_code)
                 / self.CodeUnits.boltzmann_code
                 )
