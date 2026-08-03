@@ -1,4 +1,4 @@
-"""Photoheated Stromgren sphere in a 15 pc, 100 cm^-3 cloud.
+"""Photoheated Stromgren sphere in a 20 pc, 100 cm^-3 cloud.
 
 This is a compact variant of the DynamicStromgrenSpherePhotoheating1D
 example.  It uses the same tested workflow and helper implementation while
@@ -39,7 +39,7 @@ def main(config_filename=None):
     template = _load_template_runner()
     if config_filename is None:
         config_filename = Path(__file__).resolve().with_name(
-            'dynamic_stromgren_sphere_photoheating15pc1d.yaml'
+            'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
         )
     template.main(config_filename)
 
@@ -50,19 +50,19 @@ def main(config_filename=None):
     output_files = sorted(output_dir.glob(f"{runparams.get('outfileprefix', 'Output')}_*.hdf5"))
     if not output_files:
         raise FileNotFoundError(f'No output HDF5 files found in {output_dir}')
-    csv_filename = output_dir / 'radial_profile.csv'
-    eu.write_radial_profile_csv(output_files[-1], csv_filename)
-    print('radial profile CSV = %s' % csv_filename)
+    rhd_csv_filename = output_dir / 'radial_profile_rhd.csv'
+    eu.write_radial_profile_csv(output_files[-1], rhd_csv_filename)
+    print('RHD profile CSV = %s' % rhd_csv_filename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the 15 pc dynamic photoheated Stromgren sphere example.',
+        description='Run the 20 pc dynamic photoheated Stromgren sphere example.',
     )
     parser.add_argument(
         '--config',
         default=Path(__file__).resolve().with_name(
-            'dynamic_stromgren_sphere_photoheating15pc1d.yaml'
+            'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
         ),
         help='YAML file containing runparams and ICparams.',
     )

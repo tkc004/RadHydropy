@@ -96,7 +96,7 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
 
     csv_filename.parent.mkdir(parents=True, exist_ok=True)
     with csv_filename.open('w', newline='', encoding='utf-8') as handle:
-        writer = csv.writer(handle)
+        writer = csv.writer(handle, lineterminator='\n')
         writer.writerow(('RADIUS_PC', 'VELOCITY_KMS', 'DENSITY_CM3'))
         writer.writerows(
             zip(

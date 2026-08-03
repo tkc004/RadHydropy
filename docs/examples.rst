@@ -55,8 +55,8 @@ Available Examples
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.
-   * - ``example/DynamicStromgrenSpherePhotoheating15pc1D``
-     - Dense 15 pc dynamic photoheated Stromgren sphere with ``n_H = 100``
+   * - ``example/DynamicStromgrenSpherePhotoheating20pc1D``
+     - Dense 20 pc dynamic photoheated Stromgren sphere with ``n_H = 100``
        cm^-3, source rate ``10^49`` s^-1, and a 1 Myr runtime.
    * - ``example/SedovTaylor1D``
      - Cartesian Sedov-Taylor blast-wave setup with analytic helper.

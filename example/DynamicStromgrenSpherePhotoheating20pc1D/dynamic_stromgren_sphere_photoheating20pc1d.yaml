@@ -1,5 +1,5 @@
 runparams:
-  simname: DynamicStromgrenSpherePhotoheating15pc1D
+  simname: DynamicStromgrenSpherePhotoheating20pc1D
   ICfilename: InitialCondition.hdf5
   outdir: .
   outfileprefix: Output
@@ -46,9 +46,11 @@ runparams:
   hydrogen_xHI_initial: 1.0
   hydrogen_xHI_inflow: 1.0
   hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 1.0
+  # Larger source CFL keeps the high-resolution dense run tractable while
+  # retaining the implicit hydrogen chemistry update.
+  hydrogen_source_CFL: 10000.0
   hydrogen_source_dtmin:
-    value: 0.0
+    value: 1.0e-3
     unit: Myr
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true
@@ -82,9 +84,9 @@ runparams:
   radiative_transfer_direction: 1
 
 ICparams:
-  number_of_cells: 64
+  number_of_cells: 512
   boxsize:
-    value: 15.0
+    value: 20.0
     unit: pc
   time:
     value: 0.0
@@ -96,8 +98,8 @@ ICparams:
     value: 100.0
     unit: K
   plot_radius_max:
-    value: 15.0
+    value: 20.0
     unit: pc
   reference_radius_unit:
-    value: 15.0
+    value: 20.0
     unit: pc
