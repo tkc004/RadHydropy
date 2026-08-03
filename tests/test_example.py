@@ -6,6 +6,7 @@ import sys
 import tempfile
 from unittest import mock
 
+import h5py
 import numpy as np
 import unyt
 
@@ -18,6 +19,7 @@ import radhydropy.thermo_chemistry as rtc
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / 'example'
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
+import example_utils as example_utils
 HII_EXAMPLE_ROOT = EXAMPLE_ROOT / 'HIIRegionExpansion1D'
 if str(HII_EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(HII_EXAMPLE_ROOT))
@@ -677,6 +679,42 @@ class Testing(unittest.TestCase):
             icparams['hydrogen_number_density'].to_value(1.0 / unyt.cm**3),
             100.0,
         )
+
+    def test_radial_profile_csv_uses_cell_centers_and_skips_ghost_cells(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            hdf5_filename = Path(tmpdir) / 'Output_000.hdf5'
+            csv_filename = Path(tmpdir) / 'radial_profile.csv'
+            with h5py.File(hdf5_filename, 'w') as hdf5:
+                header = hdf5.create_group('Header')
+                header.attrs['noghost'] = 1
+                data = hdf5.create_group('Data')
+                boundary = data.create_dataset(
+                    'Boundary',
+                    data=np.array([-1.0, 0.0, 1.0, 2.0, 3.0, 4.0]) * 1.0e18,
+                )
+                boundary.attrs['units'] = 'cm'
+                velocity = data.create_dataset(
+                    'Velocity',
+                    data=np.array([0.0, 1.0, 2.0, 3.0, 4.0]) * 1.0e5,
+                )
+                velocity.attrs['units'] = 'cm/s'
+                density = data.create_dataset(
+                    'Density',
+                    data=np.arange(5.0) * (1.0 * unyt.mp).to_value(unyt.g),
+                )
+                density.attrs['units'] = 'g/cm**3'
+
+            written = example_utils.write_radial_profile_csv(
+                hdf5_filename,
+                csv_filename,
+            )
+
+            lines = written.read_text().splitlines()
+            self.assertEqual(lines[0], 'RADIUS_PC,VELOCITY_KMS,DENSITY_CM3')
+            self.assertEqual(len(lines), 4)
+            self.assertEqual(lines[1].split(',')[0], '0.16203896')
+            self.assertEqual(lines[1].split(',')[1], '1')
+            self.assertEqual(lines[1].split(',')[2], '1')
 
     def test_early_hii_region_expansion1d_uses_yaml_config(self):
         config_filename = (

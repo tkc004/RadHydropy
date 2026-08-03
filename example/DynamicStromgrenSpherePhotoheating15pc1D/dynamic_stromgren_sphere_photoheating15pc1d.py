@@ -10,7 +10,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = REPO_ROOT / 'example'
 TEMPLATE_DIR = EXAMPLE_ROOT / 'DynamicStromgrenSpherePhotoheating1D'
@@ -18,6 +17,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
+
+import example_utils as eu
+import yaml
 
 
 def _load_template_runner():
@@ -40,6 +42,17 @@ def main(config_filename=None):
             'dynamic_stromgren_sphere_photoheating15pc1d.yaml'
         )
     template.main(config_filename)
+
+    config_filename = Path(config_filename).resolve()
+    with config_filename.open(encoding='utf-8') as handle:
+        runparams = yaml.safe_load(handle)['runparams']
+    output_dir = (config_filename.parent / runparams.get('outdir', '.')).resolve()
+    output_files = sorted(output_dir.glob(f"{runparams.get('outfileprefix', 'Output')}_*.hdf5"))
+    if not output_files:
+        raise FileNotFoundError(f'No output HDF5 files found in {output_dir}')
+    csv_filename = output_dir / 'radial_profile.csv'
+    eu.write_radial_profile_csv(output_files[-1], csv_filename)
+    print('radial profile CSV = %s' % csv_filename)
 
 
 def parse_args():
