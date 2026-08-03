@@ -469,7 +469,10 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     for ax in axes:
         ax.set_xlim(0.0, plot_radius_max)
         ax.grid(True, which='both', alpha=0.25)
-    fig.suptitle('Dynamic photoheated Stromgren sphere at 200 Myr')
+    final_time_myr = config['timesim'].to_value(unyt.Myr)
+    fig.suptitle(
+        'Dynamic photoheated Stromgren sphere at %.3g Myr' % final_time_myr
+    )
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches='tight')
     plt.close(fig)

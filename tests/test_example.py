@@ -658,6 +658,26 @@ class Testing(unittest.TestCase):
             0.0,
         )
 
+    def test_dynamic_stromgren_sphere_15pc_uses_requested_parameters(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'DynamicStromgrenSpherePhotoheating15pc1D'
+            / 'dynamic_stromgren_sphere_photoheating15pc1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 1.0)
+        self.assertEqual(
+            runparams['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            1.0e49,
+        )
+        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 15.0)
+        self.assertEqual(
+            icparams['hydrogen_number_density'].to_value(1.0 / unyt.cm**3),
+            100.0,
+        )
+
     def test_early_hii_region_expansion1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
