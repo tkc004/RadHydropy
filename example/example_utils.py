@@ -20,12 +20,13 @@ def clean_previous_outputs(runparams):
 
 
 def write_radial_profile_csv(hdf5_filename, csv_filename=None):
-    """Write physical radial velocity and hydrogen density from an HDF5 file.
+    """Write physical radial velocity, hydrogen density, and temperature.
 
     The HDF5 datasets are expected to be ``Data/Boundary``, ``Data/Velocity``,
-    and ``Data/Density`` as written by :func:`radhydropy.io.writehdf5`.  The
-    boundary dataset is used to calculate cell-center radii.  Ghost cells,
-    when identified by ``Header.attrs['noghost']``, are omitted from the CSV.
+    ``Data/Density``, and ``Data/Temperature`` as written by
+    :func:`radhydropy.io.writehdf5`.  The boundary dataset is used to calculate
+    cell-center radii.  Ghost cells, when identified by
+    ``Header.attrs['noghost']``, are omitted from the CSV.
 
     Parameters
     ----------
@@ -53,18 +54,21 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         boundary_dataset = data['Boundary']
         velocity_dataset = data['Velocity']
         density_dataset = data['Density']
+        temperature_dataset = data['Temperature']
 
         boundaries = np.asarray(boundary_dataset[()], dtype=float)
         velocity = np.asarray(velocity_dataset[()], dtype=float)
         density = np.asarray(density_dataset[()], dtype=float)
+        temperature = np.asarray(temperature_dataset[()], dtype=float)
         if len(boundaries) != len(velocity) + 1:
             raise ValueError(
                 'Data/Boundary must contain exactly one more value than '
-                'Data/Velocity and Data/Density.'
+                'Data/Velocity, Data/Density, and Data/Temperature.'
             )
-        if len(velocity) != len(density):
+        if not (len(velocity) == len(density) == len(temperature)):
             raise ValueError(
-                'Data/Velocity and Data/Density must have the same length.'
+                'Data/Velocity, Data/Density, and Data/Temperature must '
+                'have the same length.'
             )
 
         noghost = header.attrs.get('noghost', 0)
@@ -79,6 +83,7 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         radius = 0.5 * (boundaries[start:stop] + boundaries[start + 1:stop + 1])
         velocity = velocity[start:stop]
         density = density[start:stop]
+        temperature = temperature[start:stop]
 
         radius = unyt.unyt_array(
             radius,
@@ -93,16 +98,21 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
             density_dataset.attrs.get('units', 'g/cm**3'),
         ).to_value(unyt.g / unyt.cm**3)
         density /= (1.0 * unyt.mp).to_value(unyt.g)
+        temperature = unyt.unyt_array(
+            temperature,
+            temperature_dataset.attrs.get('units', 'K'),
+        ).to_value(unyt.K)
 
     csv_filename.parent.mkdir(parents=True, exist_ok=True)
     with csv_filename.open('w', newline='', encoding='utf-8') as handle:
         writer = csv.writer(handle, lineterminator='\n')
-        writer.writerow(('RADIUS_PC', 'VELOCITY_KMS', 'DENSITY_CM3'))
+        writer.writerow(('RADIUS_PC', 'VELOCITY_KMS', 'DENSITY_CM3', 'TEMP_K'))
         writer.writerows(
             zip(
                 (f'{value:.8g}' for value in radius),
                 (f'{value:.8g}' for value in velocity),
                 (f'{value:.8g}' for value in density),
+                (f'{value:.8g}' for value in temperature),
             )
         )
     return csv_filename

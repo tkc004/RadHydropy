@@ -704,6 +704,11 @@ class Testing(unittest.TestCase):
                     data=np.arange(5.0) * (1.0 * unyt.mp).to_value(unyt.g),
                 )
                 density.attrs['units'] = 'g/cm**3'
+                temperature = data.create_dataset(
+                    'Temperature',
+                    data=np.arange(5.0) * 100.0,
+                )
+                temperature.attrs['units'] = 'K'
 
             written = example_utils.write_radial_profile_csv(
                 hdf5_filename,
@@ -711,11 +716,15 @@ class Testing(unittest.TestCase):
             )
 
             lines = written.read_text().splitlines()
-            self.assertEqual(lines[0], 'RADIUS_PC,VELOCITY_KMS,DENSITY_CM3')
+            self.assertEqual(
+                lines[0],
+                'RADIUS_PC,VELOCITY_KMS,DENSITY_CM3,TEMP_K',
+            )
             self.assertEqual(len(lines), 4)
             self.assertEqual(lines[1].split(',')[0], '0.16203896')
             self.assertEqual(lines[1].split(',')[1], '1')
             self.assertEqual(lines[1].split(',')[2], '1')
+            self.assertEqual(lines[1].split(',')[3], '100')
 
     def test_early_hii_region_expansion1d_uses_yaml_config(self):
         config_filename = (
