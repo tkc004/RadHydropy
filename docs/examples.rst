@@ -104,3 +104,4 @@ Detailed Example Pages
    static_stromgren_sphere_photoheating1d
    hii_region_expansion1d
    dynamic_stromgren_sphere_photoheating1d
+   dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
