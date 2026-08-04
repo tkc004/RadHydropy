@@ -19,6 +19,8 @@ from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 
+IONIZATION_FRONT_NEUTRAL_FRACTION = 0.5
+
 
 def _to_kpc(values, par):
     if hasattr(values, 'to_value'):
@@ -214,26 +216,33 @@ def interior_slice(par):
     return slice(first, first + par.nogrid)
 
 
-def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
+def ionization_front_position(
+    mesh,
+    fluid,
+    par,
+    neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
+):
     interior = interior_slice(par)
     radius = _to_kpc(mesh.coordinate[interior], par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
-    ionized = xHI <= neutral_fraction
-    if not np.any(ionized):
+    if np.all(xHI > neutral_fraction):
         return 0.0
-    if np.all(ionized):
+    if np.all(xHI <= neutral_fraction):
         return radius[-1]
 
-    outer_ionized_index = np.where(ionized)[0][-1]
-    left = outer_ionized_index
-    right = outer_ionized_index + 1
-    x_left = xHI[left]
-    x_right = xHI[right]
-    if x_right == x_left:
-        return radius[left]
+    # The front is the first outward transition from ionized gas
+    # (xHI <= 0.5) to neutral gas (xHI > 0.5). This remains well-defined
+    # when the profile contains additional ionized pockets farther out.
+    crossings = np.where(
+        (xHI[:-1] <= neutral_fraction) & (xHI[1:] > neutral_fraction)
+    )[0]
+    if crossings.size == 0:
+        return radius[np.where(xHI <= neutral_fraction)[0][-1]]
 
-    weight = (neutral_fraction - x_left) / (x_right - x_left)
+    left = int(crossings[0])
+    right = left + 1
+    weight = (neutral_fraction - xHI[left]) / (xHI[right] - xHI[left])
     return radius[left] + weight * (radius[right] - radius[left])
 
 
@@ -249,7 +258,14 @@ def mean_ionized_temperature(fluid, par):
 
 def append_history(history, mesh, fluid, par):
     history['time_Myr'].append(_to_myr(fluid.time, par))
-    history['front_radius_kpc'].append(ionization_front_position(mesh, fluid, par))
+    history['front_radius_kpc'].append(
+        ionization_front_position(
+            mesh,
+            fluid,
+            par,
+            neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
+        )
+    )
     history['mean_ionized_temperature_K'].append(mean_ionized_temperature(fluid, par))
 
 
@@ -287,7 +303,14 @@ def recombination_time(config):
 
 
 def ionized_sound_speed_from_history(history, gamma):
-    temperature = history['mean_ionized_temperature_K'][-1] * unyt.K
+    """Return the Spitzer ionized-gas sound speed at 10^4 K.
+
+    ``history`` is retained in the signature for compatibility with existing
+    callers, but the analytic Spitzer comparison must not depend on the
+    simulated final temperature.
+    """
+    del history
+    temperature = 1.0e4 * unyt.K
     mu_ionized = 0.5
     return np.sqrt(gamma * unyt.kboltz * temperature / (mu_ionized * unyt.mp)).to(
         unyt.km / unyt.s

@@ -25,9 +25,10 @@ Example figures
 
 The ionization-front figure shows the front radius as a function of time. It
 also shows the classical Stromgren radius, the recombination-time marker, and
-the post-recombination Spitzer expansion estimate for comparison. The central
-wind changes the gas dynamics while the photon source controls the ionization
-front.
+the post-recombination Spitzer expansion estimate for comparison. The Spitzer
+curve uses the ionized-gas sound speed at ``10^4 K`` (about 16.6 km s^-1 for
+``gamma = 5/3`` and ``mu = 0.5``). The central wind changes the gas dynamics
+while the photon source controls the ionization front.
 
 .. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating1D_IFront.jpg
    :width: 100%

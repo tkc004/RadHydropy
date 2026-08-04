@@ -705,6 +705,33 @@ class Testing(unittest.TestCase):
             1000.0,
         )
 
+    def test_dynamic_stromgren_front_uses_first_xhi_half_crossing(self):
+        tools_path = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'DynamicStromgrenSpherePhotoheating1D'
+            / 'tools.py'
+        )
+        spec = importlib.util.spec_from_file_location(
+            'dynamic_stromgren_tools_front_test',
+            tools_path,
+        )
+        tools = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(tools)
+
+        par = SimpleNamespace(noghost=0, nogrid=5, CodeUnits=None)
+        mesh = SimpleNamespace(
+            coordinate=np.arange(1.0, 6.0) * unyt.kpc,
+        )
+        fluid = SimpleNamespace(
+            xHI=np.array([0.1, 0.2, 0.8, 0.2, 0.9]),
+        )
+
+        front = tools.ionization_front_position(mesh, fluid, par)
+
+        self.assertAlmostEqual(front, 2.5)
+
     def test_radial_profile_csv_uses_cell_centers_and_skips_ghost_cells(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             hdf5_filename = Path(tmpdir) / 'Output_000.hdf5'
