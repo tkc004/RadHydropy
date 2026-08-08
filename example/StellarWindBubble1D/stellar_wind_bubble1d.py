@@ -28,7 +28,9 @@ import example_utils as eu
 import tools as et
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().with_name('stellar_wind_bubble1d.yaml')
+DEFAULT_CONFIG = Path(__file__).resolve().with_name(
+    'stellar_wind_bubble1d.yaml'
+)
 
 
 def load_snapshots(runparams, ICparams, max_outputs=10, start_index=1):
@@ -59,11 +61,12 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
         mainrun.RunAll(outputtime=0)
 
     snapshots = load_snapshots(runparams, ICparams)
+    figure_prefix = runparams.get('figure_prefix', 'StellarWindBubble1D')
 
     profile_figure = et.make_profile_figure(snapshots, ICparams, runparams)
     profile_figure_filename = os.path.join(
         runparams['savedir'],
-        'StellarWindBubble1D_profiles.jpg',
+        f'{figure_prefix}_profiles.jpg',
     )
     profile_figure.savefig(profile_figure_filename, dpi=200)
     plt.close(profile_figure)
@@ -72,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     radius_figure = et.make_radius_figure(snapshots, ICparams, runparams)
     radius_figure_filename = os.path.join(
         runparams['savedir'],
-        'StellarWindBubble1D_radius.jpg',
+        f'{figure_prefix}_radius.jpg',
     )
     radius_figure.savefig(radius_figure_filename, dpi=200)
     plt.close(radius_figure)
@@ -82,7 +85,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     if velocity_figure is not None:
         velocity_figure_filename = os.path.join(
             runparams['savedir'],
-            'StellarWindBubble1D_velocity.jpg',
+            f'{figure_prefix}_velocity.jpg',
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
         plt.close(velocity_figure)
@@ -92,7 +95,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     if pressure_figure is not None:
         pressure_figure_filename = os.path.join(
             runparams['savedir'],
-            'StellarWindBubble1D_pressure.jpg',
+            f'{figure_prefix}_pressure.jpg',
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)
         plt.close(pressure_figure)

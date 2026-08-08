@@ -1,6 +1,6 @@
 runparams:
   simname: stellar_wind_bubble1d
-  figure_prefix: StellarWindBubble1D_with_metal
+  figure_prefix: StellarWindBubble1D_no_metal
   ICfilename: InitialCondition.hdf5
   outdir: .
   outfileprefix: Output
@@ -9,14 +9,8 @@ runparams:
   coordsys: spherical
   EOStype: polytropic
   gamma: 1.6666666666666667
-  thermochemistry_network: cie_cooling
-  cie_cooling: true
-  metallicity: 1.0
-  hydrogen_mass_fraction: 0.70
-  cooling_safety_factor: 0.1
-  cooling_temperature_floor:
-    value: 100.0
-    unit: K
+  thermochemistry_network: hydrogen
+  hydrogen_mass_fraction: 1.0
   timesim:
     value: 0.1
     unit: Myr
