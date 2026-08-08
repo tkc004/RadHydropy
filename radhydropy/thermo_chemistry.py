@@ -1,10 +1,11 @@
 """Dispatcher for pluggable thermo-chemistry networks."""
 
-from radhydropy.thermo_networks import HydrogenNetwork
+from radhydropy.thermo_networks import CIECoolingNetwork, HydrogenNetwork
 
 
 _NETWORKS = {
     HydrogenNetwork.name: HydrogenNetwork,
+    CIECoolingNetwork.name: CIECoolingNetwork,
 }
 
 
@@ -30,8 +31,6 @@ def get_network(par):
 
 
 def thermochemistry_enabled(fluid, par):
-    if not getattr(par, "hydrogen_chemistry", False):
-        return False
     return get_network(par).enabled(fluid, par)
 
 

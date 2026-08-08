@@ -41,7 +41,7 @@ class Solver():
         return slice(first, first + par.nogrid)
 
     def _thermochemistry_enabled(self, fluid, par):
-        return getattr(par, 'hydrogen_chemistry', False) and hasattr(fluid, 'xHI')
+        return rtc.thermochemistry_enabled(fluid, par)
 
     def _thermochemistry_radiation_enabled(self, fluid, par):
         return (
