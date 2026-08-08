@@ -107,7 +107,8 @@ Thermo-Chemistry Keys
 ---------------------
 
 Thermo-chemistry is disabled by default. The active network is selected by
-``thermochemistry_network``; currently the available network is ``hydrogen``.
+``thermochemistry_network``; available networks are ``hydrogen`` and
+``cie_cooling``.
 The species composition preset is selected separately with ``chemistry_key``
 and currently supports values such as ``H`` and ``HHe``. Set
 ``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
@@ -117,6 +118,12 @@ inside each hydrodynamic step: the thermal equation is advanced explicitly
 when enabled, then the updated temperature is used for a backward-Euler
 neutral-fraction solve.
 
+The ``cie_cooling`` network uses CHIANTI collisional-ionization-equilibrium
+tables. It applies the tabulated radiative cooling rate explicitly and
+adaptively subcycles each hydrodynamic step using
+``cooling_safety_factor``. CIE ion fractions are looked up from the table and
+are not advected as independent fluid fields.
+
 .. list-table::
    :header-rows: 1
    :widths: 28 50 22
@@ -125,8 +132,29 @@ neutral-fraction solve.
      - Meaning
      - Typical unit
    * - ``thermochemistry_network``
-     - Thermo-chemistry network name. Currently ``hydrogen``.
+     - Thermo-chemistry network name: ``hydrogen`` or ``cie_cooling``.
      - string
+   * - ``cie_cooling``
+     - Enable the CIE radiative cooling source when using the ``cie_cooling``
+       network.
+     - boolean
+   * - ``metallicity``
+     - Metallicity in solar units used by the CIE cooling and electron-fraction
+       tables.
+     - ``Z/Zsun``
+   * - ``cie_ion_fraction_table`` / ``cie_cooling_table``
+     - Optional paths to the CIE ion-fraction and CHIANTI cooling HDF5 tables.
+     - path
+   * - ``cie_abundance_file``
+     - Optional path to the CHIANTI abundance file used for electron fractions.
+     - path
+   * - ``cooling_safety_factor``
+     - Fraction of the local cooling time allowed for each explicit CIE
+       substep. The default is ``0.1``.
+     - dimensionless
+   * - ``cooling_temperature_floor``
+     - Minimum temperature enforced after a CIE cooling update.
+     - temperature
    * - ``chemistry_key``
      - Composition preset name used by :mod:`radhydropy.chemistry`.
      - string

@@ -11,20 +11,24 @@ and radiative-transfer updates through :class:`radhydropy.rsim.Rsim`.
 Activation and Coupling
 -----------------------
 
-The thermo-chemistry network is enabled with ``hydrogen_chemistry=True`` and
-the active source-term network is currently ``hydrogen``. When enabled, the
-runner can evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together
-with heating and cooling source terms.
+The source-term network is selected with ``thermochemistry_network``. The
+available networks are ``hydrogen`` and ``cie_cooling``. The hydrogen network
+can evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together with
+hydrogen heating and cooling source terms. The CIE network uses tabulated
+collisional-ionization-equilibrium ion fractions and radiative cooling rates.
 
 In the standard coupled update, RadHydropy:
 
 * advances hydrodynamics with the finite-volume solver;
 * updates the radiation field when long-characteristic transport is enabled;
-* applies the hydrogen source terms; and
+* applies the selected thermo-chemistry source terms; and
 * subcycles the source update using the thermo-chemistry timestep controls.
 
-The thermal equation is advanced first when enabled, then the updated
-temperature is used for an implicit neutral-fraction solve.
+Hydrogen thermal energy is advanced explicitly, followed by an implicit
+neutral-fraction solve. CIE cooling is also applied explicitly, but each
+hydrodynamic step is adaptively subcycled so that every cooling substep is at
+most ``cooling_safety_factor`` times the local cooling time. The CIE cooling
+rate and temperature are recomputed after every substep.
 
 Useful Runtime Parameters
 -------------------------
@@ -32,8 +36,7 @@ Useful Runtime Parameters
 The full parameter table lives in :doc:`parameters`. The thermo-chemistry
 controls most commonly used by the bundled examples are:
 
-* ``thermochemistry_network``: selects the source-term network, currently
-  ``hydrogen``.
+* ``thermochemistry_network``: selects ``hydrogen`` or ``cie_cooling``.
 * ``chemistry_key``: selects the composition preset, such as ``H`` or
   ``HHe``.
 * ``hydrogen_chemistry``: enables hydrogen thermal and neutral-fraction
@@ -73,6 +76,35 @@ The bundled thermo-chemistry examples include:
 
 These examples demonstrate both coupled hydrodynamic runs and static source
 evolution with a fixed density field.
+
+CIE Cooling
+-----------
+
+The ``cie_cooling`` network assumes collisional ionization equilibrium. It
+does not evolve ion fractions as additional fluid variables; instead, it
+interpolates equilibrium ion fractions and CHIANTI radiative cooling rates at
+the current temperature and electron density. The volumetric cooling rate is
+
+.. math::
+
+   \dot{e}_{\rm cool} = -n_e n_H \Lambda(T, n_e, Z).
+
+The default tables are searched for in the sibling
+``CHIANTI_11.0.2_database`` directory. Their locations can be overridden with
+``cie_ion_fraction_table``, ``cie_cooling_table``, and
+``cie_abundance_file``. Important runtime controls are:
+
+* ``cie_cooling``: enables the CIE cooling source;
+* ``metallicity``: metallicity in solar units;
+* ``hydrogen_mass_fraction``: used to calculate ``n_H`` from mass density;
+* ``cooling_safety_factor``: explicit cooling subcycle fraction, default
+  ``0.1``; and
+* ``cooling_temperature_floor``: minimum temperature maintained by the source
+  update.
+
+The CIE cooling table includes electron-density dependence. Consequently,
+electron density can affect both the tabulated cooling coefficient and the
+overall ``n_e n_H`` normalization.
 
 Composition presets such as ``H``, ``HHe``, ``HHeM``, ``HHeMol``, and
 ``HHeMMol`` are exposed through :mod:`radhydropy.chemistry` for future multi-
