@@ -64,6 +64,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         np.asarray(mesh.coordinate[interior], dtype=float) * code.length_unit
     ).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
+    xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
     temperature_K = (
         np.asarray(fluid.temp[interior], dtype=float) * code.temperature_unit
     ).to_value(unyt.K)
@@ -80,7 +81,9 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     )
 
     fig, axes = plt.subplots(3, 1, figsize=(7.0, 8.5), sharex=True)
-    axes[0].plot(radius_kpc, xHI, color="tab:blue")
+    neutral_line, = axes[0].plot(
+        radius_kpc, xHI, color="tab:blue", label=r"$x_{\rm HI}$"
+    )
     if xhi_reference is not None:
         axes[0].scatter(
             xhi_reference["radius_kpc"],
@@ -94,7 +97,24 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     axes[0].set_ylabel(r"$x_{\rm HI}$")
     axes[0].set_ylim(1.0e-6, 1.1)
     axes[0].grid(True, which="both", alpha=0.25)
-    axes[0].legend(frameon=False)
+    ionized_axis = axes[0].twinx()
+    ionized_line, = ionized_axis.plot(
+        radius_kpc,
+        xHII,
+        color="tab:orange",
+        linestyle="--",
+        label=r"$x_{\rm HII}$",
+    )
+    ionized_axis.set_yscale("log")
+    ionized_axis.set_ylabel(r"$x_{\rm HII}$", color="tab:orange")
+    ionized_axis.tick_params(axis="y", colors="tab:orange")
+    ionized_axis.set_ylim(1.0e-6, 1.1)
+    axes[0].legend(
+        [neutral_line, ionized_line],
+        [neutral_line.get_label(), ionized_line.get_label()],
+        frameon=False,
+        loc="best",
+    )
     axes[1].plot(radius_kpc, temperature_K, color="tab:red")
     if temperature_reference is not None:
         axes[1].scatter(
@@ -117,7 +137,9 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.set_ylabel(r"$n_\gamma$ [cm$^{-3}$]")
     photon_axis.grid(True, which="both", alpha=0.25)
     photon_axis.legend(frameon=False)
-    fig.suptitle(r"Pure-H multifrequency radiation ($T_{\rm rad}=10^5$ K)")
+    network_name = config.get("thermochemistry_network", "hydrogen")
+    title = "H/He" if network_name == "hydrogen_helium" else "Pure-H"
+    fig.suptitle(rf"{title} multifrequency radiation ($T_{{\rm rad}}=10^5$ K)")
     fig.savefig(figure_filename, dpi=180, bbox_inches="tight")
     plt.close(fig)
 
@@ -142,7 +164,9 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     output_filename = Path(runparams["outdir"]) / "Output_000.hdf5"
     rio.writehdf5(sim, output_filename)
-    figure_filename = Path(runparams["savedir"]) / "MultiFrequencyRadiativeTransferSph1D.jpg"
+    figure_filename = Path(runparams["savedir"]) / config.get(
+        "figure_filename", "MultiFrequencyRadiativeTransferSph1D.jpg"
+    )
     _save_plot(output_filename, config, figure_filename, config_filename)
     print(f"output file = {output_filename}")
     print(f"figure = {figure_filename}")

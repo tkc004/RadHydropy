@@ -72,6 +72,14 @@ def _cgs_beta(temperature_K):
     return result
 
 
+def collisional_equilibrium_neutral_fraction(temperature_K):
+    """Return the H I fraction in collisional ionization equilibrium."""
+    alpha = _cgs_alpha_B(temperature_K)
+    beta = _cgs_beta(temperature_K)
+    total = alpha + beta
+    return np.divide(alpha, total, out=np.ones_like(alpha), where=total > 0.0)
+
+
 def _cgs_gamma_line_eHI(temperature_K):
     temperature_K = np.asarray(temperature_K, dtype=float)
     result = np.zeros_like(temperature_K, dtype=float)

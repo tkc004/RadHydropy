@@ -5,10 +5,10 @@ ionizing source. It combines spherical long-characteristics transport with
 hydrogen photoionization, photoheating, recombination, collisional ionization,
 and temperature evolution.
 
-The example uses three photon groups:
+The example uses five photon groups:
 
 ```text
-[13.6, 24.6, 54.4, 10000] eV
+[13.6, 24.6, 35.5, 54.4, 75.0, 50000] eV
 ```
 
 The spectrum is read at RadHydropy startup from the HDF5 file configured by
@@ -91,5 +91,6 @@ Stromgren-sphere comparison:
 The plotting code converts the second column back with `10**value` before
 overlaying the references.
 
-This is a pure-hydrogen example; helium datasets in a spectrum file are not
-used by the current chemistry network.
+The current chemistry network is pure hydrogen, so the H I datasets are used
+from the H/He spectrum file while the He I and He II datasets are retained for
+future helium chemistry.

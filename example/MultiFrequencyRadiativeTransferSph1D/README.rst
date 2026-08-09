@@ -2,12 +2,12 @@ Multifrequency Radiative Transfer Spherical Example
 ====================================================
 
 This example evolves a static, uniform pure-hydrogen medium around a central
-source using spherical long-characteristic transport and three ionizing photon
+source using spherical long-characteristic transport and five ionizing photon
 groups:
 
 .. code-block:: text
 
-   [13.6, 24.6, 54.4, 10000] eV
+   [13.6, 24.6, 35.5, 54.4, 75.0, 50000] eV
 
 Run
 ---

@@ -15,6 +15,7 @@ from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
+from radhydropy.thermo_networks.hydrogen import collisional_equilibrium_neutral_fraction
 from radhydropy.units import (
     CodeUnits,
 )
@@ -46,7 +47,15 @@ def build_static_problem(config):
         dtmin=config.get('dtmin', 1.0e-6 * unyt.Myr),
         dtmax=config.get('dtmax', 1.0 * unyt.Myr),
         hydrogen_chemistry=config.get('hydrogen_chemistry', True),
+        thermochemistry_network=config.get('thermochemistry_network', 'hydrogen'),
         hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
+        helium_mass_fraction=config.get('helium_mass_fraction', 0.0),
+        hydrogen_helium_implicit_local_update=config.get(
+            'hydrogen_helium_implicit_local_update', False
+        ),
+        hydrogen_helium_coupled_implicit=config.get(
+            'hydrogen_helium_coupled_implicit', True
+        ),
         hydrogen_xHI_initial=config.get('hydrogen_xHI_initial', 1.0),
         hydrogen_xHI_inflow=config.get('hydrogen_xHI_inflow', 1.0),
         hydrogen_xHI_outflow=config.get('hydrogen_xHI_outflow', 1.0),
@@ -82,6 +91,10 @@ def build_static_problem(config):
         radiation_group_edges_eV=config.get('radiation_group_edges_eV'),
         radiation_group_sigma_gamma=config.get('radiation_group_sigma_gamma'),
         radiation_group_epsilon_gamma=config.get('radiation_group_epsilon_gamma'),
+        radiation_group_sigma_gamma_HeI=config.get('radiation_group_sigma_gamma_HeI'),
+        radiation_group_sigma_gamma_HeII=config.get('radiation_group_sigma_gamma_HeII'),
+        radiation_group_epsilon_gamma_HeI=config.get('radiation_group_epsilon_gamma_HeI'),
+        radiation_group_epsilon_gamma_HeII=config.get('radiation_group_epsilon_gamma_HeII'),
         radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
@@ -99,11 +112,30 @@ def build_static_problem(config):
         np.ones(par.nogrid)
         * config['hydrogen_number_density']
         * unyt.mp
+        / par.hydrogen_mass_fraction
     ).to(unyt.g / unyt.cm**3)
     fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp = np.ones(par.nogrid) * config.get('initial_temperature', 1.0e4 * unyt.K)
     fluid.mu = np.ones(par.nogrid)
-    fluid.xHI = np.ones(par.nogrid)
+    if config.get('hydrogen_initial_collisional_equilibrium', False):
+        fluid.xHI = np.ones(par.nogrid) * collisional_equilibrium_neutral_fraction(
+            config.get('initial_temperature', 1.0e4 * unyt.K).to_value(unyt.K)
+        )
+    else:
+        fluid.xHI = np.ones(par.nogrid)
+    if par.thermochemistry_network == 'hydrogen_helium':
+        fluid.xHeI = np.ones(par.nogrid) * config.get(
+            'hydrogen_helium_xHeI_initial', 1.0
+        )
+        fluid.xHeII = np.ones(par.nogrid) * config.get(
+            'hydrogen_helium_xHeII_initial', 0.0
+        )
+        fluid.xHeIII = np.ones(par.nogrid) * config.get(
+            'hydrogen_helium_xHeIII_initial', 0.0
+        )
+        fluid.mu = np.ones(par.nogrid) / (
+            par.hydrogen_mass_fraction + par.helium_mass_fraction / 4.0
+        )
     group_edges = config.get('radiation_group_edges_eV')
     if group_edges is not None:
         ngroup = len(group_edges) - 1

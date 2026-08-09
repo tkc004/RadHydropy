@@ -14,8 +14,8 @@ From the example directory::
    python multifrequency_radiative_transfer_sph1d.py \
      --config multifrequency_radiative_transfer_sph1d.yaml
 
-The default setup uses three groups with edges
-``[13.6, 24.6, 54.4, 10000] eV`` and a ``10^5 K`` blackbody spectrum. The
+The default setup uses five groups with edges
+``[13.6, 24.6, 35.5, 54.4, 75.0, 50000] eV`` and a ``10^5 K`` blackbody spectrum. The
 simulation has ``n_H = 10^-3 cm^-3``, 512 spherical cells, and evolves to
 100 Myr.
 
@@ -64,8 +64,9 @@ Hydrogen network
 
 The example sets ``hydrogen_alpha_B`` and ``hydrogen_beta`` to ``null`` so the
 built-in temperature-dependent rates are used. Collisional ionization and
-thermal coupling are enabled. The current network is pure hydrogen; helium
-datasets in a spectrum file are ignored.
+thermal coupling are enabled. The current network is pure hydrogen. It uses
+the H I datasets from the H/He spectrum file; He I and He II datasets are
+retained for future helium chemistry.
 
 Outputs and references
 ----------------------

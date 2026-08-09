@@ -347,6 +347,7 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer'], True)
+        self.assertTrue(runparams['hydrogen_initial_collisional_equilibrium'])
         self.assertEqual(
             runparams['radiation_spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
@@ -356,8 +357,8 @@ class Testing(unittest.TestCase):
         )
         with h5py.File(spectrum_filename, 'r') as spectrum:
             group = spectrum['RadiationSpectrum']
-            self.assertEqual(group.attrs['number_of_radiation_groups'], 3)
-            self.assertEqual(group.attrs['number_of_group_edges'], 4)
+            self.assertEqual(group.attrs['number_of_radiation_groups'], 5)
+            self.assertEqual(group.attrs['number_of_group_edges'], 6)
             self.assertEqual(group.attrs['stellar_spectrum_type'], 1)
             self.assertEqual(
                 group.attrs['stellar_spectrum_blackbody_temperature_K'],
@@ -365,9 +366,9 @@ class Testing(unittest.TestCase):
             )
             self.assertEqual(
                 list(group['group_edges_eV']),
-                [13.6, 24.6, 54.4, 10000.0],
+                [13.6, 24.6, 35.5, 54.4, 75.0, 50000.0],
             )
-            self.assertEqual(len(group['ionizing_photon_energy_erg']), 3)
+            self.assertEqual(len(group['ionizing_photon_energy_erg']), 5)
         self.assertEqual(icparams['number_of_cells'], 512)
 
     def test_stellar_wind_bubble1d_uses_yaml_config(self):

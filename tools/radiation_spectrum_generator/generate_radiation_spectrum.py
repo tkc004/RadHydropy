@@ -88,7 +88,7 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
 
 
 def write_spectrum(output, edges_ev, temperature_k, injected_photons,
-                   parameters_by_species, samples):
+                   parameters_by_species, samples, include_helium=False):
     values = {
         species: calculate_groups(edges_ev, temperature_k, parameters, samples)
         for species, parameters in parameters_by_species.items()
@@ -121,23 +121,27 @@ def write_spectrum(output, edges_ev, temperature_k, injected_photons,
         group.create_dataset("group_epsilon_gamma_erg", data=hydrogen[
             "group_epsilon_gamma_erg"]
         ).attrs["units"] = "erg"
-        for species in ("HeI", "HeII"):
-            group.create_dataset(
-                f"group_sigma_gamma_{species}_cm2",
-                data=values[species]["group_sigma_gamma_cm2"],
-            ).attrs["units"] = "cm**2"
-            group.create_dataset(
-                f"group_epsilon_gamma_{species}_erg",
-                data=values[species]["group_epsilon_gamma_erg"],
-            ).attrs["units"] = "erg"
+        if include_helium:
+            for species in ("HeI", "HeII"):
+                group.create_dataset(
+                    f"group_sigma_gamma_{species}_cm2",
+                    data=values[species]["group_sigma_gamma_cm2"],
+                ).attrs["units"] = "cm**2"
+                group.create_dataset(
+                    f"group_epsilon_gamma_{species}_erg",
+                    data=values[species]["group_epsilon_gamma_erg"],
+                ).attrs["units"] = "erg"
         group.attrs["number_of_radiation_groups"] = len(edges_ev) - 1
         group.attrs["number_of_group_edges"] = len(edges_ev)
         group.attrs["stellar_spectrum_type"] = 1
         group.attrs["stellar_spectrum_type_name"] = "blackbody"
         group.attrs["stellar_spectrum_blackbody_temperature_K"] = temperature_k
-        group.attrs["absorber"] = "HI"
+        group.attrs["absorber"] = "HHe" if include_helium else "HI"
+        group.attrs["species"] = "HI,HeI,HeII" if include_helium else "HI"
         group.attrs["description"] = (
-            "Pure-hydrogen BB spectrum for the SPHM1RT comparison"
+            "H/He blackbody spectrum with Verner '96 group averages"
+            if include_helium
+            else "Pure-hydrogen BB spectrum for the SPHM1RT comparison"
         )
 
 
@@ -158,6 +162,11 @@ def main():
     parser.add_argument("--injected-photons-per-second", type=float,
                         default=DEFAULT_INJECTED_PHOTONS_PER_SECOND)
     parser.add_argument("--samples-per-group", type=int, default=4000)
+    parser.add_argument(
+        "--include-helium",
+        action="store_true",
+        help="include He I and He II cross-section/heating datasets",
+    )
     parser.add_argument("--verner-file", type=Path, default=directory / "data" /
                         "cross_section_fits_verner96.dat")
     args = parser.parse_args()
@@ -169,7 +178,7 @@ def main():
     }
     write_spectrum(args.output, edges, args.temperature,
                    args.injected_photons_per_second, parameters,
-                   args.samples_per_group)
+                   args.samples_per_group, include_helium=args.include_helium)
     print(f"Wrote generated radiation spectrum to {args.output}")
 
 

@@ -55,6 +55,9 @@ Available Examples
    * - ``example/MultiFrequencyRadiativeTransferSph1D``
      - Static pure-hydrogen multifrequency radiative transfer with photoheating
        and temperature-dependent thermo-chemistry.
+   * - ``example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr``
+     - Five-group H/He multifrequency radiative transfer with ``X=0.75``,
+       ``Y=0.25``, and a 100 Myr static thermo-chemistry evolution.
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.

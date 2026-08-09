@@ -558,8 +558,11 @@ class Rsim():
 
     def _advance_source_thermochemistry_state(self, state, ngamma, dt_s, thermal_rate):
         recombination_rate_start = self._static_recombination_rate(state)
-        self._apply_static_thermal_update(state, ngamma, thermal_rate, dt_s)
-        rtc.ionization_fraction_implicit_update(state, ngamma, dt_s, self.par)
+        if getattr(self.par, 'thermochemistry_network', 'hydrogen') == 'hydrogen_helium':
+            rtc.coupled_implicit_update(state, ngamma, dt_s, self.par)
+        else:
+            self._apply_static_thermal_update(state, ngamma, thermal_rate, dt_s)
+            rtc.ionization_fraction_implicit_update(state, ngamma, dt_s, self.par)
         if getattr(self.par, 'hydrogen_thermal_coupling', True):
             rtc.update_temperature_from_energy(state)
         recombination_rate_end = self._static_recombination_rate(state)

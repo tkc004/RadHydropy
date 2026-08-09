@@ -46,6 +46,8 @@ The main options are:
      - Log-spaced integration samples per group.
    * - ``--verner-file FILE``
      - Verner cross-section fit file.
+   * - ``--include-helium``
+     - Include He I and He II cross-section and photoheating datasets.
 
 For example::
 
@@ -80,6 +82,13 @@ regenerating the file, use ``radiation_spectrum_total_photon_rate`` in YAML;
 RadHydropy rescales all ionizing groups by one common factor and preserves the
 relative spectrum. See :doc:`radiative_transfer` and
 :doc:`multifrequency_radiative_transfer_sph1d` for runtime examples.
+
+For a five-group H/He file with custom edges::
+
+   python tools/radiation_spectrum_generator/generate_radiation_spectrum.py \
+     --output tools/radiation_spectrum_generator/radiation_spectrum_BB100000K_5groups_HHe.h5 \
+     --edges 13.6 24.6 35.5 54.4 75.0 50000.0 \
+     --include-helium
 
 Hydrogen and helium cross-sections
 -----------------------------------

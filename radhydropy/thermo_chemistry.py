@@ -96,6 +96,13 @@ def ionization_fraction_implicit_update(state, ngamma, dt_s, par):
     )
 
 
+def coupled_implicit_update(state, ngamma, dt_s, par):
+    network = get_network(par)
+    if hasattr(network, 'coupled_implicit_update'):
+        return network.coupled_implicit_update(state, ngamma, dt_s)
+    network.ionization_fraction_implicit_update(state, ngamma, dt_s)
+
+
 def apply_state(state, fluid, par):
     """Copy a thermo-chemistry source state back to the fluid."""
     return get_network(par).apply_state(state, fluid, par)

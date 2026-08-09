@@ -46,6 +46,17 @@ class Fluid():
             self.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
         )
+
+    def SetHydrogenHeliumMu(self, hydrogen_mass_fraction=0.75, helium_mass_fraction=0.25):
+        xHI = np.asarray(self.xHI, dtype=float)
+        xHeI = np.asarray(self.xHeI, dtype=float)
+        xHeII = np.asarray(self.xHeII, dtype=float)
+        xHeIII = np.asarray(self.xHeIII, dtype=float)
+        nH = hydrogen_mass_fraction * np.asarray(self.rho, dtype=float) / unyt.mp.to_value(unyt.g)
+        nHe = helium_mass_fraction * np.asarray(self.rho, dtype=float) / (4.0 * unyt.mp.to_value(unyt.g))
+        ne = nH * (1.0 - xHI) + nHe * (xHeII + 2.0 * xHeIII)
+        nt = nH + nHe + ne
+        self.mu = as_named_array(np.asarray(self.rho, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)))
         
     def SetUpFluid(self, par):
         """Normalize primitive quantities into code units, append ghost cells, and
@@ -158,9 +169,15 @@ class Fluid():
             getattr(par, 'hydrogen_chemistry', False)
             and getattr(par, 'hydrogen_update_mu', False)
         ):
-            self.SetHydrogenMu(
-                hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
-            )
+            if getattr(par, 'thermochemistry_network', 'hydrogen') == 'hydrogen_helium':
+                self.SetHydrogenHeliumMu(
+                    hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 0.75),
+                    helium_mass_fraction=getattr(par, 'helium_mass_fraction', 0.25),
+                )
+            else:
+                self.SetHydrogenMu(
+                    hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
+                )
         self.SetPressure() 
 
     def SetTemperature(self):
