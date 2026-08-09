@@ -52,6 +52,10 @@ refparams = {
     'chemistry_key': 'H',
     'hydrogen_chemistry': False,
     'hydrogen_mass_fraction': 1.0,
+    'helium_mass_fraction': 0.0,
+    'hydrogen_helium_xHeI_initial': 1.0,
+    'hydrogen_helium_xHeII_initial': 0.0,
+    'hydrogen_helium_xHeIII_initial': 0.0,
     'hydrogen_xHI_initial': 1.0,
     'hydrogen_xHI_inflow': 1.0,
     'hydrogen_xHI_outflow': 1.0,
@@ -79,6 +83,10 @@ refparams = {
     'radiation_group_edges_eV': None,
     'radiation_group_sigma_gamma': None,
     'radiation_group_epsilon_gamma': None,
+    'radiation_group_sigma_gamma_HeI': None,
+    'radiation_group_sigma_gamma_HeII': None,
+    'radiation_group_epsilon_gamma_HeI': None,
+    'radiation_group_epsilon_gamma_HeII': None,
     'star_emission_rates': None,
     'stellar_spectrum_type': 1,
     'stellar_spectrum_blackbody_temperature_K': 1.0e5,
@@ -140,6 +148,13 @@ class Par():
                 self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
             if self.radiation_group_epsilon_gamma is not None:
                 self.radiation_group_epsilon_gamma = self.radiation_group_epsilon_gamma * unyt.erg
+            for species in ('HeI', 'HeII'):
+                sigma_name = f'radiation_group_sigma_gamma_{species}'
+                epsilon_name = f'radiation_group_epsilon_gamma_{species}'
+                if getattr(self, sigma_name, None) is not None:
+                    setattr(self, sigma_name, getattr(self, sigma_name) * unyt.cm**2)
+                if getattr(self, epsilon_name, None) is not None:
+                    setattr(self, epsilon_name, getattr(self, epsilon_name) * unyt.erg)
             power_unit = self.CodeUnits.energy_unit / self.CodeUnits.time_unit
             rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
             energies = np.asarray(self.ionizing_photon_energy_erg, dtype=float) * unyt.erg

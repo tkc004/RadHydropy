@@ -112,6 +112,69 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(result.cell_photon_density.shape, (2, 2))
 
+    def test_multigroup_photoionization_rates_are_summed_per_species(self):
+        ngamma = np.array(
+            [[2.0, 3.0], [5.0, 7.0]],
+            dtype=float,
+        )
+        sigma = {
+            "HI": np.array([1.0, 2.0]),
+            "HeI": np.array([3.0, 4.0]),
+        }
+
+        rates = rrt.species_photoionization_rates(ngamma, sigma)
+        c_light = rrt.SPEED_OF_LIGHT_CGS
+
+        np.testing.assert_allclose(rates["HI"], c_light * (1.0 * ngamma[0] + 2.0 * ngamma[1]))
+        np.testing.assert_allclose(rates["HeI"], c_light * (3.0 * ngamma[0] + 4.0 * ngamma[1]))
+
+    def test_multigroup_photoheating_uses_excess_energy_per_group(self):
+        ngamma = np.array([[2.0], [5.0]], dtype=float)
+        sigma = {"HI": np.array([1.0, 2.0])}
+        epsilon = {"HI": np.array([10.0, 20.0])}
+
+        heating = rrt.species_photoionization_heating(ngamma, sigma, epsilon)
+        expected = rrt.SPEED_OF_LIGHT_CGS * (1.0 * 10.0 * 2.0 + 2.0 * 20.0 * 5.0)
+
+        np.testing.assert_allclose(heating["HI"], [expected])
+
+    def test_trace_photon_density_multigroup_includes_helium_absorbers(self):
+        state = {
+            "boundary_cm": np.array([0.0, 1.0, 2.0]),
+            "volume_cm3": np.ones(2),
+            "rho_g_cm3": np.ones(2) * unyt.mp.to_value(unyt.g),
+            "xHI": np.ones(2),
+            "xHeI": np.ones(2),
+            "xHeII": np.zeros(2),
+        }
+        par = SimpleNamespace(
+            noghost=1,
+            nogrid=2,
+            coordsys="cartesian",
+            radiative_transfer=True,
+            radiative_transfer_method="long_characteristics",
+            hydrogen_mass_fraction=1.0,
+            helium_mass_fraction=4.0,
+            radiation_group_edges_eV=[13.6, 24.6, 54.4],
+            radiation_group_sigma_gamma=np.array([1.0, 0.0]) * unyt.cm**2,
+            radiation_group_sigma_gamma_HeI=np.array([0.0, 2.0]) * unyt.cm**2,
+            radiation_group_sigma_gamma_HeII=np.array([0.0, 0.0]) * unyt.cm**2,
+            radiative_transfer_boundary_flux_groups=np.array([10.0, 20.0]) / (unyt.cm**2 * unyt.s),
+            radiative_transfer_source_photon_rate_groups=np.zeros(2) / unyt.s,
+            radiative_transfer_direction=1,
+        )
+
+        result = rrt.trace_photon_density(state, par)
+        expected = np.array(
+            [
+                [10.0 * (1.0 - np.exp(-1.0)) / 1.0,
+                 10.0 * np.exp(-1.0) * (1.0 - np.exp(-1.0)) / 1.0],
+                [20.0 * (1.0 - np.exp(-2.0)) / 2.0,
+                 20.0 * np.exp(-2.0) * (1.0 - np.exp(-2.0)) / 2.0],
+            ]
+        ) / unyt.c.to_value(unyt.cm / unyt.s)
+        np.testing.assert_allclose(result, expected)
+
     def test_spherical_long_characteristic_keeps_photon_rate_and_dilutes_density(self):
         mesh = SimpleNamespace(
             coordsys="spherical",

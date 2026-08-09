@@ -34,6 +34,32 @@ def _safe_exp_neg(tau):
     return np.exp(-np.clip(tau, 0.0, 700.0))
 
 
+def species_photoionization_rates(ngamma, sigma_by_species):
+    """Return photoionization and photoheating rates for each absorber."""
+    ngamma = np.asarray(ngamma, dtype=float)
+    rates = {}
+    for species, sigma in sigma_by_species.items():
+        sigma = np.asarray(sigma, dtype=float)
+        if ngamma.ndim == 2 and sigma.ndim == 1:
+            sigma = sigma[:, None]
+        rate = SPEED_OF_LIGHT_CGS * sigma * ngamma
+        rates[species] = np.sum(rate, axis=0) if rate.ndim > 1 else rate
+    return rates
+
+
+def species_photoionization_heating(ngamma, sigma_by_species, epsilon_by_species):
+    rates = {}
+    for species, sigma in sigma_by_species.items():
+        epsilon = np.asarray(epsilon_by_species.get(species, 0.0), dtype=float)
+        sigma = np.asarray(sigma, dtype=float)
+        if ngamma.ndim == 2:
+            sigma = sigma[:, None] if sigma.ndim == 1 else sigma
+            epsilon = epsilon[:, None] if epsilon.ndim == 1 else epsilon
+        value = SPEED_OF_LIGHT_CGS * sigma * epsilon * np.asarray(ngamma, dtype=float)
+        rates[species] = np.sum(value, axis=0) if value.ndim > 1 else value
+    return rates
+
+
 def _attenuation_mean(tau):
     """Return ``(1 - exp(-tau)) / tau`` with the small-tau limit."""
 
@@ -468,6 +494,13 @@ def trace_photon_density(state, par):
                 code,
                 "photon_rate_per_s",
             )
+        if hasattr(state, "get") and "xHeI" in state:
+            rho_cgs = np.asarray(fluid.rho, dtype=float)
+            nH = getattr(par, "hydrogen_mass_fraction", 0.7) * rho_cgs / PROTON_MASS_CGS
+            nHe = getattr(par, "helium_mass_fraction", 0.28) * rho_cgs / (4.0 * PROTON_MASS_CGS)
+            absorbers = {"HI": nH * fluid.xHI, "HeI": nHe * state["xHeI"], "HeII": nHe * state["xHeII"]}
+            cross_sections = {"HI": sigma_groups, "HeI": getattr(par, "radiation_group_sigma_gamma_HeI", sigma_groups), "HeII": getattr(par, "radiation_group_sigma_gamma_HeII", sigma_groups)}
+            return np.asarray(trace_long_characteristics(mesh, absorber_densities=absorbers, cross_sections_cm2=cross_sections, boundary_flux=boundary_groups, source_photon_rate=source_groups, direction=getattr(par, "radiative_transfer_direction", 1), coordsys=getattr(par, "coordsys", "spherical"), group_edges_eV=group_edges_eV).cell_photon_density, dtype=float)
         result = trace_long_characteristics(
             mesh,
             fluid.rho,

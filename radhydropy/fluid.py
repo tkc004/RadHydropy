@@ -86,6 +86,16 @@ class Fluid():
         if hasattr(self, 'xHI'):
             attrlist.append('xHI')
             valuelist.append(getattr(par, 'hydrogen_xHI_initial', 1.0))
+        if getattr(par, 'thermochemistry_network', 'hydrogen') == 'hydrogen_helium':
+            for attr, default in (
+                ('xHeI', getattr(par, 'hydrogen_helium_xHeI_initial', 1.0)),
+                ('xHeII', getattr(par, 'hydrogen_helium_xHeII_initial', 0.0)),
+                ('xHeIII', getattr(par, 'hydrogen_helium_xHeIII_initial', 0.0)),
+            ):
+                if not hasattr(self, attr):
+                    setattr(self, attr, as_named_array(np.ones(np.shape(self.rho)) * default))
+                attrlist.append(attr)
+                valuelist.append(default)
 
         if (
             (

@@ -38,6 +38,13 @@ def load_radiation_spectrum(filename):
             result["radiation_group_epsilon_gamma"] = np.asarray(
                 group["group_epsilon_gamma_erg"], dtype=float
             )
+        for species in ("HeI", "HeII"):
+            sigma_name = f"group_sigma_gamma_{species}_cm2"
+            epsilon_name = f"group_epsilon_gamma_{species}_erg"
+            if sigma_name in group:
+                result[f"radiation_group_sigma_gamma_{species}"] = np.asarray(group[sigma_name], dtype=float)
+            if epsilon_name in group:
+                result[f"radiation_group_epsilon_gamma_{species}"] = np.asarray(group[epsilon_name], dtype=float)
         return result
 
 

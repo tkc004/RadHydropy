@@ -117,6 +117,9 @@ def _dataset_aliases(name):
         "Mol_weight": ("mu",),
         "NeutralFraction": ("xHI",),
         "PhotonNumberDensity": ("ngamma",),
+        "HeINeutralFraction": ("xHeI",),
+        "HeIIFraction": ("xHeII",),
+        "HeIIIFraction": ("xHeIII",),
     }
     return alias_map.get(name, ())
 
@@ -604,6 +607,9 @@ def writehdf5(ric,ICfilename):
         gdata.create_dataset("Mol_weight", data=np.asarray(ric.fluid.mu))
         if hasattr(ric.fluid, "xHI"):
             gdata.create_dataset("NeutralFraction", data=np.asarray(ric.fluid.xHI))
+        for attr, dataset in (("xHeI", "HeINeutralFraction"), ("xHeII", "HeIIFraction"), ("xHeIII", "HeIIIFraction")):
+            if hasattr(ric.fluid, attr):
+                gdata.create_dataset(dataset, data=np.asarray(getattr(ric.fluid, attr)))
         if hasattr(ric.fluid, "ngamma"):
             _write_quantity(
                 gdata,
@@ -716,3 +722,6 @@ def readhdf5(par, mesh, fluid, ICfilename):
             fluid.xHI = getattr(fluid, "NeutralFraction")
         if hasattr(fluid, "PhotonNumberDensity"):
             fluid.ngamma = getattr(fluid, "PhotonNumberDensity")
+        for dataset, attr in (("HeINeutralFraction", "xHeI"), ("HeIIFraction", "xHeII"), ("HeIIIFraction", "xHeIII")):
+            if hasattr(fluid, dataset):
+                setattr(fluid, attr, getattr(fluid, dataset))

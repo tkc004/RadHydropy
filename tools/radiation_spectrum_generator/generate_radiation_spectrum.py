@@ -121,6 +121,15 @@ def write_spectrum(output, edges_ev, temperature_k, injected_photons,
         group.create_dataset("group_epsilon_gamma_erg", data=hydrogen[
             "group_epsilon_gamma_erg"]
         ).attrs["units"] = "erg"
+        for species in ("HeI", "HeII"):
+            group.create_dataset(
+                f"group_sigma_gamma_{species}_cm2",
+                data=values[species]["group_sigma_gamma_cm2"],
+            ).attrs["units"] = "cm**2"
+            group.create_dataset(
+                f"group_epsilon_gamma_{species}_erg",
+                data=values[species]["group_epsilon_gamma_erg"],
+            ).attrs["units"] = "erg"
         group.attrs["number_of_radiation_groups"] = len(edges_ev) - 1
         group.attrs["number_of_group_edges"] = len(edges_ev)
         group.attrs["stellar_spectrum_type"] = 1

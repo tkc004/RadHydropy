@@ -1,10 +1,11 @@
 """Dispatcher for pluggable thermo-chemistry networks."""
 
-from radhydropy.thermo_networks import CIECoolingNetwork, HydrogenNetwork
+from radhydropy.thermo_networks import CIECoolingNetwork, HydrogenNetwork, HydrogenHeliumNetwork
 
 
 _NETWORKS = {
     HydrogenNetwork.name: HydrogenNetwork,
+    HydrogenHeliumNetwork.name: HydrogenHeliumNetwork,
     CIECoolingNetwork.name: CIECoolingNetwork,
 }
 
@@ -81,6 +82,8 @@ def get_timestep(state, ngamma, par, remaining_s, dtmax_s):
 
 def update_temperature_from_energy(state):
     """Update temperature from source-state energy for the selected network."""
+    if 'helium_mass_fraction' in state:
+        return HydrogenHeliumNetwork().update_temperature_from_energy(state)
     return HydrogenNetwork().update_temperature_from_energy(state)
 
 
