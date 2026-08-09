@@ -78,6 +78,62 @@ class Solver():
         )
         if hasattr(mesh, 'area'):
             submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cm2']
+        group_edges_eV = getattr(par, 'radiation_group_edges_eV', None)
+        if group_edges_eV is not None:
+            sigma_groups = getattr(par, 'radiation_group_sigma_gamma', None)
+            if sigma_groups is None:
+                sigma_groups = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA)
+            boundary_groups = getattr(
+                par,
+                'radiative_transfer_boundary_flux_groups',
+                getattr(par, 'radiative_transfer_boundary_flux', 0.0),
+            )
+            source_groups = getattr(
+                par,
+                'radiative_transfer_source_photon_rate_groups',
+                getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
+            )
+            if hasattr(sigma_groups, 'to_value'):
+                sigma_groups = sigma_groups.to_value(CGS_AREA_UNIT)
+            else:
+                sigma_groups = code_quantity_to_cgs(
+                    sigma_groups,
+                    code_units,
+                    'area_cm2',
+                )
+            if hasattr(boundary_groups, 'to_value'):
+                boundary_groups = boundary_groups.to_value(CGS_PHOTON_FLUX_UNIT)
+            else:
+                boundary_groups = code_quantity_to_cgs(
+                    boundary_groups,
+                    code_units,
+                    'photon_flux_per_cm2_s',
+                )
+            if hasattr(source_groups, 'to_value'):
+                source_groups = source_groups.to_value(CGS_RATE_UNIT)
+            else:
+                source_groups = code_quantity_to_cgs(
+                    source_groups,
+                    code_units,
+                    'photon_rate_per_s',
+                )
+            result = rrt.trace_long_characteristics(
+                submesh,
+                np.asarray(fluid.rho[interior], dtype=float) * scales['density_g_cm3'],
+                np.asarray(fluid.xHI[interior], dtype=float),
+                hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
+                sigma_gamma=sigma_groups,
+                boundary_flux=boundary_groups,
+                source_photon_rate=source_groups,
+                direction=getattr(par, 'radiative_transfer_direction', 1),
+                coordsys=getattr(mesh, 'coordsys', 'cartesian'),
+                group_edges_eV=group_edges_eV,
+            )
+            fluid.ngamma[:, interior] = (
+                np.asarray(result.cell_photon_density, dtype=float)
+                / scales['number_density_cm3']
+            )
+            return result
         sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA)
         boundary_value = getattr(par, 'radiative_transfer_boundary_flux', 0.0)
         source_value = getattr(par, 'radiative_transfer_source_photon_rate', 0.0)
@@ -169,7 +225,14 @@ class Solver():
 
     def _copy_boundary_state(self, fluid, target_slice, values):
         for attr, value in values.items():
-            getattr(fluid, attr)[target_slice] = value
+            target = getattr(fluid, attr)
+            if attr == 'ngamma' and np.ndim(target) == 2:
+                value_array = np.asarray(value)
+                if value_array.ndim == 1:
+                    value_array = value_array[:, None]
+                target[:, target_slice] = value_array
+            else:
+                target[target_slice] = value
 
     def _boundary_state(
         self,
@@ -189,7 +252,10 @@ class Solver():
         if hasattr(fluid, 'xHI'):
             state['xHI'] = fluid.xHI[source]
         if hasattr(fluid, 'ngamma'):
-            state['ngamma'] = fluid.ngamma[source]
+            if np.ndim(fluid.ngamma) == 2:
+                state['ngamma'] = fluid.ngamma[:, source]
+            else:
+                state['ngamma'] = fluid.ngamma[source]
         if reverse:
             for key, value in list(state.items()):
                 state[key] = value[::-1]
@@ -205,15 +271,23 @@ class Solver():
         fields = self._boundary_field_names(fluid)
         for attr in fields:
             quan = getattr(fluid, attr)
-            quan[left_ghost] = quan[interior][-noghost:]
-            quan[right_ghost] = quan[interior][:noghost]
+            if attr == 'ngamma' and np.ndim(quan) == 2:
+                quan[:, left_ghost] = quan[:, interior][-noghost:]
+                quan[:, right_ghost] = quan[:, interior][:noghost]
+            else:
+                quan[left_ghost] = quan[interior][-noghost:]
+                quan[right_ghost] = quan[interior][:noghost]
 
     def _apply_open_boundary(self, fluid, first, nolast, left_ghost, right_ghost):
         fields = self._boundary_field_names(fluid)
         for attr in fields:
             quan = getattr(fluid, attr)
-            quan[left_ghost] = quan[first]
-            quan[right_ghost] = quan[nolast]
+            if attr == 'ngamma' and np.ndim(quan) == 2:
+                quan[:, left_ghost] = quan[:, first]
+                quan[:, right_ghost] = quan[:, nolast]
+            else:
+                quan[left_ghost] = quan[first]
+                quan[right_ghost] = quan[nolast]
 
     def _apply_reflecting_boundary(self, fluid, interior, left_ghost, right_ghost, noghost):
         for attr in ('rho', 'pre'):

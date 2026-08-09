@@ -117,6 +117,18 @@ class Fluid():
             quan = getattr(self, attr)
             #print('attr,qaun',attr,quan)
             units = getattr(quan, 'units', None)
+            if attr == 'ngamma' and np.ndim(quan) == 2:
+                values = np.asarray(quan, dtype=float)
+                ghost = np.full(
+                    (values.shape[0], noghost),
+                    valuelist[iattr],
+                    dtype=float,
+                )
+                quan = as_named_array(
+                    np.concatenate((ghost, values, ghost), axis=1)
+                )
+                setattr(self, attr, quan)
+                continue
             if units is None:
                 ghost = np.ones(noghost, dtype=float) * valuelist[iattr]
                 quan = as_named_array(np.concatenate((ghost, np.asarray(quan, dtype=float), ghost)))

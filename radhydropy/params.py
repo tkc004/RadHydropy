@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from radhydropy.radiation_spectrum import load_radiation_spectrum, resolve_spectrum_filename
 
 from radhydropy.units import CodeUnits, _as_cgs_float
 
@@ -72,7 +73,18 @@ refparams = {
     'radiative_transfer': False,
     'radiative_transfer_method': 'long_characteristics',
     'radiative_transfer_boundary_flux': 0.0 / (unyt.cm**2 * unyt.s),
+    'radiative_transfer_boundary_flux_groups': None,
     'radiative_transfer_source_photon_rate': 0.0 / unyt.s,
+    'radiative_transfer_source_photon_rate_groups': None,
+    'radiation_group_edges_eV': None,
+    'radiation_group_sigma_gamma': None,
+    'radiation_group_epsilon_gamma': None,
+    'star_emission_rates': None,
+    'stellar_spectrum_type': 1,
+    'stellar_spectrum_blackbody_temperature_K': 1.0e5,
+    'ionizing_photon_energy_erg': None,
+    'radiation_spectrum_filename': None,
+    'number_of_radiation_groups': None,
     'radiative_transfer_direction': 1,
 }
 
@@ -105,7 +117,32 @@ class Par():
                     setattr(self, key, value)
             self.CodeUnits = CodeUnits.from_mapping(code_units_value)
             self.unit_system = self.CodeUnits.unit_system
+            if params.get('radiation_spectrum_filename') is not None:
+                self.load_radiation_spectrum(params.get('outdir'))
             if verbose > 0 and missing_keys:
                 for key, value in missing_keys:
                     print("key %s not found in params" % key)
                     print(str(value) + " is used")
+
+    def load_radiation_spectrum(self, base_directory=None):
+            """Load the configured HDF5 spectrum into runtime parameters."""
+            spectrum_filename = getattr(self, 'radiation_spectrum_filename', None)
+            if spectrum_filename is None:
+                return
+            spectrum = load_radiation_spectrum(
+                resolve_spectrum_filename(spectrum_filename, base_directory)
+            )
+            for key, value in spectrum.items():
+                setattr(self, key, value)
+                self.runparams[key] = value
+            if self.radiation_group_sigma_gamma is not None:
+                self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
+            if self.radiation_group_epsilon_gamma is not None:
+                self.radiation_group_epsilon_gamma = self.radiation_group_epsilon_gamma * unyt.erg
+            power_unit = self.CodeUnits.energy_unit / self.CodeUnits.time_unit
+            rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
+            energies = np.asarray(self.ionizing_photon_energy_erg, dtype=float) * unyt.erg
+            self.radiative_transfer_source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
+            self.radiative_transfer_boundary_flux_groups = np.zeros(
+                self.number_of_radiation_groups
+            ) / (unyt.cm**2 * unyt.s)

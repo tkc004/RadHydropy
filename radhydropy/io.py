@@ -312,7 +312,7 @@ def _header_attr_value(value):
     if isinstance(tree, np.generic):
         return tree.item()
     if isinstance(tree, np.ndarray):
-        if tree.dtype == object:
+        if tree.dtype == object or tree.dtype.kind == "U":
             return yaml.safe_dump(tree.tolist(), sort_keys=True, default_flow_style=False)
         return tree
     if isinstance(tree, (list, tuple)) and all(
@@ -320,7 +320,7 @@ def _header_attr_value(value):
         for item in tree
     ):
         array = np.asarray(tree)
-        if array.dtype == object:
+        if array.dtype == object or array.dtype.kind == "U":
             return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
         return array
     return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
@@ -679,6 +679,8 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units=code_units,
             scale_map=header_scale_map,
         )
+        if hasattr(par, 'load_radiation_spectrum'):
+            par.load_radiation_spectrum(getattr(par, 'outdir', None))
         par.time = getattr(par, "Time")
         par.boxsize = getattr(par, "BoxSize")
         fluid.time = par.time.copy() if hasattr(par.time, "copy") else float(par.time)

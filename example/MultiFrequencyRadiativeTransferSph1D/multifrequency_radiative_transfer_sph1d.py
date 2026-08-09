@@ -1,0 +1,154 @@
+"""Pure-hydrogen multifrequency long-characteristic radiation example."""
+
+import argparse
+import importlib.util
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import unyt
+
+repo_root = Path(__file__).resolve().parents[2]
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+static_dir = Path(__file__).resolve().parents[1] / "StaticStromgrenSpherePhotoheating1D"
+if str(static_dir) not in sys.path:
+    sys.path.insert(0, str(static_dir))
+
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
+os.makedirs(cache_dir, exist_ok=True)
+os.makedirs(mplconfig_dir, exist_ok=True)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
+os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
+
+from radhydropy.example_config import load_example_parameters
+from radhydropy.rsim import Rsim
+import radhydropy.io as rio
+from radhydropy.units import CodeUnits
+
+tools_spec = importlib.util.spec_from_file_location(
+    "static_stromgren_photoheating_tools",
+    static_dir / "tools.py",
+)
+tools = importlib.util.module_from_spec(tools_spec)
+assert tools_spec.loader is not None
+tools_spec.loader.exec_module(tools)
+
+
+DEFAULT_CONFIG = Path(__file__).with_name(
+    "multifrequency_radiative_transfer_sph1d.yaml"
+)
+
+def _resolve_reference(config, config_filename, key):
+    filename = config.get(key)
+    if filename is None:
+        return None
+    path = Path(filename)
+    if not path.is_absolute():
+        path = Path(config_filename).resolve().parent / path
+    radius_unit = config.get("reference_radius_unit", 5.4 * unyt.kpc)
+    return tools.load_log_reference_profile(path, radius_unit)
+
+
+def _save_plot(output_filename, config, figure_filename, config_filename):
+    par, mesh, fluid = tools.load_output_state(output_filename, config)[:3]
+    code = CodeUnits.from_mapping(config["CodeUnits"])
+    interior = slice(par.noghost, par.noghost + par.nogrid)
+    radius_kpc = (
+        np.asarray(mesh.coordinate[interior], dtype=float) * code.length_unit
+    ).to_value(unyt.kpc)
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
+    temperature_K = (
+        np.asarray(fluid.temp[interior], dtype=float) * code.temperature_unit
+    ).to_value(unyt.K)
+    ngamma = (
+        np.asarray(fluid.ngamma[:, interior], dtype=float)
+        * code.number_density_unit
+    ).to_value(1.0 / unyt.cm**3)
+
+    xhi_reference = _resolve_reference(
+        config, config_filename, "neutral_fraction_reference_filename"
+    )
+    temperature_reference = _resolve_reference(
+        config, config_filename, "temperature_reference_filename"
+    )
+
+    fig, axes = plt.subplots(3, 1, figsize=(7.0, 8.5), sharex=True)
+    axes[0].plot(radius_kpc, xHI, color="tab:blue")
+    if xhi_reference is not None:
+        axes[0].scatter(
+            xhi_reference["radius_kpc"],
+            xhi_reference["value"],
+            s=16,
+            facecolors="none",
+            edgecolors="black",
+            label="static Stromgren reference",
+        )
+    axes[0].set_yscale("log")
+    axes[0].set_ylabel(r"$x_{\rm HI}$")
+    axes[0].set_ylim(1.0e-6, 1.1)
+    axes[0].grid(True, which="both", alpha=0.25)
+    axes[0].legend(frameon=False)
+    axes[1].plot(radius_kpc, temperature_K, color="tab:red")
+    if temperature_reference is not None:
+        axes[1].scatter(
+            temperature_reference["radius_kpc"],
+            temperature_reference["value"],
+            s=16,
+            facecolors="none",
+            edgecolors="black",
+            label="static Stromgren reference",
+        )
+    axes[1].set_yscale("log")
+    axes[1].set_ylabel("Temperature [K]")
+    axes[1].grid(True, which="both", alpha=0.25)
+    axes[1].legend(frameon=False)
+    photon_axis = axes[2]
+    for group, values in enumerate(ngamma):
+        photon_axis.plot(radius_kpc, values, label=f"group {group + 1}")
+    photon_axis.set_yscale("log")
+    photon_axis.set_xlabel("Radius [kpc]")
+    photon_axis.set_ylabel(r"$n_\gamma$ [cm$^{-3}$]")
+    photon_axis.grid(True, which="both", alpha=0.25)
+    photon_axis.legend(frameon=False)
+    fig.suptitle(r"Pure-H multifrequency radiation ($T_{\rm rad}=10^5$ K)")
+    fig.savefig(figure_filename, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def main(config_filename=DEFAULT_CONFIG):
+    runparams, icparams = load_example_parameters(config_filename, Path.cwd())
+    config = {**runparams, **icparams}
+    runparams["ICfilename"] = str(Path(runparams["outdir"]) / "InitialCondition.hdf5")
+    runparams["outdir"] = str(Path.cwd())
+    runparams["savedir"] = str(Path.cwd())
+    config.update(runparams)
+
+    tools.write_initial_condition(config, runparams)
+    sim = Rsim(runparams)
+    sim.Callreadhdf5()
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
+    sim.EvolveStaticThermochemistry(
+        runparams["final_time"],
+        runparams["evolution_timestep"],
+    )
+    output_filename = Path(runparams["outdir"]) / "Output_000.hdf5"
+    rio.writehdf5(sim, output_filename)
+    figure_filename = Path(runparams["savedir"]) / "MultiFrequencyRadiativeTransferSph1D.jpg"
+    _save_plot(output_filename, config, figure_filename, config_filename)
+    print(f"output file = {output_filename}")
+    print(f"figure = {figure_filename}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
+    main(parser.parse_args().config)

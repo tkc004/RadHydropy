@@ -138,10 +138,12 @@ def _cgs_hydrogen_number_density(rho_g_cm3, hydrogen_mass_fraction=1.0):
 
 
 def _cgs_photoionization_frequency(ngamma_cm3, sigma_gamma_cm2):
-    return SPEED_OF_LIGHT_CGS * np.asarray(sigma_gamma_cm2, dtype=float) * np.asarray(
-        ngamma_cm3,
-        dtype=float,
-    )
+    ngamma = np.asarray(ngamma_cm3, dtype=float)
+    sigma = np.asarray(sigma_gamma_cm2, dtype=float)
+    if ngamma.ndim > 1 and sigma.ndim == 1:
+        sigma = sigma[:, None]
+    rate = SPEED_OF_LIGHT_CGS * sigma * ngamma
+    return np.sum(rate, axis=0) if np.ndim(rate) > 1 else rate
 
 
 def _cgs_source_thermal_rate(
@@ -168,12 +170,23 @@ def _cgs_source_thermal_rate(
     if ngamma_cm3 is None:
         heating = np.zeros_like(cooling, dtype=float)
     else:
-        heating = (
-            nH
-            * xHI
-            * np.asarray(epsilon_gamma_erg, dtype=float)
-            * _cgs_photoionization_frequency(ngamma_cm3, sigma_gamma_cm2)
+        ngamma = np.asarray(ngamma_cm3, dtype=float)
+        sigma = np.asarray(sigma_gamma_cm2, dtype=float)
+        epsilon = np.asarray(epsilon_gamma_erg, dtype=float)
+        if ngamma.ndim > 1:
+            if sigma.ndim == 1:
+                sigma = sigma[:, None]
+            if epsilon.ndim == 1:
+                epsilon = epsilon[:, None]
+        photoheating_per_atom = (
+            SPEED_OF_LIGHT_CGS
+            * epsilon
+            * sigma
+            * ngamma
         )
+        if np.ndim(photoheating_per_atom) > 1:
+            photoheating_per_atom = np.sum(photoheating_per_atom, axis=0)
+        heating = nH * xHI * photoheating_per_atom
     return heating - cooling
 
 
@@ -395,8 +408,17 @@ def source_state(mesh, fluid, par):
         * temperature
         / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
+    sigma_parameter = getattr(
+        par,
+        'radiation_group_sigma_gamma',
+        None,
+    ) if getattr(par, 'radiation_group_edges_eV', None) is not None else getattr(
+        par,
+        'hydrogen_sigma_gamma',
+        None,
+    )
     sigma_gamma = _optional_numeric_value(
-        getattr(par, 'hydrogen_sigma_gamma', None),
+        sigma_parameter,
         code.area_unit,
         default=DEFAULT_SIGMA_GAMMA,
     )
@@ -405,8 +427,17 @@ def source_state(mesh, fluid, par):
         code.time_unit ** -1,
         default=0.0,
     )
+    epsilon_parameter = getattr(
+        par,
+        'radiation_group_epsilon_gamma',
+        None,
+    ) if getattr(par, 'radiation_group_edges_eV', None) is not None else getattr(
+        par,
+        'hydrogen_epsilon_gamma',
+        None,
+    )
     epsilon_gamma = _optional_numeric_value(
-        getattr(par, 'hydrogen_epsilon_gamma', None),
+        epsilon_parameter,
         code.energy_unit,
         default=DEFAULT_EPSILON_GAMMA,
     )

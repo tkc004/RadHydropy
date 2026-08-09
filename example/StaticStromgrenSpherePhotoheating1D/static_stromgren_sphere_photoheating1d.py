@@ -96,23 +96,27 @@ def main(config_filename=DEFAULT_CONFIG):
     et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
 
     print('time = %s' % out_fluid.time)
-    print(
-        'stromgren radius = %s'
-        % sa.stromgren_radius(
-            runparams['source_photon_rate'],
-            icparams['hydrogen_number_density'],
-            runparams['alpha_B_coefficient'],
-        ).to(unyt.kpc)
-    )
-    print(
-        'analytic front radius = %s'
-        % sa.ionization_front_radius(
-            runparams['final_time'],
-            runparams['source_photon_rate'],
-            icparams['hydrogen_number_density'],
-            runparams['alpha_B_coefficient'],
-        ).to(unyt.kpc)
-    )
+    if runparams.get('alpha_B_coefficient') is None:
+        print('stromgren radius = temperature-dependent alpha_H(T)')
+        print('analytic front radius = unavailable for temperature-dependent rates')
+    else:
+        print(
+            'stromgren radius = %s'
+            % sa.stromgren_radius(
+                runparams['source_photon_rate'],
+                icparams['hydrogen_number_density'],
+                runparams['alpha_B_coefficient'],
+            ).to(unyt.kpc)
+        )
+        print(
+            'analytic front radius = %s'
+            % sa.ionization_front_radius(
+                runparams['final_time'],
+                runparams['source_photon_rate'],
+                icparams['hydrogen_number_density'],
+                runparams['alpha_B_coefficient'],
+            ).to(unyt.kpc)
+        )
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_K'][-1])
     print('front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('evolution steps = %d' % history['evolution_steps'])

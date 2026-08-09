@@ -429,6 +429,58 @@ def trace_photon_density(state, par):
     code = _code_units(par)
     mesh = _state_mesh_for_radiative_transfer(state, par)
     fluid = _state_fluid_for_radiative_transfer(state, par)
+    group_edges_eV = getattr(par, "radiation_group_edges_eV", None)
+    if group_edges_eV is not None:
+        sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
+        if sigma_groups is None:
+            sigma_groups = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA)
+        boundary_groups = getattr(
+            par,
+            "radiative_transfer_boundary_flux_groups",
+            getattr(par, "radiative_transfer_boundary_flux", 0.0),
+        )
+        source_groups = getattr(
+            par,
+            "radiative_transfer_source_photon_rate_groups",
+            getattr(par, "radiative_transfer_source_photon_rate", 0.0),
+        )
+        if hasattr(sigma_groups, "to_value"):
+            sigma_groups = sigma_groups.to_value(CGS_AREA_UNIT)
+        elif code is not None:
+            sigma_groups = code_quantity_to_cgs(
+                sigma_groups,
+                code,
+                "area_cm2",
+            )
+        if hasattr(boundary_groups, "to_value"):
+            boundary_groups = boundary_groups.to_value(PHOTON_FLUX_UNIT)
+        elif code is not None:
+            boundary_groups = code_quantity_to_cgs(
+                boundary_groups,
+                code,
+                "photon_flux_per_cm2_s",
+            )
+        if hasattr(source_groups, "to_value"):
+            source_groups = source_groups.to_value(PHOTON_RATE_UNIT)
+        elif code is not None:
+            source_groups = code_quantity_to_cgs(
+                source_groups,
+                code,
+                "photon_rate_per_s",
+            )
+        result = trace_long_characteristics(
+            mesh,
+            fluid.rho,
+            fluid.xHI,
+            hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
+            sigma_gamma=sigma_groups,
+            boundary_flux=boundary_groups,
+            source_photon_rate=source_groups,
+            direction=getattr(par, "radiative_transfer_direction", 1),
+            coordsys=getattr(par, "coordsys", "spherical"),
+            group_edges_eV=group_edges_eV,
+        )
+        return np.asarray(result.cell_photon_density, dtype=float)
     sigma_gamma_cm2 = _quantity_or_code_to_cgs(
         getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA),
         code,

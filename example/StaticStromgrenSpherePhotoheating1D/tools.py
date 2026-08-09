@@ -76,6 +76,12 @@ def build_static_problem(config):
             'source_photon_rate',
             config.get('radiative_transfer_source_photon_rate'),
         ),
+        radiative_transfer_source_photon_rate_groups=config.get(
+            'radiative_transfer_source_photon_rate_groups',
+        ),
+        radiation_group_edges_eV=config.get('radiation_group_edges_eV'),
+        radiation_group_sigma_gamma=config.get('radiation_group_sigma_gamma'),
+        radiation_group_epsilon_gamma=config.get('radiation_group_epsilon_gamma'),
         radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
@@ -98,7 +104,12 @@ def build_static_problem(config):
     fluid.temp = np.ones(par.nogrid) * config.get('initial_temperature', 1.0e4 * unyt.K)
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.ngamma = np.ones(par.nogrid) * config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
+    group_edges = config.get('radiation_group_edges_eV')
+    if group_edges is not None:
+        ngroup = len(group_edges) - 1
+        fluid.ngamma = np.zeros((ngroup, par.nogrid)) / unyt.cm**3
+    else:
+        fluid.ngamma = np.ones(par.nogrid) * config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
     fluid.SetFluidTime(0.0 * unyt.Myr)
     solver = Solver()
     return par, mesh, fluid, solver
@@ -241,26 +252,32 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
         config.get('neutral_fraction_reference_filename', None),
         reference_radius_unit,
     )
-    xHI_analytic = sa.neutral_fraction_profile(
-        radius,
-        config['hydrogen_number_density'],
-        config['sigma_gamma'],
-        config['alpha_B_coefficient'],
-        config['source_photon_rate'],
-        inner_radius=config['analytic_inner_radius'],
-    )
-    xHII_analytic = 1.0 - xHI_analytic
-    radius_stromgren = sa.stromgren_radius(
-        config['source_photon_rate'],
-        config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
-    ).to(unyt.kpc)
-    analytic_front = sa.ionization_front_radius(
-        np.asarray(history['time_Myr']) * unyt.Myr,
-        config['source_photon_rate'],
-        config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
-    ).to_value(unyt.kpc)
+    alpha_B = config.get('alpha_B_coefficient')
+    if alpha_B is not None:
+        xHI_analytic = sa.neutral_fraction_profile(
+            radius,
+            config['hydrogen_number_density'],
+            config['sigma_gamma'],
+            alpha_B,
+            config['source_photon_rate'],
+            inner_radius=config['analytic_inner_radius'],
+        )
+        xHII_analytic = 1.0 - xHI_analytic
+        radius_stromgren = sa.stromgren_radius(
+            config['source_photon_rate'],
+            config['hydrogen_number_density'],
+            alpha_B,
+        ).to(unyt.kpc)
+        analytic_front = sa.ionization_front_radius(
+            np.asarray(history['time_Myr']) * unyt.Myr,
+            config['source_photon_rate'],
+            config['hydrogen_number_density'],
+            alpha_B,
+        ).to_value(unyt.kpc)
+    else:
+        xHI_analytic = xHII_analytic = None
+        radius_stromgren = None
+        analytic_front = None
 
     fig, (ax_frac, ax_temp, ax_front) = plt.subplots(
         3,
@@ -270,22 +287,17 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     )
     ax_frac.plot(radius_kpc, np.clip(xHI, 1.0e-6, 1.0), label=r'$x_{\rm HI}$')
     ax_frac.plot(radius_kpc, np.clip(xHII, 1.0e-6, 1.0), label=r'$x_{\rm HII}$')
-    ax_frac.plot(
-        radius_kpc,
-        np.clip(xHI_analytic, 1.0e-6, 1.0),
-        color='tab:blue',
-        lw=1.4,
-        ls='--',
-        label=r'$x_{\rm HI}$ analytic',
-    )
-    ax_frac.plot(
-        radius_kpc,
-        np.clip(xHII_analytic, 1.0e-6, 1.0),
-        color='tab:orange',
-        lw=1.4,
-        ls='--',
-        label=r'$x_{\rm HII}$ analytic',
-    )
+    if xHI_analytic is not None:
+        ax_frac.plot(
+            radius_kpc,
+            np.clip(xHI_analytic, 1.0e-6, 1.0),
+            color='tab:blue', lw=1.4, ls='--', label=r'$x_{\rm HI}$ analytic',
+        )
+        ax_frac.plot(
+            radius_kpc,
+            np.clip(xHII_analytic, 1.0e-6, 1.0),
+            color='tab:orange', lw=1.4, ls='--', label=r'$x_{\rm HII}$ analytic',
+        )
     if neutral_fraction_reference is not None:
         ax_frac.scatter(
             neutral_fraction_reference['radius_kpc'],
@@ -296,13 +308,8 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
             facecolors='none',
             label=r'$x_{\rm HI}$ 100 Myr ref.',
         )
-    ax_frac.axvline(
-        radius_stromgren.to_value(unyt.kpc),
-        color='black',
-        lw=1.5,
-        ls=':',
-        label=r'$R_{\rm S}$',
-    )
+    if radius_stromgren is not None:
+        ax_frac.axvline(radius_stromgren.to_value(unyt.kpc), color='black', lw=1.5, ls=':', label=r'$R_{\rm S}$')
     ax_frac.set_xlim(0.0, plot_radius_max)
     ax_frac.set_ylim(1.0e-6, 1.2)
     ax_frac.set_yscale('log')
@@ -322,7 +329,8 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
             facecolors='none',
             label='100 Myr ref.',
         )
-    ax_temp.axvline(radius_stromgren.to_value(unyt.kpc), color='black', lw=1.5, ls=':')
+    if radius_stromgren is not None:
+        ax_temp.axvline(radius_stromgren.to_value(unyt.kpc), color='black', lw=1.5, ls=':')
     ax_temp.set_xlim(0.0, plot_radius_max)
     ax_temp.set_yscale('log')
     ax_temp.set_ylabel('Temperature [K]')
@@ -337,15 +345,10 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
         lw=2.0,
         label=r'$x_{\rm HI}=0.5$',
     )
-    ax_front.plot(
-        history['time_Myr'],
-        analytic_front,
-        color='black',
-        lw=1.6,
-        ls='--',
-        label=r'$R_I(t)$ fixed-$T$ reference',
-    )
-    ax_front.axhline(radius_stromgren.to_value(unyt.kpc), color='0.25', lw=1.2, ls=':')
+    if analytic_front is not None:
+        ax_front.plot(history['time_Myr'], analytic_front, color='black', lw=1.6, ls='--', label=r'$R_I(t)$ fixed-$T$ reference')
+    if radius_stromgren is not None:
+        ax_front.axhline(radius_stromgren.to_value(unyt.kpc), color='0.25', lw=1.2, ls=':')
     ax_front.set_xlim(0.0, history['time_Myr'][-1])
     ax_front.set_ylim(0.0, plot_radius_max)
     ax_front.set_xlabel('Time [Myr]')

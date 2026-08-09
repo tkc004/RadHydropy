@@ -4,6 +4,7 @@ from pathlib import Path
 
 import unyt
 import yaml
+from radhydropy.radiation_spectrum import load_radiation_spectrum, resolve_spectrum_filename
 
 
 def _load_yaml_value(value):
@@ -51,4 +52,12 @@ def load_example_parameters(config_filename, rundir=None):
     for key in {'ICfilename', 'outdir', 'outputtimefilename', 'savedir'}:
         if key in runparams:
             runparams[key] = _resolve_path(runparams[key], rundir)
+    if runparams.get('radiation_spectrum_filename') is not None:
+        runparams.update(
+            load_radiation_spectrum(
+                resolve_spectrum_filename(
+                    runparams['radiation_spectrum_filename'], rundir
+                )
+            )
+        )
     return runparams, icparams

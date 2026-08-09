@@ -52,13 +52,11 @@ runparams:
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true
   hydrogen_recombination: true
-  hydrogen_collisional_ionization: false
-  alpha_B_coefficient:
-    value: 2.59e-13
-    unit: cm**3/s
-  hydrogen_beta:
-    value: 0.0
-    unit: cm**3/s
+  # Use the Hui-Gnedin/Theuns temperature-dependent H rates.  Null selects
+  # the built-in alpha_H(T) and beta_H(T) functions in the network.
+  hydrogen_collisional_ionization: true
+  alpha_B_coefficient: null
+  hydrogen_beta: null
   hydrogen_radiation_field: false
   hydrogen_radiation_evolution: false
   hydrogen_ngamma_initial:

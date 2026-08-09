@@ -337,6 +337,35 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['number_of_cells'], 256)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 1.0)
 
+    def test_multifrequency_radiative_transfer_sph1d_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'MultiFrequencyRadiativeTransferSph1D'
+            / 'multifrequency_radiative_transfer_sph1d.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer'], True)
+        spectrum_filename = (
+            config_filename.parent / runparams['radiation_spectrum_filename']
+        )
+        with h5py.File(spectrum_filename, 'r') as spectrum:
+            group = spectrum['RadiationSpectrum']
+            self.assertEqual(group.attrs['number_of_radiation_groups'], 3)
+            self.assertEqual(group.attrs['number_of_group_edges'], 4)
+            self.assertEqual(group.attrs['stellar_spectrum_type'], 1)
+            self.assertEqual(
+                group.attrs['stellar_spectrum_blackbody_temperature_K'],
+                1.0e5,
+            )
+            self.assertEqual(
+                list(group['group_edges_eV']),
+                [13.6, 24.6, 54.4, 10000.0],
+            )
+            self.assertEqual(len(group['ionizing_photon_energy_erg']), 3)
+        self.assertEqual(icparams['number_of_cells'], 512)
+
     def test_stellar_wind_bubble1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -530,10 +559,9 @@ class Testing(unittest.TestCase):
         self.assertEqual(runparams['evolution_timestep'].to_value(unyt.Myr), 1.0)
         self.assertEqual(runparams['reference_time'].to_value(unyt.Myr), 100.0)
         self.assertEqual(runparams['source_photon_rate'].to_value(1.0 / unyt.s), 5.0e48)
-        self.assertEqual(
-            runparams['alpha_B_coefficient'].to_value(unyt.cm**3 / unyt.s),
-            2.59e-13,
-        )
+        self.assertIsNone(runparams['alpha_B_coefficient'])
+        self.assertIsNone(runparams['hydrogen_beta'])
+        self.assertTrue(runparams['hydrogen_collisional_ionization'])
         self.assertEqual(
             runparams['temperature_reference_filename'].endswith(
                 'TTT1Dthin_Stromgren100Myr.txt'
