@@ -42,6 +42,76 @@ class Testing(unittest.TestCase):
         )
         np.testing.assert_allclose(result.optical_depth, np.ones(3), rtol=1.0e-5)
 
+    def test_one_group_general_path_matches_legacy_hydrogen_path(self):
+        mesh = SimpleNamespace(
+            coordsys="cartesian",
+            boundary=np.array([0.0, 1.0, 2.0], dtype=float),
+            vol=np.ones(2, dtype=float),
+            area=np.ones(2, dtype=float),
+        )
+        rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
+        xHI = np.array([1.0, 0.5])
+        legacy = rrt.trace_long_characteristics(
+            mesh,
+            rho,
+            xHI,
+            sigma_gamma=1.0 * unyt.cm**2,
+            boundary_flux=10.0 / (unyt.cm**2 * unyt.s),
+        )
+        general = rrt.trace_long_characteristics(
+            mesh,
+            group_edges_eV=[13.6, 24.6],
+            absorber_densities={
+                "HI": rho / unyt.mp.to_value(unyt.g) * xHI,
+            },
+            cross_sections_cm2={"HI": [1.0 * unyt.cm**2]},
+            boundary_flux=[10.0 / (unyt.cm**2 * unyt.s)],
+        )
+
+        np.testing.assert_allclose(
+            general.optical_depth,
+            legacy.optical_depth,
+        )
+        np.testing.assert_allclose(
+            general.cell_photon_density,
+            legacy.cell_photon_density,
+        )
+        self.assertEqual(general.cell_photon_density.shape, (2,))
+
+    def test_multigroup_long_characteristics_combines_absorbers(self):
+        mesh = SimpleNamespace(
+            coordsys="cartesian",
+            boundary=np.array([0.0, 1.0, 2.0], dtype=float),
+            vol=np.ones(2, dtype=float),
+            area=np.ones(2, dtype=float),
+        )
+        n_h = np.ones(2, dtype=float)
+        n_he = np.ones(2, dtype=float) * 2.0
+        result = rrt.trace_long_characteristics(
+            mesh,
+            group_edges_eV=[13.6, 24.6, 54.4],
+            absorber_densities={"HI": n_h, "HeI": n_he},
+            cross_sections_cm2={
+                "HI": np.array([1.0, 2.0]),
+                "HeI": np.array([0.0, 3.0]),
+            },
+            boundary_flux=np.array([10.0, 20.0]),
+        )
+
+        np.testing.assert_allclose(
+            result.optical_depth,
+            np.array([[1.0, 1.0], [8.0, 8.0]]),
+        )
+        np.testing.assert_allclose(
+            result.face_photon_flux[0],
+            10.0 * np.exp(-np.array([0.0, 1.0, 2.0])),
+        )
+        np.testing.assert_allclose(
+            result.face_photon_flux[1],
+            20.0 * np.exp(-np.array([0.0, 8.0, 16.0])),
+        )
+        self.assertEqual(result.cell_photon_density.shape, (2, 2))
+
     def test_spherical_long_characteristic_keeps_photon_rate_and_dilutes_density(self):
         mesh = SimpleNamespace(
             coordsys="spherical",

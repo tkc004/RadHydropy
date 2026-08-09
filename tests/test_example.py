@@ -594,6 +594,20 @@ class Testing(unittest.TestCase):
         self.assertEqual(history['evolution_steps'], 1)
         self.assertIn('mean_ionized_temp_K', history)
 
+    def test_static_reference_snapshot_stores_myr_not_seconds(self):
+        sim = Rsim.__new__(Rsim)
+        state = {
+            'radius_kpc': np.array([1.0]),
+            'xHI': np.array([0.5]),
+            'temperature_K': np.array([1.0e4]),
+        }
+        snapshot = sim._snapshot_static_state(
+            state,
+            2.0 * (1.0 * unyt.Myr).to_value(unyt.s),
+        )
+
+        self.assertAlmostEqual(snapshot['time_Myr'], 2.0)
+
     def test_static_stromgren_sphere_photon_budget_uses_physical_units(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

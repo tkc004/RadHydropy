@@ -52,6 +52,13 @@ def _quantity_or_code_to_cgs(value, code_units, cgs_unit, scale_key):
     return np.asarray(value, dtype=float)
 
 
+def _as_cgs_array(value, unit):
+    """Return a scalar or array-like value as a plain CGS array."""
+    if hasattr(value, "to_value"):
+        return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(value, dtype=float)
+
+
 def _mesh_boundary_cm(mesh):
     return np.asarray(mesh.boundary, dtype=float)
 
@@ -209,51 +216,185 @@ def _trace_spherical(
     )
 
 
+def _normalize_group_edges(group_edges_eV):
+    """Validate group edges and return the number of photon groups."""
+    if group_edges_eV is None:
+        return None
+    edges = _as_cgs_array(group_edges_eV, 1.0)
+    if edges.ndim != 1 or edges.size < 2:
+        raise ValueError("radiation_group_edges_eV requires at least two edges")
+    if not np.all(np.diff(edges) > 0.0):
+        raise ValueError("radiation_group_edges_eV must be strictly increasing")
+    return edges.size - 1
+
+
+def _normalize_group_values(value, ngroup, name, unit):
+    """Return a value as a one-dimensional array with one entry per group."""
+    values = _as_cgs_array(value, unit)
+    if values.ndim == 0:
+        return np.full(ngroup, float(values), dtype=float)
+    if values.ndim != 1 or values.size != ngroup:
+        raise ValueError(f"{name} must be a scalar or have shape ({ngroup},)")
+    return values.astype(float, copy=False)
+
+
+def _build_group_optical_depth(
+    mesh,
+    absorber_densities,
+    cross_sections_cm2,
+    ngroup,
+):
+    """Build optical depth per photon group from absorber densities."""
+    widths = _cell_widths_cm(mesh)
+    optical_depth = np.zeros((ngroup, widths.size), dtype=float)
+    for species, density in absorber_densities.items():
+        density = np.asarray(density, dtype=float)
+        if density.shape != widths.shape:
+            raise ValueError(
+                f"absorber density for {species!r} must have shape {widths.shape}"
+            )
+        if species not in cross_sections_cm2:
+            raise ValueError(f"missing cross section for absorber {species!r}")
+        sigma = _normalize_group_values(
+            cross_sections_cm2[species],
+            ngroup,
+            f"cross_sections_cm2[{species!r}]",
+            CGS_AREA_UNIT,
+        )
+        optical_depth += sigma[:, None] * density[None, :] * widths[None, :]
+    return np.maximum(optical_depth, 0.0)
+
+
+def _stack_group_results(group_results, squeeze):
+    """Stack single-group results, preserving the legacy one-group shape."""
+    fields = (
+        "optical_depth",
+        "face_photon_flux",
+        "face_photon_rate",
+        "cell_photon_flux",
+        "cell_photon_density",
+        "absorbed_photon_rate",
+    )
+    values = []
+    for field in fields:
+        stacked = np.stack([getattr(result, field) for result in group_results])
+        values.append(stacked[0] if squeeze else stacked)
+    return LongCharacteristicResult(*values)
+
+
 def trace_long_characteristics(
     mesh,
-    rho,
-    xHI,
+    rho=None,
+    xHI=None,
     hydrogen_mass_fraction=1.0,
     sigma_gamma=DEFAULT_SIGMA_GAMMA,
     boundary_flux=0.0,
     source_photon_rate=0.0,
     direction=1,
     coordsys=None,
+    group_edges_eV=None,
+    absorber_densities=None,
+    cross_sections_cm2=None,
 ):
-    """Trace a 1D photon field through hydrogen opacity.
+    """Trace one or more photon groups through one-dimensional opacity.
 
-    The returned cell photon density is the finite-volume, cell-averaged value
-    suitable for the hydrogen source terms, ``n_gamma = <F> / c``.
+    The legacy ``rho``/``xHI`` arguments describe a hydrogen-only absorber.
+    General multi-group transport can instead provide ``absorber_densities``
+    and ``cross_sections_cm2``. Densities are in ``cm**-3`` and cross sections
+    are in ``cm**2``. Results have shape ``(ngroup, ncell)`` for multiple
+    groups, and retain the legacy ``(ncell,)`` shape for one group.
     """
 
     coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
     if coordsys not in ("cartesian", "spherical"):
         raise ValueError("coordsys unknown: %s" % coordsys)
 
-    rho_g_cm3 = np.asarray(rho, dtype=float)
-    xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
-    sigma_gamma_cm2 = _as_cgs_float(
-        DEFAULT_SIGMA_GAMMA if sigma_gamma is None else sigma_gamma,
-        CGS_AREA_UNIT,
-    )
-    optical_depth = np.maximum(
-        sigma_gamma_cm2
-        * hydrogen_mass_fraction
-        * rho_g_cm3
-        / PROTON_MASS_CGS
-        * xHI
-        * _cell_widths_cm(mesh),
-        0.0,
-    )
-    if coordsys == "cartesian":
-        return _trace_cartesian(mesh, optical_depth, boundary_flux, direction)
-    return _trace_spherical(
-        mesh,
-        optical_depth,
+    edge_ngroup = _normalize_group_edges(group_edges_eV)
+
+    if absorber_densities is None:
+        if rho is None or xHI is None:
+            raise ValueError("rho and xHI are required for hydrogen transport")
+        rho_g_cm3 = np.asarray(rho, dtype=float)
+        xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
+        absorber_densities = {
+            "HI": (
+                hydrogen_mass_fraction
+                * rho_g_cm3
+                / PROTON_MASS_CGS
+                * xHI
+            )
+        }
+        if cross_sections_cm2 is None:
+            cross_sections_cm2 = {"HI": sigma_gamma}
+    elif cross_sections_cm2 is None:
+        raise ValueError(
+            "cross_sections_cm2 is required with absorber_densities"
+        )
+
+    if not absorber_densities:
+        raise ValueError("at least one absorber density is required")
+
+    inferred_ngroup = None
+    for sigma in cross_sections_cm2.values():
+        sigma_array = _as_cgs_array(sigma, CGS_AREA_UNIT)
+        if sigma_array.ndim > 0:
+            inferred_ngroup = sigma_array.size
+            break
+    if inferred_ngroup is None:
+        for value, unit in (
+            (boundary_flux, PHOTON_FLUX_UNIT),
+            (source_photon_rate, PHOTON_RATE_UNIT),
+        ):
+            value_array = _as_cgs_array(value, unit)
+            if value_array.ndim > 0:
+                inferred_ngroup = value_array.size
+                break
+    ngroup = edge_ngroup or inferred_ngroup or 1
+    if edge_ngroup is not None and inferred_ngroup is not None:
+        if edge_ngroup != inferred_ngroup:
+            raise ValueError(
+                "radiation_group_edges_eV and group rate arrays disagree "
+                f"({edge_ngroup} != {inferred_ngroup})"
+            )
+
+    boundary_flux = _normalize_group_values(
         boundary_flux,
-        source_photon_rate,
-        direction,
+        ngroup,
+        "boundary_flux",
+        PHOTON_FLUX_UNIT,
     )
+    source_photon_rate = _normalize_group_values(
+        source_photon_rate,
+        ngroup,
+        "source_photon_rate",
+        PHOTON_RATE_UNIT,
+    )
+    optical_depth = _build_group_optical_depth(
+        mesh,
+        absorber_densities,
+        cross_sections_cm2,
+        ngroup,
+    )
+
+    group_results = []
+    for group in range(ngroup):
+        if coordsys == "cartesian":
+            result = _trace_cartesian(
+                mesh,
+                optical_depth[group],
+                boundary_flux[group],
+                direction,
+            )
+        else:
+            result = _trace_spherical(
+                mesh,
+                optical_depth[group],
+                boundary_flux[group],
+                source_photon_rate[group],
+                direction,
+            )
+        group_results.append(result)
+    return _stack_group_results(group_results, squeeze=ngroup == 1)
 
 
 def _state_mesh_for_radiative_transfer(state, par):

@@ -487,7 +487,7 @@ class Rsim():
 
     def _snapshot_static_state(self, state, time_s):
         return {
-            'time_Myr': time_s,
+            'time_Myr': time_s / (1.0 * unyt.Myr).to_value(unyt.s),
             'radius_kpc': state['radius_kpc'].copy(),
             'xHI': state['xHI'].copy(),
             'temperature_K': state['temperature_K'].copy(),
