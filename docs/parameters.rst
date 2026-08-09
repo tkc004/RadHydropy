@@ -252,6 +252,30 @@ output file. For example:
      - ``+1`` for left-to-right or inner-to-outer tracing; ``-1`` for the
        opposite direction.
      - dimensionless
+   * - ``radiation_group_edges_eV``
+     - Increasing photon-energy edges. The number of radiation groups is one
+       less than the number of edges. Omit this for legacy single-group mode.
+     - eV
+   * - ``radiation_group_sigma_gamma``
+     - H I photo-ionization cross-section for each radiation group.
+     - ``cm^2`` per group
+   * - ``radiation_group_epsilon_gamma``
+     - Excess photoheating energy for each radiation group.
+     - erg per group
+   * - ``radiative_transfer_source_photon_rate_groups``
+     - Spherical source photon rate for each radiation group.
+     - ``s^-1`` per group
+   * - ``radiative_transfer_boundary_flux_groups``
+     - Boundary photon flux for each radiation group.
+     - ``cm^-2 s^-1`` per group
+   * - ``radiation_spectrum_filename``
+     - HDF5 file containing the ``RadiationSpectrum`` group and spectrum
+       datasets. It is loaded during startup and after IC header restoration.
+     - path
+   * - ``radiation_spectrum_total_photon_rate``
+     - Optional total ionizing photon rate. It rescales all ionizing HDF5
+       groups by one common factor while preserving the spectrum.
+     - ``s^-1``
 
 Boundary-Specific Keys
 ----------------------

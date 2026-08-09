@@ -129,11 +129,58 @@ Useful parameters are:
      - Hydrogen photo-ionization cross-section used for opacity.
      - ``cm^2``
 
+Multibin Transport
+-------------------
+
+The long-characteristic solver supports multiple photon groups. The number of
+groups is ``len(radiation_group_edges_eV) - 1``. For example,
+
+.. code-block:: yaml
+
+   radiation_group_edges_eV: [13.6, 24.6, 54.4, 10000.0]
+   radiation_group_sigma_gamma: [2.99e-18, 5.66e-19, 7.84e-20]
+   radiation_group_epsilon_gamma: [6.17e-12, 2.81e-11, 7.77e-11]
+   radiative_transfer_source_photon_rate_groups: [2.24e48, 2.48e48, 2.94e47]
+
+creates three groups. Cross-sections and excess photoheating energies have one
+entry per group. The source-rate and boundary-flux arrays also have one entry
+per group. The resulting photon density has shape ``(number_of_groups,
+number_of_cells)`` and each group is transported with its own optical depth.
+
+The legacy scalar parameters remain valid. With no group edges, the solver uses
+``hydrogen_sigma_gamma``, ``radiative_transfer_source_photon_rate``, and
+``radiative_transfer_boundary_flux`` and returns the traditional one-dimensional
+photon-density array. A single group is represented by two edges, for example
+``radiation_group_edges_eV: [13.6, 10000.0]``.
+
+Radiation Spectrum HDF5 Input
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The spectrum generator and its HDF5 schema are documented in
+:doc:`radiation_spectrum_generator`.
+
+For reusable spectra, set ``radiation_spectrum_filename`` to an HDF5 file
+containing a ``RadiationSpectrum`` group. RadHydropy reads the group during
+``Par`` startup and after an initial-condition HDF5 header is restored. The
+standard datasets are:
+
+* ``group_edges_eV``;
+* ``ionizing_photon_energy_erg``;
+* ``star_emission_rates``;
+* ``group_sigma_gamma_cm2``; and
+* ``group_epsilon_gamma_erg``.
+
+The group metadata must include ``number_of_radiation_groups`` and
+``number_of_group_edges``. The optional
+``radiation_spectrum_total_photon_rate`` YAML parameter rescales all ionizing
+groups by a common factor while preserving their relative spectrum. If it is
+omitted, the normalization stored in ``star_emission_rates`` is used.
+
 Limitations
 -----------
 
-This is a one-frequency, one-ray transport update for one-dimensional meshes.
-It is intended for idealized finite-volume tests and for coupling an attenuated
-photon field to the existing hydrogen chemistry. It does not yet solve a
-multi-frequency transfer problem, include scattering, or construct angular
-moments from multiple rays.
+This is a one-ray transport update for one-dimensional meshes. It supports
+multiple frequency groups but does not include scattering, frequency
+redistribution, or angular moments from multiple rays. Group cross-sections are
+frequency-averaged inputs; resolving spectral hardening within a group
+requires using narrower groups.

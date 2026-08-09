@@ -85,6 +85,7 @@ _CODE_UNIT_GROUPS = (
             ('hydrogen_ngamma_outflow', 'number_density'),
             ('radiative_transfer_boundary_flux', 'photon_flux'),
             ('radiative_transfer_source_photon_rate', 'photon_rate'),
+            ('radiation_spectrum_total_photon_rate', 'photon_rate'),
             ('hydrogen_sigma_gamma', 'area'),
             ('hydrogen_epsilon_gamma', 'energy'),
             ('hydrogen_alpha_B', 'alpha'),

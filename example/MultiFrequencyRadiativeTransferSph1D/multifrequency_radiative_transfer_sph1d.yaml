@@ -18,7 +18,10 @@ runparams:
   radiative_transfer: true
   radiative_transfer_method: long_characteristics
   radiative_transfer_direction: 1
-  radiation_spectrum_filename: radiation_spectrum_BB100000K_3groups_HI.h5
+  radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB100000K_3groups_HI.h5
+  radiation_spectrum_total_photon_rate:
+    value: 5.0e48
+    unit: 1/s
   explicit_tolerance: 0.1
   relative_tolerance: 1.0e-3
   absolute_tolerance: 1.0e-10

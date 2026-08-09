@@ -347,6 +347,10 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer'], True)
+        self.assertEqual(
+            runparams['radiation_spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
+            5.0e48,
+        )
         spectrum_filename = (
             config_filename.parent / runparams['radiation_spectrum_filename']
         )

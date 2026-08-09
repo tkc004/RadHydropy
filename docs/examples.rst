@@ -52,6 +52,9 @@ Available Examples
    * - ``example/RadiativeTransferSph1D``
      - Spherical central-source long-characteristic radiative transfer without
        hydrodynamic or thermo-chemical evolution.
+   * - ``example/MultiFrequencyRadiativeTransferSph1D``
+     - Static pure-hydrogen multifrequency radiative transfer with photoheating
+       and temperature-dependent thermo-chemistry.
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.
@@ -103,5 +106,6 @@ Detailed Example Pages
    static_stromgren_sphere1d
    static_stromgren_sphere_photoheating1d
    hii_region_expansion1d
+   multifrequency_radiative_transfer_sph1d
    dynamic_stromgren_sphere_photoheating1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
