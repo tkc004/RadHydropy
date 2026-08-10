@@ -25,6 +25,7 @@ from radhydropy.units import (
 )
 from radhydropy.arrays import as_named_array
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
+from radhydropy.thermo_networks.compton import cmb_compton_rate
 
 
 
@@ -164,6 +165,9 @@ def _cgs_source_thermal_rate(
     ngamma_cm3=None,
     sigma_gamma_cm2=1.0,
     epsilon_gamma_erg=0.0,
+    compton_cmb_enabled=False,
+    compton_cmb_redshift=0.0,
+    cmb_temperature_0_K=2.7255,
 ):
     xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
     ionized = 1.0 - xHI
@@ -195,7 +199,14 @@ def _cgs_source_thermal_rate(
         if np.ndim(photoheating_per_atom) > 1:
             photoheating_per_atom = np.sum(photoheating_per_atom, axis=0)
         heating = nH * xHI * photoheating_per_atom
-    return heating - cooling
+    electron_density = nH * ionized
+    return heating - cooling + cmb_compton_rate(
+        temperature_K,
+        electron_density,
+        enabled=compton_cmb_enabled,
+        redshift=compton_cmb_redshift,
+        cmb_temperature_0_K=cmb_temperature_0_K,
+    )
 
 
 def _cgs_static_neutral_fraction_rate(
@@ -492,6 +503,13 @@ def source_state(mesh, fluid, par):
             True,
         ),
         'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True),
+        'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False),
+        'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0),
+        'cmb_temperature_0_K': _optional_numeric_value(
+            getattr(par, 'cmb_temperature_0', None),
+            code.temperature_unit,
+            default=2.7255 * unyt.K,
+        ),
         'alpha_B_cm3_s': alpha_B,
         'beta_cm3_s': beta,
     }
@@ -555,6 +573,9 @@ def thermal_rate(state, ngamma):
         ngamma_cm3=ngamma,
         sigma_gamma_cm2=sigma,
         epsilon_gamma_erg=epsilon_gamma,
+        compton_cmb_enabled=state['compton_cmb_enabled'],
+        compton_cmb_redshift=state['compton_cmb_redshift'],
+        cmb_temperature_0_K=state['cmb_temperature_0_K'],
     )
 
 
@@ -787,6 +808,13 @@ def _fast_source_state(mesh, fluid, par):
         'collisional_ionization': getattr(par, 'hydrogen_collisional_ionization', True),
         'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True),
         'hydrogen_update_mu': getattr(par, 'hydrogen_update_mu', False),
+        'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False),
+        'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0),
+        'cmb_temperature_0_K': _optional_numeric_value(
+            getattr(par, 'cmb_temperature_0', None),
+            code.temperature_unit,
+            default=2.7255 * unyt.K,
+        ),
         'alpha_B_cm3_s': _optional_numeric_value(
             getattr(par, 'hydrogen_alpha_B', None),
             code.volume_unit / code.time_unit,

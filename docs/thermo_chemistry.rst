@@ -44,6 +44,9 @@ controls most commonly used by the bundled examples are:
 * ``hydrogen_mass_fraction``: hydrogen mass fraction used to compute ``nH``.
 * ``hydrogen_update_mu``: updates the mean molecular weight from ``xHI``.
 * ``hydrogen_thermal_coupling``: applies heating and cooling to the gas energy.
+* ``compton_cmb_enabled``: adds optional Compton heating/cooling from the CMB.
+* ``compton_cmb_redshift``: redshift used to calculate the CMB temperature.
+* ``cmb_temperature_0``: present-day CMB temperature, default ``2.7255 K``.
 * ``hydrogen_collisional_ionization``: includes collisional ionization.
 * ``hydrogen_source_CFL`` and ``hydrogen_source_dtmin``: control source
   subcycling.
@@ -55,6 +58,29 @@ controls most commonly used by the bundled examples are:
 
 When the radiative-transfer module is enabled, ``fluid.ngamma`` is supplied by
 the ray tracer before the hydrogen source terms are applied.
+
+CMB Compton Heating
+-------------------
+
+Compton coupling is disabled by default and can be enabled independently of
+the radiative-transfer photon groups::
+
+   compton_cmb_enabled: true
+   compton_cmb_redshift: 10.0
+
+The source uses ``T_CMB = cmb_temperature_0 * (1 + compton_cmb_redshift)`` and
+adds the following volumetric rate to the selected thermo-chemistry network:
+
+.. math::
+
+   \dot{e}_{\rm C} =
+   \frac{4\sigma_{\rm T} c a_{\rm r} k_{\rm B}}{m_e c^2}
+   n_e T_{\rm CMB}^4 (T_{\rm CMB} - T).
+
+A positive rate heats the gas and a negative rate cools it. Electron density is
+computed from the current ionization state for the hydrogen and H/He networks;
+the CIE network obtains it from its ion-fraction table. The term is included in
+both source-rate and source-timestep calculations.
 
 Static Thermochemistry
 ----------------------

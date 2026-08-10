@@ -10,6 +10,7 @@ from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.units import _code_units, from_unit_value, to_unit_value
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
+from radhydropy.thermo_networks.compton import cmb_compton_rate
 
 
 _TABLE_CACHE = {}
@@ -106,6 +107,9 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             metallicity=float(getattr(par, "metallicity", 1.0)),
             hydrogen_mass_fraction=float(getattr(par, "hydrogen_mass_fraction", 1.0)),
             cooling_safety_factor=float(getattr(par, "cooling_safety_factor", 0.1)),
+            compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
+            compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
+            cmb_temperature_0_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
         )
         return state
 
@@ -118,7 +122,13 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         nH = state["rho_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
         ne = nH * table.electron_fraction(state["temperature_K"], metallicity)
         Lambda = table.cooling_coefficient(state["temperature_K"], ne, metallicity)
-        return -ne * nH * Lambda
+        return -ne * nH * Lambda + cmb_compton_rate(
+            state["temperature_K"],
+            ne,
+            enabled=state.get("compton_cmb_enabled", False),
+            redshift=state.get("compton_cmb_redshift", 0.0),
+            cmb_temperature_0_K=state.get("cmb_temperature_0_K", 2.7255),
+        )
 
     def get_timestep(self, state, ngamma, remaining_s, dtmax_s):
         rate = self.thermal_rate(state, ngamma)
@@ -147,6 +157,9 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             metallicity=float(getattr(par, "metallicity", 1.0)),
             hydrogen_mass_fraction=float(getattr(par, "hydrogen_mass_fraction", 1.0)),
             cooling_safety_factor=float(getattr(par, "cooling_safety_factor", 0.1)),
+            compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
+            compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
+            cmb_temperature_0_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
         )
         code = state["code"]
         remaining_s = to_unit_value(remaining, code.time_unit)
@@ -160,6 +173,9 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             metallicity=float(getattr(par, "metallicity", 1.0)),
             hydrogen_mass_fraction=float(getattr(par, "hydrogen_mass_fraction", 1.0)),
             cooling_safety_factor=float(getattr(par, "cooling_safety_factor", 0.1)),
+            compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
+            compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
+            cmb_temperature_0_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
         )
         code = state["code"]
         remaining_s = float(to_unit_value(dt, code.time_unit))
