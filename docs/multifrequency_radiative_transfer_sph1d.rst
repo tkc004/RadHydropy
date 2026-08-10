@@ -75,6 +75,40 @@ The run writes ``InitialCondition.hdf5``, ``Output_000.hdf5``, and
 ``MultiFrequencyRadiativeTransferSph1D.jpg``. The plot shows the neutral
 fraction, temperature, and photon number density of each group.
 
+Example figures
+---------------
+
+The pure-hydrogen run produces the following radial profiles. The upper panel
+shows the neutral and ionized fractions, the middle panel shows the gas
+temperature, and the lower panel shows the photon number density in each
+radiation group.
+
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D/MultiFrequencyRadiativeTransferSph1D.jpg
+   :width: 100%
+   :alt: Pure-hydrogen multifrequency radiative-transfer radial profiles
+
+   Pure-hydrogen multifrequency radiation at 100 Myr.
+
+The repository also includes an H/He variant using the
+``hydrogen_helium`` thermo-chemistry network. Its output includes the same
+hydrogen and radiation profiles while evolving the helium species.
+
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr.jpg
+   :width: 100%
+   :alt: Hydrogen and helium multifrequency radiative-transfer radial profiles
+
+   Hydrogen and helium multifrequency radiation at 100 Myr.
+
+The H/He snapshot can also be compared directly with the supplied static
+Strömgren-sphere reference profiles. The comparison shows H I, H II, He I,
+He II, He III, and temperature as functions of normalized radius.
+
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr/HHe_multifrequency_snapshot_vs_reference.jpg
+   :width: 100%
+   :alt: H/He multifrequency snapshot compared with reference profiles
+
+   H/He snapshot and reference profiles at 100 Myr.
+
 ``TTT1D_Stromgren100Myr.txt`` and ``xTT1D_Stromgren100Myr.txt`` contain the
 multifrequency comparison profiles. Their radius is normalized by
 ``r_s = 5.4 kpc``; their second columns contain ``log10(T/K)`` and
