@@ -28,6 +28,7 @@ The package is organized around a small simulation workflow:
    boundary_conditions
    gravity
    nfw_hydrostatic_equilibrium1d
+   nfw_virial_shock1d
    initial_conditions
    snapshots
    radiative_transfer
