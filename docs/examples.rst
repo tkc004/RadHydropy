@@ -117,6 +117,8 @@ Detailed Example Pages
    static_stromgren_sphere1d
    static_stromgren_sphere_photoheating1d
    hii_region_expansion1d
+   nfw_hydrostatic_equilibrium1d
+   nfw_virial_shock1d
    multifrequency_radiative_transfer_sph1d
    multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr
    dynamic_stromgren_sphere_photoheating1d
