@@ -64,6 +64,8 @@ Available Examples
    * - ``example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr``
      - Five-group H/He multifrequency radiative transfer with ``X=0.75``,
        ``Y=0.25``, and a 100 Myr static thermo-chemistry evolution.
+   * - ``example/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr``
+     - The same H/He multifrequency setup using a 30,000 K blackbody spectrum.
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.

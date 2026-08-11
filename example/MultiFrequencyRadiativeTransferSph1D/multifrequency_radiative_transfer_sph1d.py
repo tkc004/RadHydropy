@@ -139,7 +139,13 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.legend(frameon=False)
     network_name = config.get("thermochemistry_network", "hydrogen")
     title = "H/He" if network_name == "hydrogen_helium" else "Pure-H"
-    fig.suptitle(rf"{title} multifrequency radiation ($T_{{\rm rad}}=10^5$ K)")
+    radiation_temperature = float(
+        config.get("stellar_spectrum_blackbody_temperature_K", 1.0e5)
+    )
+    fig.suptitle(
+        rf"{title} multifrequency radiation "
+        rf"($T_{{\rm rad}}={radiation_temperature:.0f}$ K)"
+    )
     fig.savefig(figure_filename, dpi=180, bbox_inches="tight")
     plt.close(fig)
 
