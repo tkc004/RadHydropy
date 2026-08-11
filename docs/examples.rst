@@ -118,5 +118,6 @@ Detailed Example Pages
    static_stromgren_sphere_photoheating1d
    hii_region_expansion1d
    multifrequency_radiative_transfer_sph1d
+   multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr
    dynamic_stromgren_sphere_photoheating1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d

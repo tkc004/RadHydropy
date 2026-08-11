@@ -203,6 +203,14 @@ are not advected as independent fluid fields.
    * - ``hydrogen_sigma_gamma``
      - Hydrogen photo-ionization cross-section.
      - area
+   * - ``metal_pie_enabled``
+     - Add optional metal PIE heating and cooling to the coupled H/He source
+       update. Metals do not change the mean molecular mass or H/He opacity.
+     - boolean
+   * - ``metal_pie_table_filename``
+     - HDF5 metal PIE table containing volumetric photoheating and cooling
+       rates on ``(T, nH, U)`` axes. Loaded once during startup.
+     - path
    * - ``hydrogen_epsilon_gamma``
      - Excess photo-ionization energy per absorbed photon.
      - energy

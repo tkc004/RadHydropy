@@ -70,7 +70,19 @@ def _rates(state, ngamma):
     heating = nH * xHI * photo_heat['HI'] + nHe * xHeI * photo_heat['HeI'] + nHe * xHeII * photo_heat['HeII']
     cooling = ne * (nH * xHI * (_cgs_gamma_line_eHI(T) + _cgs_gamma_ion_eHI(T)) + nH * xHII * (_cgs_gamma_ff_eHII(T) + _cgs_gamma_B_eHII(T)))
     cooling += ne * nHe * (xHeI * 1.0e-24 + xHeII * 3.0e-24 + xHeIII * 5.0e-27 * np.sqrt(T))
-    return dHI, dHeI, dHeIII, heating - cooling + cmb_compton_rate(
+    metal_heating = np.zeros_like(T, dtype=float)
+    metal_cooling = np.zeros_like(T, dtype=float)
+    metal_table = state.get('metal_pie_table')
+    if metal_table is not None:
+        ngamma_total = np.sum(np.asarray(ngamma, dtype=float), axis=0)
+        ionization_parameter = ngamma_total / np.maximum(nH, 1.0e-99)
+        metal_heating, metal_cooling = metal_table.rates(
+            T,
+            nH,
+            ionization_parameter,
+            state.get('metallicity', 1.0),
+        )
+    return dHI, dHeI, dHeIII, heating - cooling + metal_heating - metal_cooling + cmb_compton_rate(
         T,
         ne,
         enabled=state.get('compton_cmb_enabled', False),
@@ -87,7 +99,7 @@ def source_state(mesh, fluid, par):
     xHeIII = np.clip(1.0 - xHeI - xHeII, 0.0, 1.0)
     sigma = {'HI': np.asarray(getattr(par, 'radiation_group_sigma_gamma'), float), 'HeI': np.asarray(getattr(par, 'radiation_group_sigma_gamma_HeI', getattr(par, 'radiation_group_sigma_gamma')), float), 'HeII': np.asarray(getattr(par, 'radiation_group_sigma_gamma_HeII', getattr(par, 'radiation_group_sigma_gamma')), float)}
     eps = {'HI': np.asarray(getattr(par, 'radiation_group_epsilon_gamma'), float), 'HeI': np.asarray(getattr(par, 'radiation_group_epsilon_gamma_HeI', getattr(par, 'radiation_group_epsilon_gamma')), float), 'HeII': np.asarray(getattr(par, 'radiation_group_epsilon_gamma_HeII', getattr(par, 'radiation_group_epsilon_gamma')), float)}
-    state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit), 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit), 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) / 3.08567758e21, 'rho_g_cm3': to_unit_value(fluid.rho[interior], code.density_unit), 'temperature_K': to_unit_value(fluid.temp[interior], code.temperature_unit), 'specific_energy_erg_g': np.zeros_like(xHI), 'gamma': getattr(par, 'gamma', 5.0 / 3.0), 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10)}
+    state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit), 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit), 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) / 3.08567758e21, 'rho_g_cm3': to_unit_value(fluid.rho[interior], code.density_unit), 'temperature_K': to_unit_value(fluid.temp[interior], code.temperature_unit), 'specific_energy_erg_g': np.zeros_like(xHI), 'gamma': getattr(par, 'gamma', 5.0 / 3.0), 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10), 'metal_pie_table': getattr(par, 'metal_pie_table', None), 'metallicity': getattr(par, 'metallicity', 1.0)}
     state['coupled_implicit'] = getattr(par, 'hydrogen_helium_coupled_implicit', True)
     state['nH_cm3'] = state['rho_g_cm3'] * state['hydrogen_mass_fraction'] / PROTON_MASS_CGS
     _closure(state)

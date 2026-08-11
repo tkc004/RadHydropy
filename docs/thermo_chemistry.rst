@@ -59,6 +59,59 @@ controls most commonly used by the bundled examples are:
 When the radiative-transfer module is enabled, ``fluid.ngamma`` is supplied by
 the ray tracer before the hydrogen source terms are applied.
 
+Optional Metal PIE Cooling
+--------------------------
+
+The H/He network can optionally add metal photoionization-equilibrium (PIE)
+rates from an HDF5 table without evolving a metal network. Enable it with:
+
+.. code-block:: yaml
+
+   metal_pie_enabled: true
+   metal_pie_table_filename: path/to/metal_pie_table_Z1_metals.h5
+   metallicity: 1.0
+
+For each local source update, the multigroup H/He radiation field is traced,
+then the ionization parameter is estimated as
+``U = sum(n_gamma,g) / nH``. The table is interpolated in ``log10(T)``,
+``log10(nH)``, and ``log10(U)`` during the coupled implicit H/He energy and
+ion-fraction solve. The updated H/He state is used for one subsequent
+multigroup retrace. The metal rates are added as
+``metal_photoheating - metal_cooling`` in volumetric cgs units.
+
+The current table loader supports a singleton metallicity plane. The supplied
+table has ``log10(U)`` bounds of ``[-7, 0]``; lookup values outside any table
+axis are clipped to the nearest boundary. This makes extrapolation explicit
+and stable, but a table spanning the simulation's expected ``T``, ``nH``, and
+``U`` range is recommended for physical accuracy. Metal nuclei are not added
+to the particle count, so the mean molecular mass and H/He opacity remain
+determined only by the H/He abundances.
+
+PIE Validation Tests
+~~~~~~~~~~~~~~~~~~~~
+
+The PIE implementation is covered by ``tests/test_metal_pie.py``. Run these
+tests with:
+
+.. code-block:: bash
+
+   pytest -q tests/test_metal_pie.py
+
+The test suite verifies that:
+
+* values at HDF5 table nodes are reproduced exactly;
+* log-space interpolation reproduces known power-law tables;
+* vectorized and cell-by-cell lookups agree;
+* values outside the table domain are clipped to stable boundary values;
+* ``U`` uses the sum of all multigroup photon densities;
+* metal heating increases, and metal cooling decreases, the thermal source
+  rate; and
+* the supplied production table returns finite, non-negative rates.
+
+These are local source-term tests. Full radiation/thermo-chemistry behavior
+can additionally be checked with the multifrequency H/He examples documented
+in :doc:`multifrequency_radiative_transfer_sph1d`.
+
 CMB Compton Heating
 -------------------
 

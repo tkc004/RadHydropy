@@ -3,6 +3,7 @@
 import numpy as np
 import unyt
 from radhydropy.radiation_spectrum import load_radiation_spectrum, resolve_spectrum_filename
+from radhydropy.thermo_networks.pie import MetalPIETable
 
 from radhydropy.units import CodeUnits, _as_cgs_float, code_quantity_to_cgs
 
@@ -98,6 +99,9 @@ refparams = {
     'ionizing_photon_energy_erg': None,
     'radiation_spectrum_filename': None,
     'radiation_spectrum_total_photon_rate': None,
+    'metal_pie_enabled': False,
+    'metal_pie_table_filename': None,
+    'metal_pie_table': None,
     'number_of_radiation_groups': None,
     'radiative_transfer_direction': 1,
 }
@@ -133,6 +137,8 @@ class Par():
             self.unit_system = self.CodeUnits.unit_system
             if params.get('radiation_spectrum_filename') is not None:
                 self.load_radiation_spectrum(params.get('outdir'))
+            if params.get('metal_pie_enabled', False) and params.get('metal_pie_table_filename'):
+                self.load_metal_pie_table(params.get('outdir'))
             if verbose > 0 and missing_keys:
                 for key, value in missing_keys:
                     print("key %s not found in params" % key)
@@ -186,3 +192,9 @@ class Par():
             self.radiative_transfer_boundary_flux_groups = np.zeros(
                 self.number_of_radiation_groups
             ) / (unyt.cm**2 * unyt.s)
+
+    def load_metal_pie_table(self, base_directory=None):
+        filename = resolve_spectrum_filename(
+            self.metal_pie_table_filename, base_directory
+        )
+        self.metal_pie_table = MetalPIETable(filename)
