@@ -30,6 +30,9 @@ Available Examples
      - Spherical isothermal hydrostatic equilibrium in a point-mass potential
        without including the origin. The example writes a real evolved output
        snapshot and compares it against the analytic profile.
+   * - ``example/NFWHydrostaticEquilibrium1D``
+     - Isothermal gas in hydrostatic equilibrium inside a ``1e8 Msun`` NFW
+       dark-matter halo at its virial temperature.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally
