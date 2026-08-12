@@ -630,6 +630,7 @@ class Solver():
         fluid.Mom += fluid.rho * acceleration * mesh.vol * dt
         fluid.Energy += fluid.rho * fluid.vel * acceleration * mesh.vol * dt
         self._zero_spherical_center_momentum(mesh, fluid)
+
         return 1
 
     def AdvectIonizationFraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
@@ -758,7 +759,7 @@ class Solver():
         
     
     def GetTimeStep(self, mesh, fluid, par, CFL=None):
-        """Return a CFL-limited timestep."""
+        """Return a CFL-limited timestep in the active time coordinate."""
         if CFL is None:
             CFL = par.CFL
         fluid.SetSoundSpeed()

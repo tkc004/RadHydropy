@@ -8,6 +8,65 @@ import h5py
 import numpy as np
 import unyt
 
+from radhydropy.cosmological_variables import (
+    physical_density,
+    physical_pressure,
+    physical_radius,
+    physical_temperature,
+    physical_velocity,
+)
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.io import _restore_header_attr_value
+
+
+def snapshot_physical_fields(hdf5_filename):
+    """Return radial snapshot fields converted to physical quantities.
+
+    The snapshot metadata determines whether conversion is needed. Ordinary
+    physical snapshots are returned unchanged; supercomoving snapshots use
+    the canonical cosmology header contract.
+    """
+    with h5py.File(hdf5_filename, 'r') as hdf5:
+        header = hdf5['Header']
+        data = hdf5['Data']
+        boundary = np.asarray(data['Boundary'][()], dtype=float)
+        density = np.asarray(data['Density'][()], dtype=float)
+        velocity = np.asarray(data['Velocity'][()], dtype=float)
+        temperature = np.asarray(data['Temperature'][()], dtype=float)
+        representation = header.attrs.get('VelocityRepresentation', 'physical')
+        if isinstance(representation, bytes):
+            representation = representation.decode()
+        if representation == 'supercomoving_peculiar':
+            code_units = _restore_header_attr_value(header.attrs['CodeUnits'])
+            from radhydropy.units import CodeUnits
+            code_units = CodeUnits.from_mapping(code_units)
+            cosmology = EinsteinDeSitter.from_code_units(
+                code_units,
+                t_ref=float(header.attrs['CosmologyTRef']),
+                a_ref=float(header.attrs['CosmologyARef']),
+            )
+            tau = float(np.asarray(data.file['Header']['Time'][()]))
+            gamma = float(header.attrs.get('gamma', 5.0 / 3.0))
+            scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+            hubble = float(cosmology.hubble_from_supercomoving(tau))
+            radius = 0.5 * (boundary[:-1] + boundary[1:])
+            return {
+                'boundary': physical_radius(boundary, scale_factor),
+                'radius': physical_radius(radius, scale_factor),
+                'density': physical_density(density, scale_factor),
+                'velocity': physical_velocity(velocity, radius, scale_factor, hubble),
+                'temperature': physical_temperature(
+                    temperature, scale_factor, gamma
+                ),
+            }
+        return {
+            'boundary': boundary,
+            'radius': 0.5 * (boundary[:-1] + boundary[1:]),
+            'density': density,
+            'velocity': velocity,
+            'temperature': temperature,
+        }
+
 
 def clean_previous_outputs(runparams):
     """Delete stale ``Output_*.hdf5`` files before running an example."""
@@ -56,10 +115,11 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         density_dataset = data['Density']
         temperature_dataset = data['Temperature']
 
-        boundaries = np.asarray(boundary_dataset[()], dtype=float)
-        velocity = np.asarray(velocity_dataset[()], dtype=float)
-        density = np.asarray(density_dataset[()], dtype=float)
-        temperature = np.asarray(temperature_dataset[()], dtype=float)
+        fields = snapshot_physical_fields(hdf5_filename)
+        boundaries = np.asarray(fields['boundary'], dtype=float)
+        velocity = np.asarray(fields['velocity'], dtype=float)
+        density = np.asarray(fields['density'], dtype=float)
+        temperature = np.asarray(fields['temperature'], dtype=float)
         if len(boundaries) != len(velocity) + 1:
             raise ValueError(
                 'Data/Boundary must contain exactly one more value than '

@@ -6,6 +6,7 @@ from radhydropy.radiation_spectrum import load_radiation_spectrum, resolve_spect
 from radhydropy.thermo_networks.pie import MetalPIETable
 
 from radhydropy.units import CodeUnits, _as_cgs_float, code_quantity_to_cgs
+from radhydropy.cosmology import EinsteinDeSitter
 
 refparams = {
     'simname':'advection1d',
@@ -108,6 +109,17 @@ refparams = {
     'metal_pie_table': None,
     'number_of_radiation_groups': None,
     'radiative_transfer_direction': 1,
+    'cosmological_expansion': False,
+    'supercomoving_coordinates': False,
+    'coordinate_frame': 'physical',
+    'time_coordinate': 'cosmic',
+    'velocity_representation': 'physical',
+    'density_representation': 'physical',
+    'pressure_representation': 'physical',
+    'temperature_representation': 'physical',
+    'cosmology_type': None,
+    'cosmology_t_ref': 1.0,
+    'cosmology_a_ref': 1.0,
 }
 
 
@@ -139,6 +151,23 @@ class Par():
                     setattr(self, key, value)
             self.CodeUnits = CodeUnits.from_mapping(code_units_value)
             self.unit_system = self.CodeUnits.unit_system
+            if self.cosmological_expansion:
+                if self.cosmology_type not in (None, 'einstein_de_sitter', 'EinsteinDeSitter'):
+                    raise ValueError(
+                        "unsupported cosmology_type: %s" % self.cosmology_type
+                    )
+                self.cosmology = EinsteinDeSitter.from_code_units(
+                    self.CodeUnits,
+                    t_ref=self.cosmology_t_ref,
+                    a_ref=self.cosmology_a_ref,
+                )
+                if self.supercomoving_coordinates:
+                    self.coordinate_frame = 'comoving'
+                    self.time_coordinate = 'supercomoving'
+                    self.velocity_representation = 'supercomoving_peculiar'
+                    self.density_representation = 'comoving'
+                    self.pressure_representation = 'supercomoving'
+                    self.temperature_representation = 'supercomoving'
             if params.get('radiation_spectrum_filename') is not None:
                 self.load_radiation_spectrum(params.get('outdir'))
             if params.get('metal_pie_enabled', False) and params.get('metal_pie_table_filename'):

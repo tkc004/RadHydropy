@@ -8,6 +8,12 @@ import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
 from radhydropy.arrays import as_named_array
+from radhydropy.cosmological_variables import (
+    supercomoving_scale,
+    to_supercomoving_density,
+    to_supercomoving_temperature,
+    to_supercomoving_velocity,
+)
 
 
 # set up fluid properties
@@ -58,7 +64,7 @@ class Fluid():
         nt = nH + nHe + ne
         self.mu = as_named_array(np.asarray(self.rho, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)))
         
-    def SetUpFluid(self, par):
+    def SetUpFluid(self, par, mesh=None):
         """Normalize primitive quantities into code units, append ghost cells, and
         initialize pressure.
 
@@ -76,6 +82,7 @@ class Fluid():
         if code_units is None:
             raise ValueError("SetUpFluid requires par.CodeUnits")
         self.CodeUnits = code_units
+        self.supercomoving = bool(getattr(par, 'supercomoving_coordinates', False))
         self.time = 0.0
 
         # check if the required attributes exist
@@ -88,6 +95,27 @@ class Fluid():
         self.rho = as_named_array(quantity_to_value(self.rho, code_units.density_unit))
         self.temp = as_named_array(quantity_to_value(self.temp, code_units.temperature_unit))
         self.vel = as_named_array(quantity_to_value(self.vel, code_units.velocity_unit))
+
+        if getattr(par, 'supercomoving_coordinates', False):
+            if not hasattr(par, 'cosmology'):
+                raise ValueError("supercomoving coordinates require par.cosmology")
+            a, hubble = supercomoving_scale(par, time=par.time)
+            gamma = float(self.eos.gamma)
+            if getattr(par, 'density_representation', 'physical') == 'physical':
+                self.rho = as_named_array(to_supercomoving_density(self.rho, a))
+            if getattr(par, 'temperature_representation', 'physical') == 'physical':
+                self.temp = as_named_array(to_supercomoving_temperature(self.temp, a, gamma))
+            if getattr(par, 'velocity_representation', 'physical') == 'physical':
+                if mesh is None:
+                    raise ValueError(
+                        "physical velocity ICs require mesh for supercomoving conversion"
+                    )
+                first = int(par.noghost)
+                last = first + int(par.nogrid)
+                radius = np.asarray(mesh.coordinate[first:last], dtype=float)
+                self.vel = as_named_array(
+                    to_supercomoving_velocity(self.vel, radius, a, hubble)
+                )
 
         if getattr(par, 'hydrogen_chemistry', False) and not hasattr(self, 'xHI'):
             self.xHI = (

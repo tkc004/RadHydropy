@@ -8,6 +8,13 @@ Unit System
 -----------
 
 Every run must define a mandatory ``CodeUnits`` block in ``runparams``.
+
+Cosmological initial conditions and outputs carry their cosmology and variable
+representation in the HDF5 ``Header``. When
+``supercomoving_coordinates: true`` is selected, the file stores comoving
+radius, supercomoving time, comoving density, supercomoving velocity, and
+supercomoving thermodynamic variables. The loader restores this mode from the
+header, including the Einstein--de Sitter reference time and scale factor.
 RadHydropy uses that block to build a shared internal code-unit system and
 converts runtime state into those code units during initialization. After that
 startup conversion, the solver, geometry, gravity, and source-term updates

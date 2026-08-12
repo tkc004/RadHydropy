@@ -28,6 +28,7 @@ The package is organized around a small simulation workflow:
    boundary_conditions
    gravity
    dark_matter
+   cosmology
    initial_conditions
    snapshots
    radiative_transfer

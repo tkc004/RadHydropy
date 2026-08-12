@@ -74,7 +74,7 @@ class Rsim():
         """Initialize fluid ghost cells and pressure."""
         print("--- Set up the fluid ---") 
         print("--- %s seconds ---" % (time.time() - start_time))
-        self.fluid.SetUpFluid(self.par)
+        self.fluid.SetUpFluid(self.par, mesh=self.mesh)
     
     def SetInitFluid(self):
         """Apply initial boundaries and populate conserved variables."""

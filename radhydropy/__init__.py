@@ -21,4 +21,6 @@ __all__ = [
     "thermo_chemistry",
     "thermo_networks",
     "radiative_transfer",
+    "cosmology",
+    "cosmological_variables",
 ]

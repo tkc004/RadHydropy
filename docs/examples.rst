@@ -48,6 +48,8 @@ Available Examples
    * - ``example/GasDarkMatterAnalyticOrbit1D``
      - Fixed uniform-gas and central-dark-matter background with an analytic
        shell time-evolution reference.
+   * - ``example/EinsteinDeSitterHomogeneous1D``
+     - Phase 1 homogeneous Einstein--de Sitter supercomoving expansion diagnostic.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally

@@ -12,6 +12,7 @@ import radhydropy.utils as ru
 from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
 from radhydropy.arrays import as_named_array
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.cosmology import EinsteinDeSitter
 try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
@@ -216,7 +217,10 @@ def parameter_tree(value):
     return _yaml_config_value(value)
 
 
-def _write_quantity(group, name, value, code_units=None, scale_key=None, default_unit=None):
+def _write_quantity(
+    group, name, value, code_units=None, scale_key=None, default_unit=None,
+    metadata=None,
+):
     def _unit_label(unit_obj):
         return str(getattr(unit_obj, "units", unit_obj))
 
@@ -244,7 +248,59 @@ def _write_quantity(group, name, value, code_units=None, scale_key=None, default
         unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
     dataset = group.create_dataset(name, data=data)
     dataset.attrs["units"] = unit
+    for key, metadata_value in (metadata or {}).items():
+        dataset.attrs[key] = metadata_value
     return dataset
+
+
+def _write_cosmology_header(header, par, output_time, code_units):
+    """Write the canonical cosmology metadata contract to ``Header``."""
+    if not getattr(par, "cosmological_expansion", False):
+        return
+    cosmology = getattr(par, "cosmology", None)
+    if cosmology is None:
+        raise ValueError("cosmological_expansion requires par.cosmology")
+    if getattr(par, "supercomoving_coordinates", False):
+        tau = float(np.asarray(output_time, dtype=float))
+        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
+    else:
+        cosmic_time = float(np.asarray(output_time, dtype=float))
+        tau = float(cosmology.supercomoving_time(cosmic_time))
+    header.attrs["CosmologyType"] = cosmology.type_name
+    header.attrs["CosmologyTRef"] = float(cosmology.t_ref)
+    header.attrs["CosmologyARef"] = float(cosmology.a_ref)
+    header.attrs["CoordinateFrame"] = getattr(par, "coordinate_frame", "physical")
+    header.attrs["TimeCoordinate"] = getattr(par, "time_coordinate", "cosmic")
+    header.attrs["VelocityRepresentation"] = getattr(par, "velocity_representation", "physical")
+    header.attrs["DensityRepresentation"] = getattr(par, "density_representation", "physical")
+    header.attrs["PressureRepresentation"] = getattr(par, "pressure_representation", "physical")
+    header.attrs["TemperatureRepresentation"] = getattr(par, "temperature_representation", "physical")
+    header.attrs["ScaleFactor"] = float(cosmology.scale_factor(cosmic_time))
+    header.attrs["CosmicTime"] = cosmic_time
+    header.attrs["CosmicTimeUnits"] = str(code_units.time_unit)
+    header.attrs["SupercomovingTime"] = tau
+    header.attrs["SupercomovingTimeUnits"] = str(code_units.time_unit)
+    header.attrs["HubbleParameter"] = float(cosmology.hubble(cosmic_time))
+    header.attrs["HubbleParameterUnits"] = str(1.0 / code_units.time_unit)
+
+
+def _restore_cosmology_from_header(par, header, code_units):
+    """Restore and validate cosmology metadata from an HDF5 ``Header``."""
+    enabled = bool(getattr(par, "cosmological_expansion", False))
+    cosmology_type = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
+    if not enabled and cosmology_type is None:
+        return
+    if cosmology_type not in (None, "einstein_de_sitter", "EinsteinDeSitter"):
+        raise ValueError("unsupported CosmologyType in HDF5 header: %s" % cosmology_type)
+    t_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyTRef", 1.0)))
+    a_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyARef", 1.0)))
+    par.cosmological_expansion = True
+    par.cosmology_type = "einstein_de_sitter"
+    par.cosmology_t_ref = t_ref
+    par.cosmology_a_ref = a_ref
+    par.cosmology = EinsteinDeSitter.from_code_units(
+        code_units, t_ref=t_ref, a_ref=a_ref
+    )
 
 
 def _used_parameters_payload(runparams=None, icparams=None, existing=None):
@@ -553,9 +609,10 @@ def writehdf5(ric,ICfilename):
         # first, save header:
         header = fic.create_group("Header")
         for key, value in sorted(vars(ric.par).items()):
-            if key.startswith("_") or key in {"dark_matter", "dark_matter_snapshot"}:
+            if key.startswith("_") or key in {"dark_matter", "dark_matter_snapshot", "cosmology"}:
                 continue
             header.attrs[key] = _header_attr_value(value)
+        _write_cosmology_header(header, ric.par, output_time, code_units)
         _write_quantity(
             header,
             "Time",
@@ -571,6 +628,16 @@ def writehdf5(ric,ICfilename):
             code_units=code_units,
             scale_key="length_cm",
             default_unit=unyt.cm,
+            metadata={
+                "quantity": "radius",
+                "coordinate_frame": getattr(ric.par, "coordinate_frame", "physical"),
+                "representation": getattr(ric.par, "coordinate_frame", "physical"),
+                "physical_relation": (
+                    "physical = a * stored"
+                    if getattr(ric.par, "supercomoving_coordinates", False)
+                    else "physical = stored"
+                ),
+            },
         )
 
         #second, save mesh and fluid data:
@@ -582,6 +649,16 @@ def writehdf5(ric,ICfilename):
             code_units=code_units,
             scale_key="length_cm",
             default_unit=unyt.cm,
+            metadata={
+                "quantity": "radius",
+                "coordinate_frame": getattr(ric.par, "coordinate_frame", "physical"),
+                "representation": getattr(ric.par, "coordinate_frame", "physical"),
+                "physical_relation": (
+                    "physical = a * stored"
+                    if getattr(ric.par, "supercomoving_coordinates", False)
+                    else "physical = stored"
+                ),
+            },
         )
         _write_quantity(
             gdata,
@@ -590,6 +667,16 @@ def writehdf5(ric,ICfilename):
             code_units=code_units,
             scale_key="density_g_cm3",
             default_unit=unyt.g / unyt.cm**3,
+            metadata={
+                "quantity": "mass_density",
+                "representation": getattr(ric.par, "density_representation", "physical"),
+                "scale_factor_power": 3.0 if getattr(ric.par, "supercomoving_coordinates", False) else 0.0,
+                "physical_relation": (
+                    "physical = stored / a**3"
+                    if getattr(ric.par, "supercomoving_coordinates", False)
+                    else "physical = stored"
+                ),
+            },
         )
         _write_quantity(
             gdata,
@@ -598,6 +685,15 @@ def writehdf5(ric,ICfilename):
             code_units=code_units,
             scale_key="velocity_cm_s",
             default_unit=unyt.cm / unyt.s,
+            metadata={
+                "quantity": "velocity",
+                "representation": getattr(ric.par, "velocity_representation", "physical"),
+                "physical_relation": (
+                    "physical = H*a*x + stored/a"
+                    if getattr(ric.par, "supercomoving_coordinates", False)
+                    else "physical = stored"
+                ),
+            },
         )
         _write_quantity(
             gdata,
@@ -606,6 +702,19 @@ def writehdf5(ric,ICfilename):
             code_units=code_units,
             scale_key="temperature_K",
             default_unit=unyt.K,
+            metadata={
+                "quantity": "temperature",
+                "representation": (
+                    getattr(ric.par, "temperature_representation", "physical")
+                    if getattr(ric.par, "supercomoving_coordinates", False)
+                    else "physical"
+                ),
+                "scale_factor_power": (
+                    3.0 * (getattr(ric.par, "gamma", 5.0 / 3.0) - 1.0)
+                    if getattr(ric.par, "supercomoving_coordinates", False)
+                    else 0.0
+                ),
+            },
         )
         gdata.create_dataset("Mol_weight", data=np.asarray(ric.fluid.mu))
         if hasattr(ric.fluid, "xHI"):
@@ -622,6 +731,13 @@ def writehdf5(ric,ICfilename):
                 scale_key="number_density_cm3",
                 default_unit=1.0 / unyt.cm**3,
             )
+        if getattr(ric.par, "cosmological_expansion", False):
+            for dataset_name, dataset in gdata.items():
+                if not isinstance(dataset, h5py.Dataset):
+                    continue
+                if dataset_name in {"Boundary", "Density", "Velocity", "Temperature"}:
+                    continue
+                dataset.attrs["representation"] = "physical"
         dark_matter = getattr(ric.par, "dark_matter", None)
         if dark_matter is None:
             gravity = getattr(ric.par, "gravity", None)
@@ -689,6 +805,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 setattr(par, "CodeUnits", restored)
                 continue
             setattr(par, key, restored)
+        _restore_cosmology_from_header(par, header, code_units)
         if expected_coordsys is not None and par.coordsys != expected_coordsys:
             raise Exception(
                 "Coordinate systems in IC (%s) and run (%s) do not agree!"
@@ -709,6 +826,17 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units=code_units,
             scale_map=header_scale_map,
         )
+        metadata_fields = {
+            "CoordinateFrame": "coordinate_frame",
+            "TimeCoordinate": "time_coordinate",
+            "VelocityRepresentation": "velocity_representation",
+            "DensityRepresentation": "density_representation",
+            "PressureRepresentation": "pressure_representation",
+            "TemperatureRepresentation": "temperature_representation",
+        }
+        for header_name, parameter_name in metadata_fields.items():
+            if header_name in header.attrs:
+                setattr(par, parameter_name, _restore_header_attr_value(header.attrs[header_name]))
         if hasattr(par, 'load_radiation_spectrum'):
             par.load_radiation_spectrum(getattr(par, 'outdir', None))
         par.time = getattr(par, "Time")
@@ -730,6 +858,14 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units=code_units,
             scale_map=data_scale_map,
         )
+        par.field_metadata = {}
+        for dataset_name, dataset in gdata.items():
+            if isinstance(dataset, h5py.Dataset):
+                par.field_metadata[dataset_name] = {
+                    key: _restore_header_attr_value(value)
+                    for key, value in dataset.attrs.items()
+                    if key != "units"
+                }
         if "DarkMatter" in fic:
             dmdata = fic["DarkMatter"]
             dm_scale_map = {
