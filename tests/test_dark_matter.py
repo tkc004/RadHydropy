@@ -151,6 +151,23 @@ def test_dark_matter_field_is_added_to_gas_gravity():
     assert np.allclose(acceleration, [-0.0, -g_code * 2.0 / 1.5**2, -g_code * 2.0 / 2.5**2])
 
 
+def test_dark_matter_shell_force_includes_enclosed_gas_mass():
+    units = code_units()
+    dm = DarkMatterShells(
+        radius=[2.0], velocity=[0.0], mass=[1.0], code_units=units
+    )
+    gravity = Gravity(dark_matter=dm, code_units=units)
+    gas_mass = 4.0 * np.pi / 3.0 * 2.0**3
+    acceleration = gravity.dark_matter.acceleration(
+        gas_enclosed_mass=np.array([gas_mass])
+    )
+    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
+        units.length_in_cgs * units.velocity_in_cgs**2
+    )
+    expected = -g_code * (0.5 + gas_mass) / 2.0**2
+    assert np.allclose(acceleration, expected)
+
+
 def test_dark_matter_snapshot_group_is_written():
     units = code_units()
     dm = DarkMatterShells(
