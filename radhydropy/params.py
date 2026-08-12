@@ -18,6 +18,7 @@ refparams = {
     'coordsys':'cartesian', #
     'selfgravity': False,
     'externalgravity': False,
+    'dark_matter_crossing_safety_factor': 0.1,
     'gravity': None,
     'gravity_potential': None,
     'gravity_coordinate': None,

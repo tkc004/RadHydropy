@@ -174,6 +174,12 @@ class Rsim():
         """Return a timestep, clipped to ``final_time`` when supplied."""
         if dt is None:
             dt = self.solver.GetTimeStep(self.mesh, self.fluid, self.par)
+        gravity = getattr(self.par, 'gravity', None)
+        dark_matter = getattr(gravity, 'dark_matter', None)
+        if dark_matter is not None:
+            dm_dt = dark_matter.crossing_timestep(safety_factor=1.0)
+            if np.isfinite(dm_dt):
+                dt = min(dt, dm_dt)
         current_time = self.fluid.time
         if final_time is not None:
             if hasattr(final_time, "units"):

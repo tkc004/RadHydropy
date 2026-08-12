@@ -1,7 +1,13 @@
 import numpy as np
+import h5py
+import tempfile
+from pathlib import Path
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.dark_matter import enclosed_gas_mass
+from radhydropy.gravity import Gravity
+import radhydropy.io as rio
 from radhydropy.units import CodeUnits
 
 
@@ -94,3 +100,84 @@ def test_fixed_enclosed_mass_ignores_test_shell_mass():
         units.length_in_cgs * units.velocity_in_cgs**2
     )
     assert np.allclose(shells.acceleration(), -g_code * 3.0 / 2.0**2)
+
+
+def test_callable_fixed_enclosed_mass_supports_analytic_backgrounds():
+    units = code_units()
+    shells = DarkMatterShells(
+        radius=[2.0],
+        velocity=[0.0],
+        mass=[1.0e-12],
+        angular_momentum=[0.0],
+        fixed_enclosed_mass=lambda radius: 3.0 + np.asarray(radius) ** 3,
+        code_units=units,
+    )
+    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
+        units.length_in_cgs * units.velocity_in_cgs**2
+    )
+    assert np.allclose(shells.acceleration(), -g_code * 11.0 / 2.0**2)
+
+
+class Mesh:
+    coordsys = "spherical"
+    boundary = np.array([0.0, 1.0, 2.0, 3.0])
+    coordinate = np.array([0.75, 1.5, 2.5])
+    vol = 4.0 * np.pi / 3.0 * np.diff(boundary**3)
+
+
+class Par:
+    CodeUnits = code_units()
+    noghost = 0
+    nogrid = 3
+
+
+def test_enclosed_gas_mass_handles_partial_cells():
+    mesh = Mesh()
+    rho = np.ones(3)
+    expected = 4.0 * np.pi / 3.0 * np.array([0.5**3, 1.5**3, 3.0**3])
+    assert np.allclose(enclosed_gas_mass(mesh, rho, [0.5, 1.5, 4.0], Par), expected)
+
+
+def test_dark_matter_field_is_added_to_gas_gravity():
+    units = code_units()
+    dm = DarkMatterShells(
+        radius=[1.0], velocity=[0.0], mass=[2.0], code_units=units
+    )
+    gravity = Gravity(dark_matter=dm, code_units=units)
+    acceleration = gravity.acceleration_on_mesh(Mesh(), rho=np.ones(3), par=Par)
+    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
+        units.length_in_cgs * units.velocity_in_cgs**2
+    )
+    assert np.allclose(acceleration, [-0.0, -g_code * 2.0 / 1.5**2, -g_code * 2.0 / 2.5**2])
+
+
+def test_dark_matter_snapshot_group_is_written():
+    units = code_units()
+    dm = DarkMatterShells(
+        radius=[1.0, 2.0], velocity=[0.0, 0.0], mass=[1.0, 1.0],
+        angular_momentum=[0.1, 0.2], code_units=units,
+    )
+    class Fluid:
+        rho = np.ones(2)
+        vel = np.zeros(2)
+        temp = np.ones(2)
+        mu = np.ones(2)
+    class MeshForIO:
+        boundary = np.array([0.0, 1.0, 2.0])
+    class ParForIO:
+        CodeUnits = units
+        time = np.array([0.0])
+        boxsize = np.array([2.0])
+        dark_matter = dm
+    class State:
+        par = ParForIO()
+        mesh = MeshForIO()
+        fluid = Fluid()
+    with tempfile.TemporaryDirectory() as directory:
+        filename = Path(directory) / "snapshot.hdf5"
+        rio.writehdf5(State(), filename)
+        with h5py.File(filename, "r") as handle:
+            assert "DarkMatter" in handle
+            assert set(handle["DarkMatter"]) == {
+                "Radius", "RadialVelocity", "Mass", "SpecificAngularMomentum"
+            }

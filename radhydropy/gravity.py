@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from radhydropy.dark_matter import enclosed_gas_mass
 
 from radhydropy.units import (
     _acceleration_unit,
@@ -129,6 +130,7 @@ class Gravity:
         code_units=None,
         selfgravity_softening=0.0,
         selfgravity_boundary_acceleration=0.0,
+        dark_matter=None,
     ):
         self.selfgravity = bool(selfgravity)
         self.externalgravity = bool(externalgravity)
@@ -138,6 +140,7 @@ class Gravity:
         self.CodeUnits = code_units
         self.selfgravity_softening = float(selfgravity_softening)
         self.selfgravity_boundary_acceleration = float(selfgravity_boundary_acceleration)
+        self.dark_matter = dark_matter
 
     def has_external_field(self):
         """Return ``True`` when an external field has been configured."""
@@ -260,7 +263,11 @@ class Gravity:
 
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
         """Return the total external plus self-gravity acceleration."""
-        if not self.externalgravity and not self.selfgravity:
+        if (
+            not self.externalgravity
+            and not self.selfgravity
+            and self.dark_matter is None
+        ):
             return np.zeros_like(mesh.coordinate, dtype=float)
         total = np.zeros_like(mesh.coordinate, dtype=float)
         if self.externalgravity:
@@ -269,7 +276,35 @@ class Gravity:
             if rho is None or par is None:
                 raise ValueError("rho and par are required when selfgravity is enabled")
             total += self.self_acceleration_on_mesh(mesh, rho, par)
+        if self.dark_matter is not None:
+            total += self.dark_matter_acceleration_on_mesh(mesh, rho, par)
         return total
+
+    def dark_matter_acceleration_on_mesh(self, mesh, rho, par):
+        """Return the acceleration from live dark-matter shells."""
+        if self.dark_matter is None:
+            return np.zeros_like(mesh.coordinate, dtype=float)
+        code_units = _require_code_units(_code_units(self))
+        coordinate = np.asarray(
+            quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float
+        )
+        enclosed = self.dark_matter.enclosed_mass(coordinate)
+        radius = np.maximum(coordinate, np.finfo(float).tiny)
+        acceleration = -_gravitational_constant_code(code_units) * enclosed / (
+            radius + self.dark_matter.softening
+        ) ** 2
+        return acceleration
+
+    def advance_dark_matter(self, dt, mesh, rho, par, crossing_safety_factor=0.1):
+        """Advance live dark-matter shells using the current gas mass field."""
+        if self.dark_matter is None:
+            return 0.0
+        gas_mass = enclosed_gas_mass(mesh, rho, self.dark_matter.radius, par)
+        return self.dark_matter.step(
+            dt,
+            crossing_safety_factor=crossing_safety_factor,
+            gas_enclosed_mass=gas_mass,
+        )
 
     def force_density_on_mesh(self, mesh, rho):
         """Return the gravitational force density ``rho * g`` on a mesh."""

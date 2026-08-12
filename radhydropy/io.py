@@ -43,6 +43,7 @@ def _scale_unit_for_key(scale_key):
         "photon_rate_per_s": 1.0 / unyt.s,
         "alpha_cm3_s": unyt.cm**3 / unyt.s,
         "acceleration_cm_s2": unyt.cm / unyt.s**2,
+        "specific_angular_momentum": unyt.cm**2 / unyt.s,
     }.get(scale_key, None)
 
 
@@ -69,6 +70,7 @@ def _code_unit_for_key(code_units, scale_key):
         "photon_rate_per_s": 1.0 / code_units.time_unit,
         "alpha_cm3_s": code_units.volume_unit / code_units.time_unit,
         "acceleration_cm_s2": code_units.length_unit / code_units.time_unit**2,
+        "specific_angular_momentum": code_units.length_unit * code_units.velocity_unit,
         "potential": code_units.velocity_unit**2,
     }.get(scale_key, None)
 
@@ -550,7 +552,7 @@ def writehdf5(ric,ICfilename):
         # first, save header:
         header = fic.create_group("Header")
         for key, value in sorted(vars(ric.par).items()):
-            if key.startswith("_"):
+            if key.startswith("_") or key in {"dark_matter", "dark_matter_snapshot"}:
                 continue
             header.attrs[key] = _header_attr_value(value)
         _write_quantity(
@@ -618,6 +620,27 @@ def writehdf5(ric,ICfilename):
                 code_units=code_units,
                 scale_key="number_density_cm3",
                 default_unit=1.0 / unyt.cm**3,
+            )
+        dark_matter = getattr(ric.par, "dark_matter", None)
+        if dark_matter is None:
+            gravity = getattr(ric.par, "gravity", None)
+            dark_matter = getattr(gravity, "dark_matter", None)
+        if dark_matter is not None:
+            dmdata = fic.create_group("DarkMatter")
+            _write_quantity(dmdata, "Radius", dark_matter.radius,
+                            code_units=code_units, scale_key="length_cm",
+                            default_unit=unyt.cm)
+            _write_quantity(dmdata, "RadialVelocity", dark_matter.velocity,
+                            code_units=code_units, scale_key="velocity_cm_s",
+                            default_unit=unyt.cm / unyt.s)
+            _write_quantity(dmdata, "Mass", dark_matter.mass,
+                            code_units=code_units, scale_key="mass_g",
+                            default_unit=unyt.g)
+            _write_quantity(dmdata, "SpecificAngularMomentum", dark_matter.angular_momentum,
+                            code_units=code_units, scale_key="specific_angular_momentum",
+                            default_unit=unyt.cm**2 / unyt.s)
+            dmdata.attrs["Softening"] = _header_attr_value(
+                dark_matter.softening * code_units.length_unit
             )
 
     if (
@@ -706,6 +729,27 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units=code_units,
             scale_map=data_scale_map,
         )
+        if "DarkMatter" in fic:
+            dmdata = fic["DarkMatter"]
+            dm_scale_map = {
+                "Radius": "length_cm",
+                "RadialVelocity": "velocity_cm_s",
+                "Mass": "mass_g",
+                "SpecificAngularMomentum": "specific_angular_momentum",
+            }
+            _populate_group_targets(
+                dmdata,
+                (par,),
+                code_units=code_units,
+                scale_map=dm_scale_map,
+            )
+            par.dark_matter_snapshot = {
+                "radius": getattr(par, "Radius"),
+                "velocity": getattr(par, "RadialVelocity"),
+                "mass": getattr(par, "Mass"),
+                "angular_momentum": getattr(par, "SpecificAngularMomentum"),
+                "softening": _restore_header_attr_value(dmdata.attrs.get("Softening", 0.0)),
+            }
 
         # Preserve the canonical runtime field names expected by the solver.
         if hasattr(mesh, "Boundary"):

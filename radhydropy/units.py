@@ -229,6 +229,7 @@ def code_unit_scales(code):
         "photon_rate_per_s": 1.0 / time_s,
         "alpha_cm3_s": volume_cm3 / time_s,
         "acceleration_cm_s2": length_cm / time_s**2,
+        "specific_angular_momentum": length_cm * velocity_cm_s,
     }
 
 

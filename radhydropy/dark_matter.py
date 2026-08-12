@@ -5,6 +5,38 @@ import numpy as np
 from radhydropy.units import _code_units, _gravitational_constant_code, quantity_to_value
 
 
+def enclosed_gas_mass(mesh, rho, radius, par):
+    """Return spherical gas mass enclosed by arbitrary code-unit radii."""
+    code_units = _code_units(par)
+    if code_units is None:
+        raise ValueError("gas mass coupling requires par.CodeUnits")
+    radius = np.asarray(radius, dtype=float)
+    boundaries = np.asarray(
+        quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
+    )
+    density = np.asarray(
+        quantity_to_value(rho, code_units.density_unit), dtype=float
+    )
+    first = par.noghost
+    last = first + par.nogrid
+    inner = boundaries[first:last]
+    outer = boundaries[first + 1:last + 1]
+    shell_volume = 4.0 * np.pi / 3.0 * (outer**3 - inner**3)
+    shell_mass = density[first:last] * shell_volume
+    prefix = np.concatenate(([0.0], np.cumsum(shell_mass)))
+    clipped = np.clip(radius, inner[0], outer[-1])
+    cell = np.searchsorted(outer, clipped, side="right")
+    cell = np.clip(cell, 0, len(inner) - 1)
+    before = prefix[cell]
+    partial = density[first + cell] * 4.0 * np.pi / 3.0 * (
+        clipped**3 - inner[cell]**3
+    )
+    result = before + np.maximum(partial, 0.0)
+    result[radius <= inner[0]] = 0.0
+    result[radius >= outer[-1]] = prefix[-1]
+    return result
+
+
 class DarkMatterShells:
     """Evolve infinitesimally thin spherical dark-matter shells.
 
@@ -39,9 +71,12 @@ class DarkMatterShells:
             dtype=float,
         ).copy()
         self.softening = float(quantity_to_value(softening, length))
-        self.fixed_enclosed_mass = None if fixed_enclosed_mass is None else float(
-            quantity_to_value(fixed_enclosed_mass, mass_unit)
-        )
+        if callable(fixed_enclosed_mass):
+            self.fixed_enclosed_mass = fixed_enclosed_mass
+        elif fixed_enclosed_mass is None:
+            self.fixed_enclosed_mass = None
+        else:
+            self.fixed_enclosed_mass = float(quantity_to_value(fixed_enclosed_mass, mass_unit))
         if not (
             self.radius.ndim == self.velocity.ndim == self.mass.ndim == self.angular_momentum.ndim == 1
         ):
@@ -85,13 +120,17 @@ class DarkMatterShells:
         result = result + 0.5 * (prefix[right] - prefix[left])
         return np.asarray(result, dtype=float)
 
-    def acceleration(self):
+    def acceleration(self, gas_enclosed_mass=None):
         """Return shell accelerations from self-gravity and angular momentum."""
         g_code = _gravitational_constant_code(self.CodeUnits)
         if self.fixed_enclosed_mass is None:
             enclosed = self.enclosed_mass()
+        elif callable(self.fixed_enclosed_mass):
+            enclosed = np.asarray(self.fixed_enclosed_mass(self.radius), dtype=float)
         else:
             enclosed = np.full_like(self.radius, self.fixed_enclosed_mass)
+        if gas_enclosed_mass is not None:
+            enclosed = enclosed + np.asarray(gas_enclosed_mass, dtype=float)
         radius = np.maximum(self.radius, np.finfo(float).tiny)
         gravity = -g_code * enclosed / (self.radius + self.softening) ** 2
         centrifugal = self.angular_momentum**2 / radius**3
@@ -108,7 +147,7 @@ class DarkMatterShells:
             return np.inf
         return float(safety_factor * np.min(candidates))
 
-    def step(self, dt, crossing_safety_factor=0.1):
+    def step(self, dt, crossing_safety_factor=0.1, gas_enclosed_mass=None):
         """Advance one kick-drift-kick step, limiting ``dt`` before crossing."""
         dt = float(dt)
         crossing_dt = self.crossing_timestep(safety_factor=1.0)
@@ -119,12 +158,12 @@ class DarkMatterShells:
             actual_dt = crossing_dt * (1.0 + max(crossing_safety_factor, 1.0e-10))
         else:
             actual_dt = dt
-        acceleration = self.acceleration()
+        acceleration = self.acceleration(gas_enclosed_mass=gas_enclosed_mass)
         velocity_half = self.velocity + 0.5 * actual_dt * acceleration
         self.radius = self.radius + actual_dt * velocity_half
         self.velocity = velocity_half
         self.sort_by_radius()
-        acceleration_new = self.acceleration()
+        acceleration_new = self.acceleration(gas_enclosed_mass=gas_enclosed_mass)
         self.velocity += 0.5 * actual_dt * acceleration_new
         return actual_dt
 
@@ -140,6 +179,8 @@ class DarkMatterShells:
         angular = 0.5 * self.angular_momentum**2 / radius**2
         if self.fixed_enclosed_mass is None:
             enclosed = self.enclosed_mass()
+        elif callable(self.fixed_enclosed_mass):
+            enclosed = np.asarray(self.fixed_enclosed_mass(self.radius), dtype=float)
         else:
             enclosed = np.full_like(self.radius, self.fixed_enclosed_mass)
         potential = -g_code * enclosed / (self.radius + self.softening)

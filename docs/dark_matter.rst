@@ -7,9 +7,10 @@ distribution by infinitesimally thin shells. Each shell has a fixed mass and
 specific angular momentum, but its radius and radial velocity evolve in time.
 
 This model is separate from the gas :class:`radhydropy.fluid.Fluid`: dark
-matter has no gas pressure, temperature, or Euler fluxes. Its gravity can later
-be coupled to gas self-gravity, but the current examples isolate the shell
-dynamics first.
+matter has no gas pressure, temperature, or Euler fluxes. Its gravity can be
+coupled to gas self-gravity through a shared spherical enclosed-mass field.
+The pure-shell examples isolate the collisionless dynamics, while
+``GasDarkMatterShellCoupling1D`` exercises the mutual gas--dark-matter field.
 
 Shell equation of motion
 ------------------------
@@ -38,8 +39,8 @@ Numerical evolution
 ``DarkMatterShells.step`` uses a kick-drift-kick update. After the drift, all
 shell arrays are sorted by radius while preserving the association between
 radius, velocity, mass, and angular momentum. Shell crossings are therefore
-allowed, but the current first implementation does not yet include gas
-coupling, particle deposition, or an HDF5 restart schema.
+allowed. The coupled gas path uses the same shell update while adding gas
+enclosed mass to the shell force.
 
 Before a predicted neighboring-shell crossing, the step is limited using the
 linear estimate
@@ -98,6 +99,21 @@ diagnostic energy history:
    cd example/DarkMatterShellCrossing1D
    python dark_matter_shell_crossing1d.py
 
+Analytic gas--dark-matter orbit benchmark
+------------------------------------------
+
+``GasDarkMatterAnalyticOrbit1D`` freezes a uniform gas background and a
+central dark-matter mass. A negligible-mass shell then sees
+
+.. math::
+
+   M(<r)=M_0+\frac{4\pi}{3}\rho_g r^3,
+
+which gives a time-dependent analytic radial ODE including angular momentum.
+The shell integrator is compared against a high-accuracy reference solution
+of that ODE. This benchmark validates the combined enclosed-mass force without
+introducing gas back-reaction.
+
 Current scope
 -------------
 
@@ -108,13 +124,16 @@ The shell model currently supports:
 * central gravitational softening;
 * shell crossing and radius sorting;
 * code-unit input through :class:`radhydropy.units.CodeUnits`.
+* mutual spherical gas--dark-matter gravity through
+  ``GasDarkMatterShellCoupling1D``;
+* gas and dark-matter total-mass diagnostics;
+* ``DarkMatter`` snapshot output groups.
 
 It does not yet support:
 
-* gas--dark-matter mutual gravity;
 * live particle deposition onto a gas mesh;
 * exact crossing-event energy exchange;
-* dark-matter HDF5 restart/output groups;
+* automatic reconstruction of a live shell object from a restart snapshot;
 * non-spherical dark-matter dynamics.
 
 These limitations are intentional while the isolated shell integrator is being
