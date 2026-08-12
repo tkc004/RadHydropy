@@ -71,6 +71,7 @@ _CODE_UNIT_GROUPS = (
             ('timesim', 'time'),
             ('dtmin', 'time'),
             ('dtmax', 'time'),
+            ('relaxation_damping_time', 'time'),
             ('outdeltatime', 'time'),
             ('boxsize', 'length'),
             ('area', 'area'),

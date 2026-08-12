@@ -44,6 +44,7 @@ refparams = {
     'noghost':2,
     'dtmin': 2.0e-8*unyt.s,
     'dtmax': 2.0e-1*unyt.s,   
+    'relaxation_damping_time': None,
     'thermochemistry_network': 'hydrogen',
     'cie_cooling': False,
     'cie_ion_fraction_table': None,
