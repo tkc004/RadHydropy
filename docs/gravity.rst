@@ -92,5 +92,10 @@ Notes
   coordinate array.
 * If you already know the acceleration profile, you can pass it directly with
   ``acceleration=...`` instead of a potential.
-* The current implementation is one-dimensional and is intended for external
-  fields, not self-gravity.
+* Self-gravity and external gravity can be enabled together. In spherical
+  geometry, self-gravity is computed from the enclosed gas mass and added to
+  the external field before the momentum and energy source update.
+* The external field remains fixed while the self-gravity field is recomputed
+  from the current density at every hydrodynamic stage.
+* Cartesian self-gravity uses the plane-parallel Poisson equation and requires
+  an explicit ``selfgravity_boundary_acceleration`` value.

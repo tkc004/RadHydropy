@@ -267,7 +267,7 @@ class Rsim():
         """Complete a hydro step after conserved variables have been advanced."""
         if fluid is None:
             fluid = self.fluid
-        self.solver.ApplyExternalGravity(dt, self.mesh, fluid, self.par)
+        self.solver.ApplyGravity(dt, self.mesh, fluid, self.par)
         if advect_chemistry:
             self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
         self._sync_hydro_state(fluid=fluid)

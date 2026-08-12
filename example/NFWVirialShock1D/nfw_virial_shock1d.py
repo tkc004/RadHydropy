@@ -26,7 +26,7 @@ import unyt
 
 import radhydropy.io as rio
 from radhydropy.example_config import load_example_parameters
-from radhydropy.gravity import nfw_potential
+from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -55,12 +55,15 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.par.externalgravity = True
-    sim.par.gravity_coordinate = sim.mesh.coordinate.copy()
-    sim.par.gravity_potential = nfw_potential(
-        sim.par.gravity_coordinate,
-        halo['scale_density'],
-        halo['scale_radius'],
+    sim.par.gravity = Gravity(
+        externalgravity=True,
+        potential=nfw_potential(
+            sim.mesh.coordinate,
+            halo['scale_density'],
+            halo['scale_radius'],
+            code_units=sim.par.CodeUnits,
+        ),
+        coordinate=sim.mesh.coordinate.copy(),
         code_units=sim.par.CodeUnits,
     )
     sim.Run(mode='hydro')

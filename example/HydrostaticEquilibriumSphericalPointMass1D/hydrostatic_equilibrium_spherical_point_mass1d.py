@@ -12,7 +12,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.example_config import load_example_parameters
-from radhydropy.gravity import point_mass_potential
+from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 
@@ -48,11 +48,14 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
-    mainrun.par.externalgravity = True
-    mainrun.par.gravity_coordinate = mainrun.mesh.coordinate.copy()
-    mainrun.par.gravity_potential = point_mass_potential(
-        mainrun.par.gravity_coordinate,
-        ICparams['point_mass'],
+    mainrun.par.gravity = Gravity(
+        externalgravity=True,
+        potential=point_mass_potential(
+            mainrun.mesh.coordinate,
+            ICparams['point_mass'],
+            code_units=mainrun.par.CodeUnits,
+        ),
+        coordinate=mainrun.mesh.coordinate.copy(),
         code_units=mainrun.par.CodeUnits,
     )
     mainrun.Run(mode='hydro')

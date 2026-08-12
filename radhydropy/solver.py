@@ -580,7 +580,10 @@ class Solver():
             return gravity
         if gravity is not None and hasattr(gravity, "acceleration_on_mesh"):
             return gravity
-        if not getattr(par, "externalgravity", False):
+        if not (
+            getattr(par, "externalgravity", False)
+            or getattr(par, "selfgravity", False)
+        ):
             return None
         return rg.Gravity(
             selfgravity=getattr(par, "selfgravity", False),
@@ -589,14 +592,18 @@ class Solver():
             coordinate=getattr(par, "gravity_coordinate", None),
             acceleration=getattr(par, "gravity_acceleration", None),
             code_units=getattr(par, "CodeUnits", None),
+            selfgravity_softening=getattr(par, "selfgravity_softening", 0.0),
+            selfgravity_boundary_acceleration=getattr(
+                par, "selfgravity_boundary_acceleration", 0.0
+            ),
         )
 
-    def ApplyExternalGravity(self, dt, mesh, fluid, par):
-        """Apply a source update from an optional external gravitational field."""
+    def ApplyGravity(self, dt, mesh, fluid, par):
+        """Apply the combined external and gas self-gravity source update."""
         gravity = self._gravity_model(par)
-        if gravity is None or not gravity.externalgravity:
+        if gravity is None:
             return 0
-        acceleration = gravity.acceleration_on_mesh(mesh)
+        acceleration = gravity.acceleration_on_mesh(mesh, rho=fluid.rho, par=par)
         code_units = getattr(par, "CodeUnits", None)
         if code_units is not None:
             target_unit = code_units.length_unit / code_units.time_unit**2

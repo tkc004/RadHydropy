@@ -94,6 +94,8 @@ _CODE_UNIT_GROUPS = (
             ('gravity_potential', 'potential'),
             ('gravity_acceleration', 'acceleration'),
             ('gravity_strength', 'acceleration'),
+            ('selfgravity_softening', 'length'),
+            ('selfgravity_boundary_acceleration', 'acceleration'),
         ),
     ),
 )

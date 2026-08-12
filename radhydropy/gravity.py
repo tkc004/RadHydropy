@@ -117,7 +117,7 @@ def nfw_potential(
 
 
 class Gravity:
-    """Store gravity settings and evaluate an optional external potential."""
+    """Evaluate external and gas self-gravity fields in code units."""
 
     def __init__(
         self,
@@ -127,6 +127,8 @@ class Gravity:
         coordinate=None,
         acceleration=None,
         code_units=None,
+        selfgravity_softening=0.0,
+        selfgravity_boundary_acceleration=0.0,
     ):
         self.selfgravity = bool(selfgravity)
         self.externalgravity = bool(externalgravity)
@@ -134,6 +136,8 @@ class Gravity:
         self.coordinate = coordinate
         self.acceleration = acceleration
         self.CodeUnits = code_units
+        self.selfgravity_softening = float(selfgravity_softening)
+        self.selfgravity_boundary_acceleration = float(selfgravity_boundary_acceleration)
 
     def has_external_field(self):
         """Return ``True`` when an external field has been configured."""
@@ -203,11 +207,69 @@ class Gravity:
             raise AttributeError("mesh does not provide cell coordinates")
         return self.potential_on(mesh.coordinate)
 
-    def acceleration_on_mesh(self, mesh):
-        """Return the acceleration evaluated on a mesh coordinate array."""
-        if not hasattr(mesh, "coordinate"):
-            raise AttributeError("mesh does not provide cell coordinates")
-        return self.acceleration_on(mesh.coordinate)
+    def self_acceleration_on_mesh(self, mesh, rho, par):
+        """Return the gas self-gravity acceleration on a one-dimensional mesh.
+
+        Spherical meshes use the enclosed gas mass. Cartesian meshes use the
+        plane-parallel relation ``dg/dx = -4 pi G rho`` and therefore require
+        ``selfgravity_boundary_acceleration`` as the left-boundary field.
+        """
+        code_units = _require_code_units(_code_units(self))
+        rho = np.asarray(quantity_to_value(rho, code_units.density_unit), dtype=float)
+        coordinate = np.asarray(quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float)
+        volume = np.asarray(quantity_to_value(mesh.vol, code_units.volume_unit), dtype=float)
+        if rho.shape != coordinate.shape or volume.shape != coordinate.shape:
+            raise ValueError("self-gravity inputs must match the mesh cell shape")
+
+        first = par.noghost
+        last = first + par.nogrid
+        interior = slice(first, last)
+        result = np.zeros_like(coordinate)
+        g_code = _gravitational_constant_code(code_units)
+
+        if mesh.coordsys == "spherical":
+            boundaries = np.asarray(
+                quantity_to_value(mesh.boundary, code_units.length_unit),
+                dtype=float,
+            )
+            radii = coordinate[interior]
+            inner = np.maximum(boundaries[first:last], 0.0)
+            outer = np.maximum(boundaries[first + 1:last + 1], 0.0)
+            density = rho[interior]
+            enclosed_before = np.concatenate(([0.0], np.cumsum(density[:-1] * volume[interior][:-1])))
+            radius = np.maximum(radii, self.selfgravity_softening)
+            partial_volume = 4.0 * np.pi / 3.0 * np.maximum(radius**3 - inner**3, 0.0)
+            enclosed_mass = enclosed_before + density * partial_volume
+            result[interior] = -g_code * enclosed_mass / np.maximum(radius**2, np.finfo(float).tiny)
+            # The field at the cell containing the spherical origin is zero by symmetry.
+            origin = np.flatnonzero((inner <= 0.0) & (outer > 0.0))
+            if origin.size:
+                result[first + origin[0]] = 0.0
+            return result
+
+        if mesh.coordsys == "cartesian":
+            result[first] = self.selfgravity_boundary_acceleration
+            dx = np.asarray(quantity_to_value(mesh.xdelta, code_units.length_unit), dtype=float)
+            for index in range(first + 1, last):
+                result[index] = result[index - 1] - 4.0 * np.pi * g_code * rho[index - 1] * dx[index - 1]
+            if first < last:
+                result[last:] = result[last - 1]
+            return result
+
+        raise ValueError("self-gravity is not implemented for %r meshes" % mesh.coordsys)
+
+    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+        """Return the total external plus self-gravity acceleration."""
+        if not self.externalgravity and not self.selfgravity:
+            return np.zeros_like(mesh.coordinate, dtype=float)
+        total = np.zeros_like(mesh.coordinate, dtype=float)
+        if self.externalgravity:
+            total += self.acceleration_on(mesh.coordinate)
+        if self.selfgravity:
+            if rho is None or par is None:
+                raise ValueError("rho and par are required when selfgravity is enabled")
+            total += self.self_acceleration_on_mesh(mesh, rho, par)
+        return total
 
     def force_density_on_mesh(self, mesh, rho):
         """Return the gravitational force density ``rho * g`` on a mesh."""

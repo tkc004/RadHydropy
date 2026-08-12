@@ -19,6 +19,15 @@ class DummyMesh:
         self.vol = np.ones(3, dtype=float)
 
 
+class DummySphericalMesh:
+    def __init__(self):
+        self.coordsys = "spherical"
+        self.boundary = np.array([0.0, 1.0, 2.0, 3.0], dtype=float)
+        self.coordinate = np.array([0.75, 1.5, 2.5], dtype=float)
+        self.xdelta = np.ones(3, dtype=float)
+        self.vol = 4.0 * np.pi / 3.0 * np.diff(self.boundary**3)
+
+
 class DummyFluid:
     def __init__(self):
         self.rho = np.ones(3, dtype=float)
@@ -30,6 +39,8 @@ class DummyFluid:
 class DummyPar:
     externalgravity = True
     selfgravity = False
+    noghost = 0
+    nogrid = 3
 
 
 def _code_units():
@@ -116,7 +127,7 @@ def test_nfw_potential():
     assert np.allclose(potential.to_value(unyt.cm**2 / unyt.s**2), expected)
 
 
-def test_apply_external_gravity_updates_momentum_and_energy():
+def test_apply_gravity_updates_momentum_and_energy():
     code_units = _code_units()
     mesh = DummyMesh()
     fluid = DummyFluid()
@@ -131,7 +142,7 @@ def test_apply_external_gravity_updates_momentum_and_energy():
     )
 
     solver = Solver()
-    solver.ApplyExternalGravity(1.0, mesh, fluid, par)
+    solver.ApplyGravity(1.0, mesh, fluid, par)
 
     expected_acceleration = -2.0
     expected_momentum = (
@@ -144,3 +155,37 @@ def test_apply_external_gravity_updates_momentum_and_energy():
 
     assert np.allclose(fluid.Mom, expected_momentum)
     assert np.allclose(fluid.Energy, expected_energy)
+
+
+def test_spherical_self_gravity_and_external_gravity_are_combined():
+    code_units = _code_units()
+    mesh = DummySphericalMesh()
+    par = DummyPar()
+    par.selfgravity = True
+    par.externalgravity = True
+    par.gravity = Gravity(
+        selfgravity=True,
+        externalgravity=True,
+        acceleration=lambda coordinate: -np.ones_like(coordinate),
+        code_units=code_units,
+    )
+
+    rho = np.ones(3, dtype=float)
+    total = par.gravity.acceleration_on_mesh(mesh, rho=rho, par=par)
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * code_units.mass_in_cgs
+        / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
+    )
+    enclosed_mass = rho * (4.0 * np.pi / 3.0) * mesh.coordinate**3
+    expected_self = -g_code * enclosed_mass / mesh.coordinate**2
+    expected_self[0] = 0.0
+
+    assert np.allclose(total + 1.0, expected_self, rtol=1.0e-12, atol=1.0e-12)
+
+
+def test_self_gravity_requires_parameters():
+    code_units = _code_units()
+    gravity = Gravity(selfgravity=True, code_units=code_units)
+    with np.testing.assert_raises(ValueError):
+        gravity.acceleration_on_mesh(DummyMesh())
