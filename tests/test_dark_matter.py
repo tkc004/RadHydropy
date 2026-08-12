@@ -182,10 +182,11 @@ def test_dark_matter_snapshot_group_is_written():
     class MeshForIO:
         boundary = np.array([0.0, 1.0, 2.0])
     class ParForIO:
-        CodeUnits = units
-        time = np.array([0.0])
-        boxsize = np.array([2.0])
-        dark_matter = dm
+        def __init__(self):
+            self.CodeUnits = units
+            self.time = np.array([0.0])
+            self.boxsize = np.array([2.0])
+            self.dark_matter = dm
     class State:
         par = ParForIO()
         mesh = MeshForIO()
@@ -198,3 +199,57 @@ def test_dark_matter_snapshot_group_is_written():
             assert set(handle["DarkMatter"]) == {
                 "Radius", "RadialVelocity", "Mass", "SpecificAngularMomentum"
             }
+
+
+def test_dark_matter_snapshot_reconstructs_live_shells():
+    units = code_units()
+    dm = DarkMatterShells(
+        radius=[1.0, 2.0], velocity=[0.3, -0.2], mass=[1.0, 2.0],
+        angular_momentum=[0.1, 0.2], softening=0.05, code_units=units,
+    )
+
+    class Fluid:
+        rho = np.ones(2)
+        vel = np.zeros(2)
+        temp = np.ones(2)
+        mu = np.ones(2)
+
+    class MeshForIO:
+        boundary = np.array([0.0, 1.0, 2.0])
+
+    class ParForIO:
+        def __init__(self):
+            self.CodeUnits = units
+            self.time = np.array([0.0])
+            self.boxsize = np.array([2.0])
+            self.dark_matter = dm
+
+    class State:
+        par = ParForIO()
+        mesh = MeshForIO()
+        fluid = Fluid()
+
+    class LoadedPar:
+        coordsys = None
+        nogrid = None
+
+    class LoadedMesh:
+        pass
+
+    class LoadedFluid:
+        pass
+
+    with tempfile.TemporaryDirectory() as directory:
+        filename = Path(directory) / "snapshot.hdf5"
+        rio.writehdf5(State(), filename)
+        loaded_par = LoadedPar()
+        rio.readhdf5(loaded_par, LoadedMesh(), LoadedFluid(), filename)
+
+    reconstructed = loaded_par.dark_matter
+    assert isinstance(reconstructed, DarkMatterShells)
+    assert np.allclose(reconstructed.radius, dm.radius)
+    assert np.allclose(reconstructed.velocity, dm.velocity)
+    assert np.allclose(reconstructed.mass, dm.mass)
+    assert np.allclose(reconstructed.angular_momentum, dm.angular_momentum)
+    assert np.isclose(reconstructed.softening, dm.softening)
+    assert loaded_par.dark_matter_snapshot["mass"].shape == dm.mass.shape

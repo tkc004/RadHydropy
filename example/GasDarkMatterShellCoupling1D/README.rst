@@ -17,5 +17,8 @@ timestep control, and writes the gas output using the normal RadHydropy workflow
 It also checks conservation of total gas and dark-matter mass. For the default
 run, both relative mass errors are at floating-point roundoff level.
 
-Dark-matter restart output is supported by the ``DarkMatter`` HDF5 group, but
-automatic reconstruction of a live shell object on restart is not yet provided.
+Dark-matter restart output is supported by the ``DarkMatter`` HDF5 group.
+When a snapshot is read, RadHydropy automatically reconstructs the live
+``DarkMatterShells`` object from the stored radius, radial velocity, mass,
+angular momentum, and softening values, so the usual gravity and shell-crossing
+paths can continue from the snapshot.

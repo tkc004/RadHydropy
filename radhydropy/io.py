@@ -11,6 +11,7 @@ import yaml
 import radhydropy.utils as ru
 from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
 from radhydropy.arrays import as_named_array
+from radhydropy.dark_matter import DarkMatterShells
 try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
@@ -743,13 +744,25 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 code_units=code_units,
                 scale_map=dm_scale_map,
             )
-            par.dark_matter_snapshot = {
+            snapshot = {
                 "radius": getattr(par, "Radius"),
                 "velocity": getattr(par, "RadialVelocity"),
                 "mass": getattr(par, "Mass"),
                 "angular_momentum": getattr(par, "SpecificAngularMomentum"),
                 "softening": _restore_header_attr_value(dmdata.attrs.get("Softening", 0.0)),
             }
+            par.dark_matter_snapshot = snapshot
+            # A restart snapshot contains the complete live shell state. Build
+            # the runtime object so the normal solver/gravity path can resume
+            # immediately after ``Callreadhdf5``.
+            par.dark_matter = DarkMatterShells(
+                radius=snapshot["radius"],
+                velocity=snapshot["velocity"],
+                mass=snapshot["mass"],
+                angular_momentum=snapshot["angular_momentum"],
+                softening=snapshot["softening"],
+                code_units=code_units,
+            )
 
         # Preserve the canonical runtime field names expected by the solver.
         if hasattr(mesh, "Boundary"):
