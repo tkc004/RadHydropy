@@ -36,6 +36,12 @@ Available Examples
    * - ``example/NFWVirialShock1D``
      - Adiabatic evolution of cosmic-mean gas in Hubble flow through the same
        ``1e8 Msun`` NFW halo, with a Rankine--Hugoniot shock diagnostic.
+   * - ``example/DarkMatterFixedMassOrbit1D``
+     - Fixed-enclosed-mass dark-matter shell with angular momentum, compared
+       against a conserved-energy reference orbit.
+   * - ``example/DarkMatterShellCrossing1D``
+     - Pure self-gravitating spherical dark-matter shells with angular
+       momentum, shell crossings, and radius sorting.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally

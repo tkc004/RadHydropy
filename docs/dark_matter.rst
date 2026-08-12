@@ -1,0 +1,121 @@
+Dark Matter and Spherical Shell Gravity
+=======================================
+
+RadHydropy includes a pure collisionless dark-matter shell model in
+:mod:`radhydropy.dark_matter`. It represents a spherical dark-matter
+distribution by infinitesimally thin shells. Each shell has a fixed mass and
+specific angular momentum, but its radius and radial velocity evolve in time.
+
+This model is separate from the gas :class:`radhydropy.fluid.Fluid`: dark
+matter has no gas pressure, temperature, or Euler fluxes. Its gravity can later
+be coupled to gas self-gravity, but the current examples isolate the shell
+dynamics first.
+
+Shell equation of motion
+------------------------
+
+For a shell at radius ``r``,
+
+.. math::
+
+   \ddot r = -\frac{G M(<r)}{(r+a)^2} + \frac{j^2}{r^3},
+
+where ``a`` is a central softening length and ``j`` is the shell's conserved
+specific angular momentum. The enclosed shell mass uses the half-shell
+convention at an exactly coincident radius:
+
+.. math::
+
+   M(<r_i) = \sum_{r_k<r_i}m_k + \frac{1}{2}m_i.
+
+The angular-momentum term prevents shells with nonzero ``j`` from falling
+directly through the centre. A cold shell with ``j=0`` can collapse toward the
+softened centre.
+
+Numerical evolution
+-------------------
+
+``DarkMatterShells.step`` uses a kick-drift-kick update. After the drift, all
+shell arrays are sorted by radius while preserving the association between
+radius, velocity, mass, and angular momentum. Shell crossings are therefore
+allowed, but the current first implementation does not yet include gas
+coupling, particle deposition, or an HDF5 restart schema.
+
+Before a predicted neighboring-shell crossing, the step is limited using the
+linear estimate
+
+.. math::
+
+   \Delta t_{\rm cross} =
+   \frac{r_{i+1}-r_i}{v_i-v_{i+1}},
+
+when the inner shell is catching the outer shell. The example advances just
+through the event and resorts the shell records.
+
+Fixed enclosed-mass analytic benchmark
+---------------------------------------
+
+The ``DarkMatterFixedMassOrbit1D`` example evolves a negligible-mass shell in
+a prescribed central mass ``M``. Its effective potential is
+
+.. math::
+
+   \Phi_{\rm eff}(r) = -\frac{GM}{r+a} + \frac{j^2}{2r^2},
+
+and the conserved energy is
+
+.. math::
+
+   E = \frac{1}{2}\dot r^2 + \Phi_{\rm eff}(r).
+
+The trajectory can be written as the quadrature
+
+.. math::
+
+   t-t_0 = \int_{r_0}^{r}
+   \frac{dr}{\sqrt{2[E-\Phi_{\rm eff}(r)]}}.
+
+The example uses a high-accuracy integration of the equivalent radial ODE as
+the reference trajectory because it handles turning points more robustly than
+direct quadrature. It compares shell radius and energy drift.
+
+Run the benchmark from its directory:
+
+.. code-block:: bash
+
+   cd example/DarkMatterFixedMassOrbit1D
+   python dark_matter_fixed_mass_orbit1d.py
+
+Shell-crossing example
+----------------------
+
+``DarkMatterShellCrossing1D`` evolves multiple self-gravitating shells with
+fixed masses and angular momenta. It records the sorted shell radii and a
+diagnostic energy history:
+
+.. code-block:: bash
+
+   cd example/DarkMatterShellCrossing1D
+   python dark_matter_shell_crossing1d.py
+
+Current scope
+-------------
+
+The shell model currently supports:
+
+* spherical self-gravity among dark-matter shells;
+* fixed shell masses and specific angular momenta;
+* central gravitational softening;
+* shell crossing and radius sorting;
+* code-unit input through :class:`radhydropy.units.CodeUnits`.
+
+It does not yet support:
+
+* gas--dark-matter mutual gravity;
+* live particle deposition onto a gas mesh;
+* exact crossing-event energy exchange;
+* dark-matter HDF5 restart/output groups;
+* non-spherical dark-matter dynamics.
+
+These limitations are intentional while the isolated shell integrator is being
+validated.

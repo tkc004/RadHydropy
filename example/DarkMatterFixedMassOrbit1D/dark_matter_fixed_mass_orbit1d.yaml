@@ -1,0 +1,22 @@
+runparams:
+  simname: DarkMatterFixedMassOrbit1D
+  outdir: .
+  savedir: .
+  timesim: 0.2
+  output_interval: 0.0005
+  CodeUnits:
+    name: dark_matter_orbit_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0e33
+      UnitLength_in_cgs: 3.08567758e18
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  central_mass: 1.0
+  shell_mass: 1.0e-12
+  initial_radius: 0.4
+  initial_velocity: 0.0
+  specific_angular_momentum: 0.15
+  softening: 0.02
