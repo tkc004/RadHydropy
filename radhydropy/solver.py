@@ -583,6 +583,7 @@ class Solver():
         if not (
             getattr(par, "externalgravity", False)
             or getattr(par, "selfgravity", False)
+            or getattr(par, "cosmological_gravity", False)
             or getattr(par, "dark_matter", None) is not None
         ):
             return None
@@ -598,6 +599,8 @@ class Solver():
                 par, "selfgravity_boundary_acceleration", 0.0
             ),
             dark_matter=getattr(par, "dark_matter", None),
+            cosmological=getattr(par, "cosmological_gravity", False),
+            cosmology=getattr(par, "cosmology", None),
         )
 
     def ApplyGravity(self, dt, mesh, fluid, par):
@@ -605,6 +608,8 @@ class Solver():
         gravity = self._gravity_model(par)
         if gravity is None:
             return 0
+        if getattr(gravity, "cosmological", False):
+            par.fluid_time = fluid.time
         crossing_safety_factor = getattr(par, "dark_matter_crossing_safety_factor", 0.1)
         if getattr(gravity, "dark_matter", None) is not None:
             gravity.advance_dark_matter(

@@ -10,6 +10,7 @@ from radhydropy.gravity import (
 )
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.cosmology import EinsteinDeSitter
 
 
 class DummyMesh:
@@ -189,3 +190,68 @@ def test_self_gravity_requires_parameters():
     gravity = Gravity(selfgravity=True, code_units=code_units)
     with np.testing.assert_raises(ValueError):
         gravity.acceleration_on_mesh(DummyMesh())
+
+
+def test_cosmological_gravity_cancels_homogeneous_background():
+    units = _code_units()
+    mesh = DummySphericalMesh()
+    cosmology = EinsteinDeSitter.from_code_units(units)
+    cosmic_time = 2.0
+    tau = cosmology.supercomoving_time(cosmic_time)
+
+    class Par:
+        noghost = 0
+        nogrid = 3
+        time = tau
+        supercomoving_coordinates = True
+    par = Par()
+    par.cosmology = cosmology
+
+    scale_factor = cosmology.scale_factor(cosmic_time)
+    background = cosmology.background_density(cosmic_time) * scale_factor**3
+    gravity = Gravity(
+        selfgravity=True,
+        cosmological=True,
+        cosmology=cosmology,
+        code_units=units,
+    )
+    acceleration = gravity.acceleration_on_mesh(
+        mesh, rho=np.full(3, background), par=par
+    )
+    assert np.allclose(acceleration, 0.0)
+
+
+def test_cosmological_gravity_scales_excess_mass_with_scale_factor():
+    units = _code_units()
+    mesh = DummySphericalMesh()
+    cosmology = EinsteinDeSitter.from_code_units(units)
+    cosmic_time = 2.0
+    tau = cosmology.supercomoving_time(cosmic_time)
+
+    class Par:
+        noghost = 0
+        nogrid = 3
+        time = tau
+        supercomoving_coordinates = True
+    par = Par()
+    par.cosmology = cosmology
+
+    scale_factor = cosmology.scale_factor(cosmic_time)
+    background = cosmology.background_density(cosmic_time) * scale_factor**3
+    density = np.full(3, background)
+    density[0] += 1.0
+    gravity = Gravity(
+        selfgravity=True,
+        cosmological=True,
+        cosmology=cosmology,
+        code_units=units,
+    )
+    acceleration = gravity.acceleration_on_mesh(mesh, rho=density, par=par)
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
+    )
+    expected = np.zeros(3)
+    expected[1:] = -g_code * scale_factor * (4.0 * np.pi / 3.0) / mesh.coordinate[1:]**2
+    assert np.allclose(acceleration, expected)

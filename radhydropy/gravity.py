@@ -131,6 +131,8 @@ class Gravity:
         selfgravity_softening=0.0,
         selfgravity_boundary_acceleration=0.0,
         dark_matter=None,
+        cosmological=False,
+        cosmology=None,
     ):
         self.selfgravity = bool(selfgravity)
         self.externalgravity = bool(externalgravity)
@@ -141,6 +143,8 @@ class Gravity:
         self.selfgravity_softening = float(selfgravity_softening)
         self.selfgravity_boundary_acceleration = float(selfgravity_boundary_acceleration)
         self.dark_matter = dark_matter
+        self.cosmological = bool(cosmological)
+        self.cosmology = cosmology
 
     def has_external_field(self):
         """Return ``True`` when an external field has been configured."""
@@ -261,6 +265,72 @@ class Gravity:
 
         raise ValueError("self-gravity is not implemented for %r meshes" % mesh.coordsys)
 
+    def cosmological_acceleration_on_mesh(self, mesh, rho, par):
+        """Return supercomoving acceleration from enclosed density contrast.
+
+        The mesh coordinate is comoving radius ``x`` and ``rho`` is comoving
+        density ``varrho``. The homogeneous background is removed before
+        applying the spherical Poisson equation,
+
+        ``g_sc = -G * a * DeltaM(<x) / x**2``.
+        """
+        if not self.cosmological:
+            return np.zeros_like(mesh.coordinate, dtype=float)
+        if getattr(mesh, "coordsys", None) != "spherical":
+            raise ValueError("cosmological gravity currently requires a spherical mesh")
+        cosmology = self.cosmology or getattr(par, "cosmology", None)
+        if cosmology is None:
+            raise ValueError("cosmological gravity requires par.cosmology")
+        if not getattr(par, "supercomoving_coordinates", False):
+            raise ValueError("cosmological gravity requires supercomoving coordinates")
+        code_units = _require_code_units(_code_units(self))
+        density = np.asarray(
+            quantity_to_value(rho, code_units.density_unit), dtype=float
+        )
+        boundaries = np.asarray(
+            quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
+        )
+        coordinate = np.asarray(
+            quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float
+        )
+        volume = np.asarray(
+            quantity_to_value(mesh.vol, code_units.volume_unit), dtype=float
+        )
+        first = int(par.noghost)
+        last = first + int(par.nogrid)
+        interior = slice(first, last)
+        if not (density.shape == coordinate.shape == volume.shape):
+            raise ValueError("cosmological gravity inputs must match mesh shape")
+        tau = float(np.asarray(getattr(par, "time", 0.0), dtype=float))
+        # A simulation's fluid time is authoritative once the run has started.
+        if hasattr(par, "fluid_time"):
+            tau = float(np.asarray(par.fluid_time, dtype=float))
+        cosmic_time = cosmology.cosmic_time_from_supercomoving(tau)
+        scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+        background_physical = float(cosmology.background_density(cosmic_time))
+        background_comoving = background_physical * scale_factor**3
+
+        inner = np.maximum(boundaries[first:last], 0.0)
+        outer = np.maximum(boundaries[first + 1:last + 1], 0.0)
+        density_excess = density[interior] - background_comoving
+        shell_volume = 4.0 * np.pi / 3.0 * (outer**3 - inner**3)
+        enclosed_before = np.concatenate(
+            ([0.0], np.cumsum(density_excess[:-1] * shell_volume[:-1]))
+        )
+        radii = coordinate[interior]
+        partial_volume = 4.0 * np.pi / 3.0 * np.maximum(
+            radii**3 - inner**3, 0.0
+        )
+        enclosed_excess = enclosed_before + density_excess * partial_volume
+        g_code = _gravitational_constant_code(code_units)
+        radius = np.maximum(radii, np.finfo(float).tiny)
+        result = np.zeros_like(coordinate)
+        result[interior] = -g_code * scale_factor * enclosed_excess / radius**2
+        origin = np.flatnonzero((inner <= 0.0) & (outer > 0.0))
+        if origin.size:
+            result[first + origin[0]] = 0.0
+        return result
+
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
         """Return the total external plus self-gravity acceleration."""
         if (
@@ -272,10 +342,13 @@ class Gravity:
         total = np.zeros_like(mesh.coordinate, dtype=float)
         if self.externalgravity:
             total += self.acceleration_on(mesh.coordinate)
-        if self.selfgravity:
+        if self.selfgravity or self.cosmological:
             if rho is None or par is None:
                 raise ValueError("rho and par are required when selfgravity is enabled")
-            total += self.self_acceleration_on_mesh(mesh, rho, par)
+            if self.cosmological:
+                total += self.cosmological_acceleration_on_mesh(mesh, rho, par)
+            else:
+                total += self.self_acceleration_on_mesh(mesh, rho, par)
         if self.dark_matter is not None:
             total += self.dark_matter_acceleration_on_mesh(mesh, rho, par)
         return total

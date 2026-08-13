@@ -1,6 +1,40 @@
 Gravity
 =======
 
+Cosmological supercomoving gravity
+-----------------------------------
+
+For a supercomoving spherical simulation, enable cosmological gravity with
+``cosmological_gravity: true`` and ``supercomoving_coordinates: true``. The
+gravity model then subtracts the homogeneous comoving background density and
+uses the enclosed excess mass:
+
+.. math::
+
+   \Delta M(<x)=4\pi\int_0^x
+   [\varrho(x')-\bar{\varrho}]x'^2\,dx',
+   \qquad
+   g_{\rm sc}(x)=-\frac{G a\,\Delta M(<x)}{x^2}.
+
+Here ``x`` is the comoving radius, ``varrho`` is the comoving gas density, and
+``a`` is obtained from ``par.cosmology`` at the current supercomoving time.
+The homogeneous background therefore produces zero peculiar acceleration;
+only density contrast collapses or expands relative to the cosmological
+background.
+
+The public interface is::
+
+   gravity = Gravity(
+       selfgravity=True,
+       cosmological=True,
+       cosmology=par.cosmology,
+       code_units=par.CodeUnits,
+   )
+
+The solver also constructs this mode automatically when
+``par.cosmological_gravity`` is enabled. Existing physical-coordinate
+``selfgravity`` and external-gravity calculations are unchanged.
+
 RadHydropy can use an optional external gravitational field through
 :class:`radhydropy.gravity.Gravity`. The field can be supplied either as a
 tabulated potential, a callable, or a direct acceleration profile.

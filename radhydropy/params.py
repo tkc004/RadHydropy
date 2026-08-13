@@ -26,6 +26,7 @@ refparams = {
     'gravity_acceleration': None,
     'selfgravity_softening': 0.0 * unyt.cm,
     'selfgravity_boundary_acceleration': 0.0 * unyt.cm / unyt.s**2,
+    'cosmological_gravity': False,
     'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
     'gamma':1.4, # for polytropic, the polytropic index
     'timesim':2.0*unyt.s, # final simulation time

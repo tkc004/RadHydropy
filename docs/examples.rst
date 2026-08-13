@@ -50,6 +50,12 @@ Available Examples
        shell time-evolution reference.
    * - ``example/EinsteinDeSitterHomogeneous1D``
      - Phase 1 homogeneous Einstein--de Sitter supercomoving expansion diagnostic.
+   * - ``example/EinsteinDeSitterTopHatGravity1D``
+     - Spherical supercomoving top-hat overdensity with an analytic cosmological
+       self-gravity field.
+   * - ``example/EinsteinDeSitterTopHatGrowth1D``
+     - Cold spherical top-hat evolved as an Einstein--de Sitter linear-growth
+       benchmark.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally
