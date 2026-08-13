@@ -120,7 +120,7 @@ class DarkMatterShells:
         result = result + 0.5 * (prefix[right] - prefix[left])
         return np.asarray(result, dtype=float)
 
-    def gravitating_enclosed_mass(self, radius=None):
+    def gravitating_enclosed_mass(self, radius=None, include_shell_mass_with_fixed=False):
         """Return dynamic plus configured fixed enclosed mass."""
         if radius is None:
             radius = self.radius
@@ -131,6 +131,8 @@ class DarkMatterShells:
             fixed = np.asarray(self.fixed_enclosed_mass(radius), dtype=float)
         else:
             fixed = np.full_like(radius, self.fixed_enclosed_mass)
+        if include_shell_mass_with_fixed:
+            return fixed + self.enclosed_mass(radius)
         return fixed
 
     def acceleration(
@@ -139,6 +141,7 @@ class DarkMatterShells:
         background_enclosed_mass=None,
         scale_factor=1.0,
         cosmological=False,
+        include_shell_mass_with_fixed=False,
     ):
         """Return shell gravity and angular-momentum accelerations.
 
@@ -148,7 +151,9 @@ class DarkMatterShells:
         ``-G*a*DeltaM/(x+softening)**2``.
         """
         g_code = _gravitational_constant_code(self.CodeUnits)
-        enclosed = self.gravitating_enclosed_mass()
+        enclosed = self.gravitating_enclosed_mass(
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed
+        )
         if gas_enclosed_mass is not None:
             enclosed = enclosed + np.asarray(gas_enclosed_mass, dtype=float)
         if cosmological and background_enclosed_mass is not None:
@@ -178,6 +183,7 @@ class DarkMatterShells:
         scale_factor=1.0,
         scale_factor_end=None,
         cosmological=False,
+        include_shell_mass_with_fixed=False,
     ):
         """Advance one kick-drift-kick step, limiting ``dt`` before crossing."""
         dt = float(dt)
@@ -194,6 +200,7 @@ class DarkMatterShells:
             background_enclosed_mass=background_enclosed_mass,
             scale_factor=scale_factor,
             cosmological=cosmological,
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
         )
         velocity_half = self.velocity + 0.5 * actual_dt * acceleration
         self.radius = self.radius + actual_dt * velocity_half
@@ -206,6 +213,7 @@ class DarkMatterShells:
             background_enclosed_mass=background_enclosed_mass,
             scale_factor=scale_factor_end,
             cosmological=cosmological,
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
         )
         self.velocity += 0.5 * actual_dt * acceleration_new
         return actual_dt

@@ -59,6 +59,9 @@ Available Examples
    * - ``example/EinsteinDeSitterDarkMatterShellGrowth1D``
      - Collisionless dark-matter shell background and top-hat linear-growth
        benchmark in an Einstein--de Sitter cosmology.
+   * - ``example/BertschingerReference``
+     - Collisionless radial Bertschinger ``epsilon=1`` similarity reference
+       profiles in an Einstein--de Sitter universe.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally
@@ -146,3 +149,4 @@ Detailed Example Pages
    multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr
    dynamic_stromgren_sphere_photoheating1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
+   bertschinger_reference

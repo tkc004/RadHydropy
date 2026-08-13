@@ -402,6 +402,7 @@ class Gravity:
             scale_factor=scale_factor_start,
             scale_factor_end=scale_factor,
             cosmological=self.cosmological,
+            include_shell_mass_with_fixed=self.cosmological,
         )
 
     def force_density_on_mesh(self, mesh, rho):
