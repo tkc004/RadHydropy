@@ -9,6 +9,7 @@ from radhydropy.dark_matter import enclosed_gas_mass
 from radhydropy.gravity import Gravity
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
+from radhydropy.cosmology import EinsteinDeSitter
 
 
 def code_units():
@@ -165,6 +166,27 @@ def test_dark_matter_shell_force_includes_enclosed_gas_mass():
         units.length_in_cgs * units.velocity_in_cgs**2
     )
     expected = -g_code * (0.5 + gas_mass) / 2.0**2
+    assert np.allclose(acceleration, expected)
+
+
+def test_cosmological_shell_force_subtracts_background_and_scales_with_a():
+    units = code_units()
+    cosmology = EinsteinDeSitter.from_code_units(units)
+    shells = DarkMatterShells(
+        radius=[2.0], velocity=[0.0], mass=[5.0], code_units=units,
+    )
+    gas_mass = 7.0
+    background_mass = 3.0
+    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
+        units.length_in_cgs * units.velocity_in_cgs**2
+    )
+    acceleration = shells.acceleration(
+        gas_enclosed_mass=np.array([gas_mass]),
+        background_enclosed_mass=np.array([background_mass]),
+        scale_factor=2.5,
+        cosmological=True,
+    )
+    expected = -g_code * 2.5 * (0.5 * 5.0 + gas_mass - background_mass) / 2.0**2
     assert np.allclose(acceleration, expected)
 
 

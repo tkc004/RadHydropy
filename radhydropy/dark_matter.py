@@ -120,19 +120,41 @@ class DarkMatterShells:
         result = result + 0.5 * (prefix[right] - prefix[left])
         return np.asarray(result, dtype=float)
 
-    def acceleration(self, gas_enclosed_mass=None):
-        """Return shell accelerations from self-gravity and angular momentum."""
-        g_code = _gravitational_constant_code(self.CodeUnits)
+    def gravitating_enclosed_mass(self, radius=None):
+        """Return dynamic plus configured fixed enclosed mass."""
+        if radius is None:
+            radius = self.radius
+        radius = np.asarray(radius, dtype=float)
         if self.fixed_enclosed_mass is None:
-            enclosed = self.enclosed_mass()
-        elif callable(self.fixed_enclosed_mass):
-            enclosed = np.asarray(self.fixed_enclosed_mass(self.radius), dtype=float)
+            return self.enclosed_mass(radius)
+        if callable(self.fixed_enclosed_mass):
+            fixed = np.asarray(self.fixed_enclosed_mass(radius), dtype=float)
         else:
-            enclosed = np.full_like(self.radius, self.fixed_enclosed_mass)
+            fixed = np.full_like(radius, self.fixed_enclosed_mass)
+        return fixed
+
+    def acceleration(
+        self,
+        gas_enclosed_mass=None,
+        background_enclosed_mass=None,
+        scale_factor=1.0,
+        cosmological=False,
+    ):
+        """Return shell gravity and angular-momentum accelerations.
+
+        In cosmological supercomoving coordinates, ``gas_enclosed_mass`` and
+        shell masses are comoving masses, ``background_enclosed_mass`` is the
+        homogeneous cosmological mass, and the gravitational term is
+        ``-G*a*DeltaM/(x+softening)**2``.
+        """
+        g_code = _gravitational_constant_code(self.CodeUnits)
+        enclosed = self.gravitating_enclosed_mass()
         if gas_enclosed_mass is not None:
             enclosed = enclosed + np.asarray(gas_enclosed_mass, dtype=float)
+        if cosmological and background_enclosed_mass is not None:
+            enclosed = enclosed - np.asarray(background_enclosed_mass, dtype=float)
         radius = np.maximum(self.radius, np.finfo(float).tiny)
-        gravity = -g_code * enclosed / (self.radius + self.softening) ** 2
+        gravity = -g_code * float(scale_factor) * enclosed / (self.radius + self.softening) ** 2
         centrifugal = self.angular_momentum**2 / radius**3
         return gravity + centrifugal
 
@@ -147,7 +169,16 @@ class DarkMatterShells:
             return np.inf
         return float(safety_factor * np.min(candidates))
 
-    def step(self, dt, crossing_safety_factor=0.1, gas_enclosed_mass=None):
+    def step(
+        self,
+        dt,
+        crossing_safety_factor=0.1,
+        gas_enclosed_mass=None,
+        background_enclosed_mass=None,
+        scale_factor=1.0,
+        scale_factor_end=None,
+        cosmological=False,
+    ):
         """Advance one kick-drift-kick step, limiting ``dt`` before crossing."""
         dt = float(dt)
         crossing_dt = self.crossing_timestep(safety_factor=1.0)
@@ -158,12 +189,24 @@ class DarkMatterShells:
             actual_dt = crossing_dt * (1.0 + max(crossing_safety_factor, 1.0e-10))
         else:
             actual_dt = dt
-        acceleration = self.acceleration(gas_enclosed_mass=gas_enclosed_mass)
+        acceleration = self.acceleration(
+            gas_enclosed_mass=gas_enclosed_mass,
+            background_enclosed_mass=background_enclosed_mass,
+            scale_factor=scale_factor,
+            cosmological=cosmological,
+        )
         velocity_half = self.velocity + 0.5 * actual_dt * acceleration
         self.radius = self.radius + actual_dt * velocity_half
         self.velocity = velocity_half
         self.sort_by_radius()
-        acceleration_new = self.acceleration(gas_enclosed_mass=gas_enclosed_mass)
+        if scale_factor_end is None:
+            scale_factor_end = scale_factor
+        acceleration_new = self.acceleration(
+            gas_enclosed_mass=gas_enclosed_mass,
+            background_enclosed_mass=background_enclosed_mass,
+            scale_factor=scale_factor_end,
+            cosmological=cosmological,
+        )
         self.velocity += 0.5 * actual_dt * acceleration_new
         return actual_dt
 

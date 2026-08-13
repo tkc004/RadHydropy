@@ -22,6 +22,12 @@ The homogeneous background therefore produces zero peculiar acceleration;
 only density contrast collapses or expands relative to the cosmological
 background.
 
+If live dark-matter shells are attached through ``dark_matter=...``, their
+enclosed mass is added to ``Delta M``. The shell force uses the same gas mass,
+dark-matter mass, background subtraction, and factor of ``a``. This keeps the
+gas and collisionless components dynamically consistent in a cosmological
+run.
+
 The public interface is::
 
    gravity = Gravity(

@@ -56,6 +56,9 @@ Available Examples
    * - ``example/EinsteinDeSitterTopHatGrowth1D``
      - Cold spherical top-hat evolved as an Einstein--de Sitter linear-growth
        benchmark.
+   * - ``example/EinsteinDeSitterDarkMatterShellGrowth1D``
+     - Collisionless dark-matter shell background and top-hat linear-growth
+       benchmark in an Einstein--de Sitter cosmology.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally

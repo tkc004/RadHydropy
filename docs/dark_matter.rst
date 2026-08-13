@@ -53,6 +53,26 @@ linear estimate
 when the inner shell is catching the outer shell. The example advances just
 through the event and resorts the shell records.
 
+Cosmological coupling
+---------------------
+
+With ``cosmological_gravity`` and supercomoving coordinates enabled, gas and
+dark matter use one common excess-mass field. For a shell at comoving radius
+``x``,
+
+.. math::
+
+   \frac{d^2x}{d\tau^2} =
+   -\frac{G a}{(x+a_\mathrm{soft})^2}
+   [M_\mathrm{gas}(<x)+M_\mathrm{DM}(<x)-M_\mathrm{bg}(<x)]
+   +\frac{j^2}{x^3},
+
+where ``M_bg`` is the homogeneous comoving background mass. Gas cells use the
+same expression, with the live shell mass added to their enclosed mass. The
+scale factor and background density are evaluated at the current
+supercomoving time, so a homogeneous gas-plus-dark-matter background has zero
+peculiar acceleration.
+
 Fixed enclosed-mass analytic benchmark
 ---------------------------------------
 
@@ -126,6 +146,7 @@ The shell model currently supports:
 * code-unit input through :class:`radhydropy.units.CodeUnits`.
 * mutual spherical gas--dark-matter gravity through
   ``GasDarkMatterShellCoupling1D``;
+* cosmological supercomoving gas--dark-matter excess-mass coupling;
 * gas and dark-matter total-mass diagnostics;
 * ``DarkMatter`` snapshot output groups.
 
@@ -133,7 +154,6 @@ It does not yet support:
 
 * live particle deposition onto a gas mesh;
 * exact crossing-event energy exchange;
-* automatic reconstruction of a live shell object from a restart snapshot;
 * non-spherical dark-matter dynamics.
 
 These limitations are intentional while the isolated shell integrator is being

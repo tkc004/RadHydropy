@@ -1,0 +1,28 @@
+runparams:
+  simname: EinsteinDeSitterDarkMatterShellGrowth1D
+  savedir: .
+  cosmology_t_ref: 1.0
+  cosmology_a_ref: 1.0
+  final_cosmic_time: 1.1
+  supercomoving_timestep: 0.0005
+  crossing_safety_factor: 0.1
+  homogeneous_acceleration_tolerance: 1.0e-7
+  growth_tolerance: 0.08
+  CodeUnits:
+    name: einstein_de_sitter_dark_matter_shell_growth_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0e33
+      UnitLength_in_cgs: 3.08567758e18
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  number_of_inner_shells: 1024
+  number_of_outer_shells: 1024
+  inner_radius: 0.0
+  outer_radius: 2.0
+  top_hat_radius: 0.5
+  overdensity: 0.01
+  cosmic_time: 1.0
+  softening: 0.0

@@ -322,6 +322,8 @@ class Gravity:
             radii**3 - inner**3, 0.0
         )
         enclosed_excess = enclosed_before + density_excess * partial_volume
+        if self.dark_matter is not None:
+            enclosed_excess += self.dark_matter.gravitating_enclosed_mass(radii)
         g_code = _gravitational_constant_code(code_units)
         radius = np.maximum(radii, np.finfo(float).tiny)
         result = np.zeros_like(coordinate)
@@ -349,7 +351,7 @@ class Gravity:
                 total += self.cosmological_acceleration_on_mesh(mesh, rho, par)
             else:
                 total += self.self_acceleration_on_mesh(mesh, rho, par)
-        if self.dark_matter is not None:
+        if self.dark_matter is not None and not self.cosmological:
             total += self.dark_matter_acceleration_on_mesh(mesh, rho, par)
         return total
 
@@ -361,7 +363,7 @@ class Gravity:
         coordinate = np.asarray(
             quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float
         )
-        enclosed = self.dark_matter.enclosed_mass(coordinate)
+        enclosed = self.dark_matter.gravitating_enclosed_mass(coordinate)
         radius = np.maximum(coordinate, np.finfo(float).tiny)
         acceleration = -_gravitational_constant_code(code_units) * enclosed / (
             radius + self.dark_matter.softening
@@ -373,10 +375,33 @@ class Gravity:
         if self.dark_matter is None:
             return 0.0
         gas_mass = enclosed_gas_mass(mesh, rho, self.dark_matter.radius, par)
+        if self.cosmological:
+            cosmology = self.cosmology or getattr(par, "cosmology", None)
+            if cosmology is None or not getattr(par, "supercomoving_coordinates", False):
+                raise ValueError(
+                    "cosmological dark-matter shells require supercomoving cosmology"
+                )
+            tau = float(np.asarray(getattr(par, "fluid_time", getattr(par, "time", 0.0)), dtype=float))
+            cosmic_time = cosmology.cosmic_time_from_supercomoving(tau)
+            scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+            tau_start = tau - float(dt)
+            if tau_start < 0.0:
+                tau_start = tau
+            scale_factor_start = float(cosmology.scale_factor_from_supercomoving(tau_start))
+            background_density = float(cosmology.background_density(cosmic_time)) * scale_factor**3
+            background_mass = 4.0 * np.pi / 3.0 * background_density * self.dark_matter.radius**3
+        else:
+            scale_factor = 1.0
+            scale_factor_start = 1.0
+            background_mass = None
         return self.dark_matter.step(
             dt,
             crossing_safety_factor=crossing_safety_factor,
             gas_enclosed_mass=gas_mass,
+            background_enclosed_mass=background_mass,
+            scale_factor=scale_factor_start,
+            scale_factor_end=scale_factor,
+            cosmological=self.cosmological,
         )
 
     def force_density_on_mesh(self, mesh, rho):
