@@ -20,6 +20,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
 import tools as et
+from bertschinger_ode import plot_xi_lambda, solve_eq41_self_similar
 from radhydropy.example_config import load_example_parameters
 
 
@@ -64,6 +65,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
     profiles = et.similarity_profiles(shells, final_time, cosmology,
                                       bins=int(runparams['profile_bins']))
+    ode_solution = solve_eq41_self_similar(
+        xi_end=float(runparams['ode_xi_end']),
+        points=int(runparams['ode_points']),
+        similarity_exponent=float(runparams['ode_similarity_exponent']),
+    )
     if not np.all(np.isfinite(profiles['density'])):
         raise RuntimeError('similarity density profile contains non-finite values')
     if not np.all(np.diff(shells.radius) >= 0.0):
@@ -80,7 +86,37 @@ def main(config_filename=DEFAULT_CONFIG):
         'InitialCosmicTime': initial_time,
         'FinalCosmicTime': final_time,
         'PerturbationMass': delta_mass,
+        'SimilarityEquation': 'Bertschinger1985_Eq4.1_collisionless_shell',
+        'ODEInitialLambda': 1.0,
+        'ODEInitialLambdaPrime': -8.0 / 9.0,
+        'ODEPoints': int(runparams['ode_points']),
+        'ODESimilarityExponent': float(runparams['ode_similarity_exponent']),
+        'ODEMassNormalization': 9.0 * np.pi**2 / 16.0,
     })
+    output_ode = Path(runparams['savedir']) / 'BertschingerEq41ODE.hdf5'
+    et.write_reference(output_ode, {
+        'xi': ode_solution.xi,
+        'lambda': ode_solution.lam,
+        'lambda_prime': ode_solution.lam_prime,
+        'mass': ode_solution.mass,
+        'turnaround_radius': 1.0,
+    }, {
+        'Solution': 'Bertschinger1985_collisionless_shell_ODE',
+        'Equation': 'Bertschinger1985_Eq4.1',
+        'MassClosure': 'normalized_first_stream_exp_minus_2s_xi_over_3',
+        'InitialLambda': 1.0,
+        'InitialLambdaPrime': -8.0 / 9.0,
+        'AngularMomentum': 0.0,
+        'XiEnd': float(runparams['ode_xi_end']),
+        'Points': int(runparams['ode_points']),
+        'SimilarityExponent': float(runparams['ode_similarity_exponent']),
+        'MassNormalization': 9.0 * np.pi**2 / 16.0,
+    })
+    ode_figure = Path(runparams['savedir']) / 'BertschingerEq41XiLambda.jpg'
+    ode_plot = plot_xi_lambda(ode_solution, filename=ode_figure)
+    ode_plot.figure.clf()
+    import matplotlib.pyplot as plt
+    plt.close(ode_plot.figure)
     figure = Path(runparams['savedir']) / 'BertschingerReference.jpg'
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].loglog(profiles['lambda'], np.maximum(profiles['density'], 1.0e-12))
@@ -95,6 +131,8 @@ def main(config_filename=DEFAULT_CONFIG):
     print('Bertschinger collisionless reference generated')
     print('turnaround radius = %.8g' % profiles['turnaround_radius'])
     print('output = %s' % output)
+    print('Eq. 4.1 ODE output = %s' % output_ode)
+    print('Eq. 4.1 xi-lambda figure = %s' % ode_figure)
     print('figure = %s' % figure)
 
 
