@@ -10,8 +10,8 @@ coupling the solution to the hydrodynamic solver.
 The current page describes the collisionless stage of the benchmark. The
 example also integrates Bertschinger (1985) Eq. (4.1), which is the
 dimensionless collisionless shell equation. There are no gas variables in this
-ODE. The adiabatic gas solution, including its accretion shock, is a separate
-extension.
+ODE. The first standalone stage of the adiabatic gas solution, including its
+accretion shock, is documented in ``bertschinger_gas_reference``.
 
 Running the example
 -------------------
@@ -252,6 +252,6 @@ radius must remain positive because the shell representation cannot place a
 live shell exactly at the origin.
 
 The example validates the collisionless radial reference and the
-self-consistent pre-centre Eq. (4.1) trajectory. It does not solve the
-separate adiabatic gas similarity equations or apply a Rankine--Hugoniot
-shock.
+self-consistent pre-centre Eq. (4.1) trajectory. The separate adiabatic gas
+similarity equations and shock matching are handled by
+``BertschingerGasReference``.

@@ -61,6 +61,9 @@ Available Examples
        benchmark in an Einstein--de Sitter cosmology.
    * - ``example/BertschingerReference``
      - Collisionless radial Bertschinger ``epsilon=1`` similarity reference
+   * - ``example/BertschingerGasReference``
+     - Standalone Bertschinger ``epsilon=1``, ``gamma=5/3`` collisional-gas
+       similarity equations and accretion-shock jump reference.
        profiles in an Einstein--de Sitter universe.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
@@ -150,3 +153,4 @@ Detailed Example Pages
    dynamic_stromgren_sphere_photoheating1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
    bertschinger_reference
+   bertschinger_gas_reference
