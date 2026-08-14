@@ -55,6 +55,25 @@ a divergent finite-cutoff reflection.
 The similarity exponent is configured by ``ode_similarity_exponent`` and the
 mass normalization is ``9*pi**2/16`` when the force coefficient is ``2/9``.
 
+DarkMatterShells comparison
+---------------------------
+
+Run ``bertschinger_shell_ode_comparison.py`` to evolve the same shell ICs
+with RadHydropy's live ``DarkMatterShells`` implementation and compare the
+shell ensemble with the Eq. (4.1) trajectory in ``xi``--``lambda``
+coordinates. The comparison evolves to ``t/t_ref=exp(5)`` and writes
+``BertschingerDarkMatterShellsVsODE.jpg``. The shell simulation uses its
+outermost infall/expansion velocity interface as the instantaneous
+turnaround radius. This is a numerical implementation check; agreement with
+the ideal self-similar curve also requires the continuum Bertschinger mass
+normalization and centre matching to converge with shell count and cutoff.
+
+The pre-crossing Lagrangian-shell benchmark is run with
+``bertschinger_shell_pre_crossing.py``. It initializes one shell at
+``r_a`` with zero physical radial velocity, represents the unchanged interior
+with a fixed enclosed-mass profile, and tracks that same shell until its first
+centre passage. It writes ``BertschingerDarkMatterShellPreCrossingVsODE.jpg``.
+
 
 Run with::
 

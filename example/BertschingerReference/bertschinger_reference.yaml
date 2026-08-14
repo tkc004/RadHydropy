@@ -13,6 +13,16 @@ runparams:
   ode_angular_momentum: 0.0
   ode_centre_match_lambda: 0.002
   ode_centre_matching_velocity: 2.30
+  comparison_final_cosmic_time: 148.4131591
+  comparison_timestep: 0.002
+  comparison_snapshot_stride: 5
+  comparison_shell_stride: 16
+  comparison_lambda_max: 2.0
+  pre_crossing_final_xi: 0.9
+  pre_crossing_timestep: 0.0001
+  pre_crossing_match_lambda: 0.002
+  pre_crossing_turnaround_radius: 1.0
+  pre_crossing_softening: 0.00001
   CodeUnits:
     name: bertschinger_reference_unit_system
     InternalUnitSystem:

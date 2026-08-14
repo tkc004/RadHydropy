@@ -157,7 +157,12 @@ class DarkMatterShells:
         if gas_enclosed_mass is not None:
             enclosed = enclosed + np.asarray(gas_enclosed_mass, dtype=float)
         if cosmological and background_enclosed_mass is not None:
-            enclosed = enclosed - np.asarray(background_enclosed_mass, dtype=float)
+            if callable(background_enclosed_mass):
+                background = np.asarray(
+                    background_enclosed_mass(self.radius), dtype=float)
+            else:
+                background = np.asarray(background_enclosed_mass, dtype=float)
+            enclosed = enclosed - background
         radius = np.maximum(self.radius, np.finfo(float).tiny)
         gravity = -g_code * float(scale_factor) * enclosed / (self.radius + self.softening) ** 2
         centrifugal = self.angular_momentum**2 / radius**3
