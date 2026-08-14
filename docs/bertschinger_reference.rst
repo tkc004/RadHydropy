@@ -33,6 +33,40 @@ The default configuration is
   coordinates.
 * ``BertschingerEq41XiLambda.jpg`` — the Eq. (4.1) shell trajectory with
   similarity time ``xi`` on the x-axis and ``lambda`` on the y-axis.
+* ``BertschingerDarkMatterShellPreCrossingVsODE.jpg`` — the direct
+  pre-crossing comparison of one RadHydropy ``DarkMatterShells`` shell with
+  the ODE solution.
+
+Reference figures
+-----------------
+
+The generated density and velocity reference profiles are shown below.
+
+.. figure:: ../example/BertschingerReference/BertschingerReference.jpg
+   :alt: Bertschinger collisionless density and velocity profiles
+   :width: 95%
+
+   Collisionless similarity density and velocity profiles from the shell
+   reference run.
+
+The standalone ODE trajectory includes the repeated post-centre branches
+produced by the alternating-stream closure.
+
+.. figure:: ../example/BertschingerReference/BertschingerEq41XiLambda.jpg
+   :alt: Bertschinger ODE trajectory in xi and lambda
+   :width: 95%
+
+   Eq. (4.1) trajectory: ``xi`` is horizontal and ``lambda`` is vertical.
+
+The focused RadHydropy check tracks the same shell initialized at turnaround.
+Its square markers are simulation samples; the solid curve is the ODE.
+
+.. figure:: ../example/BertschingerReference/BertschingerDarkMatterShellPreCrossingVsODE.jpg
+   :alt: Tracked DarkMatterShells shell compared with the Bertschinger ODE
+   :width: 95%
+
+   Pre-crossing Lagrangian-shell comparison. The shell starts at ``r_a`` with
+   zero physical radial velocity and is followed to its first centre cutoff.
 
 Physical setup
 --------------

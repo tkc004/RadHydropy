@@ -31,6 +31,22 @@ It writes ``BertschingerReference.hdf5`` and
 the collisionless reference stage;
 the adiabatic gas shock solution is a separate follow-up problem.
 
+Generated figures
+------------------
+
+.. figure:: BertschingerReference.jpg
+   :alt: Bertschinger collisionless density and velocity profiles
+   :width: 95%
+
+   Density and velocity profiles from the collisionless shell reference.
+
+.. figure:: BertschingerEq41XiLambda.jpg
+   :alt: Bertschinger Eq. (4.1) xi lambda trajectory
+   :width: 95%
+
+   ODE trajectory with ``xi`` on the horizontal axis and ``lambda`` on the
+   vertical axis.
+
 Eq. 4.1 shell ODE
 ------------------
 
@@ -73,6 +89,13 @@ The pre-crossing Lagrangian-shell benchmark is run with
 ``r_a`` with zero physical radial velocity, represents the unchanged interior
 with a fixed enclosed-mass profile, and tracks that same shell until its first
 centre passage. It writes ``BertschingerDarkMatterShellPreCrossingVsODE.jpg``.
+
+.. figure:: BertschingerDarkMatterShellPreCrossingVsODE.jpg
+   :alt: Pre-crossing DarkMatterShells comparison with the Bertschinger ODE
+   :width: 95%
+
+   Square markers show the tracked RadHydropy shell; the solid line shows the
+   Bertschinger Eq. (4.1) ODE.
 
 
 Run with::
