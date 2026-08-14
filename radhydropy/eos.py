@@ -137,17 +137,33 @@ class EOS:
         par,
         neutral_temperature,
         ionized_temperature,
+        ionized_fraction_threshold=None,
     ):
-        """Apply the piecewise-isothermal closure used by HII-region examples."""
+        """Apply the piecewise-isothermal closure used by HII-region examples.
+
+        If ``ionized_fraction_threshold`` is ``None``, temperature varies
+        continuously with the ionized fraction.  If it is set, cells with
+        ``xHII > ionized_fraction_threshold`` receive the ionized temperature
+        and all other cells receive the neutral temperature.
+        """
         if not self.is_isothermal:
             raise ValueError('piecewise isothermal state requires an isothermal EOS')
 
         interior = slice(par.noghost, par.noghost + par.nogrid)
         ionized_fraction = 1.0 - np.clip(fluid.xHI[interior], 0.0, 1.0)
-        fluid.temp[interior] = (
-            neutral_temperature
-            + ionized_fraction * (ionized_temperature - neutral_temperature)
-        )
+        if ionized_fraction_threshold is None:
+            fluid.temp[interior] = (
+                neutral_temperature
+                + ionized_fraction * (ionized_temperature - neutral_temperature)
+            )
+        else:
+            if not 0.0 <= ionized_fraction_threshold <= 1.0:
+                raise ValueError('ionized_fraction_threshold must be in [0, 1]')
+            fluid.temp[interior] = neutral_temperature
+            ionized = ionized_fraction > ionized_fraction_threshold
+            temperature = np.asarray(fluid.temp[interior])
+            temperature[ionized] = ionized_temperature
+            fluid.temp[interior] = temperature
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )
