@@ -69,6 +69,9 @@ def main(config_filename=DEFAULT_CONFIG):
         xi_end=float(runparams['ode_xi_end']),
         points=int(runparams['ode_points']),
         similarity_exponent=float(runparams['ode_similarity_exponent']),
+        centre_match_lambda=float(runparams['ode_centre_match_lambda']),
+        centre_matching_velocity=float(
+            runparams['ode_centre_matching_velocity']),
     )
     if not np.all(np.isfinite(profiles['density'])):
         raise RuntimeError('similarity density profile contains non-finite values')
@@ -92,6 +95,9 @@ def main(config_filename=DEFAULT_CONFIG):
         'ODEPoints': int(runparams['ode_points']),
         'ODESimilarityExponent': float(runparams['ode_similarity_exponent']),
         'ODEMassNormalization': 9.0 * np.pi**2 / 16.0,
+        'ODECentreMatchLambda': float(runparams['ode_centre_match_lambda']),
+        'ODECentreMatchingVelocity': float(
+            runparams['ode_centre_matching_velocity']),
     })
     output_ode = Path(runparams['savedir']) / 'BertschingerEq41ODE.hdf5'
     et.write_reference(output_ode, {
@@ -103,7 +109,7 @@ def main(config_filename=DEFAULT_CONFIG):
     }, {
         'Solution': 'Bertschinger1985_collisionless_shell_ODE',
         'Equation': 'Bertschinger1985_Eq4.1',
-        'MassClosure': 'normalized_first_stream_exp_minus_2s_xi_over_3',
+        'MassClosure': 'full_alternating_stream_crossing_sum',
         'InitialLambda': 1.0,
         'InitialLambdaPrime': -8.0 / 9.0,
         'AngularMomentum': 0.0,
@@ -111,6 +117,9 @@ def main(config_filename=DEFAULT_CONFIG):
         'Points': int(runparams['ode_points']),
         'SimilarityExponent': float(runparams['ode_similarity_exponent']),
         'MassNormalization': 9.0 * np.pi**2 / 16.0,
+        'CentreMatchLambda': float(runparams['ode_centre_match_lambda']),
+        'CentreMatchingVelocity': float(
+            runparams['ode_centre_matching_velocity']),
     })
     ode_figure = Path(runparams['savedir']) / 'BertschingerEq41XiLambda.jpg'
     ode_plot = plot_xi_lambda(ode_solution, filename=ode_figure)

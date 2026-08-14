@@ -45,13 +45,16 @@ collisionless dark-matter shell equation, not a gas equation:
 The initial conditions are exactly ``lambda(0)=1`` and
 ``lambda'(0)=-8/9``. The solver writes ``BertschingerEq41ODE.hdf5`` with
 ``xi``, ``lambda``, ``lambda_prime``, and ``mass`` datasets. The current ODE
-test uses Bertschinger's normalized first-stream mass closure, sets
-``ode_angular_momentum`` to zero, and stops at the first ``lambda=0`` event.
+test uses Bertschinger's normalized mass closure, sets
+``ode_angular_momentum`` to zero, and continues through shell crossings.
+Each monotonic phase-space branch is retained and the enclosed mass is
+reconstructed with the alternating crossing sum. The centre is treated with
+the explicit ``ode_centre_match_lambda`` and
+``ode_centre_matching_velocity`` asymptotic matching parameters, rather than
+a divergent finite-cutoff reflection.
 The similarity exponent is configured by ``ode_similarity_exponent`` and the
 mass normalization is ``9*pi**2/16`` when the force coefficient is ``2/9``.
 
-The trajectory is one representative shell before its first centre passage;
-no post-centre reflection is included in this reference.
 
 Run with::
 

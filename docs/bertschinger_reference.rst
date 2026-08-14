@@ -173,9 +173,13 @@ equation is normalized by the Einstein--de Sitter background mass inside
    \mathcal M(\lambda(\xi))={9\pi^2\over16}
    \exp[-(2s/3)\xi],
 
-so ``M(1)=9*pi**2/16``. Integration stops at the first ``lambda=0`` event.
-No post-centre reflection or angular-momentum regularization is applied. The
-ODE output is
+so ``M(1)=9*pi**2/16``. The solver then continues through shell crossings.
+Each monotonic phase-space branch is retained and the enclosed mass is
+reconstructed with the full alternating crossing sum. Near the singular
+centre, integration stops at ``ode_centre_match_lambda`` and starts the
+outgoing branch with the finite ``ode_centre_matching_velocity``. This
+controlled asymptotic matching avoids reflecting the divergent finite-cutoff
+velocity. Both parameters are written to the HDF5 header. The ODE output is
 ``BertschingerEq41ODE.hdf5``.
 
 Output format

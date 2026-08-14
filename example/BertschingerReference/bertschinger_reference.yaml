@@ -11,6 +11,8 @@ runparams:
   ode_points: 4096
   ode_similarity_exponent: 1.0
   ode_angular_momentum: 0.0
+  ode_centre_match_lambda: 0.002
+  ode_centre_matching_velocity: 2.30
   CodeUnits:
     name: bertschinger_reference_unit_system
     InternalUnitSystem:
