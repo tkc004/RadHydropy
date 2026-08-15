@@ -83,7 +83,8 @@ class Rsim():
         self.ConvertParametersToCodeUnits()
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid, verbose=getattr(self.par, 'verbose', 0))
-        self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
+        if getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
+            self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
 
     def ConvertToCodeUnits(self):
         """Convert the runtime mesh and fluid state into the internal unit system."""
@@ -280,7 +281,8 @@ class Rsim():
 
     def ApplyThermochemistrySources(self, dt):
         """Apply radiative-transfer and thermo-chemistry source updates."""
-        self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
+        if getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
+            self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
         return self.solver.ApplyThermochemistryFast(
             dt,
             self.mesh,
@@ -590,7 +592,16 @@ class Rsim():
             history['reference_snapshot'] = self._snapshot_static_state(state, time_s)
 
     def _finish_static_thermochemistry(self, state, time_s):
-        state['ngamma'] = rrt.trace_photon_density(state, self.par)
+        if (
+            getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous')
+            == 'c2ray'
+        ):
+            from radhydropy.thermo_networks import c2ray
+
+            state['ngamma'] = state.get('ngamma_cm3')
+            c2ray._ensure_fluid_photon_shape(self.fluid, state['ngamma'])
+        else:
+            state['ngamma'] = rrt.trace_photon_density(state, self.par)
         state['time_s'] = time_s
         rtc.apply_state(state, self.fluid, self.par)
         self.solver.SetBoundary(self.mesh, self.fluid, self.par)
@@ -604,13 +615,31 @@ class Rsim():
     ):
         """Evolve fixed-density thermo-chemistry/radiation source terms."""
         state = rtc.source_state(self.mesh, self.fluid, self.par)
-        ngamma = rrt.trace_photon_density(state, self.par)
-        recombined_photons = 0.0
-        time_s = 0.0
         code_units = getattr(self.par, 'CodeUnits', None)
         final_time_s = time_seconds(final_time, code_units)
         dtmax_s = time_seconds(source_timestep, code_units)
         reference_time_s = self._static_reference_time_seconds(reference_time)
+        if (
+            getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous')
+            == 'c2ray'
+        ):
+            history = rtc.evolve_static_source_state(
+                state,
+                self.par,
+                final_time_s=final_time_s,
+                dtmax_s=dtmax_s,
+                source_rate_s=getattr(self.par, '_static_source_rate_s', 0.0),
+                include_thermal_history=include_thermal_history,
+                reference_time_s=reference_time_s,
+            )
+            self._finish_static_thermochemistry(
+                state,
+                state.get('time_s', final_time_s),
+            )
+            return history
+        ngamma = rrt.trace_photon_density(state, self.par)
+        recombined_photons = 0.0
+        time_s = 0.0
         source_rate_s = getattr(self.par, '_static_source_rate_s', 0.0)
         seconds_to_myr = 1.0 / (1.0 * unyt.Myr).to_value(unyt.s)
         history = self._initial_static_history(

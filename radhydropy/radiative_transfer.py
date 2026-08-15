@@ -29,6 +29,27 @@ class LongCharacteristicResult:
     absorbed_photon_rate: np.ndarray
 
 
+@dataclass
+class TransportGeometry:
+    """Normalized one-dimensional geometry used by radiation transport."""
+
+    boundary_cm: np.ndarray
+    width_cm: np.ndarray
+    volume_cm3: np.ndarray
+    face_area_cm2: np.ndarray
+    coordsys: str
+
+
+@dataclass
+class CausalCellResult:
+    """Transport result for one causally ordered cell."""
+
+    outgoing_rate: np.ndarray
+    absorbed_rate: np.ndarray
+    photon_density: np.ndarray
+    attenuation: np.ndarray
+
+
 def _safe_exp_neg(tau):
     tau = np.asarray(tau, dtype=float)
     return np.exp(-np.clip(tau, 0.0, 700.0))
@@ -114,6 +135,60 @@ def _face_areas_cm2(mesh, coordsys):
         if len(area) == len(boundary) - 1:
             return np.ones(len(boundary)) * area[0]
     return np.ones(len(boundary))
+
+
+def build_transport_geometry(mesh, coordsys=None):
+    """Return normalized geometry for one-dimensional radiation transport."""
+    coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
+    if coordsys not in ("cartesian", "spherical"):
+        raise ValueError("coordsys unknown: %s" % coordsys)
+    boundary = _mesh_boundary_cm(mesh)
+    return TransportGeometry(
+        boundary_cm=boundary,
+        width_cm=_cell_widths_cm(mesh),
+        volume_cm3=_cell_volumes_cm3(mesh, coordsys),
+        face_area_cm2=_face_areas_cm2(mesh, coordsys),
+        coordsys=coordsys,
+    )
+
+
+def propagate_causal_cell(geometry, incoming_rate, optical_depth, cell_index, direction=1):
+    """Propagate grouped photon rates through one causal cell.
+
+    ``incoming_rate`` and ``optical_depth`` have one value per group. The
+    returned absorption is a photon rate, while ``photon_density`` is the
+    cell-averaged number density used by chemistry.
+    """
+    incoming_rate = np.asarray(incoming_rate, dtype=float)
+    optical_depth = np.maximum(np.asarray(optical_depth, dtype=float), 0.0)
+    attenuation = _safe_exp_neg(optical_depth)
+    absorbed_rate = incoming_rate * (-np.expm1(-optical_depth))
+    face_index = cell_index if direction >= 0 else cell_index + 1
+    width = geometry.width_cm[cell_index]
+    volume = geometry.volume_cm3[cell_index]
+    if geometry.coordsys == "spherical":
+        photon_density = (
+            incoming_rate
+            * width
+            * _attenuation_mean(optical_depth)
+            / volume
+            / SPEED_OF_LIGHT_CGS
+        )
+    else:
+        area = geometry.face_area_cm2[face_index]
+        incoming_flux = np.divide(
+            incoming_rate,
+            area,
+            out=np.zeros_like(incoming_rate),
+            where=area > 0.0,
+        )
+        photon_density = incoming_flux * _attenuation_mean(optical_depth) / SPEED_OF_LIGHT_CGS
+    return CausalCellResult(
+        outgoing_rate=incoming_rate * attenuation,
+        absorbed_rate=absorbed_rate,
+        photon_density=photon_density,
+        attenuation=attenuation,
+    )
 
 
 def _face_flux_from_rate(face_rate, face_area_cm2):

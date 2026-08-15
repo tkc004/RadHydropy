@@ -31,11 +31,30 @@ def build_static_problem(config):
         savedir=config.get('savedir', config.get('outdir', '.')),
         area=config.get('area', 1.0 * unyt.cm**2),
         hydrogen_chemistry=config.get('hydrogen_chemistry', False),
+        thermochemistry_network=config.get('thermochemistry_network', 'hydrogen'),
         hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_recombination=config.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=config.get('hydrogen_collisional_ionization', True),
+        hydrogen_thermal_coupling=config.get('hydrogen_thermal_coupling', True),
         hydrogen_ngamma_initial=config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
         hydrogen_sigma_gamma=config.get('hydrogen_sigma_gamma', 0.0 * unyt.cm**2),
         radiative_transfer=config.get('radiative_transfer', True),
         radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=config.get(
+            'radiative_transfer_temporal_scheme', 'instantaneous'
+        ),
+        radiative_transfer_c2ray_max_iterations=config.get(
+            'radiative_transfer_c2ray_max_iterations', 32
+        ),
+        radiative_transfer_c2ray_tolerance=config.get(
+            'radiative_transfer_c2ray_tolerance', 1.0e-6
+        ),
+        radiative_transfer_c2ray_relaxation=config.get(
+            'radiative_transfer_c2ray_relaxation', 1.0
+        ),
+        radiative_transfer_c2ray_nonconvergence=config.get(
+            'radiative_transfer_c2ray_nonconvergence', 'warn'
+        ),
         radiative_transfer_boundary_flux=config.get(
             'radiative_transfer_boundary_flux',
             0.0 / (unyt.cm**2 * unyt.s),
@@ -176,7 +195,11 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
         marker='o',
         ms=3.0,
         lw=0.0,
-        label='RadHydropy long characteristic',
+        label=(
+            'RadHydropy C²-Ray'
+            if getattr(par, 'radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+            else 'RadHydropy long characteristic'
+        ),
     )
     ax.plot(
         radius.to_value(unyt.pc),

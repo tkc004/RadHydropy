@@ -86,7 +86,9 @@ Available Examples
        energy-driven shell reference.
    * - ``example/RadiativeTransferSph1D``
      - Spherical central-source long-characteristic radiative transfer without
-       hydrodynamic or thermo-chemical evolution.
+       hydrodynamic or thermo-chemical evolution. The directory also contains
+       ``radiative_transfer_sph1d_c2ray.yaml`` for the causal C²-Ray source
+       integration.
    * - ``example/MultiFrequencyRadiativeTransferSph1D``
      - Static pure-hydrogen multifrequency radiative transfer with photoheating
        and temperature-dependent thermo-chemistry.

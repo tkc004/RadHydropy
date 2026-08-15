@@ -700,10 +700,11 @@ def apply_state(state, fluid, par):
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     if hasattr(fluid, 'ngamma') and 'ngamma_cm3' in state:
-        fluid.ngamma[interior] = from_unit_value(
-            state['ngamma_cm3'],
-            code.number_density_unit,
-        )
+        target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
+        if np.ndim(target) == 2:
+            fluid.ngamma[:, interior] = target
+        else:
+            fluid.ngamma[interior] = target
     if hasattr(fluid, 'temp') and 'temperature_K' in state:
         fluid.temp[interior] = from_unit_value(
             state['temperature_K'],
@@ -780,7 +781,12 @@ def _fast_source_state(mesh, fluid, par):
             default=DEFAULT_SIGMA_GAMMA,
         ),
         'ngamma_cm3': (
-            to_unit_value(fluid.ngamma[interior], code.number_density_unit)
+            to_unit_value(
+                fluid.ngamma[:, interior]
+                if np.ndim(fluid.ngamma) == 2
+                else fluid.ngamma[interior],
+                code.number_density_unit,
+            )
             if (
                 getattr(par, 'hydrogen_radiation_field', False)
                 or getattr(par, 'radiative_transfer', False)
@@ -876,10 +882,11 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     fluid.xHI[interior] = state['xHI']
     if hasattr(fluid, 'ngamma') and state.get('ngamma_cm3') is not None:
         code = _code_units(par)
-        fluid.ngamma[interior] = from_unit_value(
-            state['ngamma_cm3'],
-            code.number_density_unit,
-        )
+        target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
+        if np.ndim(target) == 2:
+            fluid.ngamma[:, interior] = target
+        else:
+            fluid.ngamma[interior] = target
     if hasattr(fluid, 'mu'):
         fluid.mu[interior] = state['mu']
     code = _code_units(par)
@@ -904,6 +911,16 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         )
         if state.get('thermal_coupling', False):
             fluid.SetPressure()
+
+
+def c2ray_source_state(mesh, fluid, par):
+    """Return the numeric source state used by the C²-Ray integrator."""
+    return _fast_source_state(mesh, fluid, par)
+
+
+def sync_c2ray_state(state, fluid, par):
+    """Copy a C²-Ray numeric source state back to the runtime fluid."""
+    return _fast_sync_state_to_fluid(state, fluid, par)
 
 
 def apply_thermochemistry_fast(dt, mesh, fluid, par):

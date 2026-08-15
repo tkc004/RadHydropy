@@ -337,6 +337,24 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['number_of_cells'], 256)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 1.0)
 
+    def test_radiative_transfer_sph1d_c2ray_uses_yaml_config(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'RadiativeTransferSph1D'
+            / 'radiative_transfer_sph1d_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertTrue(runparams['hydrogen_chemistry'])
+        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(
+            runparams['radiative_transfer_c2ray_nonconvergence'],
+            'raise',
+        )
+        self.assertEqual(icparams['number_of_cells'], 256)
+
     def test_multifrequency_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

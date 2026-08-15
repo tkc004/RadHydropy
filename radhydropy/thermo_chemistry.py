@@ -115,4 +115,38 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
 
 def apply_thermochemistry_fast(dt, mesh, fluid, par):
     """Apply the selected network's fast thermo-chemistry source update."""
+    if (
+        getattr(par, "radiative_transfer", False)
+        and getattr(par, "radiative_transfer_temporal_scheme", "instantaneous")
+        == "c2ray"
+    ):
+        from radhydropy.thermo_networks import c2ray
+
+        return c2ray.apply_fast(dt, mesh, fluid, par)
     return get_network(par).apply_fast(dt, mesh, fluid, par)
+
+
+def evolve_static_source_state(
+    state,
+    par,
+    final_time_s,
+    dtmax_s,
+    source_rate_s=0.0,
+    include_thermal_history=False,
+    reference_time_s=None,
+):
+    """Evolve a fixed-density source state with the selected RT scheme."""
+    scheme = getattr(par, "radiative_transfer_temporal_scheme", "instantaneous")
+    if scheme == "c2ray":
+        from radhydropy.thermo_networks import c2ray
+
+        return c2ray.evolve_static_state(
+            state,
+            par,
+            final_time_s,
+            dtmax_s,
+            source_rate_s=source_rate_s,
+            include_thermal_history=include_thermal_history,
+            reference_time_s=reference_time_s,
+        )
+    raise ValueError(f"unsupported static radiation scheme: {scheme!r}")

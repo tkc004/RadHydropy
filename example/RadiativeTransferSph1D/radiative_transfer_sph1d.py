@@ -59,6 +59,11 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
+    if runparams.get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray':
+        mainrun.EvolveStaticThermochemistry(
+            runparams['final_time'],
+            runparams['evolution_timestep'],
+        )
     rio.write_numbered_hdf5(mainrun, 0)
 
     output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
@@ -71,12 +76,24 @@ def main(config_filename=DEFAULT_CONFIG):
             'radiative_transfer_source_photon_rate',
             runparams.get('source_photon_rate'),
         ),
-        str(Path(runparams['savedir']) / 'RadiativeTransferSph1D.jpg'),
+        str(
+            Path(runparams['savedir'])
+            / (
+                'RadiativeTransferSph1D_C2Ray.jpg'
+                if runparams.get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+                else 'RadiativeTransferSph1D.jpg'
+            )
+        ),
         code_units=runparams.get('CodeUnits'),
     )
 
     print('max relative error = %.3e' % relative_error)
-    print('figure = %s' % (Path(runparams['savedir']) / 'RadiativeTransferSph1D.jpg'))
+    figure_name = (
+        'RadiativeTransferSph1D_C2Ray.jpg'
+        if runparams.get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+        else 'RadiativeTransferSph1D.jpg'
+    )
+    print('figure = %s' % (Path(runparams['savedir']) / figure_name))
 
 
 def parse_args():

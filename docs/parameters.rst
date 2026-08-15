@@ -255,6 +255,24 @@ output file. For example:
    * - ``radiative_transfer_method``
      - Transport method. Currently ``long_characteristics``.
      - string
+   * - ``radiative_transfer_temporal_scheme``
+     - ``instantaneous`` for the existing update or ``c2ray`` for causal,
+       time-averaged C²-Ray source integration. The C²-Ray option currently
+       supports the hydrogen network.
+     - string
+   * - ``radiative_transfer_c2ray_max_iterations``
+     - Maximum opacity iterations for each source cell in C²-Ray mode.
+     - dimensionless
+   * - ``radiative_transfer_c2ray_tolerance``
+     - Absolute neutral-fraction convergence tolerance for each source cell.
+     - dimensionless
+   * - ``radiative_transfer_c2ray_relaxation``
+     - Under-relaxation factor for the C²-Ray mean neutral fraction.
+     - dimensionless
+   * - ``radiative_transfer_c2ray_nonconvergence``
+     - ``warn`` (default), ``raise``, or silent handling after the iteration
+       limit is reached.
+     - string
    * - ``radiative_transfer_boundary_flux``
      - Incident photon number flux for Cartesian rays or spherical boundary
        illumination.

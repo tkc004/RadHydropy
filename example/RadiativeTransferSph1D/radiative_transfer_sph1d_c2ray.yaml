@@ -1,0 +1,60 @@
+runparams:
+  simname: RadiativeTransferSph1D_C2Ray
+  ICfilename: InitialCondition_C2Ray.hdf5
+  outdir: .
+  outfileprefix: Output_C2Ray
+  savedir: .
+  coordsys: spherical
+  boundcond: OpenSph
+  noghost: 2
+  verbose: 0
+  order: 0
+  area:
+    value: 1.0
+    unit: cm**2
+  hydrogen_chemistry: true
+  thermochemistry_network: hydrogen
+  hydrogen_mass_fraction: 1.0
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: false
+  hydrogen_thermal_coupling: false
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  hydrogen_sigma_gamma:
+    value: 1.0e-18
+    unit: cm**2
+  radiative_transfer: true
+  radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: c2ray
+  radiative_transfer_c2ray_max_iterations: 32
+  radiative_transfer_c2ray_tolerance: 1.0e-6
+  radiative_transfer_c2ray_relaxation: 1.0
+  radiative_transfer_c2ray_nonconvergence: raise
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
+  radiative_transfer_source_photon_rate:
+    value: 1.0e49
+    unit: 1/s
+  radiative_transfer_direction: 1
+  final_time:
+    value: 1000.0
+    unit: yr
+  evolution_timestep:
+    value: 1000.0
+    unit: yr
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  number_of_cells: 256
+  boxsize:
+    value: 1.0
+    unit: pc

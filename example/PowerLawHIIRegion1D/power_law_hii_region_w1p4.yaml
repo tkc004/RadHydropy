@@ -26,7 +26,7 @@ runparams:
     unit: cm**2
   CFL: 0.4
   hydro_cfl: 0.4
-  source_cfl: 0.1
+  source_cfl: 1000.0
   boundcond: OpenSph
   noghost: 2
   verbose: 0
@@ -42,7 +42,7 @@ runparams:
   hydrogen_xHI_initial: 1.0
   hydrogen_xHI_inflow: 1.0
   hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 1.0
+  hydrogen_source_CFL: 1000.0
   hydrogen_source_dtmin:
     value: 0.0
     unit: yr
@@ -63,7 +63,7 @@ runparams:
     value: 0.0
     unit: 1/cm**3
   hydrogen_sigma_gamma:
-    value: 8.10e-18
+    value: 1.10e-18
     unit: cm**2
   hydrogen_epsilon_gamma:
     value: 6.33

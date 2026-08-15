@@ -98,6 +98,15 @@ fraction. When ``radiative_transfer=True``, the local analytic
 ``hydrogen_radiation_evolution`` sink is ignored to avoid double attenuation:
 the ray tracer supplies ``n_gamma`` instead.
 
+The optional C²-Ray temporal scheme is selected with
+``radiative_transfer_temporal_scheme: c2ray``. It processes cells in causal
+source-to-boundary order. For each cell it iterates the time-averaged neutral
+fraction, computes the conservative absorbed photon rate, relaxes the local
+hydrogen chemistry over the source timestep, and only then passes the outgoing
+photon rate to the next cell. The default ``instantaneous`` scheme is
+unchanged. The current C²-Ray implementation supports the hydrogen network;
+hydrogen-helium runs continue to use the instantaneous scheme.
+
 Useful parameters are:
 
 .. list-table::
