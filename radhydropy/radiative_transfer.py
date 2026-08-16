@@ -161,6 +161,36 @@ def propagate_causal_cell(geometry, incoming_rate, optical_depth, cell_index, di
     """
     incoming_rate = np.asarray(incoming_rate, dtype=float)
     optical_depth = np.maximum(np.asarray(optical_depth, dtype=float), 0.0)
+    if incoming_rate.size == 1 and optical_depth.size == 1:
+        incoming = float(incoming_rate[0])
+        tau = float(optical_depth[0])
+        attenuation = float(np.exp(-np.clip(tau, 0.0, 700.0)))
+        absorbed_rate = incoming * float(-np.expm1(-tau))
+        width = geometry.width_cm[cell_index]
+        volume = geometry.volume_cm3[cell_index]
+        if abs(tau) > 1.0e-10:
+            attenuation_mean = float(-np.expm1(-tau) / tau)
+        else:
+            attenuation_mean = 1.0
+        if geometry.coordsys == "spherical":
+            photon_density = (
+                incoming
+                * width
+                * attenuation_mean
+                / volume
+                / SPEED_OF_LIGHT_CGS
+            )
+        else:
+            face_index = cell_index if direction >= 0 else cell_index + 1
+            area = geometry.face_area_cm2[face_index]
+            incoming_flux = incoming / area if area > 0.0 else 0.0
+            photon_density = incoming_flux * attenuation_mean / SPEED_OF_LIGHT_CGS
+        return CausalCellResult(
+            outgoing_rate=np.asarray([incoming * attenuation]),
+            absorbed_rate=np.asarray([absorbed_rate]),
+            photon_density=np.asarray([photon_density]),
+            attenuation=np.asarray([attenuation]),
+        )
     attenuation = _safe_exp_neg(optical_depth)
     absorbed_rate = incoming_rate * (-np.expm1(-optical_depth))
     face_index = cell_index if direction >= 0 else cell_index + 1

@@ -158,9 +158,11 @@ def _cell_order(ncell, direction):
     return range(ncell) if direction > 0 else range(ncell - 1, -1, -1)
 
 
-def _cell_value(value, cell):
+def _cell_values(value, ncell):
     array = np.asarray(value, dtype=float)
-    return float(array if array.ndim == 0 else array[cell])
+    if array.ndim == 0:
+        return np.full(ncell, float(array), dtype=float)
+    return array
 
 
 def trace_initial_state(state, par):
@@ -320,20 +322,31 @@ def _advance(state, par, dt_s, update_chemistry):
     relaxation = np.clip(relaxation, 0.0, 1.0)
     recombination = bool(state.get("recombination", True))
     collisional = bool(state.get("collisional_ionization", True))
+    alpha_parameter = state.get("alpha_B_cm3_s")
+    beta_parameter = state.get("beta_cm3_s")
+    alpha_values = (
+        hydrogen._cgs_alpha_B(temperature)
+        if alpha_parameter is None
+        else _cell_values(alpha_parameter, ncell)
+    )
+    beta_values = (
+        hydrogen._cgs_beta(temperature)
+        if beta_parameter is None
+        else _cell_values(beta_parameter, ncell)
+    )
 
     for cell in _cell_order(ncell, direction):
-        incoming_cell = incoming.copy()
+        incoming_cell = incoming
         x0 = x_initial[cell]
         xmean = x0
         cell_converged = not update_chemistry or dt_s == 0.0
         tau = np.zeros(ngroup, dtype=float)
         xfinal = x0
+        cell_transport = None
 
         iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
         for iteration in iteration_range:
             tau = np.maximum(sigma * nH[cell] * xmean * width[cell], 0.0)
-            attenuation = np.exp(-np.clip(tau, 0.0, 700.0))
-            qabs = incoming_cell * (-np.expm1(-tau))
             cell_transport = rrt.propagate_causal_cell(
                 geometry,
                 incoming_cell,
@@ -341,27 +354,16 @@ def _advance(state, par, dt_s, update_chemistry):
                 cell,
                 direction,
             )
-            ngamma_cell = cell_transport.photon_density
-            photon_rate = np.sum(qabs) / max(nH[cell] * xmean * volume[cell], 1.0e-99)
+            photon_rate = np.sum(cell_transport.absorbed_rate) / max(
+                nH[cell] * xmean * volume[cell], 1.0e-99
+            )
             if not update_chemistry or dt_s == 0.0:
                 xfinal = x0
                 xnew_mean = x0
                 break
             else:
-                alpha_parameter = state.get("alpha_B_cm3_s")
-                beta_parameter = state.get("beta_cm3_s")
-                if alpha_parameter is None:
-                    alpha = hydrogen._cgs_alpha_B(
-                        np.asarray([temperature[cell]])
-                    )[0]
-                else:
-                    alpha = _cell_value(alpha_parameter, cell)
-                if beta_parameter is None:
-                    beta = hydrogen._cgs_beta(
-                        np.asarray([temperature[cell]])
-                    )[0]
-                else:
-                    beta = _cell_value(beta_parameter, cell)
+                alpha = alpha_values[cell]
+                beta = beta_values[cell]
                 electron_density = nH[cell] * (1.0 - xmean)
                 recombination_rate = electron_density * alpha if recombination else 0.0
                 collisional_rate = electron_density * beta if collisional else 0.0
@@ -400,13 +402,6 @@ def _advance(state, par, dt_s, update_chemistry):
         mean_fraction[cell] = xmean
         final_fraction[cell] = np.clip(xfinal, 1.0e-12, 1.0 - 1.0e-12)
 
-        cell_transport = rrt.propagate_causal_cell(
-            geometry,
-            incoming_cell,
-            tau,
-            cell,
-            direction,
-        )
         absorbed[:, cell] = cell_transport.absorbed_rate / volume[cell]
         photon_density[:, cell] = cell_transport.photon_density
         incoming = cell_transport.outgoing_rate
