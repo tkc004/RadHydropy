@@ -69,6 +69,13 @@ Opacity is iterated from the time-averaged species fractions before the
 outgoing photon rate is passed onward. The local solve uses damped Newton
 iterations and substeps a stiff cell only when needed.
 
+The local multigroup field is represented as ``(group, cell)`` before rates
+are evaluated, so all configured groups are summed for each species. In
+particular, He II photoionization uses the groups above its 54.4 eV threshold;
+the high-energy groups must not be discarded when a cell is solved locally.
+The resulting photon density is synchronized back to ``fluid.ngamma`` after
+the source step.
+
 Hydrogen--Helium Microphysics
 -----------------------------
 

@@ -30,11 +30,6 @@ This writes ``InitialCondition_C2Ray.hdf5``, ``Output_C2Ray_000.hdf5``, and
 are transported causally from the central source while the hydrogen state and
 temperature evolve over the 0.5 Myr source steps.
 
-For a timestep check, the configuration
-``multifrequency_radiative_transfer_sph1d_c2ray_dt0p05.yaml`` repeats the
-calculation with ``evolution_timestep = 0.05 Myr`` and writes separate
-``dt0p05`` outputs.
-
 HDF5 spectrum input
 -------------------
 
@@ -144,6 +139,12 @@ It writes ``Output_C2Ray_*.hdf5`` and
 the local coupled H/He and thermal solve uses the transmitted multifrequency
 photon field, and the resulting time-averaged H I, He I, and He II opacity is
 used for the next causal transport update.
+
+All five photon groups contribute to the local photoionization and
+photoheating rates. This is essential for helium: He II can only absorb
+photons above 54.4 eV, so the fourth and fifth groups drive the He III profile.
+The evolved group photon densities are also copied back to ``fluid.ngamma``
+and are therefore available in the HDF5 output.
 
 .. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr/HHe_multifrequency_snapshot_vs_reference.jpg
    :width: 100%

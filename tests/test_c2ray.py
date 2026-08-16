@@ -1,8 +1,10 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 
 from radhydropy.thermo_networks import c2ray
+from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 
 
@@ -17,6 +19,11 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitTemp_in_cgs": 1.0,
         },
     }
+)
+METAL_PIE_TABLE = (
+    Path(__file__).resolve().parents[2]
+    / "metal_pie_table"
+    / "metal_pie_table_Z1_metals.h5"
 )
 
 
@@ -131,3 +138,43 @@ def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
     absorbed_rate = np.sum(result.absorbed_photon_rate * state["volume_cm3"])
     outgoing_rate = np.sum(result.outgoing_photon_rate)
     np.testing.assert_allclose(incoming_rate, absorbed_rate + outgoing_rate)
+
+
+def test_c2ray_hydrogen_helium_pie_enters_implicit_thermal_rate():
+    table = MetalPIETable(METAL_PIE_TABLE)
+    state = make_state(ncell=1)
+    state.update(
+        {
+            "hydrogen_mass_fraction": 0.75,
+            "helium_mass_fraction": 0.25,
+            "xHI": np.array([0.5]),
+            "xHeI": np.array([0.25]),
+            "xHeIII": np.array([0.25]),
+            "specific_energy_erg_g": np.array([2.0e12]),
+            "gamma": 5.0 / 3.0,
+            "mu": np.ones(1),
+            "sigma_gamma_cm2": {
+                "HI": np.array([1.0e-18, 1.0e-18]),
+                "HeI": np.array([2.0e-18, 2.0e-18]),
+                "HeII": np.array([0.0, 1.0e-18]),
+            },
+            "epsilon_gamma_erg": {
+                "HI": np.array([1.0e-11, 1.0e-11]),
+                "HeI": np.array([1.0e-11, 1.0e-11]),
+                "HeII": np.array([0.0, 1.0e-11]),
+            },
+            "metal_pie_table": table,
+            "metallicity": 1.0,
+        }
+    )
+    photon_density = np.array([[1.0e-4], [2.0e-4]])
+    with_pie = c2ray._hhe_cell_state(state, 0)
+    without_pie = c2ray._hhe_cell_state(state, 0)
+    without_pie["metal_pie_table"] = None
+    pie_derivative = c2ray._hhe_derivative(with_pie, photon_density)
+    hhe_derivative = c2ray._hhe_derivative(without_pie, photon_density)
+
+    # The ionization derivatives are unchanged by the metal-only table, while
+    # the implicit thermal derivative contains its net heating/cooling rate.
+    np.testing.assert_allclose(pie_derivative[:3], hhe_derivative[:3])
+    assert not np.isclose(pie_derivative[3], hhe_derivative[3])

@@ -1,10 +1,10 @@
 runparams:
-  simname: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr
-  ICfilename: InitialCondition.hdf5
+  simname: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray
+  ICfilename: InitialCondition_C2Ray.hdf5
   outdir: .
-  outfileprefix: Output
+  outfileprefix: Output_C2Ray
   savedir: .
-  figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_PIE.jpg
+  figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray_PIE.jpg
   coordsys: spherical
   boundcond: OpenSph
   noghost: 2
@@ -23,7 +23,9 @@ runparams:
   hydrogen_initial_collisional_equilibrium: true
   radiative_transfer: true
   radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: c2ray
   radiative_transfer_direction: 1
+  radiative_transfer_c2ray_nonconvergence: raise
   radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB30000K_5groups_HHe.h5
   stellar_spectrum_blackbody_temperature_K: 30000.0
   metal_pie_enabled: true

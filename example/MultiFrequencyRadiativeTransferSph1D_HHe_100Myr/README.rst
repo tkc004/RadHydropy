@@ -25,3 +25,20 @@ fractions with the supplied reference profiles, run::
 This writes ``HHe_multifrequency_snapshot_vs_reference.jpg``. The snapshot
 contains 128 radial cells; the reference profiles and snapshot are both at
 100 Myr.
+
+The causal H/He C²-Ray option is configured separately in
+``multifrequency_radiative_transfer_sph1d_hhe_100myr_c2ray.yaml``. Run it with::
+
+   python multifrequency_radiative_transfer_sph1d_hhe_100myr.py \
+     --config multifrequency_radiative_transfer_sph1d_hhe_100myr_c2ray.yaml
+
+It writes ``Output_C2Ray_000.hdf5`` and
+``MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray.jpg``. Compare its
+snapshot with the same references using::
+
+   python compare_snapshot_with_references.py \
+     --snapshot Output_C2Ray_000.hdf5 \
+     --figure HHe_multifrequency_c2ray_snapshot_vs_reference.jpg
+
+The C²-Ray local solver uses all five spectral groups; the fourth and fifth
+groups provide the photons capable of ionizing He II and producing He III.

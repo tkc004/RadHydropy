@@ -496,7 +496,13 @@ def _hhe_set_trial(local, values):
 
 
 def _hhe_derivative(local, photon_density):
-    """Return d(xHI,xHeI,xHeIII,u)/dt for one H/He cell."""
+    """Return d(xHI,xHeI,xHeIII,u)/dt for one H/He cell.
+
+    ``hydrogen_helium._rates`` includes the optional metal PIE closure in the
+    thermal component.  Because this derivative is evaluated for every
+    Newton trial, the PIE table is implicitly coupled to the trial
+    temperature and local ``U`` rather than applied as an explicit correction.
+    """
     photon_density = np.asarray(photon_density, dtype=float)
     # The shared multigroup rate helpers sum over the group axis only for a
     # two-dimensional (group, cell) field. The causal cell solver receives a

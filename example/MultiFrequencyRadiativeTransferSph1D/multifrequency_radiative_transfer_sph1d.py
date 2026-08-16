@@ -141,6 +141,8 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.legend(frameon=False)
     network_name = config.get("thermochemistry_network", "hydrogen")
     title = "H/He" if network_name == "hydrogen_helium" else "Pure-H"
+    if config.get("metal_pie_enabled", False):
+        title += " + metal PIE"
     radiation_temperature = float(
         config.get("stellar_spectrum_blackbody_temperature_K", 1.0e5)
     )

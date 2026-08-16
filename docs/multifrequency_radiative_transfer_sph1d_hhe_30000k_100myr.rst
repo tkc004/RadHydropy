@@ -109,8 +109,21 @@ The run can also be given an alternate YAML file:
    python multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr.py \
       --config multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr.yaml
 
+The optional C²-Ray H/He plus metal-PIE configuration is:
+
+.. code-block:: bash
+
+   python multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr.py \
+      --config multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr_c2ray.yaml
+
+This keeps H and He non-equilibrium while including the PIE metal
+heating-minus-cooling rate inside every implicit thermal trial. Metals remain
+an equilibrium thermal closure: they are not added to the H/He opacity,
+electron density, or mean molecular weight.
+
 The script writes ``InitialCondition.hdf5``, ``Output_000.hdf5``,
-``used_parameters.yaml``, and the diagnostic figure in the example directory.
+``used_parameters.yaml``, and the diagnostic PIE figure in the example
+directory.
 
 Example figure
 --------------
@@ -119,12 +132,22 @@ The upper panel shows the H I and H II fractions, the middle panel shows the
 temperature, and the lower panel shows the photon number density in each
 radiation group. The title records the 30,000 K radiation temperature.
 
-.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr.jpg
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_PIE.jpg
    :width: 100%
    :alt: 30000 K H/He multifrequency radiation transport with metal PIE cooling
 
    H/He multifrequency radiation transport with solar-metallicity PIE heating
    and cooling after 100 Myr.
+
+The corresponding causal C²-Ray run is written with a separate PIE-labelled
+filename:
+
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray_PIE.jpg
+   :width: 100%
+   :alt: 30000 K H/He C2-Ray radiation transport with metal PIE cooling
+
+   H/He C²-Ray radiation transport with solar-metallicity PIE heating and
+   cooling after 100 Myr.
 
 Related documentation
 ---------------------
