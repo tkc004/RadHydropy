@@ -22,7 +22,7 @@ import numpy as np
 
 
 ALPHA_B = 2.6e-13  # cm**3 s**-1, the paper's reference value
-CI = 1.15e6  # cm s**-1, approximately 11.5 km s**-1
+CI = 1.285e6  # cm s**-1, sound speed for T=1e4 K and mu=0.5
 SECONDS_PER_YEAR = 365.25 * 24.0 * 3600.0
 
 

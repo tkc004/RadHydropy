@@ -52,6 +52,17 @@ script can still be plotted through 100,000 yr. It also creates
 `PowerLawHIIRegion1D_Profiles.jpg`, showing density and radial-velocity
 profiles. Each snapshot time uses the same line style in both panels.
 
+The `w=1` case also has a causal C²-Ray variant:
+
+```bash
+python power_law_hii_region_radhydropy.py \
+  --config power_law_hii_region_radhydropy_c2ray.yaml
+```
+
+It writes separate `*_C2Ray.hdf5` snapshots and creates
+`PowerLawHIIRegion1D_C2Ray_RadHydroVsAnalytic.jpg` and
+`PowerLawHIIRegion1D_C2Ray_Profiles.jpg`.
+
 The same runtime can be run independently for `w=1.5` with:
 
 ```bash
@@ -72,3 +83,25 @@ The same setup is also available for `w=1.4`:
 python power_law_hii_region_radhydropy.py \\
   --config power_law_hii_region_w1p4.yaml
 ```
+
+The `w=1.4` case also has a C²-Ray variant:
+
+```bash
+python power_law_hii_region_radhydropy.py \\
+  --config power_law_hii_region_w1p4_c2ray.yaml
+```
+
+It uses separate `w1p4_C2Ray` IC/snapshot files and writes
+`PowerLawHIIRegion1D_w1p4_C2Ray_RadHydroVsAnalytic.jpg` and
+`PowerLawHIIRegion1D_w1p4_C2Ray_Profiles.jpg`.
+
+The `w=1.5` case also has a C²-Ray variant:
+
+```bash
+python power_law_hii_region_radhydropy.py \
+  --config power_law_hii_region_w1p5_c2ray.yaml
+```
+
+It uses separate `w1p5_C2Ray` IC/snapshot files and writes
+`PowerLawHIIRegion1D_w1p5_C2Ray_RadHydroVsAnalytic.jpg` and
+`PowerLawHIIRegion1D_w1p5_C2Ray_Profiles.jpg`.

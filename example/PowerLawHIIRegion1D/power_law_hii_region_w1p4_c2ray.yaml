@@ -1,0 +1,108 @@
+runparams:
+  simname: PowerLawHIIRegion1D_w1p4_C2Ray
+  ICfilename: InitialCondition_PowerLawHIIRegion1D_w1p4_C2Ray.hdf5
+  outdir: .
+  outfileprefix: Output_PowerLawHIIRegion1D_w1p4_C2Ray
+  outputtimefilename: output_times_w1p4.txt
+  savedir: .
+  front_plot_filename: PowerLawHIIRegion1D_w1p4_C2Ray_RadHydroVsAnalytic.jpg
+  profile_plot_filename: PowerLawHIIRegion1D_w1p4_C2Ray_Profiles.jpg
+  CodeUnits:
+    name: pc_kms_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.98841586e33
+      UnitLength_in_cgs: 3.085677581e18
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+  coordsys: spherical
+  EOStype: isothermal
+  gamma: 1.0
+  timesim:
+    value: 1.9952623e4
+    unit: yr
+  area:
+    value: 1.0
+    unit: cm**2
+  CFL: 0.4
+  hydro_cfl: 0.4
+  source_cfl: 1000.0
+  boundcond: OpenSph
+  noghost: 2
+  verbose: 0
+  order: 1
+  dtmin:
+    value: 1.0e-8
+    unit: yr
+  dtmax:
+    value: 5.0e3
+    unit: yr
+  hydrogen_chemistry: true
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 1.0
+  hydrogen_xHI_inflow: 1.0
+  hydrogen_xHI_outflow: 1.0
+  hydrogen_source_CFL: 1000.0
+  hydrogen_source_dtmin:
+    value: 0.0
+    unit: yr
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: false
+  isothermal_ionized_fraction_threshold: 0.5
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: false
+  hydrogen_alpha_B:
+    value: 2.6e-13
+    unit: cm**3/s
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_radiation_field: false
+  hydrogen_radiation_evolution: false
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  hydrogen_sigma_gamma:
+    value: 1.10e-18
+    unit: cm**2
+  hydrogen_epsilon_gamma:
+    value: 6.33
+    unit: eV
+  radiative_transfer: true
+  radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: c2ray
+  radiative_transfer_c2ray_max_iterations: 16
+  radiative_transfer_c2ray_tolerance: 1.0e-5
+  radiative_transfer_c2ray_relaxation: 1.0
+  radiative_transfer_c2ray_nonconvergence: warn
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
+  radiative_transfer_source_photon_rate:
+    value: 5.0e49
+    unit: 1/s
+  radiative_transfer_direction: 1
+
+ICparams:
+  # The causal Python update is run at 1024 cells for a practical comparison;
+  # the original instantaneous w=1.4 case remains available at 8192 cells.
+  number_of_cells: 1024
+  boxsize:
+    value: 5.0
+    unit: pc
+  initial_temperature:
+    value: 100.0
+    unit: K
+  neutral_temperature:
+    value: 100.0
+    unit: K
+  ionized_temperature:
+    value: 1.0e4
+    unit: K
+  core_number_density:
+    value: 1.0e6
+    unit: 1/cm**3
+  core_radius:
+    value: 2.1e16
+    unit: cm
+  density_power_law_exponent: 1.4

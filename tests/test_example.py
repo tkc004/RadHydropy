@@ -793,6 +793,53 @@ class Testing(unittest.TestCase):
             100.0,
         )
 
+    def test_powerlaw_hii_w1_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'PowerLawHIIRegion1D'
+            / 'power_law_hii_region_radhydropy_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_PowerLawHIIRegion1D_C2Ray')
+        self.assertEqual(
+            runparams['ICfilename'].split('/')[-1],
+            'InitialCondition_PowerLawHIIRegion1D_C2Ray.hdf5',
+        )
+        self.assertEqual(runparams['front_plot_filename'], 'PowerLawHIIRegion1D_C2Ray_RadHydroVsAnalytic.jpg')
+        self.assertEqual(icparams['density_power_law_exponent'], 1.0)
+        self.assertEqual(icparams['number_of_cells'], 256)
+
+    def test_powerlaw_hii_w1p4_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'PowerLawHIIRegion1D'
+            / 'power_law_hii_region_w1p4_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_PowerLawHIIRegion1D_w1p4_C2Ray')
+        self.assertEqual(icparams['density_power_law_exponent'], 1.4)
+        self.assertEqual(icparams['number_of_cells'], 1024)
+
+    def test_powerlaw_hii_w1p5_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'PowerLawHIIRegion1D'
+            / 'power_law_hii_region_w1p5_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_PowerLawHIIRegion1D_w1p5_C2Ray')
+        self.assertEqual(icparams['density_power_law_exponent'], 1.5)
+        self.assertEqual(icparams['number_of_cells'], 1024)
+
     def test_dynamic_stromgren_sphere_stellar_wind_uses_requested_wind(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

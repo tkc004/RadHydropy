@@ -64,6 +64,21 @@ def build_initial_condition(config):
         gamma=config["gamma"],
         hydrogen_mass_fraction=1.0,
         hydrogen_update_mu=True,
+        radiative_transfer_temporal_scheme=config.get(
+            'radiative_transfer_temporal_scheme', 'instantaneous'
+        ),
+        radiative_transfer_c2ray_max_iterations=config.get(
+            'radiative_transfer_c2ray_max_iterations', 32
+        ),
+        radiative_transfer_c2ray_tolerance=config.get(
+            'radiative_transfer_c2ray_tolerance', 1.0e-6
+        ),
+        radiative_transfer_c2ray_relaxation=config.get(
+            'radiative_transfer_c2ray_relaxation', 1.0
+        ),
+        radiative_transfer_c2ray_nonconvergence=config.get(
+            'radiative_transfer_c2ray_nonconvergence', 'warn'
+        ),
         CodeUnits=code,
         unit_system=code.unit_system,
     )
@@ -323,15 +338,29 @@ def main(config_filename=DEFAULT_CONFIG):
         end_time_yr,
     )
     analytic_time_yr = analytic_time_s / analytic.SECONDS_PER_YEAR
+    analytic_valid = (
+        np.isfinite(analytic_time_yr)
+        & np.isfinite(analytic_radius_cm)
+        & (analytic_time_yr > 0.0)
+        & (analytic_radius_cm > 0.0)
+    )
     valid = np.isfinite(radii_cm) & (times_yr > 0.0)
     figure, axis = plt.subplots(figsize=(7.5, 5.5))
-    axis.plot(analytic_time_yr, analytic_radius_cm, label=f"analytic, w={exponent:g}")
+    axis.plot(
+        analytic_time_yr[analytic_valid],
+        analytic_radius_cm[analytic_valid],
+        color="black",
+        linewidth=2.0,
+        zorder=1,
+        label=f"analytic, w={exponent:g}",
+    )
     axis.plot(
         times_yr[valid],
         radii_cm[valid],
         "^",
         markerfacecolor="none",
         markeredgecolor="C1",
+        zorder=3,
         label="ionization front",
     )
     shock_valid = np.isfinite(shock_radii_cm) & (times_yr > 0.0)
@@ -342,6 +371,7 @@ def main(config_filename=DEFAULT_CONFIG):
         markersize=7,
         markerfacecolor="none",
         markeredgecolor="C2",
+        zorder=3,
         label="shock front",
     )
     axis.set_xscale("log")
