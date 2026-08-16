@@ -115,6 +115,7 @@ refparams = {
     'metal_pie_enabled': False,
     'metal_pie_table_filename': None,
     'metal_pie_table': None,
+    'metal_pie_photoheating_max_density_cm3': 50.0,
     'number_of_radiation_groups': None,
     'radiative_transfer_direction': 1,
     'cosmological_expansion': False,

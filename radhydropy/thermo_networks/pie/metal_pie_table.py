@@ -28,6 +28,11 @@ class MetalPIETable:
                 rates["metal_cooling_erg_cm3_s"], dtype=float
             )
             self.metadata = dict(group.attrs)
+            self.is_hm12_uv_background = (
+                self.metadata.get("spectrum_type")
+                == "Haardt-Madau 2012 UV background"
+                or self.metadata.get("radiation_background") == "table HM12 redshift"
+            )
 
         expected = (
             len(self.log_temperature),

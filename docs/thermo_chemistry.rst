@@ -115,6 +115,11 @@ then the ionization parameter is estimated as
 ion-fraction solve. The updated H/He state is used for one subsequent
 multigroup retrace. The metal rates are added as
 ``metal_photoheating - metal_cooling`` in volumetric cgs units.
+For HM12 UV-background PIE tables, metal PIE photoheating is disabled by
+default for ``nH > 50 cm^-3`` to represent self-shielded gas, while metal PIE
+cooling remains active. This cutoff is not applied to other PIE tables.
+Configure it with ``metal_pie_photoheating_max_density_cm3`` or set it to
+``null`` to disable the HM12 cutoff.
 
 The current table loader supports a singleton metallicity plane. The supplied
 table has ``log10(U)`` bounds of ``[-7, 0]``; lookup values outside any table

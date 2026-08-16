@@ -146,3 +146,49 @@ def test_pie_heating_and_cooling_have_correct_energy_sign(tmp_path):
     # thermal rate. Reversing the table rates should reverse the sign.
     assert np.all(rate_with_pie < rate_without_pie)
 
+
+def test_pie_self_shielding_disables_heating_but_keeps_cooling(tmp_path):
+    filename = tmp_path / "power_law.h5"
+    _write_power_law_table(filename)
+    with h5py.File(filename, "a") as handle:
+        handle["MetalPIE"].attrs["spectrum_type"] = (
+            "Haardt-Madau 2012 UV background"
+        )
+    state = _state()
+    state["rho_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
+    state["metal_pie_table"] = MetalPIETable(filename)
+    state["metallicity"] = 1.0
+    ngamma = np.array([[1.0e-6], [2.0e-6]])
+
+    rate_with_pie = _rates(state, ngamma)[3]
+    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma)[3]
+    n_h = state["rho_g_cm3"] * 0.75 / PROTON_MASS_CGS
+    ionization_parameter = np.sum(ngamma, axis=0) / n_h
+    _, expected_metal_cooling = state["metal_pie_table"].rates(
+        state["temperature_K"], n_h, ionization_parameter
+    )
+    np.testing.assert_allclose(
+        rate_with_pie - rate_without_pie, -expected_metal_cooling
+    )
+
+
+def test_non_hm12_pie_keeps_heating_above_density_cutoff(tmp_path):
+    filename = tmp_path / "power_law.h5"
+    _write_power_law_table(filename)
+    state = _state()
+    state["rho_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
+    state["metal_pie_table"] = MetalPIETable(filename)
+    state["metallicity"] = 1.0
+    ngamma = np.array([[1.0e-6], [2.0e-6]])
+
+    rate_with_pie = _rates(state, ngamma)[3]
+    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma)[3]
+    n_h = state["rho_g_cm3"] * 0.75 / PROTON_MASS_CGS
+    ionization_parameter = np.sum(ngamma, axis=0) / n_h
+    expected_heating, expected_cooling = state["metal_pie_table"].rates(
+        state["temperature_K"], n_h, ionization_parameter
+    )
+    np.testing.assert_allclose(
+        rate_with_pie - rate_without_pie,
+        expected_heating - expected_cooling,
+    )

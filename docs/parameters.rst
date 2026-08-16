@@ -219,6 +219,11 @@ are not advected as independent fluid fields.
      - HDF5 metal PIE table containing volumetric photoheating and cooling
        rates on ``(T, nH, U)`` axes. Loaded once during startup.
      - path
+   * - ``metal_pie_photoheating_max_density_cm3``
+     - For HM12 UV-background PIE tables, disable metal photoheating above
+       this hydrogen density while retaining metal PIE cooling. Other PIE
+       tables are unaffected. Set to ``null`` to disable this cutoff.
+     - ``cm^-3``
    * - ``hydrogen_epsilon_gamma``
      - Excess photo-ionization energy per absorbed photon.
      - energy
