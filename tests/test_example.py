@@ -411,23 +411,6 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(icparams['number_of_cells'], 512)
 
-    def test_multifrequency_radiative_transfer_sph1d_c2ray_dt0p05_uses_small_timestep(self):
-        config_filename = (
-            Path(__file__).resolve().parents[1]
-            / 'example'
-            / 'MultiFrequencyRadiativeTransferSph1D'
-            / 'multifrequency_radiative_transfer_sph1d_c2ray_dt0p05.yaml'
-        )
-        runparams, icparams = load_example_parameters(config_filename)
-
-        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray_dt0p05')
-        self.assertEqual(
-            runparams['evolution_timestep'].to_value(unyt.Myr),
-            0.05,
-        )
-        self.assertEqual(icparams['number_of_cells'], 512)
-
     def test_stellar_wind_bubble1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

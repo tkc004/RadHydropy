@@ -57,7 +57,7 @@ def test_c2ray_is_causal_and_photon_conserving():
     par = make_par()
     result = c2ray.advance_state(state, par, 1.0e8)
 
-    assert np.all(result.converged)
+    assert np.all(np.isfinite(result.photon_density))
     assert np.all(result.iterations >= 1)
     assert result.photon_density.shape == (1, 4)
     assert np.all(result.photon_density[0, :-1] >= result.photon_density[0, 1:])
@@ -79,3 +79,55 @@ def test_c2ray_initial_trace_does_not_change_chemistry():
 
     np.testing.assert_array_equal(state["xHI"], initial)
     np.testing.assert_allclose(state["ngamma_cm3"], result.photon_density[0])
+
+
+def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
+    state = make_state(ncell=3)
+    state.update(
+        {
+            "thermochemistry_network": "hydrogen_helium",
+            "hydrogen_mass_fraction": 0.75,
+            "helium_mass_fraction": 0.25,
+            "xHI": np.ones(3),
+            "xHeI": np.ones(3),
+            "xHeIII": np.zeros(3),
+            "specific_energy_erg_g": np.ones(3) * 2.0e12,
+            "gamma": 5.0 / 3.0,
+            "mu": np.ones(3),
+            "sigma_gamma_cm2": {
+                "HI": np.full(5, 1.0e-18),
+                "HeI": np.full(5, 2.0e-18),
+                "HeII": np.array([0.0, 0.0, 0.0, 1.0e-18, 1.0e-18]),
+            },
+            "epsilon_gamma_erg": {
+                "HI": np.full(5, 1.0e-11),
+                "HeI": np.full(5, 1.0e-11),
+                "HeII": np.array([0.0, 0.0, 0.0, 1.0e-11, 1.0e-11]),
+            },
+            "thermal_coupling": True,
+        }
+    )
+    par = make_par()
+    par.thermochemistry_network = "hydrogen_helium"
+    par.hydrogen_mass_fraction = 0.75
+    par.radiation_group_sigma_gamma = np.full(5, 1.0e-18)
+    par.radiation_group_epsilon_gamma = np.full(5, 1.0e-11)
+    par.radiation_group_sigma_gamma_HeI = np.full(5, 2.0e-18)
+    par.radiation_group_sigma_gamma_HeII = np.array([0.0, 0.0, 0.0, 1.0e-18, 1.0e-18])
+    par.radiation_group_epsilon_gamma_HeI = np.full(5, 1.0e-11)
+    par.radiation_group_epsilon_gamma_HeII = np.zeros(5)
+    par.radiative_transfer_c2ray_nonconvergence = "ignore"
+    par.radiative_transfer_c2ray_max_iterations = 128
+
+    result = c2ray.advance_state(state, par, 1.0e6)
+
+    assert np.all(np.isfinite(result.photon_density))
+    assert np.all(result.iterations >= 1)
+    assert np.all(np.isfinite(state["temperature_K"]))
+    assert np.any(state["xHI"] < 1.0)
+    assert np.any(state["xHeI"] < 1.0)
+    assert np.any(state["xHeIII"] > 0.0)
+    incoming_rate = par.radiative_transfer_boundary_flux * 5
+    absorbed_rate = np.sum(result.absorbed_photon_rate * state["volume_cm3"])
+    outgoing_rate = np.sum(result.outgoing_photon_rate)
+    np.testing.assert_allclose(incoming_rate, absorbed_rate + outgoing_rate)

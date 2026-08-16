@@ -1,11 +1,12 @@
-"""Causal C2-Ray source integration for hydrogen.
+"""Causal C2-Ray source integration for hydrogen and hydrogen/helium.
 
 This module intentionally keeps the original C2-Ray ordering: cells are
 processed from the source outwards, and the time-averaged opacity of a cell is
 converged before its outgoing photon rate is passed to the next cell.
 
-The implementation is hydrogen-only for now.  The ordinary instantaneous
-thermo-chemistry path remains the default and is not changed by this module.
+The hydrogen path retains its analytic local update.  The optional H/He path
+uses the same causal transport ordering with a coupled implicit local solve.
+The ordinary instantaneous thermo-chemistry path remains the default.
 """
 
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ from radhydropy.units import (
 )
 from radhydropy import radiative_transfer as rrt
 from radhydropy.thermo_networks import hydrogen
+from radhydropy.thermo_networks import hydrogen_helium
 
 
 @dataclass
@@ -291,9 +293,13 @@ def evolve_static_state(
 
 
 def _advance(state, par, dt_s, update_chemistry):
-    if getattr(par, "thermochemistry_network", "hydrogen") != "hydrogen":
+    network = getattr(par, "thermochemistry_network", "hydrogen")
+    if network == "hydrogen_helium":
+        return _advance_hydrogen_helium(state, par, dt_s, update_chemistry)
+    if network != "hydrogen":
         raise NotImplementedError(
-            "C2-Ray currently supports thermochemistry_network='hydrogen' only"
+            "C2-Ray supports thermochemistry_network='hydrogen' or "
+            "'hydrogen_helium'"
         )
 
     geometry = _state_geometry(state, par)
@@ -452,18 +458,358 @@ def _advance(state, par, dt_s, update_chemistry):
     )
 
 
+def _hhe_cell_state(state, cell):
+    """Extract a one-cell H/He source state for the local implicit solve."""
+    local = dict(state)
+    for key in (
+        "rho_g_cm3",
+        "temperature_K",
+        "specific_energy_erg_g",
+        "xHI",
+        "xHeI",
+        "xHeIII",
+    ):
+        local[key] = np.asarray([np.asarray(state[key], dtype=float)[cell]], dtype=float)
+    return local
+
+
+def _hhe_project(values):
+    """Project Newton variables onto the physical H/He state domain."""
+    projected = np.asarray(values, dtype=float).copy()
+    projected[0] = np.clip(projected[0], 1.0e-12, 1.0 - 1.0e-12)
+    projected[1] = np.clip(projected[1], 1.0e-12, 1.0 - 2.0e-12)
+    projected[2] = np.clip(
+        projected[2], 0.0, max(0.0, 1.0 - projected[1] - 1.0e-12)
+    )
+    projected[3] = max(float(projected[3]), 1.0e6)
+    return projected
+
+
+def _hhe_set_trial(local, values):
+    """Set a bounded H/He Newton trial and refresh its thermodynamic closure."""
+    xhi, xhei, xheiii, energy = _hhe_project(values)
+    local["xHI"][:] = xhi
+    local["xHeI"][:] = xhei
+    local["xHeIII"][:] = xheiii
+    local["specific_energy_erg_g"][:] = max(float(energy), 1.0e6)
+    hydrogen_helium.update_temperature_from_energy(local)
+
+
+def _hhe_derivative(local, photon_density):
+    """Return d(xHI,xHeI,xHeIII,u)/dt for one H/He cell."""
+    photon_density = np.asarray(photon_density, dtype=float)
+    # The shared multigroup rate helpers sum over the group axis only for a
+    # two-dimensional (group, cell) field. The causal cell solver receives a
+    # one-cell vector, so make that axis explicit; otherwise only group 0
+    # reaches the local ODE, suppressing the high-energy He II channel.
+    if photon_density.ndim == 1:
+        photon_density = photon_density[:, None]
+    d_hi, d_hei, d_heiii, thermal = hydrogen_helium._rates(
+        local,
+        photon_density,
+    )
+    return np.array(
+        [
+            float(np.asarray(d_hi).flat[0]),
+            float(np.asarray(d_hei).flat[0]),
+            float(np.asarray(d_heiii).flat[0]),
+            float(np.asarray(thermal).flat[0])
+            / max(float(np.asarray(local["rho_g_cm3"]).flat[0]), 1.0e-99),
+        ],
+        dtype=float,
+    )
+
+
+def _hhe_backward_euler_step(local, photon_density, dt_s, par):
+    """Take one damped-Newton backward-Euler step for one H/He cell."""
+    old = np.array(
+        [
+            float(local["xHI"][0]),
+            float(local["xHeI"][0]),
+            float(local["xHeIII"][0]),
+            float(local["specific_energy_erg_g"][0]),
+        ],
+        dtype=float,
+    )
+    trial = _hhe_project(old)
+    residual_tolerance = float(
+        getattr(par, "radiative_transfer_c2ray_ode_tolerance", 1.0e-8)
+    )
+    max_iterations = int(
+        getattr(par, "radiative_transfer_c2ray_ode_max_iterations", 24)
+    )
+    scales = np.maximum(np.abs(old), np.array([1.0, 1.0, 1.0, 1.0e10]))
+
+    for _ in range(max_iterations):
+        trial = _hhe_project(trial)
+        _hhe_set_trial(local, trial)
+        derivative = _hhe_derivative(local, photon_density)
+        residual = trial - old - dt_s * derivative
+        if np.max(np.abs(residual) / scales) <= residual_tolerance:
+            return trial, True
+
+        jacobian = np.empty((4, 4), dtype=float)
+        for column in range(4):
+            perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e-8)
+            if column == 3:
+                perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e3)
+            # Neutral fractions and He III can start on a physical boundary.
+            # Use a one-sided finite difference there; projecting a positive
+            # perturbation back onto the same boundary would otherwise create
+            # a zero Jacobian column and make Newton appear singular.
+            direction = 1.0
+            if column == 0 and trial[column] >= 1.0 - 2.0e-12:
+                direction = -1.0
+            elif column == 1 and trial[column] >= 1.0 - 2.0e-12:
+                direction = -1.0
+            elif column == 2 and trial[column] <= 2.0e-12:
+                direction = 1.0
+            perturbed = trial.copy()
+            perturbed[column] += direction * perturbation
+            if (
+                column == 2
+                and trial[column] <= 2.0e-12
+                and trial[1] >= 1.0 - 2.0e-12
+            ):
+                # At initially neutral helium, He III can only appear after
+                # He I is converted into He II. Perturb both coordinates so
+                # the finite-difference state enters the simplex rather than
+                # being projected back to x_HeIII = 0.
+                perturbed[1] -= perturbation
+            perturbed = _hhe_project(perturbed)
+            _hhe_set_trial(local, perturbed)
+            derivative_perturbed = _hhe_derivative(local, photon_density)
+            residual_perturbed = perturbed - old - dt_s * derivative_perturbed
+            jacobian[:, column] = (
+                residual_perturbed - residual
+            ) / (direction * perturbation)
+
+        try:
+            correction = np.linalg.solve(jacobian, -residual)
+        except np.linalg.LinAlgError:
+            return trial, False
+
+        accepted = False
+        residual_norm = np.max(np.abs(residual) / scales)
+        damping = 1.0
+        for _ in range(12):
+            candidate = _hhe_project(trial + damping * correction)
+            _hhe_set_trial(local, candidate)
+            candidate_residual = (
+                candidate - old - dt_s * _hhe_derivative(local, photon_density)
+            )
+            candidate_norm = np.max(np.abs(candidate_residual) / scales)
+            if np.isfinite(candidate_norm) and candidate_norm < residual_norm:
+                trial = candidate
+                accepted = True
+                break
+            damping *= 0.5
+        if not accepted:
+            return trial, False
+
+    trial = _hhe_project(trial)
+    _hhe_set_trial(local, trial)
+    return trial, False
+
+
+def _hhe_backward_euler(local, photon_density, dt_s, par):
+    """Advance one H/He cell, substepping only when the implicit solve needs it.
+
+    The causal transport remains cell-by-cell, while this local fallback keeps
+    large source steps robust in highly ionized, optically thick cells without
+    changing the converged solution at ordinary steps.
+    """
+    initial = np.array(
+        [
+            float(local["xHI"][0]),
+            float(local["xHeI"][0]),
+            float(local["xHeIII"][0]),
+            float(local["specific_energy_erg_g"][0]),
+        ],
+        dtype=float,
+    )
+    for subdivisions in (1, 2, 4, 8, 16, 32, 64):
+        _hhe_set_trial(local, initial)
+        step_dt = dt_s / subdivisions
+        success = True
+        values = initial.copy()
+        for _ in range(subdivisions):
+            values, success = _hhe_backward_euler_step(
+                local, photon_density, step_dt, par
+            )
+            if not success:
+                break
+        if success:
+            return values, True
+    return values, False
+
+
+def _hhe_group_parameters(state, par):
+    sigma = {
+        species: np.asarray(values, dtype=float)
+        for species, values in state["sigma_gamma_cm2"].items()
+    }
+    epsilon = {
+        species: np.asarray(values, dtype=float)
+        for species, values in state["epsilon_gamma_erg"].items()
+    }
+    _, _, boundary_flux, source_rate = _group_parameters(par)
+    return sigma, epsilon, boundary_flux, source_rate
+
+
+def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
+    """Advance coupled H/He chemistry with causal multigroup C²-Ray transport."""
+    geometry = _state_geometry(state, par)
+    sigma_species, epsilon_species, boundary_flux, source_rate = _hhe_group_parameters(
+        state, par
+    )
+    sigma_h = sigma_species["HI"]
+    ngroup = sigma_h.size
+    direction = 1 if getattr(par, "radiative_transfer_direction", 1) >= 0 else -1
+    source_face = 0 if direction > 0 else -1
+    incoming = np.where(
+        source_rate != 0.0,
+        source_rate,
+        boundary_flux * geometry.face_area_cm2[source_face],
+    )
+    width = geometry.width_cm
+    volume = geometry.volume_cm3
+    ncell = width.size
+    n_h = np.asarray(state["rho_g_cm3"], dtype=float) * float(
+        state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 0.7))
+    ) / PROTON_MASS_CGS
+    n_he = np.asarray(state["rho_g_cm3"], dtype=float) * float(
+        state.get("helium_mass_fraction", getattr(par, "helium_mass_fraction", 0.28))
+    ) / (4.0 * PROTON_MASS_CGS)
+    xhi_initial = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
+    xhei_initial = np.clip(np.asarray(state["xHeI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
+    xheiii_initial = np.clip(np.asarray(state["xHeIII"], dtype=float), 0.0, 1.0)
+    photon_density = np.zeros((ngroup, ncell), dtype=float)
+    absorbed = np.zeros((ngroup, ncell), dtype=float)
+    mean_fraction = xhi_initial.copy()
+    final_fraction = xhi_initial.copy()
+    converged = np.ones(ncell, dtype=bool)
+    iterations = np.zeros(ncell, dtype=int)
+    max_iterations = int(getattr(par, "radiative_transfer_c2ray_max_iterations", 32))
+    tolerance = float(getattr(par, "radiative_transfer_c2ray_tolerance", 1.0e-6))
+    relaxation = np.clip(
+        float(getattr(par, "radiative_transfer_c2ray_relaxation", 1.0)), 0.0, 1.0
+    )
+
+    for cell in _cell_order(ncell, direction):
+        incoming_cell = incoming
+        xhi_mean = xhi_initial[cell]
+        xhei_mean = xhei_initial[cell]
+        xheiii_mean = xheiii_initial[cell]
+        local = _hhe_cell_state(state, cell)
+        cell_transport = None
+        cell_converged = not update_chemistry or dt_s == 0.0
+        iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
+        for iteration in iteration_range:
+            xheii_mean = np.clip(1.0 - xhei_mean - xheiii_mean, 0.0, 1.0)
+            tau_species = {
+                "HI": sigma_species["HI"] * n_h[cell] * xhi_mean * width[cell],
+                "HeI": sigma_species["HeI"] * n_he[cell] * xhei_mean * width[cell],
+                "HeII": sigma_species["HeII"] * n_he[cell] * xheii_mean * width[cell],
+            }
+            tau = np.maximum(sum(tau_species.values()), 0.0)
+            cell_transport = rrt.propagate_causal_cell(
+                geometry, incoming_cell, tau, cell, direction
+            )
+            if not update_chemistry or dt_s == 0.0:
+                xfinal = xhi_initial[cell]
+                xhei_final = xhei_initial[cell]
+                xheiii_final = xheiii_initial[cell]
+                break
+
+            local["xHI"][:] = xhi_initial[cell]
+            local["xHeI"][:] = xhei_initial[cell]
+            local["xHeIII"][:] = xheiii_initial[cell]
+            # Each opacity iteration solves the same physical time interval
+            # from the cell's beginning-of-step state.  Do not carry thermal
+            # energy from a rejected opacity iterate into the next trial.
+            local["specific_energy_erg_g"][:] = state["specific_energy_erg_g"][cell]
+            local["temperature_K"][:] = state["temperature_K"][cell]
+            values, ode_converged = _hhe_backward_euler(
+                local, cell_transport.photon_density, dt_s, par
+            )
+            xfinal, xhei_final, xheiii_final = values[:3]
+            new_xhi_mean = 0.5 * (xhi_initial[cell] + xfinal)
+            new_xhei_mean = 0.5 * (xhei_initial[cell] + xhei_final)
+            new_xheiii_mean = 0.5 * (xheiii_initial[cell] + xheiii_final)
+            change = max(
+                abs(new_xhi_mean - xhi_mean),
+                abs(new_xhei_mean - xhei_mean),
+                abs(new_xheiii_mean - xheiii_mean),
+            )
+            xhi_mean = (1.0 - relaxation) * xhi_mean + relaxation * new_xhi_mean
+            xhei_mean = (1.0 - relaxation) * xhei_mean + relaxation * new_xhei_mean
+            xheiii_mean = (1.0 - relaxation) * xheiii_mean + relaxation * new_xheiii_mean
+            cell_converged = ode_converged and change <= tolerance
+            if cell_converged:
+                break
+
+        if update_chemistry and not cell_converged:
+            converged[cell] = False
+            policy = getattr(par, "radiative_transfer_c2ray_nonconvergence", "warn")
+            if policy == "raise":
+                raise RuntimeError(f"C2-Ray H/He did not converge in cell {cell}")
+            if policy == "warn":
+                warnings.warn(
+                    f"C2-Ray H/He did not converge in cell {cell} after {max_iterations} iterations",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+        iterations[cell] = iteration if update_chemistry else 0
+        mean_fraction[cell] = xhi_mean
+        final_fraction[cell] = np.clip(xfinal, 1.0e-12, 1.0 - 1.0e-12)
+        state["xHI"][cell] = final_fraction[cell]
+        state["xHeI"][cell] = np.clip(xhei_final, 1.0e-12, 1.0 - 1.0e-12)
+        state["xHeIII"][cell] = np.clip(
+            xheiii_final, 0.0, 1.0 - state["xHeI"][cell] - 1.0e-12
+        )
+        if update_chemistry:
+            state["specific_energy_erg_g"][cell] = max(float(local["specific_energy_erg_g"][0]), 1.0e6)
+            state["temperature_K"][cell] = float(local["temperature_K"][0])
+            state["mu"][cell] = float(local["mu"][0])
+
+        absorbed[:, cell] = cell_transport.absorbed_rate / volume[cell]
+        photon_density[:, cell] = cell_transport.photon_density
+        incoming = cell_transport.outgoing_rate
+
+    hydrogen_helium._closure(state)
+    state["ngamma_cm3"] = photon_density[0] if ngroup == 1 else photon_density
+    return C2RayResult(
+        photon_density=photon_density,
+        absorbed_photon_rate=absorbed,
+        outgoing_photon_rate=incoming,
+        mean_neutral_fraction=mean_fraction,
+        converged=converged,
+        iterations=iterations,
+    )
+
+
 def apply_fast(dt, mesh, fluid, par):
     """Apply one strict C2-Ray source step to the fast hydrogen state."""
-    if getattr(par, "thermochemistry_network", "hydrogen") != "hydrogen":
+    network = getattr(par, "thermochemistry_network", "hydrogen")
+    if network == "hydrogen_helium":
+        state = hydrogen_helium.source_state(mesh, fluid, par)
+    elif network == "hydrogen":
+        state = hydrogen.c2ray_source_state(mesh, fluid, par)
+    else:
         raise NotImplementedError(
-            "C2-Ray currently supports thermochemistry_network='hydrogen' only"
+            "C2-Ray supports thermochemistry_network='hydrogen' or "
+            "'hydrogen_helium'"
         )
-    state = hydrogen.c2ray_source_state(mesh, fluid, par)
     code = _code_units(par)
     dt_s = time_seconds(dt, code)
     advance_state(state, par, dt_s)
     _ensure_fluid_photon_shape(fluid, state["ngamma_cm3"])
-    hydrogen.sync_c2ray_state(state, fluid, par)
+    if network == "hydrogen_helium":
+        hydrogen_helium.apply_state(state, fluid, par)
+    else:
+        hydrogen.sync_c2ray_state(state, fluid, par)
     return 1
 
 

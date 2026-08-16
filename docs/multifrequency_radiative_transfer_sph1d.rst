@@ -80,9 +80,9 @@ Hydrogen network
 
 The example sets ``hydrogen_alpha_B`` and ``hydrogen_beta`` to ``null`` so the
 built-in temperature-dependent rates are used. Collisional ionization and
-thermal coupling are enabled. The current network is pure hydrogen. It uses
-the H I datasets from the H/He spectrum file; He I and He II datasets are
-retained for future helium chemistry.
+thermal coupling are enabled. The pure-hydrogen configuration uses the H I
+datasets from the H/He spectrum file. The H/He configuration additionally uses
+the He I and He II datasets.
 
 Outputs and references
 ----------------------
@@ -129,11 +129,36 @@ The H/He snapshot can also be compared directly with the supplied static
 Strömgren-sphere reference profiles. The comparison shows H I, H II, He I,
 He II, He III, and temperature as functions of normalized radius.
 
+The H/He variant can use the same causal update with
+``multifrequency_radiative_transfer_sph1d_hhe_100myr_c2ray.yaml``::
+
+   cd example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr
+   python multifrequency_radiative_transfer_sph1d_hhe_100myr.py \
+     --config multifrequency_radiative_transfer_sph1d_hhe_100myr_c2ray.yaml
+
+This selects the H/He C²-Ray path because it sets
+``thermochemistry_network`` to ``hydrogen_helium`` and
+``radiative_transfer_temporal_scheme`` to ``c2ray``.
+It writes ``Output_C2Ray_*.hdf5`` and
+``MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray.jpg``. In each cell,
+the local coupled H/He and thermal solve uses the transmitted multifrequency
+photon field, and the resulting time-averaged H I, He I, and He II opacity is
+used for the next causal transport update.
+
 .. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr/HHe_multifrequency_snapshot_vs_reference.jpg
    :width: 100%
    :alt: H/He multifrequency snapshot compared with reference profiles
 
    H/He snapshot and reference profiles at 100 Myr.
+
+The corresponding C²-Ray result can be compared with the same reference
+profiles using the generated figure below.
+
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr/HHe_multifrequency_c2ray_snapshot_vs_reference.jpg
+   :width: 100%
+   :alt: H/He multifrequency C2-Ray snapshot compared with reference profiles
+
+   H/He C²-Ray snapshot and reference profiles at 100 Myr.
 
 ``TTT1D_Stromgren100Myr.txt`` and ``xTT1D_Stromgren100Myr.txt`` contain the
 multifrequency comparison profiles. Their radius is normalized by

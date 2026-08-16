@@ -114,8 +114,8 @@ Thermo-Chemistry Keys
 ---------------------
 
 Thermo-chemistry is disabled by default. The active network is selected by
-``thermochemistry_network``; available networks are ``hydrogen`` and
-``cie_cooling``.
+``thermochemistry_network``; available networks are ``hydrogen``,
+``hydrogen_helium``, and ``cie_cooling``.
 The species composition preset is selected separately with ``chemistry_key``
 and currently supports values such as ``H`` and ``HHe``. Set
 ``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
@@ -139,7 +139,8 @@ are not advected as independent fluid fields.
      - Meaning
      - Typical unit
    * - ``thermochemistry_network``
-     - Thermo-chemistry network name: ``hydrogen`` or ``cie_cooling``.
+     - Thermo-chemistry network name: ``hydrogen``, ``hydrogen_helium``, or
+       ``cie_cooling``.
      - string
    * - ``cie_cooling``
      - Enable the CIE radiative cooling source when using the ``cie_cooling``
@@ -257,8 +258,9 @@ output file. For example:
      - string
    * - ``radiative_transfer_temporal_scheme``
      - ``instantaneous`` for the existing update or ``c2ray`` for causal,
-       time-averaged C²-Ray source integration. The C²-Ray option currently
-       supports the hydrogen network.
+       time-averaged C²-Ray source integration. With
+       ``thermochemistry_network: hydrogen_helium``, it also enables the
+       coupled H/He C²-Ray update.
      - string
    * - ``radiative_transfer_c2ray_max_iterations``
      - Maximum opacity iterations for each source cell in C²-Ray mode.
@@ -273,6 +275,12 @@ output file. For example:
      - ``warn`` (default), ``raise``, or silent handling after the iteration
        limit is reached.
      - string
+   * - ``radiative_transfer_c2ray_ode_max_iterations``
+     - Maximum damped-Newton iterations for each local coupled H/He solve.
+     - dimensionless
+   * - ``radiative_transfer_c2ray_ode_tolerance``
+     - Scaled residual tolerance for the local coupled H/He solve.
+     - dimensionless
    * - ``radiative_transfer_boundary_flux``
      - Incident photon number flux for Cartesian rays or spherical boundary
        illumination.

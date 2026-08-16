@@ -12,7 +12,8 @@ Activation and Coupling
 -----------------------
 
 The source-term network is selected with ``thermochemistry_network``. The
-available networks are ``hydrogen`` and ``cie_cooling``. The hydrogen network
+available networks are ``hydrogen``, ``hydrogen_helium``, and ``cie_cooling``.
+The hydrogen network
 can evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together with
 hydrogen heating and cooling source terms. The CIE network uses tabulated
 collisional-ionization-equilibrium ion fractions and radiative cooling rates.
@@ -59,6 +60,14 @@ controls most commonly used by the bundled examples are:
 
 When the radiative-transfer module is enabled, ``fluid.ngamma`` is supplied by
 the ray tracer before the hydrogen source terms are applied.
+
+For ``radiative_transfer_temporal_scheme: c2ray``, the
+``hydrogen_helium`` network uses causal source-to-cell ordering. Each cell
+receives the spectrum transmitted by the preceding cell, then a local coupled
+backward-Euler solve advances H I, He I, He II, He III, and thermal energy.
+Opacity is iterated from the time-averaged species fractions before the
+outgoing photon rate is passed onward. The local solve uses damped Newton
+iterations and substeps a stiff cell only when needed.
 
 Hydrogen--Helium Microphysics
 -----------------------------

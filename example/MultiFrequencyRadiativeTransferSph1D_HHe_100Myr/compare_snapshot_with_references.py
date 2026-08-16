@@ -1,5 +1,6 @@
 """Plot the H/He snapshot against the supplied reference profiles."""
 
+import argparse
 from pathlib import Path
 
 import h5py
@@ -19,8 +20,10 @@ HELIUM_TO_HYDROGEN_NUMBER_RATIO = (
 )
 
 
-def main():
-    with h5py.File(SNAPSHOT, "r") as handle:
+def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE):
+    snapshot_filename = Path(snapshot_filename)
+    figure_filename = Path(figure_filename)
+    with h5py.File(snapshot_filename, "r") as handle:
         data = handle["Data"]
         temperature = np.asarray(data["Temperature"])
         xhi = np.asarray(data["NeutralFraction"])
@@ -45,10 +48,15 @@ def main():
         "He III": "xHeIIITT1D_Stromgren100Myr_HHe.txt",
     }
 
+    snapshot_label = (
+        "C²-Ray snapshot: 100 Myr"
+        if "C2Ray" in snapshot_filename.stem
+        else "snapshot: 100 Myr"
+    )
     fig, axes = plt.subplots(2, 3, figsize=(13.0, 7.5), sharex=True)
     for axis, (species, reference_name) in zip(axes.flat, references.items()):
         axis.plot(radius, np.clip(snapshot[species], 1.0e-12, 1.0),
-                  color="tab:blue", label="snapshot: 100 Myr")
+                  color="tab:blue", label=snapshot_label)
         reference = np.loadtxt(HERE / reference_name, delimiter=",")
         axis.scatter(reference[:, 0], 10.0 ** reference[:, 1],
                      color="tab:orange", s=18, label="reference: 100 Myr")
@@ -61,7 +69,7 @@ def main():
     temperature_axis = axes[1, 2]
     temperature_axis.clear()
     temperature_axis.plot(radius, np.clip(temperature[2:-2], 1.0, None),
-                           color="tab:red", label="snapshot: 100 Myr")
+                           color="tab:red", label=snapshot_label)
     temperature_reference = np.loadtxt(
         HERE / "TTT1D_Stromgren100Myr_HHe.txt", delimiter=","
     )
@@ -86,12 +94,16 @@ def main():
     axes[1, 2].set_xlabel(r"$r/r_s$, $r_s=5.4$ kpc")
     axes[0, 0].set_ylabel("mass fraction")
     axes[1, 0].set_ylabel("mass fraction")
-    fig.suptitle("H/He multifrequency snapshot vs reference at 100 Myr")
+    fig.suptitle(f"H/He multifrequency {snapshot_label.lower()} vs reference")
     fig.tight_layout()
-    fig.savefig(FIGURE, dpi=180, bbox_inches="tight")
+    fig.savefig(figure_filename, dpi=180, bbox_inches="tight")
     plt.close(fig)
-    print(FIGURE)
+    print(figure_filename)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--snapshot", default=SNAPSHOT, type=Path)
+    parser.add_argument("--figure", default=FIGURE, type=Path)
+    args = parser.parse_args()
+    main(args.snapshot, args.figure)

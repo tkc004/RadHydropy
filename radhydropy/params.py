@@ -93,6 +93,8 @@ refparams = {
     'radiative_transfer_c2ray_tolerance': 1.0e-6,
     'radiative_transfer_c2ray_relaxation': 1.0,
     'radiative_transfer_c2ray_nonconvergence': 'warn',
+    'radiative_transfer_c2ray_ode_max_iterations': 24,
+    'radiative_transfer_c2ray_ode_tolerance': 1.0e-8,
     'radiative_transfer_boundary_flux': 0.0 / (unyt.cm**2 * unyt.s),
     'radiative_transfer_boundary_flux_groups': None,
     'radiative_transfer_source_photon_rate': 0.0 / unyt.s,

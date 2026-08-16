@@ -284,6 +284,12 @@ def apply_state(state, fluid, par):
     fluid.xHeI[i] = state['xHeI']; fluid.xHeII[i] = state['xHeII']; fluid.xHeIII[i] = state['xHeIII']
     fluid.temp[i] = from_unit_value(state['temperature_K'], code.temperature_unit)
     fluid.mu[i] = state['mu']
+    if hasattr(fluid, 'ngamma') and state.get('ngamma_cm3') is not None:
+        target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
+        if np.ndim(target) == 2:
+            fluid.ngamma[:, i] = target
+        else:
+            fluid.ngamma[i] = target
     if hasattr(fluid, 'Mass') and hasattr(fluid, 'Energy'):
         specific_code = from_unit_value(state['specific_energy_erg_g'], code.specific_energy_unit)
         fluid.Energy[i] = fluid.Mass[i] * specific_code
