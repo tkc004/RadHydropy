@@ -19,18 +19,88 @@ from radhydropy.thermo_networks.compton import cmb_compton_rate
 
 
 def _alpha_heii(T):
+    """He II radiative recombination, Hummer & Storey (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
-    return 1.5e-12 * (T / 1.0e4) ** -0.635
+    return 1.26e-14 * (570670.0 / T) ** 0.750
+
+
+def _alpha_heii_dielectronic(T):
+    """He II dielectronic recombination, Aldrovandi & Pequignot (1973)."""
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return (
+        1.9e-3
+        * T ** -1.5
+        * np.exp(-4.7e5 / T)
+        * (1.0 + 0.3 * np.exp(-9.4e4 / T))
+    )
 
 
 def _alpha_heiii(T):
+    """He III case-B recombination, Hui & Gnedin (1997)."""
     T = np.maximum(np.asarray(T, float), 1.0)
-    return 3.36e-10 * T ** -0.5 * (T / 1.0e3) ** -0.2 / (1.0 + (T / 1.0e6) ** 0.7)
+    lam = 1263030.0 / T
+    return 5.506e-14 * lam**1.5 * (1.0 + (460960.0 / T) ** 0.407) ** -2.242
 
 
-def _beta_he(T, threshold):
+def _beta_hei(T):
+    """He I collisional ionization, Theuns et al. (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
-    return 5.0e-11 * np.sqrt(T) * np.exp(-threshold / T) / (1.0 + np.sqrt(T / 1.0e5))
+    return 4.76e-11 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
+
+
+def _beta_heii(T):
+    """He II collisional ionization, Theuns et al. (1998)."""
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 1.14e-11 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
+
+
+def _gamma_ion_hei(T):
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 1.88e-21 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
+
+
+def _gamma_ion_heii(T):
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 9.90e-22 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
+
+
+def _gamma_line_hei(T):
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 9.10e-27 * T ** -0.1687 * np.exp(-13179.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
+
+
+def _gamma_line_heii(T):
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 5.54e-17 * T ** -0.397 * np.exp(-473638.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
+
+
+def _gamma_rec_heii(T, case="B"):
+    """He II recombination cooling, using k_B T alpha (Hummer & Storey)."""
+    alpha = _alpha_heii(T)
+    if case.upper() == "A":
+        alpha = 1.26e-14 * (570670.0 / np.maximum(np.asarray(T, float), 1.0)) ** 0.750
+    return BOLTZMANN_CONSTANT_CGS * np.asarray(T, float) * alpha
+
+
+def _gamma_rec_heiii(T, case="B"):
+    """He III recombination cooling, Hui & Gnedin (1997)."""
+    T = np.maximum(np.asarray(T, float), 1.0)
+    lam = 1263030.0 / T
+    if case.upper() == "A":
+        return 1.4224e-28 * T * lam**1.965 * (1.0 + (lam / 0.522) ** 0.470) ** -1.923
+    return 2.748e-29 * T * lam**1.970 * (1.0 + (lam / 2.250) ** 0.376) ** -3.720
+
+
+def _gamma_dielectronic_heii(T):
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 1.24e-13 * T ** -1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
+
+
+def _gamma_bremsstrahlung(T):
+    T = np.maximum(np.asarray(T, float), 1.0)
+    return 1.42e-27 * np.sqrt(T) * (
+        1.1 + 0.34 * np.exp(-(5.5 - np.log10(T)) ** 2 / 3.0)
+    )
 
 
 def _state_density(state):
@@ -62,14 +132,30 @@ def _rates(state, ngamma):
     xHI, xHII = state['xHI'], state['xHII']
     xHeI, xHeII, xHeIII = state['xHeI'], state['xHeII'], state['xHeIII']
     aH, bH = _cgs_alpha_B(T), _cgs_beta(T)
-    a2, a3 = _alpha_heii(T), _alpha_heiii(T)
-    b1, b2 = _beta_he(T, 285335.0), _beta_he(T, 631515.0)
+    a2 = _alpha_heii(T) + _alpha_heii_dielectronic(T)
+    a3 = _alpha_heiii(T)
+    b1, b2 = _beta_hei(T), _beta_heii(T)
     dHI = ne * aH * xHII - ne * bH * xHI - photo['HI'] * xHI
     dHeI = ne * a2 * xHeII - ne * b1 * xHeI - photo['HeI'] * xHeI
     dHeIII = ne * b2 * xHeII - ne * a3 * xHeIII + photo['HeII'] * xHeII
     heating = nH * xHI * photo_heat['HI'] + nHe * xHeI * photo_heat['HeI'] + nHe * xHeII * photo_heat['HeII']
-    cooling = ne * (nH * xHI * (_cgs_gamma_line_eHI(T) + _cgs_gamma_ion_eHI(T)) + nH * xHII * (_cgs_gamma_ff_eHII(T) + _cgs_gamma_B_eHII(T)))
-    cooling += ne * nHe * (xHeI * 1.0e-24 + xHeII * 3.0e-24 + xHeIII * 5.0e-27 * np.sqrt(T))
+    cooling = ne * nH * (
+        xHI * (_cgs_gamma_line_eHI(T) + _cgs_gamma_ion_eHI(T))
+        + xHII * (_cgs_gamma_ff_eHII(T) + _cgs_gamma_B_eHII(T))
+    )
+    cooling += ne * nHe * (
+        xHeI * (_gamma_line_hei(T) + _gamma_ion_hei(T))
+        + xHeII * (
+            _gamma_line_heii(T)
+            + _gamma_ion_heii(T)
+            + _gamma_rec_heii(T)
+            + _gamma_dielectronic_heii(T)
+        )
+        + xHeIII * _gamma_rec_heiii(T)
+    )
+    cooling += ne * _gamma_bremsstrahlung(T) * (
+        nH * xHII + nHe * (xHeII + 4.0 * xHeIII)
+    )
     metal_heating = np.zeros_like(T, dtype=float)
     metal_cooling = np.zeros_like(T, dtype=float)
     metal_table = state.get('metal_pie_table')

@@ -57,6 +57,21 @@ def _cgs_alpha_B(temperature_K):
     return result
 
 
+def _cgs_alpha_A(temperature_K):
+    """H II case-A recombination coefficient (Hui & Gnedin 1997)."""
+    temperature_K = np.asarray(temperature_K, dtype=float)
+    result = np.zeros_like(temperature_K, dtype=float)
+    valid = temperature_K > 0.0
+    if np.any(valid):
+        lam = 315614.0 / temperature_K[valid]
+        result[valid] = (
+            1.269e-13
+            * lam**1.503
+            * (1.0 + (lam / 0.522) ** 0.470) ** -1.923
+        )
+    return result
+
+
 def _cgs_beta(temperature_K):
     temperature_K = np.asarray(temperature_K, dtype=float)
     result = np.zeros_like(temperature_K, dtype=float)
@@ -138,6 +153,23 @@ def _cgs_gamma_B_eHII(temperature_K):
             * temp
             * lam**1.970
             * (1.0 + (lam / 2.250) ** 0.376) ** -3.720
+        )
+    return result
+
+
+def _cgs_gamma_A_eHII(temperature_K):
+    """H II case-A recombination cooling coefficient."""
+    temperature_K = np.asarray(temperature_K, dtype=float)
+    result = np.zeros_like(temperature_K, dtype=float)
+    valid = temperature_K > 0.0
+    if np.any(valid):
+        temp = temperature_K[valid]
+        lam = 315614.0 / temp
+        result[valid] = (
+            1.778e-29
+            * temp
+            * lam**1.965
+            * (1.0 + (lam / 0.541) ** 0.502) ** -2.697
         )
     return result
 

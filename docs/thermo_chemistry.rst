@@ -36,7 +36,8 @@ Useful Runtime Parameters
 The full parameter table lives in :doc:`parameters`. The thermo-chemistry
 controls most commonly used by the bundled examples are:
 
-* ``thermochemistry_network``: selects ``hydrogen`` or ``cie_cooling``.
+* ``thermochemistry_network``: selects ``hydrogen``, ``hydrogen_helium``, or
+  ``cie_cooling``.
 * ``chemistry_key``: selects the composition preset, such as ``H`` or
   ``HHe``.
 * ``hydrogen_chemistry``: enables hydrogen thermal and neutral-fraction
@@ -58,6 +59,26 @@ controls most commonly used by the bundled examples are:
 
 When the radiative-transfer module is enabled, ``fluid.ngamma`` is supplied by
 the ray tracer before the hydrogen source terms are applied.
+
+Hydrogen--Helium Microphysics
+-----------------------------
+
+The ``hydrogen_helium`` network evolves H I, He I, He II, and He III with the
+multigroup photoionization rates from the configured spectrum. The atomic fits
+used by the network are:
+
+* Verner et al. (1996) group-averaged photoionization cross-sections;
+* Theuns et al. (1998) collisional ionization and collisional cooling rates;
+* Hui & Gnedin (1997) H II and He III recombination rates and H/He
+  recombination cooling fits;
+* Hummer & Storey (1998) He II radiative recombination;
+* Aldrovandi & Pequignot (1973) He II dielectronic recombination; and
+* Black (1981) He II dielectronic-recombination cooling.
+
+The H/He implementation uses case-B recombination cooling by default, matching
+the on-the-spot treatment used by the static multifrequency examples. The
+individual case-A and case-B hydrogen/helium cooling fits are available in the
+rate modules for future configuration of the escape/recombination treatment.
 
 Optional Metal PIE Cooling
 --------------------------

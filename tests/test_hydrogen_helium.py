@@ -6,6 +6,12 @@ import radhydropy.radiative_transfer as rrt
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.thermo_networks.hydrogen_helium import (
     _closure,
+    _alpha_heii,
+    _alpha_heii_dielectronic,
+    _alpha_heiii,
+    _beta_hei,
+    _beta_heii,
+    _gamma_bremsstrahlung,
     _rates,
     ionization_fraction_implicit_update,
 )
@@ -64,6 +70,23 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         )
         self.assertEqual(photo_rates["HI"].shape, (2,))
         self.assertEqual(photo_heating["HeI"].shape, (2,))
+
+    def test_cited_helium_rate_fits_are_finite_and_positive(self):
+        temperature = np.array([1.0e4, 1.0e5])
+        for rate in (
+            _alpha_heii(temperature),
+            _alpha_heii_dielectronic(temperature),
+            _alpha_heiii(temperature),
+            _beta_hei(temperature),
+            _beta_heii(temperature),
+            _gamma_bremsstrahlung(temperature),
+        ):
+            self.assertTrue(np.all(np.isfinite(rate)))
+            self.assertTrue(np.all(rate > 0.0))
+
+        # The Hummer & Storey He II fit is intentionally below the old
+        # approximate 1.5e-12 cm^3/s value near 10^4 K.
+        self.assertLess(float(_alpha_heii(np.array([1.0e4]))[0]), 1.0e-12)
 
     def test_implicit_update_keeps_hydrogen_and_helium_fractions_bounded(self):
         state = self._state()
