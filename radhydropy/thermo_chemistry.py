@@ -1,12 +1,18 @@
 """Dispatcher for pluggable thermo-chemistry networks."""
 
-from radhydropy.thermo_networks import CIECoolingNetwork, HydrogenNetwork, HydrogenHeliumNetwork
+from radhydropy.thermo_networks import (
+    CIECoolingNetwork,
+    HydrogenNetwork,
+    HydrogenHeliumNetwork,
+    PIEUVBGCoolingNetwork,
+)
 
 
 _NETWORKS = {
     HydrogenNetwork.name: HydrogenNetwork,
     HydrogenHeliumNetwork.name: HydrogenHeliumNetwork,
     CIECoolingNetwork.name: CIECoolingNetwork,
+    PIEUVBGCoolingNetwork.name: PIEUVBGCoolingNetwork,
 }
 
 

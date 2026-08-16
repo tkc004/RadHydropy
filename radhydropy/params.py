@@ -56,6 +56,9 @@ refparams = {
     'metallicity': 1.0,
     'cooling_safety_factor': 0.1,
     'cooling_temperature_floor': 100.0 * unyt.K,
+    'pie_uvbg_implicit_tolerance': 1.0e-3,
+    'pie_uvbg_implicit_max_retries': 8,
+    'pie_uvbg_implicit_max_iterations': 64,
     'chemistry_key': 'H',
     'hydrogen_chemistry': False,
     'hydrogen_mass_fraction': 1.0,
@@ -116,6 +119,7 @@ refparams = {
     'metal_pie_table_filename': None,
     'metal_pie_table': None,
     'metal_pie_photoheating_max_density_cm3': 50.0,
+    'metal_pie_redshift': 0.0,
     'number_of_radiation_groups': None,
     'radiative_transfer_direction': 1,
     'cosmological_expansion': False,
@@ -181,6 +185,16 @@ class Par():
                 self.load_radiation_spectrum(params.get('outdir'))
             if params.get('metal_pie_enabled', False) and params.get('metal_pie_table_filename'):
                 self.load_metal_pie_table(params.get('outdir'))
+            if (
+                getattr(self, 'metal_pie_enabled', False)
+                and getattr(self, 'metal_pie_table', None) is not None
+                and self.metal_pie_table.is_hm12_uv_background
+                and getattr(self, 'radiative_transfer', False)
+            ):
+                raise ValueError(
+                    'HM12 PIE UV-background tables require '
+                    'radiative_transfer: false in the first implementation'
+                )
             if verbose > 0 and missing_keys:
                 for key, value in missing_keys:
                     print("key %s not found in params" % key)

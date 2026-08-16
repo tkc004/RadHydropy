@@ -1,0 +1,56 @@
+runparams:
+  simname: PIEUVBGCoolingUniformSph1D
+  ICfilename: InitialCondition.hdf5
+  outdir: outputs
+  outfileprefix: Output
+  savedir: outputs
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 1.0e-5
+    unit: yr
+  outdeltatime:
+    value: 5.0e-6
+    unit: yr
+  CFL: 0.1
+  boundcond: OpenSph
+  verbose: 0
+  order: 0
+  thermochemistry_network: pie_uvbg_cooling
+  metal_pie_enabled: true
+  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+  metal_pie_redshift: 4.0
+  metal_pie_photoheating_max_density_cm3: 50.0
+  metallicity: 1.0
+  hydrogen_mass_fraction: 0.7
+  radiative_transfer: false
+  cooling_safety_factor: 0.1
+  cooling_temperature_floor:
+    value: 100.0
+    unit: K
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 48
+  coordsys: spherical
+  boxsize:
+    value: 0.001
+    unit: pc
+  time:
+    value: 0.0
+    unit: yr
+  tempini:
+    value: 10000.0
+    unit: K
+  muini: 0.62
+  nHini:
+    value: 1.0
+    unit: 1/cm**3

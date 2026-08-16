@@ -96,6 +96,19 @@ the on-the-spot treatment used by the static multifrequency examples. The
 individual case-A and case-B hydrogen/helium cooling fits are available in the
 rate modules for future configuration of the escape/recombination treatment.
 
+The ``pie_uvbg_cooling`` network applies the total H/He-plus-metals volumetric
+heating and cooling rates from an HM12 PIE table directly to hydrodynamic
+thermal energy. It uses the table axes ``(T, nH, redshift, Z/Zsun)`` and does
+not create or evolve a photon field. Set ``metal_pie_enabled: true``, point
+``metal_pie_table_filename`` to ``metal_pie_hm12_total.h5``, set
+``thermochemistry_network: pie_uvbg_cooling``, and choose ``metal_pie_redshift``.
+Radiative transfer must remain disabled for this first implementation.
+The thermal source update uses backward Euler. A full implicit step is
+compared with two implicit half-steps; if their relative energy difference is
+larger than ``pie_uvbg_implicit_tolerance``, the step is repeatedly halved.
+After the configured retries, the existing cooling-time-limited explicit
+subcycling is used as a fallback.
+
 Optional Metal PIE Cooling
 --------------------------
 

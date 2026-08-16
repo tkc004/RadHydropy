@@ -2,10 +2,12 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import pytest
 
-from radhydropy.constants import PROTON_MASS_CGS
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.params import Par
 from radhydropy.thermo_networks.hydrogen_helium import _closure, _rates
-from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.thermo_networks.pie import MetalPIETable, PIEUVBGCoolingNetwork
 
 
 TABLE_FILENAME = (
@@ -13,6 +15,23 @@ TABLE_FILENAME = (
     / "metal_pie_table"
     / "metal_pie_table_Z1_metals.h5"
 )
+HM12_TOTAL_FILENAME = (
+    Path(__file__).resolve().parents[2]
+    / "metal_pie_table"
+    / "metal_pie_hm12_total.h5"
+)
+
+
+def _code_units_mapping():
+    return {
+        "InternalUnitSystem": {
+            "UnitMass_in_cgs": 1.0,
+            "UnitLength_in_cgs": 1.0,
+            "UnitVelocity_in_cgs": 1.0,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        }
+    }
 
 
 def _write_power_law_table(filename):
@@ -154,6 +173,9 @@ def test_pie_self_shielding_disables_heating_but_keeps_cooling(tmp_path):
         handle["MetalPIE"].attrs["spectrum_type"] = (
             "Haardt-Madau 2012 UV background"
         )
+        axes = handle["MetalPIE/axes"]
+        del axes["log10_ionization_parameter"]
+        axes.create_dataset("redshift", data=[0.0, 1.0, 2.0])
     state = _state()
     state["rho_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
     state["metal_pie_table"] = MetalPIETable(filename)
@@ -163,9 +185,8 @@ def test_pie_self_shielding_disables_heating_but_keeps_cooling(tmp_path):
     rate_with_pie = _rates(state, ngamma)[3]
     rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma)[3]
     n_h = state["rho_g_cm3"] * 0.75 / PROTON_MASS_CGS
-    ionization_parameter = np.sum(ngamma, axis=0) / n_h
     _, expected_metal_cooling = state["metal_pie_table"].rates(
-        state["temperature_K"], n_h, ionization_parameter
+        state["temperature_K"], n_h, metallicity=1.0, redshift=0.0
     )
     np.testing.assert_allclose(
         rate_with_pie - rate_without_pie, -expected_metal_cooling
@@ -192,3 +213,53 @@ def test_non_hm12_pie_keeps_heating_above_density_cutoff(tmp_path):
         rate_with_pie - rate_without_pie,
         expected_heating - expected_cooling,
     )
+
+
+def test_hm12_pie_rejects_radiative_transfer():
+    with pytest.raises(ValueError, match="radiative_transfer: false"):
+        Par(
+            {
+                "CodeUnits": _code_units_mapping(),
+                "metal_pie_enabled": True,
+                "metal_pie_table_filename": str(HM12_TOTAL_FILENAME),
+                "radiative_transfer": True,
+            }
+        )
+
+
+def test_pie_uvbg_implicit_step_converges_against_half_steps():
+    table = MetalPIETable(HM12_TOTAL_FILENAME)
+    network = PIEUVBGCoolingNetwork()
+    temperature = 1.0e4
+    gamma = 5.0 / 3.0
+    mu = np.array([0.62])
+    state = {
+        "par": type(
+            "Parameters",
+            (),
+            {
+                "metal_pie_table": table,
+                "metal_pie_photoheating_max_density_cm3": 50.0,
+                "pie_uvbg_implicit_tolerance": 1.0e-3,
+                "pie_uvbg_implicit_max_iterations": 64,
+            },
+        )(),
+        "metallicity": 1.0,
+        "redshift": 4.0,
+        "hydrogen_mass_fraction": 0.7,
+        "rho_g_cm3": np.array([PROTON_MASS_CGS / 0.7]),
+        "temperature_K": np.array([temperature]),
+        "specific_energy_erg_g": np.array(
+            [BOLTZMANN_CONSTANT_CGS * temperature / ((gamma - 1.0) * mu[0] * PROTON_MASS_CGS)]
+        ),
+        "gamma": gamma,
+        "mu": mu,
+    }
+    old_energy = state["specific_energy_erg_g"].copy()
+    new_energy, converged = network._implicit_converged_step(
+        state, old_energy, 1.0e10, 100.0
+    )
+
+    assert np.all(converged)
+    assert np.all(np.isfinite(new_energy))
+    assert new_energy[0] < old_energy[0]

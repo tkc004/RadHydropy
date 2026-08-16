@@ -115,7 +115,7 @@ Thermo-Chemistry Keys
 
 Thermo-chemistry is disabled by default. The active network is selected by
 ``thermochemistry_network``; available networks are ``hydrogen``,
-``hydrogen_helium``, and ``cie_cooling``.
+``hydrogen_helium``, ``cie_cooling``, and ``pie_uvbg_cooling``.
 The species composition preset is selected separately with ``chemistry_key``
 and currently supports values such as ``H`` and ``HHe``. Set
 ``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
@@ -139,8 +139,8 @@ are not advected as independent fluid fields.
      - Meaning
      - Typical unit
    * - ``thermochemistry_network``
-     - Thermo-chemistry network name: ``hydrogen``, ``hydrogen_helium``, or
-       ``cie_cooling``.
+     - Thermo-chemistry network name: ``hydrogen``, ``hydrogen_helium``,
+       ``cie_cooling``, or ``pie_uvbg_cooling``.
      - string
    * - ``cie_cooling``
      - Enable the CIE radiative cooling source when using the ``cie_cooling``
@@ -224,6 +224,18 @@ are not advected as independent fluid fields.
        this hydrogen density while retaining metal PIE cooling. Other PIE
        tables are unaffected. Set to ``null`` to disable this cutoff.
      - ``cm^-3``
+   * - ``metal_pie_redshift``
+     - HM12 UV-background redshift used by the non-RT ``pie_uvbg_cooling``
+       network.
+     - dimensionless
+   * - ``pie_uvbg_implicit_tolerance``
+     - Relative energy-difference tolerance between a full implicit step and
+       two implicit half-steps. The default is ``1e-3``.
+     - dimensionless
+   * - ``pie_uvbg_implicit_max_retries`` / ``pie_uvbg_implicit_max_iterations``
+     - Maximum timestep halvings / bisection iterations for the implicit PIE
+       update. Defaults are ``8`` and ``64``.
+     - integer
    * - ``hydrogen_epsilon_gamma``
      - Excess photo-ionization energy per absorbed photon.
      - energy
