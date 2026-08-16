@@ -562,6 +562,23 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
         self.assertEqual(icparams['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
 
+    def test_static_stromgren_c2ray_comparison_uses_256_cells_and_requested_steps(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StaticStromgrenC2RayComparison'
+            / 'static_stromgren_c2ray_comparison.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(icparams['number_of_cells'], 256)
+        self.assertEqual(runparams['comparison_c2ray_steps'], 100)
+        self.assertEqual(
+            runparams['comparison_instantaneous_steps'],
+            [100, 1000, 10000, 100000],
+        )
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'instantaneous')
+
     def test_static_stromgren_sphere_photoheating1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

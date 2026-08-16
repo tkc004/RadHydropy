@@ -100,6 +100,8 @@ Available Examples
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.
+   * - ``example/StaticStromgrenC2RayComparison``
+     - C²-Ray versus instantaneous ionization-front timestep comparison.
    * - ``example/DynamicStromgrenSpherePhotoheating20pc1D``
      - Dense 20 pc dynamic photoheated Stromgren sphere with ``n_H = 100``
        cm^-3, source rate ``10^49`` s^-1, and a 1 Myr runtime.
@@ -146,6 +148,7 @@ Detailed Example Pages
 
    stellar_wind_bubble1d
    static_stromgren_sphere1d
+   static_stromgren_c2ray_comparison
    static_stromgren_sphere_photoheating1d
    hii_region_expansion1d
    nfw_hydrostatic_equilibrium1d

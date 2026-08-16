@@ -107,6 +107,69 @@ photon rate to the next cell. The default ``instantaneous`` scheme is
 unchanged. The current C²-Ray implementation supports the hydrogen network;
 hydrogen-helium runs continue to use the instantaneous scheme.
 
+C²-Ray Temporal Integration
+----------------------------
+
+C²-Ray is implemented as a separate source integrator in
+:mod:`radhydropy.thermo_networks.c2ray`. The long-characteristic geometry and
+finite-volume transport operations are shared with the ordinary ray tracer,
+but the temporal update is different: the radiation field and chemistry are
+advanced together during one global source timestep.
+
+For a cell traversed by an incoming photon rate ``Q_in``, the integrator uses
+the current iterate of the time-averaged neutral fraction ``xbar`` to form
+
+.. math::
+
+   \Delta\tau = \sigma_\gamma n_{\rm H} x_{\rm bar} \Delta s,
+   \qquad
+   Q_{\rm abs} = Q_{\rm in}(1 - e^{-\Delta\tau}),
+   \qquad
+   Q_{\rm out} = Q_{\rm in}e^{-\Delta\tau}.
+
+The absorbed rate is conservative: in spherical geometry it is the incoming
+minus outgoing photon rate divided by the cell volume. The local hydrogen
+equation is then advanced over the complete source timestep using this
+absorbed photon rate together with recombination and, when enabled, collisional
+ionization. The resulting time-averaged neutral fraction is iterated until it
+matches the opacity used for transport. Only after this local iteration has
+finished is ``Q_out`` passed to the next cell.
+
+This ordering is essential. It makes the method causal and photon-conserving,
+but it also means that cells along one ray cannot be updated independently or
+fully vectorized: the outgoing rate from cell ``i`` is the incoming rate for
+cell ``i+1``. The independent work inside each cell is the small implicit
+neutral-fraction iteration. For a one-dimensional spherical run, the method is
+therefore naturally implemented as a fast compiled-style numerical loop over
+cells rather than as an all-mesh vector operation.
+
+The implementation supports scalar and multigroup source rates and reuses the
+shared transport geometry. The current thermo-chemistry coupling is limited
+to ``thermochemistry_network: hydrogen``. The ordinary instantaneous scheme
+remains the default and is used for H/He runs.
+
+The C²-Ray controls are:
+
+.. code-block:: yaml
+
+   radiative_transfer_temporal_scheme: c2ray
+   radiative_transfer_c2ray_max_iterations: 32
+   radiative_transfer_c2ray_tolerance: 1.0e-6
+   radiative_transfer_c2ray_relaxation: 1.0
+   radiative_transfer_c2ray_nonconvergence: raise
+
+``radiative_transfer_c2ray_relaxation`` is between zero and one; one uses the
+new iterate directly, while smaller values under-relax the opacity update.
+The nonconvergence policy can be ``warn``, ``raise``, or a silent fallback
+after the iteration limit. For production runs, ``raise`` is useful when an
+unresolved local timestep should not pass unnoticed.
+
+The complete benchmark workflow is documented in
+:doc:`static_stromgren_c2ray_comparison`. It compares a 100-step C²-Ray run
+with instantaneous runs using 100, 1,000, 10,000, and 100,000 steps. Its lower
+panel uses the 100,000-step instantaneous trajectory as the numerical
+reference, rather than the analytic Strömgren solution.
+
 Useful parameters are:
 
 .. list-table::

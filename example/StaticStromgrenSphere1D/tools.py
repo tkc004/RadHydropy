@@ -54,6 +54,17 @@ def build_static_problem(config):
         hydrogen_epsilon_gamma=config.get('hydrogen_epsilon_gamma', 0.0 * unyt.erg),
         radiative_transfer=config.get('radiative_transfer', True),
         radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=config.get(
+            'radiative_transfer_temporal_scheme',
+            'instantaneous',
+        ),
+        c2ray_max_iterations=config.get('c2ray_max_iterations', 32),
+        c2ray_convergence_tolerance=config.get(
+            'c2ray_convergence_tolerance',
+            1.0e-6,
+        ),
+        c2ray_relaxation=config.get('c2ray_relaxation', 1.0),
+        c2ray_nonconvergence=config.get('c2ray_nonconvergence', 'raise'),
         radiative_transfer_boundary_flux=config.get(
             'radiative_transfer_boundary_flux',
             0.0 / (unyt.cm**2 * unyt.s),
