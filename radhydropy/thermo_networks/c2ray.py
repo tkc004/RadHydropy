@@ -27,6 +27,7 @@ from radhydropy.units import (
     PHOTON_RATE_UNIT,
     _code_units,
     code_quantity_to_cgs,
+    time_seconds,
 )
 from radhydropy import radiative_transfer as rrt
 from radhydropy.thermo_networks import hydrogen
@@ -464,7 +465,7 @@ def apply_fast(dt, mesh, fluid, par):
         )
     state = hydrogen.c2ray_source_state(mesh, fluid, par)
     code = _code_units(par)
-    dt_s = float(dt.to_value(code.time_unit)) if hasattr(dt, "to_value") else float(dt)
+    dt_s = time_seconds(dt, code)
     advance_state(state, par, dt_s)
     _ensure_fluid_photon_shape(fluid, state["ngamma_cm3"])
     hydrogen.sync_c2ray_state(state, fluid, par)

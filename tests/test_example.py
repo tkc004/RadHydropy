@@ -621,6 +621,21 @@ class Testing(unittest.TestCase):
         self.assertEqual(icparams['time'].to_value(unyt.Myr), 0.0)
         self.assertEqual(icparams['analytic_inner_radius'].to_value(unyt.kpc), 0.1)
 
+    def test_static_stromgren_sphere_photoheating1d_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'StaticStromgrenSpherePhotoheating1D'
+            / 'static_stromgren_sphere_photoheating1d_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
+        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(runparams['radiative_transfer_c2ray_nonconvergence'], 'raise')
+        self.assertEqual(icparams['number_of_cells'], 1024)
+
     def test_static_stromgren_sphere_photoheating1d_static_evolution_runs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -741,6 +756,21 @@ class Testing(unittest.TestCase):
             runparams['hydrogen_source_dtmin'].to_value(unyt.Myr),
             0.0,
         )
+
+    def test_dynamic_stromgren_sphere_photoheating1d_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'DynamicStromgrenSpherePhotoheating1D'
+            / 'dynamic_stromgren_sphere_photoheating1d_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(runparams['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
+        self.assertEqual(runparams['radiative_transfer_c2ray_nonconvergence'], 'raise')
+        self.assertEqual(icparams['number_of_cells'], 1024)
 
     def test_dynamic_stromgren_sphere_high_density_uses_requested_parameters(self):
         config_filename = (
@@ -874,6 +904,21 @@ class Testing(unittest.TestCase):
         self.assertEqual(runparams['order'], 1)
         self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.14)
         self.assertEqual(icparams['number_of_cells'], 2048)
+
+    def test_early_hii_region_expansion1d_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HIIRegionExpansion1D'
+            / 'early_hii_region_expansion1d_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(runparams['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
+        self.assertEqual(runparams['radiative_transfer_c2ray_nonconvergence'], 'warn')
+        self.assertEqual(icparams['number_of_cells'], 2048)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 2.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 0.14)
         self.assertTrue(Path(runparams['outputtimefilename']).exists())
@@ -900,6 +945,24 @@ class Testing(unittest.TestCase):
         self.assertTrue(
             runparams['ICfilename'].endswith('InitialCondition_lateHII.hdf5')
         )
+        self.assertEqual(icparams['number_of_cells'], 512)
+
+    def test_late_hii_region_expansion1d_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'HIIRegionExpansion1D'
+            / 'late_hii_region_expansion1d_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_lateHII_C2Ray')
+        self.assertEqual(
+            runparams['ICfilename'].split('/')[-1],
+            'InitialCondition_lateHII_C2Ray.hdf5',
+        )
+        self.assertEqual(runparams['radiative_transfer_c2ray_nonconvergence'], 'warn')
         self.assertEqual(icparams['number_of_cells'], 512)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 7.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 3.0)

@@ -79,6 +79,31 @@ def build_problem(config):
             'radiative_transfer_method',
             default='long_characteristics',
         ),
+        radiative_transfer_temporal_scheme=_config_value(
+            config,
+            'radiative_transfer_temporal_scheme',
+            default='instantaneous',
+        ),
+        radiative_transfer_c2ray_max_iterations=_config_value(
+            config,
+            'radiative_transfer_c2ray_max_iterations',
+            default=32,
+        ),
+        radiative_transfer_c2ray_tolerance=_config_value(
+            config,
+            'radiative_transfer_c2ray_tolerance',
+            default=1.0e-6,
+        ),
+        radiative_transfer_c2ray_relaxation=_config_value(
+            config,
+            'radiative_transfer_c2ray_relaxation',
+            default=1.0,
+        ),
+        radiative_transfer_c2ray_nonconvergence=_config_value(
+            config,
+            'radiative_transfer_c2ray_nonconvergence',
+            default='warn',
+        ),
         radiative_transfer_boundary_flux=_config_value(
             config,
             'radiative_transfer_boundary_flux',

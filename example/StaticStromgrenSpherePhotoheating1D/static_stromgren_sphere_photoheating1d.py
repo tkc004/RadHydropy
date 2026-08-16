@@ -92,7 +92,10 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(mainrun, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
-    figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSpherePhotoheating1D.jpg'
+    figure_name = 'StaticStromgrenSpherePhotoheating1D.jpg'
+    if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
+        figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
+    figure_filename = Path(runparams['savedir']) / figure_name
     et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
 
     print('time = %s' % out_fluid.time)

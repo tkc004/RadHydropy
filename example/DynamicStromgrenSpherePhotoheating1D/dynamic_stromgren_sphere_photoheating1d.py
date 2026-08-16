@@ -52,9 +52,12 @@ def main(config_filename=DEFAULT_CONFIG):
     history = et.load_history_from_outputs(outputfilenames, config)
     out_par, out_mesh, out_fluid = et.load_output_state(outputfilenames[-1], config)
 
-    figure_filename = Path(runparams['savedir']) / 'DynamicStromgrenSpherePhotoheating1D.jpg'
+    figure_stem = 'DynamicStromgrenSpherePhotoheating1D'
+    if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
+        figure_stem += '_C2Ray'
+    figure_filename = Path(runparams['savedir']) / f'{figure_stem}.jpg'
     front_figure_filename = (
-        Path(runparams['savedir']) / 'DynamicStromgrenSpherePhotoheating1D_IFront.jpg'
+        Path(runparams['savedir']) / f'{figure_stem}_IFront.jpg'
     )
     et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)

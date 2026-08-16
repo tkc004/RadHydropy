@@ -1,0 +1,141 @@
+runparams:
+  simname: LateHIIRegionExpansion1D_C2Ray
+  ICfilename: InitialCondition_lateHII_C2Ray.hdf5
+  outdir: .
+  outfileprefix: Output_lateHII_C2Ray
+  outputtimefilename: output_times_late.txt
+  savedir: .
+  coordsys: spherical
+  boundcond: OpenSph
+  EOStype: isothermal
+  gamma: 1.0
+  area:
+    value: 1.0
+    unit: cm**2
+  noghost: 2
+  timesim:
+    value: 3.0
+    unit: Myr
+  CFL: 0.5
+  order: 1
+  dtmin:
+    value: 1.0e-10
+    unit: Myr
+  dtmax:
+    value: 2.0e-4
+    unit: Myr
+  hydrogen_chemistry: true
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 1.0
+  hydrogen_xHI_inflow: 1.0
+  hydrogen_xHI_outflow: 1.0
+  hydrogen_source_CFL: 10000.0
+  hydrogen_source_dtmin:
+    value: 1.0e-12
+    unit: Myr
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: false
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: false
+  hydrogen_alpha_B:
+    value: 2.7e-13
+    unit: cm**3/s
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_radiation_field: false
+  hydrogen_radiation_evolution: false
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  hydrogen_sigma_gamma:
+    value: 6.3e-18
+    unit: cm**2
+  hydrogen_epsilon_gamma:
+    value: 0.0
+    unit: erg
+  radiative_transfer: true
+  radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: c2ray
+  radiative_transfer_c2ray_max_iterations: 8
+  radiative_transfer_c2ray_tolerance: 1.0e-4
+  radiative_transfer_c2ray_relaxation: 1.0
+  radiative_transfer_c2ray_nonconvergence: warn
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
+  radiative_transfer_source_photon_rate:
+    value: 1.0e49
+    unit: 1/s
+  radiative_transfer_direction: 1
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  source_photon_rate:
+    value: 1.0e49
+    unit: 1/s
+  rho_initial:
+    value: 5.21e-21
+    unit: g/cm**3
+  neutral_temperature:
+    value: 1.0e3
+    unit: K
+  ionized_temperature:
+    value: 1.0e4
+    unit: K
+  ionized_sound_speed:
+    value: 12.85
+    unit: km/s
+  sigma_gamma:
+    value: 6.3e-18
+    unit: cm**2
+  alpha_B_coefficient:
+    value: 2.7e-13
+    unit: cm**3/s
+  boxsize:
+    value: 7.0
+    unit: pc
+  number_of_cells: 512
+  final_time:
+    value: 3.0
+    unit: Myr
+  comparison_time:
+    value: 3.0
+    unit: Myr
+  show_stagnation_radius: true
+  output_snapshots:
+    - time:
+        value: 0.0
+        unit: Myr
+    - time:
+        value: 0.05
+        unit: Myr
+      label: 0p05
+    - time:
+        value: 0.10
+        unit: Myr
+    - time:
+        value: 0.20
+        unit: Myr
+      label: 0p20
+    - time:
+        value: 0.50
+        unit: Myr
+    - time:
+        value: 0.80
+        unit: Myr
+      label: 0p80
+    - time:
+        value: 1.50
+        unit: Myr
+    - time:
+        value: 3.0
+        unit: Myr
+      label: 3p00

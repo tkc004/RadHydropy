@@ -154,6 +154,21 @@ def build_static_problem(config):
         hydrogen_epsilon_gamma=config['hydrogen_epsilon_gamma'],
         radiative_transfer=True,
         radiative_transfer_method='long_characteristics',
+        radiative_transfer_temporal_scheme=config.get(
+            'radiative_transfer_temporal_scheme', 'instantaneous'
+        ),
+        radiative_transfer_c2ray_max_iterations=config.get(
+            'radiative_transfer_c2ray_max_iterations', 32
+        ),
+        radiative_transfer_c2ray_tolerance=config.get(
+            'radiative_transfer_c2ray_tolerance', 1.0e-6
+        ),
+        radiative_transfer_c2ray_relaxation=config.get(
+            'radiative_transfer_c2ray_relaxation', 1.0
+        ),
+        radiative_transfer_c2ray_nonconvergence=config.get(
+            'radiative_transfer_c2ray_nonconvergence', 'warn'
+        ),
         radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
         radiative_transfer_source_photon_rate=config['radiative_transfer_source_photon_rate'],
         radiative_transfer_direction=1,

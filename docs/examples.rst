@@ -21,7 +21,8 @@ Available Examples
      - Spherical one-dimensional advection.
    * - ``example/HIIRegionExpansion1D``
      - Spherical H II region expansion with hydrodynamics and a simplified
-       piecewise-isothermal neutral/ionized equation of state.
+       piecewise-isothermal neutral/ionized equation of state. Early and late
+       C²-Ray YAML variants are also included.
    * - ``example/HydrostaticEquilibrium1D``
      - Cartesian isothermal atmosphere in a constant gravitational field used
        as a hydrostatic-equilibrium check. The helper stays ``unyt``-friendly
@@ -100,6 +101,14 @@ Available Examples
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.
+   * - ``example/StaticStromgrenSpherePhotoheating1D``
+     - Static spherical Stromgren benchmark with photoheating. The directory
+       also contains ``static_stromgren_sphere_photoheating1d_c2ray.yaml``
+       and a separate C²-Ray figure.
+   * - ``example/DynamicStromgrenSpherePhotoheating1D``
+     - Dynamic spherical Stromgren benchmark with photoheating. The directory
+       also contains ``dynamic_stromgren_sphere_photoheating1d_c2ray.yaml``
+       and separate C²-Ray figures.
    * - ``example/StaticStromgrenC2RayComparison``
      - C²-Ray versus instantaneous ionization-front timestep comparison.
    * - ``example/DynamicStromgrenSpherePhotoheating20pc1D``

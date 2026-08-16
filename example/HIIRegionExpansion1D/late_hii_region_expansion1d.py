@@ -84,7 +84,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     history = et.load_history_from_outputs(outputfilenames, config)
 
-    figure_filename = Path(runparams['savedir']) / 'LateHIIRegionExpansion1D_IFront.jpg'
+    figure_stem = 'LateHIIRegionExpansion1D'
+    if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
+        figure_stem += '_C2Ray'
+    figure_filename = Path(runparams['savedir']) / f'{figure_stem}_IFront.jpg'
     et.save_front_plot(history, config, figure_filename)
 
     density_figure_filenames = []
@@ -94,7 +97,7 @@ def main(config_filename=DEFAULT_CONFIG):
         output_specs,
     ):
         density_figure_filename = Path(runparams['savedir']) / (
-            f"LateHIIRegionExpansion1D_Density_{label}Myr.jpg"
+            f"{figure_stem}_Density_{label}Myr.jpg"
         )
         et.save_density_profile_plot(snapshot, config, density_figure_filename)
         density_figure_filenames.append(density_figure_filename)
