@@ -19,6 +19,22 @@ The default setup uses five groups with edges
 simulation has ``n_H = 10^-3 cm^-3``, 512 spherical cells, and evolves to
 100 Myr.
 
+The same setup can be run with the causal C²-Ray temporal update using a
+separate configuration and output set::
+
+   python multifrequency_radiative_transfer_sph1d.py \
+     --config multifrequency_radiative_transfer_sph1d_c2ray.yaml
+
+This writes ``InitialCondition_C2Ray.hdf5``, ``Output_C2Ray_000.hdf5``, and
+``MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg``. The five frequency groups
+are transported causally from the central source while the hydrogen state and
+temperature evolve over the 0.5 Myr source steps.
+
+For a timestep check, the configuration
+``multifrequency_radiative_transfer_sph1d_c2ray_dt0p05.yaml`` repeats the
+calculation with ``evolution_timestep = 0.05 Myr`` and writes separate
+``dt0p05`` outputs.
+
 HDF5 spectrum input
 -------------------
 
@@ -88,6 +104,16 @@ radiation group.
    :alt: Pure-hydrogen multifrequency radiative-transfer radial profiles
 
    Pure-hydrogen multifrequency radiation at 100 Myr.
+
+The C²-Ray version produces the corresponding profiles below. The plotted
+group photon densities show the causal, group-dependent attenuation through
+the neutral outer medium.
+
+.. figure:: ../example/MultiFrequencyRadiativeTransferSph1D/MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg
+   :width: 100%
+   :alt: Pure-hydrogen multifrequency C²-Ray radial profiles
+
+   Pure-hydrogen multifrequency C²-Ray radiation at 100 Myr.
 
 The repository also includes an H/He variant using the
 ``hydrogen_helium`` thermo-chemistry network. Its output includes the same

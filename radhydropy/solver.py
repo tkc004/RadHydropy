@@ -272,8 +272,8 @@ class Solver():
         for attr in fields:
             quan = getattr(fluid, attr)
             if attr == 'ngamma' and np.ndim(quan) == 2:
-                quan[:, left_ghost] = quan[:, interior][-noghost:]
-                quan[:, right_ghost] = quan[:, interior][:noghost]
+                quan[:, left_ghost] = quan[:, interior][:, -noghost:]
+                quan[:, right_ghost] = quan[:, interior][:, :noghost]
             else:
                 quan[left_ghost] = quan[interior][-noghost:]
                 quan[right_ghost] = quan[interior][:noghost]

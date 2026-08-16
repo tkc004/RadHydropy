@@ -365,7 +365,8 @@ class Testing(unittest.TestCase):
         runparams, icparams = load_example_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer'], True)
-        self.assertTrue(runparams['hydrogen_initial_collisional_equilibrium'])
+        self.assertFalse(runparams['hydrogen_initial_collisional_equilibrium'])
+        self.assertEqual(runparams['hydrogen_xHI_initial'], 0.9988)
         self.assertEqual(
             runparams['radiation_spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
@@ -387,6 +388,44 @@ class Testing(unittest.TestCase):
                 [13.6, 24.6, 35.5, 54.4, 75.0, 50000.0],
             )
             self.assertEqual(len(group['ionizing_photon_energy_erg']), 5)
+        self.assertEqual(icparams['number_of_cells'], 512)
+
+    def test_multifrequency_radiative_transfer_sph1d_c2ray_uses_distinct_outputs(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'MultiFrequencyRadiativeTransferSph1D'
+            / 'multifrequency_radiative_transfer_sph1d_c2ray.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(
+            Path(runparams['ICfilename']).name,
+            'InitialCondition_C2Ray.hdf5',
+        )
+        self.assertEqual(
+            runparams['figure_filename'],
+            'MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg',
+        )
+        self.assertEqual(icparams['number_of_cells'], 512)
+
+    def test_multifrequency_radiative_transfer_sph1d_c2ray_dt0p05_uses_small_timestep(self):
+        config_filename = (
+            Path(__file__).resolve().parents[1]
+            / 'example'
+            / 'MultiFrequencyRadiativeTransferSph1D'
+            / 'multifrequency_radiative_transfer_sph1d_c2ray_dt0p05.yaml'
+        )
+        runparams, icparams = load_example_parameters(config_filename)
+
+        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray_dt0p05')
+        self.assertEqual(
+            runparams['evolution_timestep'].to_value(unyt.Myr),
+            0.05,
+        )
         self.assertEqual(icparams['number_of_cells'], 512)
 
     def test_stellar_wind_bubble1d_uses_yaml_config(self):

@@ -68,9 +68,11 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     temperature_K = (
         np.asarray(fluid.temp[interior], dtype=float) * code.temperature_unit
     ).to_value(unyt.K)
+    ngamma_values = np.asarray(fluid.ngamma, dtype=float)
+    if ngamma_values.ndim == 1:
+        ngamma_values = ngamma_values[None, :]
     ngamma = (
-        np.asarray(fluid.ngamma[:, interior], dtype=float)
-        * code.number_density_unit
+        ngamma_values[:, interior] * code.number_density_unit
     ).to_value(1.0 / unyt.cm**3)
 
     xhi_reference = _resolve_reference(
@@ -153,9 +155,13 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
 def main(config_filename=DEFAULT_CONFIG):
     runparams, icparams = load_example_parameters(config_filename, Path.cwd())
     config = {**runparams, **icparams}
-    runparams["ICfilename"] = str(Path(runparams["outdir"]) / "InitialCondition.hdf5")
-    runparams["outdir"] = str(Path.cwd())
-    runparams["savedir"] = str(Path.cwd())
+    output_dir = Path.cwd()
+    ic_filename = Path(runparams.get("ICfilename", "InitialCondition.hdf5"))
+    if not ic_filename.is_absolute():
+        ic_filename = output_dir / ic_filename
+    runparams["ICfilename"] = str(ic_filename)
+    runparams["outdir"] = str(output_dir)
+    runparams["savedir"] = str(output_dir)
     config.update(runparams)
 
     tools.write_initial_condition(config, runparams)
@@ -168,7 +174,9 @@ def main(config_filename=DEFAULT_CONFIG):
         runparams["final_time"],
         runparams["evolution_timestep"],
     )
-    output_filename = Path(runparams["outdir"]) / "Output_000.hdf5"
+    output_filename = output_dir / (
+        f"{runparams.get('outfileprefix', 'Output')}_000.hdf5"
+    )
     rio.writehdf5(sim, output_filename)
     figure_filename = Path(runparams["savedir"]) / config.get(
         "figure_filename", "MultiFrequencyRadiativeTransferSph1D.jpg"

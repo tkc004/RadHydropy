@@ -26,6 +26,22 @@ python multifrequency_radiative_transfer_sph1d.py \
   --config multifrequency_radiative_transfer_sph1d.yaml
 ```
 
+The same five-group pure-hydrogen setup is available with the causal C²-Ray
+temporal update:
+
+```bash
+python multifrequency_radiative_transfer_sph1d.py \
+  --config multifrequency_radiative_transfer_sph1d_c2ray.yaml
+```
+
+The C²-Ray run uses separate `InitialCondition_C2Ray.hdf5` and
+`Output_C2Ray_000.hdf5` files and writes
+`MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg`.
+
+For a timestep-convergence check, use
+`multifrequency_radiative_transfer_sph1d_c2ray_dt0p05.yaml`, which repeats the
+run with `evolution_timestep = 0.05 Myr` and writes separate `dt0p05` files.
+
 The generated spectrum can be recreated from the repository root with:
 
 ```bash

@@ -137,7 +137,10 @@ def build_static_problem(config):
             config.get('initial_temperature', 1.0e4 * unyt.K).to_value(unyt.K)
         )
     else:
-        fluid.xHI = np.ones(par.nogrid)
+        fluid.xHI = np.ones(par.nogrid) * config.get(
+            'hydrogen_xHI_initial',
+            1.0,
+        )
     if par.thermochemistry_network == 'hydrogen_helium':
         fluid.xHeI = np.ones(par.nogrid) * config.get(
             'hydrogen_helium_xHeI_initial', 1.0

@@ -59,6 +59,15 @@ class Rsim():
         print("--- %s seconds ---" % (time.time() - start_time))
         self._require_code_units()
         rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename)
+        # ``readhdf5`` restores EOS parameters and code units from the file
+        # header.  The EOS object was created before that restoration in
+        # ``__init__``, so rebuild it to prevent stale gamma/units from being
+        # used for pressure, energy, and temperature conversions.
+        self.fluid.eos = EOS(
+            self.par.EOStype,
+            self.par.gamma,
+            getattr(self.par, 'CodeUnits', None),
+        )
         self.checkparams()
         self.fluid.SetFluidTime(self.par.time)
         print("--- Start Initial Time ---")

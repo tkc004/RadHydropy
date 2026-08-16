@@ -1,25 +1,29 @@
 runparams:
-  simname: MultiFrequencyRadiativeTransferSph1D
-  ICfilename: InitialCondition.hdf5
+  simname: MultiFrequencyRadiativeTransferSph1D_C2Ray
+  ICfilename: InitialCondition_C2Ray.hdf5
   outdir: .
-  outfileprefix: Output
+  outfileprefix: Output_C2Ray
   savedir: .
+  figure_filename: MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg
   coordsys: spherical
   boundcond: OpenSph
   noghost: 2
   hydrogen_chemistry: true
   hydrogen_mass_fraction: 1.0
-  # TT1D initial condition: eta_HII = 1.2e-3, so x_HI = 0.9988.
-  hydrogen_xHI_initial: 0.9988
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true
   hydrogen_recombination: true
   hydrogen_collisional_ionization: true
-  hydrogen_initial_collisional_equilibrium: false
+  hydrogen_initial_collisional_equilibrium: true
   hydrogen_alpha_B: null
   hydrogen_beta: null
   radiative_transfer: true
   radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: c2ray
+  radiative_transfer_c2ray_max_iterations: 32
+  radiative_transfer_c2ray_tolerance: 1.0e-6
+  radiative_transfer_c2ray_relaxation: 1.0
+  radiative_transfer_c2ray_nonconvergence: warn
   radiative_transfer_direction: 1
   radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB100000K_5groups_HHe.h5
   radiation_spectrum_total_photon_rate:

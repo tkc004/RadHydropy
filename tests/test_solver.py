@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 import unyt
@@ -165,6 +166,49 @@ class Testing(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "par\\.CodeUnits"):
             sim.Callreadhdf5()
+
+    @patch('radhydropy.rsim.rio.readhdf5')
+    def test_callreadhdf5_rebuilds_eos_from_restored_header(self, readhdf5):
+        restored_units = CodeUnits.from_mapping(
+            {
+                'name': 'restored_units',
+                'InternalUnitSystem': {
+                    'UnitMass_in_cgs': 2.0,
+                    'UnitLength_in_cgs': 3.0,
+                    'UnitVelocity_in_cgs': 4.0,
+                    'UnitCurrent_in_cgs': 1.0,
+                    'UnitTemp_in_cgs': 5.0,
+                },
+            }
+        )
+        sim = Rsim.__new__(Rsim)
+        sim.par = SimpleNamespace(
+            ICfilename='dummy.hdf5',
+            CodeUnits=CODE_UNITS,
+            EOStype='polytropic',
+            gamma=1.4,
+            time=0.0,
+        )
+        sim.mesh = SimpleNamespace()
+        sim.fluid = RealFluid()
+        original_eos = RHEOS('polytropic', gamma=1.4, code_units=CODE_UNITS)
+        sim.fluid.eos = original_eos
+        sim.checkparams = lambda: None
+
+        def restore_header(par, mesh, fluid, filename):
+            par.EOStype = 'polytropic'
+            par.gamma = 5.0 / 3.0
+            par.CodeUnits = restored_units
+            par.time = 7.0
+
+        readhdf5.side_effect = restore_header
+        sim.Callreadhdf5()
+
+        self.assertIsNot(sim.fluid.eos, original_eos)
+        self.assertEqual(sim.fluid.eos.EOStype, 'polytropic')
+        self.assertEqual(sim.fluid.eos.gamma, 5.0 / 3.0)
+        self.assertIs(sim.fluid.eos.CodeUnits, restored_units)
+        self.assertEqual(sim.fluid.time, 7.0)
 
     def test_open_boundary_fills_all_ghost_cells(self):
         fluid = Fluid()
