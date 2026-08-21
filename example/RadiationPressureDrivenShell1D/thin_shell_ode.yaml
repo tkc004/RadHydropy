@@ -1,0 +1,54 @@
+runparams:
+  simname: RadiationPressureDrivenShell1D_ThinShellODE
+  ICfilename: InitialCondition_ThinShellODE.hdf5
+  outdir: .
+  outfileprefix: Output_ThinShellODE
+  savedir: .
+  coordsys: cartesian
+  boundcond: Periodic
+  area:
+    value: 1.0
+    unit: pc**2
+  nogrid: 1
+  noghost: 2
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 2.0e4
+    unit: yr
+  dtmax:
+    value: 10.0
+    unit: yr
+  dtmin:
+    value: 1.0e-4
+    unit: yr
+  outdeltatime:
+    value: 2.0e3
+    unit: yr
+  radiation_pressure: true
+  radiation_pressure_efficiency: 1.0
+  radiation_pressure_source_luminosity:
+    value: 1.0e38
+    unit: erg/s
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  boxsize:
+    value: 1.0
+    unit: pc
+  initial_radius:
+    value: 0.2
+    unit: pc
+  shell_mass:
+    value: 1.482077e32
+    unit: g
+  temperature:
+    value: 1.0
+    unit: K
