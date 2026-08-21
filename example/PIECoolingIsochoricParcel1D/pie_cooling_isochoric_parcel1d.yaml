@@ -1,0 +1,60 @@
+runparams:
+  simname: PIECoolingIsochoricParcel1D
+  ICfilename: InitialCondition.hdf5
+  outdir: outputs
+  outfileprefix: Output
+  savedir: outputs
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 500.0
+    unit: Myr
+  outdeltatime:
+    value: 50.0
+    unit: Myr
+  dtmin:
+    value: 1.0
+    unit: yr
+  dtmax:
+    value: 5.0
+    unit: Myr
+  CFL: 0.1
+  boundcond: Reflecting
+  verbose: 0
+  order: 0
+  noghost: 2
+  thermochemistry_network: pie_uvbg_cooling
+  metal_pie_enabled: true
+  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+  metal_pie_redshift: 0.0
+  metal_pie_photoheating_max_density_cm3: 50.0
+  metallicity: 1.0
+  hydrogen_mass_fraction: 0.76
+  radiative_transfer: false
+  cooling_safety_factor: 0.05
+  cooling_temperature_floor:
+    value: 100.0
+    unit: K
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 1
+  coordsys: spherical
+  boxsize:
+    value: 1.0
+    unit: kpc
+  time:
+    value: 0.0
+    unit: Myr
+  tempini:
+    value: 10000.0
+    unit: K
+  muini: 0.62

@@ -41,6 +41,9 @@ Available Examples
      - ``3e11 Msun`` virial-shock cooling experiment at ``z=0`` using the HM12
        photoionization-equilibrium heating and cooling table, with ``1e12``
        and ``1e11 Msun`` control configurations.
+   * - ``example/PIECoolingIsochoricParcel1D``
+     - Fixed-density HM12 PIE heating and cooling parcels covering diffuse and
+       dense gas initially at ``1e4`` and ``1e6 K``.
    * - ``example/DarkMatterFixedMassOrbit1D``
      - Fixed-enclosed-mass dark-matter shell with angular momentum, compared
        against a conserved-energy reference orbit.
