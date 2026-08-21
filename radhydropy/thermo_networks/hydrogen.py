@@ -1121,5 +1121,11 @@ class HydrogenNetwork(ThermochemistryNetwork):
     def get_source_timestep_fast(self, mesh, fluid, par, remaining):
         return get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining)
 
-    def apply_fast(self, dt, mesh, fluid, par):
-        return apply_thermochemistry_fast(dt, mesh, fluid, par)
+    def apply_fast(self, dt, mesh, fluid, par, transport_result=None):
+        return apply_thermochemistry_fast(
+            dt,
+            mesh,
+            fluid,
+            par,
+            transport_result=transport_result,
+        )

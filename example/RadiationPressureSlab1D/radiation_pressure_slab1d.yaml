@@ -1,0 +1,107 @@
+runparams:
+  simname: RadiationPressureSlab1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  savedir: .
+  coordsys: cartesian
+  boundcond: Periodic
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 1.0e5
+    unit: s
+  CFL: 0.3
+  dtmin:
+    value: 1.0e-8
+    unit: s
+  dtmax:
+    value: 5.0e2
+    unit: s
+  order: 0
+  noghost: 2
+  area:
+    value: 1.0
+    unit: cm**2
+  rho_inflow:
+    value: 1.0e-22
+    unit: g/cm**3
+  vel_inflow:
+    value: 0.0
+    unit: cm/s
+  temp_inflow:
+    value: 100.0
+    unit: K
+  mu_inflow: 1.0
+  rho_outflow:
+    value: 1.0e-22
+    unit: g/cm**3
+  vel_outflow:
+    value: 0.0
+    unit: cm/s
+  temp_outflow:
+    value: 100.0
+    unit: K
+  mu_outflow: 1.0
+  hydrogen_chemistry: true
+  thermochemistry_network: hydrogen
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 1.0
+  hydrogen_xHI_inflow: 1.0
+  hydrogen_xHI_outflow: 1.0
+  hydrogen_source_CFL: 1000000.0
+  hydrogen_update_mu: false
+  hydrogen_thermal_coupling: false
+  hydrogen_recombination: false
+  hydrogen_collisional_ionization: false
+  hydrogen_radiation_field: false
+  hydrogen_radiation_evolution: false
+  hydrogen_sigma_gamma:
+    value: 6.3e-18
+    unit: cm**2
+  hydrogen_epsilon_gamma:
+    value: 6.4
+    unit: eV
+  hydrogen_photon_energy:
+    value: 20.0
+    unit: eV
+  radiative_transfer: true
+  radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: instantaneous
+  radiative_transfer_boundary_flux:
+    value: 1.0e12
+    unit: 1/(cm**2*s)
+  radiative_transfer_source_photon_rate:
+    value: 0.0
+    unit: 1/s
+  radiative_transfer_direction: 1
+  radiation_pressure: true
+  radiation_pressure_efficiency: 1.0
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 64
+  coordsys: cartesian
+  boxsize:
+    value: 1.0e10
+    unit: cm
+  time:
+    value: 0.0
+    unit: s
+  rhoini:
+    value: 1.0e-22
+    unit: g/cm**3
+  vini:
+    value: 0.0
+    unit: cm/s
+  tempini:
+    value: 100.0
+    unit: K
+  muini: 1.0

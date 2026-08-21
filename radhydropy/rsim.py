@@ -412,20 +412,22 @@ class Rsim():
             source_result = self.ApplyThermochemistrySources(
                 dt,
             )
-            self.solver.ApplyRadiationPressure(
-                dt,
-                self.mesh,
-                self.fluid,
-                self.par,
-                source_result,
-            )
-            result["source_steps"] = int(source_result.get("source_steps", 0))
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
             if mode == "sources":
                 self.fluid.time += dt
             self.solver.SetBoundary(self.mesh, self.fluid, self.par)
             self.solver.SetConserved(self.mesh, self.fluid, verbose=getattr(self.par, 'verbose', 0))
+            pressure_applied = self.solver.ApplyRadiationPressure(
+                dt,
+                self.mesh,
+                self.fluid,
+                self.par,
+                source_result,
+            )
+            if pressure_applied:
+                self._sync_hydro_state()
+            result["source_steps"] = int(source_result.get("source_steps", 0))
 
         return result
 
