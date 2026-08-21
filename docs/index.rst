@@ -32,6 +32,7 @@ The package is organized around a small simulation workflow:
    initial_conditions
    snapshots
    radiative_transfer
+   radiation_pressure
    radiation_spectrum_generator
    examples
 

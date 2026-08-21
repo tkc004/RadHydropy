@@ -117,6 +117,13 @@ Available Examples
    * - ``example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D``
      - The same dense photoheated Stromgren sphere with a 10^-6 M☉ yr^-1,
        1000 km s^-1 central stellar wind.
+   * - ``example/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D``
+     - The same dense 20 pc photoheated Stromgren sphere with direct radiation
+       pressure from absorbed ionizing photons, including momentum, pressure,
+       and matched total-energy diagnostics.
+   * - ``example/RadiationPressureDrivenShell1D``
+     - Fixed-mass thin-shell radiation-pressure momentum benchmark with an
+       isolated ``Lt/c`` analytic expectation.
    * - ``example/SedovTaylor1D``
      - Cartesian Sedov-Taylor blast-wave setup with analytic helper.
    * - ``example/SedovTaylorSph1d``
@@ -165,6 +172,7 @@ Detailed Example Pages
    multifrequency_radiative_transfer_sph1d
    multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr
    dynamic_stromgren_sphere_photoheating1d
+   dynamic_stromgren_sphere_photoheating20pc_radiation_pressure1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
    bertschinger_reference
    bertschinger_gas_reference
