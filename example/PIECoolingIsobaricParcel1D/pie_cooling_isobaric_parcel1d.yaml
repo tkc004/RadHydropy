@@ -1,0 +1,30 @@
+runparams:
+  simname: PIECoolingIsobaricParcel1D
+  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+  metal_pie_redshift: 0.0
+  metallicity: 1.0
+  hydrogen_mass_fraction: 0.76
+  gamma: 1.6666666666666667
+  mu: 0.62
+  timesim:
+    value: 500.0
+    unit: Myr
+  output_count: 101
+  temperature_floor:
+    value: 100.0
+    unit: K
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+  cases:
+    - [diffuse_hot, 1.0e-4, 1.0e6]
+    - [diffuse_cold, 1.0e-3, 1.0e5]
+    - [dense_hot, 1.0e-3, 1.0e6]
+    - [dense_cold, 1.0e-2, 1.0e5]
+
+ICparams: {}
