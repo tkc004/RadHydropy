@@ -12,7 +12,8 @@ Activation and Coupling
 -----------------------
 
 The source-term network is selected with ``thermochemistry_network``. The
-available networks are ``hydrogen``, ``hydrogen_helium``, and ``cie_cooling``.
+available networks are ``hydrogen``, ``hydrogen_helium``, ``cie_cooling``,
+and ``pie_uvbg_cooling``.
 The hydrogen network
 can evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together with
 hydrogen heating and cooling source terms. The CIE network uses tabulated
@@ -37,8 +38,8 @@ Useful Runtime Parameters
 The full parameter table lives in :doc:`parameters`. The thermo-chemistry
 controls most commonly used by the bundled examples are:
 
-* ``thermochemistry_network``: selects ``hydrogen``, ``hydrogen_helium``, or
-  ``cie_cooling``.
+* ``thermochemistry_network``: selects ``hydrogen``, ``hydrogen_helium``,
+  ``cie_cooling``, or ``pie_uvbg_cooling``.
 * ``chemistry_key``: selects the composition preset, such as ``H`` or
   ``HHe``.
 * ``hydrogen_chemistry``: enables hydrogen thermal and neutral-fraction
@@ -57,6 +58,11 @@ controls most commonly used by the bundled examples are:
   the local photon field update when ray tracing is not active.
 * ``hydrogen_ngamma_initial`` and ``hydrogen_sigma_gamma``: initial photon
   density and photo-ionization opacity.
+* ``metal_pie_enabled`` and ``metal_pie_table_filename``: enable PIE heating
+  and cooling and select the HDF5 PIE table.
+* ``metal_pie_redshift``: redshift used by the HM12 PIE UV-background table.
+* ``pie_uvbg_implicit_tolerance`` and ``pie_uvbg_implicit_max_retries``:
+  controls for the implicit PIE thermal update.
 
 When the radiative-transfer module is enabled, ``fluid.ngamma`` is supplied by
 the ray tracer before the hydrogen source terms are applied.
@@ -96,18 +102,32 @@ the on-the-spot treatment used by the static multifrequency examples. The
 individual case-A and case-B hydrogen/helium cooling fits are available in the
 rate modules for future configuration of the escape/recombination treatment.
 
-The ``pie_uvbg_cooling`` network applies the total H/He-plus-metals volumetric
-heating and cooling rates from an HM12 PIE table directly to hydrodynamic
-thermal energy. It uses the table axes ``(T, nH, redshift, Z/Zsun)`` and does
-not create or evolve a photon field. Set ``metal_pie_enabled: true``, point
-``metal_pie_table_filename`` to ``metal_pie_hm12_total.h5``, set
-``thermochemistry_network: pie_uvbg_cooling``, and choose ``metal_pie_redshift``.
-Radiative transfer must remain disabled for this first implementation.
+PIE UV-Background Cooling
+-------------------------
+
+The ``pie_uvbg_cooling`` network applies total H/He-plus-metals
+photoionization-equilibrium heating and cooling rates from an HM12 PIE table
+directly to the hydrodynamic thermal energy. It uses the table axes
+``(T, nH, redshift, Z/Zsun)`` and does not create or evolve a photon field.
+Radiative transfer must remain disabled for this network.
+
+Enable it with:
+
+.. code-block:: yaml
+
+   thermochemistry_network: pie_uvbg_cooling
+   hydrogen_chemistry: true
+   metal_pie_enabled: true
+   metal_pie_table_filename: metal_pie_hm12_total.h5
+   metallicity: 1.0
+   metal_pie_redshift: 0.0
+
 The thermal source update uses backward Euler. A full implicit step is
 compared with two implicit half-steps; if their relative energy difference is
 larger than ``pie_uvbg_implicit_tolerance``, the step is repeatedly halved.
-After the configured retries, the existing cooling-time-limited explicit
-subcycling is used as a fallback.
+After ``pie_uvbg_implicit_max_retries``, the existing cooling-time-limited
+explicit subcycling is used as a fallback. The other iteration control is
+``pie_uvbg_implicit_max_iterations``.
 
 Optional Metal PIE Cooling
 --------------------------
