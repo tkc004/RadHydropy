@@ -44,6 +44,12 @@ Available Examples
    * - ``example/PIECoolingIsochoricParcel1D``
      - Fixed-density HM12 PIE heating and cooling parcels covering diffuse and
        dense gas initially at ``1e4`` and ``1e6 K``.
+   * - ``example/PIECoolingIsobaricParcel1D``
+     - Approximately constant-pressure HM12 PIE parcels testing density
+       evolution, thermal instability, and the effective equation of state.
+   * - ``example/PIERadiativeShockTube1D``
+     - Planar colliding-flow HM12 PIE radiative shock with jump-condition,
+       cooling-length, density, metallicity, and adiabatic-control tests.
    * - ``example/DarkMatterFixedMassOrbit1D``
      - Fixed-enclosed-mass dark-matter shell with angular momentum, compared
        against a conserved-energy reference orbit.
