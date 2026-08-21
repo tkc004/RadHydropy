@@ -7,6 +7,17 @@ and cooling table. The domain extends to approximately ``4 R200``. This mass
 is chosen to place the post-shock gas near the strong atomic-cooling regime,
 while the ``1e12 Msun`` adiabatic example remains the stable-shock control.
 
+Unlike the uniform-background IC used by the adiabatic benchmark, this PIE
+run initializes the baryons with a correlated perturbation profile,
+
+   ``rho_b(r) = rho_mean [1 + delta_floor + delta_R200 (r/R200)^(-alpha)]``.
+
+The default ``delta_R200=8``, ``alpha=1.8``, and ``delta_floor=0.25`` keep the
+outer boundary above the cosmic mean while increasing the enclosed overdensity
+towards the halo. These parameters are the simplified IC controls for the
+linear-correlation-function perturbation described by Birnboim and Dekel; the
+fluctuation amplitude sets the collapse strength and timing.
+
 Run it from this directory::
 
    python nfw_virial_shock_pie1d.py

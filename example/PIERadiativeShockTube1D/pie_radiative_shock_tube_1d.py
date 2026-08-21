@@ -152,7 +152,8 @@ def _shock_diagnostics(result, table, runparams, icparams):
 
 def _plot(results, filename):
     fig, axes = plt.subplots(2, 2, figsize=(11.5, 8.0), sharex='col')
-    for result in results:
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for index, result in enumerate(results):
         data = result['snapshot']
         x_kpc = (
             0.5 * (data['boundary_cm'][1:] + data['boundary_cm'][:-1])
@@ -161,19 +162,39 @@ def _plot(results, filename):
         x_kpc -= 0.5 * np.max(x_kpc)
         style = '--' if result['adiabatic'] else '-'
         label = result['label']
-        axes[0, 0].plot(x_kpc, data['density_g_cm3'], style, label=label)
-        axes[0, 1].plot(x_kpc, data['temperature_K'], style, label=label)
-        axes[1, 0].plot(x_kpc, data['velocity_cm_s'] / 1.0e5, style, label=label)
+        color = colors[index % len(colors)]
+        result['_plot_color'] = color
+        axes[0, 0].plot(x_kpc, data['density_g_cm3'], style, color=color, label=label)
+        axes[0, 1].plot(x_kpc, data['temperature_K'], style, color=color, label=label)
+        axes[1, 0].plot(x_kpc, data['velocity_cm_s'] / 1.0e5, style, color=color, label=label)
         axes[1, 1].plot(
             x_kpc, data['temperature_K'] / result['post_temperature_K'],
-            style, label=label,
+            style, color=color, label=label,
         )
+    for result in results:
+        if result['adiabatic']:
+            continue
+        shock_kpc = result['shock_radius_cm'] / KPC_CM
+        expected_kpc = result['cooling_length_expected_cm'] / KPC_CM
+        measured_kpc = result['cooling_length_measured_cm'] / KPC_CM
+        color = result['_plot_color']
+        if np.isfinite(expected_kpc):
+            axes[1, 1].axvspan(
+                shock_kpc - expected_kpc, shock_kpc,
+                color=color, alpha=0.10, lw=0,
+            )
+        if np.isfinite(measured_kpc):
+            axes[1, 1].plot(
+                [shock_kpc - measured_kpc, shock_kpc], [0.035, 0.035],
+                color=color, lw=3.0, solid_capstyle='butt',
+            )
     axes[0, 0].set_ylabel(r'$\rho$ [g cm$^{-3}$]')
     axes[0, 0].set_yscale('log')
     axes[0, 1].set_ylabel('$T$ [K]')
     axes[0, 1].set_yscale('log')
     axes[1, 0].set_ylabel('$v$ [km s$^{-1}$]')
     axes[1, 1].set_ylabel(r'$T/T_{\rm post}$')
+    axes[1, 1].set_title('shaded: predicted cooling length; bar: measured hot layer')
     axes[1, 1].set_yscale('log')
     for axis in axes.flat:
         axis.set_xlabel('position [kpc]')

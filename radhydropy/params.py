@@ -29,6 +29,7 @@ refparams = {
     'cosmological_gravity': False,
     'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
     'gamma':1.4, # for polytropic, the polytropic index
+    'temperature':2.7*unyt.K, # default gas/background temperature
     'timesim':2.0*unyt.s, # final simulation time
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'Periodic',

@@ -20,10 +20,33 @@ SPEC.loader.exec_module(BASE)
 
 nfw_halo_parameters = BASE.nfw_halo_parameters
 virial_temperature = BASE.virial_temperature
-Simwrap = BASE.Simwrap
 _snapshot_profiles = BASE._snapshot_profiles
 _locate_shock = BASE._locate_shock
 CodeUnits = BASE.CodeUnits
+cosmic_mean_baryon_density = BASE.cosmic_mean_baryon_density
+
+
+class Simwrap(BASE.Simwrap):
+    """NFW PIE IC with a correlated, centrally enhanced baryon fluctuation."""
+
+    def __init__(self, icparams, code_units=None):
+        super().__init__(icparams, code_units=code_units)
+        halo = nfw_halo_parameters(
+            icparams['halo_mass'], icparams['concentration'],
+            icparams['redshift'], icparams['overdensity'], icparams['h0'],
+        )
+        r200 = halo['virial_radius']
+        radius_ratio = np.asarray(
+            (self.mesh.coordinate / r200).to_value(unyt.dimensionless)
+        )
+        amplitude = float(icparams.get('density_fluctuation_amplitude', 0.0))
+        slope = float(icparams.get('density_fluctuation_slope', 1.8))
+        floor = float(icparams.get('density_fluctuation_floor', 0.0))
+        fluctuation = floor + amplitude * np.maximum(radius_ratio, 1.0e-6) ** (-slope)
+        mean_density = cosmic_mean_baryon_density(
+            icparams['h0'], icparams['omega_b'], icparams['initial_redshift']
+        )
+        self.fluid.rho = mean_density * (1.0 + fluctuation)
 
 
 def _pressure(rho, temperature, mu):

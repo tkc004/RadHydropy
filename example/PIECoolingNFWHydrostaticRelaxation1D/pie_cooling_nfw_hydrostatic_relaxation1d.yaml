@@ -1,32 +1,36 @@
 runparams:
-  simname: NFWVirialShockPIE1D
+  simname: PIECoolingNFWHydrostaticRelaxation1D
   ICfilename: InitialCondition.hdf5
-  outdir: .
+  outdir: outputs
   outfileprefix: Output
-  outputtimefilename: nfw_virial_shock_pie1d_output_times.txt
   savedir: .
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 3.0e11
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
+  outputtimefilename: pie_cooling_nfw_hydrostatic_relaxation1d_output_times.txt
   coordsys: spherical
   EOStype: polytropic
   gamma: 1.6666666666666667
   timesim:
-    value: 2000.0
+    value: 5000.0
     unit: Myr
   CFL: 0.2
   dtmin:
-    value: 1.0e3
+    value: 1.0e2
     unit: yr
   dtmax:
     value: 2.0
     unit: Myr
   boundcond: OutflowSph
+  # Match the prescribed inner outflow state to the central hydrostatic gas.
+  # The OutflowSph implementation uses these values in the inner ghost cells.
+  vel_outflow:
+    value: 0.0
+    unit: km/s
+  rho_outflow:
+    value: 1.6e-26
+    unit: g/cm**3
+  temp_outflow:
+    value: 5000.0
+    unit: K
+  mu_outflow: 0.59
   verbose: 0
   order: 0
   noghost: 2
@@ -42,24 +46,33 @@ runparams:
     value: 100.0
     unit: K
   radiative_transfer: false
+  runaway_density_factor: 100.0
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 5.497e8
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
 
 ICparams:
   nogrid: 512
   coordsys: spherical
   boxsize:
-    value: 560.0
+    value: 80.0
     unit: kpc
   time:
     value: 0.0
     unit: Myr
   rmin:
-    value: 1.4
+    value: 0.01
     unit: kpc
   rmax:
-    value: 560.0
+    value: 80.0
     unit: kpc
   halo_mass:
-    value: 3.0e11
+    value: 5.497e8
     unit: Msun
   concentration: 10.0
   redshift: 0.0
@@ -67,17 +80,11 @@ ICparams:
   h0:
     value: 70.0
     unit: km/(s*Mpc)
-  omega_b: 0.049
-  omega_m: 0.3
-  omega_lambda: 0.7
-  initial_redshift: 0.0
+  gas_fraction: 0.157
   mu: 0.59
-  cmb_temperature_0:
-    value: 2.7255
+  rho_ref:
+    value: 1.0e-27
+    unit: g/cm**3
+  tempini:
+    value: 1.0
     unit: K
-  initial_temperature:
-    value: 2.7255
-    unit: K
-  density_fluctuation_amplitude: 8.0
-  density_fluctuation_slope: 1.8
-  density_fluctuation_floor: 0.25

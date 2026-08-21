@@ -79,6 +79,10 @@ Common Runtime Keys
    * - ``gamma``
      - Adiabatic index for polytropic gas.
      - dimensionless
+   * - ``temperature``
+     - Default gas/background temperature used for scalar temperature
+       parameters. The default is ``2.7 K``.
+     - temperature
    * - ``timesim``
      - Final simulation time.
      - time

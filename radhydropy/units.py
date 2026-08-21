@@ -79,6 +79,7 @@ _CODE_UNIT_GROUPS = (
             ('rho_outflow', 'density'),
             ('vel_inflow', 'velocity'),
             ('vel_outflow', 'velocity'),
+            ('temperature', 'temperature'),
             ('temp_inflow', 'temperature'),
             ('temp_outflow', 'temperature'),
             ('hydrogen_ngamma_initial', 'number_density'),

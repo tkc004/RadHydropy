@@ -47,6 +47,9 @@ Available Examples
    * - ``example/PIECoolingIsobaricParcel1D``
      - Approximately constant-pressure HM12 PIE parcels testing density
        evolution, thermal instability, and the effective equation of state.
+   * - ``example/PIECoolingNFWHydrostaticRelaxation1D``
+     - HM12 PIE relaxation of a hydrostatic ``1e12 Msun`` NFW atmosphere,
+       including temperature-floor, contraction, and force-balance diagnostics.
    * - ``example/PIERadiativeShockTube1D``
      - Planar colliding-flow HM12 PIE radiative shock with jump-condition,
        cooling-length, density, metallicity, and adiabatic-control tests.

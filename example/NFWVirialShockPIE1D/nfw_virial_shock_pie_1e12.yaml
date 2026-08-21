@@ -79,3 +79,6 @@ ICparams:
   initial_temperature:
     value: 2.7255
     unit: K
+  density_fluctuation_amplitude: 8.0
+  density_fluctuation_slope: 1.8
+  density_fluctuation_floor: 0.25

@@ -56,7 +56,7 @@ def main(config_filename=DEFAULT_CONFIG):
         icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
         icparams['overdensity'], icparams['h0'],
     )
-    initial_condition = et.Simwrap(icparams, code_units=code_units)
+    initial_condition = diag.Simwrap(icparams, code_units=code_units)
     rio.writehdf5(initial_condition, runparams['ICfilename'])
 
     sim = Rsim(runparams)
