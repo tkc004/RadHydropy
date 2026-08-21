@@ -1,0 +1,68 @@
+runparams:
+  simname: NFWVirialShockAdiabatic1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outputtimefilename: nfw_virial_shock_adiabatic1d_output_times.txt
+  savedir: .
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0e12
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 2000.0
+    unit: Myr
+  CFL: 0.2
+  dtmin:
+    value: 1.0e3
+    unit: yr
+  dtmax:
+    value: 2.0
+    unit: Myr
+  boundcond: OutflowSph
+  verbose: 0
+  order: 0
+  noghost: 2
+
+ICparams:
+  nogrid: 512
+  coordsys: spherical
+  boxsize:
+    value: 824.0
+    unit: kpc
+  time:
+    value: 0.0
+    unit: Myr
+  rmin:
+    value: 2.0
+    unit: kpc
+  rmax:
+    value: 824.0
+    unit: kpc
+  halo_mass:
+    value: 1.0e12
+    unit: Msun
+  concentration: 10.0
+  redshift: 0.0
+  overdensity: 200.0
+  h0:
+    value: 70.0
+    unit: km/(s*Mpc)
+  omega_b: 0.049
+  omega_m: 0.3
+  omega_lambda: 0.7
+  initial_redshift: 0.0
+  mu: 0.59
+  cmb_temperature_0:
+    value: 2.7255
+    unit: K
+  initial_temperature:
+    value: 2.7255
+    unit: K
