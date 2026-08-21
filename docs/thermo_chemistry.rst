@@ -19,6 +19,18 @@ can evolve the neutral hydrogen fraction ``xHI = nHI / nH`` together with
 hydrogen heating and cooling source terms. The CIE network uses tabulated
 collisional-ionization-equilibrium ion fractions and radiative cooling rates.
 
+The default CIE data are the CHIANTI ion-fraction and cooling tables
+``chianti_cie_ion_fractions.h5`` and ``chianti_cooling_table.h5``. These
+tables, together with the HM12 PIE table, are distributed through Git LFS in
+`tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. Install
+Git LFS and clone the data repository when the tables are not already present::
+
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+
+Use ``cie_ion_fraction_table`` and ``cie_cooling_table`` to point a CIE run
+to the downloaded files.
+
 In the standard coupled update, RadHydropy:
 
 * advances hydrodynamics with the finite-volume solver;
@@ -121,6 +133,16 @@ Enable it with:
    metal_pie_table_filename: metal_pie_hm12_total.h5
    metallicity: 1.0
    metal_pie_redshift: 0.0
+
+The HM12 HDF5 cooling table is distributed separately through Git LFS in
+`tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. If the
+table is missing, install Git LFS and clone the data repository::
+
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+
+Copy or link ``metal_pie_hm12_total.h5`` into the location specified by
+``metal_pie_table_filename`` before running the PIE examples.
 
 The thermal source update uses backward Euler. A full implicit step is
 compared with two implicit half-steps; if their relative energy difference is
