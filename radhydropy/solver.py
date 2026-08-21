@@ -5,7 +5,7 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-from radhydropy.constants import DEFAULT_SIGMA_GAMMA
+from radhydropy.constants import DEFAULT_SIGMA_GAMMA, SPEED_OF_LIGHT_CGS
 from radhydropy.units import (
     CGS_AREA_UNIT,
     CGS_MASS_DENSITY_UNIT,
@@ -694,9 +694,67 @@ class Solver():
         """Return a source substep for RT-coupled heating/chemistry."""
         return rtc.get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining)
 
-    def ApplyThermochemistryFast(self, dt, mesh, fluid, par):
+    def ApplyThermochemistryFast(self, dt, mesh, fluid, par, transport_result=None):
         """Fast source update for RT-coupled thermo-chemistry tests."""
-        return rtc.apply_thermochemistry_fast(dt, mesh, fluid, par)
+        return rtc.apply_thermochemistry_fast(
+            dt,
+            mesh,
+            fluid,
+            par,
+            transport_result=transport_result,
+        )
+
+    def ApplyRadiationPressure(self, dt, mesh, fluid, par, source_result):
+        """Apply momentum from photons consumed by the thermo-chemistry step."""
+        if not getattr(par, "radiation_pressure", False):
+            return 0
+        if not source_result or source_result.get("absorbed_photon_rate") is None:
+            return 0
+
+        code_units = _code_units(par)
+        scales = code_unit_scales(code_units)
+        interior = self._interior_slice(par)
+        absorbed = np.asarray(source_result["absorbed_photon_rate"], dtype=float)
+        energies = np.asarray(source_result["photon_energy_erg"], dtype=float)
+        if absorbed.ndim == 1:
+            absorbed = absorbed[None, :]
+        if energies.ndim == 0:
+            energies = energies[None]
+        if absorbed.shape[0] != energies.size:
+            raise ValueError("absorbed photon groups and photon energies disagree")
+        if absorbed.shape[1] != par.nogrid:
+            raise ValueError("absorbed photon rate must contain physical cells only")
+
+        rho_cgs = np.asarray(fluid.rho[interior], dtype=float) * scales["density_g_cm3"]
+        momentum_rate_density = (
+            float(source_result.get("direction", 1))
+            * np.sum(absorbed * energies[:, None], axis=0)
+            / SPEED_OF_LIGHT_CGS
+        )
+        efficiency = float(getattr(par, "radiation_pressure_efficiency", 1.0))
+        valid = rho_cgs > 0.0
+        if not np.any(valid):
+            return 0
+        acceleration_cgs = np.zeros_like(momentum_rate_density)
+        acceleration_cgs[valid] = (
+            efficiency * momentum_rate_density[valid] / rho_cgs[valid]
+        )
+        acceleration = acceleration_cgs / scales["acceleration_cm_s2"]
+        volume = np.asarray(mesh.vol[interior], dtype=float)
+        momentum = fluid.Mom[interior]
+        energy = fluid.Energy[interior]
+        rho = fluid.rho[interior]
+        velocity = fluid.vel[interior]
+        momentum[valid] += rho[valid] * acceleration[valid] * volume[valid] * dt
+        energy[valid] += (
+            rho[valid]
+            * velocity[valid]
+            * acceleration[valid]
+            * volume[valid]
+            * dt
+        )
+        self._zero_spherical_center_momentum(mesh, fluid)
+        return 1
 
 
     def SetBoundary(self, mesh, fluid, par):

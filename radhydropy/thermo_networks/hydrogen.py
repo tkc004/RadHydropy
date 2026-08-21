@@ -7,6 +7,7 @@ dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import (
     BOLTZMANN_CONSTANT_CGS,
@@ -955,7 +956,7 @@ def sync_c2ray_state(state, fluid, par):
     return _fast_sync_state_to_fluid(state, fluid, par)
 
 
-def apply_thermochemistry_fast(dt, mesh, fluid, par):
+def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     """Fast source update for RT-coupled thermo-chemistry tests."""
     if not thermochemistry_enabled(fluid, par):
         return 0
@@ -965,12 +966,56 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
     remaining_s = to_unit_value(dt, code.time_unit)
+    total_dt_s = remaining_s
     zero_time_s = 0.0
     source_steps = 0
+    absorbed_integral = None
     while remaining_s > zero_time_s:
+        absorbed = None
         # first update the photon density if RT is enabled and we are on the right step
         if getattr(par, 'radiative_transfer', False):
-            state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
+            if transport_result is not None:
+                transport = transport_result
+                transport_result = None
+            else:
+                boundary_flux = getattr(
+                    par,
+                    'radiative_transfer_boundary_flux_groups',
+                    getattr(par, 'radiative_transfer_boundary_flux', 0.0),
+                )
+                if hasattr(boundary_flux, 'to_value'):
+                    boundary_flux = boundary_flux.to_value(
+                        1.0 / (unyt.cm**2 * unyt.s)
+                    )
+                else:
+                    boundary_flux = np.asarray(boundary_flux, dtype=float) * float(
+                        (1.0 / (code.length_unit**2 * code.time_unit)).to_value(
+                            1.0 / (unyt.cm**2 * unyt.s)
+                        )
+                    )
+                transport = rrt.trace_long_characteristics(
+                    SimpleNamespace(
+                        boundary=state['boundary_cm'],
+                        vol=state['volume_cm3'],
+                        coordsys=getattr(par, 'coordsys', 'cartesian'),
+                    ),
+                    rho=state['rho_g_cm3'],
+                    xHI=state['xHI'],
+                    hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
+                    sigma_gamma=np.asarray(state['sigma_gamma_cm2'], dtype=float)
+                    * float((1.0 * code.area_unit).to_value(unyt.cm**2)),
+                    boundary_flux=boundary_flux,
+                    source_photon_rate=np.asarray(state['source_rate_s'], dtype=float)
+                    * float((1.0 / code.time_unit).to_value(1.0 / unyt.s)),
+                    direction=getattr(par, 'radiative_transfer_direction', 1),
+                    group_edges_eV=getattr(par, 'radiation_group_edges_eV', None),
+                )
+            state['ngamma_cm3'] = transport.cell_photon_density
+            absorbed = np.asarray(transport.absorbed_photon_rate, dtype=float)
+            if absorbed.ndim == 1:
+                absorbed = absorbed[None, :]
+            if absorbed_integral is None:
+                absorbed_integral = np.zeros_like(absorbed)
 
         if state['hydrogen_update_mu']:
             state['mu'] = rh.mean_molecular_weight_mu(
@@ -1005,10 +1050,28 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
             )
         if state['thermal_coupling']:
             _fast_update_temperature_from_energy(state)
+        if absorbed is not None:
+            absorbed_integral += absorbed * sub_dt_s
         remaining_s -= sub_dt_s
         source_steps += 1
     _fast_sync_state_to_fluid(state, fluid, par)
-    return source_steps
+    absorbed_rate = None
+    if absorbed_integral is not None:
+        if total_dt_s == 0.0:
+            absorbed_rate = np.zeros_like(absorbed_integral)
+        else:
+            absorbed_rate = absorbed_integral / total_dt_s
+    energy = getattr(par, 'ionizing_photon_energy_erg', None)
+    if energy is None:
+        energy = getattr(par, 'hydrogen_photon_energy', 0.0)
+    if hasattr(energy, 'to_value'):
+        energy = np.asarray(energy.to_value('erg'), dtype=float)
+    return {
+        'source_steps': source_steps,
+        'absorbed_photon_rate': absorbed_rate,
+        'photon_energy_erg': np.atleast_1d(energy),
+        'direction': int(getattr(par, 'radiative_transfer_direction', 1)),
+    }
 
 
 class HydrogenNetwork(ThermochemistryNetwork):

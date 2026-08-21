@@ -810,13 +810,23 @@ def apply_fast(dt, mesh, fluid, par):
         )
     code = _code_units(par)
     dt_s = time_seconds(dt, code)
-    advance_state(state, par, dt_s)
+    result = advance_state(state, par, dt_s)
     _ensure_fluid_photon_shape(fluid, state["ngamma_cm3"])
     if network == "hydrogen_helium":
         hydrogen_helium.apply_state(state, fluid, par)
     else:
         hydrogen.sync_c2ray_state(state, fluid, par)
-    return 1
+    energy = getattr(par, "ionizing_photon_energy_erg", None)
+    if energy is None:
+        energy = getattr(par, "hydrogen_photon_energy", 0.0)
+    if hasattr(energy, "to_value"):
+        energy = np.asarray(energy.to_value("erg"), dtype=float)
+    return {
+        "source_steps": 1,
+        "absorbed_photon_rate": result.absorbed_photon_rate,
+        "photon_energy_erg": np.atleast_1d(energy),
+        "direction": int(getattr(par, "radiative_transfer_direction", 1)),
+    }
 
 
 def _ensure_fluid_photon_shape(fluid, photon_density):

@@ -119,7 +119,7 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     return get_network(par).get_source_timestep_fast(mesh, fluid, par, remaining)
 
 
-def apply_thermochemistry_fast(dt, mesh, fluid, par):
+def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     """Apply the selected network's fast thermo-chemistry source update."""
     if (
         getattr(par, "radiative_transfer", False)
@@ -129,7 +129,25 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par):
         from radhydropy.thermo_networks import c2ray
 
         return c2ray.apply_fast(dt, mesh, fluid, par)
-    return get_network(par).apply_fast(dt, mesh, fluid, par)
+    network = get_network(par)
+    if transport_result is not None and getattr(network, "name", None) == "hydrogen":
+        result = network.apply_fast(
+            dt,
+            mesh,
+            fluid,
+            par,
+            transport_result=transport_result,
+        )
+    else:
+        result = network.apply_fast(dt, mesh, fluid, par)
+    if isinstance(result, dict):
+        return result
+    return {
+        "source_steps": int(result or 0),
+        "absorbed_photon_rate": None,
+        "photon_energy_erg": None,
+        "direction": int(getattr(par, "radiative_transfer_direction", 1)),
+    }
 
 
 def evolve_static_source_state(

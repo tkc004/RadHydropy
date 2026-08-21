@@ -289,15 +289,22 @@ class Rsim():
         self._sync_hydro_state(fluid=fluid)
 
     def ApplyThermochemistrySources(self, dt):
-        """Apply radiative-transfer and thermo-chemistry source updates."""
+        """Apply radiative transport and thermo-chemistry source updates."""
+        transport_result = None
         if getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
-            self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
-        return self.solver.ApplyThermochemistryFast(
+            transport_result = self.solver.ApplyRadiativeTransfer(
+                self.mesh,
+                self.fluid,
+                self.par,
+            )
+        source_result = self.solver.ApplyThermochemistryFast(
             dt,
             self.mesh,
             self.fluid,
             self.par,
+            transport_result=transport_result,
         )
+        return source_result
 
     def _clone_fluid(self, fluid=None):
         """Return a deep copy of the supplied fluid state."""
@@ -402,9 +409,17 @@ class Rsim():
                 result["hydro_steps"] = 1
 
         if mode in ("hydro_sources", "sources"):
-            result["source_steps"] = self.ApplyThermochemistrySources(
+            source_result = self.ApplyThermochemistrySources(
                 dt,
             )
+            self.solver.ApplyRadiationPressure(
+                dt,
+                self.mesh,
+                self.fluid,
+                self.par,
+                source_result,
+            )
+            result["source_steps"] = int(source_result.get("source_steps", 0))
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
             if mode == "sources":
