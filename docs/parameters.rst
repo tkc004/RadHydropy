@@ -110,6 +110,132 @@ Common Runtime Keys
      - Cartesian cross-sectional area used to calculate volumes.
      - area
 
+Gravity Keys
+------------
+
+Gravity source terms are disabled by default. They can combine external
+gravity, gas self-gravity, cosmological gravity, and live dark-matter shells.
+See :doc:`gravity` and :doc:`dark_matter` for the source models.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 48 20
+
+   * - Key
+     - Meaning
+     - Typical unit
+   * - ``selfgravity``
+     - Enable gas self-gravity computed from the enclosed gas mass in spherical
+       geometry or the plane-parallel Poisson field in Cartesian geometry.
+     - boolean
+   * - ``externalgravity``
+     - Enable an externally supplied potential or acceleration profile.
+     - boolean
+   * - ``gravity``
+     - Optional preconstructed :class:`radhydropy.gravity.Gravity` object. This
+       is normally supplied by an example script rather than YAML.
+     - object
+   * - ``gravity_potential``
+     - External potential profile, callable, or tabulated potential used when
+       ``externalgravity`` is enabled.
+     - potential
+   * - ``gravity_coordinate``
+     - Coordinates corresponding to a tabulated external potential or field.
+     - length
+   * - ``gravity_acceleration``
+     - Direct external acceleration profile, callable, or tabulated field.
+     - acceleration
+   * - ``selfgravity_softening``
+     - Softening length used by gas self-gravity.
+     - length
+   * - ``selfgravity_boundary_acceleration``
+     - Boundary acceleration used by Cartesian self-gravity.
+     - acceleration
+   * - ``dark_matter_crossing_safety_factor``
+     - Safety factor used to limit timesteps when live dark-matter shells are
+       predicted to cross.
+     - dimensionless
+   * - ``dark_matter``
+     - Runtime :class:`radhydropy.dark_matter.DarkMatterShells` object. It is
+       generally constructed by an example IC helper or restored from an HDF5
+       snapshot.
+     - object
+
+``externalgravity`` and ``selfgravity`` may be enabled together. The solver
+adds their accelerations before updating gas momentum and energy. A live
+``dark_matter`` object is coupled through enclosed gas and dark-matter masses.
+
+Cosmology Keys
+--------------
+
+Cosmological expansion uses an Einstein--de Sitter background and can be
+combined with supercomoving coordinates. The cosmology object is constructed
+automatically by :class:`radhydropy.params.Par` when
+``cosmological_expansion`` is enabled.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 48 20
+
+   * - Key
+     - Meaning
+     - Typical unit
+   * - ``cosmological_expansion``
+     - Enable cosmological expansion and construct the configured background
+       cosmology.
+     - boolean
+   * - ``cosmological_gravity``
+     - Enable density-contrast cosmological gravity. The homogeneous background
+       is subtracted from the enclosed mass.
+     - boolean
+   * - ``supercomoving_coordinates``
+     - Store and evolve comoving coordinates, supercomoving time, comoving
+       density, peculiar velocity, and supercomoving thermodynamic variables.
+     - boolean
+   * - ``cosmology_type``
+     - Background model. The current supported value is
+       ``einstein_de_sitter`` (also accepted as ``EinsteinDeSitter``).
+     - string
+   * - ``cosmology_t_ref``
+     - Reference cosmic time used to normalize the Einstein--de Sitter scale
+       factor.
+     - code time
+   * - ``cosmology_a_ref``
+     - Reference scale factor at ``cosmology_t_ref``.
+     - dimensionless
+   * - ``coordinate_frame``
+     - Coordinate representation, normally ``physical`` or automatically set
+       to ``comoving`` for supercomoving runs.
+     - string
+   * - ``time_coordinate``
+     - Time representation, normally ``cosmic`` or automatically set to
+       ``supercomoving``.
+     - string
+   * - ``velocity_representation``
+     - Velocity representation, such as ``physical`` or
+       ``supercomoving_peculiar``.
+     - string
+   * - ``density_representation``
+     - Density representation, ``physical`` or ``comoving``.
+     - string
+   * - ``pressure_representation``
+     - Pressure representation, ``physical`` or ``supercomoving``.
+     - string
+   * - ``temperature_representation``
+     - Temperature representation, ``physical`` or ``supercomoving``.
+     - string
+
+For a supercomoving run, set at minimum:
+
+.. code-block:: yaml
+
+   cosmological_expansion: true
+   cosmological_gravity: true
+   supercomoving_coordinates: true
+   cosmology_type: einstein_de_sitter
+   cosmology_t_ref: 1.0
+   cosmology_a_ref: 1.0
+
 Thermo-Chemistry Keys
 ---------------------
 
@@ -334,6 +460,49 @@ output file. For example:
      - Optional total ionizing photon rate. It rescales all ionizing HDF5
        groups by one common factor while preserving the spectrum.
      - ``s^-1``
+
+Direct Radiation Pressure Keys
+-------------------------------
+
+Direct radiation pressure uses the absorbed photon rate returned by the
+thermo-chemistry source update. It is applied afterward as a momentum source;
+thermo-chemistry itself only updates the absorbed-photon bookkeeping and the
+thermal/chemical state. See :doc:`radiation_pressure` for the equations and
+the dedicated dynamic example.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 48 20
+
+   * - Key
+     - Meaning
+     - Typical unit
+   * - ``radiation_pressure``
+     - Enable momentum deposition from absorbed photons. The default is
+       ``false``.
+     - boolean
+   * - ``radiation_pressure_efficiency``
+     - Dimensionless coupling efficiency multiplying the absorbed photon
+       momentum. ``1.0`` transfers all absorbed photon momentum to the gas.
+     - dimensionless
+
+For photon group ``g``, the momentum-rate density is proportional to
+``absorbed_photon_rate[g] * photon_energy_erg[g] / c``. The transport result
+must provide physical-cell-only absorbed rates and photon energies. The ray
+direction is taken from ``radiative_transfer_direction``. Cells with zero
+density are skipped safely.
+
+The standard 20 pc radiation-pressure example uses:
+
+.. code-block:: yaml
+
+   radiative_transfer: true
+   radiation_pressure: true
+   radiation_pressure_efficiency: 1.0
+
+The example-specific ``radiation_pressure_source_luminosity`` key used by the
+isolated thin-shell benchmark is not a core solver parameter; it supplies the
+synthetic source luminosity for that example's source-only step backend.
 
 Boundary-Specific Keys
 ----------------------
