@@ -412,6 +412,8 @@ class Rsim():
             source_result = self.ApplyThermochemistrySources(
                 dt,
             )
+            self.last_source_result = source_result
+            self.last_source_dt = dt
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
             if mode == "sources":

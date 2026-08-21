@@ -1,4 +1,4 @@
-"""Reuse the maintained dynamic Stromgren-sphere helper implementation."""
+"""Helpers reused from the maintained 20 pc Stromgren example."""
 
 import importlib.util
 import sys
@@ -7,25 +7,25 @@ from pathlib import Path
 
 TEMPLATE_TOOLS = (
     Path(__file__).resolve().parents[1]
-    / 'DynamicStromgrenSpherePhotoheating1D'
-    / 'tools.py'
+    / "DynamicStromgrenSpherePhotoheating20pc1D"
+    / "tools.py"
 )
 spec = importlib.util.spec_from_file_location(
-    '_radhydropy_dynamic_stromgren_template_tools',
+    "_radhydropy_dynamic_stromgren_20pc_tools",
     TEMPLATE_TOOLS,
 )
-_template = importlib.util.module_from_spec(spec)
+template = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
-sys.modules[spec.name] = _template
-spec.loader.exec_module(_template)
+sys.modules[spec.name] = template
+spec.loader.exec_module(template)
 
-for _name, _value in vars(_template).items():
-    if not _name.startswith('__'):
-        globals()[_name] = _value
+for name, value in vars(template).items():
+    if not name.startswith("__"):
+        globals()[name] = value
 
 
 def save_plot(mesh, fluid, par, config, figure_filename):
-    """Save the 20 pc profile plot with a linear velocity axis."""
+    """Save the inherited profile plot with a linear velocity axis."""
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.coordinate[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
     number_density = _to_number_density(fluid.rho[interior], par)

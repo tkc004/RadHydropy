@@ -1,0 +1,109 @@
+runparams:
+  simname: DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D
+  ICfilename: InitialCondition_RadiationPressure.hdf5
+  outdir: .
+  outfileprefix: Output_RadiationPressure
+  outputtimefilename: output_times_radiation_pressure.txt
+  savedir: .
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 4.92e31
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 1.0
+    unit: Myr
+  area:
+    value: 1.0
+    unit: cm**2
+  CFL: 0.5
+  boundcond: OpenSph
+  noghost: 2
+  verbose: 0
+  order: 0
+  dtmin:
+    value: 1.0e-10
+    unit: Myr
+  dtmax:
+    value: 0.01
+    unit: Myr
+  hydro_cfl: 0.5
+  source_cfl: 1.0
+  hydro_timestep_max:
+    value: 0.01
+    unit: Myr
+  source_timestep_min:
+    value: 0.0
+    unit: Myr
+  hydrogen_chemistry: true
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 1.0
+  hydrogen_xHI_inflow: 1.0
+  hydrogen_xHI_outflow: 1.0
+  hydrogen_source_CFL: 10000.0
+  hydrogen_source_dtmin:
+    value: 1.0e-3
+    unit: Myr
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: true
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: false
+  hydrogen_alpha_B:
+    value: 2.59e-13
+    unit: cm**3/s
+  hydrogen_beta:
+    value: 0.0
+    unit: cm**3/s
+  hydrogen_radiation_field: false
+  hydrogen_radiation_evolution: false
+  hydrogen_ngamma_initial:
+    value: 0.0
+    unit: 1/cm**3
+  hydrogen_sigma_gamma:
+    value: 1.62e-18
+    unit: cm**2
+  hydrogen_epsilon_gamma:
+    value: 6.33
+    unit: eV
+  hydrogen_photon_energy:
+    value: 20.0
+    unit: eV
+  radiative_transfer: true
+  radiative_transfer_method: long_characteristics
+  radiative_transfer_temporal_scheme: instantaneous
+  radiative_transfer_boundary_flux:
+    value: 0.0
+    unit: 1/(cm**2*s)
+  radiative_transfer_source_photon_rate:
+    value: 1.0e49
+    unit: 1/s
+  radiative_transfer_direction: 1
+  radiation_pressure: true
+  radiation_pressure_efficiency: 1.0
+
+ICparams:
+  number_of_cells: 512
+  boxsize:
+    value: 20.0
+    unit: pc
+  time:
+    value: 0.0
+    unit: Myr
+  hydrogen_number_density:
+    value: 100.0
+    unit: 1/cm**3
+  initial_temperature:
+    value: 100.0
+    unit: K
+  plot_radius_max:
+    value: 20.0
+    unit: pc
+  reference_radius_unit:
+    value: 20.0
+    unit: pc
