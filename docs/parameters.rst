@@ -110,131 +110,45 @@ Common Runtime Keys
      - Cartesian cross-sectional area used to calculate volumes.
      - area
 
-Gravity Keys
-------------
+If ``outputtimefilename`` is provided, RadHydropy ignores ``outdeltatime`` and
+writes outputs at the explicit times listed in the txt file. The file format is
+one time unit on the first non-empty line, followed by one output time per
+line. Include ``timesim`` in the list if you want the final state written as an
+output file. For example:
 
-Gravity source terms are disabled by default. They can combine external
-gravity, gas self-gravity, cosmological gravity, and live dark-matter shells.
-See :doc:`gravity` and :doc:`dark_matter` for the source models.
+.. code-block:: text
+
+   yr
+   0.0
+   1.0e4
+   2.0e4
+
+
+Boundary-Specific Keys
+----------------------
+
+The spherical inflow and outflow boundary conditions use additional primitive
+state parameters:
 
 .. list-table::
    :header-rows: 1
-   :widths: 32 48 20
+   :widths: 28 50 22
 
    * - Key
      - Meaning
      - Typical unit
-   * - ``selfgravity``
-     - Enable gas self-gravity computed from the enclosed gas mass in spherical
-       geometry or the plane-parallel Poisson field in Cartesian geometry.
-     - boolean
-   * - ``externalgravity``
-     - Enable an externally supplied potential or acceleration profile.
-     - boolean
-   * - ``gravity``
-     - Optional preconstructed :class:`radhydropy.gravity.Gravity` object. This
-       is normally supplied by an example script rather than YAML.
-     - object
-   * - ``gravity_potential``
-     - External potential profile, callable, or tabulated potential used when
-       ``externalgravity`` is enabled.
-     - potential
-   * - ``gravity_coordinate``
-     - Coordinates corresponding to a tabulated external potential or field.
-     - length
-   * - ``gravity_acceleration``
-     - Direct external acceleration profile, callable, or tabulated field.
-     - acceleration
-   * - ``selfgravity_softening``
-     - Softening length used by gas self-gravity.
-     - length
-   * - ``selfgravity_boundary_acceleration``
-     - Boundary acceleration used by Cartesian self-gravity.
-     - acceleration
-   * - ``dark_matter_crossing_safety_factor``
-     - Safety factor used to limit timesteps when live dark-matter shells are
-       predicted to cross.
+   * - ``rho_inflow`` / ``rho_outflow``
+     - Density imposed at the inflow or outflow ghost cells.
+     - mass density
+   * - ``vel_inflow`` / ``vel_outflow``
+     - Velocity imposed at the inflow or outflow ghost cells.
+     - length / time
+   * - ``temp_inflow`` / ``temp_outflow``
+     - Temperature used to derive boundary pressure.
+     - temperature
+   * - ``mu_inflow`` / ``mu_outflow``
+     - Mean molecular weight used to derive boundary pressure.
      - dimensionless
-   * - ``dark_matter``
-     - Runtime :class:`radhydropy.dark_matter.DarkMatterShells` object. It is
-       generally constructed by an example IC helper or restored from an HDF5
-       snapshot.
-     - object
-
-``externalgravity`` and ``selfgravity`` may be enabled together. The solver
-adds their accelerations before updating gas momentum and energy. A live
-``dark_matter`` object is coupled through enclosed gas and dark-matter masses.
-
-Cosmology Keys
---------------
-
-Cosmological expansion uses an Einstein--de Sitter background and can be
-combined with supercomoving coordinates. The cosmology object is constructed
-automatically by :class:`radhydropy.params.Par` when
-``cosmological_expansion`` is enabled.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 32 48 20
-
-   * - Key
-     - Meaning
-     - Typical unit
-   * - ``cosmological_expansion``
-     - Enable cosmological expansion and construct the configured background
-       cosmology.
-     - boolean
-   * - ``cosmological_gravity``
-     - Enable density-contrast cosmological gravity. The homogeneous background
-       is subtracted from the enclosed mass.
-     - boolean
-   * - ``supercomoving_coordinates``
-     - Store and evolve comoving coordinates, supercomoving time, comoving
-       density, peculiar velocity, and supercomoving thermodynamic variables.
-     - boolean
-   * - ``cosmology_type``
-     - Background model. The current supported value is
-       ``einstein_de_sitter`` (also accepted as ``EinsteinDeSitter``).
-     - string
-   * - ``cosmology_t_ref``
-     - Reference cosmic time used to normalize the Einstein--de Sitter scale
-       factor.
-     - code time
-   * - ``cosmology_a_ref``
-     - Reference scale factor at ``cosmology_t_ref``.
-     - dimensionless
-   * - ``coordinate_frame``
-     - Coordinate representation, normally ``physical`` or automatically set
-       to ``comoving`` for supercomoving runs.
-     - string
-   * - ``time_coordinate``
-     - Time representation, normally ``cosmic`` or automatically set to
-       ``supercomoving``.
-     - string
-   * - ``velocity_representation``
-     - Velocity representation, such as ``physical`` or
-       ``supercomoving_peculiar``.
-     - string
-   * - ``density_representation``
-     - Density representation, ``physical`` or ``comoving``.
-     - string
-   * - ``pressure_representation``
-     - Pressure representation, ``physical`` or ``supercomoving``.
-     - string
-   * - ``temperature_representation``
-     - Temperature representation, ``physical`` or ``supercomoving``.
-     - string
-
-For a supercomoving run, set at minimum:
-
-.. code-block:: yaml
-
-   cosmological_expansion: true
-   cosmological_gravity: true
-   supercomoving_coordinates: true
-   cosmology_type: einstein_de_sitter
-   cosmology_t_ref: 1.0
-   cosmology_a_ref: 1.0
 
 Thermo-Chemistry Keys
 ---------------------
@@ -373,19 +287,6 @@ Set ``radiative_transfer=True`` to compute ``fluid.ngamma`` from the optional
 one-dimensional long-characteristic ray tracer before the hydrogen source terms
 are applied. See :doc:`radiative_transfer` for the implementation details.
 
-If ``outputtimefilename`` is provided, RadHydropy ignores ``outdeltatime`` and
-writes outputs at the explicit times listed in the txt file. The file format is
-one time unit on the first non-empty line, followed by one output time per
-line. Include ``timesim`` in the list if you want the final state written as an
-output file. For example:
-
-.. code-block:: text
-
-   yr
-   0.0
-   1.0e4
-   2.0e4
-
 .. list-table::
    :header-rows: 1
    :widths: 32 48 20
@@ -504,28 +405,131 @@ The example-specific ``radiation_pressure_source_luminosity`` key used by the
 isolated thin-shell benchmark is not a core solver parameter; it supplies the
 synthetic source luminosity for that example's source-only step backend.
 
-Boundary-Specific Keys
-----------------------
 
-The spherical inflow and outflow boundary conditions use additional primitive
-state parameters:
+
+
+Gravity Keys
+------------
+
+Gravity source terms are disabled by default. They can combine external
+gravity, gas self-gravity, cosmological gravity, and live dark-matter shells.
+See :doc:`gravity` and :doc:`dark_matter` for the source models.
 
 .. list-table::
    :header-rows: 1
-   :widths: 28 50 22
+   :widths: 32 48 20
 
    * - Key
      - Meaning
      - Typical unit
-   * - ``rho_inflow`` / ``rho_outflow``
-     - Density imposed at the inflow or outflow ghost cells.
-     - mass density
-   * - ``vel_inflow`` / ``vel_outflow``
-     - Velocity imposed at the inflow or outflow ghost cells.
-     - length / time
-   * - ``temp_inflow`` / ``temp_outflow``
-     - Temperature used to derive boundary pressure.
-     - temperature
-   * - ``mu_inflow`` / ``mu_outflow``
-     - Mean molecular weight used to derive boundary pressure.
+   * - ``selfgravity``
+     - Enable gas self-gravity computed from the enclosed gas mass in spherical
+       geometry or the plane-parallel Poisson field in Cartesian geometry.
+     - boolean
+   * - ``externalgravity``
+     - Enable an externally supplied potential or acceleration profile.
+     - boolean
+   * - ``gravity``
+     - Optional preconstructed :class:`radhydropy.gravity.Gravity` object. This
+       is normally supplied by an example script rather than YAML.
+     - object
+   * - ``gravity_potential``
+     - External potential profile, callable, or tabulated potential used when
+       ``externalgravity`` is enabled.
+     - potential
+   * - ``gravity_coordinate``
+     - Coordinates corresponding to a tabulated external potential or field.
+     - length
+   * - ``gravity_acceleration``
+     - Direct external acceleration profile, callable, or tabulated field.
+     - acceleration
+   * - ``selfgravity_softening``
+     - Softening length used by gas self-gravity.
+     - length
+   * - ``selfgravity_boundary_acceleration``
+     - Boundary acceleration used by Cartesian self-gravity.
+     - acceleration
+   * - ``dark_matter_crossing_safety_factor``
+     - Safety factor used to limit timesteps when live dark-matter shells are
+       predicted to cross.
      - dimensionless
+   * - ``dark_matter``
+     - Runtime :class:`radhydropy.dark_matter.DarkMatterShells` object. It is
+       generally constructed by an example IC helper or restored from an HDF5
+       snapshot.
+     - object
+
+``externalgravity`` and ``selfgravity`` may be enabled together. The solver
+adds their accelerations before updating gas momentum and energy. A live
+``dark_matter`` object is coupled through enclosed gas and dark-matter masses.
+
+Cosmology Keys
+--------------
+
+Cosmological expansion uses an Einstein--de Sitter background and can be
+combined with supercomoving coordinates. The cosmology object is constructed
+automatically by :class:`radhydropy.params.Par` when
+``cosmological_expansion`` is enabled.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 48 20
+
+   * - Key
+     - Meaning
+     - Typical unit
+   * - ``cosmological_expansion``
+     - Enable cosmological expansion and construct the configured background
+       cosmology.
+     - boolean
+   * - ``cosmological_gravity``
+     - Enable density-contrast cosmological gravity. The homogeneous background
+       is subtracted from the enclosed mass.
+     - boolean
+   * - ``supercomoving_coordinates``
+     - Store and evolve comoving coordinates, supercomoving time, comoving
+       density, peculiar velocity, and supercomoving thermodynamic variables.
+     - boolean
+   * - ``cosmology_type``
+     - Background model. The current supported value is
+       ``einstein_de_sitter`` (also accepted as ``EinsteinDeSitter``).
+     - string
+   * - ``cosmology_t_ref``
+     - Reference cosmic time used to normalize the Einstein--de Sitter scale
+       factor.
+     - code time
+   * - ``cosmology_a_ref``
+     - Reference scale factor at ``cosmology_t_ref``.
+     - dimensionless
+   * - ``coordinate_frame``
+     - Coordinate representation, normally ``physical`` or automatically set
+       to ``comoving`` for supercomoving runs.
+     - string
+   * - ``time_coordinate``
+     - Time representation, normally ``cosmic`` or automatically set to
+       ``supercomoving``.
+     - string
+   * - ``velocity_representation``
+     - Velocity representation, such as ``physical`` or
+       ``supercomoving_peculiar``.
+     - string
+   * - ``density_representation``
+     - Density representation, ``physical`` or ``comoving``.
+     - string
+   * - ``pressure_representation``
+     - Pressure representation, ``physical`` or ``supercomoving``.
+     - string
+   * - ``temperature_representation``
+     - Temperature representation, ``physical`` or ``supercomoving``.
+     - string
+
+For a supercomoving run, set at minimum:
+
+.. code-block:: yaml
+
+   cosmological_expansion: true
+   cosmological_gravity: true
+   supercomoving_coordinates: true
+   cosmology_type: einstein_de_sitter
+   cosmology_t_ref: 1.0
+   cosmology_a_ref: 1.0
