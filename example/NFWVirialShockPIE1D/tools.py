@@ -26,10 +26,52 @@ CodeUnits = BASE.CodeUnits
 cosmic_mean_baryon_density = BASE.cosmic_mean_baryon_density
 
 
+def pie_equilibrium_temperature(
+    density, table, hydrogen_mass_fraction, metallicity, redshift
+):
+    """Return the local HM12 PIE thermal-equilibrium temperature.
+
+    The table is sampled over its temperature axis and the zero of
+    ``heating-cooling`` is linearly interpolated in log temperature.  If a
+    density has no sign change in the tabulated range, the closest tabulated
+    state is used rather than extrapolating beyond the PIE table.
+    """
+    density = np.asarray(density, dtype=float)
+    n_h = hydrogen_mass_fraction * density / PROTON_MASS_CGS
+    log_temperature = np.asarray(table.log_temperature, dtype=float)
+    temperature = 10.0 ** log_temperature
+    heating, cooling = table.rates(
+        temperature[:, None], n_h[None, :],
+        metallicity=metallicity, redshift=redshift,
+    )
+    log_ratio = np.log10(np.maximum(heating, 1.0e-99)) - np.log10(
+        np.maximum(cooling, 1.0e-99)
+    )
+    sign_change = log_ratio[:-1] * log_ratio[1:] <= 0.0
+    score = np.abs(log_ratio)
+    crossing_index = np.argmax(sign_change, axis=0)
+    has_crossing = np.any(sign_change, axis=0)
+    closest_index = np.argmin(score, axis=0)
+    index = np.where(has_crossing, crossing_index, closest_index)
+    index = np.clip(index, 0, len(log_temperature) - 2)
+    lower = log_ratio[index, np.arange(density.size)]
+    upper = log_ratio[index + 1, np.arange(density.size)]
+    denominator = upper - lower
+    weight = np.divide(-lower, denominator, out=np.zeros_like(lower), where=denominator != 0.0)
+    equilibrium_log_temperature = log_temperature[index] + weight * (
+        log_temperature[index + 1] - log_temperature[index]
+    )
+    closest_temperature = temperature[closest_index]
+    result = np.where(has_crossing, 10.0 ** equilibrium_log_temperature, closest_temperature)
+    return result * unyt.K
+
+
 class Simwrap(BASE.Simwrap):
     """NFW PIE IC with a correlated, centrally enhanced baryon fluctuation."""
 
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, icparams, code_units=None, pie_table=None,
+                 pie_redshift=0.0, metallicity=1.0,
+                 hydrogen_mass_fraction=1.0):
         super().__init__(icparams, code_units=code_units)
         halo = nfw_halo_parameters(
             icparams['halo_mass'], icparams['concentration'],
@@ -47,6 +89,11 @@ class Simwrap(BASE.Simwrap):
             icparams['h0'], icparams['omega_b'], icparams['initial_redshift']
         )
         self.fluid.rho = mean_density * (1.0 + fluctuation)
+        if pie_table is not None:
+            self.fluid.temp = pie_equilibrium_temperature(
+                self.fluid.rho.to_value(unyt.g / unyt.cm**3),
+                pie_table, hydrogen_mass_fraction, metallicity, pie_redshift,
+            )
 
 
 def _pressure(rho, temperature, mu):

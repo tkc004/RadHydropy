@@ -19,14 +19,27 @@ runparams:
   timesim:
     value: 2000.0
     unit: Myr
-  CFL: 0.2
+  CFL: 0.4
   dtmin:
     value: 1.0e3
     unit: yr
   dtmax:
-    value: 2.0
+    value: 10.0
     unit: Myr
   boundcond: OutflowSph
+  # Match the innermost HM12-PIE equilibrium cell.  OutflowSph uses these
+  # values in the inner ghost cells; the generic defaults (1 g cm^-3, 0 K)
+  # would inject an unphysical central spike.
+  vel_outflow:
+    value: 19.533
+    unit: km/s
+  rho_outflow:
+    value: 4.04955e-27
+    unit: g/cm**3
+  temp_outflow:
+    value: 10109.1
+    unit: K
+  mu_outflow: 0.59
   verbose: 0
   order: 0
   noghost: 2
@@ -38,13 +51,19 @@ runparams:
   metallicity: 1.0
   hydrogen_mass_fraction: 0.76
   cooling_safety_factor: 0.05
+  # The PIE update is implicit; these controls avoid excessive retries in
+  # the very cold initial cells while retaining a converged thermal solve.
+  pie_uvbg_implicit_tolerance: 5.0e-3
+  pie_uvbg_implicit_max_iterations: 16
+  pie_uvbg_implicit_max_retries: 4
+  pie_uvbg_implicit_step_doubling: false
   cooling_temperature_floor:
     value: 100.0
     unit: K
   radiative_transfer: false
 
 ICparams:
-  nogrid: 512
+  nogrid: 256
   coordsys: spherical
   boxsize:
     value: 560.0

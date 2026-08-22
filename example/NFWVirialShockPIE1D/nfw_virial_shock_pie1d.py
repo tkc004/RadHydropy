@@ -52,12 +52,34 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(runparams)
     os.makedirs(runparams['outdir'], exist_ok=True)
     code_units = et.CodeUnits.from_mapping(runparams['CodeUnits'])
+    pie_table = diag.MetalPIETable(runparams['metal_pie_table_filename'])
     halo = et.nfw_halo_parameters(
         icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
         icparams['overdensity'], icparams['h0'],
     )
-    initial_condition = diag.Simwrap(icparams, code_units=code_units)
+    initial_condition = diag.Simwrap(
+        icparams,
+        code_units=code_units,
+        pie_table=pie_table,
+        pie_redshift=runparams['metal_pie_redshift'],
+        metallicity=runparams['metallicity'],
+        hydrogen_mass_fraction=runparams['hydrogen_mass_fraction'],
+    )
+    # OutflowSph copies these values into the inner ghost cells.  Match them
+    # to the innermost physical PIE-equilibrium cell for every halo variant;
+    # the generic defaults (1 g cm^-3, 0 K) create a spurious central spike.
+    inner = initial_condition.fluid
+    runparams['vel_outflow'] = inner.vel[0].to('km/s')
+    runparams['rho_outflow'] = inner.rho[0].to('g/cm**3')
+    runparams['temp_outflow'] = inner.temp[0].to('K')
+    runparams['mu_outflow'] = float(icparams['mu'])
     rio.writehdf5(initial_condition, runparams['ICfilename'])
+    print(
+        'initial HM12 PIE temperature = %.6g--%.6g K' % (
+            initial_condition.fluid.temp.min().to_value(unyt.K),
+            initial_condition.fluid.temp.max().to_value(unyt.K),
+        )
+    )
 
     sim = Rsim(runparams)
     sim.Callreadhdf5()
@@ -73,7 +95,8 @@ def main(config_filename=DEFAULT_CONFIG):
         coordinate=sim.mesh.coordinate.copy(),
         code_units=sim.par.CodeUnits,
     )
-    sim.Run(mode='hydro')
+    # PIE heating/cooling is a source update coupled to the hydro step.
+    sim.Run(mode='hydro_sources')
 
     output_files = [
         os.path.join(runparams['outdir'], name)

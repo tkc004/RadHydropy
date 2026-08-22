@@ -146,12 +146,27 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         old_rate = self.thermal_rate(state, None)
         explicit_energy = old_energy + dt_s * old_rate / rho
         floor_energy = self._energy_at_temperature(state, lower)
+        # The HM12 table does not represent temperatures below its lower
+        # tabulated range.  Cold initial conditions (for example a 2.7 K
+        # cosmological seed) must be placed directly on the configured floor;
+        # sending them through the bracket/retry loop can create an enormous
+        # number of futile source substeps.
+        # At exactly the floor, the gas must still be allowed to heat.  Using
+        # ``<=`` here permanently pinned any cell that touched 100 K, even
+        # when HM12 photoheating was positive and its PIE equilibrium was
+        # near 10^4 K.
+        below_floor = old_temperature < lower_K
+        bracketed &= ~below_floor
         trial_energy = np.where(
-            bracketed,
-            old_energy,
-            np.where(explicit_energy <= floor_energy, floor_energy, old_energy),
+            below_floor,
+            floor_energy,
+            np.where(
+                bracketed,
+                old_energy,
+                np.where(explicit_energy <= floor_energy, floor_energy, old_energy),
+            ),
         )
-        successful = bracketed | (explicit_energy <= floor_energy)
+        successful = below_floor | bracketed | (explicit_energy <= floor_energy)
         if np.any(bracketed):
             # Bisection is deliberately used instead of an unconstrained
             # Newton iteration because the tabulated net rate is not
@@ -227,9 +242,14 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             dt_s = remaining_s
             accepted = False
             for _ in range(retries + 1):
-                new_energy, converged = self._implicit_converged_step(
-                    state, old_energy, dt_s, floor_K
-                )
+                if getattr(par, "pie_uvbg_implicit_step_doubling", True):
+                    new_energy, converged = self._implicit_converged_step(
+                        state, old_energy, dt_s, floor_K
+                    )
+                else:
+                    new_energy, converged = self._implicit_energy_step(
+                        state, old_energy, dt_s, floor_K
+                    )
                 if np.all(converged):
                     state["specific_energy_erg_g"] = new_energy
                     accepted = True

@@ -407,6 +407,11 @@ class Rsim():
                     advect_chemistry=advect_chemistry,
                 )
                 result["hydro_steps"] = 1
+                # The SSPRK2 helper advances time itself.  The Euler path
+                # must advance it here; hydro_sources advances it after the
+                # source update below.
+                if mode == "hydro":
+                    self.fluid.time += dt
 
         if mode in ("hydro_sources", "sources"):
             source_result = self.ApplyThermochemistrySources(
@@ -417,6 +422,8 @@ class Rsim():
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
             if mode == "sources":
+                self.fluid.time += dt
+            elif mode == "hydro_sources" and hydro_integrator == "euler":
                 self.fluid.time += dt
             self.solver.SetBoundary(self.mesh, self.fluid, self.par)
             self.solver.SetConserved(self.mesh, self.fluid, verbose=getattr(self.par, 'verbose', 0))

@@ -564,7 +564,10 @@ def run_with_output_times(
             )
         if stop_condition is not None and stop_condition(sim):
             break
-        if abs(float(np.asarray(sim.fluid.time, dtype=float)) - target_time_value) <= time_tol:
+        # Euler/source steps can cross a target by a roundoff- or CFL-sized
+        # amount.  Treat the first state at or beyond the target as the
+        # requested snapshot instead of silently dropping the output.
+        if float(np.asarray(sim.fluid.time, dtype=float)) >= target_time_value - time_tol:
             sim.fluid.SetTemperature()
             write_numbered_hdf5(sim, outindex)
             last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))

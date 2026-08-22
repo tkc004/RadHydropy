@@ -18,6 +18,18 @@ towards the halo. These parameters are the simplified IC controls for the
 linear-correlation-function perturbation described by Birnboim and Dekel; the
 fluctuation amplitude sets the collapse strength and timing.
 
+The default run uses 256 radial cells so the implicit table-based PIE source
+update remains tractable for the 2 Gyr experiment.
+The example disables the optional implicit step-doubling error estimate; the
+thermal update itself remains backward-Euler implicit.
+
+The initial gas temperature is not set to the CMB temperature. For every
+cell, the IC builder solves ``Gamma_HM12(T, nH) - Lambda_HM12(T, nH) = 0`` at
+``z=0`` using the downloaded HM12 PIE table. If the table has no equilibrium
+crossing at a particular density, the nearest tabulated temperature is used.
+The inner ``OutflowSph`` state is matched to the innermost PIE-equilibrium
+cell so the generic unit-density ghost state cannot contaminate the shock.
+
 Run it from this directory::
 
    python nfw_virial_shock_pie1d.py

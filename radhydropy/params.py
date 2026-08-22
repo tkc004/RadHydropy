@@ -60,6 +60,7 @@ refparams = {
     'pie_uvbg_implicit_tolerance': 1.0e-3,
     'pie_uvbg_implicit_max_retries': 8,
     'pie_uvbg_implicit_max_iterations': 64,
+    'pie_uvbg_implicit_step_doubling': True,
     'chemistry_key': 'H',
     'hydrogen_chemistry': False,
     'hydrogen_mass_fraction': 1.0,

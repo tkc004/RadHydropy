@@ -20,12 +20,12 @@ runparams:
   timesim:
     value: 2000.0
     unit: Myr
-  CFL: 0.2
+  CFL: 0.4
   dtmin:
     value: 1.0e3
     unit: yr
   dtmax:
-    value: 2.0
+    value: 10.0
     unit: Myr
   boundcond: OutflowSph
   verbose: 0
@@ -39,13 +39,17 @@ runparams:
   metallicity: 1.0
   hydrogen_mass_fraction: 0.76
   cooling_safety_factor: 0.05
+  pie_uvbg_implicit_tolerance: 5.0e-3
+  pie_uvbg_implicit_max_iterations: 16
+  pie_uvbg_implicit_max_retries: 4
+  pie_uvbg_implicit_step_doubling: false
   cooling_temperature_floor:
     value: 100.0
     unit: K
   radiative_transfer: false
 
 ICparams:
-  nogrid: 512
+  nogrid: 256
   coordsys: spherical
   boxsize:
     value: 824.0
