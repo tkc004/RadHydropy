@@ -1,0 +1,96 @@
+runparams:
+  simname: PIESphericalRadiativeShock1D
+  ICfilename: InitialCondition.hdf5
+  outdir: outputs
+  outfileprefix: Output
+  savedir: outputs
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim:
+    value: 20.0
+    unit: Myr
+  outdeltatime:
+    value: 0.5
+    unit: Myr
+  dtmin:
+    value: 1.0
+    unit: yr
+  dtmax:
+    value: 0.01
+    unit: Myr
+  CFL: 0.2
+  boundcond: InflowOutflowSph
+  vel_inflow:
+    value: -100.0
+    unit: km/s
+  rho_inflow:
+    value: 4.402e-27
+    unit: g/cm**3
+  temp_inflow:
+    value: 10000.0
+    unit: K
+  mu_inflow: 0.62
+  vel_outflow:
+    value: 100.0
+    unit: km/s
+  rho_outflow:
+    value: 4.402e-27
+    unit: g/cm**3
+  temp_outflow:
+    value: 10000.0
+    unit: K
+  mu_outflow: 0.62
+  verbose: 0
+  order: 0
+  noghost: 2
+  thermochemistry_network: pie_uvbg_cooling
+  metal_pie_enabled: true
+  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+  metal_pie_redshift: 0.0
+  metal_pie_photoheating_max_density_cm3: 50.0
+  metallicity: 1.0
+  hydrogen_mass_fraction: 0.76
+  radiative_transfer: false
+  cooling_safety_factor: 0.05
+  pie_uvbg_implicit_step_doubling: false
+  cooling_temperature_floor:
+    value: 100.0
+    unit: K
+  CodeUnits:
+    name: galactic_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0e10
+      UnitLength_in_cgs: 3.08567758e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 512
+  coordsys: spherical
+  boxsize:
+    value: 19.0
+    unit: kpc
+  rmin:
+    value: 1.0
+    unit: kpc
+  rmax:
+    value: 20.0
+    unit: kpc
+  time:
+    value: 0.0
+    unit: Myr
+  hydrogen_density:
+    value: 2.0e-3
+    unit: cm**-3
+  inflow_velocity:
+    value: -100.0
+    unit: km/s
+  outflow_velocity:
+    value: 100.0
+    unit: km/s
+  inflow_temperature:
+    value: 1.0e4
+    unit: K
+  muini: 0.62

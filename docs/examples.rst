@@ -53,6 +53,9 @@ Available Examples
    * - ``example/PIERadiativeShockTube1D``
      - Planar colliding-flow HM12 PIE radiative shock with jump-condition,
        cooling-length, density, metallicity, and adiabatic-control tests.
+   * - ``example/PIESphericalRadiativeShock1D``
+     - Gravity-free spherical colliding-flow HM12 PIE shock experiment comparing
+       adiabatic, ``Z=0.1``, and ``Z=1`` cooling cases for shock overstability.
    * - ``example/DarkMatterFixedMassOrbit1D``
      - Fixed-enclosed-mass dark-matter shell with angular momentum, compared
        against a conserved-energy reference orbit.
