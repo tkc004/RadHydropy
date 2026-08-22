@@ -1,0 +1,227 @@
+"""Boundary-fed virial shock in a fixed NFW halo, with an HM12 PIE restart."""
+
+import argparse
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+EXAMPLE_DIR = Path(__file__).resolve().parent
+EXAMPLE_ROOT = EXAMPLE_DIR.parent
+PROJECT_ROOT = EXAMPLE_ROOT.parent
+for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+os.environ.setdefault('XDG_CACHE_HOME', str(Path(tempfile.gettempdir()) / 'radhydropy-cache'))
+os.environ.setdefault('MPLCONFIGDIR', str(Path(tempfile.gettempdir()) / 'radhydropy-matplotlib'))
+
+import unyt
+import numpy as np
+
+import example_utils as eu
+import radhydropy.io as rio
+from radhydropy.example_config import load_example_parameters
+from radhydropy.gravity import Gravity, nfw_potential
+from radhydropy.rsim import Rsim
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits, code_unit_scales
+from radhydropy.thermo_networks.pie import MetalPIETable
+from tools import (
+    Simwrap, boundary_inflow_state, nfw_halo_parameters, pie_stability_diagnostics,
+    plot_comparison, plot_stability_diagnostics, shock_history,
+    virial_temperature, write_report, write_stability_report,
+)
+
+
+DEFAULT_CONFIG = EXAMPLE_DIR / 'nfw_boundary_driven_virial_shock1d.yaml'
+
+
+class BoundaryAccretionSolver(Solver):
+    """Use a non-injecting inner diode and maintained outer accretion."""
+
+    def SetBoundary(self, mesh, fluid, par):
+        first = par.noghost
+        right_start = first + par.nogrid
+        scales = code_unit_scales(getattr(par, 'CodeUnits', None))
+
+        left = self._boundary_state(fluid, first)
+        # Negative velocity points through the inner boundary and out of the
+        # domain. Suppress only a positive velocity that would inject gas.
+        left['vel'] = min(float(fluid.vel[first]), 0.0)
+        right = {
+            'rho': par.rho_inflow,
+            'vel': par.vel_inflow,
+            'pre': fluid.eos.pressure(
+                par.rho_inflow, par.temp_inflow, par.mu_inflow
+            ),
+        }
+        if hasattr(fluid, 'xHI'):
+            left['xHI'] = float(fluid.xHI[first])
+            right['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
+        if hasattr(fluid, 'ngamma'):
+            left['ngamma'] = fluid.ngamma[..., first]
+            right['ngamma'] = self._to_code_number_density(
+                getattr(par, 'hydrogen_ngamma_inflow', 0.0), scales
+            )
+        self._copy_boundary_state(fluid, slice(0, first), left)
+        self._copy_boundary_state(
+            fluid, slice(right_start, right_start + par.noghost), right
+        )
+
+
+def _runtime_restart(sim, params, pie_table):
+    """Restore stage controls overwritten by snapshot header metadata."""
+    immutable = {'CodeUnits', 'coordsys', 'nogrid', 'noghost', 'gamma', 'EOStype'}
+    for key, value in params.items():
+        if key not in immutable:
+            setattr(sim.par, key, value)
+    sim.par.runparams = dict(params)
+    sim.par.metal_pie_table = pie_table
+
+
+def _strip_snapshot_ghosts(sim):
+    """Convert an evolved snapshot back to the ghost-free IC layout."""
+    first = int(sim.par.noghost)
+    count = int(sim.par.nogrid)
+    total = count + 2 * first
+    if len(sim.mesh.boundary) == count + 1:
+        return
+    if len(sim.mesh.boundary) != total + 1:
+        raise ValueError('restart snapshot has an unexpected mesh size')
+    sim.mesh.boundary = sim.mesh.boundary[first:first + count + 1].copy()
+    for name, value in vars(sim.fluid).items():
+        if name in {'eos', 'time'}:
+            continue
+        array = np.asarray(value)
+        if array.ndim and array.shape[-1] == total:
+            setattr(sim.fluid, name, array[..., first:first + count].copy())
+
+
+def _run_stage(params, halo, mode, pie_table=None, restart=False):
+    outdir = Path(params['outdir'])
+    outdir.mkdir(parents=True, exist_ok=True)
+    eu.clean_previous_outputs(params)
+    sim = Rsim(params)
+    sim.solver = BoundaryAccretionSolver()
+    sim.Callreadhdf5()
+    if restart:
+        _strip_snapshot_ghosts(sim)
+        _runtime_restart(sim, params, pie_table)
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
+    sim.par.gravity = Gravity(
+        externalgravity=True,
+        potential=nfw_potential(
+            sim.mesh.coordinate, halo['scale_density'], halo['scale_radius'],
+            code_units=sim.par.CodeUnits,
+        ),
+        coordinate=sim.mesh.coordinate.copy(),
+        code_units=sim.par.CodeUnits,
+    )
+    sim.Run(mode=mode)
+    return sorted(outdir.glob(f"{params['outfileprefix']}_*.hdf5"))
+
+
+def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
+    times = rio.load_output_time_list(filename).to_value(unyt.Myr)
+    if len(times) != expected_count:
+        raise ValueError(
+            f'{filename} contains {len(times)} times for {expected_count} snapshots'
+        )
+    return times + float(offset_myr)
+
+
+def main(config_filename=DEFAULT_CONFIG):
+    config_filename = Path(config_filename).resolve()
+    runparams, icparams = load_example_parameters(config_filename)
+    for key in ('metal_pie_table_filename', 'pie_outputtimefilename', 'pie_outdir'):
+        runparams[key] = str((config_filename.parent / runparams[key]).resolve())
+
+    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    pie_table = MetalPIETable(runparams['metal_pie_table_filename'])
+    halo = nfw_halo_parameters(
+        icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
+        icparams['overdensity'], icparams['h0'],
+    )
+    initial = Simwrap(icparams, runparams, code_units, pie_table)
+    inflow = boundary_inflow_state(icparams, halo, pie_table, runparams)
+    runparams.update(inflow)
+    Path(runparams['ICfilename']).parent.mkdir(parents=True, exist_ok=True)
+    rio.writehdf5(initial, runparams['ICfilename'])
+
+    adiabatic = dict(runparams)
+    adiabatic.update({
+        'thermochemistry_network': 'hydrogen',
+        'metal_pie_enabled': False,
+        'timesim': runparams['adiabatic_final_time'],
+    })
+    adiabatic_files = _run_stage(adiabatic, halo, 'hydro')
+    if not adiabatic_files:
+        raise RuntimeError('adiabatic stage produced no snapshots')
+
+    pie = dict(runparams)
+    pie.update({
+        'simname': runparams['simname'] + '_PIE',
+        'ICfilename': str(adiabatic_files[-1]),
+        'outdir': runparams['pie_outdir'],
+        'savedir': runparams['pie_outdir'],
+        'outputtimefilename': runparams['pie_outputtimefilename'],
+        'timesim': runparams['pie_final_time'],
+        'thermochemistry_network': 'pie_uvbg_cooling',
+        'metal_pie_enabled': True,
+    })
+    pie_files = _run_stage(
+        pie, halo, 'hydro_sources', pie_table=pie_table, restart=True
+    )
+    if not pie_files:
+        raise RuntimeError('PIE stage produced no snapshots')
+
+    savedir = Path(runparams['savedir'])
+    savedir.mkdir(parents=True, exist_ok=True)
+    ad_report = savedir / 'NFWBoundaryDrivenVirialShock1D_AdiabaticShockHistory.txt'
+    pie_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEShockHistory.txt'
+    figure = savedir / 'NFWBoundaryDrivenVirialShock1D.jpg'
+    stability_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEStability.txt'
+    stability_figure = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEStability.jpg'
+    adiabatic_times = _scheduled_times_myr(
+        adiabatic['outputtimefilename'], len(adiabatic_files)
+    )
+    pie_times = _scheduled_times_myr(
+        pie['outputtimefilename'], len(pie_files),
+        offset_myr=runparams['adiabatic_final_time'].to_value(unyt.Myr),
+    )
+    write_report(
+        shock_history(adiabatic_files, halo, times_myr=adiabatic_times), ad_report
+    )
+    write_report(shock_history(pie_files, halo, times_myr=pie_times), pie_report)
+    plot_comparison(
+        adiabatic_files, pie_files, halo, figure,
+        adiabatic_times_myr=adiabatic_times, pie_times_myr=pie_times,
+    )
+    stability = pie_stability_diagnostics(
+        pie_files, pie_times, halo, pie_table, pie, icparams['mu']
+    )
+    write_stability_report(stability, stability_report)
+    plot_stability_diagnostics(stability, stability_figure)
+
+    print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
+    print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
+    print('Tvir = %.6g K' % virial_temperature(halo, icparams['mu']).to_value(unyt.K))
+    print('outer PIE temperature = %.6g K' % inflow['temp_inflow'].to_value(unyt.K))
+    print('adiabatic snapshots = %d; PIE snapshots = %d' % (
+        len(adiabatic_files), len(pie_files)))
+    print('figure = %s' % figure)
+    print('PIE diagnostics = %s' % stability_figure)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    main(args.config)

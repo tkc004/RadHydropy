@@ -41,6 +41,11 @@ Available Examples
      - ``3e11 Msun`` virial-shock cooling experiment at ``z=0`` using the HM12
        photoionization-equilibrium heating and cooling table, with ``1e12``
        and ``1e11 Msun`` control configurations.
+   * - ``example/NFWBoundaryDrivenVirialShock1D``
+     - Maintained cold PIE inflow onto a fixed ``1e12 Msun`` NFW halo, with an
+       adiabatic settling stage followed by an HM12 PIE cooling restart. A
+       ``3e11`` and ``1e11 Msun`` mass sequence compares supported, marginal,
+       and cooling-unstable virial shocks using ``gamma_eff=10/7``.
    * - ``example/PIECoolingIsochoricParcel1D``
      - Fixed-density HM12 PIE heating and cooling parcels covering diffuse and
        dense gas initially at ``1e4`` and ``1e6 K``.
