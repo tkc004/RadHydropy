@@ -809,7 +809,9 @@ def apply_fast(dt, mesh, fluid, par):
             "'hydrogen_helium'"
         )
     code = _code_units(par)
-    dt_s = time_seconds(dt, code)
+    # The hydro timestep is in supercomoving time; C2-Ray integrates a
+    # physical source interval with dt_phys = a^2 d tau.
+    dt_s = time_seconds(dt, code) * state.get("source_scale_factor", 1.0) ** 2
     result = advance_state(state, par, dt_s)
     _ensure_fluid_photon_shape(fluid, state["ngamma_cm3"])
     if network == "hydrogen_helium":

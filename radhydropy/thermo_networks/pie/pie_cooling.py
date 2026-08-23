@@ -105,12 +105,18 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
     def get_source_timestep_fast(self, mesh, fluid, par, remaining):
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
-        remaining_s = float(to_unit_value(remaining, code.time_unit))
+        remaining_s = (
+            float(to_unit_value(remaining, code.time_unit))
+            * state["source_scale_factor"]**2
+        )
         # The thermal update is implicit, so the cooling time no longer has
         # to limit the hydro/source timestep.  The hydro CFL step is still
         # passed in as ``remaining``.
         rate = self.thermal_rate(state, None)
-        return from_unit_value(remaining_s, code.time_unit), rate
+        return from_unit_value(
+            remaining_s / state["source_scale_factor"]**2,
+            code.time_unit,
+        ), rate
 
     @staticmethod
     def _energy_at_temperature(state, temperature_K):
@@ -230,7 +236,10 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
     def apply_fast(self, dt, mesh, fluid, par):
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
-        remaining_s = float(to_unit_value(dt, code.time_unit))
+        remaining_s = (
+            float(to_unit_value(dt, code.time_unit))
+            * state["source_scale_factor"]**2
+        )
         floor_K = float(
             to_unit_value(getattr(par, "cooling_temperature_floor", 1.0), "K")
         )
@@ -265,25 +274,30 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
 
         _update_temperature(state)
         interior = state["interior"]
-        new_thermal = (
+        internal_super = (
             state["specific_energy_erg_g"]
-            * state["rho_g_cm3"]
-            * state["volume_cm3"]
+            * state["source_temperature_factor"]
         )
-        new_total = (
-            0.5
-            * state["rho_g_cm3"]
-            * state["velocity_cm_s"] ** 2
-            * state["volume_cm3"]
-            + new_thermal
+        total_super = internal_super + 0.5 * state["velocity_supercomoving_cm_s"]**2
+        fluid.Energy[interior] = from_unit_value(
+            state["mass_g"] * total_super,
+            code.energy_unit,
         )
-        fluid.Energy[interior] = from_unit_value(new_total, code.energy_unit)
-        pressure = (
-            state["gamma"]
-            - 1.0
-        ) * state["specific_energy_erg_g"] * state["rho_g_cm3"]
-        fluid.pre[interior] = from_unit_value(pressure, code.pressure_unit)
         fluid.temp[interior] = from_unit_value(
-            state["temperature_K"], code.temperature_unit
+            state["temperature_K"] * state["source_temperature_factor"],
+            code.temperature_unit,
         )
+        if hasattr(fluid.eos, "pressure"):
+            fluid.pre[interior] = fluid.eos.pressure(
+                fluid.rho[interior],
+                fluid.temp[interior],
+                fluid.mu[interior],
+            )
+        else:
+            internal_code = internal_super / code.velocity_in_cgs**2
+            fluid.pre[interior] = (
+                (state["gamma"] - 1.0)
+                * np.asarray(fluid.rho[interior], dtype=float)
+                * internal_code
+            )
         return source_steps

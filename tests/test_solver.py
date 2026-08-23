@@ -564,6 +564,20 @@ class Testing(unittest.TestCase):
         self.assertLess(thermochemistry_dt, par.dtmax)
         self.assertEqual(hydro_dt, par.dtmax)
 
+    def test_zero_density_cell_does_not_limit_hydro_timestep(self):
+        par = make_code_par()
+        mesh = make_code_mesh()
+        mesh.xdelta = np.ones(8, dtype=float) * 1.0e12
+        fluid = make_code_fluid()
+        fluid.rho[3] = 0.0
+        fluid.SetPressure()
+
+        hydro_dt = Solver().GetTimeStep(mesh, fluid, par)
+
+        self.assertTrue(np.isfinite(hydro_dt))
+        self.assertEqual(hydro_dt, par.dtmax)
+        self.assertEqual(float(fluid.vsignal[3]), 0.0)
+
     def test_unknown_thermochemistry_network_raises_clear_error(self):
         par = Par('Periodic')
         par.thermochemistry_network = 'unknown'

@@ -828,12 +828,24 @@ class Solver():
         fluid.SetSoundSpeed()
         vsignal = np.absolute(fluid.vel) + fluid.cs
         xdelta = mesh.xdelta
+        density = np.asarray(fluid.rho, dtype=float)
         if xdelta.shape != vsignal.shape:
             interior = self._interior_slice(par)
             if xdelta[interior].shape == vsignal.shape:
                 xdelta = xdelta[interior]
+                density = density[interior]
             elif vsignal[interior].shape == xdelta.shape:
                 vsignal = vsignal[interior]
+                density = density[interior]
+
+        # A vacuum cell has no characteristic speed for the CFL constraint.
+        # EOS sound-speed evaluation can produce ``inf`` for rho == 0 because
+        # pressure/rho is undefined; exclude such cells from the minimum and
+        # keep their interface signal speed neutral for the next flux update.
+        zero_density = density <= 0.0
+        if np.any(zero_density):
+            vsignal = np.asarray(vsignal, dtype=float).copy()
+            vsignal[zero_density] = 0.0
         dt_array = self._safe_divide(CFL * xdelta, vsignal)
         dtmax = float(np.asarray(par.dtmax, dtype=float))
         dt_array = np.where(vsignal != 0.0, dt_array, dtmax)

@@ -236,6 +236,14 @@ are not advected as independent fluid fields.
      - Convergence tolerance and iteration limit for the coupled implicit
        source solve.
      - dimensionless / integer
+   * - ``hydrogen_implicit_convergence_tolerance``
+     - Relative difference tolerated between one implicit step and two
+       half-sized implicit steps.
+     - dimensionless
+   * - ``hydrogen_implicit_max_refinements``
+     - Maximum factor-of-two timestep refinements used to compare one
+       implicit step with two half-sized steps.
+     - integer
    * - ``hydrogen_implicit_fallback``
      - Action after a failed coupled solve: ``explicit`` or ``error``.
      - string

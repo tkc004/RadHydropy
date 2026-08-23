@@ -1,0 +1,71 @@
+runparams:
+  simname: CosmologicalGasCorrelationZ100
+  ICfilename: outputs_correlation_gas/InitialCondition.hdf5
+  outdir: outputs_correlation_gas
+  savedir: outputs_correlation_gas
+  outfileprefix: Output
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  selfgravity: true
+  cosmological_expansion: true
+  supercomoving_coordinates: true
+  cosmological_gravity: true
+  cosmology_type: einstein_de_sitter
+  cosmology_t_ref: 14.4
+  cosmology_a_ref: 1.0
+  boundcond: Reflecting
+  noghost: 2
+  order: 1
+  CFL: 0.10
+  dark_matter_crossing_safety_factor: 0.5
+  dark_matter_global_timestep_limit: false
+  # The cold adiabatic collapse develops a narrow central feature; allow the
+  # CFL limiter to follow it below the standard example floor.
+  dtmin: {value: 1.0e-8, unit: Myr}
+  dtmax: {value: 200.0, unit: Myr}
+  final_cosmic_time: 16.0
+  gas_profile_cadence: 0.10
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  thermochemistry_network: hydrogen
+  hydrogen_chemistry: false
+  hydrogen_atomic_cooling: false
+  hydrogen_recombination: false
+  hydrogen_collisional_ionization: false
+  hydrogen_thermal_coupling: false
+  cie_cooling: false
+  metal_pie_enabled: false
+  compton_cmb_enabled: false
+  cmb_temperature_0: {value: 2.7255, unit: K}
+  hydrogen_mass_fraction: 0.76
+  CodeUnits:
+    name: cosmological_gas_correlation_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.98847e43
+      UnitLength_in_cgs: 3.085677581e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 128
+  rmin: 5.0
+  rmax: 4000.0
+  initial_cosmic_time: 0.01418666885
+  perturbation_radius: 250.0
+  target_halo_mass: 100.0
+  initial_overdensity: 0.0166930693
+  initial_density_profile: linear_correlation
+  correlation_h: 0.674
+  baryon_fraction: 0.157
+  hydrogen_mass_fraction: 0.76
+  mu: 0.59
+  dark_matter_shells: 1024
+  dm_inner_radius: 0.01
+  specific_angular_momentum: 1500.0
+  dm_specific_angular_momentum: 0.01
+  softening: 0.05
+  # Simwrap converts this to T_code = T_CMB * a^2 at the z=100 start.
+  cmb_equilibrium_initial: true
+  cmb_temperature_0: 2.7255
+  cmb_residual_electron_fraction: 2.0e-4

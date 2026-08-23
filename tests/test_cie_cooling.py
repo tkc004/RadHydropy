@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
-from radhydropy.thermo_networks.cie.cie_cooling import CIECoolingNetwork
+from radhydropy.thermo_networks.cie.cie_cooling import CIECoolingNetwork, _state
 from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.units import CodeUnits
 
@@ -170,3 +170,56 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
     assert fluid.temp[1] >= par.cooling_temperature_floor * (1.0 - 1.0e-12)
     assert np.isfinite(fluid.Energy[1])
     assert np.isfinite(fluid.temp[1])
+
+
+def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
+    code_units = CodeUnits.from_mapping(
+        {
+            "InternalUnitSystem": {
+                "UnitMass_in_cgs": 1.0,
+                "UnitLength_in_cgs": 1.0,
+                "UnitVelocity_in_cgs": 1.0,
+                "UnitCurrent_in_cgs": 1.0,
+                "UnitTemp_in_cgs": 1.0,
+            }
+        }
+    )
+    scale_factor = 2.0
+    gamma = 5.0 / 3.0
+    physical_temperature = 100.0
+    specific_internal = (
+        BOLTZMANN_CONSTANT_CGS * physical_temperature
+        / ((gamma - 1.0) * PROTON_MASS_CGS)
+    )
+    velocity_supercomoving = 3.0
+    fluid = SimpleNamespace(
+        rho=np.array([8.0]),
+        vel=np.array([velocity_supercomoving]),
+        temp=np.array([physical_temperature * scale_factor**2]),
+        mu=np.ones(1),
+        Mass=np.array([8.0]),
+        Energy=np.array([
+            8.0 * (specific_internal * scale_factor**2
+                   + 0.5 * velocity_supercomoving**2)
+        ]),
+        eos=SimpleNamespace(gamma=gamma),
+    )
+    mesh = SimpleNamespace(vol=np.array([1.0]))
+    par = SimpleNamespace(
+        CodeUnits=code_units,
+        noghost=0,
+        nogrid=1,
+        supercomoving_coordinates=True,
+        fluid_time=0.0,
+        cosmology=SimpleNamespace(
+            scale_factor_from_supercomoving=lambda _: scale_factor,
+        ),
+    )
+
+    state = _state(mesh, fluid, par)
+
+    np.testing.assert_allclose(state["rho_g_cm3"], [1.0])
+    np.testing.assert_allclose(state["volume_cm3"], [8.0])
+    np.testing.assert_allclose(state["velocity_cm_s"], [1.5])
+    np.testing.assert_allclose(state["temperature_K"], [physical_temperature])
+    np.testing.assert_allclose(state["specific_energy_erg_g"], [specific_internal])

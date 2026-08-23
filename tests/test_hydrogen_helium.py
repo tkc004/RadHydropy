@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -13,8 +14,11 @@ from radhydropy.thermo_networks.hydrogen_helium import (
     _beta_heii,
     _gamma_bremsstrahlung,
     _rates,
+    source_state,
     ionization_fraction_implicit_update,
 )
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS
+from radhydropy.units import CodeUnits
 
 
 class HydrogenHeliumNetworkTests(unittest.TestCase):
@@ -98,6 +102,72 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         self.assertTrue(np.all((state["xHeI"] > 0.0) & (state["xHeI"] < 1.0)))
         self.assertTrue(np.all(state["xHeIII"] >= 0.0))
         self.assertTrue(np.all(state["xHeI"] + state["xHeII"] + state["xHeIII"] <= 1.0 + 1.0e-12))
+
+    def test_supercomoving_source_state_is_physical(self):
+        code = CodeUnits.from_mapping({
+            "InternalUnitSystem": {
+                "UnitMass_in_cgs": 1.0,
+                "UnitLength_in_cgs": 1.0,
+                "UnitVelocity_in_cgs": 1.0,
+                "UnitCurrent_in_cgs": 1.0,
+                "UnitTemp_in_cgs": 1.0,
+            }
+        })
+        scale_factor = 2.0
+        gamma = 5.0 / 3.0
+        temperature = 100.0
+        mu = 1.0 / (0.75 + 0.25 / 4.0)
+        specific_internal = (
+            BOLTZMANN_CONSTANT_CGS * temperature
+            / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
+        )
+        velocity_super = 2.0
+        fluid = SimpleNamespace(
+            rho=np.array([8.0]),
+            vel=np.array([velocity_super]),
+            temp=np.array([temperature * scale_factor**2]),
+            mu=np.array([mu]),
+            Mass=np.array([8.0]),
+            Energy=np.array([
+                8.0 * (specific_internal * scale_factor**2
+                        + 0.5 * velocity_super**2)
+            ]),
+            xHI=np.array([1.0]),
+            xHeI=np.array([1.0]),
+            xHeII=np.array([0.0]),
+            eos=SimpleNamespace(gamma=gamma),
+        )
+        mesh = SimpleNamespace(
+            boundary=np.array([0.0, 1.0]),
+            vol=np.array([1.0]),
+            coordinate=np.array([0.5]),
+        )
+        par = SimpleNamespace(
+            CodeUnits=code,
+            noghost=0,
+            nogrid=1,
+            gamma=gamma,
+            hydrogen_mass_fraction=0.75,
+            helium_mass_fraction=0.25,
+            radiation_group_sigma_gamma=np.array([1.0e-18]),
+            radiation_group_epsilon_gamma=np.array([1.0e-11]),
+            supercomoving_coordinates=True,
+            fluid_time=0.0,
+            cosmology=SimpleNamespace(
+                scale_factor_from_supercomoving=lambda _: scale_factor,
+            ),
+        )
+
+        state = source_state(mesh, fluid, par)
+
+        np.testing.assert_allclose(state["rho_g_cm3"], [1.0])
+        np.testing.assert_allclose(state["volume_cm3"], [8.0])
+        np.testing.assert_allclose(state["radius_kpc"], [1.0 / 3.08567758e21])
+        np.testing.assert_allclose(state["temperature_K"], [temperature])
+        np.testing.assert_allclose(state["specific_energy_erg_g"], [specific_internal])
+        np.testing.assert_allclose(state["velocity_supercomoving_cm_s"], [velocity_super])
+        self.assertEqual(state["source_scale_factor"], scale_factor)
+        self.assertEqual(state["source_temperature_factor"], scale_factor**2)
 
 
 if __name__ == "__main__":

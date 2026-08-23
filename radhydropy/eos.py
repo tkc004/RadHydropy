@@ -87,7 +87,16 @@ class EOS:
         """Return the characteristic sound speed for the selected EOS."""
         if self.CodeUnits is not None:
             gamma_factor = 1.0 if self.is_isothermal else self.gamma
-            pressure_over_rho = np.asarray(pressure, dtype=float) / np.asarray(rho, dtype=float)
+            pressure_value = np.asarray(pressure, dtype=float)
+            rho_value = np.asarray(rho, dtype=float)
+            pressure_over_rho = np.zeros_like(pressure_value, dtype=float)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                np.divide(
+                    pressure_value,
+                    rho_value,
+                    out=pressure_over_rho,
+                    where=rho_value != 0.0,
+                )
             return as_named_array(np.sqrt(gamma_factor * pressure_over_rho))
         pressure_over_rho = ru.SafeDivide(pressure, rho)
         gamma_factor = 1.0 if self.is_isothermal else self.gamma

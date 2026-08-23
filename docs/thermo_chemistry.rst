@@ -69,10 +69,13 @@ controls most commonly used by the bundled examples are:
   The latter solves internal energy and ``xHI`` simultaneously at the new
   time, with positivity/bounds enforced in transformed variables.
 * ``hydrogen_implicit_tolerance``, ``hydrogen_implicit_max_iterations``, and
-  ``hydrogen_implicit_fallback``: controls and failure policy for the coupled
-  solve.  The implicit path holds a local photon field fixed and falls back to
-  the explicit source subcycler for ray-traced radiation unless configured to
-  raise an error.
+  ``hydrogen_implicit_max_refinements``: controls for the coupled solve. Each
+  accepted interval compares one implicit step with two half-sized steps and
+  refines by another factor of two when needed.
+* ``hydrogen_implicit_fallback``: failure policy for the coupled solve. The
+  implicit path holds a local photon field fixed and falls back to the explicit
+  source subcycler for ray-traced radiation unless configured to raise an
+  error.
 * ``hydrogen_alpha_B`` and ``hydrogen_beta``: optional fixed rate coefficients.
 * ``hydrogen_radiation_field`` and ``hydrogen_radiation_evolution``: control
   the local photon field update when ray tracing is not active.

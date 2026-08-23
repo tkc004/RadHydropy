@@ -79,8 +79,16 @@ def _analytic_temperature(
     ) * np.exp(-temperature_rate_coefficient * time_s)
 
 
-def _run_case(runparams, icparams, label, initial_temperature):
+def _run_case(
+    runparams,
+    icparams,
+    label,
+    initial_temperature,
+    timestep_override=None,
+):
     case_params = dict(runparams)
+    if timestep_override is not None:
+        case_params['evolution_timestep'] = timestep_override
     case_params['ICfilename'] = str(
         Path(runparams['outdir']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
     )
@@ -141,7 +149,70 @@ def _run_case(runparams, icparams, label, initial_temperature):
         float(case_icparams['nHini'].to_value(1.0 / unyt.cm**3)),
         float(case_icparams['xHIini']),
     )
+    relative_error = np.abs((temperature - analytic) / analytic)
+    print('%s: max relative error=%.6e' % (label, np.max(relative_error)))
     return time_s, temperature, analytic
+
+
+def _timestep_difference(coarse_history, fine_history):
+    """Compare a coarse and factor-two finer source integration."""
+    coarse_time, coarse_temperature, _ = coarse_history
+    fine_time, fine_temperature, _ = fine_history
+    fine_at_coarse = np.interp(
+        coarse_time,
+        fine_time,
+        fine_temperature,
+    )
+    scale = np.maximum(np.abs(fine_at_coarse), 1.0)
+    return float(np.max(np.abs(coarse_temperature - fine_at_coarse) / scale))
+
+
+def _run_converged_case(runparams, icparams, label, initial_temperature):
+    """Refine the implicit source timestep until two runs agree."""
+    timestep = runparams['evolution_timestep']
+    tolerance = float(
+        runparams.get('hydrogen_implicit_convergence_tolerance', 1.0e-3)
+    )
+    max_refinements = int(
+        runparams.get('hydrogen_implicit_max_refinements', 4)
+    )
+    coarse = _run_case(
+        runparams,
+        icparams,
+        label,
+        initial_temperature,
+        timestep_override=timestep,
+    )
+    for refinement in range(1, max_refinements + 1):
+        timestep = timestep / 2.0
+        fine = _run_case(
+            runparams,
+            icparams,
+            label,
+            initial_temperature,
+            timestep_override=timestep,
+        )
+        difference = _timestep_difference(coarse, fine)
+        print(
+            '%s: dt=%s, dt/2 difference=%.6e, tolerance=%.6e' %
+            (
+                label,
+                timestep,
+                difference,
+                tolerance,
+            )
+        )
+        if difference <= tolerance:
+            print(
+                '%s: timestep converged after %d refinement(s)' %
+                (label, refinement)
+            )
+            return fine
+        coarse = fine
+    raise RuntimeError(
+        '%s: implicit source timestep failed to converge after %d refinements'
+        % (label, max_refinements)
+    )
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -154,12 +225,20 @@ def main(config_filename=DEFAULT_CONFIG):
 
     histories = {}
     for label, initial_temperature in cases.items():
-        histories[label] = _run_case(
-            runparams,
-            icparams,
-            label,
-            float(initial_temperature),
-        )
+        if str(runparams.get('hydrogen_source_solver', 'explicit')).lower() == 'coupled_implicit':
+            histories[label] = _run_converged_case(
+                runparams,
+                icparams,
+                label,
+                float(initial_temperature),
+            )
+        else:
+            histories[label] = _run_case(
+                runparams,
+                icparams,
+                label,
+                float(initial_temperature),
+            )
 
     cmb_temperature = 2.7255 * (1.0 + runparams['compton_cmb_redshift'])
     figure_filename = Path(runparams['savedir']) / 'ComptonCMBHeating1D.jpg'

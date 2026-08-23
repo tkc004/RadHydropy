@@ -5,6 +5,8 @@ dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 ``HydrogenNetwork`` interface.
 """
 
+import copy
+
 import numpy as np
 import unyt
 from types import SimpleNamespace
@@ -459,10 +461,13 @@ def source_state(mesh, fluid, par):
         'gamma',
         getattr(par, 'gamma', 5.0 / 3.0),
     )
+    scaling = _fast_source_scaling(fluid, par, gamma)
     mu = 1.0 / (2.0 - np.clip(xHI, 1.0e-12, 1.0))
+    temperature_physical = temperature / scaling['temperature_factor']
+    rho_physical = rho / scaling['density_factor']
     specific_energy = (
         BOLTZMANN_CONSTANT_CGS
-        * temperature
+        * temperature_physical
         / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
     sigma_parameter = getattr(
@@ -506,28 +511,33 @@ def source_state(mesh, fluid, par):
         beta = to_unit_value(beta, code.volume_unit / code.time_unit)
     return {
         'interior': interior,
-        'boundary_cm': boundary,
-        'width_cm': np.diff(boundary),
+        'boundary_cm': boundary * scaling['scale_factor'],
+        'width_cm': np.diff(boundary) * scaling['scale_factor'],
         'volume_cm3': as_named_array(
             to_unit_value(mesh.vol[interior], code.volume_unit)
+            * scaling['density_factor']
         ),
         'radius_cm': as_named_array(
             to_unit_value(mesh.coordinate[interior], code.length_unit)
+            * scaling['scale_factor']
         ),
         'radius_kpc': np.asarray(
-            to_unit_value(mesh.coordinate[interior], code.length_unit) / kpc_in_cm,
+            to_unit_value(mesh.coordinate[interior], code.length_unit)
+            * scaling['scale_factor'] / kpc_in_cm,
             dtype=float,
         ),
         'xHI': xHI,
-        'temperature_K': temperature,
+        'temperature_K': temperature_physical,
         'specific_energy_erg_g': specific_energy,
-        'rho_g_cm3': rho,
-        'nH_cm3': rho * getattr(par, 'hydrogen_mass_fraction', 1.0) / PROTON_MASS_CGS,
+        'rho_g_cm3': rho_physical,
+        'nH_cm3': rho_physical * getattr(par, 'hydrogen_mass_fraction', 1.0) / PROTON_MASS_CGS,
         'gamma': gamma,
         'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 1.0),
         'sigma_gamma_cm2': sigma_gamma,
         'source_rate_s': source_rate,
         'epsilon_gamma_erg': epsilon_gamma,
+        'source_temperature_factor': scaling['temperature_factor'],
+        'source_scale_factor': scaling['scale_factor'],
         'source_CFL': getattr(par, 'hydrogen_source_CFL', 0.1),
         'dtmin_s': _optional_numeric_value(
             getattr(par, 'hydrogen_source_dtmin', None),
@@ -752,7 +762,7 @@ def apply_state(state, fluid, par):
             fluid.ngamma[interior] = target
     if hasattr(fluid, 'temp') and 'temperature_K' in state:
         fluid.temp[interior] = from_unit_value(
-            state['temperature_K'],
+            state['temperature_K'] * state.get('source_temperature_factor', 1.0),
             code.temperature_unit,
         )
     if hasattr(fluid, 'xHI') and getattr(getattr(fluid, 'eos', None), 'gamma', None) is not None:
@@ -769,7 +779,10 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
-    remaining_s = to_unit_value(remaining, code.time_unit)
+    remaining_s = (
+        to_unit_value(remaining, code.time_unit)
+        * state['source_scale_factor']**2
+    )
     if getattr(par, 'radiative_transfer', False):
         state['ngamma_cm3'] = rrt.trace_photon_density(state, par)
     sub_dt_s, thermal_rate = get_timestep(
@@ -780,7 +793,10 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     )
     if thermal_rate is None:
         return sub_dt_s, None
-    return sub_dt_s, thermal_rate
+    return from_unit_value(
+        sub_dt_s / state['source_scale_factor']**2,
+        code.time_unit,
+    ), thermal_rate
 
 
 def _fast_source_scaling(fluid, par, gamma):
@@ -790,6 +806,7 @@ def _fast_source_scaling(fluid, par, gamma):
         'density_factor': 1.0,
         'temperature_factor': 1.0,
         'velocity_factor': 1.0,
+        'time_factor': 1.0,
     }
     if not getattr(par, 'supercomoving_coordinates', False):
         return identity
@@ -806,6 +823,7 @@ def _fast_source_scaling(fluid, par, gamma):
         'density_factor': scale_factor**3,
         'temperature_factor': scale_factor**(3.0 * (gamma - 1.0)),
         'velocity_factor': scale_factor,
+        'time_factor': scale_factor**2,
     }
 
 
@@ -1233,6 +1251,114 @@ def _coupled_implicit_source_update(
     return True
 
 
+def _copy_fast_source_state(state):
+    """Copy a numeric source state for a trial implicit update."""
+    return copy.deepcopy(state)
+
+
+def _implicit_state_difference(coarse, fine):
+    """Return the normalized difference between two implicit source states."""
+    differences = []
+    for key, floor in (
+        ('specific_energy_erg_g', 1.0e-30),
+        ('temperature_K', 1.0),
+        ('xHI', 1.0e-8),
+    ):
+        coarse_value = np.asarray(coarse[key], dtype=float)
+        fine_value = np.asarray(fine[key], dtype=float)
+        scale = np.maximum(np.abs(fine_value), floor)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            difference = np.abs(coarse_value - fine_value) / scale
+        differences.append(np.max(difference))
+    result = max(differences)
+    return float(result) if np.isfinite(result) else np.inf
+
+
+def _set_fast_source_state(target, source):
+    """Replace a source state with a converged trial state."""
+    target.clear()
+    target.update(copy.deepcopy(source))
+
+
+def _adaptive_coupled_implicit_source_update(
+    state,
+    dt_s,
+    ngamma=None,
+    tolerance=1.0e-6,
+    convergence_tolerance=None,
+    max_iterations=32,
+    max_refinements=4,
+):
+    """Advance coupled sources with factor-of-two timestep convergence.
+
+    Each accepted interval compares one backward-Euler step with two
+    half-sized backward-Euler steps.  If the difference is too large, the
+    interval is halved and the comparison is repeated.  The returned count
+    is the number of fine implicit substeps actually applied.
+    """
+    remaining_s = float(np.asarray(dt_s, dtype=float))
+    if not np.isfinite(remaining_s) or remaining_s < 0.0:
+        return False, 0
+    if convergence_tolerance is None:
+        convergence_tolerance = tolerance
+    if remaining_s == 0.0:
+        return True, 0
+
+    total_source_steps = 0
+    trial_dt_s = remaining_s
+    zero_time_s = 0.0
+    while remaining_s > zero_time_s:
+        accepted = False
+        candidate_dt_s = min(trial_dt_s, remaining_s)
+        for refinement in range(int(max_refinements) + 1):
+            coarse = _copy_fast_source_state(state)
+            fine = _copy_fast_source_state(state)
+            coarse_ok = _coupled_implicit_source_update(
+                coarse,
+                candidate_dt_s,
+                ngamma=ngamma,
+                tolerance=tolerance,
+                max_iterations=max_iterations,
+            )
+            half_dt_s = 0.5 * candidate_dt_s
+            fine_ok = _coupled_implicit_source_update(
+                fine,
+                half_dt_s,
+                ngamma=ngamma,
+                tolerance=tolerance,
+                max_iterations=max_iterations,
+            )
+            if fine_ok:
+                fine_ok = _coupled_implicit_source_update(
+                    fine,
+                    half_dt_s,
+                    ngamma=ngamma,
+                    tolerance=tolerance,
+                    max_iterations=max_iterations,
+                )
+            difference = (
+                _implicit_state_difference(coarse, fine)
+                if coarse_ok and fine_ok
+                else np.inf
+            )
+            if (
+                coarse_ok
+                and fine_ok
+                and difference <= convergence_tolerance
+            ):
+                _set_fast_source_state(state, fine)
+                remaining_s -= candidate_dt_s
+                total_source_steps += 2
+                trial_dt_s = candidate_dt_s
+                accepted = True
+                break
+            candidate_dt_s *= 0.5
+
+        if not accepted:
+            return False, total_source_steps
+    return True, total_source_steps
+
+
 def _fast_sync_state_to_fluid(state, fluid, par):
     """Copy a float thermo-chemistry state back to the fluid container."""
     interior = state['interior']
@@ -1300,13 +1426,22 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
-    remaining_s = to_unit_value(dt, code.time_unit)
+    remaining_s = (
+        to_unit_value(dt, code.time_unit)
+        * state['source_scale_factor']**2
+    )
     total_dt_s = remaining_s
     zero_time_s = 0.0
     source_steps = 0
     absorbed_integral = None
+    source_solver = str(getattr(par, 'hydrogen_source_solver', 'explicit')).lower()
+    if source_solver not in ('explicit', 'coupled_implicit'):
+        raise ValueError(
+            "hydrogen_source_solver must be 'explicit' or 'coupled_implicit'"
+        )
     compton_only = (
-        state['thermal_coupling']
+        source_solver == 'explicit'
+        and state['thermal_coupling']
         and state['compton_cmb_enabled']
         and not state['recombination']
         and not state['collisional_ionization']
@@ -1331,11 +1466,6 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             ),
             'direction': int(getattr(par, 'radiative_transfer_direction', 1)),
         }
-    source_solver = str(getattr(par, 'hydrogen_source_solver', 'explicit')).lower()
-    if source_solver not in ('explicit', 'coupled_implicit'):
-        raise ValueError(
-            "hydrogen_source_solver must be 'explicit' or 'coupled_implicit'"
-        )
     if source_solver == 'coupled_implicit' and remaining_s > zero_time_s:
         # A ray-traced photon field can change during the source step.  Keep
         # that operator split on the established path; the coupled solver is
@@ -1343,21 +1473,31 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
         can_solve_coupled = not getattr(par, 'radiative_transfer', False)
         solved = False
         if can_solve_coupled:
-            solved = _coupled_implicit_source_update(
+            solved, implicit_source_steps = _adaptive_coupled_implicit_source_update(
                 state,
                 remaining_s,
                 ngamma=state.get('ngamma_cm3'),
                 tolerance=float(
                     getattr(par, 'hydrogen_implicit_tolerance', 1.0e-6)
                 ),
-                max_iterations=int(
-                    getattr(par, 'hydrogen_implicit_max_iterations', 32)
+                    max_iterations=int(
+                        getattr(par, 'hydrogen_implicit_max_iterations', 32)
+                    ),
+                    convergence_tolerance=float(
+                        getattr(
+                            par,
+                            'hydrogen_implicit_convergence_tolerance',
+                            1.0e-3,
+                        )
+                    ),
+                    max_refinements=int(
+                    getattr(par, 'hydrogen_implicit_max_refinements', 4)
                 ),
             )
         if solved:
             _fast_sync_state_to_fluid(state, fluid, par)
             return {
-                'source_steps': 1,
+                'source_steps': implicit_source_steps,
                 'absorbed_photon_rate': None,
                 'photon_energy_erg': np.atleast_1d(
                     _optional_numeric_value(

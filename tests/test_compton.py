@@ -404,10 +404,11 @@ def test_coupled_implicit_error_fallback_raises():
         apply_thermochemistry_fast(1.0, mesh, fluid, par)
 
 
-def test_coupled_implicit_uses_one_source_step():
+def test_coupled_implicit_uses_converged_half_step_pair():
     _, implicit_par, implicit_fluid, implicit_mesh, _ = _source_test_problem(
         solver='coupled_implicit', fallback='error'
     )
+    implicit_par.hydrogen_implicit_max_refinements = 12
     implicit_result = apply_thermochemistry_fast(
         1.0, implicit_mesh, implicit_fluid, implicit_par
     )
@@ -417,7 +418,7 @@ def test_coupled_implicit_uses_one_source_step():
     explicit_result = apply_thermochemistry_fast(
         1.0, explicit_mesh, explicit_fluid, explicit_par
     )
-    assert implicit_result['source_steps'] == 1
+    assert implicit_result['source_steps'] >= 2
     assert explicit_result['source_steps'] > 1
 
 
@@ -432,7 +433,10 @@ def test_coupled_implicit_supercomoving_matches_physical_source_update():
         1.0e-4, physical_mesh, physical_fluid, physical_par
     )
     apply_thermochemistry_fast(
-        1.0e-4, supercomoving_mesh, supercomoving_fluid, supercomoving_par
+        1.0e-4 / scale_factor**2,
+        supercomoving_mesh,
+        supercomoving_fluid,
+        supercomoving_par,
     )
     physical_temperature = physical_fluid.temp[0]
     supercomoving_temperature = supercomoving_fluid.temp[0] / scale_factor**2
@@ -506,7 +510,7 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
         vol=np.array([1.0]),
     )
     result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
-    assert result['source_steps'] == 1
+    assert result['source_steps'] >= 2
     assert fluid.xHI[0] > xhi
     assert np.isfinite(fluid.temp[0])
 
