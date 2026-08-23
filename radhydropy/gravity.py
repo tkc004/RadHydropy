@@ -2,7 +2,7 @@
 
 import numpy as np
 import unyt
-from radhydropy.dark_matter import enclosed_gas_mass
+from radhydropy.dark_matter import prepare_enclosed_gas_mass
 
 from radhydropy.units import (
     _acceleration_unit,
@@ -309,10 +309,17 @@ class Gravity:
         scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
         background_physical = float(cosmology.background_density(cosmic_time))
         background_comoving = background_physical * scale_factor**3
+        dm_fraction = float(getattr(par, "dark_matter_background_fraction", 0.0))
+        gas_fraction = float(
+            getattr(par, "gas_background_fraction", 1.0 - dm_fraction)
+        )
 
         inner = np.maximum(boundaries[first:last], 0.0)
         outer = np.maximum(boundaries[first + 1:last + 1], 0.0)
-        density_excess = density[interior] - background_comoving
+        # ``rho`` is the gas density when live DM is coupled.  Subtract the
+        # homogeneous gas share, not the total matter background; the live
+        # shell term below supplies the separate (1-f_b) contribution.
+        density_excess = density[interior] - gas_fraction * background_comoving
         shell_volume = 4.0 * np.pi / 3.0 * (outer**3 - inner**3)
         enclosed_before = np.concatenate(
             ([0.0], np.cumsum(density_excess[:-1] * shell_volume[:-1]))
@@ -323,7 +330,14 @@ class Gravity:
         )
         enclosed_excess = enclosed_before + density_excess * partial_volume
         if self.dark_matter is not None:
-            enclosed_excess += self.dark_matter.gravitating_enclosed_mass(radii)
+            # ``density_excess`` has already removed the gas background.  Live
+            # shells carry the full DM background plus the perturbation, so
+            # remove the DM share here before adding their enclosed mass.
+            dm_enclosed = self.dark_matter.gravitating_enclosed_mass(
+                radii, include_shell_mass_with_fixed=True
+            )
+            dm_background = dm_fraction * background_comoving * (4.0 * np.pi / 3.0) * radii**3
+            enclosed_excess += dm_enclosed - dm_background
         g_code = _gravitational_constant_code(code_units)
         radius = np.maximum(radii, np.finfo(float).tiny)
         result = np.zeros_like(coordinate)
@@ -374,7 +388,10 @@ class Gravity:
         """Advance live dark-matter shells using the current gas mass field."""
         if self.dark_matter is None:
             return 0.0
-        gas_mass = enclosed_gas_mass(mesh, rho, self.dark_matter.radius, par)
+        # The gas state is fixed during this gravity/source update.  Build its
+        # cumulative mass profile once; shell sub-cycling only evaluates the
+        # cached piecewise-constant profile at the current shell radii.
+        gas_mass = prepare_enclosed_gas_mass(mesh, rho, par)
         if self.cosmological:
             cosmology = self.cosmology or getattr(par, "cosmology", None)
             if cosmology is None or not getattr(par, "supercomoving_coordinates", False):
@@ -389,7 +406,12 @@ class Gravity:
                 tau_start = tau
             scale_factor_start = float(cosmology.scale_factor_from_supercomoving(tau_start))
             background_density = float(cosmology.background_density(cosmic_time)) * scale_factor**3
-            background_mass = 4.0 * np.pi / 3.0 * background_density * self.dark_matter.radius**3
+            # Re-evaluate the homogeneous mass at the shell radius used by
+            # each kick.  Passing a frozen array here applies the old-radius
+            # background after the drift and corrupts linear growth.
+            background_mass = lambda radius: (
+                4.0 * np.pi / 3.0 * background_density * np.asarray(radius)**3
+            )
         else:
             scale_factor = 1.0
             scale_factor_start = 1.0

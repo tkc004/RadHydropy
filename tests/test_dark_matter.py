@@ -6,6 +6,7 @@ from pathlib import Path
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.dark_matter import enclosed_gas_mass
+from radhydropy.dark_matter import prepare_enclosed_gas_mass
 from radhydropy.gravity import Gravity
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
@@ -82,9 +83,25 @@ def test_step_preserves_mass_and_sorting_through_crossing():
         code_units=code_units(),
     )
     total_mass = shells.total_mass
-    shells.step(0.6)
+    advanced = shells.step(1.0)
+    assert np.isclose(advanced, 1.0)
     assert np.isclose(shells.total_mass, total_mass)
     assert np.all(np.diff(shells.radius) >= 0.0)
+
+
+def test_coincident_crossing_does_not_return_zero_timestep():
+    shells = DarkMatterShells(
+        radius=[1.0, 1.0],
+        velocity=[1.0, -1.0],
+        mass=[1.0, 2.0],
+        angular_momentum=[0.1, 0.2],
+        code_units=code_units(),
+    )
+    assert np.isinf(shells.crossing_timestep(safety_factor=1.0))
+    shells.step(0.1, crossing_safety_factor=0.5)
+    assert np.all(np.isfinite(shells.radius))
+    assert np.all(np.diff(shells.radius) >= 0.0)
+    assert np.isclose(shells.total_mass, 3.0)
 
 
 def test_fixed_enclosed_mass_ignores_test_shell_mass():
@@ -137,6 +154,14 @@ def test_enclosed_gas_mass_handles_partial_cells():
     rho = np.ones(3)
     expected = 4.0 * np.pi / 3.0 * np.array([0.5**3, 1.5**3, 3.0**3])
     assert np.allclose(enclosed_gas_mass(mesh, rho, [0.5, 1.5, 4.0], Par), expected)
+
+
+def test_prepared_enclosed_gas_mass_matches_direct_evaluation():
+    mesh = Mesh()
+    rho = np.array([1.0, 2.0, 3.0])
+    radius = np.array([0.25, 0.5, 1.0, 1.75, 2.5, 4.0])
+    profile = prepare_enclosed_gas_mass(mesh, rho, Par)
+    assert np.allclose(profile(radius), enclosed_gas_mass(mesh, rho, radius, Par))
 
 
 def test_dark_matter_field_is_added_to_gas_gravity():

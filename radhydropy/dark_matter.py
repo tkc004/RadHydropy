@@ -5,36 +5,60 @@ import numpy as np
 from radhydropy.units import _code_units, _gravitational_constant_code, quantity_to_value
 
 
+class EnclosedGasMassProfile:
+    """Piecewise-constant spherical gas-mass profile for one hydro state.
+
+    The gas density is unchanged while live dark-matter sub-cycling advances
+    the shells.  Store the cell geometry and cumulative cell masses once, and
+    only evaluate the partial-cell contribution for each new shell radius.
+    """
+
+    def __init__(self, mesh, rho, par):
+        code_units = _code_units(par)
+        if code_units is None:
+            raise ValueError("gas mass coupling requires par.CodeUnits")
+        boundaries = np.asarray(
+            quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
+        )
+        density = np.asarray(
+            quantity_to_value(rho, code_units.density_unit), dtype=float
+        )
+        first = int(par.noghost)
+        last = first + int(par.nogrid)
+        self.inner = boundaries[first:last]
+        self.outer = boundaries[first + 1:last + 1]
+        self.density = density[first:last]
+        shell_volume = 4.0 * np.pi / 3.0 * (
+            self.outer**3 - self.inner**3
+        )
+        shell_mass = self.density * shell_volume
+        self.prefix = np.concatenate(([0.0], np.cumsum(shell_mass)))
+
+    def __call__(self, radius):
+        radius = np.asarray(radius, dtype=float)
+        clipped = np.clip(radius, self.inner[0], self.outer[-1])
+        cell = np.searchsorted(self.outer, clipped, side="right")
+        cell = np.clip(cell, 0, len(self.inner) - 1)
+        before = self.prefix[cell]
+        partial = self.density[cell] * 4.0 * np.pi / 3.0 * (
+            clipped**3 - self.inner[cell]**3
+        )
+        result = before + np.maximum(partial, 0.0)
+        return np.where(
+            radius <= self.inner[0],
+            0.0,
+            np.where(radius >= self.outer[-1], self.prefix[-1], result),
+        )
+
+
+def prepare_enclosed_gas_mass(mesh, rho, par):
+    """Build a reusable enclosed-gas-mass profile for one hydro state."""
+    return EnclosedGasMassProfile(mesh, rho, par)
+
+
 def enclosed_gas_mass(mesh, rho, radius, par):
     """Return spherical gas mass enclosed by arbitrary code-unit radii."""
-    code_units = _code_units(par)
-    if code_units is None:
-        raise ValueError("gas mass coupling requires par.CodeUnits")
-    radius = np.asarray(radius, dtype=float)
-    boundaries = np.asarray(
-        quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
-    )
-    density = np.asarray(
-        quantity_to_value(rho, code_units.density_unit), dtype=float
-    )
-    first = par.noghost
-    last = first + par.nogrid
-    inner = boundaries[first:last]
-    outer = boundaries[first + 1:last + 1]
-    shell_volume = 4.0 * np.pi / 3.0 * (outer**3 - inner**3)
-    shell_mass = density[first:last] * shell_volume
-    prefix = np.concatenate(([0.0], np.cumsum(shell_mass)))
-    clipped = np.clip(radius, inner[0], outer[-1])
-    cell = np.searchsorted(outer, clipped, side="right")
-    cell = np.clip(cell, 0, len(inner) - 1)
-    before = prefix[cell]
-    partial = density[first + cell] * 4.0 * np.pi / 3.0 * (
-        clipped**3 - inner[cell]**3
-    )
-    result = before + np.maximum(partial, 0.0)
-    result[radius <= inner[0]] = 0.0
-    result[radius >= outer[-1]] = prefix[-1]
-    return result
+    return EnclosedGasMassProfile(mesh, rho, par)(radius)
 
 
 class DarkMatterShells:
@@ -155,7 +179,11 @@ class DarkMatterShells:
             include_shell_mass_with_fixed=include_shell_mass_with_fixed
         )
         if gas_enclosed_mass is not None:
-            enclosed = enclosed + np.asarray(gas_enclosed_mass, dtype=float)
+            if callable(gas_enclosed_mass):
+                gas_mass = np.asarray(gas_enclosed_mass(self.radius), dtype=float)
+            else:
+                gas_mass = np.asarray(gas_enclosed_mass, dtype=float)
+            enclosed = enclosed + gas_mass
         if cosmological and background_enclosed_mass is not None:
             if callable(background_enclosed_mass):
                 background = np.asarray(
@@ -165,7 +193,17 @@ class DarkMatterShells:
             enclosed = enclosed - background
         radius = np.maximum(self.radius, np.finfo(float).tiny)
         gravity = -g_code * float(scale_factor) * enclosed / (self.radius + self.softening) ** 2
-        centrifugal = self.angular_momentum**2 / radius**3
+        # Apply the same softening scale to the centrifugal term as to the
+        # radial gravitational term.  Without this, a shell that crosses the
+        # origin receives an unbounded j^2/r^3 kick and is launched to an
+        # unphysical radius on the next drift.
+        effective_radius = radius + self.softening
+        centrifugal = np.divide(
+            self.angular_momentum**2,
+            effective_radius**3,
+            out=np.zeros_like(radius),
+            where=effective_radius > 0.0,
+        )
         return gravity + centrifugal
 
     def crossing_timestep(self, safety_factor=0.1):
@@ -174,10 +212,44 @@ class DarkMatterShells:
             return np.inf
         separation = self.radius[1:] - self.radius[:-1]
         closing_speed = self.velocity[:-1] - self.velocity[1:]
-        candidates = separation[closing_speed > 0.0] / closing_speed[closing_speed > 0.0]
+        # Coincident shells are already at the crossing event.  Returning
+        # zero here can make the global hydro loop advance with dt=0 forever;
+        # ``step`` resolves the crossing by exchanging shell states first.
+        tolerance = 32.0 * np.finfo(float).eps * max(
+            1.0, float(np.max(np.abs(self.radius)))
+        )
+        closing = (closing_speed > 0.0) & (separation > tolerance)
+        candidates = separation[closing] / closing_speed[closing]
         if candidates.size == 0:
             return np.inf
         return float(safety_factor * np.min(candidates))
+
+    def _resolve_coincident_crossings(self):
+        """Exchange states for shells that meet while moving through one another."""
+        if self.number_of_shells < 2:
+            return
+        separation = self.radius[1:] - self.radius[:-1]
+        closing_speed = self.velocity[:-1] - self.velocity[1:]
+        tolerance = 32.0 * np.finfo(float).eps * max(
+            1.0, float(np.max(np.abs(self.radius)))
+        )
+        pairs = np.flatnonzero((separation <= tolerance) & (closing_speed > 0.0))
+        for index in pairs:
+            self.velocity[index:index + 2] = self.velocity[index:index + 2][::-1]
+            self.mass[index:index + 2] = self.mass[index:index + 2][::-1]
+            self.angular_momentum[index:index + 2] = self.angular_momentum[index:index + 2][::-1]
+
+    def _reflect_at_origin(self):
+        """Reflect shells that crossed the spherical coordinate origin."""
+        crossed = self.radius < 0.0
+        if np.any(crossed):
+            self.radius[crossed] *= -1.0
+            self.velocity[crossed] *= -1.0
+        # Keep the radial coordinate consistent with the softened force law.
+        # This prevents near-origin shells from creating arbitrarily small
+        # crossing substeps after repeated cold collapse.
+        radius_floor = max(self.softening, np.finfo(float).tiny)
+        self.radius = np.maximum(self.radius, radius_floor)
 
     def step(
         self,
@@ -192,36 +264,66 @@ class DarkMatterShells:
     ):
         """Advance one kick-drift-kick step, limiting ``dt`` before crossing."""
         dt = float(dt)
-        crossing_dt = self.crossing_timestep(safety_factor=1.0)
-        if crossing_dt < dt:
-            # Advance just beyond the event so the stable sort exchanges the
-            # shell records.  A strict safety factor would approach the event
-            # asymptotically and never allow a crossing to occur.
-            actual_dt = crossing_dt * (1.0 + max(crossing_safety_factor, 1.0e-10))
-        else:
-            actual_dt = dt
-        acceleration = self.acceleration(
-            gas_enclosed_mass=gas_enclosed_mass,
-            background_enclosed_mass=background_enclosed_mass,
-            scale_factor=scale_factor,
-            cosmological=cosmological,
-            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
-        )
-        velocity_half = self.velocity + 0.5 * actual_dt * acceleration
-        self.radius = self.radius + actual_dt * velocity_half
-        self.velocity = velocity_half
-        self.sort_by_radius()
+        if dt < 0.0:
+            raise ValueError("dark-matter timestep must be non-negative")
         if scale_factor_end is None:
             scale_factor_end = scale_factor
-        acceleration_new = self.acceleration(
-            gas_enclosed_mass=gas_enclosed_mass,
-            background_enclosed_mass=background_enclosed_mass,
-            scale_factor=scale_factor_end,
-            cosmological=cosmological,
-            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
-        )
-        self.velocity += 0.5 * actual_dt * acceleration_new
-        return actual_dt
+        if dt == 0.0:
+            return 0.0
+
+        # Crossing control must not silently shorten the DM evolution while
+        # the hydro state advances by the requested ``dt``.  The old code
+        # advanced only to the first crossing and returned that shorter time;
+        # this progressively desynchronised shell and fluid time and erased
+        # the collapse of the top-hat.  Resolve crossings with substeps and
+        # always cover the complete requested interval.
+        remaining = dt
+        elapsed = 0.0
+        minimum_step = 64.0 * np.finfo(float).eps * max(1.0, dt)
+        while remaining > minimum_step:
+            self._resolve_coincident_crossings()
+            crossing_dt = self.crossing_timestep(safety_factor=1.0)
+            substep = remaining
+            if crossing_dt < substep:
+                # Step just through the event so sorting exchanges shell
+                # identities, then continue with the remainder of dt.
+                substep = crossing_dt * (1.0 + max(crossing_safety_factor, 1.0e-10))
+                substep = min(substep, remaining)
+            if substep <= minimum_step:
+                substep = min(remaining, max(minimum_step, 1.0e-12 * dt))
+
+            fraction_start = elapsed / dt
+            fraction_end = (elapsed + substep) / dt
+            a_start = float(scale_factor) + fraction_start * (
+                float(scale_factor_end) - float(scale_factor)
+            )
+            a_end = float(scale_factor) + fraction_end * (
+                float(scale_factor_end) - float(scale_factor)
+            )
+            acceleration = self.acceleration(
+                gas_enclosed_mass=gas_enclosed_mass,
+                background_enclosed_mass=background_enclosed_mass,
+                scale_factor=a_start,
+                cosmological=cosmological,
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+            )
+            velocity_half = self.velocity + 0.5 * substep * acceleration
+            self.radius = self.radius + substep * velocity_half
+            self.velocity = velocity_half
+            self._reflect_at_origin()
+            self.sort_by_radius()
+            acceleration_new = self.acceleration(
+                gas_enclosed_mass=gas_enclosed_mass,
+                background_enclosed_mass=background_enclosed_mass,
+                scale_factor=a_end,
+                cosmological=cosmological,
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+            )
+            self.velocity += 0.5 * substep * acceleration_new
+            elapsed += substep
+            remaining = dt - elapsed
+
+        return dt
 
     def specific_energy(self):
         """Return a diagnostic specific energy for each shell.

@@ -1,0 +1,58 @@
+runparams:
+  simname: CosmologicalDarkMatterCorrelationZ100
+  ICfilename: outputs_correlation/InitialCondition.hdf5
+  outdir: outputs_correlation
+  savedir: outputs_correlation
+  outfileprefix: Output
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  selfgravity: true
+  cosmological_expansion: true
+  supercomoving_coordinates: true
+  cosmological_gravity: true
+  cosmology_type: einstein_de_sitter
+  cosmology_t_ref: 14.4
+  cosmology_a_ref: 1.0
+  boundcond: Reflecting
+  noghost: 2
+  CFL: 0.25
+  dark_matter_crossing_safety_factor: 0.5
+  dm_only_shells: 1024
+  dm_density_bins: 128
+  dm_only_density_times: [0.0141867, 4.0, 8.0, 10.0, 12.0, 14.0, 16.0]
+  dm_only_calibration_timestep: 0.0005
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  # The live density diagnostic spans the long tau interval from z=100;
+  # this remains small compared with the shell-crossing timescale.
+  dm_only_supercomoving_timestep: 0.01
+  final_cosmic_time: 16.0
+  CodeUnits:
+    name: cosmological_dark_matter_correlation_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.98847e43
+      UnitLength_in_cgs: 3.085677581e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 128
+  rmin: 5.0
+  rmax: 4000.0
+  initial_cosmic_time: 0.01418666885
+  perturbation_radius: 250.0
+  target_halo_mass: 100.0
+  initial_overdensity: 0.0166930693
+  initial_density_profile: linear_correlation
+  correlation_h: 0.674
+  baryon_fraction: 0.157
+  hydrogen_mass_fraction: 0.76
+  mu: 0.59
+  dark_matter_shells: 256
+  dm_inner_radius: 0.01
+  specific_angular_momentum: 1500.0
+  dm_specific_angular_momentum: 0.01
+  softening: 0.05
+  uv_background_on_redshift: 10.0
+  cie_initial_temperature: 10.0
