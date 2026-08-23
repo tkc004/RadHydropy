@@ -186,9 +186,18 @@ class Rsim():
             dt = self.solver.GetTimeStep(self.mesh, self.fluid, self.par)
         gravity = getattr(self.par, 'gravity', None)
         dark_matter = getattr(gravity, 'dark_matter', None)
-        if dark_matter is not None:
+        if (
+            dark_matter is not None
+            and getattr(self.par, "dark_matter_global_timestep_limit", True)
+        ):
             dm_dt = dark_matter.crossing_timestep(safety_factor=1.0)
             if np.isfinite(dm_dt):
+                if dm_dt <= 0.0:
+                    raise RuntimeError(
+                        "dark-matter crossing timestep is non-positive; "
+                        "coincident shell crossings must be resolved before "
+                        "advancing the simulation"
+                    )
                 dt = min(dt, dm_dt)
         current_time = self.fluid.time
         if final_time is not None:
@@ -407,11 +416,10 @@ class Rsim():
                     advect_chemistry=advect_chemistry,
                 )
                 result["hydro_steps"] = 1
-                # The SSPRK2 helper advances time itself.  The Euler path
-                # must advance it here; hydro_sources advances it after the
-                # source update below.
-                if mode == "hydro":
-                    self.fluid.time += dt
+                # ``solver.AddFluxes`` advances the fluid clock for the
+                # Euler update.  Do not advance it again here; source-only
+                # steps below are the cases that need an explicit clock
+                # update.
 
         if mode in ("hydro_sources", "sources"):
             source_result = self.ApplyThermochemistrySources(
@@ -422,8 +430,6 @@ class Rsim():
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
             if mode == "sources":
-                self.fluid.time += dt
-            elif mode == "hydro_sources" and hydro_integrator == "euler":
                 self.fluid.time += dt
             self.solver.SetBoundary(self.mesh, self.fluid, self.par)
             self.solver.SetConserved(self.mesh, self.fluid, verbose=getattr(self.par, 'verbose', 0))
