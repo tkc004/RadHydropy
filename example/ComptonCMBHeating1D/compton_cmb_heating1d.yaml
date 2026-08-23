@@ -22,6 +22,7 @@ runparams:
   hydrogen_xHI_outflow: 0.0
   hydrogen_recombination: false
   hydrogen_collisional_ionization: false
+  hydrogen_atomic_cooling: false
   hydrogen_update_mu: false
   hydrogen_thermal_coupling: true
   hydrogen_radiation_field: false

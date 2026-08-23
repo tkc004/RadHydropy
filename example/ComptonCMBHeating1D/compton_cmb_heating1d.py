@@ -96,10 +96,40 @@ def _run_case(runparams, icparams, label, initial_temperature):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    history = sim.EvolveStaticThermochemistry(
-        case_params['final_time'],
-        case_params['evolution_timestep'],
-        include_thermal_history=True,
+    final_time_s = float(case_params['final_time'].to_value(unyt.s))
+    source_timestep_s = float(
+        case_params['evolution_timestep'].to_value(unyt.s)
+    )
+    code_time_s = float(sim.par.CodeUnits.time_unit.to_value(unyt.s))
+    time_s = 0.0
+    times_s = [time_s]
+    temperatures = [
+        float(np.mean(sim.fluid.temp[sim.par.noghost:sim.par.noghost + sim.par.nogrid]))
+    ]
+    source_steps = 0
+    while time_s < final_time_s - 1.0e-12:
+        step_s = min(source_timestep_s, final_time_s - time_s)
+        result = sim.Step(
+            dt=step_s / code_time_s,
+            mode='sources',
+        )
+        source_steps += int(result.get('source_steps', 0))
+        time_s += step_s
+        times_s.append(time_s)
+        temperatures.append(
+            float(np.mean(
+                sim.fluid.temp[
+                    sim.par.noghost:sim.par.noghost + sim.par.nogrid
+                ]
+            ))
+        )
+    history = {
+        'time_Myr': np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
+        'mean_ionized_temp_K': np.asarray(temperatures),
+    }
+    print(
+        '%s: outer steps=%d, source steps=%d' %
+        (label, len(times_s) - 1, source_steps)
     )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history['time_Myr']) * myr_seconds

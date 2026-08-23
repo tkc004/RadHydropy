@@ -227,6 +227,18 @@ are not advected as independent fluid fields.
      - Fractional subcycle limiter for ``u / |du/dt|`` and
        ``xHI / |dxHI/dt|``.
      - dimensionless
+   * - ``hydrogen_source_solver``
+     - Source integrator: ``explicit`` for the standard subcycled update or
+       ``coupled_implicit`` for a backward-Euler solve of internal energy and
+       ``xHI`` together.
+     - string
+   * - ``hydrogen_implicit_tolerance`` / ``hydrogen_implicit_max_iterations``
+     - Convergence tolerance and iteration limit for the coupled implicit
+       source solve.
+     - dimensionless / integer
+   * - ``hydrogen_implicit_fallback``
+     - Action after a failed coupled solve: ``explicit`` or ``error``.
+     - string
    * - ``hydrogen_update_mu``
      - Update mean molecular weight from ``xHI`` for pure-hydrogen runs.
      - boolean

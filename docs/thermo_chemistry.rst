@@ -65,6 +65,14 @@ controls most commonly used by the bundled examples are:
 * ``hydrogen_collisional_ionization``: includes collisional ionization.
 * ``hydrogen_source_CFL`` and ``hydrogen_source_dtmin``: control source
   subcycling.
+* ``hydrogen_source_solver``: select ``explicit`` or ``coupled_implicit``.
+  The latter solves internal energy and ``xHI`` simultaneously at the new
+  time, with positivity/bounds enforced in transformed variables.
+* ``hydrogen_implicit_tolerance``, ``hydrogen_implicit_max_iterations``, and
+  ``hydrogen_implicit_fallback``: controls and failure policy for the coupled
+  solve.  The implicit path holds a local photon field fixed and falls back to
+  the explicit source subcycler for ray-traced radiation unless configured to
+  raise an error.
 * ``hydrogen_alpha_B`` and ``hydrogen_beta``: optional fixed rate coefficients.
 * ``hydrogen_radiation_field`` and ``hydrogen_radiation_evolution``: control
   the local photon field update when ray tracing is not active.

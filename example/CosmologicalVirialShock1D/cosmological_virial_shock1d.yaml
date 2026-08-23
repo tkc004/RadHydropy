@@ -1,0 +1,65 @@
+runparams:
+  simname: CosmologicalVirialShock1D
+  ICfilename: outputs/InitialCondition.hdf5
+  outdir: outputs
+  savedir: outputs
+  outfileprefix: Output
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  selfgravity: true
+  cosmological_expansion: true
+  supercomoving_coordinates: true
+  cosmological_gravity: true
+  cosmology_type: einstein_de_sitter
+  cosmology_t_ref: 14.4
+  cosmology_a_ref: 1.0
+  boundcond: Reflecting
+  noghost: 2
+  order: 1
+  CFL: 0.25
+  dark_matter_crossing_safety_factor: 0.5
+  dm_only_shells: 1024
+  dtmin: {value: 1.0e-4, unit: Myr}
+  dtmax: {value: 2.0, unit: Myr}
+  timesim: {value: 1.5, unit: Gyr}
+  final_cosmic_time: 16.0
+  snapshot_cadence: 0.04
+  metal_pie_enabled: false
+  thermochemistry_network: pie_uvbg_cooling
+  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+  metal_pie_redshift: 0.0
+  metallicity: 0.1
+  hydrogen_mass_fraction: 0.76
+  cooling_safety_factor: 0.1
+  hydrogen_thermal_coupling: true
+  CodeUnits:
+    name: cosmological_virial_shock_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.98847e43
+      UnitLength_in_cgs: 3.085677581e21
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 128
+  rmin: 5.0
+  rmax: 4000.0
+  initial_cosmic_time: 0.30
+  perturbation_radius: 250.0
+  target_halo_mass: 100.0
+  initial_overdensity: 0.128
+  baryon_fraction: 0.157
+  hydrogen_mass_fraction: 0.76
+  mu: 0.59
+  # Resolve the top-hat edge and subsequent shell crossing.  With 64
+  # logarithmic shells the target mass lies in the outermost perturbed shell
+  # and the live collapse is badly delayed.
+  dark_matter_shells: 1024
+  dm_inner_radius: 0.01
+  specific_angular_momentum: 1500.0
+  dm_specific_angular_momentum: 0.01
+  softening: 0.05
+  uv_background_on_redshift: 10.0
+  cie_initial_temperature: 10.0
