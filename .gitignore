@@ -18,6 +18,6 @@ build/
 dist/
 docs/_build/
 testipy/*.ipynb
-
+*.npz
 
 *.ipynb_checkpoints
