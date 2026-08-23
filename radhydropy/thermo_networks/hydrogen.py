@@ -1144,19 +1144,48 @@ def _coupled_implicit_source_update(
             & np.isfinite(jacobian_21)
             & np.isfinite(jacobian_22)
         )
-        if not np.any(good):
+        # If thermal sources are disabled, the energy residual is an exactly
+        # decoupled zero equation and the full 2x2 Jacobian is singular.  The
+        # chemistry equation is still a valid scalar Newton problem.  Apply
+        # that reduction (and the analogous energy reduction) rather than
+        # incorrectly treating a solvable source state as a failed solve.
+        scalar_chemistry = (
+            active
+            & ~good
+            & (np.abs(residual_energy) <= tolerance)
+            & np.isfinite(jacobian_22)
+            & (np.abs(jacobian_22) > 1.0e-30)
+        )
+        scalar_energy = (
+            active
+            & ~good
+            & ~scalar_chemistry
+            & (np.abs(residual_x) <= tolerance)
+            & np.isfinite(jacobian_11)
+            & (np.abs(jacobian_11) > 1.0e-30)
+        )
+        solvable = good | scalar_chemistry | scalar_energy
+        if not np.any(solvable):
             break
 
-        delta_energy = (
-            -residual_energy * jacobian_22
-            + jacobian_12 * residual_x
-        ) / determinant
-        delta_x = (
-            jacobian_21 * residual_energy
-            - jacobian_11 * residual_x
-        ) / determinant
+        delta_energy = np.zeros_like(residual_energy)
+        delta_x = np.zeros_like(residual_x)
+        delta_energy[good] = (
+            -residual_energy[good] * jacobian_22[good]
+            + jacobian_12[good] * residual_x[good]
+        ) / determinant[good]
+        delta_x[good] = (
+            jacobian_21[good] * residual_energy[good]
+            - jacobian_11[good] * residual_x[good]
+        ) / determinant[good]
+        delta_x[scalar_chemistry] = (
+            -residual_x[scalar_chemistry] / jacobian_22[scalar_chemistry]
+        )
+        delta_energy[scalar_energy] = (
+            -residual_energy[scalar_energy] / jacobian_11[scalar_energy]
+        )
         finite_delta = (
-            good & np.isfinite(delta_energy) & np.isfinite(delta_x)
+            solvable & np.isfinite(delta_energy) & np.isfinite(delta_x)
         )
         accepted = np.zeros_like(active, dtype=bool)
         current_norm = np.maximum(np.abs(residual_energy), np.abs(residual_x))

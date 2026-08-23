@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from types import SimpleNamespace
 
 from radhydropy.thermo_networks.compton import cmb_compton_rate
@@ -6,19 +7,24 @@ from radhydropy.thermo_networks.hydrogen import (
     _coupled_implicit_source_update,
     _fast_source_state,
     _fast_sync_state_to_fluid,
+    _fast_update_temperature_from_energy,
     apply_thermochemistry_fast,
     ionization_fraction_rate,
     thermal_rate,
 )
 from radhydropy.thermo_networks.hydrogen_helium import _rates
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.constants import (
+    BOLTZMANN_CONSTANT_CGS,
+    PROTON_MASS_CGS,
+    SPEED_OF_LIGHT_CGS,
+)
 import radhydropy.chemistry_species.hydrogen as hydrogen_species
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits
 
 
 def _implicit_hydrogen_state(temperature, xhi, recombination, collisional,
-                              atomic_cooling):
+                              atomic_cooling, density_factor=1.0):
     mu = float(hydrogen_species.mean_molecular_weight_mu(
         np.array([xhi]), hydrogen_mass_fraction=1.0
     )[0])
@@ -27,7 +33,7 @@ def _implicit_hydrogen_state(temperature, xhi, recombination, collisional,
         / (mu * PROTON_MASS_CGS)
     ])
     return {
-        'rho_g_cm3': np.array([PROTON_MASS_CGS * 1.0e-2]),
+        'rho_g_cm3': np.array([PROTON_MASS_CGS * density_factor]),
         'temperature_K': np.array([temperature]),
         'xHI': np.array([xhi]),
         'hydrogen_mass_fraction': 1.0,
@@ -49,6 +55,117 @@ def _implicit_hydrogen_state(temperature, xhi, recombination, collisional,
         'specific_total_energy_erg_g': specific_energy.copy(),
         'specific_kinetic_energy_erg_g': np.zeros(1),
     }
+
+
+def _explicit_reference_update(state, dt_s, steps):
+    """Small-forward-step reference integration for the local source ODE."""
+    reference = {
+        key: np.array(value, copy=True) if isinstance(value, np.ndarray) else value
+        for key, value in state.items()
+    }
+    sub_dt = dt_s / steps
+    for _ in range(steps):
+        thermal = thermal_rate(reference, None)
+        chemistry = ionization_fraction_rate(reference, None)
+        reference['specific_energy_erg_g'] = np.maximum(
+            reference['specific_energy_erg_g']
+            + sub_dt * thermal / reference['rho_g_cm3'],
+            1.0e-30,
+        )
+        reference['xHI'] = np.clip(
+            reference['xHI'] + sub_dt * chemistry,
+            1.0e-12,
+            1.0 - 1.0e-12,
+        )
+        reference['specific_total_energy_erg_g'] = (
+            reference['specific_energy_erg_g']
+            + reference['specific_kinetic_energy_erg_g']
+        )
+        _fast_update_temperature_from_energy(reference)
+    return reference
+
+
+def _source_test_problem(
+    solver='coupled_implicit',
+    fallback='explicit',
+    supercomoving=False,
+):
+    units = CodeUnits.from_mapping(
+        {
+            'UnitMass_in_cgs': 1.0e33,
+            'UnitLength_in_cgs': 1.0e18,
+            'UnitVelocity_in_cgs': 1.0e5,
+            'UnitCurrent_in_cgs': 1.0,
+            'UnitTemp_in_cgs': 1.0,
+        }
+    )
+    cosmology = EinsteinDeSitter.from_code_units(units)
+    cosmic_time = 0.01418666885
+    tau = float(cosmology.supercomoving_time(cosmic_time))
+    scale_factor = float(cosmology.scale_factor(cosmic_time))
+    physical_density = 1.0e-24
+    physical_temperature = 1.0e4
+    xhi = 0.5
+    mu = float(hydrogen_species.mean_molecular_weight_mu(
+        np.array([xhi]), hydrogen_mass_fraction=1.0
+    )[0])
+    physical_specific_energy = (
+        1.5 * BOLTZMANN_CONSTANT_CGS * physical_temperature
+        / (mu * PROTON_MASS_CGS)
+    )
+    density_unit = units.mass_in_cgs / units.length_in_cgs**3
+    density_factor = scale_factor**3 if supercomoving else 1.0
+    temperature_factor = scale_factor**2 if supercomoving else 1.0
+    fluid_density = physical_density / density_unit * density_factor
+    fluid_temperature = physical_temperature * temperature_factor
+    fluid_energy = (
+        physical_specific_energy * units.mass_in_cgs
+        / units.energy_unit.to_value('erg') * temperature_factor
+    )
+    par = SimpleNamespace(
+        CodeUnits=units,
+        noghost=0,
+        nogrid=1,
+        gamma=5.0 / 3.0,
+        hydrogen_chemistry=True,
+        hydrogen_mass_fraction=1.0,
+        hydrogen_source_CFL=0.1,
+        hydrogen_source_dtmin=0.0,
+        hydrogen_source_solver=solver,
+        hydrogen_implicit_tolerance=1.0e-7,
+        hydrogen_implicit_max_iterations=32,
+        hydrogen_implicit_fallback=fallback,
+        hydrogen_recombination=True,
+        hydrogen_collisional_ionization=False,
+        hydrogen_atomic_cooling=False,
+        hydrogen_update_mu=False,
+        hydrogen_thermal_coupling=True,
+        compton_cmb_enabled=False,
+        hydrogen_radiation_field=False,
+        radiative_transfer=False,
+        radiative_transfer_direction=1,
+        hydrogen_photon_energy=13.6,
+        supercomoving_coordinates=supercomoving,
+        cosmology=cosmology,
+        fluid_time=tau,
+    )
+    fluid = SimpleNamespace(
+        rho=np.array([fluid_density]),
+        temp=np.array([fluid_temperature]),
+        vel=np.array([0.0]),
+        Mass=np.array([1.0]),
+        Energy=np.array([fluid_energy]),
+        pre=np.array([1.0]),
+        xHI=np.array([xhi]),
+        mu=np.array([mu]),
+        eos=SimpleNamespace(gamma=5.0 / 3.0),
+    )
+    mesh = SimpleNamespace(
+        boundary=np.array([0.0, 1.0]),
+        xdelta=np.array([1.0]),
+        vol=np.array([1.0]),
+    )
+    return units, par, fluid, mesh, scale_factor
 
 
 def test_coupled_implicit_source_evolves_recombination_and_energy_together():
@@ -77,6 +194,7 @@ def test_coupled_implicit_source_handles_collisional_ionization():
         collisional=True,
         atomic_cooling=False,
     )
+    state['beta_cm3_s'] = np.array([1.0e-12])
     assert _coupled_implicit_source_update(
         state, 1.0e9, tolerance=1.0e-8, max_iterations=32
     )
@@ -108,6 +226,222 @@ def test_coupled_implicit_source_satisfies_both_backward_euler_residuals():
     xhi_residual = state['xHI'] - old_xhi - dt * chemistry
     assert np.max(np.abs(energy_residual)) < 1.0e-7
     assert np.max(np.abs(xhi_residual)) < 1.0e-7
+
+
+def test_coupled_implicit_chemistry_limits():
+    recombination = _implicit_hydrogen_state(
+        temperature=1.0e4,
+        xhi=0.5,
+        recombination=True,
+        collisional=False,
+        atomic_cooling=False,
+    )
+    recombination['alpha_B_cm3_s'] = np.array([1.0e-12])
+    assert _coupled_implicit_source_update(
+        recombination, 1.0e11, tolerance=1.0e-8, max_iterations=32
+    )
+    assert recombination['xHI'][0] > 0.5
+
+    collisional = _implicit_hydrogen_state(
+        temperature=1.0e6,
+        xhi=0.5,
+        recombination=False,
+        collisional=True,
+        atomic_cooling=False,
+    )
+    collisional['beta_cm3_s'] = np.array([1.0e-12])
+    assert _coupled_implicit_source_update(
+        collisional, 1.0e11, tolerance=1.0e-8, max_iterations=32
+    )
+    assert collisional['xHI'][0] < 0.5
+
+    no_chemistry = _implicit_hydrogen_state(
+        temperature=1.0e5,
+        xhi=0.5,
+        recombination=False,
+        collisional=False,
+        atomic_cooling=False,
+    )
+    original_xhi = no_chemistry['xHI'].copy()
+    original_energy = no_chemistry['specific_energy_erg_g'].copy()
+    assert _coupled_implicit_source_update(
+        no_chemistry, 1.0e15, tolerance=1.0e-8, max_iterations=32
+    )
+    np.testing.assert_allclose(no_chemistry['xHI'], original_xhi)
+    np.testing.assert_allclose(
+        no_chemistry['specific_energy_erg_g'],
+        original_energy,
+    )
+
+
+def test_coupled_implicit_compton_thermal_limit_has_correct_direction():
+    cold = _implicit_hydrogen_state(
+        temperature=1.0,
+        xhi=0.0,
+        recombination=False,
+        collisional=False,
+        atomic_cooling=False,
+    )
+    cold['compton_cmb_enabled'] = True
+    cold['compton_cmb_redshift'] = 10.0
+    assert _coupled_implicit_source_update(
+        cold, 1.0e13, tolerance=1.0e-8, max_iterations=32
+    )
+    assert cold['temperature_K'][0] > 1.0
+
+    hot = _implicit_hydrogen_state(
+        temperature=1.0e5,
+        xhi=0.0,
+        recombination=False,
+        collisional=False,
+        atomic_cooling=False,
+    )
+    hot['compton_cmb_enabled'] = True
+    hot['compton_cmb_redshift'] = 10.0
+    assert _coupled_implicit_source_update(
+        hot, 1.0e13, tolerance=1.0e-8, max_iterations=32
+    )
+    assert hot['temperature_K'][0] < 1.0e5
+
+    cooling = _implicit_hydrogen_state(
+        temperature=1.0e5,
+        xhi=0.5,
+        recombination=True,
+        collisional=True,
+        atomic_cooling=True,
+    )
+    old_energy = cooling['specific_energy_erg_g'].copy()
+    assert _coupled_implicit_source_update(
+        cooling, 1.0e8, tolerance=1.0e-8, max_iterations=32
+    )
+    assert cooling['specific_energy_erg_g'][0] < old_energy[0]
+
+
+def test_coupled_implicit_matches_small_step_reference():
+    implicit = _implicit_hydrogen_state(
+        temperature=1.0e5,
+        xhi=0.5,
+        recombination=True,
+        collisional=True,
+        atomic_cooling=True,
+    )
+    reference = _explicit_reference_update(implicit, 1.0e6, 10000)
+    assert _coupled_implicit_source_update(
+        implicit, 1.0e6, tolerance=1.0e-8, max_iterations=32
+    )
+    np.testing.assert_allclose(implicit['xHI'], reference['xHI'], rtol=2.0e-4)
+    np.testing.assert_allclose(
+        implicit['temperature_K'], reference['temperature_K'], rtol=2.0e-4
+    )
+
+
+def test_coupled_implicit_enforces_energy_and_fraction_bounds():
+    for temperature, xhi, recombination, collisional in (
+        (1.0e6, 0.0, False, True),
+        (1.0e4, 1.0, True, False),
+    ):
+        state = _implicit_hydrogen_state(
+            temperature=temperature,
+            xhi=xhi,
+            recombination=recombination,
+            collisional=collisional,
+            atomic_cooling=False,
+        )
+        state['alpha_B_cm3_s'] = np.array([1.0e-12])
+        state['beta_cm3_s'] = np.array([1.0e-12])
+        assert _coupled_implicit_source_update(
+            state, 1.0e15, tolerance=1.0e-7, max_iterations=64
+        )
+        assert np.all(np.isfinite(state['specific_energy_erg_g']))
+        assert np.all(state['specific_energy_erg_g'] > 0.0)
+        assert np.all(np.isfinite(state['temperature_K']))
+        assert np.all(state['temperature_K'] > 0.0)
+        assert np.all(state['xHI'] >= 0.0)
+        assert np.all(state['xHI'] <= 1.0)
+
+
+def test_coupled_implicit_reaches_fixed_field_equilibrium():
+    state = _implicit_hydrogen_state(
+        temperature=1.0e4,
+        xhi=0.99,
+        recombination=True,
+        collisional=False,
+        atomic_cooling=False,
+    )
+    state['rho_g_cm3'][:] = PROTON_MASS_CGS
+    state['alpha_B_cm3_s'] = np.array([1.0e-12])
+    state['sigma_gamma_cm2'] = 1.0e-18
+    ngamma = np.array([1.0e-12 / (SPEED_OF_LIGHT_CGS * 1.0e-18)])
+    for _ in range(40):
+        assert _coupled_implicit_source_update(
+            state,
+            1.0e12,
+            ngamma=ngamma,
+            tolerance=1.0e-8,
+            max_iterations=32,
+        )
+    chemistry = ionization_fraction_rate(state, ngamma)
+    assert abs(chemistry[0]) < 1.0e-15
+    assert 0.0 < state['xHI'][0] < 1.0
+
+
+def test_coupled_implicit_fallback_to_explicit():
+    _, par, fluid, mesh, _ = _source_test_problem(
+        solver='coupled_implicit', fallback='explicit'
+    )
+    par.hydrogen_implicit_max_iterations = 0
+    result = apply_thermochemistry_fast(1.0, mesh, fluid, par)
+    assert result['source_steps'] > 1
+    assert np.isfinite(fluid.temp[0])
+
+
+def test_coupled_implicit_error_fallback_raises():
+    _, par, fluid, mesh, _ = _source_test_problem(
+        solver='coupled_implicit', fallback='error'
+    )
+    par.hydrogen_implicit_max_iterations = 0
+    with pytest.raises(RuntimeError, match='did not converge'):
+        apply_thermochemistry_fast(1.0, mesh, fluid, par)
+
+
+def test_coupled_implicit_uses_one_source_step():
+    _, implicit_par, implicit_fluid, implicit_mesh, _ = _source_test_problem(
+        solver='coupled_implicit', fallback='error'
+    )
+    implicit_result = apply_thermochemistry_fast(
+        1.0, implicit_mesh, implicit_fluid, implicit_par
+    )
+    _, explicit_par, explicit_fluid, explicit_mesh, _ = _source_test_problem(
+        solver='explicit'
+    )
+    explicit_result = apply_thermochemistry_fast(
+        1.0, explicit_mesh, explicit_fluid, explicit_par
+    )
+    assert implicit_result['source_steps'] == 1
+    assert explicit_result['source_steps'] > 1
+
+
+def test_coupled_implicit_supercomoving_matches_physical_source_update():
+    _, physical_par, physical_fluid, physical_mesh, scale_factor = (
+        _source_test_problem(supercomoving=False)
+    )
+    _, supercomoving_par, supercomoving_fluid, supercomoving_mesh, _ = (
+        _source_test_problem(supercomoving=True)
+    )
+    apply_thermochemistry_fast(
+        1.0e-4, physical_mesh, physical_fluid, physical_par
+    )
+    apply_thermochemistry_fast(
+        1.0e-4, supercomoving_mesh, supercomoving_fluid, supercomoving_par
+    )
+    physical_temperature = physical_fluid.temp[0]
+    supercomoving_temperature = supercomoving_fluid.temp[0] / scale_factor**2
+    np.testing.assert_allclose(
+        supercomoving_temperature, physical_temperature, rtol=1.0e-10
+    )
+    np.testing.assert_allclose(
+        supercomoving_fluid.xHI, physical_fluid.xHI, rtol=1.0e-10
+    )
 
 
 def test_fast_source_dispatches_to_coupled_implicit_solver():
