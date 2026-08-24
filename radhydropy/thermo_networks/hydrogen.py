@@ -948,7 +948,15 @@ def _fast_source_state(mesh, fluid, par):
     }
     if state['thermal_coupling']:
         state['vel_cm_s'] = vel_cm_s
-        specific_total_supercomoving = energy_supercomoving_erg / mass_g
+        # Vacuum cells do not participate in chemistry.  Keep their specific
+        # energy finite so the network can carry them through the source
+        # update without generating NaNs or wasting convergence iterations.
+        specific_total_supercomoving = np.divide(
+            energy_supercomoving_erg,
+            mass_g,
+            out=np.zeros_like(energy_supercomoving_erg, dtype=float),
+            where=mass_g > 0.0,
+        )
         specific_kinetic_supercomoving = (
             0.5 * velocity_supercomoving_cm_s**2
         )

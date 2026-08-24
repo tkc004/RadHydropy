@@ -102,6 +102,10 @@ Available Examples
      - Uniform ionized hydrogen box with cooling and chemistry enabled.
    * - ``example/HydrogenRecombination1D``
      - Fixed-temperature case-B hydrogen recombination box.
+   * - ``example/UniformEdSThermochemistry1D``
+     - Four uniform cells evolving from the CMB temperature at ``z=100`` to
+       ``z=10`` in an Einstein--de Sitter cosmology, with Compton-only and
+       atomic-plus-Compton comparisons.
    * - ``example/Outflow1d``
      - Cartesian outflow setup.
    * - ``example/OutflowSph1d``
@@ -198,5 +202,6 @@ Detailed Example Pages
    dynamic_stromgren_sphere_photoheating1d
    dynamic_stromgren_sphere_photoheating20pc_radiation_pressure1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
+   uniform_eds_thermochemistry1d
    bertschinger_reference
    bertschinger_gas_reference

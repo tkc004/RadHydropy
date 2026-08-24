@@ -229,7 +229,12 @@ def plot_temperature_density_evolution(times, density, temperature, filename):
 
 
 def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
-    """Plot binned physical live-DM density profiles versus comoving radius."""
+    """Plot smoothed mass-binned physical DM profiles versus radius.
+
+    The saved NPZ retains every live shell.  This figure intentionally uses
+    fewer radial bins so that one-shell Poisson structure does not look like
+    physical density oscillations.
+    """
     fig, axis = plt.subplots(figsize=(7.0, 5.0))
     selected = np.unique(
         np.linspace(0, len(dm_profiles) - 1, min(9, len(dm_profiles))).astype(int)
@@ -240,10 +245,11 @@ def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
         / float(profile["scale_factor"])
         for profile in dm_profiles
     ])
+    plot_bin_count = min(int(bin_count), 48)
     bin_edges = np.geomspace(
         max(1.0e-8, np.nanmin(all_comoving) * 0.9),
         np.nanmax(all_comoving) * 1.1,
-        int(bin_count) + 1,
+        plot_bin_count + 1,
     )
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     for index, color in zip(selected, colors):
@@ -252,6 +258,8 @@ def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
         radius = np.asarray(profile["dm_radius_kpc"], dtype=float)
         density = np.asarray(profile["dm_density_code"], dtype=float)
         mass = np.asarray(profile["dm_mass"], dtype=float)
+        core_mass = float(profile.get("dm_central_core_mass", 0.0))
+        core_radius = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
         comoving_radius = radius / scale_factor
         valid = (
             np.isfinite(comoving_radius) & np.isfinite(density)
@@ -264,6 +272,10 @@ def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
         mass_in_bin, _ = np.histogram(
             shell_radius, bins=bin_edges, weights=shell_mass
         )
+        if core_mass > 0.0 and core_radius > 0.0:
+            core_bin = int(np.searchsorted(bin_edges, core_radius, side="right") - 1)
+            if 0 <= core_bin < mass_in_bin.size:
+                mass_in_bin[core_bin] += core_mass
         bin_volume = (
             4.0 * np.pi / 3.0 * scale_factor**3
             * np.diff(bin_edges**3)
@@ -529,6 +541,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         radius_kpc=np.asarray([item["dm_radius_kpc"] for item in dm_profiles]),
         density_code=np.asarray([item["dm_density_code"] for item in dm_profiles]),
         mass=np.asarray([item["dm_mass"] for item in dm_profiles]),
+        central_core_mass=np.asarray([
+            item.get("dm_central_core_mass", 0.0) for item in dm_profiles
+        ]),
+        central_core_radius_kpc=np.asarray([
+            item.get("dm_central_core_radius_kpc", 0.0) for item in dm_profiles
+        ]),
     )
     print("initial gas fraction = %.8g" % measured_fraction)
     print("initial gas temperature = %.8g K" % initial_temperature)

@@ -513,7 +513,10 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         if np.isfinite(rvir) and rvir > proper[0]:
             lower_radius = max(lower_radius, 0.1 * rvir)
         elif np.isfinite(rtarget):
-            lower_radius = max(lower_radius, 0.03 * rtarget)
+            # The virial shock is an outer-halo feature.  Do not let an
+            # unresolved inner cooling/adiabatic feature become r_shock
+            # merely because it has a larger cell-to-cell gradient.
+            lower_radius = max(lower_radius, 0.3 * rtarget)
         upper_radius = 0.95 * proper[-1]
         if np.isfinite(rtarget):
             upper_radius = min(upper_radius, rtarget)
@@ -524,10 +527,17 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         )
         candidate = np.flatnonzero(valid)
         if candidate.size:
-            local = candidate[np.argmax(np.abs(gradient[candidate]))]
+            # Across an accretion shock temperature falls outward, so retain
+            # only negative outward gradients.  Positive gradients are inner
+            # cooling transitions, not the outer shock.
+            shock_candidates = candidate[gradient[candidate] < -0.05]
+            local = (
+                shock_candidates[np.argmin(gradient[shock_candidates])]
+                if shock_candidates.size else None
+            )
             # Require at least a modest resolved temperature jump; otherwise
             # this is a smooth adiabatic profile, not a detected shock.
-            if abs(float(gradient[local])) >= 0.05:
+            if local is not None and abs(float(gradient[local])) >= 0.05:
                 rshock = float(proper[local])
             else:
                 rshock = np.nan
@@ -596,6 +606,12 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
         "dm_radius_kpc": dm_radius,
         "dm_density_code": dm_density,
         "dm_mass": dm_mass,
+        # The softened unresolved core is part of the gravitating DM profile
+        # even though it is not represented by a live shell.
+        "dm_central_core_mass": float(getattr(dm, "central_core_mass", 0.0)),
+        "dm_central_core_radius_kpc": (
+            a * float(getattr(dm, "central_core_radius", 0.0))
+        ),
     }
 
 

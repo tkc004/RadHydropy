@@ -66,10 +66,16 @@ ICparams:
   hydrogen_mass_fraction: 0.76
   mu: 0.59
   dark_matter_shells: 1024
-  dm_inner_radius: 0.01
+  # Replace the unresolved inner collapse with the same softened excess-mass
+  # core used by the converged dark-matter comparison.
+  dm_inner_radius: 0.1
+  dm_central_core_model: true
+  dm_central_core_radius: 10.0
+  dm_core_absorption_velocity: 0.0
+  dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
-  softening: 0.05
+  softening: 10.0
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 2.0e-4
