@@ -76,7 +76,7 @@ refparams = {
     'hydrogen_xHI_outflow': 1.0,
     'hydrogen_source_CFL': 0.1,
     'hydrogen_source_dtmin': 0.0 * unyt.s,
-    'hydrogen_source_solver': 'coupled_implicit',
+    'hydrogen_source_solver': 'hybrid',
     'hydrogen_hybrid_change_tolerance': 0.1,
     'hydrogen_implicit_tolerance': 1.0e-6,
     'hydrogen_implicit_convergence_tolerance': 1.0e-3,

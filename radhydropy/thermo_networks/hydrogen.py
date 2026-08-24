@@ -1578,7 +1578,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     source_steps = 0
     absorbed_integral = None
     source_solver = str(
-        getattr(par, 'hydrogen_source_solver', 'coupled_implicit')
+        getattr(par, 'hydrogen_source_solver', 'hybrid')
     ).lower()
     if source_solver not in ('explicit', 'coupled_implicit', 'hybrid'):
         raise ValueError(

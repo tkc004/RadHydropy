@@ -7,6 +7,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -36,7 +37,7 @@ def load_correlation_table(config_filename, runparams):
 
 
 def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
-                           filename):
+                           filename, ymin=None):
     selected = np.unique(
         np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
     )
@@ -54,8 +55,10 @@ def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
                 color=color, ls="--", lw=0.9, alpha=0.65,
             )
     axes[0].set_ylabel(r"proper gas density [code mass / kpc$^3$]")
+    if ymin is not None and float(ymin) > 0.0:
+        axes[0].set_ylim(bottom=float(ymin))
     axes[0].set_title(
-        "Adiabatic gas collapse from the z=100 LCDM correlation IC\n"
+        "Gas density evolution from the z=100 LCDM correlation IC\n"
         "solid: gas density; dashed: corresponding virial radius"
     )
     axes[0].grid(alpha=0.25, which="both")
@@ -127,9 +130,42 @@ def plot_radius_history(history, filename):
     plt.close(fig)
 
 
-def plot_temperature_evolution(times, radius, temperature, virial_radius,
+def _log_radial_bin_profile(radius, values, weights=None, bin_count=48):
+    """Return mass-weighted mean values in logarithmic radial bins."""
+    radius = np.asarray(radius, dtype=float)
+    values = np.asarray(values, dtype=float)
+    if weights is None:
+        weights = np.ones_like(values)
+    weights = np.asarray(weights, dtype=float)
+    valid = (
+        np.isfinite(radius) & np.isfinite(values) & np.isfinite(weights)
+        & (radius > 0.0) & (values > 0.0) & (weights > 0.0)
+    )
+    if not np.any(valid):
+        return np.empty(0), np.empty(0)
+    log_edges = np.linspace(
+        np.log10(radius[valid].min()),
+        np.log10(radius[valid].max()),
+        max(8, int(bin_count)) + 1,
+    )
+    indices = np.digitize(np.log10(radius[valid]), log_edges) - 1
+    centers = []
+    binned = []
+    for index in range(len(log_edges) - 1):
+        selected = indices == index
+        if np.any(selected):
+            centers.append(10.0 ** (0.5 * (log_edges[index] + log_edges[index + 1])))
+            binned.append(np.average(
+                values[valid][selected], weights=weights[valid][selected],
+            ))
+    return np.asarray(centers), np.asarray(binned)
+
+
+def plot_temperature_evolution(times, radius, density, temperature, virial_radius,
                                splashback_radius, scale_factors,
-                               virial_temperature, filename):
+                               virial_temperature, filename,
+                               minimum_temperature=None,
+                               radial_bin_count=48):
     """Plot physical gas temperature profiles and the evolving virial radius."""
     selected = np.unique(
         np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
@@ -141,8 +177,23 @@ def plot_temperature_evolution(times, radius, temperature, virial_radius,
     )
     for color, index in zip(colors, selected):
         proper_radius = radius * scale_factors[index]
+        # Reconstruct spherical cell volumes from neighboring cell centers;
+        # the common scale-factor volume cancels in the mass weighting.
+        cell_edges = np.empty(proper_radius.size + 1, dtype=float)
+        if proper_radius.size > 1:
+            cell_edges[1:-1] = np.sqrt(proper_radius[:-1] * proper_radius[1:])
+            cell_edges[0] = proper_radius[0] ** 2 / cell_edges[1]
+            cell_edges[-1] = proper_radius[-1] ** 2 / cell_edges[-2]
+        else:
+            cell_edges[:] = (0.5 * proper_radius[0], 1.5 * proper_radius[0])
+        cell_volume = np.maximum(np.diff(cell_edges ** 3), 0.0)
+        mass_weight = np.asarray(density[index], dtype=float) * cell_volume
+        binned_radius, binned_temperature = _log_radial_bin_profile(
+            proper_radius, temperature[index], weights=mass_weight,
+            bin_count=radial_bin_count,
+        )
         axes[0].loglog(
-            proper_radius, np.maximum(temperature[index], 1.0e-30),
+            binned_radius, np.maximum(binned_temperature, 1.0e-30),
             color=color, lw=1.7, label="t = %.2f Gyr" % times[index],
         )
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
@@ -160,7 +211,7 @@ def plot_temperature_evolution(times, radius, temperature, virial_radius,
                 splashback_radius[index], color=color, ls="-.", lw=1.2, alpha=0.85,
             )
             temperature_at_splashback = np.interp(
-                splashback_radius[index], proper_radius, temperature[index],
+                splashback_radius[index], binned_radius, binned_temperature,
                 left=np.nan, right=np.nan,
             )
             if np.isfinite(temperature_at_splashback) and temperature_at_splashback > 0.0:
@@ -171,6 +222,8 @@ def plot_temperature_evolution(times, radius, temperature, virial_radius,
     )
     axes[0].set_xlabel("proper radius [kpc]")
     axes[0].set_ylabel("physical gas temperature [K]")
+    if minimum_temperature is not None and float(minimum_temperature) > 0.0:
+        axes[0].set_ylim(bottom=float(minimum_temperature))
     axes[0].set_title(
         "Gas temperature evolution from the z=100 LCDM IC\n"
         "solid T; dotted Tvir; dashed r200; dash-dot + squares rsp"
@@ -197,32 +250,47 @@ def plot_temperature_evolution(times, radius, temperature, virial_radius,
     plt.close(fig)
 
 
-def plot_temperature_density_evolution(times, density, temperature, filename):
-    """Plot gas temperature against physical gas density at each snapshot."""
-    selected = np.unique(
-        np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
+def plot_temperature_density_evolution(
+    times, density, temperature, filename, bin_count=48,
+):
+    """Plot a two-dimensional histogram of gas density and temperature."""
+    rho_values = np.asarray(density, dtype=float).ravel()
+    temp_values = np.asarray(temperature, dtype=float).ravel()
+    valid = (
+        np.isfinite(rho_values) & np.isfinite(temp_values)
+        & (rho_values > 0.0) & (temp_values > 0.0)
     )
-    colors = plt.get_cmap("plasma")(np.linspace(0.05, 0.95, selected.size))
     fig, axis = plt.subplots(figsize=(7.5, 6.0))
-    for color, index in zip(colors, selected):
-        rho = np.asarray(density[index], dtype=float)
-        temp = np.asarray(temperature[index], dtype=float)
-        valid = (
-            np.isfinite(rho) & np.isfinite(temp)
-            & (rho > 0.0) & (temp > 0.0)
+    if np.any(valid):
+        log_rho = np.log10(rho_values[valid])
+        log_temp = np.log10(temp_values[valid])
+        bin_count = max(8, int(bin_count))
+        rho_edges = np.linspace(log_rho.min(), log_rho.max(), bin_count + 1)
+        temp_edges = np.linspace(log_temp.min(), log_temp.max(), bin_count + 1)
+        counts, _, _ = np.histogram2d(log_rho, log_temp,
+                                      bins=(rho_edges, temp_edges))
+        rho_centers = 0.5 * (rho_edges[:-1] + rho_edges[1:])
+        temp_centers = 0.5 * (temp_edges[:-1] + temp_edges[1:])
+        count_max = float(counts.max())
+        if count_max > 1.0:
+            levels = np.geomspace(1.0, count_max, 16)
+        else:
+            levels = np.array([0.5, 1.5])
+        image = axis.contourf(
+            10.0 ** rho_centers,
+            10.0 ** temp_centers,
+            np.ma.masked_less_equal(counts.T, 0.0),
+            levels=levels,
+            norm=LogNorm(vmin=1.0, vmax=max(1.0, count_max)),
+            cmap="magma",
         )
-        if np.any(valid):
-            order = np.argsort(rho[valid])
-            axis.loglog(
-                rho[valid][order], temp[valid][order],
-                color=color, lw=1.5, marker=".", ms=3.0,
-                label="t = %.2f Gyr" % times[index],
-            )
+        fig.colorbar(image, ax=axis, label="cell count")
     axis.set_xlabel(r"physical gas density [code mass / kpc$^3$]")
     axis.set_ylabel("physical gas temperature [K]")
-    axis.set_title("Gas temperature-density evolution")
+    axis.set_xscale("log")
+    axis.set_yscale("log")
+    axis.set_title("Gas temperature-density distribution")
     axis.grid(alpha=0.25, which="both")
-    axis.legend(loc="best", fontsize=8, ncol=3)
     fig.tight_layout()
     fig.savefig(filename, dpi=220)
     plt.close(fig)
@@ -294,6 +362,16 @@ def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
     fig.tight_layout()
     fig.savefig(filename, dpi=220)
     plt.close(fig)
+
+
+def _pad_profile_history(profiles, key):
+    """Pack variable-length shell profiles into a NaN-padded 2D array."""
+    arrays = [np.asarray(item[key], dtype=float).ravel() for item in profiles]
+    width = max((array.size for array in arrays), default=0)
+    result = np.full((len(arrays), width), np.nan, dtype=float)
+    for row, array in enumerate(arrays):
+        result[row, :array.size] = array
+    return result
 
 
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
@@ -517,10 +595,19 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     plot_radius_history(history, radius_figure)
     temperature_figure = output_dir / (figure_prefix + "_Temperatures.jpg")
     plot_temperature_evolution(
-        times, radius, temperature, virial_radius, splashback_radius,
+        times, radius, density, temperature, virial_radius, splashback_radius,
         scale_factors,
         virial_temperature,
         temperature_figure,
+        minimum_temperature=minimum_temperature,
+    )
+    density_figure = output_dir / (figure_prefix + "_Densities.jpg")
+    cosmic_gas_density_z0 = baryon_fraction * float(
+        cosmology.background_density(cosmology.t_ref)
+    )
+    plot_density_evolution(
+        times, radius, density, virial_radius, scale_factors, density_figure,
+        ymin=0.1 * cosmic_gas_density_z0,
     )
     temperature_density_figure = output_dir / (
         figure_prefix + "_TemperatureDensity.jpg"
@@ -538,9 +625,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         dm_data_file,
         time_Gyr=np.asarray([item["time_Gyr"] for item in dm_profiles]),
         scale_factor=np.asarray([item["scale_factor"] for item in dm_profiles]),
-        radius_kpc=np.asarray([item["dm_radius_kpc"] for item in dm_profiles]),
-        density_code=np.asarray([item["dm_density_code"] for item in dm_profiles]),
-        mass=np.asarray([item["dm_mass"] for item in dm_profiles]),
+        radius_kpc=_pad_profile_history(dm_profiles, "dm_radius_kpc"),
+        density_code=_pad_profile_history(dm_profiles, "dm_density_code"),
+        mass=_pad_profile_history(dm_profiles, "dm_mass"),
         central_core_mass=np.asarray([
             item.get("dm_central_core_mass", 0.0) for item in dm_profiles
         ]),
