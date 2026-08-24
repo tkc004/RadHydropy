@@ -31,6 +31,9 @@ Available Examples
      - Spherical isothermal hydrostatic equilibrium in a point-mass potential
        without including the origin. The example writes a real evolved output
        snapshot and compares it against the analytic profile.
+   * - ``example/HydrostaticCoreSpherical1D``
+     - Analytic spherical point-mass atmosphere with an optional fixed-mass,
+       pressure-supported unresolved central core.
    * - ``example/NFWHydrostaticEquilibrium1D``
      - Isothermal gas in hydrostatic equilibrium inside a ``1e8 Msun`` NFW
        dark-matter halo at its virial temperature.

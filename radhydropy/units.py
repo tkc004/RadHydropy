@@ -100,6 +100,7 @@ _CODE_UNIT_GROUPS = (
             ('gravity_strength', 'acceleration'),
             ('selfgravity_softening', 'length'),
             ('selfgravity_boundary_acceleration', 'acceleration'),
+            ('gas_core_radius', 'length'),
         ),
     ),
 )
