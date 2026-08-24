@@ -434,7 +434,13 @@ def _advance(state, par, dt_s, update_chemistry):
             cmb_temperature_0_K=state.get("cmb_temperature_0_K", 2.7255),
         )
         if state.get("thermal_coupling", False):
-            energy_update = thermal_rate / np.asarray(state["rho_g_cm3"], dtype=float) * dt_s
+            rho = np.asarray(state["rho_g_cm3"], dtype=float)
+            active = np.asarray(state.get("active", rho > 0.0), dtype=bool)
+            rho_safe = np.where(active, rho, 1.0)
+            energy_update = np.zeros_like(rho, dtype=float)
+            energy_update[active] = (
+                np.asarray(thermal_rate)[active] / rho_safe[active] * dt_s
+            )
             if "specific_total_energy_erg_g" in state:
                 state["specific_total_energy_erg_g"] = np.maximum(
                     state["specific_total_energy_erg_g"] + energy_update,

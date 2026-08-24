@@ -10,6 +10,8 @@ The example runs both a Compton-only case and an atomic-cooling-plus-Compton
 case through ``Rsim.Run(mode="sources")``.  The Compton-only history is
 compared with the analytic EdS temperature equation, while the atomic run is
 shown as a numerical cooling comparison.
+The configuration selects the coupled implicit source solver and sets the
+fallback to ``error``, so neither run can silently use explicit subcycling.
 
 Run it from the example directory:
 

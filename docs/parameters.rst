@@ -228,9 +228,9 @@ are not advected as independent fluid fields.
        ``xHI / |dxHI/dt|``.
      - dimensionless
    * - ``hydrogen_source_solver``
-     - Source integrator: ``explicit`` for the standard subcycled update or
-       ``coupled_implicit`` for a backward-Euler solve of internal energy and
-       ``xHI`` together.
+     - Source integrator; defaults to ``coupled_implicit`` for a backward-Euler
+       solve of internal energy and ``xHI`` together. ``explicit`` selects the
+       standard subcycled update.
      - string
    * - ``hydrogen_implicit_tolerance`` / ``hydrogen_implicit_max_iterations``
      - Convergence tolerance and iteration limit for the coupled implicit

@@ -610,7 +610,14 @@ class Rsim():
             return
         if thermal_rate is None:
             thermal_rate = rtc.thermal_rate(state, ngamma, self.par)
-        state['specific_energy_erg_g'] += thermal_rate / state['rho_g_cm3'] * dt_s
+        active = np.asarray(
+            state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+            dtype=bool,
+        )
+        rho = np.where(active, state['rho_g_cm3'], 1.0)
+        energy_update = np.zeros_like(state['specific_energy_erg_g'])
+        energy_update[active] = thermal_rate[active] / rho[active] * dt_s
+        state['specific_energy_erg_g'] += energy_update
         state['specific_energy_erg_g'] = np.maximum(
             state['specific_energy_erg_g'],
             1.0e6,

@@ -225,7 +225,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     histories = {}
     for label, initial_temperature in cases.items():
-        if str(runparams.get('hydrogen_source_solver', 'explicit')).lower() == 'coupled_implicit':
+        if str(runparams.get('hydrogen_source_solver', 'coupled_implicit')).lower() == 'coupled_implicit':
             histories[label] = _run_converged_case(
                 runparams,
                 icparams,

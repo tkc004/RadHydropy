@@ -20,7 +20,12 @@ runparams:
   noghost: 2
   order: 0
   CFL: 0.1
-  hydrogen_source_solver: explicit
+  hydrogen_source_solver: coupled_implicit
+  hydrogen_implicit_fallback: error
+  hydrogen_implicit_tolerance: 1.0e-8
+  hydrogen_implicit_convergence_tolerance: 1.0e-5
+  hydrogen_implicit_max_iterations: 64
+  hydrogen_implicit_max_refinements: 8
   # EdS: a=(t/t_ref)^(2/3). These times correspond to z=100 -> z=10.
   timesim: 1370.5061117171075
   source_timestep: 1.0

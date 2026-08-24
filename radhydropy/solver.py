@@ -388,9 +388,26 @@ class Solver():
         if verbose is None:
             verbose = 0
         vol = mesh.vol
-        fluid.rho = as_named_array(self._safe_divide(fluid.Mass, vol))
-        fluid.vel = as_named_array(self._safe_divide(fluid.Mom, fluid.Mass))
-        energy_density = as_named_array(self._safe_divide(fluid.Energy, vol))
+        rho = np.asarray(self._safe_divide(fluid.Mass, vol), dtype=float)
+        active = np.isfinite(rho) & (rho > 0.0)
+        fluid.active = active
+        rho = np.where(active, rho, 0.0)
+
+        mass = np.asarray(fluid.Mass, dtype=float)
+        momentum = np.asarray(fluid.Mom, dtype=float)
+        vel = np.zeros_like(rho)
+        valid_mass = active & np.isfinite(mass) & (mass > 0.0)
+        vel[valid_mass] = momentum[valid_mass] / mass[valid_mass]
+
+        energy_density = np.zeros_like(rho)
+        valid_volume = active & np.isfinite(vol) & (vol > 0.0)
+        energy_density[valid_volume] = (
+            np.asarray(fluid.Energy, dtype=float)[valid_volume]
+            / np.asarray(vol, dtype=float)[valid_volume]
+        )
+        fluid.rho = as_named_array(rho)
+        fluid.vel = as_named_array(vel)
+        energy_density = as_named_array(energy_density)
         fluid.pre = fluid.eos.pressure_from_conserved(
             fluid.rho,
             fluid.vel,
@@ -398,8 +415,8 @@ class Solver():
             temp=getattr(fluid, 'temp', None),
             mu=getattr(fluid, 'mu', None),
         )
-        fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
-        fluid.vel[np.isnan(fluid.vel)] = 0.0
+        fluid.rho[~active] = 0.0
+        fluid.vel[~active] = 0.0
         invalid_pressure = np.logical_or(fluid.pre <= 0.0, np.isnan(fluid.pre))
         temperature_floor = getattr(par, 'hydro_temperature_floor', None)
         if temperature_floor is not None and float(temperature_floor) > 0.0:
@@ -485,9 +502,43 @@ class Solver():
         else:
             raise ValueError('order unknown: %s'%order)
 
+    @staticmethod
+    def _vacuum_safe_primitive_state(rho, vel, pre):
+        """Return a finite, positive primitive state for a face Riemann solve.
+
+        This operates on temporary face states only.  It does not alter the
+        cell-centered density or conserved variables, so a vacuum cell can be
+        populated by a later hydrodynamic flux update.
+        """
+        rho_value = np.asarray(rho, dtype=float)
+        vel_value = np.asarray(vel, dtype=float)
+        pre_value = np.asarray(pre, dtype=float)
+        active = np.isfinite(rho_value) & (rho_value > 0.0)
+        finite_velocity = np.isfinite(vel_value)
+        finite_pressure = np.isfinite(pre_value) & (pre_value > 0.0)
+        rho_safe = np.where(active, rho_value, 0.0)
+        vel_safe = np.where(active & finite_velocity, vel_value, 0.0)
+        pre_safe = np.where(active & finite_pressure, pre_value, 0.0)
+
+        def restore_units(values, original):
+            units = getattr(original, 'units', None)
+            return values * units if units is not None else as_named_array(values)
+
+        return (
+            restore_units(rho_safe, rho),
+            restore_units(vel_safe, vel),
+            restore_units(pre_safe, pre),
+        )
+
 
     def SetFluxOnFace(self,fluid,boundcond,order=0):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
+        rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
+            fluid.rho.L, fluid.vel.L, fluid.pre.L
+        )
+        rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
+            fluid.rho.R, fluid.vel.R, fluid.pre.R
+        )
         (
             Fmass_L,
             qmass_L,
@@ -495,7 +546,7 @@ class Solver():
             qmom_L,
             FEn_L,
             qEn_L,
-        ) = fluid.eos.fluxes(fluid.rho.L, fluid.vel.L, fluid.pre.L)
+        ) = fluid.eos.fluxes(rho_L, vel_L, pre_L)
         (
             Fmass_R,
             qmass_R,
@@ -503,13 +554,19 @@ class Solver():
             qmom_R,
             FEn_R,
             qEn_R,
-        ) = fluid.eos.fluxes(fluid.rho.R, fluid.vel.R, fluid.pre.R)
+        ) = fluid.eos.fluxes(rho_R, vel_R, pre_R)
         Mass_flux_0 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
         Mom_flux_0 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
         Energy_flux_0 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
         if order==0:
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
         elif order==1:
+            rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
+                fluid.rho.L.first, fluid.vel.L.first, fluid.pre.L.first
+            )
+            rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
+                fluid.rho.R.first, fluid.vel.R.first, fluid.pre.R.first
+            )
             (
                 Fmass_L,
                 qmass_L,
@@ -517,7 +574,7 @@ class Solver():
                 qmom_L,
                 FEn_L,
                 qEn_L,
-            ) = fluid.eos.fluxes(fluid.rho.L.first, fluid.vel.L.first, fluid.pre.L.first)
+            ) = fluid.eos.fluxes(rho_L, vel_L, pre_L)
             (
                 Fmass_R,
                 qmass_R,
@@ -525,7 +582,7 @@ class Solver():
                 qmom_R,
                 FEn_R,
                 qEn_R,
-            ) = fluid.eos.fluxes(fluid.rho.R.first, fluid.vel.R.first, fluid.pre.R.first)
+            ) = fluid.eos.fluxes(rho_R, vel_R, pre_R)
             Mass_flux_1 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
             Mom_flux_1 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
             Energy_flux_1 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)

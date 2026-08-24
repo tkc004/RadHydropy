@@ -530,6 +530,7 @@ def source_state(mesh, fluid, par):
         'temperature_K': temperature_physical,
         'specific_energy_erg_g': specific_energy,
         'rho_g_cm3': rho_physical,
+        'active': rho_physical > 0.0,
         'nH_cm3': rho_physical * getattr(par, 'hydrogen_mass_fraction', 1.0) / PROTON_MASS_CGS,
         'gamma': gamma,
         'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 1.0),
@@ -669,8 +670,18 @@ def get_timestep(state, ngamma, remaining_s, dtmax_s, verbose=False):
     source_thermal_rate = None
     if state['thermal_coupling']:
         source_thermal_rate = thermal_rate(state, ngamma)
-        dudt = source_thermal_rate / state['rho_g_cm3']
-        valid = (np.abs(dudt) > 0.0) & (state['specific_energy_erg_g'] > 0.0)
+        active = np.asarray(
+            state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+            dtype=bool,
+        )
+        rho = np.where(active, state['rho_g_cm3'], 1.0)
+        dudt = np.zeros_like(source_thermal_rate, dtype=float)
+        dudt[active] = np.asarray(source_thermal_rate)[active] / rho[active]
+        valid = (
+            active
+            & (np.abs(dudt) > 0.0)
+            & (state['specific_energy_erg_g'] > 0.0)
+        )
         if np.any(valid):
             valid_cells = np.where(valid)[0]
             with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
@@ -866,6 +877,7 @@ def _fast_source_state(mesh, fluid, par):
             * scaling['density_factor']
         ),
         'rho_g_cm3': rho_g_cm3,
+        'active': rho_g_cm3 > 0.0,
         'temperature_K': temperature_K,
         'xHI': as_named_array(
             fluid.xHI[interior] if hasattr(fluid, 'xHI') else np.ones(par.nogrid),
@@ -1002,9 +1014,16 @@ def _fast_update_temperature_from_energy(state):
 
 def _fast_apply_thermal_source(state, thermal_rate_erg_cm3_s, dt_s):
     """Apply thermal source terms in float cgs units."""
-    state['specific_total_energy_erg_g'] += (
-        thermal_rate_erg_cm3_s / state['rho_g_cm3'] * dt_s
+    active = np.asarray(
+        state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+        dtype=bool,
     )
+    rho = np.where(active, state['rho_g_cm3'], 1.0)
+    energy_update = np.zeros_like(state['specific_total_energy_erg_g'])
+    energy_update[active] = (
+        np.asarray(thermal_rate_erg_cm3_s)[active] / rho[active] * dt_s
+    )
+    state['specific_total_energy_erg_g'] += energy_update
     state['specific_total_energy_erg_g'] = np.maximum(
         state['specific_total_energy_erg_g'],
         state['specific_kinetic_energy_erg_g'],
@@ -1015,6 +1034,11 @@ def _fast_apply_thermal_source(state, thermal_rate_erg_cm3_s, dt_s):
 def _apply_compton_only_source(state, dt_s):
     """Advance the fixed-composition Compton relaxation exactly."""
     temperature = np.asarray(state['temperature_K'], dtype=float)
+    old_temperature = temperature.copy()
+    active = np.asarray(
+        state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+        dtype=bool,
+    )
     xHI = np.clip(np.asarray(state['xHI'], dtype=float), 0.0, 1.0)
     nH = _cgs_hydrogen_number_density(
         state['rho_g_cm3'], state['hydrogen_mass_fraction']
@@ -1041,9 +1065,10 @@ def _apply_compton_only_source(state, dt_s):
         out=np.zeros_like(temperature),
         where=(state['rho_g_cm3'] > 0.0) & (specific_heat > 0.0),
     )
-    temperature = cmb_temperature + (
+    updated_temperature = cmb_temperature + (
         temperature - cmb_temperature
     ) * np.exp(-coupling_rate * dt_s)
+    temperature = np.where(active, updated_temperature, old_temperature)
     state['specific_total_energy_erg_g'] = (
         specific_heat * temperature
         + state['specific_kinetic_energy_erg_g']
@@ -1074,12 +1099,14 @@ def _coupled_implicit_source_update(
         return False
 
     rho = np.asarray(state['rho_g_cm3'], dtype=float)
+    active_cells = np.asarray(state.get('active', rho > 0.0), dtype=bool)
+    rho_for_update = np.where(active_cells, rho, 1.0)
     kinetic = np.asarray(state['specific_kinetic_energy_erg_g'], dtype=float)
     energy_old = np.asarray(state['specific_energy_erg_g'], dtype=float).copy()
     x_old = np.asarray(state['xHI'], dtype=float).copy()
     if not (
         np.all(np.isfinite(rho))
-        and np.all(rho > 0.0)
+        and np.all(rho_for_update > 0.0)
         and np.all(np.isfinite(energy_old))
         and np.all(np.isfinite(x_old))
     ):
@@ -1097,9 +1124,13 @@ def _coupled_implicit_source_update(
     if not np.isfinite(dt_value) or dt_value < 0.0:
         return False
     if dt_value == 0.0:
-        state['specific_energy_erg_g'] = energy_old
-        state['specific_total_energy_erg_g'] = energy_old + kinetic
-        state['xHI'] = x_old
+        state['specific_energy_erg_g'] = np.where(
+            active_cells, energy_old, state['specific_energy_erg_g']
+        )
+        state['specific_total_energy_erg_g'] = (
+            state['specific_energy_erg_g'] + kinetic
+        )
+        state['xHI'] = np.where(active_cells, x_old, state['xHI'])
         _fast_update_temperature_from_energy(state)
         return True
 
@@ -1128,7 +1159,7 @@ def _coupled_implicit_source_update(
         chemistry = ionization_fraction_rate(trial, ngamma)
         with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
             energy_residual = (
-                energy - energy_old - dt_value * thermal / rho
+                energy - energy_old - dt_value * thermal / rho_for_update
             ) / energy_scale
         chemistry_residual = xhi - x_old - dt_value * chemistry
         return energy_residual, chemistry_residual, energy, xhi, trial
@@ -1138,13 +1169,14 @@ def _coupled_implicit_source_update(
     residual_energy, residual_x, _, _, _ = _residual(log_energy, logit_x)
     converged = np.zeros_like(energy_old, dtype=bool)
     finite = np.isfinite(residual_energy) & np.isfinite(residual_x)
+    converged[~active_cells] = True
     converged[finite] = np.maximum(
         np.abs(residual_energy[finite]), np.abs(residual_x[finite])
     ) <= tolerance
 
     finite_difference_step = 1.0e-5
     for _ in range(int(max_iterations)):
-        active = ~converged
+        active = ~converged & active_cells
         if not np.any(active):
             break
 
@@ -1250,9 +1282,17 @@ def _coupled_implicit_source_update(
         return False
 
     _, _, energy, xhi, trial = _residual(log_energy, logit_x)
-    state['specific_energy_erg_g'] = energy
-    state['specific_total_energy_erg_g'] = energy + kinetic
-    state['xHI'] = np.clip(xhi, x_floor, 1.0 - x_floor)
+    state['specific_energy_erg_g'] = np.where(
+        active_cells, energy, state['specific_energy_erg_g']
+    )
+    state['specific_total_energy_erg_g'] = (
+        state['specific_energy_erg_g'] + kinetic
+    )
+    state['xHI'] = np.where(
+        active_cells,
+        np.clip(xhi, x_floor, 1.0 - x_floor),
+        state['xHI'],
+    )
     if state.get('hydrogen_update_mu', False):
         state['mu'] = trial['mu']
     _fast_update_temperature_from_energy(state)
@@ -1370,7 +1410,13 @@ def _adaptive_coupled_implicit_source_update(
 def _fast_sync_state_to_fluid(state, fluid, par):
     """Copy a float thermo-chemistry state back to the fluid container."""
     interior = state['interior']
-    fluid.xHI[interior] = state['xHI']
+    active = np.asarray(
+        state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+        dtype=bool,
+    )
+    xhi = np.asarray(fluid.xHI[interior], dtype=float).copy()
+    xhi[active] = state['xHI'][active]
+    fluid.xHI[interior] = xhi
     if hasattr(fluid, 'ngamma') and state.get('ngamma_cm3') is not None:
         code = _code_units(par)
         target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
@@ -1379,12 +1425,17 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         else:
             fluid.ngamma[interior] = target
     if hasattr(fluid, 'mu'):
-        fluid.mu[interior] = state['mu']
+        mu = np.asarray(fluid.mu[interior], dtype=float).copy()
+        mu[active] = state['mu'][active]
+        fluid.mu[interior] = mu
     code = _code_units(par)
-    fluid.temp[interior] = from_unit_value(
+    temperature = from_unit_value(
         state['temperature_K'] * state.get('source_temperature_factor', 1.0),
         code.temperature_unit,
     )
+    temp = np.asarray(fluid.temp[interior], dtype=float).copy()
+    temp[active] = temperature[active]
+    fluid.temp[interior] = temp
     if state.get('thermal_coupling', False):
         specific_internal_energy_physical = (
             state['specific_total_energy_erg_g']
@@ -1398,15 +1449,18 @@ def _fast_sync_state_to_fluid(state, fluid, par):
             specific_internal_energy
             + state.get('specific_kinetic_energy_supercomoving_erg_g', 0.0)
         )
-        fluid.pre[interior] = (
+        pressure = (
             specific_internal_energy
             * np.asarray(fluid.rho[interior], dtype=float)
             * (fluid.eos.gamma - 1.0)
         )
-        fluid.Energy[interior] = (
-            specific_total_energy
-            * np.asarray(fluid.Mass[interior], dtype=float)
-        )
+        pre = np.asarray(fluid.pre[interior], dtype=float).copy()
+        pre[active] = pressure[active]
+        fluid.pre[interior] = pre
+        energy = specific_total_energy * np.asarray(fluid.Mass[interior], dtype=float)
+        conserved_energy = np.asarray(fluid.Energy[interior], dtype=float).copy()
+        conserved_energy[active] = energy[active]
+        fluid.Energy[interior] = conserved_energy
     if state.get('hydrogen_update_mu', False) and hasattr(fluid, 'xHI') and getattr(getattr(fluid, 'eos', None), 'gamma', None) is not None:
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=state['hydrogen_mass_fraction']
@@ -1442,7 +1496,9 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     zero_time_s = 0.0
     source_steps = 0
     absorbed_integral = None
-    source_solver = str(getattr(par, 'hydrogen_source_solver', 'explicit')).lower()
+    source_solver = str(
+        getattr(par, 'hydrogen_source_solver', 'coupled_implicit')
+    ).lower()
     if source_solver not in ('explicit', 'coupled_implicit'):
         raise ValueError(
             "hydrogen_source_solver must be 'explicit' or 'coupled_implicit'"

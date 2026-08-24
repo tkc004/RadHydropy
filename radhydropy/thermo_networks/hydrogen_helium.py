@@ -214,7 +214,7 @@ def source_state(mesh, fluid, par):
         mass = rho_super * np.asarray(mesh.vol[interior], dtype=float) * code.mass_in_cgs
     total_super = to_unit_value(fluid.Energy[interior], code.energy_unit) / np.maximum(mass, 1.0e-99)
     specific_internal = np.maximum(total_super - 0.5 * velocity_super**2, 0.0) / scaling['temperature_factor']
-    state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit) * scaling['scale_factor'], 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit) * scaling['density_factor'], 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) * scaling['scale_factor'] / 3.08567758e21, 'rho_g_cm3': rho_super / scaling['density_factor'], 'temperature_K': to_unit_value(fluid.temp[interior], code.temperature_unit) / scaling['temperature_factor'], 'specific_energy_erg_g': specific_internal, 'gamma': gamma, 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'metal_pie_redshift': getattr(par, 'metal_pie_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10), 'metal_pie_table': getattr(par, 'metal_pie_table', None), 'metallicity': getattr(par, 'metallicity', 1.0), 'metal_pie_photoheating_max_density_cm3': getattr(par, 'metal_pie_photoheating_max_density_cm3', 50.0), 'source_scale_factor': scaling['scale_factor'], 'source_temperature_factor': scaling['temperature_factor'], 'velocity_supercomoving_cm_s': velocity_super}
+    state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit) * scaling['scale_factor'], 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit) * scaling['density_factor'], 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) * scaling['scale_factor'] / 3.08567758e21, 'rho_g_cm3': rho_super / scaling['density_factor'], 'active': (rho_super / scaling['density_factor']) > 0.0, 'temperature_K': to_unit_value(fluid.temp[interior], code.temperature_unit) / scaling['temperature_factor'], 'specific_energy_erg_g': specific_internal, 'gamma': gamma, 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'metal_pie_redshift': getattr(par, 'metal_pie_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10), 'metal_pie_table': getattr(par, 'metal_pie_table', None), 'metallicity': getattr(par, 'metallicity', 1.0), 'metal_pie_photoheating_max_density_cm3': getattr(par, 'metal_pie_photoheating_max_density_cm3', 50.0), 'source_scale_factor': scaling['scale_factor'], 'source_temperature_factor': scaling['temperature_factor'], 'velocity_supercomoving_cm_s': velocity_super}
     state['coupled_implicit'] = getattr(par, 'hydrogen_helium_coupled_implicit', True)
     state['nH_cm3'] = state['rho_g_cm3'] * state['hydrogen_mass_fraction'] / PROTON_MASS_CGS
     _closure(state)
@@ -246,11 +246,16 @@ def get_timestep(state, ngamma, remaining_s, dtmax_s):
         if np.any(valid):
             candidates.append(np.min(scale[valid] / np.abs(rate[valid])))
     if candidates:
+        active = np.asarray(
+            state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+            dtype=bool,
+        )
+        rho = np.where(active, state['rho_g_cm3'], 1.0)
         candidates.append(
             np.min(
                 np.maximum(state['specific_energy_erg_g'], 1.0e-30)
                 / np.maximum(
-                    np.abs(thermal / state['rho_g_cm3']),
+                    np.abs(thermal / rho),
                     1.0e-99,
                 )
             )
@@ -283,6 +288,11 @@ def ionization_fraction_implicit_update(state, ngamma, dt_s):
 
 def coupled_implicit_update(state, ngamma, dt_s):
     """Implicitly update ion fractions and thermal energy together."""
+    active = np.asarray(
+        state.get('active', np.asarray(state['rho_g_cm3']) > 0.0),
+        dtype=bool,
+    )
+    rho = np.where(active, state['rho_g_cm3'], 1.0)
     old_x = np.array([state['xHI'], state['xHeI'], state['xHeIII']])
     old_energy = np.asarray(state['specific_energy_erg_g'], dtype=float).copy()
     trial_x = old_x.copy()
@@ -297,13 +307,17 @@ def coupled_implicit_update(state, ngamma, dt_s):
         new_x[1] = np.clip(new_x[1], 1.0e-12, 1.0 - 1.0e-12)
         new_x[2] = np.clip(new_x[2], 0.0, 1.0 - new_x[1] - 1.0e-12)
         new_energy = np.maximum(
-            old_energy + dt_s * thermal / state['rho_g_cm3'],
+            old_energy + dt_s * thermal / rho,
             1.0e6,
         )
         trial_x = 0.5 * trial_x + 0.5 * new_x
         trial_energy = 0.5 * trial_energy + 0.5 * new_energy
-    state['xHI'], state['xHeI'], state['xHeIII'] = trial_x
-    state['specific_energy_erg_g'] = trial_energy
+    state['xHI'] = np.where(active, trial_x[0], state['xHI'])
+    state['xHeI'] = np.where(active, trial_x[1], state['xHeI'])
+    state['xHeIII'] = np.where(active, trial_x[2], state['xHeIII'])
+    state['specific_energy_erg_g'] = np.where(
+        active, trial_energy, state['specific_energy_erg_g']
+    )
     update_temperature_from_energy(state)
 
 

@@ -9,6 +9,8 @@ active.
 The gas starts at the CMB temperature at ``z=100`` and evolves to ``z=10``.
 The code-unit reference time is chosen so this interval spans about 1.3 Gyr,
 making the temperature evolution visible in the generated figure.
+The source update uses the coupled implicit thermo-chemistry solver with no
+explicit fallback.
 
 Two runs are made:
 
