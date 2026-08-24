@@ -26,7 +26,7 @@ runparams:
   # The live density diagnostic spans the long tau interval from z=100;
   # this remains small compared with the shell-crossing timescale.
   dm_only_supercomoving_timestep: 0.01
-  final_cosmic_time: 16.0
+  final_cosmic_time: 14.4
   CodeUnits:
     name: cosmological_dark_matter_correlation_unit_system
     InternalUnitSystem:
@@ -50,9 +50,17 @@ ICparams:
   hydrogen_mass_fraction: 0.76
   mu: 0.59
   dark_matter_shells: 256
-  dm_inner_radius: 0.01
+  dm_inner_radius: 0.1
+  dm_central_core_model: true
+  # The innermost live shell begins at this radius; inward shells are
+  # absorbed into the softened core only when their radial velocity is <= 0.
+  dm_central_core_radius: 10.0
+  dm_core_absorption_velocity: 0.0
+  # Absorb only shells with total specific energy <= this threshold;
+  # zero means bound (negative-energy) shells only.
+  dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
-  softening: 0.05
+  softening: 10.0
   uv_background_on_redshift: 10.0
   cie_initial_temperature: 10.0

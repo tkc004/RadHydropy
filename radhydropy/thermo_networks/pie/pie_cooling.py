@@ -265,10 +265,17 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
                     break
                 dt_s *= 0.5
             if not accepted:
-                new_energy, dt_s = self._explicit_fallback_step(
-                    state, old_energy, dt_s, floor_K
+                # Do not enter an unbounded explicit cooling-time loop here.
+                # During unresolved central collapse the tabulated cooling
+                # time can become arbitrarily short, making one hydro step
+                # effectively hang.  The backward-Euler solve is bounded and
+                # temperature-floor limited, so accept one full-step
+                # implicit update after the retry budget is exhausted.
+                new_energy, _ = self._implicit_energy_step(
+                    state, old_energy, remaining_s, floor_K
                 )
                 state["specific_energy_erg_g"] = new_energy
+                dt_s = remaining_s
             remaining_s -= dt_s
             source_steps += 1
 

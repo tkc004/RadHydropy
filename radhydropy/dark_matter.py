@@ -77,6 +77,9 @@ class DarkMatterShells:
         angular_momentum=None,
         softening=0.0,
         fixed_enclosed_mass=None,
+        central_core_radius=0.0,
+        core_absorption_velocity=0.0,
+        core_absorption_energy=0.0,
         code_units=None,
     ):
         self.CodeUnits = code_units
@@ -95,12 +98,27 @@ class DarkMatterShells:
             dtype=float,
         ).copy()
         self.softening = float(quantity_to_value(softening, length))
+        self.central_core_radius = float(quantity_to_value(central_core_radius, length))
+        self.core_absorption_velocity = float(
+            quantity_to_value(core_absorption_velocity, velocity_unit)
+        )
+        if self.central_core_radius < 0.0:
+            raise ValueError("central core radius must be non-negative")
+        if self.core_absorption_velocity < 0.0:
+            raise ValueError("core absorption velocity must be non-negative")
+        self.core_absorption_energy = float(
+            quantity_to_value(core_absorption_energy, velocity_unit**2)
+        )
         if callable(fixed_enclosed_mass):
             self.fixed_enclosed_mass = fixed_enclosed_mass
         elif fixed_enclosed_mass is None:
             self.fixed_enclosed_mass = None
         else:
             self.fixed_enclosed_mass = float(quantity_to_value(fixed_enclosed_mass, mass_unit))
+        self.central_core_mass = (
+            0.0 if self.fixed_enclosed_mass is None or callable(self.fixed_enclosed_mass)
+            else float(self.fixed_enclosed_mass)
+        )
         if not (
             self.radius.ndim == self.velocity.ndim == self.mass.ndim == self.angular_momentum.ndim == 1
         ):
@@ -251,6 +269,75 @@ class DarkMatterShells:
         radius_floor = max(self.softening, np.finfo(float).tiny)
         self.radius = np.maximum(self.radius, radius_floor)
 
+    def _absorb_into_core(
+        self,
+        radius,
+        velocity,
+        scale_factor=1.0,
+        gas_enclosed_mass=None,
+        background_enclosed_mass=None,
+        cosmological=False,
+        include_shell_mass_with_fixed=True,
+    ):
+        """Absorb energetically bound shells that enter the unresolved core."""
+        if self.central_core_radius <= 0.0 or self.number_of_shells == 0:
+            return 0.0
+        radius = np.asarray(radius, dtype=float)
+        velocity = np.asarray(velocity, dtype=float)
+        # A negative radius means that the shell crossed the spherical
+        # origin during this drift; it has necessarily traversed the core,
+        # even if the finite step overshot beyond ``central_core_radius``.
+        entered_core = (radius <= self.central_core_radius) | (
+            (radius < 0.0) & (np.abs(radius) <= 4.0 * self.central_core_radius)
+        )
+        # A velocity sign alone is not a binding criterion.  Use the
+        # instantaneous specific total energy in the same softened potential
+        # used by the shell integrator.  This includes live DM, the fixed
+        # core, gas, angular momentum, and cosmological background subtraction.
+        safe_radius = np.maximum(np.abs(radius), np.finfo(float).tiny)
+        enclosed = self.gravitating_enclosed_mass(
+            safe_radius,
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+        )
+        if gas_enclosed_mass is not None:
+            gas_mass = (
+                np.asarray(gas_enclosed_mass(safe_radius), dtype=float)
+                if callable(gas_enclosed_mass)
+                else np.asarray(gas_enclosed_mass, dtype=float)
+            )
+            enclosed = enclosed + gas_mass
+        if cosmological and background_enclosed_mass is not None:
+            background = (
+                np.asarray(background_enclosed_mass(safe_radius), dtype=float)
+                if callable(background_enclosed_mass)
+                else np.asarray(background_enclosed_mass, dtype=float)
+            )
+            enclosed = enclosed - background
+        g_code = _gravitational_constant_code(self.CodeUnits)
+        potential = -g_code * float(scale_factor) * enclosed / (
+            safe_radius + self.softening
+        )
+        angular = 0.5 * self.angular_momentum**2 / (
+            safe_radius + self.softening
+        )**2
+        total_energy = 0.5 * velocity**2 + angular + potential
+        bound = total_energy <= self.core_absorption_energy
+        if self.core_absorption_velocity > 0.0:
+            bound &= velocity <= -self.core_absorption_velocity
+        absorbed = entered_core & bound
+        if not np.any(absorbed):
+            return 0.0
+        absorbed_mass = float(np.sum(self.mass[absorbed]))
+        self.central_core_mass += absorbed_mass
+        if self.fixed_enclosed_mass is not None and not callable(self.fixed_enclosed_mass):
+            self.fixed_enclosed_mass = self.central_core_mass
+        keep = ~absorbed
+        self.radius = self.radius[keep]
+        self.velocity = self.velocity[keep]
+        self.mass = self.mass[keep]
+        self.angular_momentum = self.angular_momentum[keep]
+        return absorbed_mass
+
     def step(
         self,
         dt,
@@ -310,6 +397,15 @@ class DarkMatterShells:
             velocity_half = self.velocity + 0.5 * substep * acceleration
             self.radius = self.radius + substep * velocity_half
             self.velocity = velocity_half
+            self._absorb_into_core(
+                self.radius,
+                self.velocity,
+                scale_factor=0.5 * (a_start + a_end),
+                gas_enclosed_mass=gas_enclosed_mass,
+                background_enclosed_mass=background_enclosed_mass,
+                cosmological=cosmological,
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+            )
             self._reflect_at_origin()
             self.sort_by_radius()
             acceleration_new = self.acceleration(

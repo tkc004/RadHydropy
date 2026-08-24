@@ -294,7 +294,17 @@ class Simwrap:
 def make_dark_matter(ic, units, cosmology, correlation_table=None):
     count = int(ic["dark_matter_shells"])
     dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
-    boundaries = np.geomspace(dm_inner, float(ic["rmax"]), count + 1)
+    central_core_model = bool(ic.get("dm_central_core_model", False))
+    central_core_radius = float(
+        ic.get("dm_central_core_radius", dm_inner)
+    ) if central_core_model else dm_inner
+    if central_core_radius < dm_inner:
+        raise ValueError("dm_central_core_radius must be >= dm_inner_radius")
+    # A fixed unresolved core already represents the excess mass inside its
+    # radius.  Do not leave live shells in the same volume and count them a
+    # second time when they are later absorbed.
+    shell_inner = central_core_radius if central_core_model else dm_inner
+    boundaries = np.geomspace(shell_inner, float(ic["rmax"]), count + 1)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
     t = float(ic["initial_cosmic_time"])
@@ -315,13 +325,50 @@ def make_dark_matter(ic, units, cosmology, correlation_table=None):
     )
     mass = rho * dm_fraction * (1.0 + delta) * volume
     velocity = -a**2 * hubble * mean_delta * radius / 3.0
-    return DarkMatterShells(
+    central_core_mass = None
+    if central_core_model:
+        core_radius = central_core_radius
+        _, core_mean_delta = density_contrast_profile(
+            np.asarray([core_radius]),
+            ic,
+            cosmology,
+            correlation_table=correlation_table,
+            length_unit_mpc_h=(
+                float(units.length_in_cgs)
+                / float((1.0 * unyt.Mpc).to_value("cm"))
+                * float(ic.get("correlation_h", 0.674))
+            ),
+        )
+        # Cosmological gravity already subtracts the homogeneous background;
+        # only replace the unresolved overdensity excess with a softened
+        # central mass.
+        central_core_mass = max(
+            0.0,
+            rho * dm_fraction * float(core_mean_delta[0])
+            * 4.0 * np.pi / 3.0 * core_radius**3,
+        )
+    shells = DarkMatterShells(
         radius=radius, velocity=velocity, mass=mass,
         angular_momentum=np.full(
             count, float(ic.get("dm_specific_angular_momentum", 0.0))
         ),
         softening=float(ic["softening"]), code_units=units,
+        fixed_enclosed_mass=central_core_mass,
+        central_core_radius=(
+            float(ic.get("dm_central_core_radius", dm_inner))
+            if central_core_mass is not None else 0.0
+        ),
+        core_absorption_velocity=float(ic.get("dm_core_absorption_velocity", 0.0)),
+        core_absorption_energy=float(ic.get("dm_core_absorption_energy", 0.0)),
     )
+    shells.central_core_radius = (
+        float(ic.get("dm_central_core_radius", dm_inner))
+        if central_core_mass is not None else 0.0
+    )
+    shells.central_core_mass = (
+        float(central_core_mass) if central_core_mass is not None else 0.0
+    )
+    return shells
 
 
 def splashback_radius(

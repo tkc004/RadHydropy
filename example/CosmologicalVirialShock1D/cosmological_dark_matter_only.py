@@ -184,8 +184,13 @@ def run_live_shell_density_profiles(
         # density binning instead of silently dropping it from the profile.
         radius = np.abs(np.nan_to_num(radius, nan=0.0, posinf=0.0, neginf=0.0))
         radius = np.maximum(radius, 1.0e-8)
-        profiles.append((float(cosmic_time), radius, mass))
-        cumulative_mass = np.cumsum(mass)
+        core_mass = float(getattr(shells, "central_core_mass", 0.0))
+        core_radius = a * float(getattr(shells, "central_core_radius", 0.0))
+        profiles.append((float(cosmic_time), radius, mass, core_mass, core_radius))
+        # Include the absorbed unresolved-core mass when locating r200.  The
+        # profile bins already include this same mass, so the overdensity
+        # marker must use the identical enclosed-mass definition.
+        cumulative_mass = core_mass + np.cumsum(mass)
         mean_density = cumulative_mass / (
             4.0 * np.pi / 3.0 * np.maximum(radius, 1.0e-30) ** 3
         )
@@ -220,6 +225,9 @@ def run_live_shell_density_profiles(
             scale_factor=a_start,
             scale_factor_end=a_end,
             cosmological=True,
+            # The softened core is an additional enclosed mass; it must not
+            # replace the self-gravity of the live shells outside it.
+            include_shell_mass_with_fixed=True,
         )
         tau += dt
         while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
@@ -229,6 +237,8 @@ def run_live_shell_density_profiles(
     times = np.asarray([item[0] for item in profiles])
     shell_radii = [item[1] for item in profiles]
     shell_masses = [item[2] for item in profiles]
+    core_masses = np.asarray([item[3] for item in profiles])
+    core_radii = np.asarray([item[4] for item in profiles])
     bin_count = int(runparams.get("dm_density_bins", 128))
     bin_min = max(1.0e-8, min(np.min(radius) for radius in shell_radii) * 0.9)
     bin_max = max(np.max(radius) for radius in shell_radii) * 1.1
@@ -236,14 +246,27 @@ def run_live_shell_density_profiles(
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     bin_volumes = 4.0 * np.pi / 3.0 * np.diff(bin_edges**3)
     densities = []
-    for radius, mass in zip(shell_radii, shell_masses):
+    for radius, mass, core_mass, core_radius in zip(
+        shell_radii, shell_masses, core_masses, core_radii
+    ):
         mass_in_bin, _ = np.histogram(radius, bins=bin_edges, weights=mass)
+        if core_mass > 0.0 and core_radius > 0.0:
+            core_bin = int(np.searchsorted(bin_edges, core_radius, side="right") - 1)
+            if 0 <= core_bin < mass_in_bin.size:
+                mass_in_bin[core_bin] += core_mass
         density = mass_in_bin / np.maximum(bin_volumes, 1.0e-30)
         densities.append(np.where(mass_in_bin > 0.0, density, np.nan))
     densities = np.asarray(densities)
     virial_radii = np.asarray(virial_radii)
     scale_factors = np.asarray([float(cosmology.scale_factor(time)) for time in times])
     comoving_bin_radii = bin_radii[None, :] / scale_factors[:, None]
+    target_mass = float(icparams["target_halo_mass"])
+    virial_overdensity = 18.0 * np.pi**2
+    analytic_rvir = (
+        target_mass
+        / ((4.0 * np.pi / 3.0) * virial_overdensity
+           * np.asarray([float(cosmology.background_density(time)) for time in times]))
+    ) ** (1.0 / 3.0)
     output_dir = Path(runparams["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     data_file = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.npz"
@@ -255,7 +278,10 @@ def run_live_shell_density_profiles(
         radius_comoving_kpc=comoving_bin_radii,
         bin_edges_kpc=bin_edges,
         density_code=densities,
+        central_core_mass=core_masses,
+        central_core_radius_kpc=core_radii,
         rvir_kpc=virial_radii,
+        analytic_rvir_kpc=analytic_rvir,
     )
 
     plt.figure(figsize=(7.0, 5.0))
@@ -280,6 +306,27 @@ def run_live_shell_density_profiles(
     plt.close()
     print("dark-matter density figure = %s" % figure)
     print("dark-matter density data = %s" % data_file)
+
+    radius_figure = output_dir / "CosmologicalDarkMatterOnlyVirialRadii.jpg"
+    plt.figure(figsize=(7.0, 5.0))
+    finite = np.isfinite(virial_radii) & (virial_radii > 0.0)
+    plt.plot(
+        times[finite], virial_radii[finite], "o-", color="tab:blue",
+        label=r"simulation $r_{200}$",
+    )
+    plt.plot(
+        times, analytic_rvir, "--", color="tab:orange",
+        label="analytic spherical-collapse virial radius",
+    )
+    plt.xlabel("cosmic time [Gyr]")
+    plt.ylabel("proper virial radius [kpc]")
+    plt.title("Analytic and simulated virial-radius evolution")
+    plt.grid(alpha=0.25)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(radius_figure, dpi=200)
+    plt.close()
+    print("virial-radius comparison figure = %s" % radius_figure)
 
 
 def main(config_filename=DEFAULT_CONFIG):

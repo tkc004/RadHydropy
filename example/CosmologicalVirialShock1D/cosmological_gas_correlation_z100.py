@@ -197,6 +197,37 @@ def plot_temperature_evolution(times, radius, temperature, virial_radius,
     plt.close(fig)
 
 
+def plot_temperature_density_evolution(times, density, temperature, filename):
+    """Plot gas temperature against physical gas density at each snapshot."""
+    selected = np.unique(
+        np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
+    )
+    colors = plt.get_cmap("plasma")(np.linspace(0.05, 0.95, selected.size))
+    fig, axis = plt.subplots(figsize=(7.5, 6.0))
+    for color, index in zip(colors, selected):
+        rho = np.asarray(density[index], dtype=float)
+        temp = np.asarray(temperature[index], dtype=float)
+        valid = (
+            np.isfinite(rho) & np.isfinite(temp)
+            & (rho > 0.0) & (temp > 0.0)
+        )
+        if np.any(valid):
+            order = np.argsort(rho[valid])
+            axis.loglog(
+                rho[valid][order], temp[valid][order],
+                color=color, lw=1.5, marker=".", ms=3.0,
+                label="t = %.2f Gyr" % times[index],
+            )
+    axis.set_xlabel(r"physical gas density [code mass / kpc$^3$]")
+    axis.set_ylabel("physical gas temperature [K]")
+    axis.set_title("Gas temperature-density evolution")
+    axis.grid(alpha=0.25, which="both")
+    axis.legend(loc="best", fontsize=8, ncol=3)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=220)
+    plt.close(fig)
+
+
 def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
     """Plot binned physical live-DM density profiles versus comoving radius."""
     fig, axis = plt.subplots(figsize=(7.0, 5.0))
@@ -479,6 +510,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         virial_temperature,
         temperature_figure,
     )
+    temperature_density_figure = output_dir / (
+        figure_prefix + "_TemperatureDensity.jpg"
+    )
+    plot_temperature_density_evolution(
+        times, density, temperature, temperature_density_figure,
+    )
     dm_figure = output_dir / (figure_prefix + "_DarkMatterDensities.jpg")
     plot_dark_matter_density_evolution(
         dm_profiles, dm_figure,
@@ -500,6 +537,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     print("figure = %s" % figure)
     print("radius figure = %s" % radius_figure)
     print("temperature figure = %s" % temperature_figure)
+    print("temperature-density figure = %s" % temperature_density_figure)
     print("dark-matter figure = %s" % dm_figure)
     print("dark-matter data = %s" % dm_data_file)
     return data_file

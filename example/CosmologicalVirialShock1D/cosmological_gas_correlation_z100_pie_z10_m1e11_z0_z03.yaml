@@ -71,10 +71,14 @@ ICparams:
   hydrogen_mass_fraction: 0.76
   mu: 0.59
   dark_matter_shells: 1024
-  dm_inner_radius: 0.01
+  # Resolve the live DM core only down to the softened scale.  The original
+  # 0.01/0.05 pair creates unresolved inner shell crossings for this halo.
+  dm_inner_radius: 0.1
+  dm_central_core_model: true
+  dm_central_core_radius: 0.1
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
-  softening: 0.05
+  softening: 0.1
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 2.0e-4

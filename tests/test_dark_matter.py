@@ -136,6 +136,52 @@ def test_callable_fixed_enclosed_mass_supports_analytic_backgrounds():
     assert np.allclose(shells.acceleration(), -g_code * 11.0 / 2.0**2)
 
 
+def test_inward_shell_is_absorbed_into_softened_core():
+    shells = DarkMatterShells(
+        radius=[0.8, 2.0],
+        velocity=[-2.0, 0.0],
+        mass=[3.0, 5.0],
+        softening=0.5,
+        fixed_enclosed_mass=1000.0,
+        central_core_radius=0.5,
+        core_absorption_velocity=0.0,
+        code_units=code_units(),
+    )
+    shells.step(0.2)
+    assert shells.number_of_shells == 1
+    assert np.isclose(shells.central_core_mass, 1003.0)
+    assert np.isclose(shells.fixed_enclosed_mass, 1003.0)
+    assert np.isclose(shells.total_mass, 5.0)
+
+
+def test_unbound_outward_shell_is_not_absorbed_at_core_boundary():
+    shells = DarkMatterShells(
+        radius=[0.5],
+        velocity=[1.0],
+        mass=[3.0],
+        fixed_enclosed_mass=1.0,
+        central_core_radius=0.5,
+        code_units=code_units(),
+    )
+    shells.step(0.0)
+    assert shells.number_of_shells == 1
+    assert np.isclose(shells.central_core_mass, 1.0)
+
+
+def test_bound_outward_shell_is_absorbed_by_energy_criterion():
+    shells = DarkMatterShells(
+        radius=[0.5],
+        velocity=[0.01],
+        mass=[3.0],
+        fixed_enclosed_mass=10.0,
+        central_core_radius=0.6,
+        code_units=code_units(),
+    )
+    shells.step(1.0e-8)
+    assert shells.number_of_shells == 0
+    assert np.isclose(shells.central_core_mass, 13.0)
+
+
 class Mesh:
     coordsys = "spherical"
     boundary = np.array([0.0, 1.0, 2.0, 3.0])
