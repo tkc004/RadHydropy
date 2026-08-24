@@ -83,6 +83,10 @@ refparams = {
     'hydrogen_implicit_max_iterations': 32,
     'hydrogen_implicit_fallback': 'explicit',
     'hydrogen_implicit_max_refinements': 4,
+    # Optional pressure-supported unresolved central core.  The default keeps
+    # the ordinary cell-centred hydro evolution unchanged.
+    'gas_core_model': 'none',
+    'gas_core_radius': None,
     'hydrogen_update_mu': False,
     'hydrogen_thermal_coupling': True,
     'compton_cmb_enabled': False,

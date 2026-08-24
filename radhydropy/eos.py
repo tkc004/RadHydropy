@@ -43,8 +43,9 @@ class EOS:
             rho_value = np.asarray(rho, dtype=np.longdouble)
             temp_value = np.asarray(temp, dtype=np.longdouble)
             mu_value = np.asarray(mu, dtype=np.longdouble)
+            conversion = self.CodeUnits.unit_conversion
             pressure_factor = np.longdouble(
-                self.CodeUnits.boltzmann_code / self.CodeUnits.proton_mass_code
+                conversion["boltzmann_code"] / conversion["proton_mass_code"]
             )
             pressure_value = rho_value * temp_value * pressure_factor
             quotient = np.zeros_like(pressure_value, dtype=np.longdouble)

@@ -57,6 +57,21 @@ inflow and outflow modes also use these run parameters:
 
 The corresponding pressure is derived from the equation of state.
 
+Pressure-Supported Central Core
+-------------------------------
+
+Spherical calculations may optionally replace the unresolved innermost region
+with a fixed-mass pressure-supported core::
+
+   gas_core_model: hydrostatic_fixed
+   gas_core_radius: {value: 20.0, unit: kpc}
+
+The core retains its primitive state and supplies pressure at the core/halo
+interface, while mass and energy flux through that interface are disabled.  It
+is not a sink.  Core cells are excluded from the resolved-halo CFL minimum.
+This model is disabled by default and should be tested for convergence by
+varying ``gas_core_radius``.
+
 Practical Notes
 ---------------
 

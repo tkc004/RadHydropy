@@ -90,6 +90,8 @@ class Rsim():
         print("--- Fill up the fluid---") 
         print("--- %s seconds ---" % (time.time() - start_time))
         self.ConvertParametersToCodeUnits()
+        self.mesh._par = self.par
+        self.solver.InitializeHydrostaticCore(self.mesh, self.fluid, self.par)
         self.solver.SetBoundary(self.mesh,self.fluid,self.par)
         self.solver.SetConserved(self.mesh,self.fluid, verbose=getattr(self.par, 'verbose', 0))
         if getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
@@ -308,6 +310,8 @@ class Rsim():
         if advect_chemistry:
             self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
         self._sync_hydro_state(fluid=fluid)
+        self.solver.ApplyHydrostaticCore(self.mesh, fluid, self.par)
+        self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
 
     def ApplyThermochemistrySources(self, dt):
         """Apply radiative transport and thermo-chemistry source updates."""

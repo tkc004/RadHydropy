@@ -110,6 +110,12 @@ Common Runtime Keys
    * - ``dtmin`` / ``dtmax``
      - Minimum and maximum allowed timesteps.
      - time
+   * - ``gas_core_model`` / ``gas_core_radius``
+     - Optional pressure-supported unresolved central core.  Set
+       ``gas_core_model: hydrostatic_fixed`` and choose a spherical core radius
+       to hold the inner cells as a fixed-mass pressure-bearing core.  The
+       default ``none`` preserves ordinary hydro evolution.
+     - string / length
    * - ``area``
      - Cartesian cross-sectional area used to calculate volumes.
      - area

@@ -843,37 +843,46 @@ def _fast_source_state(mesh, fluid, par):
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
+    unit_conversion = code.unit_conversion
     interior = slice(par.noghost, par.noghost + par.nogrid)
     gamma = getattr(getattr(fluid, 'eos', None), 'gamma', getattr(par, 'gamma', 5.0 / 3.0))
     scaling = _fast_source_scaling(fluid, par, gamma)
     rho_g_cm3 = (
-        to_unit_value(fluid.rho[interior], code.density_unit)
+        np.asarray(fluid.rho[interior], dtype=float)
+        * unit_conversion['density_g_cm3']
         / scaling['density_factor']
     )
     temperature_K = (
-        to_unit_value(fluid.temp[interior], code.temperature_unit)
+        np.asarray(fluid.temp[interior], dtype=float)
+        * unit_conversion['temperature_K']
         / scaling['temperature_factor']
     )
-    velocity_supercomoving_cm_s = to_unit_value(
-        fluid.vel[interior], code.velocity_unit
+    velocity_supercomoving_cm_s = (
+        np.asarray(fluid.vel[interior], dtype=float)
+        * unit_conversion['velocity_cm_s']
     )
     vel_cm_s = velocity_supercomoving_cm_s / scaling['velocity_factor']
-    mass_g = to_unit_value(fluid.Mass[interior], code.mass_unit)
-    energy_supercomoving_erg = to_unit_value(
-        fluid.Energy[interior], code.energy_unit
+    mass_g = np.asarray(fluid.Mass[interior], dtype=float) * unit_conversion['mass_g']
+    energy_supercomoving_erg = (
+        np.asarray(fluid.Energy[interior], dtype=float)
+        * unit_conversion['energy_erg']
     )
     state = {
         'interior': interior,
         'boundary_cm': as_named_array(
-            to_unit_value(mesh.boundary[interior.start : interior.stop + 1], code.length_unit)
+            np.asarray(
+                mesh.boundary[interior.start : interior.stop + 1], dtype=float
+            ) * unit_conversion['length_cm']
             * scaling['scale_factor']
         ),
         'width_cm': as_named_array(
-            to_unit_value(mesh.xdelta[interior], code.length_unit)
+            np.asarray(mesh.xdelta[interior], dtype=float)
+            * unit_conversion['length_cm']
             * scaling['scale_factor']
         ),
         'volume_cm3': as_named_array(
-            to_unit_value(mesh.vol[interior], code.volume_unit)
+            np.asarray(mesh.vol[interior], dtype=float)
+            * unit_conversion['volume_cm3']
             * scaling['density_factor']
         ),
         'rho_g_cm3': rho_g_cm3,
@@ -905,12 +914,14 @@ def _fast_source_state(mesh, fluid, par):
             default=DEFAULT_SIGMA_GAMMA,
         ),
         'ngamma_cm3': (
-            to_unit_value(
-                fluid.ngamma[:, interior]
-                if np.ndim(fluid.ngamma) == 2
-                else fluid.ngamma[interior],
-                code.number_density_unit,
-            )
+                (
+                    np.asarray(
+                        fluid.ngamma[:, interior]
+                        if np.ndim(fluid.ngamma) == 2
+                        else fluid.ngamma[interior],
+                        dtype=float,
+                    ) * unit_conversion['number_density_cm3']
+                )
             / scaling['density_factor']
             if (
                 getattr(par, 'hydrogen_radiation_field', False)
@@ -1499,9 +1510,9 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         mu[active] = state['mu'][active]
         fluid.mu[interior] = mu
     code = _code_units(par)
-    temperature = from_unit_value(
-        state['temperature_K'] * state.get('source_temperature_factor', 1.0),
-        code.temperature_unit,
+    temperature = (
+        state['temperature_K'] * state.get('source_temperature_factor', 1.0)
+        / code.unit_conversion['temperature_K']
     )
     temp = np.asarray(fluid.temp[interior], dtype=float).copy()
     temp[active] = temperature[active]

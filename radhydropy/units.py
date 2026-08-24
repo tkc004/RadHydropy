@@ -1,11 +1,13 @@
 """Shared helpers for internal code-unit handling."""
 
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 import unyt
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 
 
 PHOTON_FLUX_UNIT = 1.0 / (unyt.cm**2 * unyt.s)
@@ -231,6 +233,8 @@ def code_unit_scales(code):
         "alpha_cm3_s": volume_cm3 / time_s,
         "acceleration_cm_s2": length_cm / time_s**2,
         "specific_angular_momentum": length_cm * velocity_cm_s,
+        "proton_mass_code": PROTON_MASS_CGS / mass_g,
+        "boltzmann_code": BOLTZMANN_CONSTANT_CGS / (energy_erg / float(code.temperature_in_cgs)),
     }
 
 
@@ -322,6 +326,16 @@ class CodeUnits:
     @property
     def time_in_cgs(self):
         return self.length_in_cgs / self.velocity_in_cgs
+
+    @cached_property
+    def unit_conversion(self):
+        """Cached numeric conversion factors for the runtime solver.
+
+        Configuration and output may use unyt quantities, but the inner
+        solver loop operates on plain arrays and these factors avoid creating
+        unyt unit expressions for every source or EOS evaluation.
+        """
+        return code_unit_scales(self)
 
     @property
     def mass_unit(self):

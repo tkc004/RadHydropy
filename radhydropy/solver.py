@@ -209,6 +209,80 @@ class Solver():
         fluid.Mom.flux[origin_face] = 0.0
         fluid.Energy.flux[origin_face] = 0.0
 
+    @staticmethod
+    def _hydrostatic_core_enabled(par):
+        return str(getattr(par, 'gas_core_model', 'none')).lower() in (
+            'hydrostatic', 'hydrostatic_fixed', 'fixed_hydrostatic',
+        )
+
+    def InitializeHydrostaticCore(self, mesh, fluid, par):
+        """Initialize an optional fixed, pressure-supported central core.
+
+        The core is a deliberately simple subgrid model: its cell-centred
+        primitive state is retained as a pressure-bearing hydrostatic core,
+        while the resolved halo evolves outside ``gas_core_radius``.  It is
+        not a sink and does not remove gas from the calculation.
+        """
+        if not self._hydrostatic_core_enabled(par):
+            return
+        if getattr(mesh, 'coordsys', None) != 'spherical':
+            raise ValueError('gas_core_model requires a spherical mesh')
+        radius = getattr(par, 'gas_core_radius', None)
+        if radius is None or float(radius) <= 0.0:
+            raise ValueError('gas_core_radius must be positive for gas_core_model')
+        first = int(par.noghost)
+        last = first + int(par.nogrid)
+        coordinate = np.asarray(mesh.coordinate[first:last], dtype=float)
+        core_local = coordinate < float(radius)
+        if not np.any(core_local) or np.all(core_local):
+            raise ValueError(
+                'gas_core_radius must contain at least one, but not all, '
+                'resolved cells'
+            )
+        core = np.zeros(len(mesh.coordinate), dtype=bool)
+        core[first:last] = core_local
+        core_indices = np.flatnonzero(core)
+        state = {
+            'core_mask': core,
+            'core_indices': core_indices,
+            'core_last': int(core_indices[-1]),
+        }
+        for name in ('rho', 'vel', 'temp', 'mu', 'pre', 'xHI',
+                     'xHeI', 'xHeII', 'xHeIII'):
+            if hasattr(fluid, name):
+                state[name] = np.asarray(getattr(fluid, name)[core], dtype=float).copy()
+        fluid._hydrostatic_core = state
+        par._hydrostatic_core_mask = core
+        par._hydrostatic_core_face = int(core_indices[-1] + 1)
+
+    def ApplyHydrostaticCore(self, mesh, fluid, par):
+        """Restore the fixed core state before a resolved-halo update."""
+        state = getattr(fluid, '_hydrostatic_core', None)
+        if state is None:
+            return
+        core = state['core_mask']
+        for name in ('rho', 'vel', 'temp', 'mu', 'pre', 'xHI',
+                     'xHeI', 'xHeII', 'xHeIII'):
+            if name in state and hasattr(fluid, name):
+                values = np.asarray(getattr(fluid, name), dtype=float).copy()
+                values[core] = state[name]
+                setattr(fluid, name, as_named_array(values))
+        # A fixed core is hydrostatic and has no resolved radial motion.
+        fluid.vel[core] = 0.0
+
+    def _apply_hydrostatic_core_flux(self, fluid, par):
+        """Close the resolved halo with a pressure-bearing, no-mass-flux core."""
+        face = getattr(par, '_hydrostatic_core_face', None)
+        state = getattr(fluid, '_hydrostatic_core', None)
+        if face is None or state is None:
+            return
+        core_last = state['core_last']
+        # The core is fixed-mass: pressure acts on the halo, but gas, energy,
+        # and radial momentum do not cross the core/halo interface.
+        fluid.Mass.flux[face] = 0.0
+        fluid.Energy.flux[face] = 0.0
+        fluid.Mom.flux[face] = fluid.pre[core_last]
+
     def _zero_spherical_center_momentum(self, mesh, fluid):
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is None:
@@ -612,6 +686,7 @@ class Solver():
             
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
             self.SetFluxOnFace(fluid, boundcond, order=order)
+            self._apply_hydrostatic_core_flux(fluid, getattr(mesh, '_par', None))
             self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError("Interface flux method unknown: %s"%method) 
@@ -829,6 +904,7 @@ class Solver():
 
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
+        self.ApplyHydrostaticCore(mesh, fluid, par)
         btype = par.boundcond
         code_units = getattr(par, 'CodeUnits', None)
         scales = code_unit_scales(code_units)
@@ -927,6 +1003,12 @@ class Solver():
             active_xdelta = xdelta[active_slice]
             active_density = density[active_slice]
             active_vsignal = vsignal[active_slice]
+
+        core_mask = getattr(par, '_hydrostatic_core_mask', None)
+        if core_mask is not None:
+            core_active = np.asarray(core_mask[active_slice], dtype=bool)
+            active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
+            active_vsignal[core_active] = 0.0
 
         # A vacuum cell has no characteristic speed for the CFL constraint.
         # EOS sound-speed evaluation can produce ``inf`` for rho == 0 because
