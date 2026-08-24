@@ -578,6 +578,70 @@ class Testing(unittest.TestCase):
         self.assertEqual(hydro_dt, par.dtmax)
         self.assertEqual(float(fluid.vsignal[3]), 0.0)
 
+    def test_ghost_cells_do_not_limit_hydro_timestep(self):
+        par = make_code_par()
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        # The active cells are [2:6]; boundary ghost values must not enter
+        # the CFL minimum even if a boundary update temporarily leaves them
+        # with an unusable velocity.
+        fluid.vel[[0, 1, 6, 7]] = 1.0e30
+        fluid.SetPressure()
+
+        hydro_dt = Solver().GetTimeStep(mesh, fluid, par)
+
+        self.assertTrue(np.isfinite(hydro_dt))
+        self.assertGreater(hydro_dt, 1.0e-8)
+
+    def test_cfl_density_floor_treats_numerical_vacuum_as_zero_density(self):
+        par = make_code_par()
+        par.cfl_density_floor = 1.0e-9
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho[3] = 1.0e-12
+        fluid.vel[3] = 1.0e30
+        fluid.SetPressure()
+
+        hydro_dt = Solver().GetTimeStep(mesh, fluid, par)
+
+        self.assertTrue(np.isfinite(hydro_dt))
+        self.assertGreater(hydro_dt, 1.0e-8)
+        self.assertEqual(float(fluid.vsignal[3]), 0.0)
+
+    def test_hydro_only_sync_refreshes_adiabatic_temperature(self):
+        par = make_code_par()
+        par.hydrogen_chemistry = False
+        par.cie_cooling = False
+        par.metal_pie_enabled = False
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho = np.linspace(1.0, 2.0, 8)
+        fluid.temp = np.linspace(2.0, 9.0, 8)
+        fluid.SetPressure()
+        Solver().SetConserved(mesh, fluid)
+        expected = np.asarray(fluid.temp, dtype=float).copy()
+        fluid.temp[:] = 0.0
+        sim = Rsim.FromComponents(par, mesh, fluid)
+
+        sim._sync_hydro_state()
+
+        np.testing.assert_allclose(fluid.temp, expected)
+
+    def test_negative_hydro_pressure_uses_configured_temperature_floor(self):
+        par = make_code_par()
+        par.hydro_temperature_floor = 3.0
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.Mass = np.asarray(fluid.rho, dtype=float).copy()
+        fluid.Energy = np.zeros(8, dtype=float)
+        fluid.Mom = np.zeros(8, dtype=float)
+
+        Solver().SetPrimitive(mesh, fluid, par)
+        fluid.SetTemperature()
+
+        np.testing.assert_allclose(fluid.temp, 3.0)
+        self.assertTrue(np.all(np.asarray(fluid.pre) > 0.0))
+
     def test_unknown_thermochemistry_network_raises_clear_error(self):
         par = Par('Periodic')
         par.thermochemistry_network = 'unknown'

@@ -277,8 +277,20 @@ class Rsim():
         """Refresh primitive and conserved variables after a hydro update."""
         if fluid is None:
             fluid = self.fluid
-        self.solver.SetPrimitive(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
-        self.UpdateThermochemistryPrimitiveState(update_pressure=True, fluid=fluid)
+        self.solver.SetPrimitive(
+            self.mesh,
+            fluid,
+            par=self.par,
+            verbose=getattr(self.par, 'verbose', 0),
+        )
+        if rtc.thermochemistry_enabled(fluid, self.par):
+            self.UpdateThermochemistryPrimitiveState(update_pressure=True, fluid=fluid)
+        elif getattr(fluid.eos, 'is_polytropic', False):
+            # Hydro-only adiabatic runs still need their primitive temperature
+            # refreshed from the conserved internal energy.  Previously this
+            # was done only by the thermochemistry path, leaving ``fluid.temp``
+            # at its initial value and making adiabatic temperature plots lie.
+            fluid.SetTemperature()
         self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
 
     def FinalizeHydroStep(

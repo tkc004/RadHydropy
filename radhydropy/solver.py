@@ -383,7 +383,7 @@ class Solver():
         right_state = self._boundary_state(fluid, nolast)
         self._copy_boundary_state(fluid, right_ghost, right_state)
 
-    def SetPrimitive(self, mesh, fluid, verbose=None):
+    def SetPrimitive(self, mesh, fluid, par=None, verbose=None):
         """Update primitive variables from conserved quantities."""
         if verbose is None:
             verbose = 0
@@ -400,7 +400,20 @@ class Solver():
         )
         fluid.rho[np.logical_or(fluid.rho<0.0, np.isnan(fluid.rho))] = 0.0
         fluid.vel[np.isnan(fluid.vel)] = 0.0
-        fluid.pre[np.logical_or(fluid.pre<0.0, np.isnan(fluid.pre))] = 0.0
+        invalid_pressure = np.logical_or(fluid.pre <= 0.0, np.isnan(fluid.pre))
+        temperature_floor = getattr(par, 'hydro_temperature_floor', None)
+        if temperature_floor is not None and float(temperature_floor) > 0.0:
+            floor_pressure = fluid.eos.pressure(
+                fluid.rho,
+                float(temperature_floor),
+                fluid.mu,
+            )
+            # Enforce the configured floor for both invalid reconstructions
+            # and valid states that have cooled below the physical minimum.
+            below_floor = np.logical_or(invalid_pressure, fluid.pre < floor_pressure)
+            fluid.pre[below_floor] = floor_pressure[below_floor]
+        else:
+            fluid.pre[invalid_pressure] = 0.0
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is not None:
             fluid.vel[center_cell] = 0.0
@@ -838,19 +851,46 @@ class Solver():
                 vsignal = vsignal[interior]
                 density = density[interior]
 
+        # Ghost zones are needed by the Riemann solve but must not determine
+        # the CFL step.  In particular, reflecting/outflow boundary updates
+        # can leave a ghost velocity temporarily very large while the active
+        # solution remains valid.  Keep the full signal-speed array for later
+        # flux work, and reduce only over the active cells here.
+        active_xdelta = xdelta
+        active_density = density
+        active_vsignal = vsignal
+        first = int(getattr(par, 'noghost', 0))
+        active_count = int(getattr(par, 'nogrid', len(vsignal)))
+        active_slice = slice(first, first + active_count)
+        if (
+            xdelta.ndim == 1
+            and vsignal.ndim == 1
+            and len(vsignal) >= first + active_count + first
+        ):
+            active_xdelta = xdelta[active_slice]
+            active_density = density[active_slice]
+            active_vsignal = vsignal[active_slice]
+
         # A vacuum cell has no characteristic speed for the CFL constraint.
         # EOS sound-speed evaluation can produce ``inf`` for rho == 0 because
         # pressure/rho is undefined; exclude such cells from the minimum and
         # keep their interface signal speed neutral for the next flux update.
-        zero_density = density <= 0.0
+        density_floor = max(
+            0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
+        )
+        zero_density = active_density <= density_floor
         if np.any(zero_density):
-            vsignal = np.asarray(vsignal, dtype=float).copy()
-            vsignal[zero_density] = 0.0
-        dt_array = self._safe_divide(CFL * xdelta, vsignal)
+            active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
+            active_vsignal[zero_density] = 0.0
+        dt_array = self._safe_divide(CFL * active_xdelta, active_vsignal)
         dtmax = float(np.asarray(par.dtmax, dtype=float))
-        dt_array = np.where(vsignal != 0.0, dt_array, dtmax)
+        dt_array = np.where(active_vsignal != 0.0, dt_array, dtmax)
         dt = np.amin(dt_array)
-        fluid.vsignal = vsignal
+        fluid.vsignal = np.asarray(vsignal, dtype=float)
+        if len(fluid.vsignal) == len(active_vsignal):
+            fluid.vsignal[zero_density] = 0.0
+        else:
+            fluid.vsignal[active_slice] = active_vsignal
         self.dt = dt
         if np.isnan(np.asarray(dt)):
             print('vsignal', vsignal)
@@ -858,9 +898,24 @@ class Solver():
             print('fluid.cs', fluid.cs)
             raise Exception(" time step is nan")
         if dt < float(np.asarray(par.dtmin, dtype=float)):
+            active_index = int(np.argmin(dt_array))
+            min_index = active_index + first
+            if len(np.asarray(fluid.vel)) == len(active_vsignal):
+                diagnostic_index = active_index
+            else:
+                diagnostic_index = min_index
             raise ValueError(
-                " time step %.2e smaller than the minimum time step %.2e"
-                % (dt, par.dtmin)
+                " time step %.2e smaller than the minimum time step %.2e "
+                "at cell %d (rho=%.2e, vel=%.2e, cs=%.2e, dx=%.2e)"
+                % (
+                    dt,
+                    par.dtmin,
+                    min_index,
+                    active_density[active_index],
+                    fluid.vel[diagnostic_index],
+                    fluid.cs[diagnostic_index],
+                    active_xdelta[active_index],
+                )
             )
         if dt > dtmax:
             dt = dtmax

@@ -324,6 +324,65 @@ def make_dark_matter(ic, units, cosmology, correlation_table=None):
     )
 
 
+def splashback_radius(
+    dm_radius_kpc, dm_mass, rvir_kpc=np.nan, bin_count=128,
+):
+    """Estimate splashback from the steepest outer DM density slope.
+
+    The input shell masses are rebinned exactly, rather than differentiating
+    the noisy density assigned to individual infinitesimal shells.  The
+    returned radius is in the same proper-kpc basis as ``dm_radius_kpc``.
+    """
+    radius = np.asarray(dm_radius_kpc, dtype=float)
+    mass = np.asarray(dm_mass, dtype=float)
+    if not np.isfinite(rvir_kpc) or float(rvir_kpc) <= 0.0:
+        return float("nan")
+    valid = np.isfinite(radius) & np.isfinite(mass) & (radius > 0.0) & (mass > 0.0)
+    radius = radius[valid]
+    mass = mass[valid]
+    if radius.size < 16:
+        return float("nan")
+    order = np.argsort(radius)
+    radius = radius[order]
+    mass = mass[order]
+    edges = np.geomspace(
+        max(radius[0] * 0.9, 1.0e-12),
+        radius[-1] * 1.1,
+        int(max(32, bin_count)) + 1,
+    )
+    shell_mass, _ = np.histogram(radius, bins=edges, weights=mass)
+    shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
+    density = shell_mass / np.maximum(shell_volume, 1.0e-300)
+    occupied = density > 0.0
+    if np.count_nonzero(occupied) < 12:
+        return float("nan")
+    radii = np.sqrt(edges[:-1] * edges[1:])[occupied]
+    density = density[occupied]
+    log_radius = np.log(radii)
+    log_density = np.log(density)
+    # A short boxcar suppresses individual-shell noise while retaining the
+    # broad splashback trough.
+    window = min(7, log_density.size if log_density.size % 2 else log_density.size - 1)
+    if window >= 3:
+        padded = np.pad(log_density, (window // 2,), mode="edge")
+        log_density = np.convolve(
+            padded, np.ones(window) / float(window), mode="valid"
+        )
+    slope = np.gradient(log_density, log_radius)
+    lower = max(0.5 * float(rvir_kpc), radii[0])
+    upper = min(3.0 * float(rvir_kpc), 0.95 * radii[-1])
+    if upper <= lower:
+        return float("nan")
+    candidates = np.flatnonzero((radii >= lower) & (radii <= upper))
+    if candidates.size < 3:
+        return float("nan")
+    # Avoid reporting a weak numerical edge as splashback.
+    local = candidates[np.argmin(slope[candidates])]
+    if not np.isfinite(slope[local]) or slope[local] > -1.0:
+        return float("nan")
+    return float(radii[local])
+
+
 def profiles(sim, dm, cosmic_time, cosmology, ic):
     """Measure virial, shock, disc radii and enclosed total masses."""
     first = int(sim.par.noghost)
@@ -377,14 +436,65 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         rvir = float("nan")
         mvir = float("nan")
 
+    if np.isfinite(rvir) and rvir > 0.0 and np.isfinite(mvir):
+        temperature_factor = float(
+            sim.par.CodeUnits.boltzmann_code
+            / sim.par.CodeUnits.proton_mass_code
+        )
+        tvir = float(
+            float(ic.get("mu", 0.59))
+            * float(cosmology.gravitational_constant)
+            * mvir / (2.0 * rvir * temperature_factor)
+        )
+    else:
+        tvir = float("nan")
+
     temp_phys = np.asarray(sim.fluid.temp[first:last], dtype=float) / a**2
-    valid = (proper > max(proper[0], 0.03 * rvir)) & (proper < 0.95 * proper[-1])
-    if np.any(valid):
-        gradient = np.gradient(np.log10(np.maximum(temp_phys, 1.0)), np.log10(np.maximum(proper, 1.0e-12)))
-        shock_index = np.flatnonzero(valid)[np.argmax(np.abs(gradient[valid]))]
-        rshock = float(proper[shock_index])
+    finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
+    if np.count_nonzero(finite_temperature) >= 7:
+        # A raw cell-to-cell derivative is dominated by the positivity floor
+        # and by individual shell-scale oscillations.  Smooth log(T) over
+        # five cells, then locate a resolved logarithmic jump in the halo.
+        log_temperature = np.log10(np.maximum(temp_phys, 1.0e-30))
+        padded = np.pad(log_temperature, (2, 2), mode="edge")
+        smoothed = np.convolve(padded, np.ones(5) / 5.0, mode="valid")
+        gradient = np.gradient(
+            smoothed,
+            np.log10(np.maximum(proper, 1.0e-12)),
+        )
+        lower_radius = proper[0]
+        if np.isfinite(rvir) and rvir > proper[0]:
+            lower_radius = max(lower_radius, 0.1 * rvir)
+        elif np.isfinite(rtarget):
+            lower_radius = max(lower_radius, 0.03 * rtarget)
+        upper_radius = 0.95 * proper[-1]
+        if np.isfinite(rtarget):
+            upper_radius = min(upper_radius, rtarget)
+        valid = (
+            finite_temperature
+            & (proper > lower_radius)
+            & (proper < upper_radius)
+        )
+        candidate = np.flatnonzero(valid)
+        if candidate.size:
+            local = candidate[np.argmax(np.abs(gradient[candidate]))]
+            # Require at least a modest resolved temperature jump; otherwise
+            # this is a smooth adiabatic profile, not a detected shock.
+            if abs(float(gradient[local])) >= 0.05:
+                rshock = float(proper[local])
+            else:
+                rshock = np.nan
+        else:
+            rshock = np.nan
     else:
         rshock = np.nan
+
+    rsplashback = splashback_radius(
+        dm_proper,
+        dm_m,
+        rvir_kpc=rvir,
+        bin_count=int(getattr(sim.par, "dm_density_bins", 128)),
+    )
 
     g_code = float(cosmology.gravitational_constant)
     j = float(ic["specific_angular_momentum"])
@@ -403,8 +513,10 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         "rho_crit_code": rho_crit,
         "max_delta200": float(np.nanmax(overdensity)),
         "rshock_kpc": rshock,
+        "rsplashback_kpc": rsplashback,
         "rdisc_kpc": rdisc,
         "mvir": mvir,
+        "tvir_K": tvir,
         "mshock": float(total_mass_at(rshock)) if np.isfinite(rshock) else np.nan,
         "mdisc": float(total_mass_at(rdisc)),
     }
@@ -436,6 +548,7 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
         "gas_density_code": gas["density_proper_code"],
         "dm_radius_kpc": dm_radius,
         "dm_density_code": dm_density,
+        "dm_mass": dm_mass,
     }
 
 

@@ -1,8 +1,9 @@
 runparams:
-  simname: CosmologicalAdiabaticGasCorrelationZ100
-  ICfilename: outputs_correlation_gas_adiabatic/InitialCondition.hdf5
-  outdir: outputs_correlation_gas_adiabatic
-  savedir: outputs_correlation_gas_adiabatic
+  simname: CosmologicalGasCorrelationZ100PIEZ10M1e11Z0Z03
+  figure_prefix: CosmologicalGasCorrelationZ100_PIE_Z10_M1e11_Z0_Z03
+  ICfilename: outputs_correlation_gas_pie_z10_m1e11_z0_z03/InitialCondition.hdf5
+  outdir: outputs_correlation_gas_pie_z10_m1e11_z0_z03
+  savedir: outputs_correlation_gas_pie_z10_m1e11_z0_z03
   outfileprefix: Output
   coordsys: spherical
   EOStype: polytropic
@@ -14,40 +15,41 @@ runparams:
   cosmology_type: einstein_de_sitter
   cosmology_t_ref: 14.4
   cosmology_a_ref: 1.0
-  boundcond: Reflecting
+  boundcond: InflowSph
   noghost: 2
   order: 1
   CFL: 0.10
   dark_matter_crossing_safety_factor: 0.5
-  # DarkMatterShells resolves crossings internally; do not force the global
-  # hydro timestep to stop at every predicted shell crossing.
   dark_matter_global_timestep_limit: false
-  dm_only_shells: 1024
-  dtmin: {value: 1.0e-4, unit: Myr}
-  # The z=100 supercomoving mapping makes a 2 Myr cap unnecessarily costly.
-  # CFL and the live-shell crossing limiter still reduce this when needed.
+  dm_density_bins: 128
+  dtmin: {value: 1.0e-12, unit: Myr}
+  cfl_density_floor: 1.0e-9
+  minimum_temperature: {value: 2.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
-  timesim: {value: 1.5, unit: Gyr}
-  final_cosmic_time: 16.0
+  final_cosmic_time: 14.4
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  thermochemistry_network: hydrogen
+  thermochemistry_transition_redshift: 10.0
+  thermochemistry_network: pie_uvbg_cooling
+  metal_pie_enabled: true
+  metal_pie_table_filename: ../../../../metal_pie_table/metal_pie_hm12_total.h5
+  metal_pie_redshift: 10.0
+  metallicity: 0.3
+  pie_uvbg_implicit_step_doubling: false
   hydrogen_chemistry: true
   hydrogen_xHI_initial: 0.9998
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  # This control isolates CMB Compton heating/cooling from atomic cooling.
-  hydrogen_atomic_cooling: false
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: true
+  hydrogen_atomic_cooling: true
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true
   cie_cooling: false
-  metal_pie_enabled: false
   compton_cmb_enabled: true
   compton_cmb_redshift: 100.0
   cmb_temperature_0: {value: 2.7255, unit: K}
   hydrogen_mass_fraction: 0.76
   CodeUnits:
-    name: cosmological_adiabatic_gas_correlation_unit_system
+    name: cosmological_gas_correlation_pie_z10_m1e11_z0_z03_unit_system
     InternalUnitSystem:
       UnitMass_in_cgs: 1.98847e43
       UnitLength_in_cgs: 3.085677581e21
@@ -61,7 +63,7 @@ ICparams:
   rmax: 4000.0
   initial_cosmic_time: 0.01418666885
   perturbation_radius: 250.0
-  target_halo_mass: 100.0
+  target_halo_mass: 10.0
   initial_overdensity: 0.0166930693
   initial_density_profile: linear_correlation
   correlation_h: 0.674
@@ -73,9 +75,6 @@ ICparams:
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
   softening: 0.05
-  uv_background_on_redshift: 10.0
-  # Compton equilibrium at z=100: T=T_CMB and residual post-recombination
-  # electron fraction.  The CMB redshift is updated during the run.
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 2.0e-4

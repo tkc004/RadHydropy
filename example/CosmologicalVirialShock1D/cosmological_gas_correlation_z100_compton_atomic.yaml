@@ -1,8 +1,9 @@
 runparams:
-  simname: CosmologicalGasCorrelationZ100
-  ICfilename: outputs_correlation_gas/InitialCondition.hdf5
-  outdir: outputs_correlation_gas
-  savedir: outputs_correlation_gas
+  simname: CosmologicalGasCorrelationZ100ComptonAtomic
+  figure_prefix: CosmologicalGasCorrelationZ100_ComptonAtomic
+  ICfilename: outputs_correlation_gas_compton_atomic/InitialCondition.hdf5
+  outdir: outputs_correlation_gas_compton_atomic
+  savedir: outputs_correlation_gas_compton_atomic
   outfileprefix: Output
   coordsys: spherical
   EOStype: polytropic
@@ -14,24 +15,14 @@ runparams:
   cosmology_type: einstein_de_sitter
   cosmology_t_ref: 14.4
   cosmology_a_ref: 1.0
-  # The outer ghost state is the homogeneous cosmic gas state; the inner
-  # spherical boundary remains reflecting at the origin.
   boundcond: InflowSph
   noghost: 2
   order: 1
   CFL: 0.10
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
-  # Match the live-shell density diagnostic in the dark-matter-only example.
   dm_density_bins: 128
-  # The cold adiabatic collapse develops a narrow central feature; allow the
-  # CFL limiter to follow it below the standard example floor.
-  # The central adiabatic feature is unresolved at late times.  Keep a very
-  # small diagnostic floor so the run can continue without accepting a
-  # negative/zero CFL step; this is not a physical resolution guarantee.
   dtmin: {value: 1.0e-12, unit: Myr}
-  # Code-density threshold for numerically evacuated cells.  Such cells can
-  # retain roundoff momentum and otherwise create enormous v = Mom/rho.
   cfl_density_floor: 1.0e-9
   minimum_temperature: {value: 2.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
@@ -39,18 +30,21 @@ runparams:
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen
-  hydrogen_chemistry: false
-  hydrogen_atomic_cooling: false
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  hydrogen_thermal_coupling: false
+  hydrogen_chemistry: true
+  hydrogen_xHI_initial: 0.9998
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: true
+  hydrogen_atomic_cooling: true
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: true
   cie_cooling: false
   metal_pie_enabled: false
-  compton_cmb_enabled: false
+  compton_cmb_enabled: true
+  compton_cmb_redshift: 100.0
   cmb_temperature_0: {value: 2.7255, unit: K}
   hydrogen_mass_fraction: 0.76
   CodeUnits:
-    name: cosmological_gas_correlation_unit_system
+    name: cosmological_gas_correlation_compton_atomic_unit_system
     InternalUnitSystem:
       UnitMass_in_cgs: 1.98847e43
       UnitLength_in_cgs: 3.085677581e21
@@ -76,7 +70,6 @@ ICparams:
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
   softening: 0.05
-  # Simwrap converts this to T_code = T_CMB * a^2 at the z=100 start.
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 2.0e-4
