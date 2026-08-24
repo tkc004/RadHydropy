@@ -37,6 +37,8 @@ runparams:
   hydrogen_atomic_cooling: true
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true
+  hydrogen_source_solver: hybrid
+  hydrogen_hybrid_change_tolerance: 0.10
   cie_cooling: false
   metal_pie_enabled: false
   compton_cmb_enabled: true

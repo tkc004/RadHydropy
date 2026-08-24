@@ -65,10 +65,15 @@ controls most commonly used by the bundled examples are:
 * ``hydrogen_collisional_ionization``: includes collisional ionization.
 * ``hydrogen_source_CFL`` and ``hydrogen_source_dtmin``: control source
   subcycling.
-* ``hydrogen_source_solver``: select ``coupled_implicit`` (the default) or
-  ``explicit``. The implicit option solves internal energy and ``xHI``
-  simultaneously at the new time, with positivity/bounds enforced in
-  transformed variables.
+* ``hydrogen_source_solver``: select ``coupled_implicit`` (the default),
+  ``explicit``, or ``hybrid``. The implicit option solves internal energy and
+  ``xHI`` simultaneously at the new time, with positivity/bounds enforced in
+  transformed variables. The hybrid option first takes an explicit trial;
+  it keeps that result when the largest relative temperature, energy, and
+  neutral-fraction change is at most ``hydrogen_hybrid_change_tolerance`` and
+  otherwise recomputes the interval implicitly.
+* ``hydrogen_hybrid_change_tolerance``: relative-change threshold for the
+  hybrid source solver, default ``0.1``.
 * ``hydrogen_implicit_tolerance``, ``hydrogen_implicit_max_iterations``, and
   ``hydrogen_implicit_max_refinements``: controls for the coupled solve. Each
   accepted interval compares one implicit step with two half-sized steps and

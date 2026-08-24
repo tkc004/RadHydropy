@@ -515,6 +515,27 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
     assert np.isfinite(fluid.temp[0])
 
 
+def test_hybrid_source_keeps_small_explicit_change():
+    _, par, fluid, mesh, _ = _source_test_problem(solver='hybrid')
+    par.hydrogen_hybrid_change_tolerance = 0.1
+
+    result = apply_thermochemistry_fast(1.0e-8, mesh, fluid, par)
+
+    assert result['source_solver'] == 'explicit'
+    assert result['relative_change'] <= 0.1
+
+
+def test_hybrid_source_uses_implicit_for_large_explicit_change():
+    _, par, fluid, mesh, _ = _source_test_problem(solver='hybrid')
+    par.hydrogen_hybrid_change_tolerance = 0.0
+    par.hydrogen_implicit_fallback = 'error'
+
+    result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
+
+    assert result['source_solver'] == 'coupled_implicit'
+    assert result['relative_change'] > 0.0
+
+
 def test_cmb_compton_source_is_opt_in_and_has_expected_sign():
     temperature = np.array([1.0, 1.0e4])
     electrons = np.ones(2)

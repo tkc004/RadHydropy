@@ -20,7 +20,8 @@ runparams:
   noghost: 2
   order: 0
   CFL: 0.1
-  hydrogen_source_solver: coupled_implicit
+  hydrogen_source_solver: hybrid
+  hydrogen_hybrid_change_tolerance: 0.10
   hydrogen_implicit_fallback: error
   hydrogen_implicit_tolerance: 1.0e-8
   hydrogen_implicit_convergence_tolerance: 1.0e-5

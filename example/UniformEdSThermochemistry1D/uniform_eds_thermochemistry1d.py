@@ -60,7 +60,13 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
     sim.GetStepTime = fixed_step_time
 
     physical = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
-    history = {"time_s": [], "temperature_K": [], "scale_factor": []}
+    history = {
+        "time_s": [],
+        "temperature_K": [],
+        "scale_factor": [],
+        "source_solver": [],
+        "relative_change": [],
+    }
 
     def reset_conserved_from_temperature():
         """Keep the wrapper state in primitive/conserved sync between source steps.
@@ -88,6 +94,10 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
         history["scale_factor"].append(scale_factor)
         history["temperature_K"].append(
             float(np.mean(sim.fluid.temp[physical]))
+        )
+        history["source_solver"].append(result.get("source_solver", "explicit"))
+        history["relative_change"].append(
+            float(result.get("relative_change", 0.0))
         )
         if not np.all(np.isfinite(sim.fluid.temp[physical])):
             raise RuntimeError(
@@ -154,6 +164,12 @@ def main():
     )
     error = np.max(np.abs(compton["temperature_K"] - analytic) / analytic)
     print(f"Compton-only maximum relative error: {error:.6e}")
+    for label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
+        choices, counts = np.unique(history["source_solver"], return_counts=True)
+        summary = ", ".join(
+            f"{choice}={count}" for choice, count in zip(choices, counts)
+        )
+        print(f"{label} hybrid source choices: {summary}")
     if error > 2.0e-3:
         raise RuntimeError("Compton-only EdS comparison failed")
     if not np.all(np.isfinite(atomic["temperature_K"])):
