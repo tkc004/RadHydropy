@@ -532,8 +532,41 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         # the configured value as the scale factor changes.
         sim.par.hydro_temperature_floor = minimum_temperature * scale_factor**2
 
+    def preserve_outer_background_cell():
+        """Reset the outer active cell to the analytic EdS reservoir state."""
+        first = int(sim.par.noghost)
+        index = first + int(sim.par.nogrid) - 1
+        old_mass = float(np.asarray(sim.fluid.Mass, dtype=float)[index])
+        old_energy = float(np.asarray(sim.fluid.Energy, dtype=float)[index])
+        rho = float(np.asarray(sim.par.rho_inflow, dtype=float))
+        velocity = float(np.asarray(sim.par.vel_inflow, dtype=float))
+        temperature = float(np.asarray(sim.par.temp_inflow, dtype=float))
+        mu = float(np.asarray(sim.par.mu_inflow, dtype=float))
+        volume = float(np.asarray(sim.mesh.vol, dtype=float)[index])
+        pressure = float(np.asarray(
+            sim.fluid.eos.pressure(rho, temperature, mu), dtype=float
+        ))
+        sim.fluid.rho[index] = rho
+        sim.fluid.vel[index] = velocity
+        sim.fluid.temp[index] = temperature
+        sim.fluid.mu[index] = mu
+        sim.fluid.pre[index] = pressure
+        sim.fluid.Mass[index] = rho * volume
+        sim.fluid.Mom[index] = rho * velocity * volume
+        sim.fluid.Energy[index] = float(np.asarray(
+            sim.fluid.eos.total_energy_density(rho, velocity, pressure),
+            dtype=float,
+        )) * volume
+        if hasattr(sim.fluid, "eth"):
+            sim.fluid.eth[index] = sim.fluid.eos.thermal_energy_density(pressure)
+        return (
+            float(np.asarray(sim.fluid.Mass, dtype=float)[index]) - old_mass,
+            float(np.asarray(sim.fluid.Energy, dtype=float)[index]) - old_energy,
+        )
+
     configure_thermochemistry(initial_time)
     update_cosmic_boundary(initial_time)
+    preserve_outer_background_cell()
 
     final_time = (
         float(final_time_override)
@@ -572,6 +605,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         **{key: [value] for key, value in audit_initial.items()},
         "gravitational_work": [0.0],
         "hydro_boundary_energy_flux": [0.0],
+        "background_reservoir_mass_change": [0.0],
+        "background_reservoir_energy_change": [0.0],
         "thermochemistry_energy_change": [0.0],
         "energy_closure_residual": [0.0],
     }
@@ -582,6 +617,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         )
         configure_thermochemistry(cosmic_start)
         update_cosmic_boundary(cosmic_start)
+        preserve_outer_background_cell()
         dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time))
         if transition_tau is not None and float(sim.fluid.time) < transition_tau:
             dt = min(dt, transition_tau - float(sim.fluid.time))
@@ -592,6 +628,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         steps += 1
         cosmic_time = float(
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+        )
+        update_cosmic_boundary(cosmic_time)
+        reservoir_mass_change, reservoir_energy_change = (
+            preserve_outer_background_cell()
         )
         audit_state = _energy_audit_state(sim)
         previous_energy = energy_audit["total_gas_energy"][-1]
@@ -615,9 +655,19 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         )
         energy_audit["gravitational_work"].append(gravity_work)
         energy_audit["hydro_boundary_energy_flux"].append(boundary_flux)
+        energy_audit["background_reservoir_mass_change"].append(
+            reservoir_mass_change
+        )
+        energy_audit["background_reservoir_energy_change"].append(
+            reservoir_energy_change
+        )
         energy_audit["thermochemistry_energy_change"].append(thermo_change)
         energy_audit["energy_closure_residual"].append(
-            energy_change - boundary_flux - gravity_work - thermo_change
+            energy_change
+            - boundary_flux
+            - reservoir_energy_change
+            - gravity_work
+            - thermo_change
         )
         if steps == 1 or steps % 100 == 0:
             print(
@@ -662,12 +712,19 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     plot_mass_history(history, figure)
     plot_radius_history(history, radius_figure)
     temperature_figure = output_dir / (figure_prefix + "_Temperatures.jpg")
+    temperature_plot_ymin = runparams.get(
+        "temperature_plot_ymin", minimum_temperature
+    )
+    if hasattr(temperature_plot_ymin, "to_value"):
+        temperature_plot_ymin = float(temperature_plot_ymin.to_value("K"))
+    else:
+        temperature_plot_ymin = float(temperature_plot_ymin)
     plot_temperature_evolution(
         times, radius, density, temperature, virial_radius, splashback_radius,
         scale_factors,
         virial_temperature,
         temperature_figure,
-        minimum_temperature=minimum_temperature,
+        minimum_temperature=temperature_plot_ymin,
     )
     density_figure = output_dir / (figure_prefix + "_Densities.jpg")
     cosmic_gas_density_z0 = baryon_fraction * float(

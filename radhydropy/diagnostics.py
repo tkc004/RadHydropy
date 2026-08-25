@@ -38,7 +38,11 @@ def thermochemistry_active_mask(rho_physical_g_cm3, par, density_factor=1.0):
     code = getattr(par, 'CodeUnits', None)
     if code is None:
         return np.asarray(rho_physical_g_cm3, dtype=float) > 0.0
-    physical_floor = density_floor * float(code.density_in_cgs) / float(density_factor)
+    physical_floor = (
+        density_floor
+        * float(code.unit_conversion['density_g_cm3'])
+        / float(density_factor)
+    )
     return np.asarray(rho_physical_g_cm3, dtype=float) > physical_floor
 
 

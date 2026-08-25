@@ -26,9 +26,8 @@ runparams:
   dm_density_bins: 128
   dtmin: {value: 1.0e-12, unit: Myr}
   cfl_density_floor: 1.0e-9
-  # Do not impose a 2 K hydro floor: the adiabatically cooled EdS background
-  # reaches about 0.28 K by the end of this run.
-  minimum_temperature: {value: 0.0, unit: K}
+  minimum_temperature: {value: 2.0, unit: K}
+  temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
   final_cosmic_time: 2.5
   gas_profile_cadence: 0.10
@@ -80,8 +79,8 @@ ICparams:
   dm_core_absorption_velocity: 0.0
   dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
-  dm_specific_angular_momentum: 0.01
-  softening: 0.1
+  dm_specific_angular_momentum: 0.02
+  softening: 0.2
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 2.0e-4
