@@ -232,6 +232,7 @@ class Rsim():
             self.mesh,
             fluid,
             self.par.boundcond,
+            method=getattr(self.par, 'riemann_solver', 'Rusanov'),
             verbose=getattr(self.par, 'verbose', 0),
             order=self.par.order,
         )
@@ -385,7 +386,10 @@ class Rsim():
             advect_chemistry=advect_chemistry,
         )
 
-        for attr in ("Mass", "Mom", "Energy"):
+        conserved_fields = ["Mass", "Mom", "Energy"]
+        if hasattr(initial_state, "InternalEnergy") and hasattr(stage2, "InternalEnergy"):
+            conserved_fields.append("InternalEnergy")
+        for attr in conserved_fields:
             setattr(
                 self.fluid,
                 attr,

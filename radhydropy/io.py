@@ -719,6 +719,20 @@ def writehdf5(ric,ICfilename):
                 ),
             },
         )
+        for attr, dataset_name in (
+            ("Mass", "Mass"),
+            ("Energy", "Energy"),
+            ("InternalEnergy", "InternalEnergy"),
+        ):
+            if hasattr(ric.fluid, attr):
+                _write_quantity(
+                    gdata,
+                    dataset_name,
+                    getattr(ric.fluid, attr),
+                    code_units=code_units,
+                    scale_key="mass_g" if attr == "Mass" else "energy_erg",
+                    default_unit=unyt.g if attr == "Mass" else unyt.erg,
+                )
         gdata.create_dataset("Mol_weight", data=np.asarray(ric.fluid.mu))
         if hasattr(ric.fluid, "xHI"):
             gdata.create_dataset("NeutralFraction", data=np.asarray(ric.fluid.xHI))
@@ -854,6 +868,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
             "Velocity": "velocity_cm_s",
             "Temperature": "temperature_K",
             "PhotonNumberDensity": "number_density_cm3",
+            "Mass": "mass_g",
+            "Energy": "energy_erg",
+            "InternalEnergy": "energy_erg",
         }
         _populate_group_targets(
             gdata,

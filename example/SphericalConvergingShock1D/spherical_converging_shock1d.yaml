@@ -1,0 +1,38 @@
+runparams:
+  simname: SphericalConvergingShock1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  savedir: .
+  outdeltatime: {value: 0.05, unit: s}
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.4
+  timesim: {value: 0.8, unit: s}
+  CFL: 0.1
+  boundcond: Reflecting
+  order: 1
+  riemann_solver: Rusanov
+  dual_energy: false
+  noghost: 2
+  dtmin: {value: 1.0e-8, unit: s}
+  dtmax: {value: 2.0e-3, unit: s}
+  temperature_jump_error_threshold: 1.0e12
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 512
+  coordsys: spherical
+  boxsize: {value: 1.0, unit: cm}
+  time: {value: 0.0, unit: s}
+  rhoini: {value: 1.0, unit: g/cm**3}
+  tempini: {value: 1.0e-10, unit: K}
+  muini: 1.0
+  vini: {value: -1.0, unit: cm/s}

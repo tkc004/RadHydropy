@@ -31,10 +31,12 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('sodshock1d.yaml')
 
 
-def main(config_filename=DEFAULT_CONFIG):
+def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
+    if riemann_solver is not None:
+        runparams['riemann_solver'] = riemann_solver
     eu.clean_previous_outputs(runparams)
     code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
 
@@ -66,9 +68,10 @@ def main(config_filename=DEFAULT_CONFIG):
 def parse_args():
     parser = argparse.ArgumentParser(description='Run the Sod shock example.')
     parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with runparams and ICparams.')
+    parser.add_argument('--riemann-solver', choices=('Rusanov', 'HLLC'))
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    main(args.config)
+    main(args.config, riemann_solver=args.riemann_solver)

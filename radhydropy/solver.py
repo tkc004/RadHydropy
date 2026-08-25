@@ -485,13 +485,33 @@ class Solver():
         numerical_vacuum = active & (rho <= density_floor)
         fluid.vel[numerical_vacuum] = 0.0
         energy_density = as_named_array(energy_density)
-        fluid.pre = fluid.eos.pressure_from_conserved(
+        total_pressure = fluid.eos.pressure_from_conserved(
             fluid.rho,
             fluid.vel,
             energy_density,
             temp=getattr(fluid, 'temp', None),
             mu=getattr(fluid, 'mu', None),
         )
+        fluid.pre = total_pressure
+        if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy'):
+            internal_density = np.zeros_like(rho)
+            internal_density[valid_volume] = (
+                np.asarray(fluid.InternalEnergy, dtype=float)[valid_volume]
+                / np.asarray(vol, dtype=float)[valid_volume]
+            )
+            dual_pressure = (fluid.eos.gamma - 1.0) * internal_density
+            total_thermal = energy_density - 0.5 * fluid.rho * fluid.vel**2
+            switch = float(getattr(par, 'dual_energy_switch', 1.0e-3))
+            use_dual = (
+                np.isfinite(internal_density)
+                & (internal_density > 0.0)
+                & np.isfinite(dual_pressure)
+                & (
+                    total_thermal
+                    <= switch * np.maximum(np.abs(energy_density), 1.0e-300)
+                )
+            )
+            fluid.pre[use_dual] = dual_pressure[use_dual]
         fluid.rho[~active] = 0.0
         fluid.vel[~active] = 0.0
         invalid_pressure = np.logical_or(fluid.pre <= 0.0, np.isnan(fluid.pre))
@@ -515,6 +535,33 @@ class Solver():
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is not None:
             fluid.vel[center_cell] = 0.0
+            # The origin is a reflecting boundary.  If the center cell still
+            # carries radial momentum, removing that resolved velocity must
+            # convert its kinetic energy into internal energy rather than
+            # rebuilding pressure from the pre-reflection velocity and then
+            # silently dropping the kinetic term in SetConserved().
+            if (not bool(numerical_vacuum[center_cell])) and active[center_cell]:
+                if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy'):
+                    fluid.InternalEnergy[center_cell] = (
+                        energy_density[center_cell] * vol[center_cell]
+                    )
+                fluid.pre[center_cell] = fluid.eos.pressure_from_conserved(
+                    fluid.rho[center_cell],
+                    0.0,
+                    energy_density[center_cell],
+                    temp=getattr(fluid, 'temp', None),
+                    mu=getattr(fluid, 'mu', None),
+                )
+                if temperature_floor is not None and float(temperature_floor) > 0.0:
+                    floor_pressure = fluid.eos.pressure(
+                        fluid.rho[center_cell],
+                        float(temperature_floor),
+                        fluid.mu[center_cell],
+                    )
+                    fluid.pre[center_cell] = max(
+                        float(fluid.pre[center_cell]),
+                        float(floor_pressure),
+                    )
         if verbose >= 2:
             print('fluid.rho',fluid.rho)
             print('fluid.vel',fluid.vel)
@@ -524,7 +571,19 @@ class Solver():
         """Update conserved mass, momentum, and energy from primitive variables."""
         if verbose is None:
             verbose = 0
-        density_floor = self._cfl_density_floor(getattr(mesh, '_par', None))
+        par = getattr(mesh, '_par', None)
+        density_floor = self._cfl_density_floor(par)
+        dual_energy = self._dual_energy_enabled(par)
+        old_internal = (
+            np.asarray(fluid.InternalEnergy, dtype=float).copy()
+            if dual_energy and hasattr(fluid, 'InternalEnergy')
+            else None
+        )
+        old_total_energy = (
+            np.asarray(fluid.Energy, dtype=float).copy()
+            if dual_energy and hasattr(fluid, 'Energy')
+            else None
+        )
         old_conserved = None
         if density_floor > 0.0 and all(
             hasattr(fluid, name) for name in ('Mass', 'Mom', 'Energy')
@@ -547,6 +606,20 @@ class Solver():
         ) * vol)
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
+        if old_total_energy is not None:
+            first = int(getattr(par, 'noghost', 0))
+            count = int(getattr(par, 'nogrid', len(fluid.Energy) - first))
+            fluid.Energy[first:first + count] = old_total_energy[first:first + count]
+        if dual_energy and getattr(fluid.eos, 'is_polytropic', False):
+            internal = np.asarray(
+                fluid.eos.thermal_energy_density(fluid.pre) * vol,
+                dtype=float,
+            )
+            if old_internal is not None:
+                first = int(getattr(par, 'noghost', 0))
+                count = int(getattr(par, 'nogrid', len(internal) - first))
+                internal[first:first + count] = old_internal[first:first + count]
+            fluid.InternalEnergy = as_named_array(np.maximum(internal, 0.0))
         if old_conserved is not None:
             inactive, old_mass, old_mom, old_energy = old_conserved
             fluid.Mass[inactive] = old_mass[inactive]
@@ -571,6 +644,10 @@ class Solver():
         return max(0.0, float(np.asarray(
             getattr(par, 'cfl_density_floor', 0.0), dtype=float
         )))
+
+    @staticmethod
+    def _dual_energy_enabled(par):
+        return bool(getattr(par, 'dual_energy', False))
 
     def _apply_low_density_face_mask(self, fluid, par, order):
         """Make below-floor reconstructed states vacuum-safe.
@@ -703,7 +780,106 @@ class Solver():
         )
 
 
-    def SetFluxOnFace(self,fluid,boundcond,order=0,par=None):
+    @staticmethod
+    def _hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
+        """Return an HLLC Euler flux for positive, non-vacuum states.
+
+        The caller supplies the Rusanov flux for vacuum, non-finite, or
+        degenerate states.  Keeping that fallback explicit is important for
+        the vacuum examples: HLLC's star-state formula is undefined when one
+        side has zero density.
+        """
+        rho_L = np.asarray(rho_L, dtype=float)
+        vel_L = np.asarray(vel_L, dtype=float)
+        pre_L = np.asarray(pre_L, dtype=float)
+        rho_R = np.asarray(rho_R, dtype=float)
+        vel_R = np.asarray(vel_R, dtype=float)
+        pre_R = np.asarray(pre_R, dtype=float)
+        valid = (
+            np.isfinite(rho_L) & np.isfinite(vel_L) & np.isfinite(pre_L)
+            & np.isfinite(rho_R) & np.isfinite(vel_R) & np.isfinite(pre_R)
+            & (rho_L > 0.0) & (rho_R > 0.0)
+            & (pre_L > 0.0) & (pre_R > 0.0)
+        )
+        sound_L = np.zeros_like(rho_L)
+        sound_R = np.zeros_like(rho_R)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            sound_L = np.sqrt(gamma * pre_L / rho_L)
+            sound_R = np.sqrt(gamma * pre_R / rho_R)
+        valid &= np.isfinite(sound_L) & np.isfinite(sound_R)
+
+        energy_L = pre_L / (gamma - 1.0) + 0.5 * rho_L * vel_L**2
+        energy_R = pre_R / (gamma - 1.0) + 0.5 * rho_R * vel_R**2
+        flux_L = np.stack((rho_L * vel_L,
+                           rho_L * vel_L**2 + pre_L,
+                           vel_L * (gamma * pre_L / (gamma - 1.0)
+                                    + 0.5 * rho_L * vel_L**2)))
+        flux_R = np.stack((rho_R * vel_R,
+                           rho_R * vel_R**2 + pre_R,
+                           vel_R * (gamma * pre_R / (gamma - 1.0)
+                                    + 0.5 * rho_R * vel_R**2)))
+        result = 0.5 * (flux_L + flux_R)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            wave_L = np.minimum(vel_L - sound_L, vel_R - sound_R)
+            wave_R = np.maximum(vel_L + sound_L, vel_R + sound_R)
+            wave_M = (
+                pre_R - pre_L
+                + rho_L * vel_L * (wave_L - vel_L)
+                - rho_R * vel_R * (wave_R - vel_R)
+            ) / (rho_L * (wave_L - vel_L) - rho_R * (wave_R - vel_R))
+            pressure_M = pre_L + rho_L * (wave_L - vel_L) * (wave_M - vel_L)
+            rho_star_L = rho_L * (wave_L - vel_L) / (wave_L - wave_M)
+            rho_star_R = rho_R * (wave_R - vel_R) / (wave_R - wave_M)
+            energy_star_L = (
+                (wave_L - vel_L) * energy_L - pre_L * vel_L
+                + pressure_M * wave_M
+            ) / (wave_L - wave_M)
+            energy_star_R = (
+                (wave_R - vel_R) * energy_R - pre_R * vel_R
+                + pressure_M * wave_M
+            ) / (wave_R - wave_M)
+        star_L = np.stack((rho_star_L, rho_star_L * wave_M, energy_star_L))
+        star_R = np.stack((rho_star_R, rho_star_R * wave_M, energy_star_R))
+        flux_star_L = flux_L + wave_L * (star_L - np.stack((rho_L, rho_L * vel_L, energy_L)))
+        flux_star_R = flux_R + wave_R * (star_R - np.stack((rho_R, rho_R * vel_R, energy_R)))
+        left = wave_L >= 0.0
+        left_star = (wave_L < 0.0) & (wave_M >= 0.0)
+        right_star = (wave_M < 0.0) & (wave_R > 0.0)
+        right = wave_R <= 0.0
+        result = np.where(left[None, :], flux_L, result)
+        result = np.where(left_star[None, :], flux_star_L, result)
+        result = np.where(right_star[None, :], flux_star_R, result)
+        result = np.where(right[None, :], flux_R, result)
+        valid &= np.isfinite(result).all(axis=0)
+        return result, valid
+
+    def _interface_fluxes(self, fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
+        states = fluid.eos.fluxes(rho_L, vel_L, pre_L)
+        states_R = fluid.eos.fluxes(rho_R, vel_R, pre_R)
+        if method != 'HLLC' or not getattr(fluid.eos, 'is_polytropic', False):
+            return tuple(
+                ru.CalInterFaceFluxGLF(left, right, qleft, qright, fluid.cmax)
+                for left, right, qleft, qright in (
+                    (states[0], states_R[0], states[1], states_R[1]),
+                    (states[2], states_R[2], states[3], states_R[3]),
+                    (states[4], states_R[4], states[5], states_R[5]),
+                )
+            )
+        hllc, valid = self._hllc_flux(
+            rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, fluid.eos.gamma
+        )
+        rusanov = np.stack(tuple(
+            ru.CalInterFaceFluxGLF(left, right, qleft, qright, fluid.cmax)
+            for left, right, qleft, qright in (
+                (states[0], states_R[0], states[1], states_R[1]),
+                (states[2], states_R[2], states[3], states_R[3]),
+                (states[4], states_R[4], states[5], states_R[5]),
+            )
+        ))
+        flux = np.where(valid[None, :], hllc, rusanov)
+        return tuple(flux[index] for index in range(3))
+
+    def SetFluxOnFace(self,fluid,boundcond,order=0,par=None,method='Rusanov'):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
         rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
             fluid.rho.L, fluid.vel.L, fluid.pre.L
@@ -711,25 +887,9 @@ class Solver():
         rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
             fluid.rho.R, fluid.vel.R, fluid.pre.R
         )
-        (
-            Fmass_L,
-            qmass_L,
-            Fmom_L,
-            qmom_L,
-            FEn_L,
-            qEn_L,
-        ) = fluid.eos.fluxes(rho_L, vel_L, pre_L)
-        (
-            Fmass_R,
-            qmass_R,
-            Fmom_R,
-            qmom_R,
-            FEn_R,
-            qEn_R,
-        ) = fluid.eos.fluxes(rho_R, vel_R, pre_R)
-        Mass_flux_0 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
-        Mom_flux_0 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
-        Energy_flux_0 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
+        Mass_flux_0, Mom_flux_0, Energy_flux_0 = self._interface_fluxes(
+            fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
+        )
         if order==0:
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
         elif order==1:
@@ -739,25 +899,9 @@ class Solver():
             rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
                 fluid.rho.R.first, fluid.vel.R.first, fluid.pre.R.first
             )
-            (
-                Fmass_L,
-                qmass_L,
-                Fmom_L,
-                qmom_L,
-                FEn_L,
-                qEn_L,
-            ) = fluid.eos.fluxes(rho_L, vel_L, pre_L)
-            (
-                Fmass_R,
-                qmass_R,
-                Fmom_R,
-                qmom_R,
-                FEn_R,
-                qEn_R,
-            ) = fluid.eos.fluxes(rho_R, vel_R, pre_R)
-            Mass_flux_1 = ru.CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, fluid.cmax)
-            Mom_flux_1 = ru.CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, fluid.cmax)
-            Energy_flux_1 = ru.CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, fluid.cmax)
+            Mass_flux_1, Mom_flux_1, Energy_flux_1 = self._interface_fluxes(
+                fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
+            )
             self.SetConservedDensityFlux(fluid)
             fluid.Mass.flux, fluid.philim_Mass = ru.ApplyFluxLimiter(fluid.Mass.q, Mass_flux_1, Mass_flux_0)
             fluid.Mom.flux, fluid.philim_Mom = ru.ApplyFluxLimiter(fluid.Mom.q, Mom_flux_1, Mom_flux_0)
@@ -818,7 +962,7 @@ class Solver():
 
     @staticmethod
     def _positive_conserved_state(mass, momentum, energy, mass_floor=0.0,
-                                  energy_floor=0.0):
+                                  energy_floor=0.0, relative_tolerance=1.0e-12):
         """Return the invariant-domain admissibility mask for Euler states."""
         mass = np.asarray(mass, dtype=float)
         momentum = np.asarray(momentum, dtype=float)
@@ -840,7 +984,7 @@ class Solver():
         # Cold pressureless states lie on the invariant-domain boundary.  A
         # relative tolerance prevents harmless cancellation in E-K from
         # turning that boundary state into a negative internal energy.
-        tolerance = 1.0e-12 * np.maximum(
+        tolerance = relative_tolerance * np.maximum(
             np.maximum(np.abs(energy), kinetic),
             np.maximum(np.abs(energy_floor), np.finfo(float).tiny),
         )
@@ -895,11 +1039,17 @@ class Solver():
         last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
         physical = np.zeros(len(mass), dtype=bool)
         physical[first:last] = True
+        relative_tolerance = (
+            1.0e-10
+            if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy')
+            else 1.0e-12
+        )
 
         def admissible(mass_value, momentum_value, energy_value):
             valid = self._positive_conserved_state(
                 mass_value, momentum_value, energy_value,
                 mass_floor=mass_floor, energy_floor=energy_floor,
+                relative_tolerance=relative_tolerance,
             )
             # Ghost cells are refreshed from the boundary condition before
             # the next hydro step and must not limit a physical update.
@@ -937,10 +1087,10 @@ class Solver():
         return low
         
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=None, order=0):
-        """Set interface fluxes using GLF or Rusanov numerical fluxes."""
+        """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
         if verbose is None:
             verbose = 0
-        if method=='GLF' or method=='Rusanov':
+        if method in ('GLF', 'Rusanov', 'HLLC'):
             if method=='GLF':
                 # Global Lax Friedrich scheme
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
@@ -952,10 +1102,12 @@ class Solver():
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
                 # simple to implement but less diffusive
                 fluid.cmax = np.maximum(fluid.vsignal, ru.periodic_roll(fluid.vsignal, 1))
+            else:  # HLLC uses Rusanov speeds for CFL and vacuum fallback.
+                fluid.cmax = np.maximum(fluid.vsignal, ru.periodic_roll(fluid.vsignal, 1))
             
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
             self.SetFluxOnFace(
-                fluid, boundcond, order=order, par=getattr(mesh, '_par', None)
+                fluid, boundcond, order=order, par=getattr(mesh, '_par', None), method=method
             )
             self._apply_low_density_flux_mask(
                 fluid, getattr(mesh, '_par', None)
@@ -984,13 +1136,67 @@ class Solver():
             area_right = ru.periodic_roll(area, -1)
             df_Mom += fluid.pre * (area_right - area)
 
+        dual_energy = (
+            self._dual_energy_enabled(getattr(mesh, '_par', None))
+            and hasattr(fluid, 'InternalEnergy')
+            and getattr(fluid.eos, 'is_polytropic', False)
+        )
+        df_InternalEnergy = None
+        if dual_energy:
+            gamma_minus_one = fluid.eos.gamma - 1.0
+            velocity_left = np.asarray(fluid.vel.L, dtype=float)
+            velocity_right = np.asarray(fluid.vel.R, dtype=float)
+            pressure_left = np.asarray(fluid.pre.L, dtype=float)
+            pressure_right = np.asarray(fluid.pre.R, dtype=float)
+            internal_left = pressure_left / gamma_minus_one
+            internal_right = pressure_right / gamma_minus_one
+            face_velocity = np.where(
+                0.5 * (velocity_left + velocity_right) >= 0.0,
+                velocity_left,
+                velocity_right,
+            )
+            face_internal = np.where(
+                face_velocity >= 0.0,
+                internal_left,
+                internal_right,
+            )
+            internal_flux = face_velocity * face_internal
+            origin_face = self._spherical_origin_face_index(mesh)
+            if origin_face is not None:
+                internal_flux[origin_face] = 0.0
+            df_InternalEnergy = (
+                internal_flux * area
+                - ru.periodic_roll(internal_flux * area, -1)
+            )
+            if getattr(mesh, 'coordsys', None) == 'spherical':
+                df_InternalEnergy -= fluid.pre * (
+                    ru.periodic_roll(face_velocity * area, -1)
+                    - face_velocity * area
+                )
+
         par = getattr(mesh, '_par', None)
         positivity_factor = self._positivity_limited_increment(
             fluid, dt, mesh, par, df_Mass, df_Mom, df_Energy
         )
+        if df_InternalEnergy is not None:
+            old_internal = np.asarray(fluid.InternalEnergy, dtype=float)
+            increment = float(np.asarray(dt, dtype=float)) * np.asarray(
+                df_InternalEnergy, dtype=float
+            )
+            valid = old_internal + increment >= 0.0
+            if not np.all(valid):
+                reducing = increment < 0.0
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    dual_factor = np.min(
+                        np.where(reducing, old_internal / (-increment), 1.0)
+                    )
+                positivity_factor = min(positivity_factor, max(0.0, dual_factor))
         fluid.Mass += positivity_factor * df_Mass * dt
         fluid.Mom  += positivity_factor * df_Mom * dt
         fluid.Energy += positivity_factor * df_Energy * dt
+        if df_InternalEnergy is not None:
+            fluid.InternalEnergy += positivity_factor * df_InternalEnergy * dt
+            fluid.InternalEnergy = np.maximum(fluid.InternalEnergy, 0.0)
         self._zero_spherical_center_momentum(mesh, fluid)
 
         # advance time

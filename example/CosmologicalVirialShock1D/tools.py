@@ -511,15 +511,17 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         )
         lower_radius = proper[0]
         if np.isfinite(rvir) and rvir > proper[0]:
-            lower_radius = max(lower_radius, 0.1 * rvir)
+            # The virial shock is an outer-halo feature.  Exclude inner
+            # cooling/centrifugal transitions from the shock diagnostic.
+            lower_radius = max(lower_radius, 0.5 * rvir)
         elif np.isfinite(rtarget):
             # The virial shock is an outer-halo feature.  Do not let an
             # unresolved inner cooling/adiabatic feature become r_shock
             # merely because it has a larger cell-to-cell gradient.
             lower_radius = max(lower_radius, 0.3 * rtarget)
         upper_radius = 0.95 * proper[-1]
-        if np.isfinite(rtarget):
-            upper_radius = min(upper_radius, rtarget)
+        if np.isfinite(rvir) and rvir > proper[0]:
+            upper_radius = min(upper_radius, 3.0 * rvir)
         valid = (
             finite_temperature
             & (proper > lower_radius)

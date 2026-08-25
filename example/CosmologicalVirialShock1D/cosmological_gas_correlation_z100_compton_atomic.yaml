@@ -20,12 +20,14 @@ runparams:
   noghost: 2
   order: 1
   CFL: 0.10
-  verbose: 1
+  verbose: 0
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
   dm_density_bins: 128
   dtmin: {value: 1.0e-12, unit: Myr}
-  cfl_density_floor: 1.0e-9
+  # Runtime density is comoving in this supercomoving run.
+  # About 1e10 below the mean comoving gas density (~9.34e-10 code units).
+  cfl_density_floor: 9.3e-20
   minimum_temperature: {value: 2.0, unit: K}
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}

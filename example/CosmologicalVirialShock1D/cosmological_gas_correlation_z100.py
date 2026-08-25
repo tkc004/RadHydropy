@@ -210,16 +210,17 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
             axes[0].axvline(
                 splashback_radius[index], color=color, ls="-.", lw=1.2, alpha=0.85,
             )
-            temperature_at_splashback = np.interp(
-                splashback_radius[index], binned_radius, binned_temperature,
-                left=np.nan, right=np.nan,
-            )
-            if np.isfinite(temperature_at_splashback) and temperature_at_splashback > 0.0:
-                axes[0].plot(
-                    splashback_radius[index], temperature_at_splashback,
-                    marker="s", ms=4.5, color=color, mec="black", mew=0.35,
-                    linestyle="None", zorder=5,
-    )
+            if binned_radius.size and binned_temperature.size:
+                temperature_at_splashback = np.interp(
+                    splashback_radius[index], binned_radius, binned_temperature,
+                    left=np.nan, right=np.nan,
+                )
+                if np.isfinite(temperature_at_splashback) and temperature_at_splashback > 0.0:
+                    axes[0].plot(
+                        splashback_radius[index], temperature_at_splashback,
+                        marker="s", ms=4.5, color=color, mec="black", mew=0.35,
+                        linestyle="None", zorder=5,
+                    )
     axes[0].set_xlabel("proper radius [kpc]")
     axes[0].set_ylabel("physical gas temperature [K]")
     if minimum_temperature is not None and float(minimum_temperature) > 0.0:
@@ -456,11 +457,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     initial_time = float(icparams["initial_cosmic_time"])
     initial_a = float(cosmology.scale_factor(initial_time))
     sim.par.mu_inflow = float(icparams.get("mu", 0.59))
-    minimum_temperature = runparams.get("minimum_temperature", 2.0)
-    if hasattr(minimum_temperature, "to_value"):
-        minimum_temperature = float(minimum_temperature.to_value("K"))
-    else:
-        minimum_temperature = float(minimum_temperature)
+    minimum_temperature = runparams.get("minimum_temperature", None)
+    if minimum_temperature is not None:
+        if hasattr(minimum_temperature, "to_value"):
+            minimum_temperature = float(minimum_temperature.to_value("K"))
+        else:
+            minimum_temperature = float(minimum_temperature)
 
     transition_redshift = runparams.get("thermochemistry_transition_redshift")
     transition_tau = None
@@ -530,7 +532,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         # Hydro stores supercomoving temperature; keep the physical floor at
         # the configured value as the scale factor changes.
-        sim.par.hydro_temperature_floor = minimum_temperature * scale_factor**2
+        sim.par.hydro_temperature_floor = (
+            None
+            if minimum_temperature is None
+            else minimum_temperature * scale_factor**2
+        )
 
     def preserve_outer_background_cell():
         """Reset the outer active cell to the analytic EdS reservoir state."""
@@ -567,6 +573,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     configure_thermochemistry(initial_time)
     update_cosmic_boundary(initial_time)
     preserve_outer_background_cell()
+    # The timestep estimate must see the current comoving reservoir in the
+    # ghost cells, rather than the default InflowSph state from SetInitFluid.
+    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+    sim.solver.SetConserved(sim.mesh, sim.fluid)
 
     final_time = (
         float(final_time_override)
@@ -618,6 +628,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         configure_thermochemistry(cosmic_start)
         update_cosmic_boundary(cosmic_start)
         preserve_outer_background_cell()
+        # Keep the outer ghost reservoir synchronized before GetStepTime().
+        sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+        sim.solver.SetConserved(sim.mesh, sim.fluid)
         dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time))
         if transition_tau is not None and float(sim.fluid.time) < transition_tau:
             dt = min(dt, transition_tau - float(sim.fluid.time))

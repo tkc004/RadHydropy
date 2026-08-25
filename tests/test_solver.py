@@ -159,6 +159,28 @@ class Mesh:
 
 
 class Testing(unittest.TestCase):
+    def test_hllc_uniform_state_returns_physical_flux(self):
+        rho = np.array([1.0, 2.0])
+        velocity = np.array([0.75, -0.25])
+        pressure = np.array([1.0, 0.5])
+        flux, valid = Solver._hllc_flux(
+            rho, velocity, pressure, rho, velocity, pressure, gamma=1.4
+        )
+        expected = np.stack((
+            rho * velocity,
+            rho * velocity**2 + pressure,
+            velocity * (1.4 * pressure / 0.4 + 0.5 * rho * velocity**2),
+        ))
+        np.testing.assert_array_equal(valid, [True, True])
+        np.testing.assert_allclose(flux, expected, rtol=1.0e-13, atol=1.0e-13)
+
+    def test_hllc_marks_vacuum_state_for_rusanov_fallback(self):
+        _, valid = Solver._hllc_flux(
+            np.array([0.0]), np.array([0.0]), np.array([0.0]),
+            np.array([1.0]), np.array([1.0]), np.array([1.0]), gamma=1.4
+        )
+        np.testing.assert_array_equal(valid, [False])
+
     def test_callreadhdf5_requires_code_units(self):
         sim = Rsim.__new__(Rsim)
         sim.par = SimpleNamespace(ICfilename='dummy.hdf5')
@@ -340,6 +362,35 @@ class Testing(unittest.TestCase):
         Solver().AddFluxes(1.0*unyt.s, mesh, fluid, 'OpenSph')
 
         np.testing.assert_allclose(fluid.Mom.value, np.zeros(8))
+
+    def test_spherical_center_reflection_conserves_kinetic_energy(self):
+        mesh = make_code_mesh(4)
+        mesh.coordsys = 'spherical'
+        mesh.boundary[0] = 0.0
+        mesh.coordinate[0] = 0.5
+        fluid = make_code_fluid(4)
+        fluid.rho[:] = 1.0
+        fluid.vel[:] = 0.0
+        fluid.vel[0] = 3.0
+        fluid.mu[:] = 1.0
+        fluid.pre = as_named_array(np.ones(4))
+        fluid.pre[:] = 1.0
+        fluid.Mass = as_named_array(fluid.rho * mesh.vol)
+        fluid.Mom = as_named_array(fluid.rho * fluid.vel * mesh.vol)
+        fluid.Energy = as_named_array(
+            fluid.eos.total_energy_density(
+                fluid.rho, fluid.vel, fluid.pre
+            ) * mesh.vol
+        )
+        total_energy = float(fluid.Energy[0])
+
+        solver = Solver()
+        solver.SetPrimitive(mesh, fluid)
+        solver.SetConserved(mesh, fluid)
+
+        self.assertEqual(float(fluid.vel[0]), 0.0)
+        self.assertAlmostEqual(float(fluid.Energy[0]), total_energy)
+        self.assertGreater(float(fluid.pre[0]), 1.0)
 
     def test_positivity_limiter_preserves_mass_and_internal_energy(self):
         par = make_code_par()

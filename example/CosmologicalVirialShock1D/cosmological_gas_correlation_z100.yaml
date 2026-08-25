@@ -18,9 +18,10 @@ runparams:
   boundcond: InflowSph
   cosmological_background_boundary_reconstruction: true
   noghost: 2
+  # order=1 is the limited MUSCL (second-order spatial) reconstruction.
   order: 1
   CFL: 0.10
-  verbose: 1
+  #verbose: 1
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
   # Match the live-shell density diagnostic in the dark-matter-only example.
@@ -33,9 +34,14 @@ runparams:
   dtmin: {value: 1.0e-12, unit: Myr}
   # Code-density threshold for numerically evacuated cells.  Such cells can
   # retain roundoff momentum and otherwise create enormous v = Mom/rho.
-  cfl_density_floor: 1.0e-9
+  # Runtime density is comoving in this supercomoving run.
+  # About 1e10 below the mean comoving gas density (~9.34e-10 code units).
+  cfl_density_floor: 9.3e-20
   temperature_jump_error_threshold: 1.0e8
-  minimum_temperature: {value: 2.0, unit: K}
+  # The adiabatic CMB reservoir falls below 2 K by the end of the run.  A
+  # hydro floor here would inject energy into the expanding background and
+  # invalidate the conservation audit.  Keep 1 K only as a plot limit.
+  minimum_temperature: null
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
   final_cosmic_time: 2.5
