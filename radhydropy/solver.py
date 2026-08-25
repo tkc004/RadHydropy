@@ -1268,8 +1268,17 @@ class Solver():
                 "Gravity acceleration shape %s does not match fluid state shape %s"
                 % (np.shape(acceleration), np.shape(fluid.rho))
             )
+        # Advance momentum with constant acceleration over this source step.
+        # The corresponding kinetic-energy change is
+        #   rho * [v a dt + 1/2 (a dt)^2].
+        # Using only rho*v*a*dt can leave E < K in strongly collapsing cells,
+        # which is especially visible with HLLC and causes the positivity
+        # check to reject the next hydro update.
+        acceleration_dt = acceleration * float(np.asarray(dt, dtype=float))
         gravity_work = np.asarray(
-            fluid.rho * fluid.vel * acceleration * mesh.vol * dt,
+            fluid.rho
+            * (fluid.vel * acceleration_dt + 0.5 * acceleration_dt**2)
+            * mesh.vol,
             dtype=float,
         )
         fluid.Mom += fluid.rho * acceleration * mesh.vol * dt
