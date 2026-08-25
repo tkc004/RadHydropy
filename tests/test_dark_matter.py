@@ -49,6 +49,17 @@ def test_enclosed_mass_uses_half_shell_at_equal_radius():
     assert np.allclose(shells.enclosed_mass([0.5, 1.0, 2.0, 2.5, 4.0]), [0.0, 0.5, 2.0, 3.0, 6.0])
 
 
+def test_enclosed_mass_at_shell_radii_matches_generic_lookup():
+    shells = DarkMatterShells(
+        radius=[1.0, 1.0, 2.0, 4.0],
+        velocity=[0.0, 0.0, 0.0, 0.0],
+        mass=[1.0, 2.0, 3.0, 4.0],
+        code_units=code_units(),
+    )
+    expected = shells.enclosed_mass(shells.radius)
+    assert np.allclose(shells.enclosed_mass(), expected)
+
+
 def test_acceleration_includes_gravity_and_angular_momentum():
     units = code_units()
     shells = DarkMatterShells(

@@ -153,7 +153,21 @@ class DarkMatterShells:
     def enclosed_mass(self, radius=None):
         """Return enclosed shell mass using half the mass at a shell radius."""
         if radius is None:
-            radius = self.radius
+            # Shells are kept sorted by radius.  When callers request the
+            # enclosed mass at every current shell radius (the hot path in
+            # ``acceleration``), the shell indices are already known, so
+            # avoid two searchsorted calls per shell.  For coincident shells,
+            # assign half of the total coincident-group mass to every shell,
+            # matching the generic arbitrary-radius convention.
+            prefix = np.concatenate(([0.0], np.cumsum(self.mass)))
+            starts = np.flatnonzero(
+                np.r_[True, self.radius[1:] > self.radius[:-1]]
+            )
+            ends = np.r_[starts[1:], self.number_of_shells]
+            group_values = prefix[starts] + 0.5 * (
+                prefix[ends] - prefix[starts]
+            )
+            return np.repeat(group_values, ends - starts)
         radius = np.asarray(radius, dtype=float)
         prefix = np.concatenate(([0.0], np.cumsum(self.mass)))
         left = np.searchsorted(self.radius, radius, side="left")
@@ -162,10 +176,45 @@ class DarkMatterShells:
         result = result + 0.5 * (prefix[right] - prefix[left])
         return np.asarray(result, dtype=float)
 
+    def _enclosed_mass_at_current_positions(self, radius):
+        """Return shell mass enclosed at post-drift shell positions.
+
+        During ``step`` candidate positions can be temporarily out of order
+        before shell identities are sorted.  Sort positions together with
+        their masses, evaluate coincident groups in one pass, and map the
+        result back to the original shell order.
+        """
+        radius = np.asarray(radius, dtype=float)
+        order = np.argsort(radius, kind="stable")
+        sorted_radius = radius[order]
+        sorted_mass = self.mass[order]
+        prefix = np.concatenate(([0.0], np.cumsum(sorted_mass)))
+        starts = np.flatnonzero(
+            np.r_[True, sorted_radius[1:] > sorted_radius[:-1]]
+        )
+        ends = np.r_[starts[1:], radius.size]
+        group_values = prefix[starts] + 0.5 * (
+            prefix[ends] - prefix[starts]
+        )
+        sorted_result = np.repeat(group_values, ends - starts)
+        result = np.empty_like(sorted_result)
+        result[order] = sorted_result
+        return result
+
     def gravitating_enclosed_mass(self, radius=None, include_shell_mass_with_fixed=False):
         """Return dynamic plus configured fixed enclosed mass."""
         if radius is None:
+            dynamic = self.enclosed_mass()
+            if self.fixed_enclosed_mass is None:
+                return dynamic
             radius = self.radius
+            if callable(self.fixed_enclosed_mass):
+                fixed = np.asarray(self.fixed_enclosed_mass(radius), dtype=float)
+            else:
+                fixed = np.full_like(radius, self.fixed_enclosed_mass)
+            if include_shell_mass_with_fixed:
+                return dynamic + fixed
+            return fixed
         radius = np.asarray(radius, dtype=float)
         if self.fixed_enclosed_mass is None:
             return self.enclosed_mass(radius)
@@ -295,10 +344,18 @@ class DarkMatterShells:
         # used by the shell integrator.  This includes live DM, the fixed
         # core, gas, angular momentum, and cosmological background subtraction.
         safe_radius = np.maximum(np.abs(radius), np.finfo(float).tiny)
-        enclosed = self.gravitating_enclosed_mass(
-            safe_radius,
-            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
-        )
+        enclosed = self._enclosed_mass_at_current_positions(safe_radius)
+        if self.fixed_enclosed_mass is not None:
+            if callable(self.fixed_enclosed_mass):
+                fixed = np.asarray(
+                    self.fixed_enclosed_mass(safe_radius), dtype=float
+                )
+            else:
+                fixed = np.full_like(safe_radius, self.fixed_enclosed_mass)
+            if include_shell_mass_with_fixed:
+                enclosed = enclosed + fixed
+            else:
+                enclosed = fixed
         if gas_enclosed_mass is not None:
             gas_mass = (
                 np.asarray(gas_enclosed_mass(safe_radius), dtype=float)
