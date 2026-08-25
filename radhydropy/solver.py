@@ -178,20 +178,6 @@ class Solver():
         )
         return result
 
-    def _spherical_center_cell_index(self, mesh):
-        if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
-            return None
-        boundary = np.asarray(mesh.boundary, dtype=float)
-        origin_faces = np.where(boundary[:-1] == 0.0)[0]
-        if len(origin_faces) > 0:
-            return int(origin_faces[0])
-        origin_cells = np.where(
-            np.logical_and(boundary[:-1] < 0.0, boundary[1:] > 0.0)
-        )[0]
-        if len(origin_cells) > 0:
-            return int(origin_cells[0])
-        return None
-
     def _spherical_origin_face_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
@@ -282,12 +268,6 @@ class Solver():
         fluid.Mass.flux[face] = 0.0
         fluid.Energy.flux[face] = 0.0
         fluid.Mom.flux[face] = fluid.pre[core_last]
-
-    def _zero_spherical_center_momentum(self, mesh, fluid):
-        center_cell = self._spherical_center_cell_index(mesh)
-        if center_cell is None:
-            return
-        fluid.Mom[center_cell] = 0.0
 
     def _boundary_field_names(self, fluid):
         fields = ['rho', 'vel', 'pre']
@@ -532,36 +512,6 @@ class Solver():
         else:
             fluid.pre[invalid_pressure & ~numerical_vacuum] = 0.0
         fluid.pre[numerical_vacuum] = 0.0
-        center_cell = self._spherical_center_cell_index(mesh)
-        if center_cell is not None:
-            fluid.vel[center_cell] = 0.0
-            # The origin is a reflecting boundary.  If the center cell still
-            # carries radial momentum, removing that resolved velocity must
-            # convert its kinetic energy into internal energy rather than
-            # rebuilding pressure from the pre-reflection velocity and then
-            # silently dropping the kinetic term in SetConserved().
-            if (not bool(numerical_vacuum[center_cell])) and active[center_cell]:
-                if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy'):
-                    fluid.InternalEnergy[center_cell] = (
-                        energy_density[center_cell] * vol[center_cell]
-                    )
-                fluid.pre[center_cell] = fluid.eos.pressure_from_conserved(
-                    fluid.rho[center_cell],
-                    0.0,
-                    energy_density[center_cell],
-                    temp=getattr(fluid, 'temp', None),
-                    mu=getattr(fluid, 'mu', None),
-                )
-                if temperature_floor is not None and float(temperature_floor) > 0.0:
-                    floor_pressure = fluid.eos.pressure(
-                        fluid.rho[center_cell],
-                        float(temperature_floor),
-                        fluid.mu[center_cell],
-                    )
-                    fluid.pre[center_cell] = max(
-                        float(fluid.pre[center_cell]),
-                        float(floor_pressure),
-                    )
         if verbose >= 2:
             print('fluid.rho',fluid.rho)
             print('fluid.vel',fluid.vel)
@@ -625,7 +575,6 @@ class Solver():
             fluid.Mass[inactive] = old_mass[inactive]
             fluid.Mom[inactive] = old_mom[inactive]
             fluid.Energy[inactive] = old_energy[inactive]
-        self._zero_spherical_center_momentum(mesh, fluid)
         if verbose >= 2:
             print('fluid.Mass',fluid.Mass)
             print('fluid.Mom',fluid.Mom)
@@ -1204,8 +1153,6 @@ class Solver():
         if df_InternalEnergy is not None:
             fluid.InternalEnergy += positivity_factor * df_InternalEnergy * dt
             fluid.InternalEnergy = np.maximum(fluid.InternalEnergy, 0.0)
-        self._zero_spherical_center_momentum(mesh, fluid)
-
         # advance time
         fluid.time += dt
 
@@ -1286,8 +1233,6 @@ class Solver():
         self.last_gravity_work = float(
             np.sum(gravity_work[self._interior_slice(par)])
         )
-        self._zero_spherical_center_momentum(mesh, fluid)
-
         return 1
 
     def AdvectIonizationFraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
@@ -1405,7 +1350,6 @@ class Solver():
             * volume[valid]
             * dt
         )
-        self._zero_spherical_center_momentum(mesh, fluid)
         return 1
 
 

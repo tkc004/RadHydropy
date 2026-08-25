@@ -1,0 +1,43 @@
+runparams:
+  simname: SphericalShellReflectingWall1D
+  ICfilename: InitialCondition.hdf5
+  outdir: outputs
+  outfileprefix: Output
+  savedir: outputs
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666667
+  gravity: null
+  selfgravity: false
+  externalgravity: false
+  timesim: {value: 30.0, unit: Myr}
+  outdeltatime: {value: 5.0, unit: Myr}
+  CFL: 0.5
+  boundcond: Reflecting
+  order: 0
+  riemann_solver: HLLC
+  dual_energy: false
+  cfl_density_floor: 1.0e-30
+  temperature_jump_error_threshold: null
+  dtmax: {value: 1.0e15, unit: s}
+  dtmin: {value: 1.0e-6, unit: s}
+  CodeUnits:
+    name: spherical_shell_wall_units
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 64
+  coordsys: spherical
+  rmin: {value: 1.0, unit: kpc}
+  rmax: {value: 20.0, unit: kpc}
+  shell_inner: {value: 8.0, unit: kpc}
+  shell_outer: {value: 10.0, unit: kpc}
+  rho_shell: 1.0
+  temperature: {value: 10.0, unit: K}
+  velocity: {value: -300.0, unit: km/s}
+  mu: 0.59

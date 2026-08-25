@@ -299,6 +299,7 @@ class Testing(unittest.TestCase):
         fluid = Fluid()
         fluid.xHI = np.arange(8, dtype=float) / 10.0
         fluid.ngamma = np.arange(8, dtype=float) / unyt.cm**3
+        active_velocity = fluid.vel[2:6].copy()
         par = Par('InflowSph')
         par.CodeUnits = CODE_UNITS
         par.hydrogen_xHI_inflow = 0.25
@@ -308,6 +309,7 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_array_equal(fluid.rho[:2].value, [3.0, 2.0])
         np.testing.assert_array_equal(fluid.vel[:2].value, [-13.0, -12.0])
+        np.testing.assert_array_equal(fluid.vel[2:6], active_velocity)
         np.testing.assert_array_equal(fluid.rho[-2:].value, [9.0, 9.0])
         np.testing.assert_array_equal(fluid.vel[-2:].value, [8.0, 8.0])
         np.testing.assert_array_equal(fluid.xHI[-2:], [0.25, 0.25])
@@ -363,7 +365,7 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_allclose(fluid.Mom.value, np.zeros(8))
 
-    def test_spherical_center_reflection_conserves_kinetic_energy(self):
+    def test_spherical_first_active_cell_velocity_is_not_projected(self):
         mesh = make_code_mesh(4)
         mesh.coordsys = 'spherical'
         mesh.boundary[0] = 0.0
@@ -388,9 +390,9 @@ class Testing(unittest.TestCase):
         solver.SetPrimitive(mesh, fluid)
         solver.SetConserved(mesh, fluid)
 
-        self.assertEqual(float(fluid.vel[0]), 0.0)
+        self.assertEqual(float(fluid.vel[0]), 3.0)
         self.assertAlmostEqual(float(fluid.Energy[0]), total_energy)
-        self.assertGreater(float(fluid.pre[0]), 1.0)
+        self.assertAlmostEqual(float(fluid.pre[0]), 1.0)
 
     def test_positivity_limiter_preserves_mass_and_internal_energy(self):
         par = make_code_par()
@@ -433,7 +435,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(fluid.Mom.flux[0], 0.0 * fluid.Mom.flux.units)
         self.assertEqual(fluid.Energy.flux[0], 0.0 * fluid.Energy.flux.units)
 
-    def test_spherical_center_momentum_is_projected_after_update(self):
+    def test_spherical_first_active_cell_momentum_evolves_conservatively(self):
         mesh = Mesh()
         mesh.coordsys = 'spherical'
         fluid = Fluid()
@@ -450,7 +452,7 @@ class Testing(unittest.TestCase):
 
         Solver().AddFluxes(1.0*unyt.s, mesh, fluid, 'OpenSph')
 
-        self.assertEqual(fluid.Mom[0], 0.0 * fluid.Mom.units)
+        self.assertEqual(fluid.Mom[0], 1.0 * fluid.Mom.units)
 
     def test_hydrogen_source_cools_and_updates_neutral_fraction(self):
         par = make_code_par()

@@ -297,6 +297,58 @@ def plot_temperature_density_evolution(
     plt.close(fig)
 
 
+def plot_velocity_evolution(
+    times, radius, density, velocity, virial_radius, scale_factors, filename,
+    radial_bin_count=48,
+):
+    """Plot mass-weighted absolute physical radial velocity profiles."""
+    selected = np.unique(
+        np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
+    )
+    colors = plt.get_cmap("cividis")(np.linspace(0.05, 0.95, selected.size))
+    fig, axis = plt.subplots(figsize=(8.0, 5.8))
+    for color, index in zip(colors, selected):
+        proper_radius = radius * scale_factors[index]
+        cell_edges = np.empty(proper_radius.size + 1, dtype=float)
+        if proper_radius.size > 1:
+            cell_edges[1:-1] = np.sqrt(proper_radius[:-1] * proper_radius[1:])
+            cell_edges[0] = proper_radius[0] ** 2 / cell_edges[1]
+            cell_edges[-1] = proper_radius[-1] ** 2 / cell_edges[-2]
+        else:
+            cell_edges[:] = (0.5 * proper_radius[0], 1.5 * proper_radius[0])
+        mass_weight = np.asarray(density[index], dtype=float) * np.maximum(
+            np.diff(cell_edges**3), 0.0
+        )
+        binned_radius, binned_velocity = _log_radial_bin_profile(
+            proper_radius,
+            np.maximum(np.asarray(velocity[index], dtype=float), 0.0),
+            weights=mass_weight,
+            bin_count=radial_bin_count,
+        )
+        axis.loglog(
+            binned_radius,
+            np.maximum(binned_velocity, 1.0e-12),
+            color=color,
+            lw=1.7,
+            label="t = %.2f Gyr" % times[index],
+        )
+        if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
+            axis.axvline(
+                virial_radius[index], color=color, ls="--", lw=0.9, alpha=0.65
+            )
+    axis.set_xlabel("proper radius [kpc]")
+    axis.set_ylabel(r"mass-weighted $|v_r|$ [km s$^{-1}$]")
+    axis.set_title(
+        "Mass-weighted absolute gas radial velocity from the z=100 LCDM IC\n"
+        "solid: $|v_r|$; dashed: corresponding $r_{200}$"
+    )
+    axis.grid(alpha=0.25, which="both")
+    axis.legend(loc="best", fontsize=8, ncol=3)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=220)
+    plt.close(fig)
+
+
 def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
     """Plot smoothed mass-binned physical DM profiles versus radius.
 
@@ -599,6 +651,17 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         gas_profile["temperature_physical_K"] = (
             np.asarray(sim.fluid.temp[first:last], dtype=float) / scale_factor**2
         )
+        physical_velocity = cosmology.physical_velocity(
+            np.asarray(sim.mesh.coordinate[first:last], dtype=float),
+            np.asarray(sim.fluid.vel[first:last], dtype=float),
+            float(sim.fluid.time),
+        )
+        signed_velocity_km_s = (
+            np.asarray(physical_velocity, dtype=float)
+            * float(sim.par.CodeUnits.velocity_in_cgs) / 1.0e5
+        )
+        gas_profile["radial_velocity_physical_km_s"] = signed_velocity_km_s
+        gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
         gas_profiles.append(gas_profile)
         radius_history.append(et.profiles(sim, dm, cosmic_time, cosmology, icparams))
         dm_profile = et.density_profiles(sim, dm, cosmic_time, cosmology)
@@ -699,6 +762,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     temperature = np.asarray(
         [item["temperature_physical_K"] for item in gas_profiles]
     )
+    velocity = np.asarray(
+        [item["velocity_physical_km_s"] for item in gas_profiles]
+    )
+    radial_velocity = np.asarray(
+        [item["radial_velocity_physical_km_s"] for item in gas_profiles]
+    )
     scale_factors = np.asarray([item["scale_factor"] for item in gas_profiles])
     virial_radius = np.asarray([item["rvir_kpc"] for item in radius_history])
     splashback_radius = np.asarray(
@@ -713,6 +782,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     np.savez(data_file, **history, scale_factor=scale_factors,
              radius_comoving_kpc=radius, density_proper_code=density,
              temperature_physical_K=temperature,
+             velocity_physical_km_s=velocity,
+             radial_velocity_physical_km_s=radial_velocity,
              rvir_proper_kpc=virial_radius,
              virial_temperature_K=virial_temperature)
     energy_audit_file = output_dir / (figure_prefix + "_EnergyAudit.npz")
@@ -753,6 +824,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     plot_temperature_density_evolution(
         times, density, temperature, temperature_density_figure,
     )
+    velocity_figure = output_dir / (figure_prefix + "_Velocity.jpg")
+    plot_velocity_evolution(
+        times, radius, density, velocity, virial_radius, scale_factors,
+        velocity_figure,
+    )
     dm_figure = output_dir / (figure_prefix + "_DarkMatterDensities.jpg")
     plot_dark_matter_density_evolution(
         dm_profiles, dm_figure,
@@ -781,6 +857,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     print("radius figure = %s" % radius_figure)
     print("temperature figure = %s" % temperature_figure)
     print("temperature-density figure = %s" % temperature_density_figure)
+    print("velocity figure = %s" % velocity_figure)
     print("dark-matter figure = %s" % dm_figure)
     print("dark-matter data = %s" % dm_data_file)
     print("energy audit = %s" % energy_audit_file)
