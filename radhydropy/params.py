@@ -55,6 +55,11 @@ refparams = {
     # Numerical density threshold used only for vacuum-safe CFL and face
     # reconstruction.  Cell-centred conserved states are not floored.
     'cfl_density_floor': 0.0,
+    'hydro_temperature_floor': None,
+    # Conservative invariant-domain limiter for finite-volume hydro updates.
+    'positivity_preserving': True,
+    'positivity_density_floor': 0.0,
+    'positivity_energy_floor': 0.0,
     'relaxation_damping_time': None,
     'thermochemistry_network': 'hydrogen',
     'cie_cooling': False,

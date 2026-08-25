@@ -1,5 +1,6 @@
 runparams:
   simname: CosmologicalGasCorrelationZ100
+  figure_prefix: CosmologicalGasCorrelationZ100
   ICfilename: outputs_correlation_gas/InitialCondition.hdf5
   outdir: outputs_correlation_gas
   savedir: outputs_correlation_gas
@@ -14,12 +15,12 @@ runparams:
   cosmology_type: einstein_de_sitter
   cosmology_t_ref: 14.4
   cosmology_a_ref: 1.0
-  # The outer ghost state is the homogeneous cosmic gas state; the inner
-  # spherical boundary remains reflecting at the origin.
   boundcond: InflowSph
+  cosmological_background_boundary_reconstruction: true
   noghost: 2
   order: 1
   CFL: 0.10
+  verbose: 1
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
   # Match the live-shell density diagnostic in the dark-matter-only example.
@@ -33,9 +34,11 @@ runparams:
   # Code-density threshold for numerically evacuated cells.  Such cells can
   # retain roundoff momentum and otherwise create enormous v = Mom/rho.
   cfl_density_floor: 1.0e-9
+  temperature_jump_error_threshold: 1.0e8
   minimum_temperature: {value: 2.0, unit: K}
+  temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
-  final_cosmic_time: 14.4
+  final_cosmic_time: 2.5
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen
@@ -73,9 +76,11 @@ ICparams:
   mu: 0.59
   dark_matter_shells: 1024
   dm_inner_radius: 0.01
+  dm_core_absorption_velocity: 0.0
+  dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
-  dm_specific_angular_momentum: 0.01
-  softening: 0.05
+  dm_specific_angular_momentum: 0.02
+  softening: 0.2
   # Simwrap converts this to T_code = T_CMB * a^2 at the z=100 start.
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255

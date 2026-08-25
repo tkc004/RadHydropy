@@ -481,6 +481,9 @@ class Solver():
         )
         fluid.rho = as_named_array(rho)
         fluid.vel = as_named_array(vel)
+        density_floor = self._cfl_density_floor(par)
+        numerical_vacuum = active & (rho <= density_floor)
+        fluid.vel[numerical_vacuum] = 0.0
         energy_density = as_named_array(energy_density)
         fluid.pre = fluid.eos.pressure_from_conserved(
             fluid.rho,
@@ -501,10 +504,14 @@ class Solver():
             )
             # Enforce the configured floor for both invalid reconstructions
             # and valid states that have cooled below the physical minimum.
-            below_floor = np.logical_or(invalid_pressure, fluid.pre < floor_pressure)
+            below_floor = (
+                ~numerical_vacuum
+                & np.logical_or(invalid_pressure, fluid.pre < floor_pressure)
+            )
             fluid.pre[below_floor] = floor_pressure[below_floor]
         else:
-            fluid.pre[invalid_pressure] = 0.0
+            fluid.pre[invalid_pressure & ~numerical_vacuum] = 0.0
+        fluid.pre[numerical_vacuum] = 0.0
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is not None:
             fluid.vel[center_cell] = 0.0
@@ -517,6 +524,19 @@ class Solver():
         """Update conserved mass, momentum, and energy from primitive variables."""
         if verbose is None:
             verbose = 0
+        density_floor = self._cfl_density_floor(getattr(mesh, '_par', None))
+        old_conserved = None
+        if density_floor > 0.0 and all(
+            hasattr(fluid, name) for name in ('Mass', 'Mom', 'Energy')
+        ):
+            density = np.asarray(fluid.rho, dtype=float)
+            inactive = np.isfinite(density) & (density <= density_floor)
+            old_conserved = (
+                inactive,
+                np.asarray(fluid.Mass, dtype=float).copy(),
+                np.asarray(fluid.Mom, dtype=float).copy(),
+                np.asarray(fluid.Energy, dtype=float).copy(),
+            )
         vol = mesh.vol
         fluid.Mass = as_named_array(fluid.rho * vol)
         fluid.Mom = as_named_array(fluid.rho * fluid.vel * vol)
@@ -527,6 +547,11 @@ class Solver():
         ) * vol)
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
+        if old_conserved is not None:
+            inactive, old_mass, old_mom, old_energy = old_conserved
+            fluid.Mass[inactive] = old_mass[inactive]
+            fluid.Mom[inactive] = old_mom[inactive]
+            fluid.Energy[inactive] = old_energy[inactive]
         self._zero_spherical_center_momentum(mesh, fluid)
         if verbose >= 2:
             print('fluid.Mass',fluid.Mass)
@@ -737,8 +762,179 @@ class Solver():
             fluid.Mass.flux, fluid.philim_Mass = ru.ApplyFluxLimiter(fluid.Mass.q, Mass_flux_1, Mass_flux_0)
             fluid.Mom.flux, fluid.philim_Mom = ru.ApplyFluxLimiter(fluid.Mom.q, Mom_flux_1, Mom_flux_0)
             fluid.Energy.flux, fluid.philim_Energy = ru.ApplyFluxLimiter(fluid.Energy.q, Energy_flux_1, Energy_flux_0)
+            # A MUSCL reconstruction is not valid across a vacuum jump.  Use
+            # the positivity-safe first-order flux on gas-vacuum faces; this
+            # preserves injection into vacuum while retaining order one away
+            # from the front.
+            floor = self._cfl_density_floor(par)
+            vacuum_face = (
+                np.asarray(fluid.rho.L, dtype=float) <= floor
+            ) | (
+                np.asarray(fluid.rho.R, dtype=float) <= floor
+            )
+            # The update of the gas cell immediately upstream of a vacuum
+            # uses both bounding faces.  Limit that complete two-face
+            # stencil, otherwise a high-order gas-gas flux can combine with
+            # the gas-vacuum flux to leave a pressureless state outside the
+            # invariant domain.
+            vacuum_face |= np.roll(vacuum_face, -1)
+            fluid.Mass.flux[vacuum_face] = Mass_flux_0[vacuum_face]
+            fluid.Mom.flux[vacuum_face] = Mom_flux_0[vacuum_face]
+            fluid.Energy.flux[vacuum_face] = Energy_flux_0[vacuum_face]
         else:
             raise ValueError('order unknown: %s'%order)
+
+    def _apply_low_density_flux_mask(self, fluid, par):
+        """Block hydro flux through numerical-vacuum active cells.
+
+        The CFL and face-state masks prevent a low-density cell from setting
+        the timestep, but a Riemann problem between an active neighbor and a
+        vacuum state can still produce an outward flux.  Applying that flux
+        would inject energy into a cell whose density remains below the
+        numerical floor, creating an unphysical temperature spike.  Mask the
+        two faces belonging to each below-floor active cell; cell-centred
+        conserved quantities are otherwise left untouched.
+        """
+        density_floor = self._cfl_density_floor(par)
+        if density_floor <= 0.0:
+            return
+        density = np.asarray(fluid.rho, dtype=float)
+        first = int(getattr(par, 'noghost', 0))
+        count = int(getattr(par, 'nogrid', len(density) - first))
+        last = min(first + count, len(density))
+        inactive = ~np.isfinite(density) | (density <= density_floor)
+        face_mask = np.zeros(len(density), dtype=bool)
+        # Keep gas-vacuum interfaces active: their Riemann flux is what fills
+        # the vacuum.  Only a vacuum-vacuum interface should be suppressed.
+        # Face i joins cell i-1 (the rolled state) to cell i.
+        face_mask[first:last] = (
+            inactive[first:last]
+            & np.roll(inactive, 1)[first:last]
+        )
+        if not np.any(face_mask):
+            return
+        for flux in (fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux):
+            flux[face_mask] = 0.0
+
+    @staticmethod
+    def _positive_conserved_state(mass, momentum, energy, mass_floor=0.0,
+                                  energy_floor=0.0):
+        """Return the invariant-domain admissibility mask for Euler states."""
+        mass = np.asarray(mass, dtype=float)
+        momentum = np.asarray(momentum, dtype=float)
+        energy = np.asarray(energy, dtype=float)
+        finite = np.isfinite(mass) & np.isfinite(momentum) & np.isfinite(energy)
+        mass_ok = mass >= mass_floor
+        internal = np.zeros_like(energy)
+        positive_mass = mass > np.maximum(mass_floor, 0.0)
+        internal[positive_mass] = (
+            energy[positive_mass]
+            - 0.5 * momentum[positive_mass]**2 / mass[positive_mass]
+        )
+        vacuum = ~positive_mass
+        internal[vacuum] = energy[vacuum]
+        kinetic = np.zeros_like(energy)
+        kinetic[positive_mass] = (
+            0.5 * momentum[positive_mass]**2 / mass[positive_mass]
+        )
+        # Cold pressureless states lie on the invariant-domain boundary.  A
+        # relative tolerance prevents harmless cancellation in E-K from
+        # turning that boundary state into a negative internal energy.
+        tolerance = 1.0e-12 * np.maximum(
+            np.maximum(np.abs(energy), kinetic),
+            np.maximum(np.abs(energy_floor), np.finfo(float).tiny),
+        )
+        return finite & mass_ok & (internal >= energy_floor - tolerance)
+
+    def _positivity_limited_increment(self, fluid, dt, mesh, par,
+                                      df_mass, df_mom, df_energy):
+        """Limit a hydro increment so density and internal energy stay positive.
+
+        A single factor is used for the complete conservative increment.  This
+        is deliberately global: it preserves the finite-volume telescoping
+        flux exactly while providing an invariant-domain fallback at vacuum
+        interfaces.  The normal update is unchanged when it is admissible.
+        """
+        if not getattr(par, 'positivity_preserving', True):
+            return 1.0
+        mass = np.asarray(fluid.Mass, dtype=float)
+        momentum = np.asarray(fluid.Mom, dtype=float)
+        energy = np.asarray(fluid.Energy, dtype=float)
+        dt_value = float(np.asarray(dt, dtype=float))
+        mass_floor = max(
+            0.0,
+            float(np.asarray(getattr(par, 'positivity_density_floor', 0.0))),
+        ) * np.asarray(mesh.vol, dtype=float)
+        energy_floor = max(
+            0.0,
+            float(np.asarray(getattr(par, 'positivity_energy_floor', 0.0))),
+        ) * np.asarray(mesh.vol, dtype=float)
+        # A roundoff-level vacuum may carry a finite momentum after a
+        # gas-vacuum Riemann solve.  Remove only that numerical debris before
+        # testing the invariant domain; resolved positive-density cells are
+        # never repaired here.
+        vacuum_mass = (
+            np.asarray(getattr(par, 'cfl_density_floor', 0.0), dtype=float)
+            * np.asarray(mesh.vol, dtype=float)
+        )
+        vacuum = mass <= np.maximum(vacuum_mass, 0.0)
+        if np.any(vacuum):
+            mass = mass.copy()
+            momentum = momentum.copy()
+            energy = energy.copy()
+            mass[vacuum] = 0.0
+            momentum[vacuum] = 0.0
+            energy[vacuum] = 0.0
+            fluid.Mass[vacuum] = 0.0
+            fluid.Mom[vacuum] = 0.0
+            fluid.Energy[vacuum] = 0.0
+        candidate_mass = mass + dt_value * np.asarray(df_mass, dtype=float)
+        candidate_mom = momentum + dt_value * np.asarray(df_mom, dtype=float)
+        candidate_energy = energy + dt_value * np.asarray(df_energy, dtype=float)
+        first = int(getattr(par, 'noghost', 0))
+        last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
+        physical = np.zeros(len(mass), dtype=bool)
+        physical[first:last] = True
+
+        def admissible(mass_value, momentum_value, energy_value):
+            valid = self._positive_conserved_state(
+                mass_value, momentum_value, energy_value,
+                mass_floor=mass_floor, energy_floor=energy_floor,
+            )
+            # Ghost cells are refreshed from the boundary condition before
+            # the next hydro step and must not limit a physical update.
+            valid[~physical] = True
+            return valid
+
+        if np.all(admissible(
+            candidate_mass, candidate_mom, candidate_energy,
+        )):
+            return 1.0
+        if not np.all(admissible(mass, momentum, energy)):
+            invalid = ~admissible(mass, momentum, energy)
+            if np.any(invalid):
+                index = int(np.flatnonzero(invalid)[0])
+                raise ValueError(
+                    'hydro state is outside positivity domain before update at '
+                    'cell %d (mass=%s mom=%s energy=%s)' % (
+                        index, mass[index], momentum[index], energy[index]
+                    )
+                )
+        low, high = 0.0, 1.0
+        for _ in range(48):
+            factor = 0.5 * (low + high)
+            valid = admissible(
+                mass + factor * dt_value * np.asarray(df_mass, dtype=float),
+                momentum + factor * dt_value * np.asarray(df_mom, dtype=float),
+                energy + factor * dt_value * np.asarray(df_energy, dtype=float),
+            )
+            if np.all(valid):
+                low = factor
+            else:
+                high = factor
+        if getattr(par, 'verbose', 0) >= 1:
+            print('[positivity limiter] factor=%s' % low)
+        return low
         
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=None, order=0):
         """Set interface fluxes using GLF or Rusanov numerical fluxes."""
@@ -760,6 +956,9 @@ class Solver():
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
             self.SetFluxOnFace(
                 fluid, boundcond, order=order, par=getattr(mesh, '_par', None)
+            )
+            self._apply_low_density_flux_mask(
+                fluid, getattr(mesh, '_par', None)
             )
             self._apply_hydrostatic_core_flux(fluid, getattr(mesh, '_par', None))
             self._zero_spherical_origin_flux(mesh, fluid)
@@ -785,9 +984,13 @@ class Solver():
             area_right = ru.periodic_roll(area, -1)
             df_Mom += fluid.pre * (area_right - area)
 
-        fluid.Mass += df_Mass*dt
-        fluid.Mom  += df_Mom*dt
-        fluid.Energy  += df_Energy*dt
+        par = getattr(mesh, '_par', None)
+        positivity_factor = self._positivity_limited_increment(
+            fluid, dt, mesh, par, df_Mass, df_Mom, df_Energy
+        )
+        fluid.Mass += positivity_factor * df_Mass * dt
+        fluid.Mom  += positivity_factor * df_Mom * dt
+        fluid.Energy += positivity_factor * df_Energy * dt
         self._zero_spherical_center_momentum(mesh, fluid)
 
         # advance time

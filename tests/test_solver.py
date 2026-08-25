@@ -7,6 +7,7 @@ import unyt
 
 from radhydropy.fluid import Fluid as RealFluid
 from radhydropy.eos import EOS as RHEOS
+from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 import radhydropy.thermo_chemistry as rtc
@@ -340,6 +341,30 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_allclose(fluid.Mom.value, np.zeros(8))
 
+    def test_positivity_limiter_preserves_mass_and_internal_energy(self):
+        par = make_code_par()
+        par.noghost = 0
+        par.nogrid = 4
+        par.positivity_preserving = True
+        mesh = make_code_mesh(4)
+        mesh._par = par
+        fluid = SimpleNamespace(
+            Mass=as_named_array(np.ones(4)),
+            Mom=as_named_array(np.zeros(4)),
+            Energy=as_named_array(np.ones(4)),
+            time=0.0,
+        )
+        fluid.Mass.flux = as_named_array(np.array([0.0, 3.0, 0.0, 0.0]))
+        fluid.Mom.flux = as_named_array(np.zeros(4))
+        fluid.Energy.flux = as_named_array(np.array([0.0, 3.0, 0.0, 0.0]))
+
+        Solver().AddFluxes(1.0, mesh, fluid, 'Outflow')
+
+        self.assertTrue(np.all(fluid.Mass >= 0.0))
+        self.assertTrue(np.all(fluid.Energy >= 0.0))
+        self.assertAlmostEqual(float(np.sum(fluid.Mass)), 4.0)
+        self.assertAlmostEqual(float(np.sum(fluid.Energy)), 4.0)
+
     def test_spherical_origin_flux_is_zeroed(self):
         mesh = Mesh()
         mesh.coordsys = 'spherical'
@@ -607,6 +632,33 @@ class Testing(unittest.TestCase):
         self.assertTrue(np.isfinite(hydro_dt))
         self.assertGreater(hydro_dt, 1.0e-8)
         self.assertEqual(float(fluid.vsignal[3]), 0.0)
+
+    def test_cfl_density_floor_preserves_low_density_conserved_energy(self):
+        par = make_code_par()
+        par.cfl_density_floor = 1.0e-9
+        mesh = make_code_mesh()
+        mesh._par = par
+        fluid = make_code_fluid()
+        fluid.rho[3] = 1.0e-12
+        fluid.vel[3] = 1.0e3
+        fluid.SetPressure()
+        fluid.pre[3] = 1.0e-12
+        Solver().SetConserved(mesh, fluid)
+        conserved_before = (
+            float(fluid.Mass[3]), float(fluid.Mom[3]), float(fluid.Energy[3])
+        )
+
+        fluid.Mass[3] *= 0.5
+        fluid.Mom[3] *= 0.5
+        fluid.Energy[3] *= 0.5
+        Solver().SetPrimitive(mesh, fluid, par=par)
+        Solver().SetConserved(mesh, fluid)
+
+        np.testing.assert_allclose(
+            [float(fluid.Mass[3]), float(fluid.Mom[3]), float(fluid.Energy[3])],
+            np.asarray(conserved_before) * 0.5,
+        )
+        self.assertEqual(float(fluid.pre[3]), 0.0)
 
     def test_hydro_only_sync_refreshes_adiabatic_temperature(self):
         par = make_code_par()

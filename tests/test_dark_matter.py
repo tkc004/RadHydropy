@@ -39,6 +39,53 @@ def test_shells_sort_all_state_arrays_together():
     assert np.allclose(shells.angular_momentum, [0.1, 0.2, 0.3])
 
 
+def test_sort_skips_already_sorted_shells():
+    shells = DarkMatterShells(
+        radius=[1.0, 2.0, 2.0, 4.0],
+        velocity=[10.0, 20.0, 30.0, 40.0],
+        mass=[1.0, 2.0, 3.0, 4.0],
+        angular_momentum=[0.1, 0.2, 0.3, 0.4],
+        code_units=code_units(),
+    )
+    radius_before = shells.radius.copy()
+
+    order = shells.sort_by_radius()
+
+    assert np.array_equal(order, np.arange(4))
+    assert np.array_equal(shells.radius, radius_before)
+    assert np.array_equal(shells.velocity, [10.0, 20.0, 30.0, 40.0])
+
+
+def test_sort_is_stable_for_equal_radii():
+    shells = DarkMatterShells(
+        radius=[2.0, 1.0, 2.0],
+        velocity=[20.0, 10.0, 21.0],
+        mass=[2.0, 1.0, 3.0],
+        code_units=code_units(),
+    )
+
+    assert np.array_equal(shells.radius, [1.0, 2.0, 2.0])
+    assert np.array_equal(shells.velocity, [10.0, 20.0, 21.0])
+    assert np.array_equal(shells.mass, [1.0, 2.0, 3.0])
+
+
+def test_sort_invalidates_mass_prefix_cache_after_reordering():
+    shells = DarkMatterShells(
+        radius=[1.0, 2.0],
+        velocity=[0.0, 0.0],
+        mass=[1.0, 2.0],
+        code_units=code_units(),
+    )
+    shells.enclosed_mass()
+    assert shells._mass_prefix_cache is not None
+
+    shells.radius[:] = [2.0, 1.0]
+    shells.sort_by_radius()
+
+    assert shells._mass_prefix_cache is None
+    assert np.allclose(shells.enclosed_mass(), [1.0, 2.5])
+
+
 def test_enclosed_mass_uses_half_shell_at_equal_radius():
     shells = DarkMatterShells(
         radius=[1.0, 2.0, 3.0],

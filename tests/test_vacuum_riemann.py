@@ -68,3 +68,19 @@ def test_primitive_reconstruction_stores_active_mask_for_vacuum_cells():
     np.testing.assert_array_equal(fluid.rho, [1.0, 0.0, 2.0])
     np.testing.assert_array_equal(fluid.vel, [1.0, 0.0, 0.0])
     assert fluid.pre[1] == 0.0
+
+
+def test_low_density_active_cell_blocks_both_interface_fluxes():
+    par = SimpleNamespace(noghost=1, nogrid=3, cfl_density_floor=1.0e-9)
+    fluid = SimpleNamespace(
+        rho=np.array([1.0, 1.0, 1.0e-12, 1.0e-12, 1.0]),
+        Mass=SimpleNamespace(flux=np.ones(5)),
+        Mom=SimpleNamespace(flux=np.ones(5) * 2.0),
+        Energy=SimpleNamespace(flux=np.ones(5) * 3.0),
+    )
+
+    Solver()._apply_low_density_flux_mask(fluid, par)
+
+    np.testing.assert_array_equal(fluid.Mass.flux, [1.0, 1.0, 1.0, 0.0, 1.0])
+    np.testing.assert_array_equal(fluid.Mom.flux, [2.0, 2.0, 2.0, 0.0, 2.0])
+    np.testing.assert_array_equal(fluid.Energy.flux, [3.0, 3.0, 3.0, 0.0, 3.0])

@@ -1,0 +1,46 @@
+runparams:
+  simname: outflow_sph_vacuum1d
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  outdeltatime: {value: 2.0e-8, unit: s}
+  savedir: .
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.4
+  timesim: {value: 1.0e-7, unit: s}
+  CFL: 0.1
+  boundcond: OutflowSph
+  vel_outflow: {value: 1.0e6, unit: cm/s}
+  rho_outflow: {value: 1.0e-6, unit: g/cm**3}
+  temp_outflow: {value: 0.0, unit: K}
+  mu_outflow: 1.0
+  verbose: 0
+  order: 1
+  noghost: 2
+  dtmin: {value: 1.0e-12, unit: s}
+  dtmax: {value: 2.0e-8, unit: s}
+  # Exact vacuum interfaces can leave roundoff mass in a cell.  Treat that
+  # numerical debris as vacuum without flooring the conserved state.
+  cfl_density_floor: 1.0e-9
+  hydro_temperature_floor: {value: 2.0, unit: K}
+  temperature_jump_error_threshold: 1.0e8
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 256
+  coordsys: spherical
+  boxsize: {value: 2.0, unit: cm}
+  rinj: {value: 0.2, unit: cm}
+  time: {value: 0.0, unit: s}
+  tempini: {value: 0.0, unit: K}
+  muini: 1.0
+  vini: {value: 0.0, unit: cm/s}
+  rhoini: {value: 0.0, unit: g/cm**3}
