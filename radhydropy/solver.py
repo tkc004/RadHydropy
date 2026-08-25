@@ -508,7 +508,7 @@ class Solver():
         center_cell = self._spherical_center_cell_index(mesh)
         if center_cell is not None:
             fluid.vel[center_cell] = 0.0
-        if verbose == 1:
+        if verbose >= 2:
             print('fluid.rho',fluid.rho)
             print('fluid.vel',fluid.vel)
             print('fluid.pre',fluid.pre)            
@@ -528,7 +528,7 @@ class Solver():
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         self._zero_spherical_center_momentum(mesh, fluid)
-        if verbose == 1:
+        if verbose >= 2:
             print('fluid.Mass',fluid.Mass)
             print('fluid.Mom',fluid.Mom)
             print('fluid.Energy',fluid.Energy)
@@ -540,6 +540,40 @@ class Solver():
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
         fluid.vel.grad = ru.CalGradient(fluid.vel, xdelta)
         fluid.pre.grad = ru.CalGradient(fluid.pre, xdelta)
+
+    @staticmethod
+    def _cfl_density_floor(par):
+        return max(0.0, float(np.asarray(
+            getattr(par, 'cfl_density_floor', 0.0), dtype=float
+        )))
+
+    def _apply_low_density_face_mask(self, fluid, par, order):
+        """Make below-floor reconstructed states vacuum-safe.
+
+        This is a numerical mask only: cell-centred conserved mass and density
+        remain unchanged.  It prevents a tiny positive density carrying a
+        large pressure from determining the CFL step or Riemann flux.
+        """
+        density_floor = self._cfl_density_floor(par)
+        if density_floor <= 0.0:
+            return
+        for density, velocity, pressure in (
+            (fluid.rho.R, fluid.vel.R, fluid.pre.R),
+            (fluid.rho.L, fluid.vel.L, fluid.pre.L),
+        ):
+            inactive = ~np.isfinite(density) | (density <= density_floor)
+            density[inactive] = 0.0
+            velocity[inactive] = 0.0
+            pressure[inactive] = 0.0
+        if order == 1:
+            for density, velocity, pressure in (
+                (fluid.rho.R.first, fluid.vel.R.first, fluid.pre.R.first),
+                (fluid.rho.L.first, fluid.vel.L.first, fluid.pre.L.first),
+            ):
+                inactive = ~np.isfinite(density) | (density <= density_floor)
+                density[inactive] = 0.0
+                velocity[inactive] = 0.0
+                pressure[inactive] = 0.0
         
         
     def SetConservedDensityFlux(self, fluid):
@@ -562,19 +596,58 @@ class Solver():
         # Start from neighbor-shifted cell states, then optionally replace them
         # with reconstructed face values for second-order updates.
         if order == 0 or order == 1:
-            fluid.rho.R = fluid.rho
+            # Keep face states independent from cell-centred primitives: the
+            # low-density numerical-vacuum mask may modify them in place.
+            fluid.rho.R = as_named_array(np.asarray(fluid.rho, dtype=float).copy())
             fluid.rho.L = ru.periodic_roll(fluid.rho, 1)
-            fluid.vel.R = fluid.vel
+            fluid.vel.R = as_named_array(np.asarray(fluid.vel, dtype=float).copy())
             fluid.vel.L = ru.periodic_roll(fluid.vel, 1)
-            fluid.pre.R = fluid.pre
+            fluid.pre.R = as_named_array(np.asarray(fluid.pre, dtype=float).copy())
             fluid.pre.L = ru.periodic_roll(fluid.pre, 1)
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
                 fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
                 fluid.pre.R.first, fluid.pre.L.first = ru.extrapolateToFace(fluid.pre, mesh.boundary, fluid.pre.grad, order=1)
+            self._apply_low_density_face_mask(
+                fluid, getattr(mesh, '_par', None), order
+            )
+            self._apply_cosmological_background_boundary_face(mesh, fluid, order)
         else:
             raise ValueError('order unknown: %s'%order)
+
+    def _apply_cosmological_background_boundary_face(self, mesh, fluid, order):
+        """Replace the outer face states with the homogeneous EdS state."""
+        par = getattr(mesh, '_par', None)
+        if par is None or not getattr(
+            par, 'cosmological_background_boundary_reconstruction', False
+        ):
+            return
+        if getattr(par, 'boundcond', None) != 'InflowSph':
+            return
+        first = int(par.noghost)
+        outer_face = first + int(par.nogrid)
+        if outer_face >= len(fluid.rho.R):
+            return
+        rho_background = float(par.rho_inflow)
+        velocity_background = float(par.vel_inflow)
+        pressure_background = float(
+            fluid.eos.pressure(
+                rho_background,
+                float(par.temp_inflow),
+                float(par.mu_inflow),
+            )
+        )
+        for quantity, value in (
+            (fluid.rho, rho_background),
+            (fluid.vel, velocity_background),
+            (fluid.pre, pressure_background),
+        ):
+            quantity.R[outer_face] = value
+            quantity.L[outer_face] = value
+            if order == 1:
+                quantity.R.first[outer_face] = value
+                quantity.L.first[outer_face] = value
 
     @staticmethod
     def _vacuum_safe_primitive_state(rho, vel, pre):
@@ -605,7 +678,7 @@ class Solver():
         )
 
 
-    def SetFluxOnFace(self,fluid,boundcond,order=0):
+    def SetFluxOnFace(self,fluid,boundcond,order=0,par=None):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
         rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
             fluid.rho.L, fluid.vel.L, fluid.pre.L
@@ -685,12 +758,14 @@ class Solver():
                 fluid.cmax = np.maximum(fluid.vsignal, ru.periodic_roll(fluid.vsignal, 1))
             
             self.SetFaceLR(mesh,fluid, boundcond, order=order)
-            self.SetFluxOnFace(fluid, boundcond, order=order)
+            self.SetFluxOnFace(
+                fluid, boundcond, order=order, par=getattr(mesh, '_par', None)
+            )
             self._apply_hydrostatic_core_flux(fluid, getattr(mesh, '_par', None))
             self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError("Interface flux method unknown: %s"%method) 
-        if (verbose==1):
+        if (verbose>=2):
             print('fluid.Mass.flux',fluid.Mass.flux)
             print('fluid.Mom.flux',fluid.Mom.flux)
             print('fluid.Energy.flux',fluid.Energy.flux)
@@ -777,8 +852,15 @@ class Solver():
                 "Gravity acceleration shape %s does not match fluid state shape %s"
                 % (np.shape(acceleration), np.shape(fluid.rho))
             )
+        gravity_work = np.asarray(
+            fluid.rho * fluid.vel * acceleration * mesh.vol * dt,
+            dtype=float,
+        )
         fluid.Mom += fluid.rho * acceleration * mesh.vol * dt
-        fluid.Energy += fluid.rho * fluid.vel * acceleration * mesh.vol * dt
+        fluid.Energy += gravity_work
+        self.last_gravity_work = float(
+            np.sum(gravity_work[self._interior_slice(par)])
+        )
         self._zero_spherical_center_momentum(mesh, fluid)
 
         return 1
@@ -1058,20 +1140,81 @@ class Solver():
             )
         if dt > dtmax:
             dt = dtmax
-        if getattr(par, 'verbose', 0) >= 1:
+        if (
+            getattr(par, 'verbose', 0) >= 1
+            # Keep routine CFL reductions quiet; report only a timestep that
+            # has fallen at least four decades below the configured maximum.
+            and dt <= 1.0e-4 * float(np.asarray(par.dtmax, dtype=float))
+        ):
             min_index = int(np.argmin(dt_array))
+            if len(np.asarray(fluid.vel)) == len(active_vsignal):
+                diagnostic_index = min_index
+            else:
+                diagnostic_index = min_index + first
             print(
-                '[hydro dt] t=%s dt=%s idx=%d xdelta=%s vel=%s cs=%s vsignal=%s dtmin=%s dtmax=%s'
+                '[hydro dt] t=%s dt=%s idx=%d radius=%s rho=%s vel=%s '
+                'cs=%s vsignal=%s dx=%s pre=%s dtmin=%s dtmax=%s'
                 % (
                     fluid.time,
                     dt,
-                    min_index,
-                    xdelta[min_index],
-                    fluid.vel[min_index],
-                    fluid.cs[min_index],
-                    vsignal[min_index],
+                    diagnostic_index,
+                    np.asarray(mesh.coordinate)[diagnostic_index],
+                    np.asarray(fluid.rho)[diagnostic_index],
+                    np.asarray(fluid.vel)[diagnostic_index],
+                    np.asarray(fluid.cs)[diagnostic_index],
+                    np.asarray(vsignal)[diagnostic_index],
+                    np.asarray(mesh.xdelta)[diagnostic_index],
+                    np.asarray(fluid.pre)[diagnostic_index],
                     par.dtmin,
                     par.dtmax,
                 )
             )
+            cell_volume = np.asarray(mesh.vol)[diagnostic_index]
+            cell_rho = np.asarray(fluid.rho)[diagnostic_index]
+            cell_vel = np.asarray(fluid.vel)[diagnostic_index]
+            cell_energy_density = (
+                np.asarray(fluid.Energy)[diagnostic_index] / cell_volume
+            )
+            cell_kinetic_density = 0.5 * cell_rho * cell_vel**2
+            cell_thermal_density = cell_energy_density - cell_kinetic_density
+            cell_specific_thermal = (
+                cell_thermal_density / cell_rho
+                if cell_rho > 0.0 else 0.0
+            )
+            print(
+                '[hydro dt energy] idx=%d energy_density=%s '
+                'kinetic_density=%s thermal_density=%s '
+                'specific_thermal=%s'
+                % (
+                    diagnostic_index,
+                    cell_energy_density,
+                    cell_kinetic_density,
+                    cell_thermal_density,
+                    cell_specific_thermal,
+                )
+            )
+            print(
+                '[hydro dt mask] cfl_density_floor=%s masked=%s' % (
+                    density_floor,
+                    int(np.count_nonzero(zero_density)),
+                )
+            )
+            neighbor_start = max(first, diagnostic_index - 2)
+            neighbor_stop = min(
+                first + int(getattr(par, 'nogrid', len(np.asarray(fluid.rho)))),
+                diagnostic_index + 3,
+            )
+            print('[hydro dt neighbors] idx radius rho vel cs pre')
+            for neighbor in range(neighbor_start, neighbor_stop):
+                print(
+                    '[hydro dt neighbors] %d %s %s %s %s %s'
+                    % (
+                        neighbor,
+                        np.asarray(mesh.coordinate)[neighbor],
+                        np.asarray(fluid.rho)[neighbor],
+                        np.asarray(fluid.vel)[neighbor],
+                        np.asarray(fluid.cs)[neighbor],
+                        np.asarray(fluid.pre)[neighbor],
+                    )
+                )
         return dt

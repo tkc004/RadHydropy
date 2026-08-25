@@ -1,0 +1,121 @@
+"""Runtime diagnostics for hydro and thermo-chemistry simulations."""
+
+from pathlib import Path
+
+import numpy as np
+
+from radhydropy.cosmological_variables import physical_temperature, supercomoving_scale
+
+
+def temperature_physical_K(sim):
+    """Return the simulation gas temperature in physical kelvin."""
+    if not hasattr(sim.fluid, 'temp'):
+        return None
+    temperature = np.asarray(sim.fluid.temp, dtype=float)
+    code = getattr(sim.par, 'CodeUnits', None)
+    if code is not None:
+        temperature = temperature * float(code.temperature_in_cgs)
+    if getattr(sim.par, 'supercomoving_coordinates', False):
+        scale_factor, _ = supercomoving_scale(sim.par, time=sim.fluid.time)
+        temperature = physical_temperature(
+            temperature, scale_factor, float(sim.fluid.eos.gamma)
+        )
+    return np.asarray(temperature, dtype=float)
+
+
+def thermochemistry_active_mask(rho_physical_g_cm3, par, density_factor=1.0):
+    """Return the source-update mask using the hydro CFL density floor.
+
+    ``rho_physical_g_cm3`` is physical density, while ``cfl_density_floor``
+    is expressed in the runtime code-density units.  ``density_factor`` is
+    the supercomoving conversion factor (normally ``a**3``).
+    """
+    density_floor = max(
+        0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
+    )
+    if density_floor <= 0.0:
+        return np.asarray(rho_physical_g_cm3, dtype=float) > 0.0
+    code = getattr(par, 'CodeUnits', None)
+    if code is None:
+        return np.asarray(rho_physical_g_cm3, dtype=float) > 0.0
+    physical_floor = density_floor * float(code.density_in_cgs) / float(density_factor)
+    return np.asarray(rho_physical_g_cm3, dtype=float) > physical_floor
+
+
+def check_temperature_jump(sim, temperature_before, stage, source_result=None):
+    """Raise and save a neighborhood dump when a new T exceeds the guard."""
+    threshold = getattr(sim.par, 'temperature_jump_error_threshold', None)
+    if threshold is None:
+        return
+    threshold = float(threshold)
+    if not np.isfinite(threshold) or threshold <= 0.0:
+        return
+    temperature_after = temperature_physical_K(sim)
+    if temperature_after is None or temperature_before is None:
+        return
+    before = np.asarray(temperature_before, dtype=float)
+    density = np.asarray(sim.fluid.rho, dtype=float)
+    crossing = (
+        (density > 0.0)
+        & np.isfinite(temperature_after)
+        & (temperature_after > threshold)
+    )
+    if before.shape == temperature_after.shape:
+        crossing &= before <= threshold
+    if not np.any(crossing):
+        return
+    first = int(getattr(sim.par, 'noghost', 0))
+    last = first + int(getattr(sim.par, 'nogrid', len(temperature_after)))
+    candidates = np.flatnonzero(crossing)
+    candidates = candidates[(candidates >= first) & (candidates < last)]
+    if candidates.size == 0:
+        return
+    index = int(candidates[0])
+    radius = np.asarray(sim.mesh.coordinate, dtype=float)
+    velocity = np.asarray(sim.fluid.vel, dtype=float)
+    pressure = np.asarray(sim.fluid.pre, dtype=float)
+    sound_speed = np.asarray(
+        getattr(sim.fluid, 'cs', np.zeros_like(density)), dtype=float
+    )
+    energy = np.asarray(sim.fluid.Energy, dtype=float)
+    mass = np.asarray(sim.fluid.Mass, dtype=float)
+    lines = [
+        'temperature jump error: physical gas temperature exceeded %.6e K '
+        'during %s at cell %d (time=%s)' % (
+            threshold, stage, index, sim.fluid.time,
+        ),
+        'cell: radius=%s T_before=%s K T_after=%s K rho=%s vel=%s '
+        'pressure=%s cs=%s mass=%s energy=%s' % (
+            radius[index], before[index], temperature_after[index],
+            density[index], velocity[index], pressure[index],
+            sound_speed[index], mass[index], energy[index],
+        ),
+        'neighborhood: idx radius T_before[K] T_after[K] rho vel pressure cs mass energy',
+    ]
+    for neighbor in range(max(first, index - 2), min(last, index + 3)):
+        lines.append(
+            '%d %s %s %s %s %s %s %s %s %s' % (
+                neighbor, radius[neighbor],
+                before[neighbor] if before.shape == temperature_after.shape else np.nan,
+                temperature_after[neighbor], density[neighbor], velocity[neighbor],
+                pressure[neighbor], sound_speed[neighbor], mass[neighbor], energy[neighbor],
+            )
+        )
+    if source_result:
+        lines.append(
+            'source solver: %s relative_change=%s source_steps=%s' % (
+                source_result.get('source_solver', 'unknown'),
+                source_result.get('relative_change', 'unknown'),
+                source_result.get('source_steps', 'unknown'),
+            )
+        )
+    diagnostic = '\n'.join(lines)
+    print(diagnostic)
+    output_dir = getattr(sim.par, 'outdir', None)
+    if output_dir is not None:
+        try:
+            filename = Path(output_dir) / 'temperature_jump_error.txt'
+            filename.write_text(diagnostic + '\n', encoding='utf-8')
+        except (OSError, TypeError, ValueError):
+            pass
+    raise RuntimeError(diagnostic)

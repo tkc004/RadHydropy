@@ -6,6 +6,7 @@ import radhydropy.io as rio
 import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
+import radhydropy.diagnostics as diagnostics
 from radhydropy.units import (
     _CODE_UNIT_GROUPS,
     apply_code_unit_specs,
@@ -235,6 +236,18 @@ class Rsim():
             order=self.par.order,
         )
         mass_flux = fluid.Mass.flux.copy()
+        first = int(self.par.noghost)
+        last = first + int(self.par.nogrid)
+        area = np.asarray(self.mesh.area, dtype=float)
+        energy_flux = np.asarray(fluid.Energy.flux, dtype=float)
+        # AddFluxes uses inner-face minus outer-face fluxes.  This is the
+        # net energy entering the physical domain through its boundaries.
+        self.last_hydro_boundary_energy_flux = float(
+                dt * (
+                    energy_flux[first] * area[first]
+                - energy_flux[last] * area[last]
+                )
+        )
         self.solver.AddFluxes(dt, self.mesh, fluid, self.par.boundcond)
         return old_mass, mass_flux
 
@@ -410,6 +423,12 @@ class Rsim():
                 % (hydro_integrator, ", ".join(valid_hydro_integrators))
             )
         dt = self.GetStepTime(dt=dt)
+        temperature_before = diagnostics.temperature_physical_K(self)
+        if temperature_before is not None:
+            temperature_before = temperature_before.copy()
+        self.last_hydro_boundary_energy_flux = 0.0
+        self.last_gravity_work = 0.0
+        self.last_thermochemistry_energy_change = 0.0
         result = {
             "dt": dt,
             "hydro_steps": 0,
@@ -431,11 +450,25 @@ class Rsim():
                     mass_flux,
                     advect_chemistry=advect_chemistry,
                 )
+                self.last_gravity_work = float(
+                    getattr(self.solver, "last_gravity_work", 0.0)
+                )
                 result["hydro_steps"] = 1
                 # ``solver.AddFluxes`` advances the fluid clock for the
                 # Euler update.  Do not advance it again here; source-only
                 # steps below are the cases that need an explicit clock
                 # update.
+                diagnostics.check_temperature_jump(self, temperature_before, stage='hydro')
+
+        if mode == "hydro" and hydro_integrator == "ssprk2":
+            diagnostics.check_temperature_jump(self, temperature_before, stage='hydro')
+
+        if mode == "hydro_sources":
+            first = int(self.par.noghost)
+            last = first + int(self.par.nogrid)
+            energy_before_sources = float(
+                np.sum(np.asarray(self.fluid.Energy[first:last], dtype=float))
+            )
 
         if mode in ("hydro_sources", "sources"):
             source_result = self.ApplyThermochemistrySources(
@@ -458,6 +491,19 @@ class Rsim():
             )
             if pressure_applied:
                 self._sync_hydro_state()
+            if mode == "hydro_sources":
+                energy_after_sources = float(
+                    np.sum(np.asarray(self.fluid.Energy[first:last], dtype=float))
+                )
+                self.last_thermochemistry_energy_change = (
+                    energy_after_sources - energy_before_sources
+                )
+            diagnostics.check_temperature_jump(
+                self,
+                temperature_before,
+                stage='thermochemistry',
+                source_result=source_result,
+            )
             result["source_steps"] = int(source_result.get("source_steps", 0))
 
         return result

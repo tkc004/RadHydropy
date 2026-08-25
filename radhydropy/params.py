@@ -45,10 +45,16 @@ refparams = {
     'temp_outflow':0.0*unyt.K,
     'mu_outflow':1.0,    
     'verbose':0, # speak out details?
+    # Abort with a cell/neighborhood diagnostic if a gas cell crosses this
+    # physical temperature.  Set to None to disable the guard.
+    'temperature_jump_error_threshold': 1.0e8,
     'order': 0,  
     'noghost':2,
     'dtmin': 2.0e-8*unyt.s,
     'dtmax': 2.0e-1*unyt.s,   
+    # Numerical density threshold used only for vacuum-safe CFL and face
+    # reconstruction.  Cell-centred conserved states are not floored.
+    'cfl_density_floor': 0.0,
     'relaxation_damping_time': None,
     'thermochemistry_network': 'hydrogen',
     'cie_cooling': False,
@@ -148,6 +154,7 @@ refparams = {
     'density_representation': 'physical',
     'pressure_representation': 'physical',
     'temperature_representation': 'physical',
+    'cosmological_background_boundary_reconstruction': False,
     'cosmology_type': None,
     'cosmology_t_ref': 1.0,
     'cosmology_a_ref': 1.0,

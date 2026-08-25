@@ -29,6 +29,7 @@ from radhydropy.units import (
 from radhydropy.arrays import as_named_array
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 from radhydropy.thermo_networks.compton import cmb_compton_rate
+from radhydropy.diagnostics import thermochemistry_active_mask
 
 
 
@@ -530,7 +531,9 @@ def source_state(mesh, fluid, par):
         'temperature_K': temperature_physical,
         'specific_energy_erg_g': specific_energy,
         'rho_g_cm3': rho_physical,
-        'active': rho_physical > 0.0,
+        'active': thermochemistry_active_mask(
+            rho_physical, par, scaling['density_factor']
+        ),
         'nH_cm3': rho_physical * getattr(par, 'hydrogen_mass_fraction', 1.0) / PROTON_MASS_CGS,
         'gamma': gamma,
         'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 1.0),
@@ -886,7 +889,9 @@ def _fast_source_state(mesh, fluid, par):
             * scaling['density_factor']
         ),
         'rho_g_cm3': rho_g_cm3,
-        'active': rho_g_cm3 > 0.0,
+        'active': thermochemistry_active_mask(
+            rho_g_cm3, par, scaling['density_factor']
+        ),
         'temperature_K': temperature_K,
         'xHI': as_named_array(
             fluid.xHI[interior] if hasattr(fluid, 'xHI') else np.ones(par.nogrid),
@@ -1745,6 +1750,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             _fast_sync_state_to_fluid(state, fluid, par)
             return {
                 'source_steps': implicit_source_steps,
+                'source_solver': 'coupled_implicit',
                 'absorbed_photon_rate': None,
                 'photon_energy_erg': np.atleast_1d(
                     _optional_numeric_value(

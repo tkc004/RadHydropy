@@ -12,6 +12,7 @@ from radhydropy.units import _code_units, from_unit_value, to_unit_value
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.thermo_networks.hydrogen import _fast_source_scaling
+from radhydropy.diagnostics import thermochemistry_active_mask
 
 
 _TABLE_CACHE = {}
@@ -75,6 +76,9 @@ def _state(mesh, fluid, par):
     return {
         "interior": interior,
         "rho_g_cm3": rho,
+        "active": thermochemistry_active_mask(
+            rho, par, scaling["density_factor"]
+        ),
         "volume_cm3": volume,
         "velocity_cm_s": velocity,
         "thermal_energy_erg": thermal_energy,
@@ -154,6 +158,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             thermal_density,
             np.maximum(np.abs(rate), 1.0e-99),
         )
+        cooling_time = np.where(state["active"], cooling_time, np.inf)
         safety = float(state["cooling_safety_factor"])
         candidate = np.min(safety * cooling_time)
         return min(float(remaining_s), float(dtmax_s), candidate), rate
@@ -206,6 +211,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             * state["source_scale_factor"]**2
         )
         source_steps = 0
+        active = np.asarray(state["active"], dtype=bool)
         floor = getattr(par, "cooling_temperature_floor", 1.0)
         floor_K = float(to_unit_value(floor, unyt.K))
         while remaining_s > 0.0:
@@ -214,15 +220,18 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             if not np.isfinite(dt_s) or dt_s <= 0.0:
                 dt_s = remaining_s
             dt_s = min(dt_s, remaining_s)
-            state["specific_energy_erg_g"] += (
-                rate / np.maximum(state["rho_g_cm3"], 1.0e-99) * dt_s
+            energy = np.asarray(state["specific_energy_erg_g"], dtype=float).copy()
+            energy[active] += (
+                rate[active] / np.maximum(state["rho_g_cm3"][active], 1.0e-99)
+                * dt_s
             )
+            state["specific_energy_erg_g"] = energy
             minimum_energy = (
                 BOLTZMANN_CONSTANT_CGS * floor_K
                 / ((state["gamma"] - 1.0) * state["mu"] * PROTON_MASS_CGS)
             )
-            state["specific_energy_erg_g"] = np.maximum(
-                state["specific_energy_erg_g"], minimum_energy
+            state["specific_energy_erg_g"][active] = np.maximum(
+                state["specific_energy_erg_g"][active], minimum_energy[active]
             )
             remaining_s -= dt_s
             source_steps += 1
@@ -231,14 +240,19 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         interior = state["interior"]
         internal_super = state["specific_energy_erg_g"] * state["source_temperature_factor"]
         total_super = internal_super + 0.5 * state["velocity_supercomoving_cm_s"]**2
-        fluid.Energy[interior] = from_unit_value(
-            state["mass_g"] * total_super,
-            code.energy_unit,
+        updated_energy = from_unit_value(
+            state["mass_g"] * total_super, code.energy_unit
         )
-        fluid.temp[interior] = from_unit_value(
+        updated_temperature = from_unit_value(
             state["temperature_K"] * state["source_temperature_factor"],
             code.temperature_unit,
         )
+        energy_target = fluid.Energy[interior].copy()
+        temperature_target = fluid.temp[interior].copy()
+        energy_target[active] = updated_energy[active]
+        temperature_target[active] = updated_temperature[active]
+        fluid.Energy[interior] = energy_target
+        fluid.temp[interior] = temperature_target
         if hasattr(fluid.eos, "pressure"):
             fluid.pre[interior] = fluid.eos.pressure(
                 fluid.rho[interior],

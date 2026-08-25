@@ -374,6 +374,26 @@ def _pad_profile_history(profiles, key):
     return result
 
 
+def _energy_audit_state(sim):
+    """Return conserved gas-energy diagnostics for the physical cells."""
+    first = int(sim.par.noghost)
+    last = first + int(sim.par.nogrid)
+    rho = np.asarray(sim.fluid.rho[first:last], dtype=float)
+    vel = np.asarray(sim.fluid.vel[first:last], dtype=float)
+    volume = np.asarray(sim.mesh.vol[first:last], dtype=float)
+    mass = np.asarray(sim.fluid.Mass[first:last], dtype=float)
+    total_energy = np.asarray(sim.fluid.Energy[first:last], dtype=float)
+    kinetic_density = 0.5 * rho * vel**2
+    kinetic_energy = float(np.sum(kinetic_density * volume))
+    total_energy_value = float(np.sum(total_energy))
+    return {
+        "total_gas_mass": float(np.sum(mass)),
+        "total_gas_energy": total_energy_value,
+        "kinetic_energy": kinetic_energy,
+        "thermal_energy": total_energy_value - kinetic_energy,
+    }
+
+
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
@@ -492,8 +512,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         """Set the outer cosmic gas state in supercomoving hydro units."""
         scale_factor = float(cosmology.scale_factor(cosmic_time))
         background_physical = float(cosmology.background_density(cosmic_time))
-        temperature_initial = float(icparams["cmb_temperature_0"])
-        temperature_physical = temperature_initial * (initial_a / scale_factor) ** 2
+        # The IC is initialized in CMB equilibrium at the starting redshift,
+        # so its physical temperature is T_CMB,0 / a_initial.  Evolve that
+        # state adiabatically (T proportional to a^-2) for the outer gas.
+        temperature_initial = float(icparams["cmb_temperature_0"]) / initial_a
+        temperature_physical = temperature_initial * (
+            initial_a / scale_factor
+        ) ** 2
 
         # The boundary is specified physically, then converted explicitly to
         # the hydro representation.  For this gamma=5/3 supercomoving case,
@@ -538,6 +563,18 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         dm_profiles.append(dm_profile)
 
     save_snapshot(initial_time)
+    audit_initial = _energy_audit_state(sim)
+    energy_audit = {
+        "step": [0],
+        "time_Gyr": [initial_time * sim.par.CodeUnits.time_unit.to_value("Gyr")],
+        "dt": [0.0],
+        "scale_factor": [initial_a],
+        **{key: [value] for key, value in audit_initial.items()},
+        "gravitational_work": [0.0],
+        "hydro_boundary_energy_flux": [0.0],
+        "thermochemistry_energy_change": [0.0],
+        "energy_closure_residual": [0.0],
+    }
     next_snapshot += cadence
     while float(sim.fluid.time) < target_tau - 1.0e-12:
         cosmic_start = float(
@@ -555,6 +592,32 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
         steps += 1
         cosmic_time = float(
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+        )
+        audit_state = _energy_audit_state(sim)
+        previous_energy = energy_audit["total_gas_energy"][-1]
+        energy_change = audit_state["total_gas_energy"] - previous_energy
+        gravity_work = float(getattr(sim, "last_gravity_work", 0.0))
+        boundary_flux = float(
+            getattr(sim, "last_hydro_boundary_energy_flux", 0.0)
+        )
+        thermo_change = float(
+            getattr(sim, "last_thermochemistry_energy_change", 0.0)
+        )
+        for key, value in audit_state.items():
+            energy_audit[key].append(value)
+        energy_audit["step"].append(steps)
+        energy_audit["time_Gyr"].append(
+            cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")
+        )
+        energy_audit["dt"].append(dt)
+        energy_audit["scale_factor"].append(
+            float(cosmology.scale_factor(cosmic_time))
+        )
+        energy_audit["gravitational_work"].append(gravity_work)
+        energy_audit["hydro_boundary_energy_flux"].append(boundary_flux)
+        energy_audit["thermochemistry_energy_change"].append(thermo_change)
+        energy_audit["energy_closure_residual"].append(
+            energy_change - boundary_flux - gravity_work - thermo_change
         )
         if steps == 1 or steps % 100 == 0:
             print(
@@ -589,6 +652,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
              temperature_physical_K=temperature,
              rvir_proper_kpc=virial_radius,
              virial_temperature_K=virial_temperature)
+    energy_audit_file = output_dir / (figure_prefix + "_EnergyAudit.npz")
+    np.savez(energy_audit_file, **{
+        key: np.asarray(value, dtype=float)
+        for key, value in energy_audit.items()
+    })
     figure = output_dir / (figure_prefix + ".jpg")
     radius_figure = output_dir / (figure_prefix + "_Radii.jpg")
     plot_mass_history(history, figure)
@@ -645,6 +713,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     print("temperature-density figure = %s" % temperature_density_figure)
     print("dark-matter figure = %s" % dm_figure)
     print("dark-matter data = %s" % dm_data_file)
+    print("energy audit = %s" % energy_audit_file)
     return data_file
 
 
