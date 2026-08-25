@@ -903,9 +903,16 @@ class Solver():
                 fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
             )
             self.SetConservedDensityFlux(fluid)
-            fluid.Mass.flux, fluid.philim_Mass = ru.ApplyFluxLimiter(fluid.Mass.q, Mass_flux_1, Mass_flux_0)
-            fluid.Mom.flux, fluid.philim_Mom = ru.ApplyFluxLimiter(fluid.Mom.q, Mom_flux_1, Mom_flux_0)
-            fluid.Energy.flux, fluid.philim_Energy = ru.ApplyFluxLimiter(fluid.Energy.q, Energy_flux_1, Energy_flux_0)
+            limiter = getattr(par, 'flux_limiter', 'minmod') if par is not None else 'minmod'
+            fluid.Mass.flux, fluid.philim_Mass = ru.ApplyFluxLimiter(
+                fluid.Mass.q, Mass_flux_1, Mass_flux_0, limiter=limiter
+            )
+            fluid.Mom.flux, fluid.philim_Mom = ru.ApplyFluxLimiter(
+                fluid.Mom.q, Mom_flux_1, Mom_flux_0, limiter=limiter
+            )
+            fluid.Energy.flux, fluid.philim_Energy = ru.ApplyFluxLimiter(
+                fluid.Energy.q, Energy_flux_1, Energy_flux_0, limiter=limiter
+            )
             # A MUSCL reconstruction is not valid across a vacuum jump.  Use
             # the positivity-safe first-order flux on gas-vacuum faces; this
             # preserves injection into vacuum while retaining order one away

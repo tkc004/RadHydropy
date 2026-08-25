@@ -50,6 +50,9 @@ refparams = {
     'temperature_jump_error_threshold': 1.0e8,
     'order': 0,  
     'riemann_solver': 'Rusanov',
+    # Minmod is robust near strong discontinuities; MC retains more
+    # resolution in smooth rarefaction/contact regions while remaining TVD.
+    'flux_limiter': 'minmod',
     'dual_energy': False,
     'dual_energy_switch': 1.0e-3,
     'noghost':2,

@@ -1,0 +1,47 @@
+runparams:
+  simname: CosmologicalSodShock1D
+  ICfilename: InitialCondition.hdf5
+  outdir: .
+  outfileprefix: Output
+  savedir: .
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.4
+  cosmological_expansion: true
+  supercomoving_coordinates: true
+  cosmological_gravity: false
+  cosmology_type: einstein_de_sitter
+  cosmology_t_ref: 1.0
+  cosmology_a_ref: 1.0
+  coordinate_frame: comoving
+  time_coordinate: supercomoving
+  density_representation: comoving
+  temperature_representation: supercomoving
+  velocity_representation: supercomoving_peculiar
+  timesim: {value: 0.4, unit: s}
+  outdeltatime: {value: 0.1, unit: s}
+  CFL: 0.1
+  boundcond: Periodic
+  order: 1
+  riemann_solver: HLLC
+  flux_limiter: minmod
+  dual_energy: false
+  CodeUnits:
+    name: cosmological_sod_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 800
+  coordsys: cartesian
+  boxsize: {value: 8.0, unit: cm}
+  time: {value: 0.0, unit: s}
+  rho_left: 1.0
+  rho_right: 0.125
+  temp_left: {value: 1.0e-8, unit: K}
+  temp_right: {value: 8.0e-9, unit: K}
+  mu: 1.0

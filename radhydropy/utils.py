@@ -135,6 +135,16 @@ def CalFluxLimiter(rlim, limiter='minmod'):
     if limiter=='minmod':
         firststep = np.minimum(np.ones(len(rlim)), rlim)
         philim = np.maximum(np.zeros(len(rlim)), firststep)
+    elif limiter in ('MC', 'monotonized_central'):
+        # Monotonized-central is less compressive than minmod while keeping
+        # the TVD bound.  It is a useful default for resolved rarefactions.
+        philim = np.maximum(
+            0.0,
+            np.minimum(
+                np.minimum(2.0 * rlim, 0.5 * (1.0 + rlim)),
+                2.0,
+            ),
+        )
     elif limiter=='vanLeer':
         # is it correct when rlim -> inf, philim -> 2?
         philim = (rlim + np.absolute(rlim)) / (1.0 + np.absolute(rlim))
@@ -183,8 +193,8 @@ def CalFluxFromLR(rho_L,rho_R,u_L,u_R,p_L,p_R,gamma,cmax):
 
 
 
-def ApplyFluxLimiter(q,flux_1,flux_0):
-    """Blend first-order and second-order fluxes using a minmod limiter."""
+def ApplyFluxLimiter(q,flux_1,flux_0, limiter='minmod'):
+    """Blend first-order and second-order fluxes using a slope limiter."""
     #numpy roll Rroll, put the right value to this cell
     q_l1 = periodic_roll(q, 1)
     q_l2 = periodic_roll(q, 2)
@@ -196,6 +206,6 @@ def ApplyFluxLimiter(q,flux_1,flux_0):
     # if bottom is zero, we just assign a very large number
     rlim[np.isnan(rlim)] = 0.0
     #rlim[np.logical_or(bottom==0,np.isnan(bottom))] = 0.0
-    philim = CalFluxLimiter(rlim)
+    philim = CalFluxLimiter(rlim, limiter=limiter)
     #print('philim',philim)
     return flux_0 - philim * (flux_0-flux_1), philim

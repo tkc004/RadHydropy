@@ -615,6 +615,14 @@ def writehdf5(ric,ICfilename):
             if key.startswith("_") or key in {"dark_matter", "dark_matter_snapshot", "cosmology"}:
                 continue
             header.attrs[key] = _header_attr_value(value)
+        if hasattr(ric, "cumulative_hydro_boundary_energy"):
+            header.attrs["CumulativeHydroBoundaryEnergyCode"] = float(
+                ric.cumulative_hydro_boundary_energy
+            )
+        if hasattr(ric, "cumulative_gravity_work"):
+            header.attrs["CumulativeGravityWorkCode"] = float(
+                ric.cumulative_gravity_work
+            )
         _write_cosmology_header(header, ric.par, output_time, code_units)
         _write_quantity(
             header,

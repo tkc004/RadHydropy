@@ -37,6 +37,8 @@ class Rsim():
         self.mesh  = Mesh()
         self.par    = Par(params)
         self.solver = Solver()
+        self.cumulative_hydro_boundary_energy = 0.0
+        self.cumulative_gravity_work = 0.0
         self.fluid.eos = EOS(
             self.par.EOStype,
             self.par.gamma,
@@ -51,6 +53,8 @@ class Rsim():
         sim.mesh = mesh
         sim.fluid = fluid
         sim.solver = solver if solver is not None else Solver()
+        sim.cumulative_hydro_boundary_energy = 0.0
+        sim.cumulative_gravity_work = 0.0
         return sim
         
 
@@ -249,6 +253,7 @@ class Rsim():
                 - energy_flux[last] * area[last]
                 )
         )
+        self.cumulative_hydro_boundary_energy += self.last_hydro_boundary_energy_flux
         self.solver.AddFluxes(dt, self.mesh, fluid, self.par.boundcond)
         return old_mass, mass_flux
 
@@ -457,6 +462,7 @@ class Rsim():
                 self.last_gravity_work = float(
                     getattr(self.solver, "last_gravity_work", 0.0)
                 )
+                self.cumulative_gravity_work += self.last_gravity_work
                 result["hydro_steps"] = 1
                 # ``solver.AddFluxes`` advances the fluid clock for the
                 # Euler update.  Do not advance it again here; source-only

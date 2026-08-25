@@ -6,6 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import h5py
 EXAMPLE_DIR = Path(__file__).resolve().parent
 EXAMPLE_ROOT = EXAMPLE_DIR.parent
 PROJECT_ROOT = EXAMPLE_ROOT.parent
@@ -124,6 +125,51 @@ def _run_stage(params, halo, mode, pie_table=None, restart=False):
     return sorted(outdir.glob(f"{params['outfileprefix']}_*.hdf5"))
 
 
+def _write_adiabatic_energy_audit(files, code_units, filename):
+    """Write the open-boundary total-energy budget for an adiabatic stage."""
+    if len(files) < 2:
+        raise RuntimeError('energy audit requires at least two snapshots')
+
+    def snapshot_energy(path):
+        with h5py.File(path, 'r') as handle:
+            header = handle['Header']
+            data = handle['Data']
+            first = int(header.attrs.get('noghost', 2))
+            count = int(header.attrs['nogrid'])
+            energy = np.asarray(data['Energy'][first:first + count], dtype=float)
+            energy_unit = unyt.Unit(data['Energy'].attrs['units'])
+            energy_scale = (1.0 * energy_unit).to_value(unyt.erg)
+            total_energy = float(np.sum(energy) * energy_scale)
+            time = (
+                float(np.asarray(header['Time'][()]))
+                * unyt.Unit(header['Time'].attrs['units'])
+            ).to_value(unyt.Myr)
+            boundary = float(header.attrs.get('CumulativeHydroBoundaryEnergyCode', 0.0))
+            gravity = float(header.attrs.get('CumulativeGravityWorkCode', 0.0))
+            return time, total_energy, boundary, gravity
+
+    initial = snapshot_energy(files[0])
+    final = snapshot_energy(files[-1])
+    energy_scale = code_units.energy_unit.to_value(unyt.erg)
+    delta_energy = final[1] - initial[1]
+    boundary_work = (final[2] - initial[2]) * energy_scale
+    gravity_work = (final[3] - initial[3]) * energy_scale
+    residual = delta_energy - boundary_work - gravity_work
+    with Path(filename).open('w', encoding='utf-8') as stream:
+        stream.write('quantity value_erg\n')
+        stream.write(f'initial_gas_energy {initial[1]:.12e}\n')
+        stream.write(f'final_gas_energy {final[1]:.12e}\n')
+        stream.write(f'delta_gas_energy {delta_energy:.12e}\n')
+        stream.write(f'boundary_energy {boundary_work:.12e}\n')
+        stream.write(f'gravity_work {gravity_work:.12e}\n')
+        stream.write(f'budget_residual {residual:.12e}\n')
+        stream.write(f'residual_fraction_of_delta {residual / max(abs(delta_energy), 1.0e-99):.12e}\n')
+    print('adiabatic energy audit = %s' % filename)
+    print('adiabatic energy residual = %.6e erg (%.6e of delta)' % (
+        residual, residual / max(abs(delta_energy), 1.0e-99)
+    ))
+
+
 def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
     times = rio.load_output_time_list(filename).to_value(unyt.Myr)
     if len(times) != expected_count:
@@ -133,7 +179,7 @@ def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
     return times + float(offset_myr)
 
 
-def main(config_filename=DEFAULT_CONFIG):
+def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
     for key in ('metal_pie_table_filename', 'pie_outputtimefilename', 'pie_outdir'):
@@ -160,6 +206,10 @@ def main(config_filename=DEFAULT_CONFIG):
     adiabatic_files = _run_stage(adiabatic, halo, 'hydro')
     if not adiabatic_files:
         raise RuntimeError('adiabatic stage produced no snapshots')
+    adiabatic_audit = Path(adiabatic['savedir']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
+    _write_adiabatic_energy_audit(adiabatic_files, code_units, adiabatic_audit)
+    if adiabatic_only:
+        return
 
     pie = dict(runparams)
     pie.update({
@@ -219,9 +269,10 @@ def main(config_filename=DEFAULT_CONFIG):
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument('--adiabatic-only', action='store_true')
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = parse_args()
-    main(args.config)
+    main(args.config, adiabatic_only=args.adiabatic_only)
