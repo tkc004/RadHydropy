@@ -486,6 +486,19 @@ class Solver():
                 np.isfinite(internal_density)
                 & (internal_density > 0.0)
                 & np.isfinite(dual_pressure)
+                # The dual field is a pressure fallback only while it is
+                # itself a genuinely small thermal correction.  If it has
+                # grown to an appreciable fraction of the total energy while
+                # E-K is nearly zero, the two energy representations have
+                # diverged (typically at an under-resolved shock).  Trusting
+                # that field would turn a tiny density residual into an
+                # enormous temperature.  Fall back to conservative E-K in
+                # that case, with the configured hydro temperature floor
+                # applied below.
+                & (
+                    internal_density
+                    <= switch * np.maximum(np.abs(energy_density), 1.0e-300)
+                )
                 & (
                     total_thermal
                     <= switch * np.maximum(np.abs(energy_density), 1.0e-300)
@@ -1136,6 +1149,32 @@ class Solver():
             result[~physical] = True
             return result
 
+        def cell_valid(index, mass_value, momentum_value, energy_value):
+            """Check one trial cell without NumPy allocation."""
+            if not (
+                np.isfinite(mass_value)
+                and np.isfinite(momentum_value)
+                and np.isfinite(energy_value)
+                and mass_value >= mass_floor[index]
+            ):
+                return False
+            if mass_value <= max(mass_floor[index], 0.0):
+                return energy_value >= energy_floor[index]
+            kinetic_value = 0.5 * momentum_value**2 / mass_value
+            internal_value = energy_value - kinetic_value
+            tolerance = relative_tolerance * max(
+                abs(energy_value),
+                kinetic_value,
+                abs(energy_floor[index]),
+                np.finfo(float).tiny,
+            )
+            # Leave a tiny margin for the different evaluation order used by
+            # the final vectorized admissibility check.  This is only an
+            # internal limiter margin; the public roundoff tolerance remains
+            # exactly ``relative_tolerance``.
+            tolerance *= 1.0 - 1.0e-8
+            return internal_value >= energy_floor[index] - tolerance
+
         if geometric_mom is not None:
             # The spherical pressure geometry term is a momentum source while
             # total energy remains governed by the conservative energy flux.
@@ -1157,9 +1196,13 @@ class Solver():
                 low, high = 0.0, 1.0
                 for _ in range(48):
                     middle = 0.5 * (low + high)
-                    trial_momentum = momentum.copy()
-                    trial_momentum[index] += middle * geometry_increment[index]
-                    if valid(mass, trial_momentum, energy)[index]:
+                    trial_momentum = (
+                        momentum[index] + middle * geometry_increment[index]
+                    )
+                    trial_valid = cell_valid(
+                        index, mass[index], trial_momentum, energy[index]
+                    )
+                    if trial_valid:
                         low = middle
                     else:
                         high = middle
@@ -1202,30 +1245,43 @@ class Solver():
                        total_energy[index])
                 )
 
-            def face_candidate(face, factor):
+            def adjacent_valid(face, factor):
+                """Check only the two cells changed by one face trial."""
                 left = (face - 1) % count
                 right = face
                 increment = factor - factors[face]
-                trial_mass = total_mass.copy()
-                trial_mom = total_mom.copy()
-                trial_energy = total_energy.copy()
-                trial_mass[left] -= increment * delta_mass[face]
-                trial_mom[left] -= increment * delta_mom[face]
-                trial_energy[left] -= increment * delta_energy[face]
-                trial_mass[right] += increment * delta_mass[face]
-                trial_mom[right] += increment * delta_mom[face]
-                trial_energy[right] += increment * delta_energy[face]
-                return trial_mass, trial_mom, trial_energy
-
-            def adjacent_valid(face, state):
-                admissible = valid(*state)
-                left = (face - 1) % count
-                right = face
-                return all(
-                    admissible[index]
-                    for index in (left, right)
-                    if physical[index]
+                trial_mass_left = total_mass[left] - increment * delta_mass[face]
+                trial_mom_left = total_mom[left] - increment * delta_mom[face]
+                trial_energy_left = (
+                    total_energy[left] - increment * delta_energy[face]
                 )
+                trial_mass_right = total_mass[right] + increment * delta_mass[face]
+                trial_mom_right = total_mom[right] + increment * delta_mom[face]
+                trial_energy_right = (
+                    total_energy[right] + increment * delta_energy[face]
+                )
+                indices = [index for index in (left, right) if physical[index]]
+                if not indices:
+                    return True
+                for index in indices:
+                    trial_mass_value = (
+                        trial_mass_left if index == left else trial_mass_right
+                    )
+                    trial_mom_value = (
+                        trial_mom_left if index == left else trial_mom_right
+                    )
+                    trial_energy_value = (
+                        trial_energy_left
+                        if index == left else trial_energy_right
+                    )
+                    if not cell_valid(
+                        index,
+                        trial_mass_value,
+                        trial_mom_value,
+                        trial_energy_value,
+                    ):
+                        return False
+                return True
 
             # Alternate traversal direction to reduce ordering bias.  The
             # first sweep already produces a globally admissible update;
@@ -1244,32 +1300,33 @@ class Solver():
                     if current >= 1.0 - factor_tolerance:
                         factors[face] = 1.0
                         continue
-                    trial = face_candidate(face, 1.0)
-                    if adjacent_valid(face, trial):
+                    if adjacent_valid(face, 1.0):
                         accepted = 1.0
-                        accepted_state = trial
                     else:
                         # The current coefficient is known admissible.  Search
                         # only upward, never stepping outside the invariant
                         # domain as the previous reduce-and-repair scheme did.
                         low, high = current, 1.0
-                        accepted_state = (
-                            total_mass, total_mom, total_energy
-                        )
                         for _ in range(48):
                             middle = 0.5 * (low + high)
-                            middle_state = face_candidate(face, middle)
-                            if adjacent_valid(face, middle_state):
+                            if adjacent_valid(face, middle):
                                 low = middle
-                                accepted_state = middle_state
                             else:
                                 high = middle
                         accepted = low
                     largest_increase = max(
                         largest_increase, accepted - current
                     )
+                    increment = accepted - current
+                    left = (face - 1) % count
+                    right = face
+                    total_mass[left] -= increment * delta_mass[face]
+                    total_mom[left] -= increment * delta_mom[face]
+                    total_energy[left] -= increment * delta_energy[face]
+                    total_mass[right] += increment * delta_mass[face]
+                    total_mom[right] += increment * delta_mom[face]
+                    total_energy[right] += increment * delta_energy[face]
                     factors[face] = accepted
-                    total_mass, total_mom, total_energy = accepted_state
                 if np.all(factors >= 1.0 - factor_tolerance):
                     factors[...] = 1.0
                     break
@@ -1543,6 +1600,10 @@ class Solver():
         fluid.Energy[...] = new_energy
         self.last_gravity_work = float(
             np.sum(gravity_work[self._interior_slice(par)])
+        )
+        self.last_dark_matter_substeps = int(
+            getattr(getattr(gravity, "dark_matter", None),
+                    "last_substep_count", 0)
         )
         return 1
 

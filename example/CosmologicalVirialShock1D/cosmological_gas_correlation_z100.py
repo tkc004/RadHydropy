@@ -979,6 +979,16 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("initial gas fraction = %.8g" % measured_fraction)
     print("initial gas temperature = %.8g K" % initial_temperature)
     print("final cosmic time = %.8g Gyr" % times[-1])
+    dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
+    if dm_substeps.size:
+        print(
+            "dark-matter substeps per hydro step = %.8g mean, %d max, %d total"
+            % (
+                np.mean(dm_substeps),
+                np.max(dm_substeps),
+                np.sum(dm_substeps),
+            )
+        )
     print("data = %s" % data_file)
     print("figure = %s" % figure)
     print("radius figure = %s" % radius_figure)

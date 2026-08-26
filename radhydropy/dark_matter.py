@@ -120,6 +120,10 @@ class DarkMatterShells:
             else float(self.fixed_enclosed_mass)
         )
         self._mass_prefix_cache = None
+        self._enclosed_mass_cache = None
+        self.last_substep_count = 0
+        self.total_substep_count = 0
+        self.last_crossing_event_count = 0
         if not (
             self.radius.ndim == self.velocity.ndim == self.mass.ndim == self.angular_momentum.ndim == 1
         ):
@@ -152,6 +156,7 @@ class DarkMatterShells:
         self.mass = self.mass[order]
         self.angular_momentum = self.angular_momentum[order]
         self._mass_prefix_cache = None
+        self._enclosed_mass_cache = None
         return order
 
     def _mass_prefix(self):
@@ -163,6 +168,8 @@ class DarkMatterShells:
     def enclosed_mass(self, radius=None):
         """Return enclosed shell mass using half the mass at a shell radius."""
         if radius is None:
+            if self._enclosed_mass_cache is not None:
+                return self._enclosed_mass_cache
             # Shells are kept sorted by radius.  When callers request the
             # enclosed mass at every current shell radius (the hot path in
             # ``acceleration``), the shell indices are already known, so
@@ -170,6 +177,9 @@ class DarkMatterShells:
             # assign half of the total coincident-group mass to every shell,
             # matching the generic arbitrary-radius convention.
             prefix = self._mass_prefix()
+            if np.all(self.radius[1:] > self.radius[:-1]):
+                self._enclosed_mass_cache = prefix[:-1] + 0.5 * self.mass
+                return self._enclosed_mass_cache
             starts = np.flatnonzero(
                 np.r_[True, self.radius[1:] > self.radius[:-1]]
             )
@@ -177,7 +187,8 @@ class DarkMatterShells:
             group_values = prefix[starts] + 0.5 * (
                 prefix[ends] - prefix[starts]
             )
-            return np.repeat(group_values, ends - starts)
+            self._enclosed_mass_cache = np.repeat(group_values, ends - starts)
+            return self._enclosed_mass_cache
         radius = np.asarray(radius, dtype=float)
         prefix = self._mass_prefix()
         left = np.searchsorted(self.radius, radius, side="left")
@@ -315,12 +326,32 @@ class DarkMatterShells:
 
     def _exchange_shell_states(self, pairs):
         """Exchange state across the supplied neighboring crossing pairs."""
-        for index in pairs:
-            self.velocity[index:index + 2] = self.velocity[index:index + 2][::-1]
-            self.mass[index:index + 2] = self.mass[index:index + 2][::-1]
-            self.angular_momentum[index:index + 2] = self.angular_momentum[index:index + 2][::-1]
+        pairs = np.asarray(pairs, dtype=int)
+        if pairs.size == 0:
+            return
+        # Crossing pairs are normally disjoint.  Swap all such pairs in one
+        # vectorized operation; retain the loop only for overlapping pairs,
+        # whose sequential order is part of the legacy event convention.
+        disjoint = pairs.size == 1 or np.all(np.diff(pairs) > 1)
+        if disjoint:
+            right = pairs + 1
+            velocity = self.velocity[pairs].copy()
+            mass = self.mass[pairs].copy()
+            angular_momentum = self.angular_momentum[pairs].copy()
+            self.velocity[pairs] = self.velocity[right]
+            self.mass[pairs] = self.mass[right]
+            self.angular_momentum[pairs] = self.angular_momentum[right]
+            self.velocity[right] = velocity
+            self.mass[right] = mass
+            self.angular_momentum[right] = angular_momentum
+        else:
+            for index in pairs:
+                self.velocity[index:index + 2] = self.velocity[index:index + 2][::-1]
+                self.mass[index:index + 2] = self.mass[index:index + 2][::-1]
+                self.angular_momentum[index:index + 2] = self.angular_momentum[index:index + 2][::-1]
         if pairs.size:
             self._mass_prefix_cache = None
+            self._enclosed_mass_cache = None
 
     def _crossing_event_pairs(self, crossing_dt):
         """Return pairs whose predicted crossing is the current event."""
@@ -423,6 +454,7 @@ class DarkMatterShells:
         self.mass = self.mass[keep]
         self.angular_momentum = self.angular_momentum[keep]
         self._mass_prefix_cache = None
+        self._enclosed_mass_cache = None
         return absorbed_mass
 
     def step(
@@ -453,9 +485,11 @@ class DarkMatterShells:
         # always cover the complete requested interval.
         remaining = dt
         elapsed = 0.0
+        substep_count = 0
+        crossing_event_count = 0
         minimum_step = 64.0 * np.finfo(float).eps * max(1.0, dt)
+        self._resolve_coincident_crossings()
         while remaining > minimum_step:
-            self._resolve_coincident_crossings()
             crossing_dt = self.crossing_timestep(safety_factor=1.0)
             substep = remaining
             event_pairs = np.empty(0, dtype=int)
@@ -489,15 +523,24 @@ class DarkMatterShells:
             self.radius = self.radius + substep * velocity_half
             self.velocity = velocity_half
             if event_pairs.size:
+                crossing_event_count += event_pairs.size
                 # Roundoff can leave a tiny residual separation after the
                 # exact event step.  Place each event pair at the common
                 # crossing radius before exchanging states so the next loop
                 # iteration cannot generate a zero-progress crossing event.
-                for index in event_pairs:
-                    crossing_radius = 0.5 * (
-                        self.radius[index] + self.radius[index + 1]
-                    )
-                    self.radius[index:index + 2] = crossing_radius
+                crossing_radius = 0.5 * (
+                    self.radius[event_pairs] + self.radius[event_pairs + 1]
+                )
+                disjoint = (
+                    event_pairs.size == 1
+                    or np.all(np.diff(event_pairs) > 1)
+                )
+                if disjoint:
+                    self.radius[event_pairs] = crossing_radius
+                    self.radius[event_pairs + 1] = crossing_radius
+                else:
+                    for index, radius in zip(event_pairs, crossing_radius):
+                        self.radius[index:index + 2] = radius
                 self._exchange_shell_states(event_pairs)
             self._absorb_into_core(
                 self.radius,
@@ -520,7 +563,11 @@ class DarkMatterShells:
             self.velocity += 0.5 * substep * acceleration_new
             elapsed += substep
             remaining = dt - elapsed
+            substep_count += 1
 
+        self.last_substep_count = substep_count
+        self.total_substep_count += substep_count
+        self.last_crossing_event_count = crossing_event_count
         return dt
 
     def specific_energy(self):

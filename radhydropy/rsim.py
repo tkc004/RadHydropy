@@ -39,6 +39,9 @@ class Rsim():
         self.solver = Solver()
         self.cumulative_hydro_boundary_energy = 0.0
         self.cumulative_gravity_work = 0.0
+        self.last_dark_matter_substeps = 0
+        self.cumulative_dark_matter_substeps = 0
+        self.dark_matter_substep_history = []
         self.fluid.eos = EOS(
             self.par.EOStype,
             self.par.gamma,
@@ -55,6 +58,9 @@ class Rsim():
         sim.solver = solver if solver is not None else Solver()
         sim.cumulative_hydro_boundary_energy = 0.0
         sim.cumulative_gravity_work = 0.0
+        sim.last_dark_matter_substeps = 0
+        sim.cumulative_dark_matter_substeps = 0
+        sim.dark_matter_substep_history = []
         return sim
         
 
@@ -327,6 +333,7 @@ class Rsim():
         mass_flux,
         advect_chemistry=True,
         fluid=None,
+        temperature_before=None,
     ):
         """Complete a hydro step after conserved variables have been advanced."""
         if fluid is None:
@@ -335,6 +342,9 @@ class Rsim():
         diagnostics.check_conserved_energy_admissibility(
             self, stage='gravity update'
         )
+        diagnostics.check_temperature_jump(
+            self, temperature_before, stage='gravity update'
+        )
         if advect_chemistry:
             self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
         self._sync_hydro_state(fluid=fluid)
@@ -342,6 +352,10 @@ class Rsim():
         self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
         diagnostics.check_conserved_energy_admissibility(
             self, stage='hydro SetConserved synchronization'
+        )
+        diagnostics.check_temperature_jump(
+            self, temperature_before,
+            stage='hydro SetConserved synchronization'
         )
 
     def ApplyThermochemistrySources(self, dt):
@@ -468,16 +482,30 @@ class Rsim():
                 diagnostics.check_conserved_energy_admissibility(
                     self, stage='hydro flux update'
                 )
+                diagnostics.check_temperature_jump(
+                    self, temperature_before, stage='hydro flux update'
+                )
                 self.FinalizeHydroStep(
                     dt,
                     old_mass,
                     mass_flux,
                     advect_chemistry=advect_chemistry,
+                    temperature_before=temperature_before,
                 )
                 self.last_gravity_work = float(
                     getattr(self.solver, "last_gravity_work", 0.0)
                 )
                 self.cumulative_gravity_work += self.last_gravity_work
+                self.last_dark_matter_substeps = int(
+                    getattr(self.solver, "last_dark_matter_substeps", 0)
+                )
+                self.cumulative_dark_matter_substeps += (
+                    self.last_dark_matter_substeps
+                )
+                self.dark_matter_substep_history.append(
+                    self.last_dark_matter_substeps
+                )
+                result["dark_matter_substeps"] = self.last_dark_matter_substeps
                 result["hydro_steps"] = 1
                 # ``solver.AddFluxes`` advances the fluid clock for the
                 # Euler update.  Do not advance it again here; source-only
