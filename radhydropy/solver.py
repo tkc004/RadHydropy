@@ -1041,6 +1041,226 @@ class Solver():
         if getattr(par, 'verbose', 0) >= 1:
             print('[positivity limiter] factor=%s' % low)
         return low
+
+    def _positivity_limited_face_fluxes(
+        self, fluid, dt, mesh, par, mass_face, mom_face, energy_face,
+        geometric_mom=None,
+    ):
+        """Apply a local invariant-domain limiter to paired face fluxes.
+
+        A global multiplier is especially damaging for cold, nearly
+        pressureless flows: one restrictive cell can suppress continuity in
+        every other cell.  Instead, visit each face and scale its conservative
+        correction only when the two cells sharing that face would leave the
+        positivity domain.  The correction is applied with opposite signs to
+        the two cells, so conservation is retained exactly (including at
+        nonuniform spherical faces).
+        """
+        if not getattr(par, 'positivity_preserving', True):
+            return 1.0
+        dt_value = float(np.asarray(dt, dtype=float))
+        mass = np.asarray(fluid.Mass, dtype=float).copy()
+        momentum = np.asarray(fluid.Mom, dtype=float).copy()
+        energy = np.asarray(fluid.Energy, dtype=float).copy()
+        count = len(mass)
+        first = int(getattr(par, 'noghost', 0))
+        last = min(first + int(getattr(par, 'nogrid', count - first)), count)
+        physical = np.zeros(count, dtype=bool)
+        physical[first:last] = True
+        volume = np.asarray(mesh.vol, dtype=float)
+        mass_floor = max(
+            0.0, float(np.asarray(getattr(par, 'positivity_density_floor', 0.0)))
+        ) * volume
+        energy_floor = max(
+            0.0, float(np.asarray(getattr(par, 'positivity_energy_floor', 0.0)))
+        ) * volume
+        relative_tolerance = (
+            1.0e-10
+            if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy')
+            else 1.0e-12
+        )
+
+        # Numerical vacuum is not a resolved state and should not contribute
+        # a spurious momentum/energy constraint to its neighboring face.
+        vacuum_mass = (
+            float(np.asarray(getattr(par, 'cfl_density_floor', 0.0))) * volume
+        )
+        vacuum = mass <= np.maximum(vacuum_mass, 0.0)
+        mass[vacuum] = 0.0
+        momentum[vacuum] = 0.0
+        energy[vacuum] = 0.0
+        fluid.Mass[vacuum] = 0.0
+        fluid.Mom[vacuum] = 0.0
+        fluid.Energy[vacuum] = 0.0
+
+        if geometric_mom is not None:
+            # This is a cell source rather than a face flux.  Apply it before
+            # limiting the conservative face corrections.
+            momentum += dt_value * np.asarray(geometric_mom, dtype=float)
+
+        def valid(mass_value, momentum_value, energy_value):
+            if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy'):
+                # In a cold supersonic flow, E-K can lose all significant
+                # digits even while the independently evolved thermal energy
+                # remains positive.  The dual-energy variable supplies the
+                # pressure in that regime, so do not reject a state solely
+                # because total energy is below its rounded kinetic part.
+                result = (
+                    np.isfinite(mass_value)
+                    & np.isfinite(momentum_value)
+                    & np.isfinite(energy_value)
+                    & (mass_value >= mass_floor)
+                    & (energy_value >= energy_floor)
+                )
+            else:
+                result = self._positive_conserved_state(
+                    mass_value, momentum_value, energy_value,
+                    mass_floor=mass_floor, energy_floor=energy_floor,
+                    relative_tolerance=relative_tolerance,
+                )
+            result[~physical] = True
+            return result
+
+        mass_face = np.asarray(mass_face, dtype=float)
+        mom_face = np.asarray(mom_face, dtype=float)
+        energy_face = np.asarray(energy_face, dtype=float)
+        area = np.asarray(mesh.area, dtype=float)
+        factors = np.ones(len(mass_face), dtype=float)
+        delta_mass = dt_value * mass_face * area
+        delta_mom = dt_value * mom_face * area
+        delta_energy = dt_value * energy_face * area
+        total_mass = mass.copy()
+        total_mom = momentum.copy()
+        total_energy = energy.copy()
+        total_mass += delta_mass - ru.periodic_roll(delta_mass, -1)
+        total_mom += delta_mom - ru.periodic_roll(delta_mom, -1)
+        total_energy += delta_energy - ru.periodic_roll(delta_energy, -1)
+        for face in range(len(mass_face)):
+            left = (face - 1) % count
+            right = face
+            face_mass = delta_mass[face]
+            face_mom = delta_mom[face]
+            face_energy = delta_energy[face]
+            base_mass = total_mass.copy()
+            base_mom = total_mom.copy()
+            base_energy = total_energy.copy()
+            base_mass[left] += factors[face] * face_mass
+            base_mom[left] += factors[face] * face_mom
+            base_energy[left] += factors[face] * face_energy
+            base_mass[right] -= factors[face] * face_mass
+            base_mom[right] -= factors[face] * face_mom
+            base_energy[right] -= factors[face] * face_energy
+
+            def candidate(factor):
+                trial_mass = base_mass.copy()
+                trial_mom = base_mom.copy()
+                trial_energy = base_energy.copy()
+                trial_mass[left] -= factor * face_mass
+                trial_mom[left] -= factor * face_mom
+                trial_energy[left] -= factor * face_energy
+                trial_mass[right] += factor * face_mass
+                trial_mom[right] += factor * face_mom
+                trial_energy[right] += factor * face_energy
+                return trial_mass, trial_mom, trial_energy
+
+            def local_valid(state):
+                admissible = valid(*state)
+                return all(
+                    admissible[index]
+                    for index in (left, right)
+                    if physical[index]
+                )
+
+            trial = candidate(1.0)
+            if local_valid(trial):
+                factor = factors[face]
+            else:
+                low, high = 0.0, factors[face]
+                for _ in range(48):
+                    middle = 0.5 * (low + high)
+                    if local_valid(candidate(middle)):
+                        low = middle
+                    else:
+                        high = middle
+                factor = low
+            total_mass, total_mom, total_energy = candidate(factor)
+            factors[face] = factor
+
+        # One pass is normally sufficient; a second pass handles a cell whose
+        # two neighboring faces were both reduced while preserving the local
+        # nature of the correction.
+        for _ in range(2):
+            changed = False
+            for face in range(len(mass_face)):
+                left = (face - 1) % count
+                right = face
+                face_mass = delta_mass[face]
+                face_mom = delta_mom[face]
+                face_energy = delta_energy[face]
+                base_mass = total_mass.copy()
+                base_mom = total_mom.copy()
+                base_energy = total_energy.copy()
+                base_mass[left] += factors[face] * face_mass
+                base_mom[left] += factors[face] * face_mom
+                base_energy[left] += factors[face] * face_energy
+                base_mass[right] -= factors[face] * face_mass
+                base_mom[right] -= factors[face] * face_mom
+                base_energy[right] -= factors[face] * face_energy
+
+                def local_candidate(factor):
+                    trial_mass = base_mass.copy()
+                    trial_mom = base_mom.copy()
+                    trial_energy = base_energy.copy()
+                    trial_mass[left] -= factor * face_mass
+                    trial_mom[left] -= factor * face_mom
+                    trial_energy[left] -= factor * face_energy
+                    trial_mass[right] += factor * face_mass
+                    trial_mom[right] += factor * face_mom
+                    trial_energy[right] += factor * face_energy
+                    return trial_mass, trial_mom, trial_energy
+
+                current_state = local_candidate(factors[face])
+                current_valid = valid(*current_state)
+                if all(
+                    current_valid[index]
+                    for index in (left, right)
+                    if physical[index]
+                ):
+                    continue
+                low, high = 0.0, factors[face]
+                for _ in range(48):
+                    middle = 0.5 * (low + high)
+                    trial_valid = valid(*local_candidate(middle))
+                    if all(
+                        trial_valid[index]
+                        for index in (left, right)
+                        if physical[index]
+                    ):
+                        low = middle
+                    else:
+                        high = middle
+                total_mass, total_mom, total_energy = local_candidate(low)
+                changed |= low < factors[face]
+                factors[face] = low
+            if not changed:
+                break
+
+        mass, momentum, energy = total_mass, total_mom, total_energy
+
+        if not np.all(valid(mass, momentum, energy)):
+            invalid = ~valid(mass, momentum, energy)
+            index = int(np.flatnonzero(invalid)[0])
+            raise ValueError(
+                'hydro state is outside positivity domain after face update '
+                'at cell %d (mass=%s mom=%s energy=%s)' %
+                (index, mass[index], momentum[index], energy[index])
+            )
+
+        fluid.Mass[...] = mass
+        fluid.Mom[...] = momentum
+        fluid.Energy[...] = energy
+        self._last_face_limiter_factors = factors
+        return float(np.min(factors)) if factors.size else 1.0
         
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=None, order=0):
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
@@ -1131,27 +1351,49 @@ class Solver():
                 )
 
         par = getattr(mesh, '_par', None)
-        positivity_factor = self._positivity_limited_increment(
-            fluid, dt, mesh, par, df_Mass, df_Mom, df_Energy
+        if par is None:
+            # Standalone/unit-test meshes have no physical-cell metadata.  In
+            # particular, retain the exact spherical pressure cancellation in
+            # this legacy path; configured simulations use the paired-face
+            # limiter below.
+            positivity_factor = self._positivity_limited_increment(
+                fluid, dt, mesh, par, df_Mass, df_Mom, df_Energy
+            )
+            fluid.Mass += positivity_factor * df_Mass * dt
+            fluid.Mom += positivity_factor * df_Mom * dt
+            fluid.Energy += positivity_factor * df_Energy * dt
+            fluid.time += dt
+            return
+        geometric_mom = None
+        if getattr(mesh, 'coordsys', None) == 'spherical':
+            area_right = ru.periodic_roll(area, -1)
+            geometric_mom = fluid.pre * (area_right - area)
+        positivity_factor = self._positivity_limited_face_fluxes(
+            fluid, dt, mesh, par,
+            fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux,
+            geometric_mom=geometric_mom,
         )
         if df_InternalEnergy is not None:
-            old_internal = np.asarray(fluid.InternalEnergy, dtype=float)
-            increment = float(np.asarray(dt, dtype=float)) * np.asarray(
-                df_InternalEnergy, dtype=float
+            # Couple the dual-energy advection to the same face coefficients
+            # used by the conservative update.  Applying the minimum face
+            # coefficient globally defeats the purpose of the local limiter.
+            factors = np.asarray(
+                getattr(self, '_last_face_limiter_factors',
+                        np.ones(len(fluid.Mass.flux))),
+                dtype=float,
             )
-            valid = old_internal + increment >= 0.0
-            if not np.all(valid):
-                reducing = increment < 0.0
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    dual_factor = np.min(
-                        np.where(reducing, old_internal / (-increment), 1.0)
-                    )
-                positivity_factor = min(positivity_factor, max(0.0, dual_factor))
-        fluid.Mass += positivity_factor * df_Mass * dt
-        fluid.Mom  += positivity_factor * df_Mom * dt
-        fluid.Energy += positivity_factor * df_Energy * dt
-        if df_InternalEnergy is not None:
-            fluid.InternalEnergy += positivity_factor * df_InternalEnergy * dt
+            limited_internal_flux = internal_flux * factors
+            limited_df_internal = (
+                limited_internal_flux * area
+                - ru.periodic_roll(limited_internal_flux * area, -1)
+            )
+            if getattr(mesh, 'coordsys', None) == 'spherical':
+                limited_df_internal -= fluid.pre * (
+                    ru.periodic_roll(
+                        factors * face_velocity * area, -1
+                    ) - factors * face_velocity * area
+                )
+            fluid.InternalEnergy += limited_df_internal * dt
             fluid.InternalEnergy = np.maximum(fluid.InternalEnergy, 0.0)
         # advance time
         fluid.time += dt

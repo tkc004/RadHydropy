@@ -99,6 +99,11 @@ integral for any supplied tabulated linear `P(k)`. The built-in spectrum uses
 the analytic Eisenstein--Hu no-wiggle transfer shape; CAMB/CLASS output can be
 passed to the same integral when BAO-accurate correlation structure is needed.
 
+For the correlation-gas run, the gas mesh has a finite reflecting inner wall
+at `inner_wall_radius_comoving: 5.0` kpc. This is about 0.05 kpc proper at the
+z=100 start and avoids the singular zero-area origin. The energy audit records
+the wall momentum and energy fluxes.
+
 The requested figure is `outputs/CosmologicalVirialShock1D.jpg`, with
 adiabatic results on top and radiative PIE results below. Each panel plots the
 total mass interior to the virial, detected shock, and disc radii. Raw histories

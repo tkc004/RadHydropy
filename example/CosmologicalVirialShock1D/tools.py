@@ -230,7 +230,14 @@ class Simwrap:
         self.par.temperature_representation = "supercomoving"
 
         self.mesh.boundary = np.geomspace(float(ic["rmin"]), float(ic["rmax"]), self.par.nogrid + 1)
-        self.mesh.boundary[0] = 0.0
+        # Keep a small, finite comoving inner wall when requested.  Setting
+        # this face to zero would turn the test back into the singular
+        # spherical-origin problem, whose origin flux is intentionally zero.
+        inner_wall = float(ic.get("inner_wall_radius_comoving", ic["rmin"]))
+        if inner_wall <= 0.0:
+            self.mesh.boundary[0] = 0.0
+        else:
+            self.mesh.boundary[0] = inner_wall
         self.mesh.coordinate = cell_centres(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
         self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary**3)

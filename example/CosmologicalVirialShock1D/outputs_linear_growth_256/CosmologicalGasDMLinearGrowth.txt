@@ -1,0 +1,12 @@
+dm_force_sampling volume_linear
+final_time_Gyr 0.04888961108
+final_growth_factor 2.315935084
+delta_gas_growth_amplitude 1.004948234
+delta_dm_growth_amplitude 1.006978285
+delta_gas_over_dm 0.997984017
+gas_velocity_growth_amplitude 1.006088516
+dm_velocity_growth_amplitude 1.004314868
+minimum_shell_separation_comoving_kpc 1.666569262
+minimum_positivity_limiter_factor 0.06149034422
+median_positivity_limiter_factor 1
+fraction_hydro_steps_limited 0.3026315789
