@@ -1523,6 +1523,14 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     temp[active] = temperature[active]
     fluid.temp[interior] = temp
     if state.get('thermal_coupling', False):
+        # The source state stores specific energies in physical cgs units
+        # (erg/g), while Fluid pressure and Energy use the code velocity
+        # unit.  Convert the specific energy terms before writing them back;
+        # omitting this conversion injects velocity_unit_cgs**2 into the
+        # conserved energy (1e10 for the standard 1 km/s code unit).
+        specific_energy_code_factor = float(
+            code.unit_conversion['velocity_cm_s']
+        ) ** 2
         specific_internal_energy_physical = (
             state['specific_total_energy_erg_g']
             - state['specific_kinetic_energy_erg_g']
@@ -1531,12 +1539,18 @@ def _fast_sync_state_to_fluid(state, fluid, par):
             specific_internal_energy_physical
             * state.get('source_temperature_factor', 1.0)
         )
+        specific_internal_energy_code = (
+            specific_internal_energy / specific_energy_code_factor
+        )
+        specific_kinetic_energy_code = (
+            state.get('specific_kinetic_energy_supercomoving_erg_g', 0.0)
+            / specific_energy_code_factor
+        )
         specific_total_energy = (
-            specific_internal_energy
-            + state.get('specific_kinetic_energy_supercomoving_erg_g', 0.0)
+            specific_internal_energy_code + specific_kinetic_energy_code
         )
         pressure = (
-            specific_internal_energy
+            specific_internal_energy_code
             * np.asarray(fluid.rho[interior], dtype=float)
             * (fluid.eos.gamma - 1.0)
         )
