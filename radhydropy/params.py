@@ -20,6 +20,10 @@ refparams = {
     'selfgravity': False,
     'externalgravity': False,
     'dark_matter_crossing_safety_factor': 0.1,
+    # Optional approximate crossing batching.  Zero retains the exact
+    # event-driven shell integrator; positive values batch crossings over this
+    # fraction of each requested dark-matter interval.
+    'dark_matter_crossing_batch_fraction': 0.0,
     'dark_matter_global_timestep_limit': True,
     'gravity': None,
     'gravity_potential': None,

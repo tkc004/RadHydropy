@@ -25,6 +25,7 @@ runparams:
   CFL: 0.10
   #verbose: 1
   dark_matter_crossing_safety_factor: 0.5
+  dark_matter_crossing_batch_fraction: 0.01
   dark_matter_global_timestep_limit: false
   # Smooth the live-shell force sampled by gas cells in enclosed volume.
   # Shell trajectories and saved DM profiles remain based on the raw shells.

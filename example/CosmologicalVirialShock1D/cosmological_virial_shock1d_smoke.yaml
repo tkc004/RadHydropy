@@ -17,6 +17,7 @@ runparams:
   boundcond: Reflecting
   noghost: 2
   CFL: 0.25
+  dark_matter_crossing_batch_fraction: 0.0
   dtmin: {value: 1.0e-4, unit: Myr}
   dtmax: {value: 2.0, unit: Myr}
   final_cosmic_time: 0.04

@@ -254,6 +254,7 @@ class DarkMatterShells:
         scale_factor=1.0,
         cosmological=False,
         include_shell_mass_with_fixed=False,
+        allow_unsorted=False,
     ):
         """Return shell gravity and angular-momentum accelerations.
 
@@ -263,9 +264,22 @@ class DarkMatterShells:
         ``-G*a*DeltaM/(x+softening)**2``.
         """
         g_code = _gravitational_constant_code(self.CodeUnits)
-        enclosed = self.gravitating_enclosed_mass(
-            include_shell_mass_with_fixed=include_shell_mass_with_fixed
-        )
+        if allow_unsorted:
+            dynamic = self._enclosed_mass_at_current_positions(self.radius)
+            if self.fixed_enclosed_mass is None:
+                enclosed = dynamic
+            elif callable(self.fixed_enclosed_mass):
+                enclosed = dynamic + np.asarray(
+                    self.fixed_enclosed_mass(self.radius), dtype=float
+                )
+            elif include_shell_mass_with_fixed:
+                enclosed = dynamic + self.fixed_enclosed_mass
+            else:
+                enclosed = np.full_like(self.radius, self.fixed_enclosed_mass)
+        else:
+            enclosed = self.gravitating_enclosed_mass(
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed
+            )
         if gas_enclosed_mass is not None:
             if callable(gas_enclosed_mass):
                 gas_mass = np.asarray(gas_enclosed_mass(self.radius), dtype=float)
@@ -461,6 +475,7 @@ class DarkMatterShells:
         self,
         dt,
         crossing_safety_factor=0.1,
+        crossing_batch_fraction=0.0,
         gas_enclosed_mass=None,
         background_enclosed_mass=None,
         scale_factor=1.0,
@@ -476,6 +491,7 @@ class DarkMatterShells:
             scale_factor_end = scale_factor
         if dt == 0.0:
             return 0.0
+        crossing_batch_fraction = max(0.0, float(crossing_batch_fraction))
 
         # Crossing control must not silently shorten the DM evolution while
         # the hydro state advances by the requested ``dt``.  The old code
@@ -493,6 +509,10 @@ class DarkMatterShells:
             crossing_dt = self.crossing_timestep(safety_factor=1.0)
             substep = remaining
             event_pairs = np.empty(0, dtype=int)
+            batched_crossing = (
+                crossing_batch_fraction > 0.0
+                and crossing_dt < substep
+            )
             if crossing_dt < substep:
                 # Advance exactly to the first crossing, exchange the
                 # neighboring shell states at the event, then continue with
@@ -500,7 +520,14 @@ class DarkMatterShells:
                 # overshoot steps and makes the event treatment independent
                 # of the legacy safety-factor parameter.
                 event_pairs = self._crossing_event_pairs(crossing_dt)
-                substep = crossing_dt
+                if batched_crossing:
+                    substep = min(
+                        remaining,
+                        crossing_dt + crossing_batch_fraction * dt,
+                    )
+                    event_pairs = np.empty(0, dtype=int)
+                else:
+                    substep = crossing_dt
             if substep <= minimum_step:
                 substep = min(remaining, max(minimum_step, 1.0e-12 * dt))
 
@@ -552,15 +579,19 @@ class DarkMatterShells:
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             )
             self._reflect_at_origin()
-            self.sort_by_radius()
+            if not batched_crossing:
+                self.sort_by_radius()
             acceleration_new = self.acceleration(
                 gas_enclosed_mass=gas_enclosed_mass,
                 background_enclosed_mass=background_enclosed_mass,
                 scale_factor=a_end,
                 cosmological=cosmological,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+                allow_unsorted=batched_crossing,
             )
             self.velocity += 0.5 * substep * acceleration_new
+            if batched_crossing:
+                self.sort_by_radius()
             elapsed += substep
             remaining = dt - elapsed
             substep_count += 1

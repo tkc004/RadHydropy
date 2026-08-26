@@ -53,6 +53,29 @@ linear estimate
 when the inner shell is catching the outer shell. The example advances just
 through the event and resorts the shell records.
 
+Approximate crossing batching
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The optional ``dark_matter_crossing_batch_fraction`` runtime parameter controls
+how aggressively predicted crossings are batched.  Its default value is
+``0.0``, which resolves each crossing at its predicted event time.  A positive
+value permits the integrator to advance past a predicted crossing by up to
+that fraction of the requested dark-matter timestep before resolving the
+crossing.  This can substantially reduce the number of shell substeps in
+large cosmological runs, at the cost of a less exact crossing time.
+
+For example, to use a batch fraction of 0.5 in an example configuration:
+
+.. code-block:: yaml
+
+   runparams:
+     dark_matter_crossing_batch_fraction: 0.5
+
+The value is also available as ``--crossing-batch-fraction`` in the
+``CosmologicalVirialShock1D`` gas-correlation runner.  Shell masses remain
+fixed and shell arrays are still sorted by radius after each update; batching
+only changes the timing of crossing resolution.
+
 Cosmological coupling
 ---------------------
 

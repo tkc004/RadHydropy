@@ -25,6 +25,7 @@ runparams:
   CFL: 0.10
   #verbose: 1
   dark_matter_crossing_safety_factor: 0.5
+  dark_matter_crossing_batch_fraction: 0.1
   dark_matter_global_timestep_limit: false
   # Smooth the live-shell force sampled by gas cells in enclosed volume.
   # Shell trajectories and saved DM profiles remain based on the raw shells.
@@ -49,7 +50,7 @@ runparams:
   minimum_temperature: null
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
-  final_cosmic_time: 1.0
+  final_cosmic_time: 2.4
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen

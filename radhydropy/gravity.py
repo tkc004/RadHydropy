@@ -419,6 +419,9 @@ class Gravity:
         return self.dark_matter.step(
             dt,
             crossing_safety_factor=crossing_safety_factor,
+            crossing_batch_fraction=getattr(
+                par, "dark_matter_crossing_batch_fraction", 0.0
+            ),
             gas_enclosed_mass=gas_mass,
             background_enclosed_mass=background_mass,
             scale_factor=scale_factor_start,

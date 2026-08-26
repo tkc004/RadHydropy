@@ -461,7 +461,8 @@ def _save_outputs(history, output_dir, force_mode, positivity_factors,
 
 
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
-        smooth_force_override=None, resolution_override=None):
+        smooth_force_override=None, resolution_override=None,
+        output_suffix=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
     if resolution_override is not None:
@@ -490,6 +491,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir = Path(runparams["savedir"])
     if not output_dir.is_absolute():
         output_dir = config_filename.parent / output_dir
+    if output_suffix:
+        output_dir = output_dir.with_name(output_dir.name + str(output_suffix))
     if resolution_override is not None:
         output_dir = output_dir.with_name(
             "%s_%d" % (output_dir.name, int(resolution_override))
@@ -607,6 +610,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     final = history[-1]
     print("steps = %d" % steps)
     print("DM force sampling = %s" % force_mode)
+    print(
+        "DM crossing batch fraction = %.8g"
+        % float(getattr(sim.par, "dark_matter_crossing_batch_fraction", 0.0))
+    )
     print("final cosmic time = %.8g Gyr" % final["time_Gyr"])
     print("gas/analytic overdensity = %.8g" % final["delta_gas_growth_amplitude"])
     print("DM/analytic overdensity = %.8g" % final["delta_dm_growth_amplitude"])
@@ -641,10 +648,12 @@ if __name__ == "__main__":
         "--resolution", type=int, default=None,
         help="use this matched number of gas cells and DM shells; default is the YAML resolution",
     )
+    parser.add_argument("--output-suffix", default=None)
     arguments = parser.parse_args()
     run(
         arguments.config,
         arguments.final_time,
         smooth_force_override=False if arguments.raw_shell_force else None,
         resolution_override=arguments.resolution,
+        output_suffix=arguments.output_suffix,
     )

@@ -20,6 +20,7 @@ runparams:
   order: 1
   riemann_solver: Rusanov
   CFL: 0.2
+  dark_matter_crossing_batch_fraction: 0.0
   # The integration coordinate is supercomoving tau, so use code-time values
   # here rather than a physical Myr quantity.
   dtmax: 1.0
