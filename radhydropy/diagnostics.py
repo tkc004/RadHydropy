@@ -46,6 +46,73 @@ def thermochemistry_active_mask(rho_physical_g_cm3, par, density_factor=1.0):
     return np.asarray(rho_physical_g_cm3, dtype=float) > physical_floor
 
 
+def check_conserved_energy_admissibility(
+    sim, stage, relative_tolerance=1.0e-7,
+):
+    """Reject resolved cells whose kinetic energy exceeds total energy.
+
+    The dual-energy variable may provide a pressure fallback when ``E-K``
+    loses precision, but it cannot make an inadmissible conservative state
+    valid. Numerical-vacuum cells are excluded using the configured CFL
+    density floor. A small relative tolerance permits accumulated roundoff;
+    larger deficits are reported at the update stage that created them.
+    """
+    par = sim.par
+    if not all(
+        hasattr(sim.fluid, name) for name in ('Mass', 'Mom', 'Energy')
+    ):
+        # Source-only/unit-test states may not have been initialized with
+        # hydrodynamic conserved fields.
+        return
+    first = int(getattr(par, 'noghost', 0))
+    last = first + int(getattr(par, 'nogrid', 0))
+    volume = np.asarray(sim.mesh.vol, dtype=float)
+    mass = np.asarray(sim.fluid.Mass, dtype=float)
+    momentum = np.asarray(sim.fluid.Mom, dtype=float)
+    energy = np.asarray(sim.fluid.Energy, dtype=float)
+    if last <= first:
+        return
+    physical = np.zeros(len(mass), dtype=bool)
+    physical[first:min(last, len(mass))] = True
+    density_floor = max(
+        0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
+    )
+    resolved = physical & (
+        mass > density_floor * np.maximum(volume, 0.0)
+    )
+    finite = (
+        np.isfinite(mass) & np.isfinite(momentum) & np.isfinite(energy)
+    )
+    positive_mass = resolved & finite & (mass > 0.0)
+    kinetic = np.zeros_like(energy)
+    kinetic[positive_mass] = (
+        0.5 * momentum[positive_mass]**2 / mass[positive_mass]
+    )
+    scale = np.maximum(
+        np.maximum(kinetic, np.abs(energy)), np.finfo(float).tiny
+    )
+    deficit = kinetic - energy
+    invalid = positive_mass & (
+        deficit > float(relative_tolerance) * scale
+    )
+    if not np.any(invalid):
+        return
+    index = int(np.flatnonzero(invalid)[0])
+    diagnostic = (
+        'conserved energy admissibility error after %s at cell %d: '
+        'kinetic energy exceeds total energy; mass=%s momentum=%s '
+        'energy=%s kinetic=%s deficit=%s relative_deficit=%s '
+        'relative_tolerance=%s'
+        % (
+            stage, index, mass[index], momentum[index], energy[index],
+            kinetic[index], deficit[index], deficit[index] / scale[index],
+            relative_tolerance,
+        )
+    )
+    print(diagnostic)
+    raise ValueError(diagnostic)
+
+
 def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     """Raise and save a neighborhood dump when a new T exceeds the guard."""
     threshold = getattr(sim.par, 'temperature_jump_error_threshold', None)

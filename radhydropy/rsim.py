@@ -226,6 +226,9 @@ class Rsim():
             fluid = self.fluid
         self.solver.SetBoundary(self.mesh, fluid, self.par)
         self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
+        diagnostics.check_conserved_energy_admissibility(
+            self, stage='pre-hydro SetConserved synchronization'
+        )
 
     def AdvanceHydroFluxes(self, dt, fluid=None):
         """Advance the Euler flux update and return mass data for scalar advection."""
@@ -254,6 +257,9 @@ class Rsim():
                 )
         )
         self.cumulative_hydro_boundary_energy += self.last_hydro_boundary_energy_flux
+        diagnostics.check_conserved_energy_admissibility(
+            self, stage='hydro face reconstruction'
+        )
         self.solver.AddFluxes(dt, self.mesh, fluid, self.par.boundcond)
         return old_mass, mass_flux
 
@@ -326,11 +332,17 @@ class Rsim():
         if fluid is None:
             fluid = self.fluid
         self.solver.ApplyGravity(dt, self.mesh, fluid, self.par)
+        diagnostics.check_conserved_energy_admissibility(
+            self, stage='gravity update'
+        )
         if advect_chemistry:
             self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
         self._sync_hydro_state(fluid=fluid)
         self.solver.ApplyHydrostaticCore(self.mesh, fluid, self.par)
         self.solver.SetConserved(self.mesh, fluid, verbose=getattr(self.par, 'verbose', 0))
+        diagnostics.check_conserved_energy_admissibility(
+            self, stage='hydro SetConserved synchronization'
+        )
 
     def ApplyThermochemistrySources(self, dt):
         """Apply radiative transport and thermo-chemistry source updates."""
@@ -453,6 +465,9 @@ class Rsim():
             else:
                 self.PrepareConservedStep()
                 old_mass, mass_flux = self.AdvanceHydroFluxes(dt)
+                diagnostics.check_conserved_energy_admissibility(
+                    self, stage='hydro flux update'
+                )
                 self.FinalizeHydroStep(
                     dt,
                     old_mass,
@@ -471,6 +486,9 @@ class Rsim():
                 diagnostics.check_temperature_jump(self, temperature_before, stage='hydro')
 
         if mode == "hydro" and hydro_integrator == "ssprk2":
+            diagnostics.check_conserved_energy_admissibility(
+                self, stage='hydro flux update'
+            )
             diagnostics.check_temperature_jump(self, temperature_before, stage='hydro')
 
         if mode == "hydro_sources":
@@ -484,6 +502,9 @@ class Rsim():
             source_result = self.ApplyThermochemistrySources(
                 dt,
             )
+            diagnostics.check_conserved_energy_admissibility(
+                self, stage='thermochemistry update'
+            )
             self.last_source_result = source_result
             self.last_source_dt = dt
             # Source updates can change temperature, pressure, and chemistry
@@ -492,6 +513,9 @@ class Rsim():
                 self.fluid.time += dt
             self.solver.SetBoundary(self.mesh, self.fluid, self.par)
             self.solver.SetConserved(self.mesh, self.fluid, verbose=getattr(self.par, 'verbose', 0))
+            diagnostics.check_conserved_energy_admissibility(
+                self, stage='thermochemistry SetConserved synchronization'
+            )
             pressure_applied = self.solver.ApplyRadiationPressure(
                 dt,
                 self.mesh,

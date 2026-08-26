@@ -534,6 +534,16 @@ class Solver():
             if dual_energy and hasattr(fluid, 'Energy')
             else None
         )
+        old_total_mass = (
+            np.asarray(fluid.Mass, dtype=float).copy()
+            if dual_energy and hasattr(fluid, 'Mass')
+            else None
+        )
+        old_total_momentum = (
+            np.asarray(fluid.Mom, dtype=float).copy()
+            if dual_energy and hasattr(fluid, 'Mom')
+            else None
+        )
         old_conserved = None
         if density_floor > 0.0 and all(
             hasattr(fluid, name) for name in ('Mass', 'Mom', 'Energy')
@@ -560,6 +570,17 @@ class Solver():
             first = int(getattr(par, 'noghost', 0))
             count = int(getattr(par, 'nogrid', len(fluid.Energy) - first))
             fluid.Energy[first:first + count] = old_total_energy[first:first + count]
+        if old_total_mass is not None and old_total_momentum is not None:
+            # In dual-energy mode Mass/Mom are the authoritative conservative
+            # state.  Rebuilding them as rho*vol and rho*vel*vol after
+            # SetPrimitive introduces a division/multiplication round trip;
+            # in a kinetic-dominated cell that roundoff can make K exceed the
+            # preserved total Energy.  Keep the conserved hydro quantities
+            # exact and synchronize only the primitive/thermal quantities.
+            first = int(getattr(par, 'noghost', 0))
+            count = int(getattr(par, 'nogrid', len(fluid.Mass) - first))
+            fluid.Mass[first:first + count] = old_total_mass[first:first + count]
+            fluid.Mom[first:first + count] = old_total_momentum[first:first + count]
         if dual_energy and getattr(fluid.eos, 'is_polytropic', False):
             internal = np.asarray(
                 fluid.eos.thermal_energy_density(fluid.pre) * vol,
@@ -1100,11 +1121,6 @@ class Solver():
         fluid.Mom[vacuum] = 0.0
         fluid.Energy[vacuum] = 0.0
 
-        if geometric_mom is not None:
-            # This is a cell source rather than a face flux.  Apply it before
-            # limiting the conservative face corrections.
-            momentum += dt_value * np.asarray(geometric_mom, dtype=float)
-
         def valid(mass_value, momentum_value, energy_value):
             # Dual energy protects pressure reconstruction when E-K loses
             # precision, but it cannot make an inadmissible conservative
@@ -1119,6 +1135,36 @@ class Solver():
             )
             result[~physical] = True
             return result
+
+        if geometric_mom is not None:
+            # The spherical pressure geometry term is a momentum source while
+            # total energy remains governed by the conservative energy flux.
+            # In a nearly pressureless cell, applying the full source can
+            # make K exceed E even though the pre-source state is admissible.
+            # Limit only this local momentum increment to the first admissible
+            # boundary; do not add compensating energy.
+            geometry_increment = (
+                dt_value * np.asarray(geometric_mom, dtype=float)
+            )
+            base_valid = valid(mass, momentum, energy)
+            full_geometry_momentum = momentum + geometry_increment
+            full_valid = valid(
+                mass, full_geometry_momentum, energy
+            )
+            geometry_fraction = np.ones(len(momentum), dtype=float)
+            affected = physical & base_valid & ~full_valid
+            for index in np.flatnonzero(affected):
+                low, high = 0.0, 1.0
+                for _ in range(48):
+                    middle = 0.5 * (low + high)
+                    trial_momentum = momentum.copy()
+                    trial_momentum[index] += middle * geometry_increment[index]
+                    if valid(mass, trial_momentum, energy)[index]:
+                        low = middle
+                    else:
+                        high = middle
+                geometry_fraction[index] = low
+            momentum = momentum + geometry_fraction * geometry_increment
 
         mass_face = np.asarray(mass_face, dtype=float)
         mom_face = np.asarray(mom_face, dtype=float)
@@ -1457,20 +1503,44 @@ class Solver():
                 % (np.shape(acceleration), np.shape(fluid.rho))
             )
         # Advance momentum with constant acceleration over this source step.
-        # The corresponding kinetic-energy change is
-        #   rho * [v a dt + 1/2 (a dt)^2].
-        # Using only rho*v*a*dt can leave E < K in strongly collapsing cells,
-        # which is especially visible with HLLC and causes the positivity
-        # check to reject the next hydro update.
+        # Compute gravity work from the actual kinetic-energy difference
+        # associated with that same conserved momentum update. This avoids
+        # ulp-level disagreement when the primitive velocity is near, but not
+        # bit-for-bit identical to, Mom/Mass and prevents gravity from
+        # introducing an additional E-K deficit in cold kinetic-dominated
+        # cells.
         acceleration_dt = acceleration * float(np.asarray(dt, dtype=float))
-        gravity_work = np.asarray(
-            current_rho
-            * (current_vel * acceleration_dt + 0.5 * acceleration_dt**2)
-            * volume,
-            dtype=float,
+        old_kinetic = np.zeros_like(mass)
+        positive_mass = mass > 0.0
+        old_kinetic[positive_mass] = (
+            0.5 * momentum[positive_mass]**2 / mass[positive_mass]
         )
-        fluid.Mom += current_rho * acceleration * volume * dt
-        fluid.Energy += gravity_work
+        new_momentum = momentum + mass * acceleration_dt
+        new_kinetic = np.zeros_like(mass)
+        new_kinetic[positive_mass] = (
+            0.5 * new_momentum[positive_mass]**2 / mass[positive_mass]
+        )
+        # Updating ``Energy`` by ``Energy += new_kinetic - old_kinetic`` is
+        # not reliable in a cold, kinetic-dominated cell: subtraction of two
+        # nearly equal kinetic energies followed by addition to the total can
+        # round the result one or more ulps below ``new_kinetic``.  Carry the
+        # internal-energy remainder instead, then reconstruct the total.  A
+        # negative remainder here is an already accumulated roundoff deficit;
+        # remove only that deficit, rather than hiding a physical energy loss
+        # behind a looser admissibility tolerance.
+        thermal_remainder = np.zeros_like(mass)
+        thermal_remainder[positive_mass] = (
+            np.asarray(fluid.Energy, dtype=float)[positive_mass]
+            - old_kinetic[positive_mass]
+        )
+        roundoff_negative = positive_mass & (thermal_remainder < 0.0)
+        thermal_remainder[roundoff_negative] = 0.0
+        new_energy = new_kinetic + thermal_remainder
+        gravity_work = np.asarray(
+            new_energy - np.asarray(fluid.Energy, dtype=float), dtype=float
+        )
+        fluid.Mom[...] = new_momentum
+        fluid.Energy[...] = new_energy
         self.last_gravity_work = float(
             np.sum(gravity_work[self._interior_slice(par)])
         )
