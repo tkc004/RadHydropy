@@ -1,9 +1,4 @@
-"""Run short central-boundary A/B/C comparisons in isolated directories.
-
-Case A keeps the current finite inner wall and central kinetic
-thermalization.  Case B keeps the wall and disables thermalization.  Case C
-disables thermalization and restores the zero-area spherical origin.
-"""
+"""Run short central-boundary wall/origin comparisons in isolated directories."""
 
 import argparse
 from copy import deepcopy
@@ -24,19 +19,12 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG = EXAMPLE_DIR / "cosmological_gas_correlation_z100.yaml"
 
 CASES = {
-    "A": {
-        "label": "wall_thermalization",
-        "central_kinetic_thermalization": True,
-        "inner_wall_radius_comoving": 3.0,
-    },
     "B": {
         "label": "wall_no_thermalization",
-        "central_kinetic_thermalization": False,
         "inner_wall_radius_comoving": 3.0,
     },
     "C": {
         "label": "origin_no_thermalization",
-        "central_kinetic_thermalization": False,
         "inner_wall_radius_comoving": 0.0,
     },
 }
@@ -67,9 +55,6 @@ def _case_config(base_config, case_name, final_time):
         "outdir": str(output_dir),
         "savedir": str(output_dir),
         "final_cosmic_time": float(final_time),
-        "central_kinetic_thermalization": bool(
-            case["central_kinetic_thermalization"]
-        ),
         # Keep the shared correlation table resolvable after placing the
         # effective YAML inside the case output directory.
         "linear_correlation_table_filename": str(
@@ -90,10 +75,9 @@ def run_case(base_config, case_name, final_time):
         yaml.safe_dump(config, stream, sort_keys=False)
 
     print(
-        "short case %s: thermalization=%s inner_wall=%g comoving kpc output=%s"
+        "short case %s: inner_wall=%g comoving kpc output=%s"
         % (
             case_name,
-            config["runparams"]["central_kinetic_thermalization"],
             config["ICparams"]["inner_wall_radius_comoving"],
             output_dir,
         ),

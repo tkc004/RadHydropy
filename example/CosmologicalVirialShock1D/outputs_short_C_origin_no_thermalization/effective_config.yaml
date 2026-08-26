@@ -29,14 +29,6 @@ runparams:
     unit: Myr
   cfl_density_floor: 9.3e-20
   temperature_jump_error_threshold: 1.0e8
-  artificial_viscosity: false
-  artificial_viscosity_radius_kpc: 8.0
-  artificial_viscosity_C1: 0.1
-  artificial_viscosity_C2: 0.25
-  central_kinetic_thermalization: false
-  central_thermalization_radius_kpc: 8.0
-  central_thermalization_cells: 4
-  central_thermalization_timescale: 0.01
   minimum_temperature: null
   temperature_plot_ymin:
     value: 1.0

@@ -471,8 +471,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         icparams = dict(icparams)
         icparams["nogrid"] = resolution
         icparams["dark_matter_shells"] = resolution
-    if bool(runparams.get("central_kinetic_thermalization", False)):
-        raise ValueError("linear-growth test requires central thermalization disabled")
     if int(icparams["dark_matter_shells"]) > 1024 or int(icparams["nogrid"]) > 1024:
         raise ValueError("linear-growth test is limited to at most 1024 gas cells and shells")
     if int(icparams["dark_matter_shells"]) != int(icparams["nogrid"]):

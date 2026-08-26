@@ -26,8 +26,6 @@ runparams:
   dtmin: 1.0e-12
   cfl_density_floor: 0.0
   temperature_jump_error_threshold: null
-  central_kinetic_thermalization: false
-  artificial_viscosity: false
   dual_energy: true
   # Interpolate cumulative shell mass linearly in enclosed volume when gas
   # samples the live-DM field. Use --raw-shell-force for the production

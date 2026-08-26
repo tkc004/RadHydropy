@@ -30,73 +30,6 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 )
 
 
-class OptionalInnerArtificialViscositySolver(Solver):
-    """Add conservative von Neumann--Richtmyer pressure in inner cells."""
-
-    def SetInterFaceFlux(self, mesh, fluid, boundcond, method="Rusanov", **kwargs):
-        radius = np.asarray(mesh.coordinate, dtype=float)
-        velocity = np.asarray(fluid.vel, dtype=float)
-        spacing = np.asarray(mesh.xdelta, dtype=float)
-        divergence = (
-            np.roll(velocity, -1) - np.roll(velocity, 1)
-        ) / np.maximum(2.0 * spacing, 1.0e-30)
-        divergence += 2.0 * velocity / np.maximum(np.abs(radius), 1.0e-30)
-        compression = np.minimum(divergence, 0.0)
-        width = spacing
-        sound_speed = np.nan_to_num(
-            np.asarray(getattr(fluid, "cs", np.zeros_like(velocity)), dtype=float),
-            nan=0.0, posinf=0.0, neginf=0.0,
-        )
-        density = np.nan_to_num(np.asarray(fluid.rho, dtype=float), nan=0.0)
-        q = density * (
-            float(getattr(self, "viscosity_C2", 1.0)) * (width * compression) ** 2
-            + float(getattr(self, "viscosity_C1", 0.5)) * sound_speed * np.abs(width * compression)
-        )
-        active = (radius > 0.0) & (radius <= float(getattr(self, "viscosity_radius", 8.0)))
-        q[~active] = 0.0
-        q = np.nan_to_num(q, nan=0.0, posinf=0.0, neginf=0.0)
-        # Keep the optional closure from overwhelming the physical pressure
-        # in the very low-density cosmological background.
-        q = np.minimum(q, 2.0 * np.maximum(np.abs(np.asarray(fluid.pre, dtype=float)), 1.0e-30))
-        original_pressure = fluid.pre.copy()
-        fluid.pre[:] = np.asarray(original_pressure, dtype=float) + q
-        try:
-            return super().SetInterFaceFlux(mesh, fluid, boundcond, method=method, **kwargs)
-        finally:
-            fluid.pre[:] = original_pressure
-
-
-def thermalize_central_kinetic_energy(
-    sim, cell_count=4, radius_kpc=None, dt=0.0, timescale=0.01,
-):
-    """Damp central radial momentum and conserve the dissipated energy."""
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
-    if radius_kpc is not None:
-        selected = (
-            np.arange(first, last),
-            np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-            <= float(radius_kpc),
-        )
-        indices = selected[0][selected[1]]
-    else:
-        indices = np.arange(first, min(last, first + int(cell_count)))
-    mass = np.asarray(sim.fluid.Mass[indices], dtype=float)
-    momentum = np.asarray(sim.fluid.Mom[indices], dtype=float)
-    kinetic = np.zeros_like(mass)
-    valid = mass > 0.0
-    kinetic[valid] = 0.5 * momentum[valid] ** 2 / mass[valid]
-    damping = 1.0 if timescale <= 0.0 else np.exp(-max(float(dt), 0.0) / timescale)
-    new_momentum = momentum * damping
-    new_kinetic = np.zeros_like(mass)
-    new_kinetic[valid] = 0.5 * new_momentum[valid] ** 2 / mass[valid]
-    dissipated = kinetic - new_kinetic
-    sim.fluid.Mom[indices] = new_momentum
-    if hasattr(sim.fluid, "InternalEnergy"):
-        sim.fluid.InternalEnergy[indices] += dissipated
-    return float(np.sum(dissipated))
-
-
 def load_correlation_table(config_filename, runparams):
     filename = Path(runparams["linear_correlation_table_filename"])
     if not filename.is_absolute():
@@ -636,12 +569,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     local.update({"ICfilename": str(ic_filename), "outdir": str(output_dir),
                   "savedir": str(output_dir)})
     sim = Rsim(local)
-    if bool(local.get("artificial_viscosity", False)):
-        viscous_solver = OptionalInnerArtificialViscositySolver()
-        viscous_solver.viscosity_radius = float(local.get("artificial_viscosity_radius_kpc", 8.0))
-        viscous_solver.viscosity_C1 = float(local.get("artificial_viscosity_C1", 0.5))
-        viscous_solver.viscosity_C2 = float(local.get("artificial_viscosity_C2", 1.0))
-        sim.solver = viscous_solver
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -846,7 +773,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "energy_closure_residual": [0.0],
         "inner_wall_momentum_flux": [0.0],
         "inner_wall_energy_flux": [0.0],
-        "central_thermalization_energy": [0.0],
     }
     next_snapshot += cadence
     while float(sim.fluid.time) < target_tau - 1.0e-12:
@@ -880,23 +806,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         # hydro-only mode would select the networks but never apply their
         # energy update.
         sim.Step(dt=dt, mode="hydro_sources")
-        thermalized = 0.0
-        if bool(local.get("central_kinetic_thermalization", False)):
-            thermalized = thermalize_central_kinetic_energy(
-                sim,
-                int(local.get("central_thermalization_cells", 4)),
-                local.get("central_thermalization_radius_kpc"),
-                dt=dt,
-                timescale=float(local.get("central_thermalization_timescale", 0.01)),
-            )
-            sim.solver.SetPrimitive(sim.mesh, sim.fluid, sim.par)
         energy_audit["inner_wall_momentum_flux"].append(
             wall_momentum_flux
         )
         energy_audit["inner_wall_energy_flux"].append(
             wall_energy_flux
         )
-        energy_audit["central_thermalization_energy"].append(thermalized)
         steps += 1
         cosmic_time = float(
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
@@ -944,32 +859,15 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         if steps == 1 or steps % 100 == 0:
             first = int(sim.par.noghost)
             last = first + int(sim.par.nogrid)
-            thermal_count = int(local.get("central_thermalization_cells", 4))
             inner = slice(first, min(last, first + 16))
-            if local.get("central_thermalization_radius_kpc") is not None:
-                thermalized_indices = np.flatnonzero(
-                    np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-                    <= float(local["central_thermalization_radius_kpc"])
-                ) + first
-            else:
-                thermalized_indices = np.arange(first, min(last, first + thermal_count))
-            buffer_slice = slice(
-                (thermalized_indices[-1] + 1) if thermalized_indices.size else first,
-                min(last, first + 16),
-            )
             print(
                 "step=%d cosmic_time=%.6g dt=%.6g crossing_dt=%.6g "
-                "Tmax_inner=%.6g vmax_inner=%.6g csmax_inner=%.6g "
-                "vmax_thermalized=%.6g vmax_buffer=%.6g"
+                "Tmax_inner=%.6g vmax_inner=%.6g csmax_inner=%.6g"
                 % (
                     steps, cosmic_time, dt, dm.crossing_timestep(),
                     np.nanmax(np.asarray(sim.fluid.temp[inner], dtype=float)),
                     np.nanmax(np.abs(np.asarray(sim.fluid.vel[inner], dtype=float))),
                     np.nanmax(np.asarray(sim.fluid.cs[inner], dtype=float)),
-                    np.nanmax(np.abs(np.asarray(sim.fluid.vel[thermalized_indices], dtype=float)))
-                    if thermalized_indices.size else 0.0,
-                    np.nanmax(np.abs(np.asarray(sim.fluid.vel[buffer_slice], dtype=float)))
-                    if buffer_slice.start < buffer_slice.stop else 0.0,
                 ),
                 flush=True,
             )
