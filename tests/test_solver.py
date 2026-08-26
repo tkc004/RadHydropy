@@ -485,6 +485,32 @@ class Testing(unittest.TestCase):
         self.assertTrue(np.any(solver._last_face_limiter_factors < 1.0))
         self.assertTrue(np.any(solver._last_face_limiter_factors > 0.0))
 
+    def test_dual_energy_rejects_total_energy_below_kinetic_energy(self):
+        """Dual energy must not hide an inadmissible conservative state."""
+        par = make_code_par()
+        par.noghost = 0
+        par.nogrid = 1
+        par.positivity_preserving = True
+        par.positivity_density_floor = 0.0
+        par.positivity_energy_floor = 0.0
+        par.cfl_density_floor = 0.0
+        par.dual_energy = True
+        mesh = make_code_mesh(1)
+        mesh._par = par
+        fluid = SimpleNamespace(
+            Mass=as_named_array(np.array([1.0])),
+            Mom=as_named_array(np.array([10.0])),
+            Energy=as_named_array(np.array([1.0])),
+            InternalEnergy=as_named_array(np.array([1.0])),
+            time=0.0,
+        )
+        with self.assertRaisesRegex(ValueError, 'outside positivity domain'):
+            Solver()._positivity_limited_face_fluxes(
+                fluid, 1.0, mesh,
+                par,
+                np.zeros(1), np.zeros(1), np.zeros(1),
+            )
+
     def test_spherical_origin_flux_is_zeroed(self):
         mesh = Mesh()
         mesh.coordsys = 'spherical'

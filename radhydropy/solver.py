@@ -996,7 +996,11 @@ class Solver():
         physical = np.zeros(len(mass), dtype=bool)
         physical[first:last] = True
         relative_tolerance = (
-            1.0e-10
+            # Permit only roundoff-scale cancellation in E-K for dual-energy
+            # states.  A 1e-7 relative tolerance accommodates the observed
+            # accumulated synchronization error without accepting a
+            # physically meaningful kinetic-energy deficit.
+            1.0e-7
             if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy')
             else 1.0e-12
         )
@@ -1075,7 +1079,10 @@ class Solver():
             0.0, float(np.asarray(getattr(par, 'positivity_energy_floor', 0.0)))
         ) * volume
         relative_tolerance = (
-            1.0e-10
+            # Keep the same roundoff allowance used by the global increment
+            # limiter.  Dual energy may tolerate tiny E-K cancellation, but
+            # it must still reject a substantive K > E state.
+            1.0e-7
             if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy')
             else 1.0e-12
         )
@@ -1099,25 +1106,17 @@ class Solver():
             momentum += dt_value * np.asarray(geometric_mom, dtype=float)
 
         def valid(mass_value, momentum_value, energy_value):
-            if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy'):
-                # In a cold supersonic flow, E-K can lose all significant
-                # digits even while the independently evolved thermal energy
-                # remains positive.  The dual-energy variable supplies the
-                # pressure in that regime, so do not reject a state solely
-                # because total energy is below its rounded kinetic part.
-                result = (
-                    np.isfinite(mass_value)
-                    & np.isfinite(momentum_value)
-                    & np.isfinite(energy_value)
-                    & (mass_value >= mass_floor)
-                    & (energy_value >= energy_floor)
-                )
-            else:
-                result = self._positive_conserved_state(
-                    mass_value, momentum_value, energy_value,
-                    mass_floor=mass_floor, energy_floor=energy_floor,
-                    relative_tolerance=relative_tolerance,
-                )
+            # Dual energy protects pressure reconstruction when E-K loses
+            # precision, but it cannot make an inadmissible conservative
+            # state valid.  Require total energy to contain at least the
+            # kinetic energy (up to the small roundoff tolerance above).
+            # Otherwise the limiter could pass K > E to the next primitive
+            # reconstruction and let the dual field hide the violation.
+            result = self._positive_conserved_state(
+                mass_value, momentum_value, energy_value,
+                mass_floor=mass_floor, energy_floor=energy_floor,
+                relative_tolerance=relative_tolerance,
+            )
             result[~physical] = True
             return result
 
@@ -1429,7 +1428,22 @@ class Solver():
                 par,
                 crossing_safety_factor=crossing_safety_factor,
             )
-        acceleration = gravity.acceleration_on_mesh(mesh, rho=fluid.rho, par=par)
+        # ApplyGravity follows the conservative hydro flux update and precedes
+        # the primitive-state refresh.  Therefore fluid.rho and fluid.vel can
+        # still describe the pre-hydro state, while Mass and Mom already
+        # describe the post-hydro state.  Derive both quantities from the
+        # current conserved fields so the gravity momentum and work updates
+        # use the same state.
+        volume = np.asarray(mesh.vol, dtype=float)
+        mass = np.asarray(fluid.Mass, dtype=float)
+        momentum = np.asarray(fluid.Mom, dtype=float)
+        current_rho = np.zeros_like(mass)
+        np.divide(mass, volume, out=current_rho, where=volume > 0.0)
+        current_vel = np.zeros_like(momentum)
+        np.divide(momentum, mass, out=current_vel, where=mass > 0.0)
+        acceleration = gravity.acceleration_on_mesh(
+            mesh, rho=current_rho, par=par
+        )
         code_units = getattr(par, "CodeUnits", None)
         if code_units is not None:
             target_unit = code_units.length_unit / code_units.time_unit**2
@@ -1450,12 +1464,12 @@ class Solver():
         # check to reject the next hydro update.
         acceleration_dt = acceleration * float(np.asarray(dt, dtype=float))
         gravity_work = np.asarray(
-            fluid.rho
-            * (fluid.vel * acceleration_dt + 0.5 * acceleration_dt**2)
-            * mesh.vol,
+            current_rho
+            * (current_vel * acceleration_dt + 0.5 * acceleration_dt**2)
+            * volume,
             dtype=float,
         )
-        fluid.Mom += fluid.rho * acceleration * mesh.vol * dt
+        fluid.Mom += current_rho * acceleration * volume * dt
         fluid.Energy += gravity_work
         self.last_gravity_work = float(
             np.sum(gravity_work[self._interior_slice(par)])
