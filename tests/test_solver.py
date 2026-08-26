@@ -418,6 +418,73 @@ class Testing(unittest.TestCase):
         self.assertAlmostEqual(float(np.sum(fluid.Mass)), 4.0)
         self.assertAlmostEqual(float(np.sum(fluid.Energy)), 4.0)
 
+    def test_paired_face_limiter_reaches_global_admissibility_for_coupled_faces(self):
+        """Neighboring restrictions must not survive a fixed repair count."""
+        par = make_code_par()
+        par.noghost = 0
+        par.nogrid = 5
+        par.positivity_preserving = True
+        par.positivity_density_floor = 0.0
+        par.positivity_energy_floor = 0.0
+        par.cfl_density_floor = 0.0
+        par.dual_energy = True
+        mesh = make_code_mesh(5)
+        mesh._par = par
+        mass = np.array([
+            0.8673953529245595, 6.776326090692884,
+            2.768587034204799, 0.42270495958486487,
+            0.2879553791648065,
+        ])
+        momentum = np.array([
+            0.09880948326072078, 0.32311661008571224,
+            0.03990724798119123, -0.014152283269336843,
+            0.00925101127551695,
+        ])
+        energy = np.array([
+            0.36731554210974315, 0.14787788678725858,
+            0.22036689100247855, 0.04871676701166089,
+            0.02676529191260478,
+        ])
+        fluid = SimpleNamespace(
+            Mass=as_named_array(mass.copy()),
+            Mom=as_named_array(momentum.copy()),
+            Energy=as_named_array(energy.copy()),
+            InternalEnergy=as_named_array(energy.copy()),
+            time=0.0,
+        )
+        mass_face = np.array([
+            -1.7690080915545598, 1.7811742205546452,
+            -3.723223801407037, -1.04004798128519,
+            -1.2456146601584484,
+        ])
+        momentum_face = np.array([
+            0.7153755556725097, -0.02435852042891355,
+            -0.26620947455297345, 2.4873892451277824,
+            -2.483994405078338,
+        ])
+        energy_face = np.array([
+            -0.5043952152186525, -1.1852485717384549,
+            -0.9156911448084882, -0.5172337136435069,
+            -1.5154215992557107,
+        ])
+        solver = Solver()
+
+        solver._positivity_limited_face_fluxes(
+            fluid, 1.0, mesh, par,
+            mass_face, momentum_face, energy_face,
+        )
+
+        self.assertTrue(np.all(np.isfinite(fluid.Mass)))
+        self.assertTrue(np.all(np.isfinite(fluid.Mom)))
+        self.assertTrue(np.all(np.isfinite(fluid.Energy)))
+        self.assertTrue(np.all(fluid.Mass >= 0.0))
+        self.assertTrue(np.all(fluid.Energy >= 0.0))
+        self.assertAlmostEqual(float(np.sum(fluid.Mass)), float(np.sum(mass)))
+        self.assertAlmostEqual(float(np.sum(fluid.Mom)), float(np.sum(momentum)))
+        self.assertAlmostEqual(float(np.sum(fluid.Energy)), float(np.sum(energy)))
+        self.assertTrue(np.any(solver._last_face_limiter_factors < 1.0))
+        self.assertTrue(np.any(solver._last_face_limiter_factors > 0.0))
+
     def test_spherical_origin_flux_is_zeroed(self):
         mesh = Mesh()
         mesh.coordsys = 'spherical'

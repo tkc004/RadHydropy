@@ -108,3 +108,8 @@ The requested figure is `outputs/CosmologicalVirialShock1D.jpg`, with
 adiabatic results on top and radiative PIE results below. Each panel plots the
 total mass interior to the virial, detected shock, and disc radii. Raw histories
 are saved in `outputs/{adiabatic,radiative}/mass_radius_history.npz`.
+The production gas-correlation configurations use a volume-smoothed live
+dark-matter force (`smooth_dm_force_for_gas: true`). Shell trajectories remain
+raw and conserve shell mass; only the enclosed mass sampled by gas cells is
+interpolated linearly in `r^3`, removing 64/1024-shell force jumps without
+altering the collisionless evolution.

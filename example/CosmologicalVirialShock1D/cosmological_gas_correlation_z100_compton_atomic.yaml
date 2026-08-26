@@ -19,10 +19,12 @@ runparams:
   cosmological_background_boundary_reconstruction: true
   noghost: 2
   order: 1
+  dual_energy: true
   CFL: 0.10
   verbose: 0
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
+  smooth_dm_force_for_gas: true
   dm_density_bins: 128
   dtmin: {value: 1.0e-12, unit: Myr}
   # Runtime density is comoving in this supercomoving run.

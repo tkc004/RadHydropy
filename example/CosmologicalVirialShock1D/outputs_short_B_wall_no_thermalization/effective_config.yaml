@@ -22,6 +22,7 @@ runparams:
   CFL: 0.1
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
+  smooth_dm_force_for_gas: true
   dm_density_bins: 128
   dtmin:
     value: 1.0e-12
@@ -43,7 +44,7 @@ runparams:
   dtmax:
     value: 200.0
     unit: Myr
-  final_cosmic_time: 1.0
+  final_cosmic_time: 0.03
   gas_profile_cadence: 0.1
   linear_correlation_table_filename: /Users/tsangkeungchan/Programs/RadHydropy/RadHydropy/example/CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen

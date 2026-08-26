@@ -20,10 +20,15 @@ runparams:
   noghost: 2
   # order=1 is the limited MUSCL (second-order spatial) reconstruction.
   order: 1
+  # Preserve thermal pressure when total energy is kinetic-energy dominated.
+  dual_energy: true
   CFL: 0.10
   #verbose: 1
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
+  # Smooth the live-shell force sampled by gas cells in enclosed volume.
+  # Shell trajectories and saved DM profiles remain based on the raw shells.
+  smooth_dm_force_for_gas: true
   # Match the live-shell density diagnostic in the dark-matter-only example.
   dm_density_bins: 128
   # The cold adiabatic collapse develops a narrow central feature; allow the
@@ -42,7 +47,9 @@ runparams:
   artificial_viscosity_radius_kpc: 8.0
   artificial_viscosity_C1: 0.1
   artificial_viscosity_C2: 0.25
-  central_kinetic_thermalization: true
+  # Production choice validated by short case B: retain the finite inner wall
+  # but do not inject an explicit central thermalization/backpressure source.
+  central_kinetic_thermalization: false
   central_thermalization_radius_kpc: 8.0
   central_thermalization_cells: 4
   central_thermalization_timescale: 0.01

@@ -8,7 +8,6 @@ from radhydropy.gravity import (
     point_mass_potential,
     singular_isothermal_potential,
 )
-from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 from radhydropy.cosmology import EinsteinDeSitter
 
@@ -126,36 +125,6 @@ def test_nfw_potential():
     expected = -4.0 * np.pi * GRAVITATIONAL_CONSTANT_CGS * 5.0 * 2.0**2 * log_over_x
 
     assert np.allclose(potential.to_value(unyt.cm**2 / unyt.s**2), expected)
-
-
-def test_apply_gravity_updates_momentum_and_energy():
-    code_units = _code_units()
-    mesh = DummyMesh()
-    fluid = DummyFluid()
-    par = DummyPar()
-    initial_momentum = fluid.Mom.copy()
-    initial_energy = fluid.Energy.copy()
-    par.gravity = Gravity(
-        externalgravity=True,
-        potential=2.0 * mesh.coordinate * (code_units.velocity_unit**2),
-        coordinate=mesh.coordinate * code_units.length_unit,
-        code_units=code_units,
-    )
-
-    solver = Solver()
-    solver.ApplyGravity(1.0, mesh, fluid, par)
-
-    expected_acceleration = -2.0
-    expected_momentum = (
-        initial_momentum + fluid.rho * expected_acceleration * mesh.vol * 1.0
-    )
-    expected_energy = (
-        initial_energy
-        + fluid.rho * fluid.vel * expected_acceleration * mesh.vol * 1.0
-    )
-
-    assert np.allclose(fluid.Mom, expected_momentum)
-    assert np.allclose(fluid.Energy, expected_energy)
 
 
 def test_spherical_self_gravity_and_external_gravity_are_combined():

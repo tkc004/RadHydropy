@@ -504,6 +504,14 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         tvir = float("nan")
 
     temp_phys = np.asarray(sim.fluid.temp[first:last], dtype=float) / a**2
+    velocity_phys = np.asarray(
+        cosmology.physical_velocity(
+            x,
+            np.asarray(sim.fluid.vel[first:last], dtype=float),
+            float(sim.fluid.time),
+        ),
+        dtype=float,
+    )
     finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
     if np.count_nonzero(finite_temperature) >= 7:
         # A raw cell-to-cell derivative is dominated by the positivity floor
@@ -526,7 +534,13 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
             # unresolved inner cooling/adiabatic feature become r_shock
             # merely because it has a larger cell-to-cell gradient.
             lower_radius = max(lower_radius, 0.3 * rtarget)
-        upper_radius = 0.95 * proper[-1]
+        # A percentage-of-radius cut removes too few cells on this logarithmic
+        # mesh.  Leave a fixed buffer outside the candidate and its five-cell
+        # smoothing stencil so the explicitly reset EdS reservoir cannot be
+        # reported as a virial shock.
+        outer_buffer_cells = 8
+        upper_index = max(3, proper.size - outer_buffer_cells)
+        upper_radius = proper[upper_index]
         if np.isfinite(rvir) and rvir > proper[0]:
             upper_radius = min(upper_radius, 3.0 * rvir)
         valid = (
@@ -540,13 +554,26 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
             # only negative outward gradients.  Positive gradients are inner
             # cooling transitions, not the outer shock.
             shock_candidates = candidate[gradient[candidate] < -0.05]
-            local = (
-                shock_candidates[np.argmin(gradient[shock_candidates])]
-                if shock_candidates.size else None
-            )
-            # Require at least a modest resolved temperature jump; otherwise
-            # this is a smooth adiabatic profile, not a detected shock.
-            if local is not None and abs(float(gradient[local])) >= 0.05:
+            resolved = []
+            for local in shock_candidates:
+                inner = max(0, int(local) - 2)
+                outer = min(proper.size - 1, int(local) + 2)
+                compression = rho[inner] / max(rho[outer], 1.0e-300)
+                heating = temp_phys[inner] / max(
+                    temp_phys[outer], 1.0e-300
+                )
+                upstream_velocity = velocity_phys[outer]
+                downstream_velocity = velocity_phys[inner]
+                decelerated = (
+                    upstream_velocity < 0.0
+                    and downstream_velocity > upstream_velocity
+                    and abs(downstream_velocity) < abs(upstream_velocity)
+                )
+                if compression >= 1.2 and heating >= 1.2 and decelerated:
+                    resolved.append(int(local))
+            if resolved:
+                resolved = np.asarray(resolved, dtype=int)
+                local = int(resolved[np.argmin(gradient[resolved])])
                 rshock = float(proper[local])
             else:
                 rshock = np.nan
@@ -649,3 +676,43 @@ def gas_density_profile(sim, cosmic_time, cosmology):
         "radius_proper_kpc": scale_factor * radius_comoving,
         "density_proper_code": density_comoving / scale_factor**3,
     }
+class VolumeSmoothedDarkMatter:
+    """Use shell mass interpolated linearly in enclosed volume for gas force."""
+
+    def __init__(self, shells):
+        self.shells = shells
+
+    def __getattr__(self, name):
+        return getattr(self.shells, name)
+
+    def gravitating_enclosed_mass(self, radius=None,
+                                  include_shell_mass_with_fixed=False):
+        if radius is None:
+            return self.shells.gravitating_enclosed_mass(
+                radius,
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+            )
+        shell_radius = np.asarray(self.shells.radius, dtype=float)
+        shell_enclosed = np.asarray(
+            self.shells.gravitating_enclosed_mass(
+                shell_radius,
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+            ),
+            dtype=float,
+        )
+        total = float(np.sum(self.shells.mass))
+        if self.shells.fixed_enclosed_mass is not None:
+            total += float(self.shells.fixed_enclosed_mass)
+        outer_radius = shell_radius[-1] + 0.5 * (
+            shell_radius[-1] - shell_radius[-2]
+        )
+        interpolation_radius = np.concatenate(([0.0], shell_radius, [outer_radius]))
+        interpolation_mass = np.concatenate(([0.0], shell_enclosed, [total]))
+        requested = np.asarray(radius, dtype=float)
+        return np.interp(
+            requested**3,
+            interpolation_radius**3,
+            interpolation_mass,
+            left=0.0,
+            right=total,
+        )

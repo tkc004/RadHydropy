@@ -236,7 +236,7 @@ class Testing(unittest.TestCase):
         self.assertFalse(hasattr(loaded_fluid.ngamma, "units"))
         np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma), fluid.ngamma.value)
 
-    def test_readhdf5_errors_on_additional_datasets_with_units_when_not_preserving(self):
+    def test_hdf5_roundtrip_preserves_internal_energy_when_present(self):
         par = SimpleNamespace(
             coordsys='cartesian',
             nogrid=3,
@@ -252,6 +252,7 @@ class Testing(unittest.TestCase):
             vel=np.zeros(3) * unyt.cm / unyt.s,
             temp=np.ones(3) * unyt.K,
             mu=np.ones(3),
+            InternalEnergy=np.array([1.0, 2.0, 3.0]) * unyt.erg,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
@@ -260,12 +261,14 @@ class Testing(unittest.TestCase):
 
         with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
             rio.writehdf5(sim, output.name)
-            with h5py.File(output.name, "a") as handle:
-                extra = handle["Data"].create_dataset("InternalEnergy", data=np.array([1.0, 2.0, 3.0]))
-                extra.attrs["units"] = "erg"
+            rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-            with self.assertRaises(ValueError):
-                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+        self.assertTrue(hasattr(loaded_fluid, "InternalEnergy"))
+        self.assertFalse(hasattr(loaded_fluid.InternalEnergy, "units"))
+        np.testing.assert_array_equal(
+            np.asarray(loaded_fluid.InternalEnergy),
+            np.asarray(fluid.InternalEnergy.value),
+        )
 
     def test_readhdf5_errors_when_header_missing_code_units(self):
         par = SimpleNamespace(

@@ -1125,127 +1125,112 @@ class Solver():
         mom_face = np.asarray(mom_face, dtype=float)
         energy_face = np.asarray(energy_face, dtype=float)
         area = np.asarray(mesh.area, dtype=float)
-        factors = np.ones(len(mass_face), dtype=float)
         delta_mass = dt_value * mass_face * area
         delta_mom = dt_value * mom_face * area
         delta_energy = dt_value * energy_face * area
-        total_mass = mass.copy()
-        total_mom = momentum.copy()
-        total_energy = energy.copy()
-        total_mass += delta_mass - ru.periodic_roll(delta_mass, -1)
-        total_mom += delta_mom - ru.periodic_roll(delta_mom, -1)
-        total_energy += delta_energy - ru.periodic_roll(delta_energy, -1)
-        for face in range(len(mass_face)):
-            left = (face - 1) % count
-            right = face
-            face_mass = delta_mass[face]
-            face_mom = delta_mom[face]
-            face_energy = delta_energy[face]
-            base_mass = total_mass.copy()
-            base_mom = total_mom.copy()
-            base_energy = total_energy.copy()
-            base_mass[left] += factors[face] * face_mass
-            base_mom[left] += factors[face] * face_mom
-            base_energy[left] += factors[face] * face_energy
-            base_mass[right] -= factors[face] * face_mass
-            base_mom[right] -= factors[face] * face_mom
-            base_energy[right] -= factors[face] * face_energy
+        # Accept the unlimited conservative update immediately when possible.
+        # This is the overwhelmingly common path and avoids limiter overhead.
+        full_mass = mass + delta_mass - ru.periodic_roll(delta_mass, -1)
+        full_mom = momentum + delta_mom - ru.periodic_roll(delta_mom, -1)
+        full_energy = energy + delta_energy - ru.periodic_roll(delta_energy, -1)
+        if np.all(valid(full_mass, full_mom, full_energy)):
+            factors = np.ones(len(mass_face), dtype=float)
+            mass, momentum, energy = full_mass, full_mom, full_energy
+        else:
+            # Construct the limited update from a known admissible state.
+            # Increasing one face coefficient changes only its two adjacent
+            # cells with equal-and-opposite corrections.  Accept an increase
+            # only while both cells remain admissible, so global admissibility
+            # is an invariant of the construction rather than something a
+            # fixed number of repair passes must recover afterward.
+            factors = np.zeros(len(mass_face), dtype=float)
+            total_mass = mass.copy()
+            total_mom = momentum.copy()
+            total_energy = energy.copy()
+            if not np.all(valid(total_mass, total_mom, total_energy)):
+                invalid = ~valid(total_mass, total_mom, total_energy)
+                index = int(np.flatnonzero(invalid)[0])
+                raise ValueError(
+                    'hydro state is outside positivity domain before paired '
+                    'face construction at cell %d (mass=%s mom=%s energy=%s)'
+                    % (index, total_mass[index], total_mom[index],
+                       total_energy[index])
+                )
 
-            def candidate(factor):
-                trial_mass = base_mass.copy()
-                trial_mom = base_mom.copy()
-                trial_energy = base_energy.copy()
-                trial_mass[left] -= factor * face_mass
-                trial_mom[left] -= factor * face_mom
-                trial_energy[left] -= factor * face_energy
-                trial_mass[right] += factor * face_mass
-                trial_mom[right] += factor * face_mom
-                trial_energy[right] += factor * face_energy
+            def face_candidate(face, factor):
+                left = (face - 1) % count
+                right = face
+                increment = factor - factors[face]
+                trial_mass = total_mass.copy()
+                trial_mom = total_mom.copy()
+                trial_energy = total_energy.copy()
+                trial_mass[left] -= increment * delta_mass[face]
+                trial_mom[left] -= increment * delta_mom[face]
+                trial_energy[left] -= increment * delta_energy[face]
+                trial_mass[right] += increment * delta_mass[face]
+                trial_mom[right] += increment * delta_mom[face]
+                trial_energy[right] += increment * delta_energy[face]
                 return trial_mass, trial_mom, trial_energy
 
-            def local_valid(state):
+            def adjacent_valid(face, state):
                 admissible = valid(*state)
+                left = (face - 1) % count
+                right = face
                 return all(
                     admissible[index]
                     for index in (left, right)
                     if physical[index]
                 )
 
-            trial = candidate(1.0)
-            if local_valid(trial):
-                factor = factors[face]
-            else:
-                low, high = 0.0, factors[face]
-                for _ in range(48):
-                    middle = 0.5 * (low + high)
-                    if local_valid(candidate(middle)):
-                        low = middle
+            # Alternate traversal direction to reduce ordering bias.  The
+            # first sweep already produces a globally admissible update;
+            # later sweeps only recover additional face flux monotonically.
+            max_recovery_sweeps = 8
+            factor_tolerance = 1.0e-13
+            for sweep in range(max_recovery_sweeps):
+                largest_increase = 0.0
+                faces = (
+                    range(len(mass_face))
+                    if sweep % 2 == 0
+                    else range(len(mass_face) - 1, -1, -1)
+                )
+                for face in faces:
+                    current = factors[face]
+                    if current >= 1.0 - factor_tolerance:
+                        factors[face] = 1.0
+                        continue
+                    trial = face_candidate(face, 1.0)
+                    if adjacent_valid(face, trial):
+                        accepted = 1.0
+                        accepted_state = trial
                     else:
-                        high = middle
-                factor = low
-            total_mass, total_mom, total_energy = candidate(factor)
-            factors[face] = factor
-
-        # One pass is normally sufficient; a second pass handles a cell whose
-        # two neighboring faces were both reduced while preserving the local
-        # nature of the correction.
-        for _ in range(2):
-            changed = False
-            for face in range(len(mass_face)):
-                left = (face - 1) % count
-                right = face
-                face_mass = delta_mass[face]
-                face_mom = delta_mom[face]
-                face_energy = delta_energy[face]
-                base_mass = total_mass.copy()
-                base_mom = total_mom.copy()
-                base_energy = total_energy.copy()
-                base_mass[left] += factors[face] * face_mass
-                base_mom[left] += factors[face] * face_mom
-                base_energy[left] += factors[face] * face_energy
-                base_mass[right] -= factors[face] * face_mass
-                base_mom[right] -= factors[face] * face_mom
-                base_energy[right] -= factors[face] * face_energy
-
-                def local_candidate(factor):
-                    trial_mass = base_mass.copy()
-                    trial_mom = base_mom.copy()
-                    trial_energy = base_energy.copy()
-                    trial_mass[left] -= factor * face_mass
-                    trial_mom[left] -= factor * face_mom
-                    trial_energy[left] -= factor * face_energy
-                    trial_mass[right] += factor * face_mass
-                    trial_mom[right] += factor * face_mom
-                    trial_energy[right] += factor * face_energy
-                    return trial_mass, trial_mom, trial_energy
-
-                current_state = local_candidate(factors[face])
-                current_valid = valid(*current_state)
-                if all(
-                    current_valid[index]
-                    for index in (left, right)
-                    if physical[index]
-                ):
-                    continue
-                low, high = 0.0, factors[face]
-                for _ in range(48):
-                    middle = 0.5 * (low + high)
-                    trial_valid = valid(*local_candidate(middle))
-                    if all(
-                        trial_valid[index]
-                        for index in (left, right)
-                        if physical[index]
-                    ):
-                        low = middle
-                    else:
-                        high = middle
-                total_mass, total_mom, total_energy = local_candidate(low)
-                changed |= low < factors[face]
-                factors[face] = low
-            if not changed:
-                break
-
-        mass, momentum, energy = total_mass, total_mom, total_energy
+                        # The current coefficient is known admissible.  Search
+                        # only upward, never stepping outside the invariant
+                        # domain as the previous reduce-and-repair scheme did.
+                        low, high = current, 1.0
+                        accepted_state = (
+                            total_mass, total_mom, total_energy
+                        )
+                        for _ in range(48):
+                            middle = 0.5 * (low + high)
+                            middle_state = face_candidate(face, middle)
+                            if adjacent_valid(face, middle_state):
+                                low = middle
+                                accepted_state = middle_state
+                            else:
+                                high = middle
+                        accepted = low
+                    largest_increase = max(
+                        largest_increase, accepted - current
+                    )
+                    factors[face] = accepted
+                    total_mass, total_mom, total_energy = accepted_state
+                if np.all(factors >= 1.0 - factor_tolerance):
+                    factors[...] = 1.0
+                    break
+                if largest_increase <= factor_tolerance:
+                    break
+            mass, momentum, energy = total_mass, total_mom, total_energy
 
         if not np.all(valid(mass, momentum, energy)):
             invalid = ~valid(mass, momentum, energy)

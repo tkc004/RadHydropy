@@ -18,9 +18,11 @@ runparams:
   boundcond: InflowSph
   noghost: 2
   order: 1
+  dual_energy: true
   CFL: 0.10
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
+  smooth_dm_force_for_gas: true
   dm_density_bins: 128
   dtmin: {value: 1.0e-12, unit: Myr}
   cfl_density_floor: 1.0e-9

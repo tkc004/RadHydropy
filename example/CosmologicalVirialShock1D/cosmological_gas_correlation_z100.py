@@ -586,7 +586,8 @@ def _energy_audit_state(sim):
     }
 
 
-def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
+def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
+        output_suffix=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
@@ -600,6 +601,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     figure_prefix = str(
         runparams.get("figure_prefix", "CosmologicalGasCorrelationZ100")
     )
+    if output_suffix:
+        output_dir = output_dir.with_name(output_dir.name + str(output_suffix))
+        figure_prefix += str(output_suffix)
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
@@ -643,9 +647,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
     sim.SetFluid()
     sim.SetInitFluid()
     sim.fluid.time = float(np.asarray(sim.par.time).flat[0])
+    dm_for_gas = (
+        et.VolumeSmoothedDarkMatter(dm)
+        if bool(runparams.get("smooth_dm_force_for_gas", False))
+        else dm
+    )
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
-        dark_matter=dm, code_units=sim.par.CodeUnits,
+        dark_matter=dm_for_gas, code_units=sim.par.CodeUnits,
     )
     sim.par.dark_matter = dm
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
@@ -760,8 +769,16 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None):
             sim.fluid.eos.total_energy_density(rho, velocity, pressure),
             dtype=float,
         )) * volume
+        thermal_energy_density = float(np.asarray(
+            sim.fluid.eos.thermal_energy_density(pressure), dtype=float,
+        ))
         if hasattr(sim.fluid, "eth"):
-            sim.fluid.eth[index] = sim.fluid.eos.thermal_energy_density(pressure)
+            sim.fluid.eth[index] = thermal_energy_density
+        if hasattr(sim.fluid, "InternalEnergy"):
+            # SetConserved intentionally preserves the active-cell dual-energy
+            # field.  The explicitly reset EdS reservoir must therefore
+            # synchronize its conserved thermal energy here as well.
+            sim.fluid.InternalEnergy[index] = thermal_energy_density * volume
         return (
             float(np.asarray(sim.fluid.Mass, dtype=float)[index]) - old_mass,
             float(np.asarray(sim.fluid.Energy, dtype=float)[index]) - old_energy,
@@ -1084,5 +1101,13 @@ if __name__ == "__main__":
         "--final-time", type=float, default=None,
         help="override final cosmic time in Gyr for a short debug run",
     )
+    parser.add_argument(
+        "--output-suffix", default=None,
+        help="append a suffix to the output directory and figure prefix",
+    )
     args = parser.parse_args()
-    run(args.config, final_time_override=args.final_time)
+    run(
+        args.config,
+        final_time_override=args.final_time,
+        output_suffix=args.output_suffix,
+    )
