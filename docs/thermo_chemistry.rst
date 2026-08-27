@@ -66,12 +66,16 @@ controls most commonly used by the bundled examples are:
 * ``hydrogen_source_CFL`` and ``hydrogen_source_dtmin``: control source
   subcycling.
 * ``hydrogen_source_solver``: select ``hybrid`` (the default),
-  ``explicit``, or ``hybrid``. The implicit option solves internal energy and
+  ``explicit``, ``coupled_implicit``, ``trust_region``, or ``split_implicit``.
+  The implicit option solves internal energy and
   ``xHI`` simultaneously at the new time, with positivity/bounds enforced in
   transformed variables. The hybrid option first takes an explicit trial;
   it keeps that result when the largest relative temperature, energy, and
   neutral-fraction change is at most ``hydrogen_hybrid_change_tolerance`` and
   otherwise recomputes the interval implicitly.
+  The split-implicit option applies Compton and atomic thermal sources
+  explicitly, solves chemistry implicitly, and subcycles to limit the
+  internal-energy change to 10 percent. It is a non-radiative source scheme.
 * ``hydrogen_hybrid_change_tolerance``: relative-change threshold for the
   hybrid source solver, default ``0.1``.
 * ``hydrogen_implicit_tolerance``, ``hydrogen_implicit_max_iterations``, and

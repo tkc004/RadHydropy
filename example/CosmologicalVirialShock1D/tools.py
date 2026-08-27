@@ -591,14 +591,19 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
 
     g_code = float(cosmology.gravitational_constant)
     j = float(ic["specific_angular_momentum"])
-    scan_max = rtarget if np.isfinite(rtarget) else proper[-1]
-    scan = np.geomspace(max(proper[0], 1.0e-5), max(scan_max, proper[0] * 2.0), 256)
-    enclosed = np.maximum(total_mass_at(scan), 1.0e-30)
-    balance = j**2 / np.maximum(scan**3, 1.0e-30) - g_code * enclosed / np.maximum(scan**2, 1.0e-30)
-    crossings = np.flatnonzero(balance[:-1] * balance[1:] <= 0.0)
-    rdisc = float(scan[crossings[0]]) if crossings.size else float(j**2 / max(g_code * mvir, 1.0e-30))
+    target_mass = float(ic.get("target_halo_mass", np.nan))
+    # This is a halo-scale centrifugal-radius diagnostic, not a resolved
+    # rotating-disc solution.  Using the local enclosed mass here makes the
+    # radius grow artificially when the correlation IC has assembled only a
+    # small fraction of the target halo inside the sampled radius.
+    disc_mass = target_mass if np.isfinite(target_mass) and target_mass > 0.0 else mvir
+    if np.isfinite(disc_mass) and disc_mass > 0.0:
+        rdisc = float(j**2 / (g_code * disc_mass))
+    else:
+        rdisc = float("nan")
     rdisc_max = rtarget if np.isfinite(rtarget) else proper[-1]
-    rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
+    if np.isfinite(rdisc):
+        rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
     return {
         "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
         "rvir_kpc": rvir,

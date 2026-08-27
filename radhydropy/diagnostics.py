@@ -190,3 +190,60 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         except (OSError, TypeError, ValueError):
             pass
     raise RuntimeError(diagnostic)
+
+
+def check_source_temperature(state, par, temperature_before, stage, source_step):
+    """Reject a source substep that crosses the configured temperature guard.
+
+    ``state['temperature_K']`` is already in physical kelvin and contains
+    only the active mesh cells, unlike the full fluid state checked by
+    :func:`check_temperature_jump`.
+    """
+    threshold = getattr(par, 'temperature_jump_error_threshold', None)
+    if threshold is None:
+        return
+    threshold = float(threshold)
+    if not np.isfinite(threshold) or threshold <= 0.0:
+        return
+    temperature_after = np.asarray(state.get('temperature_K'), dtype=float)
+    if temperature_after.ndim == 0:
+        return
+    before = np.asarray(temperature_before, dtype=float)
+    active = np.asarray(
+        state.get('active', np.ones_like(temperature_after, dtype=bool)),
+        dtype=bool,
+    )
+    crossing = active & np.isfinite(temperature_after) & (
+        temperature_after > threshold
+    )
+    if before.shape == temperature_after.shape:
+        crossing &= before <= threshold
+    if not np.any(crossing):
+        return
+    index = int(np.flatnonzero(crossing)[0])
+    interior = state.get('interior', slice(0, len(temperature_after)))
+    mesh_index = int(interior.start or 0) + index
+    rho = np.asarray(state.get('rho_g_cm3', np.nan), dtype=float)
+    xhi = np.asarray(state.get('xHI', np.nan), dtype=float)
+    energy = np.asarray(
+        state.get('specific_energy_erg_g', np.nan), dtype=float
+    )
+    diagnostic = (
+        'temperature jump error: physical gas temperature exceeded '
+        '%.6e K during %s source substep %d at cell %d '
+        '(T_before=%s K T_after=%s K rho=%s g/cm^3 xHI=%s '
+        'specific_energy=%s erg/g)' % (
+            threshold, stage, int(source_step), mesh_index,
+            before[index] if before.shape == temperature_after.shape else np.nan,
+            temperature_after[index], rho[index], xhi[index], energy[index],
+        )
+    )
+    print(diagnostic)
+    output_dir = getattr(par, 'outdir', None)
+    if output_dir is not None:
+        try:
+            filename = Path(output_dir) / 'temperature_jump_error.txt'
+            filename.write_text(diagnostic + '\n', encoding='utf-8')
+        except (OSError, TypeError, ValueError):
+            pass
+    raise RuntimeError(diagnostic)

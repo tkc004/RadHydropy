@@ -50,7 +50,7 @@ runparams:
   minimum_temperature: null
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
-  final_cosmic_time: 2.4
+  final_cosmic_time: 1.0
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen
@@ -74,7 +74,7 @@ runparams:
       UnitTemp_in_cgs: 1.0
 
 ICparams:
-  nogrid: 256
+  nogrid: 128
   # Finite reflecting wall in comoving coordinates; 5 kpc is only ~0.05 kpc
   # proper at the z=100 start and remains small compared with the halo.
   rmin: 3.0
@@ -89,7 +89,7 @@ ICparams:
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76
   mu: 0.59
-  dark_matter_shells: 1024
+  dark_matter_shells: 512
   dm_inner_radius: 0.01
   dm_core_absorption_velocity: 0.0
   dm_core_absorption_energy: 0.0

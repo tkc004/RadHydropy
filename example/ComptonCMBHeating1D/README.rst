@@ -30,3 +30,13 @@ The example also compares each timestep against a run with half the timestep;
 if the difference exceeds ``hydrogen_implicit_convergence_tolerance``, it
 automatically halves the timestep again up to
 ``hydrogen_implicit_max_refinements``.
+
+To test the non-radiative split-implicit scheme with Compton heating, atomic
+cooling, recombination, and collisional ionization, run::
+
+   python compton_cmb_heating1d.py \
+      --config compton_cmb_heating1d_split_implicit.yaml
+
+This fixed-density test disables the analytic Compton-only comparison because
+the additional atomic and chemical source terms are active.  The output is
+written to ``outputs_split_implicit``.

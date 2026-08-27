@@ -50,7 +50,7 @@ runparams:
   minimum_temperature: {value: 2.69851485e-5, unit: K}
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
-  final_cosmic_time: 2.4
+  final_cosmic_time: 1.0
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen
@@ -61,8 +61,19 @@ runparams:
   hydrogen_atomic_cooling: true
   hydrogen_update_mu: true
   hydrogen_thermal_coupling: true
-  hydrogen_source_solver: hybrid
+  hydrogen_source_solver: trust_region
+  hydrogen_source_skip_floor_cells: true
+  hydrogen_source_density_floor: {value: 1.0e-26, unit: g/cm**3}
+  hydrogen_source_floor_temperature_tolerance: 1.0e-2
   hydrogen_hybrid_change_tolerance: 0.10
+  hydrogen_implicit_tolerance: 1.0e-6
+  hydrogen_implicit_absolute_temperature_tolerance: {value: 0.1, unit: K}
+  hydrogen_implicit_fallback: error
+  hydrogen_implicit_debug: false
+  # The cold, recombining low-density tail has a short initial source
+  # transient inside a much longer hydro step.  The adaptive implicit driver
+  # grows its step again after resolving the transient.
+  hydrogen_implicit_max_refinements: 24
   #gas_core_model: hydrostatic_fixed
   #gas_core_radius: {value: 20.0, unit: kpc}
   cie_cooling: false

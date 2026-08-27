@@ -1,0 +1,70 @@
+runparams:
+  simname: ComptonCMBHeating1D_split_implicit
+  ICfilename: ComptonCMBHeating1D_split_implicit_InitialCondition.hdf5
+  outdir: .
+  outfileprefix: ComptonCMBHeating1D_SplitImplicit_Output
+  savedir: outputs_split_implicit
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  final_time:
+    value: 1.0
+    unit: Myr
+  evolution_timestep:
+    value: 1.0e-1
+    unit: Myr
+  noghost: 2
+  verbose: 0
+  hydrogen_chemistry: true
+  hydrogen_mass_fraction: 1.0
+  hydrogen_xHI_initial: 0.99
+  hydrogen_xHI_inflow: 0.99
+  hydrogen_xHI_outflow: 0.99
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: true
+  hydrogen_atomic_cooling: true
+  hydrogen_source_solver: split_implicit
+  hydrogen_source_CFL: 0.1
+  hydrogen_source_dtmin: 0.0
+  hydrogen_split_implicit_max_subcycles: 100000
+  hydrogen_implicit_fallback: error
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: true
+  hydrogen_radiation_field: false
+  radiative_transfer: false
+  compare_compton_analytic: false
+  compton_cmb_enabled: true
+  compton_cmb_redshift: 100.0
+  cmb_temperature_0:
+    value: 2.7255
+    unit: K
+  CodeUnits:
+    name: cgs_unit_system
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 8
+  coordsys: cartesian
+  boxsize:
+    value: 1.0
+    unit: kpc
+  time:
+    value: 0.0
+    unit: Myr
+  nHini:
+    value: 1.0e-3
+    unit: 1/cm**3
+  tempini:
+    value: 1.0e6
+    unit: K
+  xHIini: 0.99
+  muini: 0.9950248756
+
+cases:
+  hot_atomic_compton: 1.0e6
+  cold_atomic_compton: 1.0e2

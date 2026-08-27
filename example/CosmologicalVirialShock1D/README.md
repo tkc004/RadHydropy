@@ -11,8 +11,8 @@ Before the UV background turns on, the initial gas is cold CIE-era gas; after
 the turn-on epoch, the initial temperature is obtained by solving the HM12 PIE
 table for heating = cooling. The gas and dark matter start with the
 growing-mode inward peculiar velocity. The disc radius is a
-diagnostic centrifugal barrier, defined by `j^2/r^3 = G M(<r)/r^2`; it is not a
-resolved rotating disc in this 1-D spherical model.
+diagnostic centrifugal radius, estimated from `r = j^2/(G M_target)`; it is not
+a resolved rotating disc in this 1-D spherical model.
 
 Run with:
 

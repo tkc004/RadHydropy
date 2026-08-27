@@ -17,6 +17,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
@@ -173,8 +174,9 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
                                splashback_radius, scale_factors,
                                virial_temperature, filename,
                                minimum_temperature=None,
-                               radial_bin_count=32):
-    """Plot physical gas temperature profiles and the evolving virial radius."""
+                               radial_bin_count=32, inner_radius=None,
+                               box_boundary=None):
+    """Plot temperature against comoving radius and evolving halo markers."""
     selected = np.unique(
         np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
     )
@@ -184,20 +186,20 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
     for color, index in zip(colors, selected):
-        proper_radius = radius * scale_factors[index]
+        comoving_radius = radius
         # Reconstruct spherical cell volumes from neighboring cell centers;
         # the common scale-factor volume cancels in the mass weighting.
-        cell_edges = np.empty(proper_radius.size + 1, dtype=float)
-        if proper_radius.size > 1:
-            cell_edges[1:-1] = np.sqrt(proper_radius[:-1] * proper_radius[1:])
-            cell_edges[0] = proper_radius[0] ** 2 / cell_edges[1]
-            cell_edges[-1] = proper_radius[-1] ** 2 / cell_edges[-2]
+        cell_edges = np.empty(comoving_radius.size + 1, dtype=float)
+        if comoving_radius.size > 1:
+            cell_edges[1:-1] = np.sqrt(comoving_radius[:-1] * comoving_radius[1:])
+            cell_edges[0] = comoving_radius[0] ** 2 / cell_edges[1]
+            cell_edges[-1] = comoving_radius[-1] ** 2 / cell_edges[-2]
         else:
-            cell_edges[:] = (0.5 * proper_radius[0], 1.5 * proper_radius[0])
+            cell_edges[:] = (0.5 * comoving_radius[0], 1.5 * comoving_radius[0])
         cell_volume = np.maximum(np.diff(cell_edges ** 3), 0.0)
         mass_weight = np.asarray(density[index], dtype=float) * cell_volume
         binned_radius, binned_temperature = _log_radial_bin_profile(
-            proper_radius, temperature[index], weights=mass_weight,
+            comoving_radius, temperature[index], weights=mass_weight,
             bin_count=radial_bin_count, log_weighted=True,
         )
         axes[0].loglog(
@@ -206,7 +208,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
         )
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
             axes[0].axvline(
-                virial_radius[index],
+                virial_radius[index] / scale_factors[index],
                 color=color, ls="--", lw=0.9, alpha=0.65,
             )
         if np.isfinite(virial_temperature[index]) and virial_temperature[index] > 0.0:
@@ -215,21 +217,32 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
                 alpha=0.7,
             )
         if np.isfinite(splashback_radius[index]) and splashback_radius[index] > 0.0:
+            splashback_comoving = splashback_radius[index] / scale_factors[index]
             axes[0].axvline(
-                splashback_radius[index], color=color, ls="-.", lw=1.2, alpha=0.85,
+                splashback_comoving, color=color, ls="-.", lw=1.2, alpha=0.85,
             )
             if binned_radius.size and binned_temperature.size:
                 temperature_at_splashback = np.interp(
-                    splashback_radius[index], binned_radius, binned_temperature,
+                    splashback_comoving, binned_radius, binned_temperature,
                     left=np.nan, right=np.nan,
                 )
                 if np.isfinite(temperature_at_splashback) and temperature_at_splashback > 0.0:
                     axes[0].plot(
-                        splashback_radius[index], temperature_at_splashback,
+                        splashback_comoving, temperature_at_splashback,
                         marker="s", ms=4.5, color=color, mec="black", mew=0.35,
                         linestyle="None", zorder=5,
                     )
-    axes[0].set_xlabel("proper radius [kpc]")
+    if inner_radius is not None and float(inner_radius) > 0.0:
+        axes[0].axvline(
+            float(inner_radius), color="black", ls=":", lw=1.4,
+            label="inner gas radius",
+        )
+    if box_boundary is not None and float(box_boundary) > 0.0:
+        axes[0].axvline(
+            float(box_boundary), color="black", ls="-", lw=1.2,
+            label="box boundary",
+        )
+    axes[0].set_xlabel("comoving radius [kpc]")
     axes[0].set_ylabel("physical gas temperature [K]")
     if minimum_temperature is not None and float(minimum_temperature) > 0.0:
         axes[0].set_ylim(bottom=float(minimum_temperature))
@@ -241,7 +254,10 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
     axes[0].legend(loc="best", fontsize=8, ncol=3)
     finite = np.isfinite(virial_radius) & (virial_radius > 0.0)
     if np.any(finite):
-        axes[1].plot(times[finite], virial_radius[finite], "k.-", label=r"$r_{200}$")
+        axes[1].plot(
+            times[finite], virial_radius[finite] / scale_factors[finite],
+            "k.-", label=r"$r_{200}$ (comoving)",
+        )
     else:
         axes[1].text(
             0.5, 0.5, "no resolved $r_{200}$ yet",
@@ -250,7 +266,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
     if times.size > 1:
         axes[1].set_xlim(times[0], times[-1])
     axes[1].set_xlabel("cosmic time [Gyr]")
-    axes[1].set_ylabel("proper radius [kpc]")
+    axes[1].set_ylabel("comoving radius [kpc]")
     axes[1].grid(alpha=0.25)
     if np.any(finite):
         axes[1].legend(fontsize=8)
@@ -260,10 +276,14 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
 
 
 def plot_temperature_density_evolution(
-    times, density, temperature, filename, bin_count=48,
+    times, density, temperature, filename, bin_count=48, ymin=0.1,
+    density_to_nH_cm3=1.0,
 ):
-    """Plot a two-dimensional histogram of gas density and temperature."""
-    rho_values = np.asarray(density, dtype=float).ravel()
+    """Plot cell temperature against physical hydrogen number density."""
+    rho_values = (
+        np.asarray(density, dtype=float).ravel()
+        * float(density_to_nH_cm3)
+    )
     temp_values = np.asarray(temperature, dtype=float).ravel()
     valid = (
         np.isfinite(rho_values) & np.isfinite(temp_values)
@@ -294,10 +314,14 @@ def plot_temperature_density_evolution(
             cmap="magma",
         )
         fig.colorbar(image, ax=axis, label="cell count")
-    axis.set_xlabel(r"physical gas density [code mass / kpc$^3$]")
+    axis.set_xlabel(r"physical hydrogen number density $n_H$ [cm$^{-3}$]")
     axis.set_ylabel("physical gas temperature [K]")
     axis.set_xscale("log")
     axis.set_yscale("log")
+    if ymin is not None and float(ymin) > 0.0:
+        axis.set_ylim(bottom=float(ymin))
+    if np.any(valid):
+        axis.set_ylim(top=float(np.nanmax(temp_values[valid])))
     axis.set_title("Gas temperature-density distribution")
     axis.grid(alpha=0.25, which="both")
     fig.tight_layout()
@@ -929,6 +953,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         virial_temperature,
         temperature_figure,
         minimum_temperature=temperature_plot_ymin,
+        inner_radius=float(icparams.get("inner_wall_radius_comoving", icparams["rmin"])),
+        box_boundary=float(icparams["rmax"]),
     )
     density_figure = output_dir / (figure_prefix + "_Densities.jpg")
     cosmic_gas_density_z0 = baryon_fraction * float(
@@ -942,7 +968,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         figure_prefix + "_TemperatureDensity.jpg"
     )
     plot_temperature_density_evolution(
-        times, density, temperature, temperature_density_figure,
+        times, density, temperature, temperature_density_figure, ymin=0.1,
+        density_to_nH_cm3=(
+            float(sim.par.CodeUnits.mass_in_cgs)
+            / float(sim.par.CodeUnits.length_in_cgs) ** 3
+            * float(icparams["hydrogen_mass_fraction"])
+            / PROTON_MASS_CGS
+        ),
     )
     velocity_figure = output_dir / (figure_prefix + "_Velocity.jpg")
     plot_velocity_evolution(

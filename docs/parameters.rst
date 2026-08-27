@@ -234,22 +234,37 @@ are not advected as independent fluid fields.
        ``xHI / |dxHI/dt|``.
      - dimensionless
    * - ``hydrogen_source_solver``
-     - Source integrator; defaults to ``hybrid``. It retains the explicit
-       update when the relative source change is at most 10 percent and
-       otherwise tries the coupled backward-Euler update. ``explicit`` and
-       ``coupled_implicit`` remain available as explicit choices.
+     - Source integrator; defaults to ``hybrid``, which prefers the coupled
+       backward-Euler update and uses the configured explicit fallback if it
+       cannot converge. ``explicit`` and ``coupled_implicit`` remain
+       available as explicit choices.
+       ``trust_region`` uses the coupled solve with bounded Newton steps and
+       is useful for stiff Compton/atomic-cooling states near a temperature
+       floor.
+       ``split_implicit`` explicitly advances the thermal source terms and
+       implicitly advances ``xHI``; it subcycles until the internal-energy
+       change is at most 10 percent and does not evolve a radiation field.
      - string
    * - ``hydrogen_implicit_tolerance`` / ``hydrogen_implicit_max_iterations``
      - Convergence tolerance and iteration limit for the coupled implicit
        source solve.
      - dimensionless / integer
+   * - ``hydrogen_implicit_absolute_temperature_tolerance``
+     - Absolute temperature-equivalent residual tolerance; converted locally
+       to an energy residual using the current mean molecular weight.
+     - K
+   * - ``hydrogen_implicit_absolute_xhi_tolerance``
+     - Absolute neutral-fraction residual tolerance, combined with the
+       relative tolerance.
+     - dimensionless
    * - ``hydrogen_implicit_convergence_tolerance``
      - Relative difference tolerated between one implicit step and two
        half-sized implicit steps.
      - dimensionless
    * - ``hydrogen_implicit_max_refinements``
      - Maximum factor-of-two timestep refinements used to compare one
-       implicit step with two half-sized steps.
+       implicit step with two half-sized steps. After a refined interval is
+       accepted, the adaptive source step grows again toward the hydro step.
      - integer
    * - ``hydrogen_implicit_fallback``
      - Action after a failed coupled solve: ``explicit`` or ``error``.

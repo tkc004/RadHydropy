@@ -142,15 +142,19 @@ def _run_case(
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history['time_Myr']) * myr_seconds
     temperature = np.asarray(history['mean_ionized_temp_K'])
-    analytic = _analytic_temperature(
-        time_s,
-        initial_temperature,
-        float(case_params['compton_cmb_redshift']),
-        float(case_icparams['nHini'].to_value(1.0 / unyt.cm**3)),
-        float(case_icparams['xHIini']),
-    )
-    relative_error = np.abs((temperature - analytic) / analytic)
-    print('%s: max relative error=%.6e' % (label, np.max(relative_error)))
+    if case_params.get('compare_compton_analytic', True):
+        analytic = _analytic_temperature(
+            time_s,
+            initial_temperature,
+            float(case_params['compton_cmb_redshift']),
+            float(case_icparams['nHini'].to_value(1.0 / unyt.cm**3)),
+            float(case_icparams['xHIini']),
+        )
+        relative_error = np.abs((temperature - analytic) / analytic)
+        print('%s: max relative error=%.6e' % (label, np.max(relative_error)))
+    else:
+        analytic = np.full_like(temperature, np.nan)
+        print('%s: analytic Compton-only comparison disabled' % label)
     return time_s, temperature, analytic
 
 
@@ -254,11 +258,12 @@ def main(config_filename=DEFAULT_CONFIG):
         time_myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
         temperature_axis.plot(time_myr, temperature, marker='o', ms=3, lw=0,
                                label=f'RadHydropy: {label}')
-        temperature_axis.plot(time_myr, analytic, lw=1.8,
-                              label=f'analytic: {label}')
-        relative_error = np.abs((temperature - analytic) / analytic)
-        error_axis.plot(time_myr, relative_error, marker='o', ms=3, lw=0,
-                        label=label)
+        if np.any(np.isfinite(analytic)):
+            temperature_axis.plot(time_myr, analytic, lw=1.8,
+                                  label=f'analytic: {label}')
+            relative_error = np.abs((temperature - analytic) / analytic)
+            error_axis.plot(time_myr, relative_error, marker='o', ms=3, lw=0,
+                            label=label)
 
     temperature_axis.axhline(cmb_temperature, color='black', ls='--',
                              label=fr'$T_{{\rm CMB}}={cmb_temperature:.2f}$ K')
@@ -270,7 +275,8 @@ def main(config_filename=DEFAULT_CONFIG):
     error_axis.set_xlabel('Time [Myr]')
     error_axis.set_ylabel('relative error')
     error_axis.grid(True, which='both', alpha=0.25)
-    error_axis.legend(frameon=False)
+    if error_axis.lines:
+        error_axis.legend(frameon=False)
     fig.suptitle(
         'CMB Compton heating and cooling '
         f'($z={runparams["compton_cmb_redshift"]:.1f}$)'

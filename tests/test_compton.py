@@ -8,6 +8,8 @@ from radhydropy.thermo_networks.hydrogen import (
     _fast_source_state,
     _fast_sync_state_to_fluid,
     _fast_update_temperature_from_energy,
+    _split_implicit_source_state_update,
+    _source_stiffness_groups,
     apply_thermochemistry_fast,
     ionization_fraction_rate,
     thermal_rate,
@@ -317,6 +319,79 @@ def test_coupled_implicit_compton_thermal_limit_has_correct_direction():
     assert cooling['specific_energy_erg_g'][0] < old_energy[0]
 
 
+def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
+    """Regress the late-time cosmological virial-shock source state."""
+    temperature_floor = 2.6939889101121835e-5
+    xhi = 0.9418750059757972
+    n_hydrogen = 0.005471103569641479
+    dt_s = 218254737078.46677
+    state = _implicit_hydrogen_state(
+        temperature=temperature_floor,
+        xhi=xhi,
+        recombination=True,
+        collisional=True,
+        atomic_cooling=True,
+    )
+    state.update({
+        'rho_g_cm3': np.array([
+            n_hydrogen * PROTON_MASS_CGS / 0.76
+        ]),
+        'hydrogen_mass_fraction': 0.76,
+        'specific_energy_erg_g': np.array([2682.3951472516123]),
+        'specific_total_energy_erg_g': np.array([2682.3951472516123]),
+        'compton_cmb_enabled': True,
+        'compton_cmb_redshift': 10.71686171470456,
+        'temperature_floor_K': temperature_floor,
+        'temperature_floor_tolerance': 1.0e-2,
+        'active': np.array([True]),
+    })
+    state['mu'] = hydrogen_species.mean_molecular_weight_mu(
+        state['xHI'], hydrogen_mass_fraction=0.76
+    )
+    _fast_update_temperature_from_energy(state)
+    old_energy = state['specific_energy_erg_g'].copy()
+    old_xhi = state['xHI'].copy()
+
+    assert _coupled_implicit_source_update(
+        state,
+        dt_s,
+        tolerance=1.0e-4,
+        max_iterations=32,
+        trust_region=True,
+    )
+    assert state['temperature_K'][0] > temperature_floor
+    energy_residual = (
+        state['specific_energy_erg_g'] - old_energy
+        - dt_s * thermal_rate(state, None) / state['rho_g_cm3']
+    ) / old_energy
+    chemistry_residual = (
+        state['xHI'] - old_xhi
+        - dt_s * ionization_fraction_rate(state, None)
+    )
+    assert np.max(np.abs(energy_residual)) < 1.0e-4
+    assert np.max(np.abs(chemistry_residual)) < 1.0e-4
+
+
+def test_stiff_source_cell_isolated_from_quiet_cells():
+    state = _implicit_hydrogen_state(
+        temperature=1.0e4,
+        xhi=0.5,
+        recombination=True,
+        collisional=False,
+        atomic_cooling=False,
+    )
+    for key, value in list(state.items()):
+        if isinstance(value, np.ndarray) and value.shape == (1,):
+            state[key] = np.repeat(value, 8)
+    state['active'] = np.ones(8, dtype=bool)
+    state['rho_g_cm3'][-1] *= 1.0e8
+
+    groups = _source_stiffness_groups(state, 1.0e12)
+
+    assert len(groups) == 2
+    np.testing.assert_array_equal(groups[-1], np.array([7]))
+
+
 def test_coupled_implicit_matches_small_step_reference():
     implicit = _implicit_hydrogen_state(
         temperature=1.0e5,
@@ -422,6 +497,15 @@ def test_coupled_implicit_uses_converged_half_step_pair():
     assert explicit_result['source_steps'] > 1
 
 
+def test_trust_region_source_result_preserves_selected_solver():
+    _, par, fluid, mesh, _ = _source_test_problem(
+        solver='trust_region', fallback='error'
+    )
+    par.hydrogen_implicit_max_refinements = 12
+    result = apply_thermochemistry_fast(1.0, mesh, fluid, par)
+    assert result['source_solver'] == 'trust_region'
+
+
 def test_coupled_implicit_supercomoving_matches_physical_source_update():
     _, physical_par, physical_fluid, physical_mesh, scale_factor = (
         _source_test_problem(supercomoving=False)
@@ -515,14 +599,58 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
     assert np.isfinite(fluid.temp[0])
 
 
-def test_hybrid_source_keeps_small_explicit_change():
+def test_split_implicit_source_includes_compton_and_atomic_cooling():
+    _, par, fluid, mesh, _ = _source_test_problem(solver='split_implicit')
+    par.hydrogen_atomic_cooling = True
+    par.compton_cmb_enabled = True
+    par.compton_cmb_redshift = 10.0
+
+    result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
+
+    assert result['source_solver'] == 'split_implicit'
+    assert result['source_steps'] >= 1
+    assert np.isfinite(fluid.temp[0])
+    assert np.isfinite(fluid.xHI[0])
+
+
+def test_split_implicit_matches_coupled_solvers_for_identical_source_state():
+    results = {}
+    for solver in ('split_implicit', 'coupled_implicit', 'trust_region'):
+        _, par, fluid, mesh, _ = _source_test_problem(
+            solver=solver, fallback='error'
+        )
+        par.hydrogen_atomic_cooling = True
+        par.hydrogen_collisional_ionization = True
+        par.compton_cmb_enabled = True
+        par.compton_cmb_redshift = 10.0
+        par.hydrogen_update_mu = True
+        fluid.SetHydrogenMu = lambda hydrogen_mass_fraction=1.0: None
+        fluid.SetPressure = lambda: None
+        result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
+        results[solver] = (
+            float(fluid.temp[0]),
+            float(fluid.xHI[0]),
+            float(fluid.Energy[0]),
+            result,
+        )
+
+    split = np.asarray(results['split_implicit'][:3])
+    for solver in ('coupled_implicit', 'trust_region'):
+        reference = np.asarray(results[solver][:3])
+        np.testing.assert_allclose(split, reference, rtol=1.0e-6, atol=1.0e-10)
+        assert results[solver][3]['source_solver'] in (
+            'coupled_implicit', 'trust_region'
+        )
+    assert results['split_implicit'][3]['source_solver'] == 'split_implicit'
+
+
+def test_hybrid_source_uses_coupled_implicit_for_small_change():
     _, par, fluid, mesh, _ = _source_test_problem(solver='hybrid')
     par.hydrogen_hybrid_change_tolerance = 0.1
 
     result = apply_thermochemistry_fast(1.0e-8, mesh, fluid, par)
 
-    assert result['source_solver'] == 'explicit'
-    assert result['relative_change'] <= 0.1
+    assert result['source_solver'] == 'coupled_implicit'
 
 
 def test_hybrid_source_uses_implicit_for_large_explicit_change():
