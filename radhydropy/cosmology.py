@@ -260,7 +260,9 @@ class LambdaCDM:
         lo, hi = (u, 1.0) if u < 1.0 else (1.0, u)
         mid, half = (lo + hi) / 2.0, (hi - lo) / 2.0
         values = mid + half * nodes
-        integral = half * np.sum(weights / (np.sqrt(values) * np.sqrt(
+        # d tau = d t / a^2 and d t = d a / (a H), hence
+        # d tau / d u = 1 / [u^(3/2) H_ref sqrt(omega_m + omega_lambda u^3)].
+        integral = half * np.sum(weights / (values**1.5 * np.sqrt(
             self.omega_m + self.omega_lambda * values**3)))
         return (-integral if u < 1.0 else integral)
 

@@ -7,10 +7,23 @@ Eisenstein--Hu no-wiggle transfer shape.
 """
 
 from pathlib import Path
+import importlib.util
 
 import h5py
 import numpy as np
-from tools.cosmology import LambdaCDM
+
+try:
+    from tools.cosmology import LambdaCDM
+except ModuleNotFoundError:
+    # The virial-shock example loads this file directly while its local
+    # ``tools.py`` module shadows the repository-level ``tools`` package.
+    _COSMOLOGY_FILE = Path(__file__).with_name("cosmology.py")
+    _COSMOLOGY_SPEC = importlib.util.spec_from_file_location(
+        "radhydropy_physical_cosmology", _COSMOLOGY_FILE
+    )
+    _COSMOLOGY_MODULE = importlib.util.module_from_spec(_COSMOLOGY_SPEC)
+    _COSMOLOGY_SPEC.loader.exec_module(_COSMOLOGY_MODULE)
+    LambdaCDM = _COSMOLOGY_MODULE.LambdaCDM
 
 
 def _validate_lcdm_parameters(omega_m, omega_lambda, omega_b=None):
