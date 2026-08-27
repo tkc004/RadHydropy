@@ -305,8 +305,7 @@ class Gravity:
         # A simulation's fluid time is authoritative once the run has started.
         if hasattr(par, "fluid_time"):
             tau = float(np.asarray(par.fluid_time, dtype=float))
-        cosmic_time = cosmology.cosmic_time_from_supercomoving(tau)
-        scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+        cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
         background_physical = float(cosmology.background_density(cosmic_time))
         background_comoving = background_physical * scale_factor**3
         dm_fraction = float(getattr(par, "dark_matter_background_fraction", 0.0))
@@ -399,12 +398,11 @@ class Gravity:
                     "cosmological dark-matter shells require supercomoving cosmology"
                 )
             tau = float(np.asarray(getattr(par, "fluid_time", getattr(par, "time", 0.0)), dtype=float))
-            cosmic_time = cosmology.cosmic_time_from_supercomoving(tau)
-            scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+            cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
             tau_start = tau - float(dt)
             if tau_start < 0.0:
                 tau_start = tau
-            scale_factor_start = float(cosmology.scale_factor_from_supercomoving(tau_start))
+            _, scale_factor_start, _ = cosmology.background_state_from_supercomoving(tau_start)
             background_density = float(cosmology.background_density(cosmic_time)) * scale_factor**3
             # Re-evaluate the homogeneous mass at the shell radius used by
             # each kick.  Passing a frozen array here applies the old-radius

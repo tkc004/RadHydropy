@@ -36,6 +36,8 @@ def test_table_schema(tmp_path):
         assert np.all(power >= 0.0)
         assert np.all(np.isfinite(correlation))
         assert handle.attrs["sigma8"] == 0.811
+        assert handle.attrs["omega_m"] == 0.315
+        assert handle.attrs["omega_lambda"] == 0.685
 
 
 def test_sigma8_normalization():

@@ -10,17 +10,26 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from tools.cosmology import LambdaCDM
+
+
+def _validate_lcdm_parameters(omega_m, omega_lambda, omega_b=None):
+    LambdaCDM(omega_m=omega_m, omega_lambda=omega_lambda)
+    if omega_b is not None and not (0.0 < omega_b < omega_m):
+        raise ValueError("require 0 < omega_b < omega_m")
 
 
 def eisenstein_hu_nowiggle_transfer(
-    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674, theta_cmb=2.7255 / 2.7
+    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674,
+    omega_lambda=0.685, theta_cmb=2.7255 / 2.7
 ):
     """Return the Eisenstein--Hu no-wiggle transfer function."""
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     if np.any(k_hmpc <= 0.0):
         raise ValueError("wavenumbers must be positive")
-    if not (0.0 < omega_b < omega_m and h > 0.0):
-        raise ValueError("require 0 < omega_b < omega_m and h > 0")
+    _validate_lcdm_parameters(omega_m, omega_lambda, omega_b)
+    if h <= 0.0:
+        raise ValueError("require h > 0")
     k_mpc = k_hmpc * float(h)
     q = k_mpc * float(theta_cmb) ** 2 / (float(omega_m) * float(h) ** 2)
     log_term = np.log(1.0 + 2.34 * q) / (2.34 * q)
@@ -30,27 +39,31 @@ def eisenstein_hu_nowiggle_transfer(
 
 
 def linear_matter_power_spectrum_shape(
-    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965
+    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965,
+    omega_lambda=0.685,
 ):
     """Return the unnormalized ``k**n_s T(k)**2`` power-spectrum shape."""
     transfer = eisenstein_hu_nowiggle_transfer(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h
+        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
+        omega_lambda=omega_lambda,
     )
     return np.asarray(k_hmpc, dtype=float) ** float(n_s) * transfer**2
 
 
 def linear_matter_power_spectrum(
     k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674,
-    n_s=0.965, sigma8=0.811,
+    n_s=0.965, sigma8=0.811, omega_lambda=0.685,
 ):
     """Return a sigma8-normalized linear matter power spectrum."""
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     shape = linear_matter_power_spectrum_shape(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h, n_s=n_s
+        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h, n_s=n_s,
+        omega_lambda=omega_lambda,
     )
     k_norm = np.geomspace(1.0e-5, 1.0e3, 8192)
     shape_norm = linear_matter_power_spectrum_shape(
-        k_norm, omega_m=omega_m, omega_b=omega_b, h=h, n_s=n_s
+        k_norm, omega_m=omega_m, omega_b=omega_b, h=h, n_s=n_s,
+        omega_lambda=omega_lambda,
     )
     kr = 8.0 * k_norm
     window = 3.0 * (np.sin(kr) - kr * np.cos(kr)) / np.maximum(kr**3, 1.0e-30)
@@ -62,7 +75,8 @@ def linear_matter_power_spectrum(
 
 
 def plot_lcdm_transfer_function(
-    filename=None, k_hmpc=None, omega_m=0.315, omega_b=0.049, h=0.674
+    filename=None, k_hmpc=None, omega_m=0.315, omega_b=0.049, h=0.674,
+    omega_lambda=0.685,
 ):
     """Plot the dimensionless Eisenstein--Hu transfer function.
 
@@ -76,7 +90,8 @@ def plot_lcdm_transfer_function(
         k_hmpc = np.geomspace(1.0e-4, 1.0e2, 512)
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     transfer = eisenstein_hu_nowiggle_transfer(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h
+        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
+        omega_lambda=omega_lambda,
     )
 
     figure, axis = plt.subplots(figsize=(7.0, 5.0))
@@ -98,7 +113,7 @@ def plot_lcdm_transfer_function(
 
 def plot_linear_matter_power_spectrum(
     filename=None, k_hmpc=None, omega_m=0.315, omega_b=0.049,
-    h=0.674, n_s=0.965, sigma8=0.811,
+    h=0.674, n_s=0.965, sigma8=0.811, omega_lambda=0.685,
 ):
     """Plot the sigma8-normalized linear matter power spectrum."""
     import matplotlib.pyplot as plt
@@ -108,7 +123,7 @@ def plot_linear_matter_power_spectrum(
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     power = linear_matter_power_spectrum(
         k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
-        n_s=n_s, sigma8=sigma8,
+        n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
     )
 
     figure, axis = plt.subplots(figsize=(7.0, 5.0))
@@ -130,6 +145,7 @@ def plot_linear_matter_power_spectrum(
 def plot_linear_correlation_from_power_spectrum(
     filename=None, radius_mpc_h=None, k_hmpc=None, power=None,
     omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965, sigma8=0.811,
+    omega_lambda=0.685,
 ):
     """Plot ``xi(r)`` computed from a tabulated or built-in linear ``P(k)``.
 
@@ -148,7 +164,7 @@ def plot_linear_correlation_from_power_spectrum(
     if power is None:
         power = linear_matter_power_spectrum(
             k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
-            n_s=n_s, sigma8=sigma8,
+            n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
         )
     power = np.asarray(power, dtype=float)
     correlation = linear_correlation_from_power_spectrum(
@@ -212,6 +228,7 @@ def load_lcdm_correlation_table(filename):
 def generate_lcdm_correlation_table(
     filename=None, radius_mpc_h=None, k_hmpc=None,
     omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965, sigma8=0.811,
+    omega_lambda=0.685,
 ):
     """Generate and optionally write a tabulated linear LCDM correlation."""
     if radius_mpc_h is None:
@@ -222,7 +239,7 @@ def generate_lcdm_correlation_table(
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     power = linear_matter_power_spectrum(
         k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
-        n_s=n_s, sigma8=sigma8,
+        n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
     )
     correlation = linear_correlation_from_power_spectrum(
         radius_mpc_h, k_hmpc, power
@@ -241,7 +258,7 @@ def generate_lcdm_correlation_table(
                 handle.create_dataset(key, data=values)
             for key, value in {
                 "omega_m": omega_m, "omega_b": omega_b, "h": h,
-                "n_s": n_s, "sigma8": sigma8,
+                "omega_lambda": omega_lambda, "n_s": n_s, "sigma8": sigma8,
             }.items():
                 handle.attrs[key] = float(value)
             handle.attrs["transfer_function"] = "Eisenstein-Hu no-wiggle"

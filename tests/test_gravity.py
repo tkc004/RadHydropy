@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import unyt
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
@@ -9,7 +10,7 @@ from radhydropy.gravity import (
     singular_isothermal_potential,
 )
 from radhydropy.units import CodeUnits
-from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 
 
 class DummyMesh:
@@ -161,10 +162,16 @@ def test_self_gravity_requires_parameters():
         gravity.acceleration_on_mesh(DummyMesh())
 
 
-def test_cosmological_gravity_cancels_homogeneous_background():
+@pytest.mark.parametrize("cosmology_type", ["einstein_de_sitter", "lambda_cdm"])
+def test_cosmological_gravity_cancels_homogeneous_background(cosmology_type):
     units = _code_units()
     mesh = DummySphericalMesh()
-    cosmology = EinsteinDeSitter.from_code_units(units)
+    if cosmology_type == "lambda_cdm":
+        cosmology = LambdaCDM.from_code_units(
+            units, t_ref=2.0, omega_m=0.3, omega_lambda=0.7, hubble_ref=0.4
+        )
+    else:
+        cosmology = EinsteinDeSitter.from_code_units(units)
     cosmic_time = 2.0
     tau = cosmology.supercomoving_time(cosmic_time)
 
@@ -190,10 +197,16 @@ def test_cosmological_gravity_cancels_homogeneous_background():
     assert np.allclose(acceleration, 0.0)
 
 
-def test_cosmological_gravity_scales_excess_mass_with_scale_factor():
+@pytest.mark.parametrize("cosmology_type", ["einstein_de_sitter", "lambda_cdm"])
+def test_cosmological_gravity_scales_excess_mass_with_scale_factor(cosmology_type):
     units = _code_units()
     mesh = DummySphericalMesh()
-    cosmology = EinsteinDeSitter.from_code_units(units)
+    if cosmology_type == "lambda_cdm":
+        cosmology = LambdaCDM.from_code_units(
+            units, t_ref=2.0, omega_m=0.3, omega_lambda=0.7, hubble_ref=0.4
+        )
+    else:
+        cosmology = EinsteinDeSitter.from_code_units(units)
     cosmic_time = 2.0
     tau = cosmology.supercomoving_time(cosmic_time)
 

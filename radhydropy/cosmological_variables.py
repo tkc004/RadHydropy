@@ -9,10 +9,8 @@ def supercomoving_scale(par, time=None):
         time = par.time
     tau = float(np.asarray(time, dtype=float))
     cosmology = par.cosmology
-    return (
-        float(cosmology.scale_factor_from_supercomoving(tau)),
-        float(cosmology.hubble_from_supercomoving(tau)),
-    )
+    _, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)
+    return float(scale_factor), float(hubble)
 
 
 def to_supercomoving_density(density, scale_factor):
@@ -51,8 +49,7 @@ def physical_velocity(velocity, radius, scale_factor, hubble):
 
 def physical_fields(radius, density, velocity, temperature, cosmology, tau, gamma):
     """Convert a supercomoving field bundle to physical variables."""
-    a = float(cosmology.scale_factor_from_supercomoving(tau))
-    hubble = float(cosmology.hubble_from_supercomoving(tau))
+    _, a, hubble = cosmology.background_state_from_supercomoving(tau)
     return {
         "radius": physical_radius(radius, a),
         "density": physical_density(density, a),
@@ -63,8 +60,7 @@ def physical_fields(radius, density, velocity, temperature, cosmology, tau, gamm
 
 def supercomoving_fields(radius, density, velocity, temperature, cosmology, tau, gamma):
     """Convert a physical field bundle to supercomoving variables."""
-    a = float(cosmology.scale_factor_from_supercomoving(tau))
-    hubble = float(cosmology.hubble_from_supercomoving(tau))
+    _, a, hubble = cosmology.background_state_from_supercomoving(tau)
     return {
         "radius": np.asarray(radius, dtype=float) / a,
         "density": to_supercomoving_density(density, a),

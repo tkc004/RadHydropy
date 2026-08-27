@@ -6,7 +6,7 @@ from radhydropy.radiation_spectrum import load_radiation_spectrum, resolve_spect
 from radhydropy.thermo_networks.pie import MetalPIETable
 
 from radhydropy.units import CodeUnits, _as_cgs_float, code_quantity_to_cgs
-from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 
 refparams = {
     'simname':'advection1d',
@@ -180,6 +180,9 @@ refparams = {
     'cosmology_type': None,
     'cosmology_t_ref': 1.0,
     'cosmology_a_ref': 1.0,
+    'cosmology_omega_m': 0.3,
+    'cosmology_omega_lambda': 0.7,
+    'cosmology_hubble_ref': None,
 }
 
 
@@ -212,14 +215,30 @@ class Par():
             self.CodeUnits = CodeUnits.from_mapping(code_units_value)
             self.unit_system = self.CodeUnits.unit_system
             if self.cosmological_expansion:
-                if self.cosmology_type not in (None, 'einstein_de_sitter', 'EinsteinDeSitter'):
+                if self.cosmology_type not in (
+                    None, 'einstein_de_sitter', 'EinsteinDeSitter',
+                    'lambda_cdm', 'LambdaCDM', 'lcdm',
+                ):
                     raise ValueError(
                         "unsupported cosmology_type: %s" % self.cosmology_type
                     )
-                self.cosmology = EinsteinDeSitter.from_code_units(
-                    self.CodeUnits,
-                    t_ref=self.cosmology_t_ref,
-                    a_ref=self.cosmology_a_ref,
+                cosmology_class = (
+                    EinsteinDeSitter
+                    if self.cosmology_type in (None, 'einstein_de_sitter', 'EinsteinDeSitter')
+                    else LambdaCDM
+                )
+                cosmology_kwargs = {
+                    't_ref': self.cosmology_t_ref,
+                    'a_ref': self.cosmology_a_ref,
+                }
+                if cosmology_class is LambdaCDM:
+                    cosmology_kwargs.update({
+                        'omega_m': self.cosmology_omega_m,
+                        'omega_lambda': self.cosmology_omega_lambda,
+                        'hubble_ref': self.cosmology_hubble_ref,
+                    })
+                self.cosmology = cosmology_class.from_code_units(
+                    self.CodeUnits, **cosmology_kwargs
                 )
                 if self.supercomoving_coordinates:
                     self.coordinate_frame = 'comoving'

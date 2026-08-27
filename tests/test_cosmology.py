@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmological_variables import (
     physical_density,
     physical_temperature,
@@ -16,6 +16,7 @@ from radhydropy.cosmological_variables import (
     to_supercomoving_velocity,
 )
 from radhydropy.units import CodeUnits
+from radhydropy.params import Par
 import radhydropy.io as rio
 
 
@@ -42,6 +43,22 @@ def test_einstein_de_sitter_background_relations():
 def test_einstein_de_sitter_rejects_zero_time():
     with pytest.raises(ValueError):
         EinsteinDeSitter().scale_factor(0.0)
+
+
+def test_lambda_cdm_reference_normalization_and_round_trip():
+    cosmology = LambdaCDM.from_code_units(
+        code_units(), t_ref=2.0, a_ref=1.5, omega_m=0.3, omega_lambda=0.7,
+    )
+    assert np.isclose(cosmology.scale_factor(2.0), 1.5)
+    assert np.isclose(
+        cosmology.background_density(2.0),
+        3.0 * cosmology._hubble_ref**2 * 0.3
+        / (8.0 * np.pi * cosmology.gravitational_constant),
+    )
+    for time in (0.5, 2.0, 8.0):
+        tau = cosmology.supercomoving_time(time)
+        assert np.isclose(cosmology.cosmic_time_from_supercomoving(tau), time)
+    assert np.isclose(cosmology.cosmic_time_from_scale_factor(1.5), 2.0)
 
 
 def test_supercomoving_time_round_trip():
@@ -117,3 +134,58 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
         assert loaded.cosmological_expansion
         assert loaded.supercomoving_coordinates
         assert loaded.cosmology.type_name == 'einstein_de_sitter'
+
+
+def test_lambda_cdm_header_round_trip():
+    units = code_units()
+    cosmology = LambdaCDM.from_code_units(
+        units, t_ref=2.0, a_ref=1.0, omega_m=0.3, omega_lambda=0.7,
+        hubble_ref=0.4,
+    )
+    tau = cosmology.supercomoving_time(2.0)
+    par = SimpleNamespace(
+        coordsys='cartesian', nogrid=1, noghost=0,
+        CodeUnits=units, time=tau, boxsize=1.0,
+        cosmological_expansion=True, supercomoving_coordinates=True,
+        cosmology=cosmology, cosmology_type='lambda_cdm',
+        cosmology_t_ref=2.0, cosmology_a_ref=1.0,
+        coordinate_frame='comoving', time_coordinate='supercomoving',
+        velocity_representation='supercomoving_peculiar',
+        density_representation='comoving', pressure_representation='supercomoving',
+        temperature_representation='supercomoving', gamma=5.0 / 3.0,
+    )
+    mesh = SimpleNamespace(boundary=np.array([0.0, 1.0]))
+    fluid = SimpleNamespace(rho=np.ones(1), vel=np.zeros(1), temp=np.ones(1), mu=np.ones(1), time=tau)
+    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    with tempfile.TemporaryDirectory() as directory:
+        filename = Path(directory) / 'lambda_cdm.hdf5'
+        rio.writehdf5(sim, filename)
+        loaded = SimpleNamespace()
+        rio.readhdf5(loaded, SimpleNamespace(), SimpleNamespace(), filename)
+        assert loaded.cosmology.type_name == 'lambda_cdm'
+        assert loaded.cosmology.omega_m == pytest.approx(0.3)
+        assert loaded.cosmology.omega_lambda == pytest.approx(0.7)
+        assert loaded.cosmology._hubble_ref == pytest.approx(0.4)
+
+
+def test_par_constructs_lambda_cdm_from_parameters():
+    units = {
+        "name": "test",
+        "InternalUnitSystem": {
+            "UnitMass_in_cgs": 1.0e33,
+            "UnitLength_in_cgs": 1.0e18,
+            "UnitVelocity_in_cgs": 1.0e5,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        },
+    }
+    par = Par({
+        "CodeUnits": units,
+        "cosmological_expansion": True,
+        "cosmology_type": "lambda_cdm",
+        "cosmology_omega_m": 0.3,
+        "cosmology_omega_lambda": 0.7,
+        "cosmology_hubble_ref": 0.4,
+    })
+    assert par.cosmology.type_name == "lambda_cdm"
+    assert par.cosmology._hubble_ref == pytest.approx(0.4)

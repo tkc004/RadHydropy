@@ -12,7 +12,7 @@ import radhydropy.utils as ru
 from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
 from radhydropy.arrays import as_named_array
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
@@ -269,6 +269,10 @@ def _write_cosmology_header(header, par, output_time, code_units):
     header.attrs["CosmologyType"] = cosmology.type_name
     header.attrs["CosmologyTRef"] = float(cosmology.t_ref)
     header.attrs["CosmologyARef"] = float(cosmology.a_ref)
+    if cosmology.type_name == "lambda_cdm":
+        header.attrs["CosmologyOmegaM"] = float(cosmology.omega_m)
+        header.attrs["CosmologyOmegaLambda"] = float(cosmology.omega_lambda)
+        header.attrs["CosmologyHubbleRef"] = float(cosmology._hubble_ref)
     header.attrs["CoordinateFrame"] = getattr(par, "coordinate_frame", "physical")
     header.attrs["TimeCoordinate"] = getattr(par, "time_coordinate", "cosmic")
     header.attrs["VelocityRepresentation"] = getattr(par, "velocity_representation", "physical")
@@ -290,17 +294,39 @@ def _restore_cosmology_from_header(par, header, code_units):
     cosmology_type = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
     if not enabled and cosmology_type is None:
         return
-    if cosmology_type not in (None, "einstein_de_sitter", "EinsteinDeSitter"):
+    if cosmology_type not in (
+        None, "einstein_de_sitter", "EinsteinDeSitter",
+        "lambda_cdm", "LambdaCDM", "lcdm",
+    ):
         raise ValueError("unsupported CosmologyType in HDF5 header: %s" % cosmology_type)
     t_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyTRef", 1.0)))
     a_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyARef", 1.0)))
     par.cosmological_expansion = True
-    par.cosmology_type = "einstein_de_sitter"
+    is_lcdm = cosmology_type in ("lambda_cdm", "LambdaCDM", "lcdm")
+    par.cosmology_type = "lambda_cdm" if is_lcdm else "einstein_de_sitter"
     par.cosmology_t_ref = t_ref
     par.cosmology_a_ref = a_ref
-    par.cosmology = EinsteinDeSitter.from_code_units(
-        code_units, t_ref=t_ref, a_ref=a_ref
-    )
+    if is_lcdm:
+        omega_m = float(_restore_header_attr_value(
+            header.attrs.get("CosmologyOmegaM", 0.3)))
+        omega_lambda = float(_restore_header_attr_value(
+            header.attrs.get("CosmologyOmegaLambda", 0.7)))
+        hubble_ref = float(_restore_header_attr_value(
+            header.attrs.get("CosmologyHubbleRef", 0.0)))
+        if hubble_ref <= 0.0:
+            hubble_ref = None
+        par.cosmology_omega_m = omega_m
+        par.cosmology_omega_lambda = omega_lambda
+        par.cosmology_hubble_ref = hubble_ref
+        par.cosmology = LambdaCDM.from_code_units(
+            code_units, t_ref=t_ref, a_ref=a_ref,
+            omega_m=omega_m, omega_lambda=omega_lambda,
+            hubble_ref=hubble_ref,
+        )
+    else:
+        par.cosmology = EinsteinDeSitter.from_code_units(
+            code_units, t_ref=t_ref, a_ref=a_ref
+        )
 
 
 def _used_parameters_payload(runparams=None, icparams=None, existing=None):

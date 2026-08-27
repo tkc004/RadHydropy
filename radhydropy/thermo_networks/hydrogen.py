@@ -1355,7 +1355,6 @@ def _coupled_implicit_source_update(
             np.maximum(energy_old, physical_energy_floor),
             energy_old,
         )
-    energy_scale = np.maximum(energy_old, energy_floor)
     relative_tolerance = float(tolerance)
     absolute_energy_tolerance = (
         BOLTZMANN_CONSTANT_CGS * max(float(absolute_temperature_tolerance), 0.0)
@@ -1365,16 +1364,40 @@ def _coupled_implicit_source_update(
             * PROTON_MASS_CGS
         )
     )
-    energy_residual_tolerance = relative_tolerance + np.divide(
+    # Use R_E / e_old when the old energy is resolved.  When e_old is below
+    # the energy represented by the absolute temperature tolerance, disable
+    # the relative term and compare R_E directly with that absolute scale.
+    energy_reference = np.abs(energy_old)
+    small_energy = (
+        (absolute_energy_tolerance > 0.0)
+        & (energy_reference <= absolute_energy_tolerance)
+    )
+    energy_residual_scale = np.where(
+        small_energy,
         absolute_energy_tolerance,
-        energy_scale,
-        out=np.zeros_like(energy_scale),
-        where=energy_scale > 0.0,
+        energy_reference,
+    )
+    energy_residual_scale = np.maximum(
+        energy_residual_scale, np.finfo(float).tiny
+    )
+    energy_residual_tolerance = np.where(
+        small_energy,
+        1.0,
+        relative_tolerance + np.divide(
+            absolute_energy_tolerance,
+            energy_reference,
+            out=np.zeros_like(energy_reference),
+            where=energy_reference > 0.0,
+        ),
     )
     xhi_residual_tolerance = (
         relative_tolerance * np.maximum(np.abs(x_old), 1.0)
         + max(float(absolute_xhi_tolerance), 0.0)
     )
+    # Finite-difference Jacobians can leave a residual a few ulps above the
+    # requested normalized threshold.  Allow a small numerical margin while
+    # retaining the user-specified relative/absolute scale.
+    energy_residual_acceptance = 1.5 * energy_residual_tolerance
     # The transformed variables are logarithmic.  A unit initial radius only
     # permits a factor-e energy change and can spend the entire Newton budget
     # expanding away from a cold temperature floor during stiff Compton
@@ -1425,7 +1448,7 @@ def _coupled_implicit_source_update(
         with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
             energy_residual = (
                 energy - energy_old - dt_value * thermal / rho_for_update
-            ) / energy_scale
+            ) / energy_residual_scale
         chemistry_residual = xhi - x_old - dt_value * chemistry
         return energy_residual, chemistry_residual, energy, xhi, trial
 
@@ -1453,7 +1476,7 @@ def _coupled_implicit_source_update(
     finite = np.isfinite(residual_energy) & np.isfinite(residual_x)
     converged[~active_cells] = True
     converged[finite] = (
-        (np.abs(residual_energy[finite]) <= energy_residual_tolerance[finite])
+        (np.abs(residual_energy[finite]) <= energy_residual_acceptance[finite])
         & (np.abs(residual_x[finite]) <= xhi_residual_tolerance[finite])
     )
     converged[floor_constrained & finite] = (
@@ -1461,10 +1484,14 @@ def _coupled_implicit_source_update(
         <= xhi_residual_tolerance[floor_constrained & finite]
     )
 
-    finite_difference_step = 1.0e-5
+    finite_difference_step = 1.0e-7
     for _ in range(int(max_iterations)):
         _, _, _, _, current_trial = _residual(log_energy, logit_x)
         floor_constrained = _floor_constraint(current_trial)
+        current_energy_ok = np.abs(residual_energy) <= energy_residual_acceptance
+        current_xhi_ok = np.abs(residual_x) <= xhi_residual_tolerance
+        converged |= active_cells & current_energy_ok & current_xhi_ok
+        converged |= active_cells & floor_constrained & current_xhi_ok
         active = ~converged & active_cells
         if not np.any(active):
             break
@@ -1519,7 +1546,7 @@ def _coupled_implicit_source_update(
             & ~good
             & (
                 floor_constrained
-                | (np.abs(residual_energy) <= energy_residual_tolerance)
+                | (np.abs(residual_energy) <= energy_residual_acceptance)
             )
             & np.isfinite(jacobian_22)
             & (np.abs(jacobian_22) > 1.0e-30)
@@ -1599,11 +1626,15 @@ def _coupled_implicit_source_update(
                 accepted[improve] = True
 
         converged |= accepted & (
-            np.where(
-                floor_constrained,
-                np.abs(residual_x),
-                np.maximum(np.abs(residual_energy), np.abs(residual_x)),
-            ) <= tolerance
+            (
+                floor_constrained
+                & (np.abs(residual_x) <= xhi_residual_tolerance)
+            )
+            | (
+                ~floor_constrained
+                & (np.abs(residual_energy) <= energy_residual_acceptance)
+                & (np.abs(residual_x) <= xhi_residual_tolerance)
+            )
         )
         # Reject the whole candidate interval as soon as any still-active
         # cell cannot reduce its residual. The adaptive driver then retries
@@ -1642,7 +1673,7 @@ def _coupled_implicit_source_update(
         ~active_cells
         | (
             final_finite
-            & (np.abs(final_residual_energy) <= energy_residual_tolerance)
+            & (np.abs(final_residual_energy) <= energy_residual_acceptance)
             & (np.abs(final_residual_x) <= xhi_residual_tolerance)
         )
     )
@@ -1650,7 +1681,7 @@ def _coupled_implicit_source_update(
         converged[:] = True
     else:
         converged |= active_cells & final_finite & (
-            (np.abs(final_residual_energy) <= energy_residual_tolerance)
+            (np.abs(final_residual_energy) <= energy_residual_acceptance)
             & (np.abs(final_residual_x) <= xhi_residual_tolerance)
         )
     if not np.all(converged):

@@ -38,6 +38,27 @@ def load_correlation_table(config_filename, runparams):
     return et.load_lcdm_correlation_table(filename)
 
 
+def _add_redshift_top_axis(axis, times, scale_factors):
+    """Add redshift ticks above a cosmic-time x-axis."""
+    times = np.asarray(times, dtype=float)
+    scale_factors = np.asarray(scale_factors, dtype=float)
+    valid = np.isfinite(times) & np.isfinite(scale_factors) & (scale_factors > 0.0)
+    if not np.any(valid):
+        return
+    top_axis = axis.twiny()
+    top_axis.set_xlim(axis.get_xlim())
+    selected = np.unique(
+        np.linspace(np.flatnonzero(valid)[0], np.flatnonzero(valid)[-1],
+                    min(7, int(np.count_nonzero(valid)))).astype(int)
+    )
+    selected = selected[valid[selected]]
+    top_axis.set_xticks(times[selected])
+    top_axis.set_xticklabels(
+        ["%.0f" % (1.0 / scale_factors[index] - 1.0) for index in selected]
+    )
+    top_axis.set_xlabel("redshift")
+
+
 def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
                            filename, ymin=None):
     selected = np.unique(
@@ -97,6 +118,7 @@ def plot_mass_history(history, filename):
               label=r"$M(<r_{\rm disc})$")
     axis.set_yscale("log")
     axis.set_xlabel("cosmic time [Gyr]")
+    _add_redshift_top_axis(axis, time, history["scale_factor"])
     axis.set_ylabel(r"total mass [$10^{10}\,M_\odot$]")
     axis.set_title("Mass interior to virial, shock, and centrifugal/disc radii\n"
                    "adiabatic gas + live dark matter")
@@ -122,6 +144,7 @@ def plot_radius_history(history, filename):
               ms=3.0, label=r"$r_{\rm vir}$")
     axis.set_yscale("log")
     axis.set_xlabel("cosmic time [Gyr]")
+    _add_redshift_top_axis(axis, time, history["scale_factor"])
     axis.set_ylabel("proper radius [kpc]")
     axis.set_title("Evolution of shock, virial, and disc radii\n"
                    "adiabatic gas + live dark matter")
@@ -216,7 +239,11 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
                 virial_temperature[index], color=color, ls=":", lw=1.0,
                 alpha=0.7,
             )
-        if np.isfinite(splashback_radius[index]) and splashback_radius[index] > 0.0:
+        if (
+            np.isfinite(splashback_radius[index])
+            and splashback_radius[index] > virial_radius[index]
+            and splashback_radius[index] > 0.0
+        ):
             splashback_comoving = splashback_radius[index] / scale_factors[index]
             axes[0].axvline(
                 splashback_comoving, color=color, ls="-.", lw=1.2, alpha=0.85,
@@ -547,6 +574,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         output_suffix=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
+    if runparams.get("compton_only", False):
+        runparams.update({
+            "hydrogen_recombination": False,
+            "hydrogen_collisional_ionization": False,
+            "hydrogen_atomic_cooling": False,
+            "compton_cmb_enabled": True,
+        })
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
@@ -627,8 +661,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         transition_redshift = float(transition_redshift)
         transition_scale_factor = 1.0 / (1.0 + transition_redshift)
         transition_time = float(
-            cosmology.t_ref
-            * (transition_scale_factor / cosmology.a_ref) ** 1.5
+            cosmology.cosmic_time_from_scale_factor(transition_scale_factor)
         )
         transition_tau = float(cosmology.supercomoving_time(transition_time))
 
@@ -922,8 +955,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         key: np.asarray([item[key] for item in radius_history])
         for key in radius_history[0]
     }
+    history["scale_factor"] = scale_factors
     data_file = output_dir / (figure_prefix + ".npz")
-    np.savez(data_file, **history, scale_factor=scale_factors,
+    np.savez(data_file, **history,
              radius_comoving_kpc=radius, density_proper_code=density,
              temperature_physical_K=temperature,
              velocity_physical_km_s=velocity,

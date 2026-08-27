@@ -17,7 +17,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
 import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -32,7 +32,7 @@ class State:
     pass
 
 
-def make_initial_condition(ic, units):
+def make_initial_condition(ic, units, runparams):
     state = State()
     state.par = State()
     state.mesh = State()
@@ -51,9 +51,19 @@ def make_initial_condition(ic, units):
     state.par.density_representation = "comoving"
     state.par.temperature_representation = "supercomoving"
     state.par.velocity_representation = "supercomoving_peculiar"
-    state.par.cosmology = EinsteinDeSitter.from_code_units(
-        units, t_ref=1.0, a_ref=1.0
-    )
+    if runparams.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+        state.par.cosmology = LambdaCDM.from_code_units(
+            units,
+            t_ref=float(runparams["cosmology_t_ref"]),
+            a_ref=float(runparams["cosmology_a_ref"]),
+            omega_m=float(runparams["cosmology_omega_m"]),
+            omega_lambda=float(runparams["cosmology_omega_lambda"]),
+            hubble_ref=runparams.get("cosmology_hubble_ref"),
+        )
+    else:
+        state.par.cosmology = EinsteinDeSitter.from_code_units(
+            units, t_ref=1.0, a_ref=1.0
+        )
     dx = boxsize / state.par.nogrid
     boundary = np.linspace(-dx, boxsize + dx, state.par.nogrid + 1)
     coordinate = 0.5 * (boundary[1:] + boundary[:-1])
@@ -99,9 +109,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         runparams["riemann_solver"] = riemann_solver
     if dual_energy is not None:
         runparams["dual_energy"] = dual_energy
+    Path(runparams["outdir"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(runparams)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
-    initial = make_initial_condition(icparams, units)
+    initial = make_initial_condition(icparams, units, runparams)
     rio.writehdf5(initial, runparams["ICfilename"])
     sim = Rsim(runparams)
     sim.RunAll(outputtime=0)

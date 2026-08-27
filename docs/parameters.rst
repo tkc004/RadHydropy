@@ -512,9 +512,9 @@ adds their accelerations before updating gas momentum and energy. A live
 Cosmology Keys
 --------------
 
-Cosmological expansion uses an Einstein--de Sitter background and can be
-combined with supercomoving coordinates. The cosmology object is constructed
-automatically by :class:`radhydropy.params.Par` when
+Cosmological expansion supports Einstein--de Sitter and flat matter--Lambda
+backgrounds and can be combined with supercomoving coordinates. The cosmology
+object is constructed automatically by :class:`radhydropy.params.Par` when
 ``cosmological_expansion`` is enabled.
 
 .. list-table::
@@ -537,8 +537,8 @@ automatically by :class:`radhydropy.params.Par` when
        density, peculiar velocity, and supercomoving thermodynamic variables.
      - boolean
    * - ``cosmology_type``
-     - Background model. The current supported value is
-       ``einstein_de_sitter`` (also accepted as ``EinsteinDeSitter``).
+     - Background model: ``einstein_de_sitter`` or ``lambda_cdm`` (also accepted
+       as ``EinsteinDeSitter`` or ``LambdaCDM``).
      - string
    * - ``cosmology_t_ref``
      - Reference cosmic time used to normalize the Einstein--de Sitter scale
@@ -547,6 +547,20 @@ automatically by :class:`radhydropy.params.Par` when
    * - ``cosmology_a_ref``
      - Reference scale factor at ``cosmology_t_ref``.
      - dimensionless
+   * - ``cosmology_omega_m``
+     - Matter density parameter at the reference scale factor. Used by
+       ``lambda_cdm``.
+     - dimensionless
+   * - ``cosmology_omega_lambda``
+     - Dark-energy density parameter at the reference scale factor. For the
+       current flat ``lambda_cdm`` model, it must satisfy
+       ``omega_m + omega_lambda = 1``.
+     - dimensionless
+   * - ``cosmology_hubble_ref``
+     - Hubble parameter at the reference scale factor in code inverse-time
+       units. If omitted, it is normalized so the reference cosmic time is the
+       age of the universe.
+     - inverse code time
    * - ``coordinate_frame``
      - Coordinate representation, normally ``physical`` or automatically set
        to ``comoving`` for supercomoving runs.

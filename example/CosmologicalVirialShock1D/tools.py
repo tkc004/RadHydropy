@@ -423,7 +423,9 @@ def splashback_radius(
             padded, np.ones(window) / float(window), mode="valid"
         )
     slope = np.gradient(log_density, log_radius)
-    lower = max(0.5 * float(rvir_kpc), radii[0])
+    # Splashback is an outer-halo caustic; features inside r200 are inner
+    # structure and must not be reported as the splashback radius.
+    lower = max(float(rvir_kpc), radii[0])
     upper = min(3.0 * float(rvir_kpc), 0.95 * radii[-1])
     if upper <= lower:
         return float("nan")
