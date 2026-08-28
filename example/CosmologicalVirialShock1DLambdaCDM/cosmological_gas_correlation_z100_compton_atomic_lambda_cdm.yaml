@@ -1,9 +1,9 @@
 runparams:
-  simname: CosmologicalGasCorrelationZ100ComptonAtomic
+  simname: CosmologicalGasCorrelationZ100ComptonAtomic_LambdaCDM
   figure_prefix: CosmologicalGasCorrelationZ100_ComptonAtomic
-  ICfilename: outputs_correlation_gas_compton_atomic/InitialCondition.hdf5
-  outdir: outputs_correlation_gas_compton_atomic
-  savedir: outputs_correlation_gas_compton_atomic
+  ICfilename: outputs_correlation_gas_compton_atomic_lcdm/InitialCondition.hdf5
+  outdir: outputs_correlation_gas_compton_atomic_lcdm
+  savedir: outputs_correlation_gas_compton_atomic_lcdm
   outfileprefix: Output
   coordsys: spherical
   EOStype: polytropic
@@ -12,9 +12,12 @@ runparams:
   cosmological_expansion: true
   supercomoving_coordinates: true
   cosmological_gravity: true
-  cosmology_type: einstein_de_sitter
+  cosmology_type: lambda_cdm
   cosmology_t_ref: 14.4
   cosmology_a_ref: 1.0
+  cosmology_omega_m: 0.3
+  cosmology_omega_lambda: 0.7
+  cosmology_hubble_ref: 0.07
   boundcond: InflowSph
   cosmological_background_boundary_reconstruction: true
   noghost: 2
@@ -50,9 +53,10 @@ runparams:
   minimum_temperature: {value: 2.69851485e-5, unit: K}
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
-  final_cosmic_time: 1.0
+  # Match the EdS reference endpoint a=(1/14.4)^(2/3), not t=1.
+  final_cosmic_time: 1.832399728
   gas_profile_cadence: 0.10
-  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  linear_correlation_table_filename: ../CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen
   hydrogen_chemistry: true
   hydrogen_xHI_initial: 0.9998
@@ -101,7 +105,7 @@ ICparams:
   rmin: 3.0
   rmax: 4000.0
   verbal: 1
-  initial_cosmic_time: 0.01418666885
+  initial_cosmic_time: 0.64428210447
   perturbation_radius: 250.0
   target_halo_mass: 100.0
   initial_overdensity: 0.0166930693

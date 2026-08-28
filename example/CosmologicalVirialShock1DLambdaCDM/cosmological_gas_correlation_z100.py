@@ -27,7 +27,7 @@ import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(
-    "cosmological_gas_correlation_z100.yaml"
+    "cosmological_gas_correlation_z100_lambda_cdm.yaml"
 )
 
 
@@ -570,71 +570,6 @@ def _energy_audit_state(sim):
     }
 
 
-def _energy_cell_state(sim):
-    """Return per-cell gas energy components for physical cells."""
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
-    rho = np.asarray(sim.fluid.rho[first:last], dtype=float)
-    velocity = np.asarray(sim.fluid.vel[first:last], dtype=float)
-    volume = np.asarray(sim.mesh.vol[first:last], dtype=float)
-    total = np.asarray(sim.fluid.Energy[first:last], dtype=float)
-    kinetic = 0.5 * rho * velocity**2 * volume
-    return {
-        "mass": np.asarray(sim.fluid.Mass[first:last], dtype=float).copy(),
-        "total": total.copy(),
-        "kinetic": kinetic,
-        "thermal": total - kinetic,
-        "gravitational_work": np.asarray(
-            getattr(
-                sim,
-                "cumulative_gravity_work_by_cell",
-                np.zeros(last - first),
-            ),
-            dtype=float,
-        ).copy(),
-    }
-
-
-def _dark_matter_energy_state(dm):
-    """Return shell-resolved collisionless energy components.
-
-    Shell IDs are retained so that shell crossings do not turn into apparent
-    energy exchanges between rows of the history.
-    """
-    ids = getattr(dm, "shell_id", None)
-    if ids is None:
-        ids = np.arange(len(dm.radius), dtype=int)
-    ids = np.asarray(ids, dtype=int)
-    order = np.argsort(ids)
-    radius = np.asarray(dm.radius, dtype=float)[order]
-    velocity = np.asarray(dm.velocity, dtype=float)[order]
-    mass = np.asarray(dm.mass, dtype=float)[order]
-    angular = 0.5 * np.asarray(dm.angular_momentum, dtype=float)[order] ** 2 / (
-        np.maximum(radius, np.finfo(float).tiny) + float(dm.softening)
-    ) ** 2
-    total_specific = np.asarray(dm.specific_energy(), dtype=float)[order]
-    potential = total_specific - 0.5 * velocity**2 - angular
-    return {
-        "id": ids[order],
-        "radius": radius,
-        "velocity": velocity,
-        "mass": mass,
-        "kinetic": mass * 0.5 * velocity**2,
-        "potential": mass * potential,
-        "total": mass * total_specific,
-    }
-
-
-def _pad_energy_history(history, key, fill=np.nan):
-    """Pack variable-width per-snapshot energy arrays."""
-    width = max((np.asarray(item[key]).size for item in history), default=0)
-    result = np.full((len(history), width), fill, dtype=float)
-    for row, item in enumerate(history):
-        values = np.asarray(item[key], dtype=float).ravel()
-        result[row, :values.size] = values
-    return result
-
-
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         output_suffix=None):
     config_filename = Path(config_filename).resolve()
@@ -862,8 +797,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     gas_profiles = []
     radius_history = []
     dm_profiles = []
-    gas_energy_history = []
-    dm_energy_history = []
     steps = 0
 
     def save_snapshot(cosmic_time):
@@ -890,8 +823,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         dm_profile = et.density_profiles(sim, dm, cosmic_time, cosmology)
         dm_profile["scale_factor"] = scale_factor
         dm_profiles.append(dm_profile)
-        gas_energy_history.append(_energy_cell_state(sim))
-        dm_energy_history.append(_dark_matter_energy_state(dm))
 
     save_snapshot(initial_time)
     audit_initial = _energy_audit_state(sim)
@@ -1048,41 +979,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         key: np.asarray(value, dtype=float)
         for key, value in energy_audit.items()
     })
-    # Per-snapshot component histories complement the per-step global audit.
-    # Gas rows are physical cells; DM rows are shell IDs, padded with NaN when
-    # a shell has been absorbed into the unresolved central core.
-    per_cell = {
-        "time_Gyr": np.asarray([item["time_Gyr"] for item in gas_profiles]),
-        "mass": _pad_energy_history(gas_energy_history, "mass"),
-        "total_energy": _pad_energy_history(gas_energy_history, "total"),
-        "kinetic_energy": _pad_energy_history(gas_energy_history, "kinetic"),
-        "thermal_energy": _pad_energy_history(gas_energy_history, "thermal"),
-        "gravitational_work": _pad_energy_history(
-            gas_energy_history, "gravitational_work"
-        ),
-    }
-    per_cell["delta_total_energy"] = per_cell["total_energy"] - per_cell["total_energy"][0]
-    per_cell["delta_kinetic_energy"] = per_cell["kinetic_energy"] - per_cell["kinetic_energy"][0]
-    per_cell["delta_thermal_energy"] = per_cell["thermal_energy"] - per_cell["thermal_energy"][0]
-    per_shell = {
-        "time_Gyr": np.asarray([item["time_Gyr"] for item in dm_profiles]),
-        "shell_id": _pad_energy_history(dm_energy_history, "id", fill=-1),
-        "radius": _pad_energy_history(dm_energy_history, "radius"),
-        "velocity": _pad_energy_history(dm_energy_history, "velocity"),
-        "mass": _pad_energy_history(dm_energy_history, "mass"),
-        "kinetic_energy": _pad_energy_history(dm_energy_history, "kinetic"),
-        "potential_energy": _pad_energy_history(dm_energy_history, "potential"),
-        "total_energy": _pad_energy_history(dm_energy_history, "total"),
-    }
-    per_shell["delta_kinetic_energy"] = per_shell["kinetic_energy"] - per_shell["kinetic_energy"][0]
-    per_shell["delta_potential_energy"] = per_shell["potential_energy"] - per_shell["potential_energy"][0]
-    per_shell["delta_total_energy"] = per_shell["total_energy"] - per_shell["total_energy"][0]
-    energy_entity_file = output_dir / (figure_prefix + "_EnergyByCellAndShell.npz")
-    np.savez(
-        energy_entity_file,
-        **{f"gas_{key}": value for key, value in per_cell.items()},
-        **{f"dm_{key}": value for key, value in per_shell.items()},
-    )
     figure = output_dir / (figure_prefix + ".jpg")
     radius_figure = output_dir / (figure_prefix + "_Radii.jpg")
     plot_mass_history(history, figure)
@@ -1179,7 +1075,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("dark-matter data = %s" % dm_data_file)
     print("gas/DM density comparison = %s" % density_comparison_figure)
     print("energy audit = %s" % energy_audit_file)
-    print("per-cell/shell energy history = %s" % energy_entity_file)
     return data_file
 
 

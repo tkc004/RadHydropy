@@ -33,8 +33,7 @@ def main(config_filename=DEFAULT_CONFIG):
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     if runparams.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
-            units,
-            t_ref=float(runparams["cosmology_t_ref"]),
+            units, t_ref=float(runparams["cosmology_t_ref"]),
             a_ref=float(runparams["cosmology_a_ref"]),
             omega_m=float(runparams["cosmology_omega_m"]),
             omega_lambda=float(runparams["cosmology_omega_lambda"]),
@@ -42,8 +41,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
     else:
         cosmology = EinsteinDeSitter.from_code_units(
-            units,
-            t_ref=float(runparams["cosmology_t_ref"]),
+            units, t_ref=float(runparams["cosmology_t_ref"]),
             a_ref=float(runparams["cosmology_a_ref"]),
         )
 
