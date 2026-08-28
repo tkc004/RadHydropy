@@ -125,7 +125,9 @@ The corresponding smoothed density profiles are plotted in
 The shell tracker records first apocentres of shells that recently crossed
 inward through ``R_200m``. Their median and 16--84 percentile range are
 written to ``BertschingerRecentApocenters.npz`` and plotted in
-``BertschingerRecentApocenters.jpg``.
+``BertschingerRecentApocenters.jpg``. Events are binned by first-apocentre
+time and each radius is normalized by ``r_ta`` interpolated at that event
+time.
 
 The three measurements are compared in
 ``BertschingerSplashbackComparison.jpg`` using ``R/r_ta(t)``: the density

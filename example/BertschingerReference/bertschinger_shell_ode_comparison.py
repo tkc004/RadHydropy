@@ -189,6 +189,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     turnaround_values = []
     caustic_values = []
     apocentre_values = []
+    apocentre_event_xi = np.empty(0)
+    apocentre_event_lambda = np.empty(0)
     slope_profiles = []
     profile_targets = np.asarray([1.5, 2.0, 2.5, 3.0, 4.0, 5.0])
     next_profile = 0
@@ -241,14 +243,6 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                                  np.log(cosmic_time / initial_time)))
         lambda_values.extend((radius[selected] / turnaround).tolist())
         turnaround_values.append((cosmic_time, turnaround))
-        recent_apo = tracker.recent_first_apocenters(cosmic_time)
-        if recent_apo.size:
-            apocentre_values.append((
-                np.log(cosmic_time / initial_time),
-                np.median(recent_apo),
-                np.percentile(recent_apo, 16.0),
-                np.percentile(recent_apo, 84.0),
-                recent_apo.size, turnaround))
         caustic = _outer_lagrangian_caustic_radius(
             shells, initial_q, cosmic_time, cosmology,
             turnaround, smoothing_bins=caustic_smoothing)
@@ -323,8 +317,30 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             ode_outer_caustic_xi=caustic_xi,
             ode_outer_caustic_lambda=caustic_lambda,
         )
+    # Bin first-apocentre events by the time at which they occur. Normalize
+    # each event with r_ta at that same time, not with the later output
+    # turnaround radius.
+    apocentre_events = tracker.first_apocenter_events()
+    if apocentre_events.size and len(turnaround_values) >= 2:
+        ta_history = np.asarray(turnaround_values, dtype=float)
+        event_time = apocentre_events[:, 0]
+        event_ta = np.interp(event_time, ta_history[:, 0], ta_history[:, 1])
+        event_lambda = apocentre_events[:, 1] / event_ta
+        apocentre_event_xi = np.log(event_time / initial_time)
+        apocentre_event_lambda = event_lambda
+        bins = []
+        for lower, upper in zip(ta_history[:-1, 0], ta_history[1:, 0]):
+            selected = (event_time >= lower) & (event_time < upper)
+            if not np.any(selected):
+                continue
+            values = event_lambda[selected]
+            bins.append((np.log(0.5 * (lower + upper) / initial_time),
+                         np.median(values), np.percentile(values, 16.0),
+                         np.percentile(values, 84.0), values.size,
+                         np.interp(0.5 * (lower + upper), ta_history[:, 0],
+                                   ta_history[:, 1])))
+        apocentre_values = np.asarray(bins)
     if len(apocentre_values):
-        apocentre_values = np.asarray(apocentre_values)
         np.savez(
             Path(runparams['savedir']) / 'BertschingerRecentApocenters.npz',
             xi=apocentre_values[:, 0],
@@ -333,21 +349,17 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             radius_p84=apocentre_values[:, 3],
             number_of_shells=apocentre_values[:, 4],
             turnaround_radius=apocentre_values[:, 5],
-            lambda_median=(apocentre_values[:, 1] /
-                           apocentre_values[:, 5]),
-            lambda_p16=(apocentre_values[:, 2] /
-                        apocentre_values[:, 5]),
-            lambda_p84=(apocentre_values[:, 3] /
-                        apocentre_values[:, 5]),
+            lambda_median=apocentre_values[:, 1],
+            lambda_p16=apocentre_values[:, 2],
+            lambda_p84=apocentre_values[:, 3],
         )
         orbit_figure, orbit_axis = plt.subplots(figsize=(8, 5))
         orbit_axis.plot(apocentre_values[:, 0],
-                        apocentre_values[:, 1] / apocentre_values[:, 5],
+                        apocentre_values[:, 1],
                         color='tab:purple', label='recent-shell median')
         orbit_axis.fill_between(
             apocentre_values[:, 0],
-            apocentre_values[:, 2] / apocentre_values[:, 5],
-            apocentre_values[:, 3] / apocentre_values[:, 5],
+            apocentre_values[:, 2], apocentre_values[:, 3],
             color='tab:purple', alpha=0.2, label='16--84 percentile')
         orbit_axis.axhline(caustic_lambda, color='tab:green', linestyle='--',
                            label='ODE fixed-time caustic')
@@ -446,25 +458,47 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                                     caustic_lambda=caustic_array[:, 1])
         if len(apocentre_values):
             apo_array = np.asarray(apocentre_values)
-            apo_lambda = apo_array[:, 1] / apo_array[:, 5]
+            # Event values were already normalized by r_ta at each
+            # apocentre time above; do not normalize them a second time.
+            apo_lambda = apo_array[:, 1]
             comparison_axis.plot(
                 apo_array[:, 0], apo_lambda, 's-', color='tab:purple',
                 label=r'recent-shell apocentre median $R_{\rm apo}/R_{\rm ta}$')
             comparison_axis.fill_between(
-                apo_array[:, 0], apo_array[:, 2] / apo_array[:, 5],
-                apo_array[:, 3] / apo_array[:, 5], color='tab:purple',
+                apo_array[:, 0], apo_array[:, 2], apo_array[:, 3],
+                color='tab:purple',
                 alpha=0.18, label='apocentre 16--84 percentile')
             comparison_data.update(
                 apocentre_xi=apo_array[:, 0],
                 apocentre_lambda=apo_lambda,
-                apocentre_lambda_p16=apo_array[:, 2] / apo_array[:, 5],
-                apocentre_lambda_p84=apo_array[:, 3] / apo_array[:, 5],
+                apocentre_lambda_p16=apo_array[:, 2],
+                apocentre_lambda_p84=apo_array[:, 3],
                 apocentre_count=apo_array[:, 4])
+        if len(apocentre_event_xi):
+            comparison_axis.scatter(
+                apocentre_event_xi, apocentre_event_lambda,
+                color='tab:purple', edgecolor='white', linewidth=0.5,
+                s=28, alpha=0.7, zorder=3,
+                label=r'individual events at $\xi_{\rm apo}$')
+            comparison_data.update(
+                apocentre_event_xi=apocentre_event_xi,
+                apocentre_event_lambda=apocentre_event_lambda)
         comparison_axis.axhline(
             caustic_lambda, color='black', linestyle='--', linewidth=1.2,
             label=r'ODE envelope $R_{\rm c}/R_{\rm ta}=%.3f$' % caustic_lambda)
+        comparison_axis.axhline(
+            splashback_lambda, color='tab:red', linestyle=':', linewidth=1.5,
+            label=r'ODE first apocentre $R_{\rm sp}/R_{\rm ta}=%.3f$' %
+                  splashback_lambda)
+        comparison_data.update(ode_splashback_lambda=splashback_lambda,
+                                ode_outer_caustic_lambda=caustic_lambda)
         comparison_axis.set_xlabel(r'$\xi=\ln(t/t_{\rm ref})$')
         comparison_axis.set_ylabel(r'$R/r_{\rm ta}(t)$')
+        time_axis = comparison_axis.secondary_xaxis(
+            'top', functions=(np.exp,
+                              lambda value: np.log(np.maximum(
+                                  value, np.finfo(float).tiny))))
+        time_axis.set_xlabel(r'$t_{\rm apo}/t_{\rm ref}$')
         comparison_axis.set_title('Splashback-radius comparison')
         comparison_axis.grid(alpha=0.25)
         comparison_axis.legend(fontsize=8)

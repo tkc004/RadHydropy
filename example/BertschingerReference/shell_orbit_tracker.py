@@ -96,3 +96,15 @@ class ShellOrbitTracker:
             if event['accretion'][0] >= threshold:
                 values.append(event['apocentre'][1])
         return np.asarray(values, dtype=float)
+
+    def first_apocenter_events(self):
+        """Return ``(time, radius, accretion_time)`` for completed events."""
+        events = []
+        for event in self.events.values():
+            if event['apocentre'] is None:
+                continue
+            accretion = (np.nan if event['accretion'] is None
+                         else event['accretion'][0])
+            events.append((event['apocentre'][0], event['apocentre'][1],
+                           accretion))
+        return np.asarray(events, dtype=float).reshape((-1, 3))
