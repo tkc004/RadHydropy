@@ -24,6 +24,7 @@ from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 import tools as et
+import plot_entropy_evolution as entropy_plotter
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(
@@ -552,6 +553,18 @@ def _energy_audit_state(sim):
         "total_gas_energy": total_energy_value,
         "kinetic_energy": kinetic_energy,
         "thermal_energy": total_energy_value - kinetic_energy,
+        "dual_energy_pressure_fallback_count": float(
+            getattr(sim.solver, "dual_energy_pressure_fallback_count", 0)
+        ),
+        "dual_energy_synchronization_count": float(
+            getattr(sim.solver, "dual_energy_synchronization_count", 0)
+        ),
+        "dual_energy_floor_count": float(
+            getattr(sim.solver, "dual_energy_floor_count", 0)
+        ),
+        "dual_energy_floor_injected_energy": float(
+            getattr(sim.solver, "dual_energy_floor_injected_energy", 0.0)
+        ),
     }
 
 
@@ -633,9 +646,11 @@ def _pad_energy_history(history, key, fill=np.nan):
 
 
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
-        output_suffix=None):
+        output_suffix=None, riemann_solver=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
+    if riemann_solver is not None:
+        runparams["riemann_solver"] = riemann_solver
     if runparams.get("compton_only", False):
         runparams.update({
             "hydrogen_recombination": False,
@@ -992,6 +1007,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         thermo_change = float(
             getattr(sim, "last_thermochemistry_energy_change", 0.0)
         )
+        floor_injection = (
+            audit_state["dual_energy_floor_injected_energy"]
+            - energy_audit["dual_energy_floor_injected_energy"][-1]
+        )
         for key, value in audit_state.items():
             energy_audit[key].append(value)
         energy_audit["step"].append(steps)
@@ -1017,6 +1036,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             - reservoir_energy_change
             - gravity_work
             - thermo_change
+            - floor_injection
         )
         if steps == 1 or steps % 100 == 0:
             first = int(sim.par.noghost)
@@ -1088,6 +1108,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
              radial_velocity_physical_km_s=radial_velocity,
              rvir_proper_kpc=virial_radius,
              virial_temperature_K=virial_temperature)
+    entropy_plotter.main(
+        output_dir,
+        figure_prefix,
+        gamma=float(runparams["gamma"]),
+        exclude_outer_cells=plot_exclude_outer_cells,
+    )
     energy_audit_file = output_dir / (figure_prefix + "_EnergyAudit.npz")
     np.savez(energy_audit_file, **{
         key: np.asarray(value, dtype=float)
@@ -1252,6 +1278,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("figure = %s" % figure)
     print("radius figure = %s" % radius_figure)
     print("temperature figure = %s" % temperature_figure)
+    print("entropy figure = %s" % (output_dir / (figure_prefix + "_Entropy.jpg")))
     print("temperature-density figure = %s" % temperature_density_figure)
     print("velocity figure = %s" % velocity_figure)
     print("dark-matter figure = %s" % dm_figure)
@@ -1273,9 +1300,14 @@ if __name__ == "__main__":
         "--output-suffix", default=None,
         help="append a suffix to the output directory and figure prefix",
     )
+    parser.add_argument(
+        "--riemann-solver", choices=("Rusanov", "HLLC"), default=None,
+        help="override the configured Riemann solver",
+    )
     args = parser.parse_args()
     run(
         args.config,
         final_time_override=args.final_time,
         output_suffix=args.output_suffix,
+        riemann_solver=args.riemann_solver,
     )

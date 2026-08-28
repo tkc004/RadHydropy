@@ -58,6 +58,16 @@ refparams = {
     # resolution in smooth rarefaction/contact regions while remaining TVD.
     'flux_limiter': 'minmod',
     'dual_energy': False,
+    # Bryan et al. (1995) dual-energy switching thresholds.  eta1 selects
+    # the pressure estimate; eta2 controls synchronization to total energy.
+    'dual_energy_eta1': 1.0e-3,
+    'dual_energy_eta2': 1.0e-1,
+    # Pressure source in dual-energy mode: 'switch' selects between E-K and
+    # InternalEnergy; 'conservative' always selects admissible E-K.
+    'dual_energy_pressure_selection': 'switch',
+    # Code-unit pressure used only when both energy estimates are invalid.
+    'dual_energy_pressure_floor': 1.0e-20,
+    # Backward-compatible alias for the old single pressure-selection switch.
     'dual_energy_switch': 1.0e-3,
     'noghost':2,
     'dtmin': 2.0e-8*unyt.s,

@@ -28,10 +28,10 @@ class Solver():
     """Advance one-dimensional Euler equations on a RadHydropy mesh."""
 
     def __init__(self) -> None:
-        # should add information like
-        # limiter, first order, what method
-        # and time
-        pass
+        self.dual_energy_pressure_fallback_count = 0
+        self.dual_energy_synchronization_count = 0
+        self.dual_energy_floor_count = 0
+        self.dual_energy_floor_injected_energy = 0.0
 
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
@@ -481,30 +481,84 @@ class Solver():
             )
             dual_pressure = (fluid.eos.gamma - 1.0) * internal_density
             total_thermal = energy_density - 0.5 * fluid.rho * fluid.vel**2
-            switch = float(getattr(par, 'dual_energy_switch', 1.0e-3))
-            use_dual = (
-                np.isfinite(internal_density)
-                & (internal_density > 0.0)
-                & np.isfinite(dual_pressure)
-                # The dual field is a pressure fallback only while it is
-                # itself a genuinely small thermal correction.  If it has
-                # grown to an appreciable fraction of the total energy while
-                # E-K is nearly zero, the two energy representations have
-                # diverged (typically at an under-resolved shock).  Trusting
-                # that field would turn a tiny density residual into an
-                # enormous temperature.  Fall back to conservative E-K in
-                # that case, with the configured hydro temperature floor
-                # applied below.
-                & (
-                    internal_density
-                    <= switch * np.maximum(np.abs(energy_density), 1.0e-300)
-                )
-                & (
-                    total_thermal
-                    <= switch * np.maximum(np.abs(energy_density), 1.0e-300)
-                )
+            eta1 = self._dual_energy_eta(par, 'dual_energy_eta1', 1.0e-3)
+            total_valid = (
+                active & ~numerical_vacuum
+                & np.isfinite(total_thermal) & (total_thermal > 0.0)
+                & np.isfinite(total_pressure) & (total_pressure > 0.0)
             )
+            dual_valid = (
+                active & ~numerical_vacuum
+                & np.isfinite(internal_density) & (internal_density > 0.0)
+                & np.isfinite(dual_pressure) & (dual_pressure > 0.0)
+            )
+            thermal_fraction = np.divide(
+                total_thermal,
+                np.maximum(np.abs(energy_density), 1.0e-300),
+                out=np.zeros_like(total_thermal),
+                where=np.isfinite(total_thermal),
+            )
+            use_total = total_valid & (
+                (thermal_fraction > eta1) | ~dual_valid
+            )
+            use_dual = dual_valid & ~use_total
+            pressure_selection = str(getattr(
+                par, 'dual_energy_pressure_selection', 'switch'
+            )).lower()
+            if pressure_selection in ('conservative', 'e-k', 'ek'):
+                use_total = total_valid
+                use_dual = np.zeros_like(use_total, dtype=bool)
+            conservative_pressure = pressure_selection in ('conservative', 'e-k', 'ek')
             fluid.pre[use_dual] = dual_pressure[use_dual]
+            fluid.pre[use_total] = total_pressure[use_total]
+
+            # If the separately advected field has failed but E-K is still a
+            # valid conservative estimate, use E-K and count the fallback.
+            fallback = (
+                active & ~numerical_vacuum & ~dual_valid & total_valid
+            )
+            self.dual_energy_pressure_fallback_count += int(
+                np.count_nonzero(fallback)
+            )
+
+            # Neither estimate is usable.  Add a small positive thermal
+            # energy to the conservative state, retain total-energy
+            # conservation accounting separately, and use its pressure.
+            both_invalid = active & ~numerical_vacuum & ~total_valid
+            if not conservative_pressure:
+                both_invalid &= ~dual_valid
+            if np.any(both_invalid):
+                floor_pressure_value = max(
+                    0.0, float(np.asarray(
+                        getattr(par, 'dual_energy_pressure_floor', 1.0e-20),
+                        dtype=float,
+                    ))
+                )
+                if floor_pressure_value <= 0.0:
+                    floor_pressure_value = 1.0e-20
+                floor_pressure = np.full_like(rho, floor_pressure_value)
+                floor_internal_density = floor_pressure / (fluid.eos.gamma - 1.0)
+                current_internal_density = np.maximum(total_thermal, 0.0)
+                injected_density = np.maximum(
+                    floor_internal_density - current_internal_density, 0.0
+                )
+                injected_energy = injected_density * np.asarray(vol, dtype=float)
+                fluid.Energy[both_invalid] += injected_energy[both_invalid]
+                fluid.pre[both_invalid] = floor_pressure[both_invalid]
+                internal_density[both_invalid] = floor_internal_density[both_invalid]
+                fluid.InternalEnergy[both_invalid] = injected_energy[both_invalid] + (
+                    current_internal_density[both_invalid]
+                    * np.asarray(vol, dtype=float)[both_invalid]
+                )
+                self.dual_energy_floor_count += int(
+                    np.count_nonzero(both_invalid)
+                )
+                self.dual_energy_floor_injected_energy += float(
+                    np.sum(injected_energy[both_invalid])
+                )
+            # Keep the conservative fallback pressure for cells where the
+            # dual field is invalid but E-K is admissible.
+            fluid.pre[fallback] = total_pressure[fallback]
         fluid.rho[~active] = 0.0
         fluid.vel[~active] = 0.0
         invalid_pressure = np.logical_or(fluid.pre <= 0.0, np.isnan(fluid.pre))
@@ -609,6 +663,38 @@ class Solver():
             fluid.Mass[inactive] = old_mass[inactive]
             fluid.Mom[inactive] = old_mom[inactive]
             fluid.Energy[inactive] = old_energy[inactive]
+        if (
+            dual_energy and old_internal is not None
+            and getattr(fluid.eos, 'is_polytropic', False)
+        ):
+            eta2 = self._dual_energy_eta(par, 'dual_energy_eta2', 1.0e-1)
+            conserved_mass = np.asarray(fluid.Mass, dtype=float)
+            conserved_momentum = np.asarray(fluid.Mom, dtype=float)
+            conserved_energy = np.asarray(fluid.Energy, dtype=float)
+            conserved_kinetic = np.zeros_like(conserved_energy)
+            np.divide(
+                0.5 * conserved_momentum**2,
+                conserved_mass,
+                out=conserved_kinetic,
+                where=conserved_mass > 0.0,
+            )
+            total_thermal = conserved_energy - conserved_kinetic
+            total_fraction = np.divide(
+                total_thermal,
+                np.maximum(np.abs(conserved_energy), 1.0e-300),
+                out=np.zeros_like(total_thermal),
+                where=np.isfinite(total_thermal),
+            )
+            first = int(getattr(par, 'noghost', 0))
+            count = int(getattr(par, 'nogrid', len(total_thermal) - first))
+            physical = np.zeros(len(total_thermal), dtype=bool)
+            physical[first:first + count] = True
+            sync = (
+                physical & np.isfinite(total_thermal)
+                & (total_thermal > 0.0) & (total_fraction > eta2)
+            )
+            fluid.InternalEnergy[sync] = total_thermal[sync]
+            self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
         if verbose >= 2:
             print('fluid.Mass',fluid.Mass)
             print('fluid.Mom',fluid.Mom)
@@ -631,6 +717,13 @@ class Solver():
     @staticmethod
     def _dual_energy_enabled(par):
         return bool(getattr(par, 'dual_energy', False))
+
+    @staticmethod
+    def _dual_energy_eta(par, name, legacy):
+        value = getattr(par, name, None)
+        if value is None:
+            value = getattr(par, 'dual_energy_switch', legacy)
+        return max(0.0, float(value))
 
     def _apply_low_density_face_mask(self, fluid, par, order):
         """Make below-floor reconstructed states vacuum-safe.
@@ -1406,24 +1499,26 @@ class Solver():
         )
         df_InternalEnergy = None
         if dual_energy:
-            gamma_minus_one = fluid.eos.gamma - 1.0
             velocity_left = np.asarray(fluid.vel.L, dtype=float)
             velocity_right = np.asarray(fluid.vel.R, dtype=float)
-            pressure_left = np.asarray(fluid.pre.L, dtype=float)
-            pressure_right = np.asarray(fluid.pre.R, dtype=float)
-            internal_left = pressure_left / gamma_minus_one
-            internal_right = pressure_right / gamma_minus_one
             face_velocity = np.where(
                 0.5 * (velocity_left + velocity_right) >= 0.0,
                 velocity_left,
                 velocity_right,
             )
-            face_internal = np.where(
-                face_velocity >= 0.0,
-                internal_left,
-                internal_right,
+            # Decompose the already computed Riemann total-energy flux into
+            # internal and kinetic parts.  This carries the shock information
+            # in the Riemann flux into the dual internal-energy update instead
+            # of using a separately reconstructed upwind pressure flux.
+            mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
+            momentum_flux = np.asarray(fluid.Mom.flux, dtype=float)
+            total_energy_flux = np.asarray(fluid.Energy.flux, dtype=float)
+            internal_flux = (
+                total_energy_flux
+                - face_velocity * momentum_flux
+                + 0.5 * face_velocity**2 * mass_flux
             )
-            internal_flux = face_velocity * face_internal
+            face_pressure = momentum_flux - face_velocity * mass_flux
             origin_face = self._spherical_origin_face_index(mesh)
             if origin_face is not None:
                 internal_flux[origin_face] = 0.0
@@ -1432,9 +1527,11 @@ class Solver():
                 - ru.periodic_roll(internal_flux * area, -1)
             )
             if getattr(mesh, 'coordsys', None) == 'spherical':
-                df_InternalEnergy -= fluid.pre * (
-                    ru.periodic_roll(face_velocity * area, -1)
-                    - face_velocity * area
+                # Account for spherical pressure work using the same
+                # interface pressure implied by the Riemann momentum flux.
+                df_InternalEnergy -= (
+                    ru.periodic_roll(face_pressure * face_velocity * area, -1)
+                    - face_pressure * face_velocity * area
                 )
 
         par = getattr(mesh, '_par', None)
@@ -1480,8 +1577,69 @@ class Solver():
                         factors * face_velocity * area, -1
                     ) - factors * face_velocity * area
                 )
-            fluid.InternalEnergy += limited_df_internal * dt
-            fluid.InternalEnergy = np.maximum(fluid.InternalEnergy, 0.0)
+            candidate_internal = (
+                np.asarray(fluid.InternalEnergy, dtype=float)
+                + limited_df_internal * dt
+            )
+            previous_internal = np.asarray(fluid.InternalEnergy, dtype=float)
+
+            # Do not silently turn an unsuccessful dual-energy update into a
+            # pressureless cell.  The conservative update has already been
+            # positivity-limited, so recover its thermal energy whenever
+            # E-K is a strictly positive, finite estimate.  This is the same
+            # fallback used by SetPrimitive, but doing it here prevents a
+            # zero InternalEnergy value from surviving until the next
+            # synchronization and generating a deep entropy spike.
+            mass = np.asarray(fluid.Mass, dtype=float)
+            momentum = np.asarray(fluid.Mom, dtype=float)
+            total_energy = np.asarray(fluid.Energy, dtype=float)
+            conservative_internal = np.zeros_like(total_energy)
+            np.divide(
+                0.5 * momentum**2,
+                mass,
+                out=conservative_internal,
+                where=mass > 0.0,
+            )
+            conservative_internal = total_energy - conservative_internal
+            first = int(getattr(par, 'noghost', 0))
+            count = int(getattr(par, 'nogrid', len(candidate_internal) - first))
+            physical = np.zeros(len(candidate_internal), dtype=bool)
+            physical[first:first + count] = True
+            fallback = (
+                physical
+                & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
+                & np.isfinite(conservative_internal)
+                & (conservative_internal > 0.0)
+            )
+            if np.any(fallback):
+                candidate_internal[fallback] = conservative_internal[fallback]
+                self.dual_energy_pressure_fallback_count += int(
+                    np.count_nonzero(fallback)
+                )
+            # A failed pressure-work update does not make the previous dual
+            # state unphysical.  If E-K is also temporarily unusable, retain
+            # that previous positive estimate for this step.  This avoids
+            # injecting the pressure floor merely because both *post-update*
+            # estimates crossed zero during a highly converging HLLC step.
+            # The total-energy field remains authoritative and unchanged.
+            retain_previous = (
+                physical
+                & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
+                & ~fallback
+                & np.isfinite(previous_internal)
+                & (previous_internal > 0.0)
+            )
+            if np.any(retain_previous):
+                candidate_internal[retain_previous] = previous_internal[retain_previous]
+                self.dual_energy_pressure_fallback_count += int(
+                    np.count_nonzero(retain_previous)
+                )
+            # Leave unresolved cells at zero only when the conservative state
+            # is also non-positive.  SetPrimitive will then apply the
+            # configured positive floor and record that injected energy.
+            fluid.InternalEnergy = as_named_array(
+                np.maximum(candidate_internal, 0.0)
+            )
         # advance time
         fluid.time += dt
 

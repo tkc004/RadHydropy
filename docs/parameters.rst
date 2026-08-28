@@ -79,6 +79,27 @@ Common Runtime Keys
    * - ``gamma``
      - Adiabatic index for polytropic gas.
      - dimensionless
+   * - ``dual_energy``
+     - Evolve the independent ``InternalEnergy`` variable for cold,
+       kinetic-energy-dominated flows. The default is ``false``.
+     - boolean
+   * - ``dual_energy_eta1`` / ``dual_energy_eta2``
+     - Bryan-style dual-energy thresholds. ``eta1`` selects the pressure
+       estimate; ``eta2`` controls synchronization to conservative ``E-K``.
+     - dimensionless
+   * - ``dual_energy_pressure_selection``
+     - Select ``switch`` for normal dual-energy pressure selection or
+       ``conservative`` to always use admissible ``E-K`` while still evolving
+       ``InternalEnergy``.
+     - string
+   * - ``dual_energy_pressure_floor``
+     - Code-unit pressure used only when both conservative and independent
+       thermal-energy estimates are invalid.
+     - pressure
+   * - ``energy_diagnostics``
+     - Record per-cell energy-work terms and cumulative energy-audit data.
+       The default is ``false``.
+     - boolean
    * - ``temperature``
      - Default gas/background temperature used for scalar temperature
        parameters. The default is ``2.7 K``.
@@ -132,6 +153,51 @@ output file. For example:
    0.0
    1.0e4
    2.0e4
+
+
+Energy Diagnostics
+------------------
+
+Energy diagnostics are intended for conservation checks and physical-flow
+interpretation, not for the normal production path. Enable them in
+``runparams`` with:
+
+.. code-block:: yaml
+
+   energy_diagnostics: true
+
+When enabled, RadHydropy records energy changes for each physical gas cell
+over every accepted hydro/source step. The tracked terms include:
+
+* gravitational work from the per-cell ``ApplyGravity`` update;
+* compression work, evaluated from the pressure work term
+  :math:`-p\,\nabla\cdot u\,\Delta t`;
+* shock work, defined as the hydro thermal-energy change remaining after
+  compression work is removed; and
+* thermochemistry energy change, measured across the accepted heating/cooling
+  update.
+
+The diagnostics also retain hydro boundary-energy fluxes and dual-energy
+pressure-fallback, synchronization, and pressure-floor counters. A pressure
+floor is reported separately as injected energy rather than being hidden in
+the conservation residual. The additional per-cell arrays and updates add
+memory traffic and runtime, so the option is disabled by default.
+
+The cosmological gas-correlation example writes the cell and dark-matter-shell
+histories to ``*_EnergyByCellAndShell.npz``. Its halo-accounting plot selects
+cells inside the evolving virial boundary at each output time and combines
+the gravitational, kinetic, compression, shock, and thermochemistry terms.
+Gas entering or leaving that moving boundary must be included explicitly; it
+cannot be inferred from a difference of global halo energies. The companion
+plotting scripts are:
+
+.. code-block:: bash
+
+   python example/CosmologicalVirialShock1D/plot_energy_cell_shell.py
+   python example/CosmologicalVirialShock1D/plot_halo_energy_accounting.py
+
+The recorded values are in the simulation's code energy units. Convert them
+only once when comparing with CGS quantities or plotting physical units.
 
 
 Boundary-Specific Keys

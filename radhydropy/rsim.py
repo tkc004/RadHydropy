@@ -682,6 +682,20 @@ class Rsim():
             )
             result["source_steps"] = int(source_result.get("source_steps", 0))
 
+        result.update({
+            "dual_energy_pressure_fallback_count": int(
+                getattr(self.solver, "dual_energy_pressure_fallback_count", 0)
+            ),
+            "dual_energy_synchronization_count": int(
+                getattr(self.solver, "dual_energy_synchronization_count", 0)
+            ),
+            "dual_energy_floor_count": int(
+                getattr(self.solver, "dual_energy_floor_count", 0)
+            ),
+            "dual_energy_floor_injected_energy": float(
+                getattr(self.solver, "dual_energy_floor_injected_energy", 0.0)
+            ),
+        })
         return result
 
     def Evolve(

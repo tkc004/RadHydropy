@@ -159,6 +159,9 @@ Available Examples
      - Cartesian Sedov-Taylor blast-wave setup with analytic helper.
    * - ``example/SedovTaylorSph1d``
      - Spherical Sedov-Taylor blast-wave setup with analytic helper.
+   * - ``example/NohSphericalImplosion1D``
+     - Spherical Noh implosion with converging inflow, central shock heating,
+       dual-energy pressure recovery, and 128/256/512-cell profile convergence.
    * - ``example/SodShock1D``
      - Sod shock tube setup with analytic helper.
 

@@ -22,6 +22,9 @@ runparams:
   order: 1
   # Preserve thermal pressure when total energy is kinetic-energy dominated.
   dual_energy: true
+  dual_energy_eta1: 1.0e-3
+  dual_energy_eta2: 1.0e-1
+  dual_energy_pressure_floor: 1.0e-20
   CFL: 0.10
   #verbose: 1
   dark_matter_crossing_safety_factor: 0.5

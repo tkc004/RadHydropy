@@ -1,0 +1,48 @@
+runparams:
+  simname: NohSphericalImplosion1D
+  ICfilename: InitialCondition.hdf5
+  outdir: outputs_noh_spherical_implosion1d
+  savedir: outputs_noh_spherical_implosion1d
+  outfileprefix: Output
+  outdeltatime: {value: 0.05, unit: s}
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.6666666666666667
+  timesim: {value: 0.30, unit: s}
+  CFL: 0.1
+  boundcond: InflowSph
+  rho_inflow: {value: 1.0, unit: g/cm**3}
+  vel_inflow: {value: -1.0, unit: cm/s}
+  temp_inflow: {value: 1.0e-12, unit: K}
+  mu_inflow: 1.0
+  order: 0
+  riemann_solver: Rusanov
+  dual_energy: true
+  dual_energy_eta1: 1.0e-3
+  dual_energy_eta2: 1.0e-1
+  dual_energy_pressure_floor: 1.0e-20
+  energy_diagnostics: true
+  positivity_preserving: true
+  temperature_jump_error_threshold: null
+  dtmin: {value: 1.0e-8, unit: s}
+  dtmax: {value: 2.0e-3, unit: s}
+  CodeUnits:
+    name: noh_spherical_implosion_cgs
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+  # The runner replaces nogrid with each value and compares final profiles.
+  resolutions: [128, 256, 512]
+
+ICparams:
+  nogrid: 256
+  coordsys: spherical
+  rmin: {value: 0.0, unit: cm}
+  rmax: {value: 1.0, unit: cm}
+  rhoini: {value: 1.0, unit: g/cm**3}
+  vini: {value: -1.0, unit: cm/s}
+  tempini: {value: 1.0e-12, unit: K}
+  muini: 1.0

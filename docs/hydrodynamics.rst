@@ -92,9 +92,18 @@ pressure-work term as the hydro update.
 
 The solver normally computes pressure from total energy.  If
 :math:`E - \tfrac12\rho u^2` becomes too small relative to :math:`E`, it uses
-``InternalEnergy`` instead, avoiding catastrophic cancellation.  This is a
-pressure-reconstruction fallback, not permission to create energy: the total
-energy equation remains the conservative equation.
+``InternalEnergy`` instead, avoiding catastrophic cancellation.  Pressure
+selection and synchronization use separate thresholds, ``dual_energy_eta1``
+and ``dual_energy_eta2``.  If ``InternalEnergy`` is invalid but conservative
+``E-K`` is admissible, the solver falls back to ``E-K``.  If both estimates are
+invalid, it applies ``dual_energy_pressure_floor`` and records the injected
+energy in the dual-energy diagnostics.
+
+For diagnostic comparisons, ``dual_energy_pressure_selection: conservative``
+keeps ``InternalEnergy`` evolving but disables the pressure switch and uses
+only admissible conservative ``E-K``.  This mode is intentionally fragile in
+very cold, dilute gas because cancellation can create an unphysical pressure
+or sound speed; the default ``switch`` mode is the production choice.
 
 The two representations must remain admissible and mutually consistent:
 
@@ -106,12 +115,11 @@ The two representations must remain admissible and mutually consistent:
 
 In particular, using the dual variable to compute pressure while silently
 replacing ``Energy`` with ``InternalEnergy + kinetic energy`` can inject a
-large amount of energy.  A conservative implementation should instead reject
-or limit a hydro update that violates the inequality, retry it with a smaller
-timestep or positivity-preserving fluxes, and only synchronize the two energy
-representations when the chosen state is admissible.  Energy corrections, if
-ever required as a diagnostic fallback, must be explicitly recorded in the
-energy audit.
+large amount of energy.  RadHydropy keeps the conservative ``Energy`` state
+authoritative, synchronizes the dual variable only when the conservative
+thermal fraction is sufficiently large, and records any pressure-floor
+injection separately.  The cumulative event counters are exposed in the
+result returned by ``Rsim.Step``.
 
 Reconstruction Order
 --------------------
