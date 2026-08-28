@@ -51,6 +51,8 @@ runparams:
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
   final_cosmic_time: 1.0
+  energy_diagnostics: true
+  plot_exclude_outer_cells: 2
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen

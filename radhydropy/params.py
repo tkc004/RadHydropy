@@ -117,6 +117,7 @@ refparams = {
     'gas_core_radius': None,
     'hydrogen_update_mu': False,
     'hydrogen_thermal_coupling': True,
+    'energy_diagnostics': False,
     'compton_cmb_enabled': False,
     'compton_cmb_redshift': 0.0,
     'cmb_temperature_0': 2.7255 * unyt.K,

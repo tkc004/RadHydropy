@@ -36,10 +36,22 @@ class Rsim():
         self.fluid = Fluid()
         self.mesh  = Mesh()
         self.par    = Par(params)
+        self.energy_diagnostics_enabled = bool(
+            getattr(self.par, "energy_diagnostics", False)
+        )
         self.solver = Solver()
         self.cumulative_hydro_boundary_energy = 0.0
         self.cumulative_gravity_work = 0.0
         self.cumulative_gravity_work_by_cell = np.zeros(
+            int(getattr(self.par, "nogrid", 0)), dtype=float
+        )
+        self.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
+            int(getattr(self.par, "nogrid", 0)), dtype=float
+        )
+        self.cumulative_compression_work_by_cell = np.zeros(
+            int(getattr(self.par, "nogrid", 0)), dtype=float
+        )
+        self.cumulative_shock_work_by_cell = np.zeros(
             int(getattr(self.par, "nogrid", 0)), dtype=float
         )
         self.last_dark_matter_substeps = 0
@@ -59,9 +71,21 @@ class Rsim():
         sim.mesh = mesh
         sim.fluid = fluid
         sim.solver = solver if solver is not None else Solver()
+        sim.energy_diagnostics_enabled = bool(
+            getattr(sim.par, "energy_diagnostics", False)
+        )
         sim.cumulative_hydro_boundary_energy = 0.0
         sim.cumulative_gravity_work = 0.0
         sim.cumulative_gravity_work_by_cell = np.zeros(
+            int(sim.par.nogrid), dtype=float
+        )
+        sim.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
+            int(sim.par.nogrid), dtype=float
+        )
+        sim.cumulative_compression_work_by_cell = np.zeros(
+            int(sim.par.nogrid), dtype=float
+        )
+        sim.cumulative_shock_work_by_cell = np.zeros(
             int(sim.par.nogrid), dtype=float
         )
         sim.last_dark_matter_substeps = 0
@@ -76,7 +100,19 @@ class Rsim():
         print("--- %s seconds ---" % (time.time() - start_time))
         self._require_code_units()
         rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename)
+        self.energy_diagnostics_enabled = bool(
+            getattr(self.par, "energy_diagnostics", False)
+        )
         self.cumulative_gravity_work_by_cell = np.zeros(
+            int(self.par.nogrid), dtype=float
+        )
+        self.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
+            int(self.par.nogrid), dtype=float
+        )
+        self.cumulative_compression_work_by_cell = np.zeros(
+            int(self.par.nogrid), dtype=float
+        )
+        self.cumulative_shock_work_by_cell = np.zeros(
             int(self.par.nogrid), dtype=float
         )
         # ``readhdf5`` restores EOS parameters and code units from the file
@@ -249,6 +285,22 @@ class Rsim():
         """Advance the Euler flux update and return mass data for scalar advection."""
         if fluid is None:
             fluid = self.fluid
+        first = int(self.par.noghost)
+        last = first + int(self.par.nogrid)
+        rho = np.asarray(fluid.rho[first:last], dtype=float)
+        pressure = np.asarray(fluid.pre[first:last], dtype=float)
+        velocity = np.asarray(fluid.vel[first:last], dtype=float)
+        coordinate = np.asarray(self.mesh.coordinate[first:last], dtype=float)
+        if getattr(self.mesh, "coordsys", None) == "spherical":
+            radius = np.maximum(np.abs(coordinate), np.finfo(float).tiny)
+            divergence = np.gradient(radius**2 * velocity, coordinate) / radius**2
+        else:
+            divergence = np.gradient(velocity, coordinate)
+        self.last_compression_work_by_cell = (
+            -pressure * divergence * np.asarray(self.mesh.vol[first:last], dtype=float)
+            * float(np.asarray(dt, dtype=float))
+            if self.energy_diagnostics_enabled else None
+        )
         old_mass = fluid.Mass.copy()
         self.solver.SetInterFaceFlux(
             self.mesh,
@@ -472,10 +524,24 @@ class Rsim():
             temperature_before = temperature_before.copy()
         self.last_hydro_boundary_energy_flux = 0.0
         self.last_gravity_work = 0.0
-        self.last_gravity_work_by_cell = np.zeros(
-            int(self.par.nogrid), dtype=float
-        )
+        self.last_gravity_work_by_cell = None
+        self.last_compression_work_by_cell = None
+        self.last_shock_work_by_cell = None
         self.last_thermochemistry_energy_change = 0.0
+        first = int(self.par.noghost)
+        last = first + int(self.par.nogrid)
+        mass_before = np.asarray(self.fluid.Mass[first:last], dtype=float)
+        momentum_before = np.asarray(self.fluid.Mom[first:last], dtype=float)
+        energy_before = np.asarray(self.fluid.Energy[first:last], dtype=float)
+        kinetic_before = np.zeros_like(mass_before)
+        np.divide(
+            0.5 * momentum_before**2,
+            mass_before,
+            out=kinetic_before,
+            where=mass_before > 0.0,
+        )
+        if self.energy_diagnostics_enabled:
+            self._thermal_energy_before_hydro = energy_before - kinetic_before
         result = {
             "dt": dt,
             "hydro_steps": 0,
@@ -508,14 +574,35 @@ class Rsim():
                     getattr(self.solver, "last_gravity_work", 0.0)
                 )
                 self.cumulative_gravity_work += self.last_gravity_work
-                self.cumulative_gravity_work_by_cell += np.asarray(
-                    getattr(
-                        self.solver,
-                        "last_gravity_work_by_cell",
-                        np.zeros(int(self.par.nogrid)),
-                    ),
-                    dtype=float,
+                if self.energy_diagnostics_enabled:
+                    self.cumulative_gravity_work_by_cell += np.asarray(
+                        self.solver.last_gravity_work_by_cell, dtype=float
+                    )
+                first = int(self.par.noghost)
+                last = first + int(self.par.nogrid)
+                mass = np.asarray(self.fluid.Mass[first:last], dtype=float)
+                momentum = np.asarray(self.fluid.Mom[first:last], dtype=float)
+                energy = np.asarray(self.fluid.Energy[first:last], dtype=float)
+                kinetic = np.zeros_like(mass)
+                np.divide(
+                    0.5 * momentum**2,
+                    mass,
+                    out=kinetic,
+                    where=mass > 0.0,
                 )
+                thermal_after_hydro = energy - kinetic
+                thermal_before_hydro = getattr(
+                    self, "_thermal_energy_before_hydro", thermal_after_hydro
+                )
+                if self.energy_diagnostics_enabled:
+                    self.last_shock_work_by_cell = (
+                        thermal_after_hydro - thermal_before_hydro
+                        - np.asarray(self.last_compression_work_by_cell, dtype=float)
+                    )
+                    self.cumulative_compression_work_by_cell += (
+                        self.last_compression_work_by_cell
+                    )
+                    self.cumulative_shock_work_by_cell += self.last_shock_work_by_cell
                 self.last_dark_matter_substeps = int(
                     getattr(self.solver, "last_dark_matter_substeps", 0)
                 )
@@ -540,11 +627,10 @@ class Rsim():
             diagnostics.check_temperature_jump(self, temperature_before, stage='hydro')
 
         if mode == "hydro_sources":
-            first = int(self.par.noghost)
-            last = first + int(self.par.nogrid)
-            energy_before_sources = float(
-                np.sum(np.asarray(self.fluid.Energy[first:last], dtype=float))
-            )
+            energy_before_sources_by_cell = np.asarray(
+                self.fluid.Energy[first:last], dtype=float
+            ).copy()
+            energy_before_sources = float(np.sum(energy_before_sources_by_cell))
 
         if mode in ("hydro_sources", "sources"):
             source_result = self.ApplyThermochemistrySources(
@@ -580,6 +666,14 @@ class Rsim():
                 self.last_thermochemistry_energy_change = (
                     energy_after_sources - energy_before_sources
                 )
+                if self.energy_diagnostics_enabled:
+                    self.last_thermochemistry_energy_change_by_cell = (
+                        np.asarray(self.fluid.Energy[first:last], dtype=float)
+                        - energy_before_sources_by_cell
+                    )
+                    self.cumulative_thermochemistry_energy_change_by_cell += (
+                        self.last_thermochemistry_energy_change_by_cell
+                    )
             diagnostics.check_temperature_jump(
                 self,
                 temperature_before,

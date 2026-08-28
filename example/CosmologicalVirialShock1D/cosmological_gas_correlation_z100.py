@@ -239,26 +239,11 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
                 virial_temperature[index], color=color, ls=":", lw=1.0,
                 alpha=0.7,
             )
-        if (
-            np.isfinite(splashback_radius[index])
-            and splashback_radius[index] > virial_radius[index]
-            and splashback_radius[index] > 0.0
-        ):
-            splashback_comoving = splashback_radius[index] / scale_factors[index]
-            axes[0].axvline(
-                splashback_comoving, color=color, ls="-.", lw=1.2, alpha=0.85,
-            )
-            if binned_radius.size and binned_temperature.size:
-                temperature_at_splashback = np.interp(
-                    splashback_comoving, binned_radius, binned_temperature,
-                    left=np.nan, right=np.nan,
-                )
-                if np.isfinite(temperature_at_splashback) and temperature_at_splashback > 0.0:
-                    axes[0].plot(
-                        splashback_comoving, temperature_at_splashback,
-                        marker="s", ms=4.5, color=color, mec="black", mew=0.35,
-                        linestyle="None", zorder=5,
-                    )
+        cmb_temperature = 2.7255 / scale_factors[index]
+        axes[0].axhline(
+            cmb_temperature, color=color, ls="--", lw=0.55, alpha=0.65,
+            label="CMB temperature" if index == selected[0] else None,
+        )
     if inner_radius is not None and float(inner_radius) > 0.0:
         axes[0].axvline(
             float(inner_radius), color="black", ls=":", lw=1.4,
@@ -275,7 +260,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
         axes[0].set_ylim(bottom=float(minimum_temperature))
     axes[0].set_title(
         "Gas temperature evolution from the z=100 LCDM IC\n"
-        "solid T; dotted Tvir; dashed r200; dash-dot + squares rsp"
+        "solid T; dotted Tvir; dashed r200"
     )
     axes[0].grid(alpha=0.25, which="both")
     axes[0].legend(loc="best", fontsize=8, ncol=3)
@@ -592,6 +577,18 @@ def _energy_cell_state(sim):
             ),
             dtype=float,
         ).copy(),
+        "thermochemistry_energy_change": np.asarray(
+            getattr(sim, "cumulative_thermochemistry_energy_change_by_cell", np.zeros(last - first)),
+            dtype=float,
+        ).copy(),
+        "compression_work": np.asarray(
+            getattr(sim, "cumulative_compression_work_by_cell", np.zeros(last - first)),
+            dtype=float,
+        ).copy(),
+        "shock_work": np.asarray(
+            getattr(sim, "cumulative_shock_work_by_cell", np.zeros(last - first)),
+            dtype=float,
+        ).copy(),
     }
 
 
@@ -864,9 +861,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     dm_profiles = []
     gas_energy_history = []
     dm_energy_history = []
+    halo_crossing_history = []
+    previous_halo_mask = None
     steps = 0
 
     def save_snapshot(cosmic_time):
+        nonlocal previous_halo_mask
         gas_profile = et.gas_density_profile(sim, cosmic_time, cosmology)
         first = int(sim.par.noghost)
         last = first + int(sim.par.nogrid)
@@ -892,6 +892,32 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         dm_profiles.append(dm_profile)
         gas_energy_history.append(_energy_cell_state(sim))
         dm_energy_history.append(_dark_matter_energy_state(dm))
+        current_halo_radius = radius_history[-1].get("rvir_kpc", np.nan)
+        current_halo_mask = (
+            np.isfinite(current_halo_radius)
+            & (np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
+               <= float(current_halo_radius))
+        )
+        crossing = {"entered_cells": int(np.count_nonzero(
+            current_halo_mask & ~previous_halo_mask
+        )) if previous_halo_mask is not None else 0,
+            "exited_cells": int(np.count_nonzero(
+                previous_halo_mask & ~current_halo_mask
+            )) if previous_halo_mask is not None else 0}
+        for key in ("total", "thermal", "kinetic", "gravitational_work",
+                    "thermochemistry_energy_change", "compression_work",
+                    "shock_work"):
+            if previous_halo_mask is None:
+                value = 0.0
+            else:
+                old_values = np.asarray(gas_energy_history[-2][key], dtype=float)
+                new_values = np.asarray(gas_energy_history[-1][key], dtype=float)
+                entered = current_halo_mask & ~previous_halo_mask
+                exited = previous_halo_mask & ~current_halo_mask
+                value = float(np.sum(new_values[entered]) - np.sum(old_values[exited]))
+            crossing[key] = value
+        halo_crossing_history.append(crossing)
+        previous_halo_mask = current_halo_mask
 
     save_snapshot(initial_time)
     audit_initial = _energy_audit_state(sim)
@@ -1025,6 +1051,25 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         [item["radial_velocity_physical_km_s"] for item in gas_profiles]
     )
     scale_factors = np.asarray([item["scale_factor"] for item in gas_profiles])
+    plot_exclude_outer_cells = max(
+        0, int(runparams.get("plot_exclude_outer_cells", 0))
+    )
+    plot_cell_count = max(1, radius.size - plot_exclude_outer_cells)
+    plot_radius = radius[:plot_cell_count]
+    plot_density = density[:, :plot_cell_count]
+    plot_temperature = temperature[:, :plot_cell_count]
+    plot_velocity = velocity[:, :plot_cell_count]
+    plot_gas_profiles = []
+    for profile in gas_profiles:
+        trimmed = dict(profile)
+        for key in (
+            "radius_proper_kpc", "density_proper_code",
+            "temperature_physical_K", "velocity_physical_km_s",
+            "radial_velocity_physical_km_s",
+        ):
+            if key in trimmed:
+                trimmed[key] = np.asarray(trimmed[key])[:plot_cell_count]
+        plot_gas_profiles.append(trimmed)
     virial_radius = np.asarray([item["rvir_kpc"] for item in radius_history])
     splashback_radius = np.asarray(
         [item["rsplashback_kpc"] for item in radius_history]
@@ -1059,6 +1104,40 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "thermal_energy": _pad_energy_history(gas_energy_history, "thermal"),
         "gravitational_work": _pad_energy_history(
             gas_energy_history, "gravitational_work"
+        ),
+        "thermochemistry_energy_change": _pad_energy_history(
+            gas_energy_history, "thermochemistry_energy_change"
+        ),
+        "compression_work": _pad_energy_history(
+            gas_energy_history, "compression_work"
+        ),
+        "shock_work": _pad_energy_history(gas_energy_history, "shock_work"),
+        "halo_crossing_total_energy": np.asarray(
+            [item["total"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_crossing_thermal_energy": np.asarray(
+            [item["thermal"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_crossing_kinetic_energy": np.asarray(
+            [item["kinetic"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_crossing_gravitational_work": np.asarray(
+            [item["gravitational_work"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_crossing_thermochemistry_energy_change": np.asarray(
+            [item["thermochemistry_energy_change"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_crossing_compression_work": np.asarray(
+            [item["compression_work"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_crossing_shock_work": np.asarray(
+            [item["shock_work"] for item in halo_crossing_history], dtype=float
+        ),
+        "halo_entered_cells": np.asarray(
+            [item["entered_cells"] for item in halo_crossing_history], dtype=int
+        ),
+        "halo_exited_cells": np.asarray(
+            [item["exited_cells"] for item in halo_crossing_history], dtype=int
         ),
     }
     per_cell["delta_total_energy"] = per_cell["total_energy"] - per_cell["total_energy"][0]
@@ -1096,7 +1175,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     else:
         temperature_plot_ymin = float(temperature_plot_ymin)
     plot_temperature_evolution(
-        times, radius, density, temperature, virial_radius, splashback_radius,
+        times, plot_radius, plot_density, plot_temperature, virial_radius, splashback_radius,
         scale_factors,
         virial_temperature,
         temperature_figure,
@@ -1109,14 +1188,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         cosmology.background_density(cosmology.t_ref)
     )
     plot_density_evolution(
-        times, radius, density, virial_radius, scale_factors, density_figure,
+        times, plot_radius, plot_density, virial_radius, scale_factors, density_figure,
         ymin=0.1 * cosmic_gas_density_z0,
     )
     temperature_density_figure = output_dir / (
         figure_prefix + "_TemperatureDensity.jpg"
     )
     plot_temperature_density_evolution(
-        times, density, temperature, temperature_density_figure, ymin=0.1,
+        times, plot_density, plot_temperature, temperature_density_figure, ymin=0.1,
         density_to_nH_cm3=(
             float(sim.par.CodeUnits.mass_in_cgs)
             / float(sim.par.CodeUnits.length_in_cgs) ** 3
@@ -1126,7 +1205,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
     velocity_figure = output_dir / (figure_prefix + "_Velocity.jpg")
     plot_velocity_evolution(
-        times, radius, density, velocity, virial_radius, scale_factors,
+        times, plot_radius, plot_density, plot_velocity, virial_radius, scale_factors,
         velocity_figure,
     )
     dm_figure = output_dir / (figure_prefix + "_DarkMatterDensities.jpg")
@@ -1138,7 +1217,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         figure_prefix + "_GasDarkMatterBaryonNormalized.jpg"
     )
     plot_baryon_normalized_density_comparison(
-        gas_profiles, dm_profiles, icparams["baryon_fraction"],
+        plot_gas_profiles, dm_profiles, icparams["baryon_fraction"],
         density_comparison_figure,
     )
     dm_data_file = output_dir / (figure_prefix + "_DarkMatterDensities.npz")

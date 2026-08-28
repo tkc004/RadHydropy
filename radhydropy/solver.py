@@ -1520,7 +1520,10 @@ class Solver():
         interior = self._interior_slice(par)
         gravity = self._gravity_model(par)
         if gravity is None:
-            self.last_gravity_work_by_cell = np.zeros(int(par.nogrid), dtype=float)
+            self.last_gravity_work_by_cell = (
+                np.zeros(int(par.nogrid), dtype=float)
+                if getattr(par, "energy_diagnostics", False) else None
+            )
             return 0
         if getattr(gravity, "cosmological", False):
             par.fluid_time = fluid.time
@@ -1603,9 +1606,10 @@ class Solver():
         self.last_gravity_work = float(
             np.sum(gravity_work[interior])
         )
-        self.last_gravity_work_by_cell = np.asarray(
-            gravity_work[interior], dtype=float
-        ).copy()
+        self.last_gravity_work_by_cell = (
+            np.asarray(gravity_work[interior], dtype=float).copy()
+            if getattr(par, "energy_diagnostics", False) else None
+        )
         self.last_dark_matter_substeps = int(
             getattr(getattr(gravity, "dark_matter", None),
                     "last_substep_count", 0)

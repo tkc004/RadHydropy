@@ -24,6 +24,7 @@ runparams:
   dual_energy: true
   CFL: 0.10
   #verbose: 1
+  energy_diagnostics: true
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_crossing_batch_fraction: 0.01
   dark_matter_global_timestep_limit: false

@@ -514,18 +514,16 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         ),
         dtype=float,
     )
-    finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
-    if np.count_nonzero(finite_temperature) >= 7:
-        # A raw cell-to-cell derivative is dominated by the positivity floor
-        # and by individual shell-scale oscillations.  Smooth log(T) over
-        # five cells, then locate a resolved logarithmic jump in the halo.
-        log_temperature = np.log10(np.maximum(temp_phys, 1.0e-30))
-        padded = np.pad(log_temperature, (2, 2), mode="edge")
-        smoothed = np.convolve(padded, np.ones(5) / 5.0, mode="valid")
-        gradient = np.gradient(
-            smoothed,
-            np.log10(np.maximum(proper, 1.0e-12)),
-        )
+    gamma = float(sim.par.gamma)
+    entropy_proxy = temp_phys / np.maximum(rho, 1.0e-300) ** (gamma - 1.0)
+    # Temperatures at or below 1 K are numerical-floor/invalid states in this
+    # run; allowing them would create enormous artificial entropy jumps.
+    finite_entropy = (
+        np.isfinite(entropy_proxy) & (entropy_proxy > 0.0)
+        & np.isfinite(temp_phys) & (temp_phys > 1.0)
+        & np.isfinite(rho) & (rho > 0.0)
+    )
+    if np.count_nonzero(finite_entropy) >= 7:
         lower_radius = proper[0]
         if np.isfinite(rvir) and rvir > proper[0]:
             # The virial shock is an outer-halo feature.  Exclude inner
@@ -546,24 +544,21 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         if np.isfinite(rvir) and rvir > proper[0]:
             upper_radius = min(upper_radius, 3.0 * rvir)
         valid = (
-            finite_temperature
-            & (proper > lower_radius)
+            (proper > lower_radius)
             & (proper < upper_radius)
         )
         candidate = np.flatnonzero(valid)
         if candidate.size:
-            # Across an accretion shock temperature falls outward, so retain
-            # only negative outward gradients.  Positive gradients are inner
-            # cooling transitions, not the outer shock.
-            shock_candidates = candidate[gradient[candidate] < -0.05]
+            # Use the strongest resolved inward entropy increase directly;
+            # do not let a floor cell inside the smoothing stencil veto it.
+            shock_candidates = candidate
             resolved = []
+            resolved_entropy_jumps = []
             for local in shock_candidates:
                 inner = max(0, int(local) - 2)
                 outer = min(proper.size - 1, int(local) + 2)
                 compression = rho[inner] / max(rho[outer], 1.0e-300)
-                heating = temp_phys[inner] / max(
-                    temp_phys[outer], 1.0e-300
-                )
+                entropy_jump = entropy_proxy[inner] - entropy_proxy[outer]
                 upstream_velocity = velocity_phys[outer]
                 downstream_velocity = velocity_phys[inner]
                 decelerated = (
@@ -571,11 +566,18 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
                     and downstream_velocity > upstream_velocity
                     and abs(downstream_velocity) < abs(upstream_velocity)
                 )
-                if compression >= 1.2 and heating >= 1.2 and decelerated:
+                if (
+                    finite_entropy[inner] and finite_entropy[outer]
+                    and np.isfinite(entropy_jump)
+                    and compression >= 1.2
+                    and entropy_jump > 0.0
+                    and decelerated
+                ):
                     resolved.append(int(local))
+                    resolved_entropy_jumps.append(float(entropy_jump))
             if resolved:
                 resolved = np.asarray(resolved, dtype=int)
-                local = int(resolved[np.argmin(gradient[resolved])])
+                local = int(resolved[np.argmax(resolved_entropy_jumps)])
                 rshock = float(proper[local])
             else:
                 rshock = np.nan
