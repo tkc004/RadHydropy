@@ -209,5 +209,6 @@ Detailed Example Pages
    dynamic_stromgren_sphere_photoheating20pc_radiation_pressure1d
    dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d
    uniform_eds_thermochemistry1d
+   cosmological_virial_shock1d
    bertschinger_reference
    bertschinger_gas_reference
