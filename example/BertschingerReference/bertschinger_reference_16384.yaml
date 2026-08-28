@@ -1,6 +1,6 @@
 runparams:
-  simname: BertschingerReference
-  savedir: .
+  simname: BertschingerReference16384
+  savedir: outputs_caustic_convergence/shells_16384
   cosmology_t_ref: 1.0
   cosmology_a_ref: 1.0
   final_cosmic_time: 1.1
@@ -19,9 +19,6 @@ runparams:
   comparison_shell_stride: 16
   comparison_lambda_max: 2.0
   caustic_smoothing_bins: 12.0
-  slope_profile_bins: 192
-  slope_smoothing_bins: 8.0
-  recent_accretion_window_fraction: 0.5
   pre_crossing_final_xi: 0.9
   pre_crossing_timestep: 0.0001
   pre_crossing_match_lambda: 0.002
@@ -37,7 +34,7 @@ runparams:
       UnitTemp_in_cgs: 1.0
 
 ICparams:
-  number_of_shells: 4096
+  number_of_shells: 16384
   inner_radius: 0.05
   outer_radius: 20.0
   initial_cosmic_time: 1.0

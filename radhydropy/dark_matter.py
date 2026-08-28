@@ -81,6 +81,7 @@ class DarkMatterShells:
         core_absorption_velocity=0.0,
         core_absorption_energy=0.0,
         code_units=None,
+        shell_id=None,
     ):
         self.CodeUnits = code_units
         if code_units is None:
@@ -91,6 +92,14 @@ class DarkMatterShells:
         self.radius = np.asarray(quantity_to_value(radius, length), dtype=float).copy()
         self.velocity = np.asarray(quantity_to_value(velocity, velocity_unit), dtype=float).copy()
         self.mass = np.asarray(quantity_to_value(mass, mass_unit), dtype=float).copy()
+        if shell_id is not None:
+            self.shell_id = np.asarray(shell_id).copy()
+            if self.shell_id.ndim != 1 or self.shell_id.size != self.radius.size:
+                raise ValueError("shell_id must have one value per shell")
+            if np.unique(self.shell_id).size != self.shell_id.size:
+                raise ValueError("shell_id values must be unique")
+        else:
+            self.shell_id = None
         if angular_momentum is None:
             angular_momentum = np.zeros_like(self.radius)
         self.angular_momentum = np.asarray(
@@ -155,6 +164,8 @@ class DarkMatterShells:
         self.velocity = self.velocity[order]
         self.mass = self.mass[order]
         self.angular_momentum = self.angular_momentum[order]
+        if self.shell_id is not None:
+            self.shell_id = self.shell_id[order]
         self._mass_prefix_cache = None
         self._enclosed_mass_cache = None
         return order
@@ -352,17 +363,24 @@ class DarkMatterShells:
             velocity = self.velocity[pairs].copy()
             mass = self.mass[pairs].copy()
             angular_momentum = self.angular_momentum[pairs].copy()
+            shell_id = (self.shell_id[pairs].copy()
+                        if self.shell_id is not None else None)
             self.velocity[pairs] = self.velocity[right]
             self.mass[pairs] = self.mass[right]
             self.angular_momentum[pairs] = self.angular_momentum[right]
             self.velocity[right] = velocity
             self.mass[right] = mass
             self.angular_momentum[right] = angular_momentum
+            if self.shell_id is not None:
+                self.shell_id[pairs] = self.shell_id[right]
+                self.shell_id[right] = shell_id
         else:
             for index in pairs:
                 self.velocity[index:index + 2] = self.velocity[index:index + 2][::-1]
                 self.mass[index:index + 2] = self.mass[index:index + 2][::-1]
                 self.angular_momentum[index:index + 2] = self.angular_momentum[index:index + 2][::-1]
+                if self.shell_id is not None:
+                    self.shell_id[index:index + 2] = self.shell_id[index:index + 2][::-1]
         if pairs.size:
             self._mass_prefix_cache = None
             self._enclosed_mass_cache = None
@@ -467,6 +485,8 @@ class DarkMatterShells:
         self.velocity = self.velocity[keep]
         self.mass = self.mass[keep]
         self.angular_momentum = self.angular_momentum[keep]
+        if self.shell_id is not None:
+            self.shell_id = self.shell_id[keep]
         self._mass_prefix_cache = None
         self._enclosed_mass_cache = None
         return absorbed_mass
@@ -482,8 +502,15 @@ class DarkMatterShells:
         scale_factor_end=None,
         cosmological=False,
         include_shell_mass_with_fixed=False,
+        state_callback=None,
     ):
-        """Advance one kick-drift-kick step, limiting ``dt`` before crossing."""
+        """Advance one kick-drift-kick step, limiting ``dt`` before crossing.
+
+        If supplied, ``state_callback`` is called after every accepted
+        internal substep as ``callback(elapsed, scale_factor, radius,
+        velocity, mass, shell_id)``. Arrays are passed as copies so diagnostics can
+        retain them safely through subsequent shell crossings.
+        """
         dt = float(dt)
         if dt < 0.0:
             raise ValueError("dark-matter timestep must be non-negative")
@@ -593,6 +620,12 @@ class DarkMatterShells:
             if batched_crossing:
                 self.sort_by_radius()
             elapsed += substep
+            if state_callback is not None:
+                state_callback(
+                    float(elapsed), float(a_end), self.radius.copy(),
+                    self.velocity.copy(), self.mass.copy(),
+                    None if self.shell_id is None else self.shell_id.copy(),
+                )
             remaining = dt - elapsed
             substep_count += 1
 

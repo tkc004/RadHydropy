@@ -39,6 +39,9 @@ class Rsim():
         self.solver = Solver()
         self.cumulative_hydro_boundary_energy = 0.0
         self.cumulative_gravity_work = 0.0
+        self.cumulative_gravity_work_by_cell = np.zeros(
+            int(getattr(self.par, "nogrid", 0)), dtype=float
+        )
         self.last_dark_matter_substeps = 0
         self.cumulative_dark_matter_substeps = 0
         self.dark_matter_substep_history = []
@@ -58,6 +61,9 @@ class Rsim():
         sim.solver = solver if solver is not None else Solver()
         sim.cumulative_hydro_boundary_energy = 0.0
         sim.cumulative_gravity_work = 0.0
+        sim.cumulative_gravity_work_by_cell = np.zeros(
+            int(sim.par.nogrid), dtype=float
+        )
         sim.last_dark_matter_substeps = 0
         sim.cumulative_dark_matter_substeps = 0
         sim.dark_matter_substep_history = []
@@ -70,6 +76,9 @@ class Rsim():
         print("--- %s seconds ---" % (time.time() - start_time))
         self._require_code_units()
         rio.readhdf5(self.par, self.mesh, self.fluid, self.par.ICfilename)
+        self.cumulative_gravity_work_by_cell = np.zeros(
+            int(self.par.nogrid), dtype=float
+        )
         # ``readhdf5`` restores EOS parameters and code units from the file
         # header.  The EOS object was created before that restoration in
         # ``__init__``, so rebuild it to prevent stale gamma/units from being
@@ -463,6 +472,9 @@ class Rsim():
             temperature_before = temperature_before.copy()
         self.last_hydro_boundary_energy_flux = 0.0
         self.last_gravity_work = 0.0
+        self.last_gravity_work_by_cell = np.zeros(
+            int(self.par.nogrid), dtype=float
+        )
         self.last_thermochemistry_energy_change = 0.0
         result = {
             "dt": dt,
@@ -496,6 +508,14 @@ class Rsim():
                     getattr(self.solver, "last_gravity_work", 0.0)
                 )
                 self.cumulative_gravity_work += self.last_gravity_work
+                self.cumulative_gravity_work_by_cell += np.asarray(
+                    getattr(
+                        self.solver,
+                        "last_gravity_work_by_cell",
+                        np.zeros(int(self.par.nogrid)),
+                    ),
+                    dtype=float,
+                )
                 self.last_dark_matter_substeps = int(
                     getattr(self.solver, "last_dark_matter_substeps", 0)
                 )

@@ -20,7 +20,12 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
 import tools as et
-from bertschinger_ode import plot_xi_lambda, solve_eq41_self_similar
+from bertschinger_ode import (
+    first_outer_caustic,
+    first_post_centre_apocentre,
+    plot_xi_lambda,
+    solve_eq41_self_similar,
+)
 from radhydropy.example_config import load_example_parameters
 
 
@@ -73,6 +78,8 @@ def main(config_filename=DEFAULT_CONFIG):
         centre_matching_velocity=float(
             runparams['ode_centre_matching_velocity']),
     )
+    splashback_xi, splashback_lambda = first_post_centre_apocentre(ode_solution)
+    caustic_xi, caustic_lambda = first_outer_caustic(ode_solution)
     if not np.all(np.isfinite(profiles['density'])):
         raise RuntimeError('similarity density profile contains non-finite values')
     if not np.all(np.diff(shells.radius) >= 0.0):
@@ -120,9 +127,24 @@ def main(config_filename=DEFAULT_CONFIG):
         'CentreMatchLambda': float(runparams['ode_centre_match_lambda']),
         'CentreMatchingVelocity': float(
             runparams['ode_centre_matching_velocity']),
+        'SplashbackDefinition': (
+            'first post-centre lambda-prime zero with negative second derivative'),
+        'SplashbackXi': splashback_xi,
+        'SplashbackLambda': splashback_lambda,
+        'OuterCausticXi': caustic_xi,
+        'OuterCausticLambda': caustic_lambda,
     })
     ode_figure = Path(runparams['savedir']) / 'BertschingerEq41XiLambda.jpg'
-    ode_plot = plot_xi_lambda(ode_solution, filename=ode_figure)
+    ode_plot = plot_xi_lambda(ode_solution)
+    ode_plot.plot(splashback_xi, splashback_lambda, marker='*', markersize=11,
+                  color='tab:red', markeredgecolor='black',
+                  label=r'first post-centre apocentre ($\lambda_{\rm sp}$)')
+    ode_plot.plot(caustic_xi, caustic_lambda, marker='o', markersize=7,
+                  color='tab:green', markeredgecolor='black',
+                  label=r'fixed-time outer caustic ($\lambda_{\rm c}$)')
+    ode_plot.legend(loc='best', fontsize=8)
+    ode_plot.figure.tight_layout()
+    ode_plot.figure.savefig(ode_figure, dpi=200)
     ode_plot.figure.clf()
     import matplotlib.pyplot as plt
     plt.close(ode_plot.figure)
@@ -139,6 +161,10 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.close(fig)
     print('Bertschinger collisionless reference generated')
     print('turnaround radius = %.8g' % profiles['turnaround_radius'])
+    print('first post-centre apocentre: xi = %.8g, lambda_sp = %.8g' %
+          (splashback_xi, splashback_lambda))
+    print('fixed-time outer caustic: xi = %.8g, lambda_c = %.8g' %
+          (caustic_xi, caustic_lambda))
     print('output = %s' % output)
     print('Eq. 4.1 ODE output = %s' % output_ode)
     print('Eq. 4.1 xi-lambda figure = %s' % ode_figure)

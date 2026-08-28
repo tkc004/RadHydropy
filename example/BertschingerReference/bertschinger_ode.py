@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.optimize import brentq
 
 
 def plot_xi_lambda(solution, filename=None, axis=None, **plot_kwargs):
@@ -30,6 +31,78 @@ class BertschingerShellSolution:
     lam: np.ndarray
     lam_prime: np.ndarray
     mass: np.ndarray
+
+
+def first_post_centre_apocentre(solution):
+    """Return ``(xi, lambda)`` at the first post-centre apocentre.
+
+    The first negative-to-positive ``lambda_prime`` crossing marks the
+    outgoing branch after centre passage.  The following positive-to-negative
+    crossing is the first local maximum of ``lambda`` and therefore satisfies
+    the splashback criterion.
+    """
+    xi = np.asarray(solution.xi, dtype=float)
+    lam = np.asarray(solution.lam, dtype=float)
+    lam_prime = np.asarray(solution.lam_prime, dtype=float)
+    if xi.size < 3 or not (xi.size == lam.size == lam_prime.size):
+        raise ValueError('invalid Bertschinger shell solution')
+
+    outbound = np.flatnonzero(
+        (lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
+    if not outbound.size:
+        raise RuntimeError('solution contains no post-centre outbound branch')
+    start = int(outbound[0] + 1)
+    apocentre = np.flatnonzero(
+        (lam_prime[start:-1] >= 0.0) & (lam_prime[start + 1:] < 0.0))
+    if not apocentre.size:
+        raise RuntimeError('solution contains no post-centre apocentre')
+    index = int(start + apocentre[0])
+    second_derivative = ((lam_prime[index + 1] - lam_prime[index]) /
+                         (xi[index + 1] - xi[index]))
+    if not second_derivative < 0.0:
+        raise RuntimeError('candidate apocentre has non-negative curvature')
+    root = brentq(
+        lambda value: np.interp(value, xi[index:index + 2],
+                                 lam_prime[index:index + 2]),
+        float(xi[index]), float(xi[index + 1]),
+    )
+    return float(root), float(np.interp(root, xi, lam))
+
+
+def first_outer_caustic(solution, turnaround_exponent=8.0 / 9.0):
+    """Return the first fixed-time similarity caustic ``(xi, lambda)``.
+
+    A shell that turned around at ``xi=0`` has proper radius proportional to
+    ``exp(-alpha*xi) * lambda(xi)`` when compared at one fixed observation
+    time, where ``alpha`` is the turnaround-radius exponent.  The envelope
+    therefore satisfies ``lambda_prime = alpha * lambda``.  The first
+    positive-to-negative crossing after centre passage is the outer caustic.
+    """
+    xi = np.asarray(solution.xi, dtype=float)
+    lam = np.asarray(solution.lam, dtype=float)
+    lam_prime = np.asarray(solution.lam_prime, dtype=float)
+    alpha = float(turnaround_exponent)
+    if alpha <= 0.0:
+        raise ValueError('turnaround exponent must be positive')
+    outbound = np.flatnonzero(
+        (lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
+    if not outbound.size:
+        raise RuntimeError('solution contains no post-centre outbound branch')
+    start = int(outbound[0] + 1)
+    envelope_derivative = lam_prime - alpha * lam
+    caustic = np.flatnonzero(
+        (envelope_derivative[start:-1] >= 0.0) &
+        (envelope_derivative[start + 1:] < 0.0))
+    if not caustic.size:
+        raise RuntimeError('solution contains no post-centre outer caustic')
+    index = int(start + caustic[0])
+    root = brentq(
+        lambda value: np.interp(value, xi[index:index + 2],
+                                 envelope_derivative[index:index + 2]),
+        float(xi[index]), float(xi[index + 1]),
+    )
+    shell_lambda = float(np.interp(root, xi, lam))
+    return float(root), float(np.exp(-alpha * root) * shell_lambda)
 
 
 def solve_eq41_self_similar(xi_end=5.0, points=8192,

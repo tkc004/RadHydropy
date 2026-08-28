@@ -1517,8 +1517,10 @@ class Solver():
 
     def ApplyGravity(self, dt, mesh, fluid, par):
         """Apply the combined external and gas self-gravity source update."""
+        interior = self._interior_slice(par)
         gravity = self._gravity_model(par)
         if gravity is None:
+            self.last_gravity_work_by_cell = np.zeros(int(par.nogrid), dtype=float)
             return 0
         if getattr(gravity, "cosmological", False):
             par.fluid_time = fluid.time
@@ -1599,8 +1601,11 @@ class Solver():
         fluid.Mom[...] = new_momentum
         fluid.Energy[...] = new_energy
         self.last_gravity_work = float(
-            np.sum(gravity_work[self._interior_slice(par)])
+            np.sum(gravity_work[interior])
         )
+        self.last_gravity_work_by_cell = np.asarray(
+            gravity_work[interior], dtype=float
+        ).copy()
         self.last_dark_matter_substeps = int(
             getattr(getattr(gravity, "dark_matter", None),
                     "last_substep_count", 0)

@@ -38,6 +38,7 @@ def make_scale_free_shells(icparams, units, cosmology):
         radius=radius,
         velocity=velocity,
         mass=mass,
+        shell_id=np.arange(number),
         fixed_enclosed_mass=delta_mass,
         softening=float(icparams['softening']),
         code_units=units,
