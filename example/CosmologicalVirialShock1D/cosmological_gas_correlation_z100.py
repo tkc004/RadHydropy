@@ -565,6 +565,9 @@ def _energy_audit_state(sim):
         "dual_energy_floor_injected_energy": float(
             getattr(sim.solver, "dual_energy_floor_injected_energy", 0.0)
         ),
+        "dual_energy_entropy_limiter_count": float(
+            getattr(sim.solver, "dual_energy_entropy_limiter_count", 0)
+        ),
     }
 
 
@@ -646,11 +649,16 @@ def _pad_energy_history(history, key, fill=np.nan):
 
 
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
-        output_suffix=None, riemann_solver=None):
+        output_suffix=None, riemann_solver=None,
+        dual_energy_entropy_limiter=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
     if riemann_solver is not None:
         runparams["riemann_solver"] = riemann_solver
+    if dual_energy_entropy_limiter is not None:
+        runparams["dual_energy_entropy_limiter"] = bool(
+            dual_energy_entropy_limiter
+        )
     if runparams.get("compton_only", False):
         runparams.update({
             "hydrogen_recombination": False,
@@ -1304,10 +1312,17 @@ if __name__ == "__main__":
         "--riemann-solver", choices=("Rusanov", "HLLC"), default=None,
         help="override the configured Riemann solver",
     )
+    parser.add_argument(
+        "--disable-dual-energy-entropy-limiter", action="store_true",
+        help="disable the experimental dual-energy entropy limiter",
+    )
     args = parser.parse_args()
     run(
         args.config,
         final_time_override=args.final_time,
         output_suffix=args.output_suffix,
         riemann_solver=args.riemann_solver,
+        dual_energy_entropy_limiter=(
+            False if args.disable_dual_energy_entropy_limiter else None
+        ),
     )

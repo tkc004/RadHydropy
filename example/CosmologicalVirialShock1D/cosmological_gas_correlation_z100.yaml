@@ -24,7 +24,11 @@ runparams:
   dual_energy: true
   dual_energy_eta1: 1.0e-3
   dual_energy_eta2: 1.0e-1
+  dual_energy_consistency_factor: 1.0e-1
+  # Disable the experimental entropy limiter for this reference run.
+  dual_energy_entropy_limiter: false
   dual_energy_pressure_floor: 1.0e-20
+  riemann_solver: Rusanov
   CFL: 0.10
   #verbose: 1
   dark_matter_crossing_safety_factor: 0.5

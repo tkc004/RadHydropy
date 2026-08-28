@@ -62,6 +62,12 @@ refparams = {
     # the pressure estimate; eta2 controls synchronization to total energy.
     'dual_energy_eta1': 1.0e-3,
     'dual_energy_eta2': 1.0e-1,
+    # If both estimates are admissible, reject a dual estimate that has
+    # fallen far below conservative E-K.  This protects entropy in cells
+    # where the dual flux update loses thermal energy at an under-resolved
+    # shock.
+    'dual_energy_consistency_factor': 1.0e-1,
+    'dual_energy_entropy_limiter': True,
     # Pressure source in dual-energy mode: 'switch' selects between E-K and
     # InternalEnergy; 'conservative' always selects admissible E-K.
     'dual_energy_pressure_selection': 'switch',

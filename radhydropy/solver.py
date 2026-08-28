@@ -32,6 +32,7 @@ class Solver():
         self.dual_energy_synchronization_count = 0
         self.dual_energy_floor_count = 0
         self.dual_energy_floor_injected_energy = 0.0
+        self.dual_energy_entropy_limiter_count = 0
 
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
@@ -498,8 +499,20 @@ class Solver():
                 out=np.zeros_like(total_thermal),
                 where=np.isfinite(total_thermal),
             )
+            consistency_factor = max(0.0, float(np.asarray(getattr(
+                par, 'dual_energy_consistency_factor', 1.0e-1), dtype=float)))
+            dual_to_total = np.divide(
+                internal_density,
+                np.maximum(total_thermal, 1.0e-300),
+                out=np.full_like(internal_density, np.inf),
+                where=total_valid,
+            )
+            inconsistent_dual = (
+                total_valid & dual_valid
+                & (dual_to_total < consistency_factor)
+            )
             use_total = total_valid & (
-                (thermal_fraction > eta1) | ~dual_valid
+                (thermal_fraction > eta1) | ~dual_valid | inconsistent_dual
             )
             use_dual = dual_valid & ~use_total
             pressure_selection = str(getattr(
@@ -707,6 +720,47 @@ class Solver():
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
         fluid.vel.grad = ru.CalGradient(fluid.vel, xdelta)
         fluid.pre.grad = ru.CalGradient(fluid.pre, xdelta)
+
+    @staticmethod
+    def _positivity_limited_internal_flux(old_internal, flux, area, dt,
+                                          physical):
+        """Limit dual internal-energy face fluxes to preserve positivity.
+
+        The total-energy flux has its own paired-face limiter.  This second
+        limiter acts on the independently evolved dual field, scaling only a
+        face flux when either cell sharing that face would become negative.
+        InternalEnergy is not the conservative authority, so this local
+        limiter may be more restrictive than the total-energy limiter without
+        changing conserved mass, momentum, or total energy.
+        """
+        result = np.ones(len(flux), dtype=float)
+        state = np.asarray(old_internal, dtype=float).copy()
+        area = np.asarray(area, dtype=float)
+        dt_value = float(np.asarray(dt, dtype=float))
+        for face in range(len(flux)):
+            left = (face - 1) % len(state)
+            right = face
+            if not (physical[left] or physical[right]):
+                continue
+            increment = dt_value * float(flux[face]) * float(area[face])
+            alpha = 1.0
+            if increment > 0.0 and physical[left] and state[left] < increment:
+                alpha = max(0.0, state[left] / increment)
+            elif increment < 0.0 and physical[right] and state[right] < -increment:
+                alpha = max(0.0, state[right] / -increment)
+            result[face] = alpha
+            applied = alpha * increment
+            if physical[left]:
+                state[left] -= applied
+            if physical[right]:
+                state[right] += applied
+            # Roundoff at the positivity boundary must not be turned into a
+            # negative dual state by the next vectorized update.
+            if physical[left]:
+                state[left] = max(0.0, state[left])
+            if physical[right]:
+                state[right] = max(0.0, state[right])
+        return result
 
     @staticmethod
     def _cfl_density_floor(par):
@@ -1480,6 +1534,7 @@ class Solver():
             
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
         """Apply interface fluxes to conserved quantities and advance time."""
+        old_mass_for_internal = np.asarray(fluid.Mass, dtype=float).copy()
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
         area = mesh.area
@@ -1566,12 +1621,29 @@ class Solver():
                         np.ones(len(fluid.Mass.flux))),
                 dtype=float,
             )
-            limited_internal_flux = internal_flux * factors
+            limited_internal_flux = np.asarray(internal_flux, dtype=float) * factors
+            first = int(getattr(par, 'noghost', 0))
+            count = int(getattr(par, 'nogrid', len(fluid.InternalEnergy) - first))
+            physical = np.zeros(len(fluid.InternalEnergy), dtype=bool)
+            physical[first:first + count] = True
+            internal_factors = self._positivity_limited_internal_flux(
+                fluid.InternalEnergy,
+                limited_internal_flux,
+                area,
+                dt,
+                physical,
+            )
+            limited_internal_flux *= internal_factors
             limited_df_internal = (
                 limited_internal_flux * area
                 - ru.periodic_roll(limited_internal_flux * area, -1)
             )
             if getattr(mesh, 'coordsys', None) == 'spherical':
+                # Retain the established spherical pressure-work
+                # discretization.  The positivity limiter acts on the
+                # Riemann internal-energy flux above; changing the geometric
+                # source and limiting it as a scalar face flux simultaneously
+                # can over-limit cold expanding cells.
                 limited_df_internal -= fluid.pre * (
                     ru.periodic_roll(
                         factors * face_velocity * area, -1
@@ -1634,6 +1706,94 @@ class Solver():
                 self.dual_energy_pressure_fallback_count += int(
                     np.count_nonzero(retain_previous)
                 )
+
+            # A positivity limiter alone can still leave a tiny positive
+            # value after a large cancellation in the spherical pressure-work
+            # update.  Treat an abrupt loss below the configured consistency
+            # fraction as a failed dual estimate as well.  Prefer E-K when it
+            # is admissible; otherwise keep the previous positive dual state.
+            consistency_factor = max(0.0, float(np.asarray(getattr(
+                par, 'dual_energy_consistency_factor', 1.0e-1), dtype=float)))
+            far_below_previous = (
+                physical & np.isfinite(candidate_internal)
+                & np.isfinite(previous_internal)
+                & (previous_internal > 0.0)
+                & (candidate_internal < consistency_factor * previous_internal)
+            )
+            conservative_recovery = (
+                far_below_previous
+                & np.isfinite(conservative_internal)
+                & (conservative_internal > 0.0)
+            )
+            if np.any(conservative_recovery):
+                candidate_internal[conservative_recovery] = (
+                    conservative_internal[conservative_recovery]
+                )
+                self.dual_energy_pressure_fallback_count += int(
+                    np.count_nonzero(conservative_recovery)
+                )
+            retain_consistent = far_below_previous & ~conservative_recovery
+            if np.any(retain_consistent):
+                candidate_internal[retain_consistent] = (
+                    previous_internal[retain_consistent]
+                )
+                self.dual_energy_pressure_fallback_count += int(
+                    np.count_nonzero(retain_consistent)
+                )
+
+            # Entropy-stable dual-energy correction for smooth cells.  For an
+            # adiabatic ideal gas, the cell entropy proxy is proportional to
+            # e/rho**gamma.  The Riemann internal-energy update may lose this
+            # quantity through cancellation in the spherical pressure-work
+            # term, even while remaining positive.  Preserve the previous
+            # entropy only for moderate density changes; strong compression,
+            # expansion, and near-vacuum cells are left to the conservative
+            # consistency/fallback logic above.
+            if (
+                getattr(par, 'dual_energy_entropy_limiter', True)
+                and not self._thermochemistry_enabled(fluid, par)
+            ):
+                volume = np.asarray(mesh.vol, dtype=float)
+                old_density = np.divide(
+                    old_mass_for_internal,
+                    volume,
+                    out=np.zeros_like(old_mass_for_internal),
+                    where=volume > 0.0,
+                )
+                new_density = np.divide(
+                    np.asarray(fluid.Mass, dtype=float),
+                    volume,
+                    out=np.zeros_like(old_density),
+                    where=volume > 0.0,
+                )
+                density_ratio = np.divide(
+                    new_density,
+                    old_density,
+                    out=np.ones_like(old_density),
+                    where=old_density > 0.0,
+                )
+                moderate_density_change = (
+                    physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)
+                )
+                isentropic_internal = previous_internal * np.maximum(
+                    density_ratio, 0.0
+                ) ** float(fluid.eos.gamma)
+                entropy_limited = (
+                    moderate_density_change
+                    & np.isfinite(previous_internal)
+                    & (previous_internal > 0.0)
+                    & np.isfinite(isentropic_internal)
+                    & (isentropic_internal > 0.0)
+                    & (candidate_internal < isentropic_internal)
+                )
+                if np.any(entropy_limited):
+                    candidate_internal[entropy_limited] = (
+                        isentropic_internal[entropy_limited]
+                    )
+                    self.dual_energy_entropy_limiter_count += int(
+                        np.count_nonzero(entropy_limited)
+                    )
+
             # Leave unresolved cells at zero only when the conservative state
             # is also non-positive.  SetPrimitive will then apply the
             # configured positive floor and record that injected energy.

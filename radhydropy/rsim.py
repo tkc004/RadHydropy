@@ -437,6 +437,43 @@ class Rsim():
         )
         return source_result
 
+    def _synchronize_thermochemistry_internal_energy(self):
+        """Refresh the dual energy from the source-updated conservative state.
+
+        Thermochemistry updates the authoritative total energy directly.  The
+        auxiliary internal energy must be refreshed from that same state,
+        otherwise a stale dual estimate can later overwrite a legitimate
+        cooling/heating change when primitive variables are reconstructed.
+        """
+        if not (
+            self.solver._dual_energy_enabled(self.par)
+            and hasattr(self.fluid, 'InternalEnergy')
+            and rtc.thermochemistry_enabled(self.fluid, self.par)
+        ):
+            return
+        first = int(getattr(self.par, 'noghost', 0))
+        count = int(getattr(self.par, 'nogrid', len(self.fluid.Energy) - first))
+        stop = first + count
+        mass = np.asarray(self.fluid.Mass, dtype=float)
+        momentum = np.asarray(self.fluid.Mom, dtype=float)
+        total_energy = np.asarray(self.fluid.Energy, dtype=float)
+        kinetic = np.zeros_like(total_energy)
+        np.divide(
+            0.5 * momentum**2,
+            mass,
+            out=kinetic,
+            where=mass > 0.0,
+        )
+        thermal = total_energy - kinetic
+        valid = (
+            np.isfinite(thermal[first:stop])
+            & (thermal[first:stop] > 0.0)
+        )
+        internal = np.asarray(self.fluid.InternalEnergy, dtype=float).copy()
+        internal_slice = internal[first:stop]
+        internal_slice[valid] = thermal[first:stop][valid]
+        self.fluid.InternalEnergy = internal
+
     def _clone_fluid(self, fluid=None):
         """Return a deep copy of the supplied fluid state."""
         if fluid is None:
@@ -641,6 +678,7 @@ class Rsim():
             )
             self.last_source_result = source_result
             self.last_source_dt = dt
+            self._synchronize_thermochemistry_internal_energy()
             # Source updates can change temperature, pressure, and chemistry
             # fields, so refresh the boundary state before the next loop.
             if mode == "sources":
@@ -694,6 +732,9 @@ class Rsim():
             ),
             "dual_energy_floor_injected_energy": float(
                 getattr(self.solver, "dual_energy_floor_injected_energy", 0.0)
+            ),
+            "dual_energy_entropy_limiter_count": int(
+                getattr(self.solver, "dual_energy_entropy_limiter_count", 0)
             ),
         })
         return result
