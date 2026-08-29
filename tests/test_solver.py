@@ -330,6 +330,7 @@ class Testing(unittest.TestCase):
         par = make_code_par('Periodic')
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
+        par.dual_energy = True
         mesh = make_code_mesh(n=12)
         mesh.coordsys = 'spherical'
         mesh._par = par
@@ -356,10 +357,46 @@ class Testing(unittest.TestCase):
             np.asarray(fluid.Energy[active], dtype=float),
             hydro_energy + expected_rotational,
         )
+        expected_internal = np.asarray(
+            fluid.eos.thermal_energy_density(fluid.pre[active])
+            * volume,
+            dtype=float,
+        )
+        np.testing.assert_allclose(
+            np.asarray(fluid.InternalEnergy[active], dtype=float),
+            expected_internal,
+        )
         pressure_before = np.asarray(fluid.pre[active], dtype=float).copy()
         solver.SetPrimitive(mesh, fluid, par=par)
         np.testing.assert_allclose(
             np.asarray(fluid.pre[active], dtype=float), pressure_before
+        )
+        solver.GetTimeStep(mesh, fluid, par)
+        solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=0)
+        radius_face = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
+        expected_rotational_flux = np.zeros_like(radius_face)
+        valid_face = radius_face > 0.0
+        expected_rotational_flux[valid_face] = (
+            0.5 * np.asarray(fluid.specific_angular_momentum.L, dtype=float)[valid_face]**2
+            / radius_face[valid_face]**2
+            * np.asarray(fluid.Mass.flux, dtype=float)[valid_face]
+        )
+        np.testing.assert_allclose(
+            np.asarray(fluid.rotational_energy_flux, dtype=float),
+            expected_rotational_flux,
+        )
+        old_momentum = np.asarray(fluid.Mom, dtype=float).copy()
+        old_energy = np.asarray(fluid.Energy, dtype=float).copy()
+        solver.ApplyGravity(1.0e-3, mesh, fluid, par)
+        expected_acceleration = 0.5**2 / np.asarray(mesh.coordinate, dtype=float)**3
+        np.testing.assert_allclose(
+            np.asarray(fluid.Mom[active], dtype=float),
+            old_momentum[active]
+            + np.asarray(fluid.Mass[active], dtype=float)
+            * expected_acceleration[active] * 1.0e-3,
+        )
+        np.testing.assert_allclose(
+            np.asarray(fluid.Energy, dtype=float), old_energy
         )
 
     def test_periodic_boundary_wraps_interior(self):

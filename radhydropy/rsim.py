@@ -109,20 +109,21 @@ class Rsim():
         self.energy_diagnostics_enabled = bool(
             getattr(self.par, "energy_diagnostics", False)
         )
+        diagnostic_count = int(getattr(self.par, 'nogrid', 0))
         self.cumulative_gravity_work_by_cell = np.zeros(
-            int(self.par.nogrid), dtype=float
+            diagnostic_count, dtype=float
         )
         self.cumulative_hydro_energy_change_by_cell = np.zeros(
-            int(self.par.nogrid), dtype=float
+            diagnostic_count, dtype=float
         )
         self.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
-            int(self.par.nogrid), dtype=float
+            diagnostic_count, dtype=float
         )
         self.cumulative_compression_work_by_cell = np.zeros(
-            int(self.par.nogrid), dtype=float
+            diagnostic_count, dtype=float
         )
         self.cumulative_shock_work_by_cell = np.zeros(
-            int(self.par.nogrid), dtype=float
+            diagnostic_count, dtype=float
         )
         # ``readhdf5`` restores EOS parameters and code units from the file
         # header.  The EOS object was created before that restoration in
@@ -587,18 +588,19 @@ class Rsim():
         self.last_thermochemistry_energy_change = 0.0
         first = int(self.par.noghost)
         last = first + int(self.par.nogrid)
-        mass_before = np.asarray(self.fluid.Mass[first:last], dtype=float)
-        momentum_before = np.asarray(self.fluid.Mom[first:last], dtype=float)
-        energy_before = np.asarray(self.fluid.Energy[first:last], dtype=float)
-        kinetic_before = np.zeros_like(mass_before)
-        np.divide(
-            0.5 * momentum_before**2,
-            mass_before,
-            out=kinetic_before,
-            where=mass_before > 0.0,
-        )
-        if self.energy_diagnostics_enabled:
-            self._thermal_energy_before_hydro = energy_before - kinetic_before
+        if mode != 'sources':
+            mass_before = np.asarray(self.fluid.Mass[first:last], dtype=float)
+            momentum_before = np.asarray(self.fluid.Mom[first:last], dtype=float)
+            energy_before = np.asarray(self.fluid.Energy[first:last], dtype=float)
+            kinetic_before = np.zeros_like(mass_before)
+            np.divide(
+                0.5 * momentum_before**2,
+                mass_before,
+                out=kinetic_before,
+                where=mass_before > 0.0,
+            )
+            if self.energy_diagnostics_enabled:
+                self._thermal_energy_before_hydro = energy_before - kinetic_before
         result = {
             "dt": dt,
             "hydro_steps": 0,
