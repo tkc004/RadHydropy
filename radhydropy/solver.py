@@ -901,6 +901,23 @@ class Solver():
             fluid.Energy.F,
             fluid.Energy.q,
         ) = fluid.eos.fluxes(fluid.rho, fluid.vel, fluid.pre)
+
+    @staticmethod
+    def _set_angular_momentum_flux(fluid):
+        """Build a mass-consistent flux for the optional gas angular momentum."""
+        if not (
+            hasattr(fluid, 'specific_angular_momentum')
+            and hasattr(fluid, 'AngularMomentum')
+        ):
+            return
+        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
+        j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
+        j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
+        # L is the cell inside the face and R is the cell outside it.  The
+        # Euler mass-flux sign selects the donor-side specific angular
+        # momentum, so J follows exactly the mass transfer.
+        j_face = np.where(mass_flux >= 0.0, j_left, j_right)
+        fluid.AngularMomentum.flux = as_named_array(mass_flux * j_face)
         
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):
         """Construct left and right states at cell faces.
@@ -1630,6 +1647,7 @@ class Solver():
             )
             self._apply_hydrostatic_core_flux(fluid, getattr(mesh, '_par', None))
             self._zero_spherical_origin_flux(mesh, fluid)
+            self._set_angular_momentum_flux(fluid)
         else:
             raise ValueError("Interface flux method unknown: %s"%method) 
         if (verbose>=2):
@@ -1647,6 +1665,12 @@ class Solver():
         df_Mass = fluid.Mass.flux * area - ru.periodic_roll(fluid.Mass.flux * area, -1)
         df_Mom = fluid.Mom.flux * area - ru.periodic_roll(fluid.Mom.flux * area, -1)
         df_Energy = fluid.Energy.flux * area - ru.periodic_roll(fluid.Energy.flux * area, -1)
+        df_AngularMomentum = None
+        if hasattr(fluid, 'AngularMomentum'):
+            angular_flux_area = fluid.AngularMomentum.flux * area
+            df_AngularMomentum = (
+                angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
+            )
         if getattr(mesh, 'coordsys', None) == 'spherical':
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
@@ -1707,6 +1731,10 @@ class Solver():
             fluid.Mass += positivity_factor * df_Mass * dt
             fluid.Mom += positivity_factor * df_Mom * dt
             fluid.Energy += positivity_factor * df_Energy * dt
+            if df_AngularMomentum is not None:
+                fluid.AngularMomentum += (
+                    positivity_factor * df_AngularMomentum * dt
+                )
             fluid.time += dt
             return
         geometric_mom = None
@@ -1718,6 +1746,11 @@ class Solver():
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux,
             geometric_mom=geometric_mom,
         )
+        if df_AngularMomentum is not None:
+            fluid.AngularMomentum += (
+                np.asarray(self._last_face_limiter_factors, dtype=float)
+                * df_AngularMomentum * dt
+            )
         if df_InternalEnergy is not None:
             # Couple the dual-energy advection to the same face coefficients
             # used by the conservative update.  Applying the minimum face

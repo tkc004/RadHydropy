@@ -1571,7 +1571,10 @@ if __name__ == "__main__":
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument(
         "--final-time", type=float, default=None,
-        help="override final cosmic time in Gyr for a short debug run",
+        help=(
+            "override final cosmic time in simulation code units for a short "
+            "debug run; output is reported in Gyr"
+        ),
     )
     parser.add_argument(
         "--output-suffix", default=None,

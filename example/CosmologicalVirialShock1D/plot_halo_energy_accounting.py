@@ -86,20 +86,22 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     if time.size >= 2:
         for axis in axes:
             axis.set_xlim(float(time[0]), float(time[-1]))
-    finite = np.isfinite(time) & np.isfinite(np.asarray(profiles["scale_factor"], dtype=float))
+    scale_factor = np.asarray(profiles["scale_factor"], dtype=float)
+    finite = np.isfinite(time) & np.isfinite(scale_factor) & (scale_factor > 0.0)
     time_valid = time[finite]
-    redshift_valid = 1.0 / np.asarray(profiles["scale_factor"], dtype=float)[finite] - 1.0
+    redshift_valid = 1.0 / scale_factor[finite] - 1.0
     if time_valid.size >= 2:
-        def time_to_redshift(value):
-            return np.interp(value, time_valid, redshift_valid)
-
-        def redshift_to_time(value):
-            return np.interp(value, redshift_valid[::-1], time_valid[::-1])
-
-        top_axis = axes[0].secondary_xaxis(
-            "top", functions=(time_to_redshift, redshift_to_time)
-        )
-        top_axis.set_xlabel("redshift z")
+        # Use exact snapshot locations.  A secondary-axis interpolation
+        # extrapolates the final point when its locator requests z=0, even
+        # though this run stops at z~5; explicit ticks prevent that error.
+        selected = np.unique(np.linspace(
+            0, time_valid.size - 1, min(7, time_valid.size), dtype=int
+        ))
+        top_axis = axes[0].twiny()
+        top_axis.set_xlim(axes[0].get_xlim())
+        top_axis.set_xticks(time_valid[selected])
+        top_axis.set_xticklabels(["%.0f" % value for value in redshift_valid[selected]])
+        top_axis.set_xlabel("redshift z (from saved scale factor)")
     resolved = np.isfinite(rvir)
     if np.any(resolved) and not np.all(resolved):
         first_resolved = time[np.flatnonzero(resolved)[0]]

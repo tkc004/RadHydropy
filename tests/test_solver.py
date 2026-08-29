@@ -291,6 +291,41 @@ class Testing(unittest.TestCase):
             fluid.specific_angular_momentum[-2:], [6.0, 5.0]
         )
 
+    def test_gas_angular_momentum_uses_mass_flux_and_conserves_periodically(self):
+        par = make_code_par('Periodic')
+        par.gas_angular_momentum = True
+        mesh = make_code_mesh(n=12)
+        mesh._par = par
+        fluid = make_code_fluid(n=8)
+        fluid.vel[:] = 0.25
+        fluid.SetUpFluid(par, mesh=mesh)
+        fluid.specific_angular_momentum[:] = (
+            np.arange(len(fluid.specific_angular_momentum), dtype=float) + 1.0
+        )
+
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        solver.SetConserved(mesh, fluid)
+        initial_total = np.sum(np.asarray(fluid.AngularMomentum, dtype=float))
+        solver.GetTimeStep(mesh, fluid, par)
+        solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=0)
+
+        expected_flux = np.where(
+            np.asarray(fluid.Mass.flux, dtype=float) >= 0.0,
+            np.asarray(fluid.specific_angular_momentum.L, dtype=float),
+            np.asarray(fluid.specific_angular_momentum.R, dtype=float),
+        ) * np.asarray(fluid.Mass.flux, dtype=float)
+        np.testing.assert_allclose(
+            np.asarray(fluid.AngularMomentum.flux, dtype=float), expected_flux
+        )
+        solver.AddFluxes(1.0e-3, mesh, fluid, par.boundcond)
+        np.testing.assert_allclose(
+            np.sum(np.asarray(fluid.AngularMomentum, dtype=float)),
+            initial_total,
+            rtol=1.0e-13,
+            atol=1.0e-13,
+        )
+
     def test_periodic_boundary_wraps_interior(self):
         fluid = Fluid()
         Solver().SetBoundary(None, fluid, Par('Periodic'))

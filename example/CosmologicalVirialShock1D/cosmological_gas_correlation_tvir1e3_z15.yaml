@@ -70,11 +70,8 @@ ICparams:
   rmin: 3.0
   rmax: 4000.0
   verbal: 1
-  # ICs are initialized at z=100 and evolved to z=15.
   initial_cosmic_time: 0.01418666885
   perturbation_radius: 250.0
-  # This IC control is not the measured final virial mass.  The calibrated
-  # target=100 case forms mvir~5.2e7 Msun and Tvir~1.7e3 K at z=15.
   target_halo_mass: 100.0
   initial_overdensity: 0.0166930693
   initial_density_profile: linear_correlation
