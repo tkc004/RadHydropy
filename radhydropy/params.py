@@ -58,6 +58,11 @@ refparams = {
     # resolution in smooth rarefaction/contact regions while remaining TVD.
     'flux_limiter': 'minmod',
     'dual_energy': False,
+    # First-stage optional passive gas angular-momentum storage.
+    'gas_angular_momentum': False,
+    'gas_specific_angular_momentum': 0.0,
+    'specific_angular_momentum_inflow': 0.0,
+    'specific_angular_momentum_outflow': 0.0,
     # Bryan et al. (1995) dual-energy switching thresholds.  eta1 selects
     # the pressure estimate; eta2 controls synchronization to total energy.
     'dual_energy_eta1': 1.0e-3,

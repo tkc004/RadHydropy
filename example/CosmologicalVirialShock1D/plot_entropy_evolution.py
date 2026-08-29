@@ -14,6 +14,25 @@ OUTPUT = HERE / "outputs_correlation_gas"
 PREFIX = "CosmologicalGasCorrelationZ100"
 
 
+def _add_redshift_top_axis(axis, times, scale_factors):
+    """Add redshift ticks above a cosmic-time x-axis."""
+    times = np.asarray(times, dtype=float)
+    scale_factors = np.asarray(scale_factors, dtype=float)
+    valid = np.isfinite(times) & np.isfinite(scale_factors) & (scale_factors > 0.0)
+    if not np.any(valid):
+        return
+    top_axis = axis.twiny()
+    top_axis.set_xlim(axis.get_xlim())
+    indices = np.flatnonzero(valid)
+    selected = indices[np.unique(np.linspace(0, indices.size - 1,
+                                             min(7, indices.size)).astype(int))]
+    top_axis.set_xticks(times[selected])
+    top_axis.set_xticklabels(
+        ["%.0f" % (1.0 / scale_factors[index] - 1.0) for index in selected]
+    )
+    top_axis.set_xlabel("redshift")
+
+
 def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
          exclude_outer_cells=2):
     output = Path(output)
@@ -85,6 +104,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
             transform=axes[1].transAxes, ha="center", va="center",
         )
     axes[1].set_xlabel("cosmic time [Gyr]")
+    _add_redshift_top_axis(axes[1], times, scale)
     axes[1].set_ylabel("comoving radius [kpc]")
     axes[1].grid(alpha=0.25)
     if times.size > 1:

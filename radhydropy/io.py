@@ -46,6 +46,7 @@ def _scale_unit_for_key(scale_key):
         "alpha_cm3_s": unyt.cm**3 / unyt.s,
         "acceleration_cm_s2": unyt.cm / unyt.s**2,
         "specific_angular_momentum": unyt.cm**2 / unyt.s,
+        "angular_momentum": unyt.g * unyt.cm**2 / unyt.s,
     }.get(scale_key, None)
 
 
@@ -73,6 +74,7 @@ def _code_unit_for_key(code_units, scale_key):
         "alpha_cm3_s": code_units.volume_unit / code_units.time_unit,
         "acceleration_cm_s2": code_units.length_unit / code_units.time_unit**2,
         "specific_angular_momentum": code_units.length_unit * code_units.velocity_unit,
+        "angular_momentum": code_units.mass_unit * code_units.length_unit * code_units.velocity_unit,
         "potential": code_units.velocity_unit**2,
     }.get(scale_key, None)
 
@@ -121,6 +123,8 @@ def _dataset_aliases(name):
         "Mol_weight": ("mu",),
         "NeutralFraction": ("xHI",),
         "PhotonNumberDensity": ("ngamma",),
+        "SpecificAngularMomentum": ("specific_angular_momentum",),
+        "AngularMomentum": ("AngularMomentum",),
         "HeINeutralFraction": ("xHeI",),
         "HeIIFraction": ("xHeII",),
         "HeIIIFraction": ("xHeIII",),
@@ -753,19 +757,38 @@ def writehdf5(ric,ICfilename):
                 ),
             },
         )
+        if hasattr(ric.fluid, "specific_angular_momentum"):
+            _write_quantity(
+                gdata,
+                "SpecificAngularMomentum",
+                ric.fluid.specific_angular_momentum,
+                code_units=code_units,
+                scale_key="specific_angular_momentum",
+                default_unit=unyt.cm**2 / unyt.s,
+            )
         for attr, dataset_name in (
             ("Mass", "Mass"),
             ("Energy", "Energy"),
             ("InternalEnergy", "InternalEnergy"),
+            ("AngularMomentum", "AngularMomentum"),
         ):
             if hasattr(ric.fluid, attr):
+                scale_key = (
+                    "mass_g" if attr == "Mass"
+                    else "angular_momentum" if attr == "AngularMomentum"
+                    else "energy_erg"
+                )
                 _write_quantity(
                     gdata,
                     dataset_name,
                     getattr(ric.fluid, attr),
                     code_units=code_units,
-                    scale_key="mass_g" if attr == "Mass" else "energy_erg",
-                    default_unit=unyt.g if attr == "Mass" else unyt.erg,
+                    scale_key=scale_key,
+                    default_unit=(
+                        unyt.g if attr == "Mass"
+                        else unyt.g * unyt.cm**2 / unyt.s
+                        if attr == "AngularMomentum" else unyt.erg
+                    ),
                 )
         gdata.create_dataset("Mol_weight", data=np.asarray(ric.fluid.mu))
         if hasattr(ric.fluid, "xHI"):
@@ -905,6 +928,8 @@ def readhdf5(par, mesh, fluid, ICfilename):
             "Mass": "mass_g",
             "Energy": "energy_erg",
             "InternalEnergy": "energy_erg",
+            "SpecificAngularMomentum": "specific_angular_momentum",
+            "AngularMomentum": "angular_momentum",
         }
         _populate_group_targets(
             gdata,

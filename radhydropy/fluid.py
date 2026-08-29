@@ -95,6 +95,23 @@ class Fluid():
         self.rho = as_named_array(quantity_to_value(self.rho, code_units.density_unit))
         self.temp = as_named_array(quantity_to_value(self.temp, code_units.temperature_unit))
         self.vel = as_named_array(quantity_to_value(self.vel, code_units.velocity_unit))
+        if getattr(par, 'gas_angular_momentum', False) or hasattr(
+            self, 'specific_angular_momentum'
+        ):
+            if not hasattr(self, 'specific_angular_momentum'):
+                self.specific_angular_momentum = as_named_array(
+                    np.full(
+                        np.shape(self.rho),
+                        float(getattr(par, 'gas_specific_angular_momentum', 0.0)),
+                    )
+                )
+            else:
+                self.specific_angular_momentum = as_named_array(
+                    quantity_to_value(
+                        self.specific_angular_momentum,
+                        code_units.length_unit * code_units.velocity_unit,
+                    )
+                )
 
         if getattr(par, 'supercomoving_coordinates', False):
             if not hasattr(par, 'cosmology'):
@@ -158,6 +175,10 @@ class Fluid():
                 code_units.number_density_unit,
             )
             valuelist.append(float(np.asarray(ngamma_initial, dtype=float)))
+
+        if hasattr(self, 'specific_angular_momentum'):
+            attrlist.append('specific_angular_momentum')
+            valuelist.append(0.0)
             
 
         #add ghost cells:

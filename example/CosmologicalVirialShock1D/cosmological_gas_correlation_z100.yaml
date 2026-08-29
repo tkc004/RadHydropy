@@ -22,6 +22,8 @@ runparams:
   order: 1
   # Preserve thermal pressure when total energy is kinetic-energy dominated.
   dual_energy: true
+  # First-stage storage only; centrifugal dynamics will be added later.
+  gas_angular_momentum: false
   dual_energy_eta1: 1.0e-3
   dual_energy_eta2: 1.0e-1
   dual_energy_consistency_factor: 1.0e-1

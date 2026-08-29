@@ -62,6 +62,41 @@ class Testing(unittest.TestCase):
         self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
         self.assertEqual(self._scalar_value(loaded_fluid.time), 0.0)
 
+    def test_hdf5_roundtrip_preserves_gas_angular_momentum_fields(self):
+        par = SimpleNamespace(
+            coordsys='cartesian',
+            nogrid=3,
+            time=0.0 * unyt.s,
+            boxsize=3.0 * unyt.cm,
+            CodeUnits=CODE_UNITS,
+        )
+        mesh = SimpleNamespace(
+            boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
+        )
+        specific = np.array([1.0, 2.0, 3.0]) * unyt.cm**2 / unyt.s
+        angular = np.array([4.0, 5.0, 6.0]) * unyt.g * unyt.cm**2 / unyt.s
+        fluid = SimpleNamespace(
+            rho=np.ones(3) * unyt.g / unyt.cm**3,
+            vel=np.zeros(3) * unyt.cm / unyt.s,
+            temp=np.ones(3) * unyt.K,
+            mu=np.ones(3),
+            specific_angular_momentum=specific,
+            AngularMomentum=angular,
+        )
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+        loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        np.testing.assert_allclose(
+            loaded_fluid.specific_angular_momentum, np.asarray(specific)
+        )
+        np.testing.assert_allclose(loaded_fluid.AngularMomentum, np.asarray(angular))
+
     def test_writehdf5_writes_all_par_values_into_header_attributes(self):
         par = SimpleNamespace(
             coordsys='cartesian',

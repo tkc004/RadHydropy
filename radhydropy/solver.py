@@ -33,6 +33,17 @@ class Solver():
         self.dual_energy_floor_count = 0
         self.dual_energy_floor_injected_energy = 0.0
         self.dual_energy_entropy_limiter_count = 0
+        # Last pressure-reconstruction diagnostics.  These are deliberately
+        # arrays rather than counters: resolution comparisons need to locate
+        # the cells where E-K and the independently evolved thermal state
+        # disagree.
+        self.dual_energy_total_thermal = None
+        self.dual_energy_internal_density = None
+        self.dual_energy_total_pressure = None
+        self.dual_energy_dual_pressure = None
+        self.dual_energy_total_valid = None
+        self.dual_energy_dual_valid = None
+        self.dual_energy_pressure_selection_code = None
 
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
@@ -235,7 +246,8 @@ class Solver():
             'core_last': int(core_indices[-1]),
         }
         for name in ('rho', 'vel', 'temp', 'mu', 'pre', 'xHI',
-                     'xHeI', 'xHeII', 'xHeIII'):
+                     'xHeI', 'xHeII', 'xHeIII',
+                     'specific_angular_momentum'):
             if hasattr(fluid, name):
                 state[name] = np.asarray(getattr(fluid, name)[core], dtype=float).copy()
         fluid._hydrostatic_core = state
@@ -249,7 +261,8 @@ class Solver():
             return
         core = state['core_mask']
         for name in ('rho', 'vel', 'temp', 'mu', 'pre', 'xHI',
-                     'xHeI', 'xHeII', 'xHeIII'):
+                     'xHeI', 'xHeII', 'xHeIII',
+                     'specific_angular_momentum'):
             if name in state and hasattr(fluid, name):
                 values = np.asarray(getattr(fluid, name), dtype=float).copy()
                 values[core] = state[name]
@@ -272,6 +285,8 @@ class Solver():
 
     def _boundary_field_names(self, fluid):
         fields = ['rho', 'vel', 'pre']
+        if hasattr(fluid, 'specific_angular_momentum'):
+            fields.append('specific_angular_momentum')
         if hasattr(fluid, 'xHI'):
             fields.append('xHI')
         if hasattr(fluid, 'ngamma'):
@@ -304,6 +319,8 @@ class Solver():
         if include_velocity:
             velocity = fluid.vel[source]
             state['vel'] = -velocity if negate_velocity else velocity
+        if hasattr(fluid, 'specific_angular_momentum'):
+            state['specific_angular_momentum'] = fluid.specific_angular_momentum[source]
         if hasattr(fluid, 'xHI'):
             state['xHI'] = fluid.xHI[source]
         if hasattr(fluid, 'ngamma'):
@@ -345,7 +362,9 @@ class Solver():
                 quan[right_ghost] = quan[nolast]
 
     def _apply_reflecting_boundary(self, fluid, interior, left_ghost, right_ghost, noghost):
-        for attr in ('rho', 'pre'):
+        for attr in ('rho', 'pre', 'specific_angular_momentum'):
+            if not hasattr(fluid, attr):
+                continue
             quan = getattr(fluid, attr)
             quan[left_ghost] = quan[interior][:noghost][::-1]
             quan[right_ghost] = quan[interior][-noghost:][::-1]
@@ -401,6 +420,10 @@ class Solver():
             'vel': par.vel_inflow,
             'pre': fluid.eos.pressure(par.rho_inflow, par.temp_inflow, par.mu_inflow),
         }
+        if hasattr(fluid, 'specific_angular_momentum'):
+            right_state['specific_angular_momentum'] = getattr(
+                par, 'specific_angular_momentum_inflow', 0.0
+            )
         if hasattr(fluid, 'xHI'):
             right_state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
         if hasattr(fluid, 'ngamma'):
@@ -427,6 +450,10 @@ class Solver():
             'vel': par.vel_outflow,
             'pre': fluid.eos.pressure(par.rho_outflow, par.temp_outflow, par.mu_outflow),
         }
+        if hasattr(fluid, 'specific_angular_momentum'):
+            left_state['specific_angular_momentum'] = getattr(
+                par, 'specific_angular_momentum_outflow', 0.0
+            )
         if hasattr(fluid, 'xHI'):
             left_state['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
         if hasattr(fluid, 'ngamma'):
@@ -462,6 +489,17 @@ class Solver():
         )
         fluid.rho = as_named_array(rho)
         fluid.vel = as_named_array(vel)
+        if hasattr(fluid, 'AngularMomentum'):
+            specific_angular_momentum = np.zeros_like(rho)
+            np.divide(
+                np.asarray(fluid.AngularMomentum, dtype=float),
+                mass,
+                out=specific_angular_momentum,
+                where=valid_mass,
+            )
+            fluid.specific_angular_momentum = as_named_array(
+                specific_angular_momentum
+            )
         density_floor = self._cfl_density_floor(par)
         numerical_vacuum = active & (rho <= density_floor)
         fluid.vel[numerical_vacuum] = 0.0
@@ -507,14 +545,25 @@ class Solver():
                 out=np.full_like(internal_density, np.inf),
                 where=total_valid,
             )
-            inconsistent_dual = (
-                total_valid & dual_valid
-                & (dual_to_total < consistency_factor)
+            # A dual estimate is safe only while the conservative state is
+            # admissible and the two thermal estimates agree.  The previous
+            # logic checked only the lower ratio bound and, more seriously,
+            # allowed a positive dual state to override an invalid E-K state.
+            # That can create pressure from energy which is not present in the
+            # conservative state and is the high-Mach failure seen at 256
+            # cells.  Reject both too-small and too-large ratios.
+            upper_consistency_factor = (
+                1.0 / consistency_factor if consistency_factor > 0.0 else np.inf
+            )
+            inconsistent_dual = dual_valid & (
+                ~total_valid
+                | (dual_to_total < consistency_factor)
+                | (dual_to_total > upper_consistency_factor)
             )
             use_total = total_valid & (
                 (thermal_fraction > eta1) | ~dual_valid | inconsistent_dual
             )
-            use_dual = dual_valid & ~use_total
+            use_dual = dual_valid & ~use_total & ~inconsistent_dual
             pressure_selection = str(getattr(
                 par, 'dual_energy_pressure_selection', 'switch'
             )).lower()
@@ -522,6 +571,20 @@ class Solver():
                 use_total = total_valid
                 use_dual = np.zeros_like(use_total, dtype=bool)
             conservative_pressure = pressure_selection in ('conservative', 'e-k', 'ek')
+
+            # Preserve the exact same-state quantities used below for
+            # pressure selection.  Codes: -1 inactive, 0 conservative E-K,
+            # 1 dual-energy internal state, 2 pressure-floor reconstruction.
+            selection_code = np.full(rho.shape, -1, dtype=np.int8)
+            selection_code[use_total] = 0
+            selection_code[use_dual] = 1
+            self.dual_energy_total_thermal = total_thermal.copy()
+            self.dual_energy_internal_density = internal_density.copy()
+            self.dual_energy_total_pressure = np.asarray(total_pressure, dtype=float).copy()
+            self.dual_energy_dual_pressure = np.asarray(dual_pressure, dtype=float).copy()
+            self.dual_energy_total_valid = total_valid.copy()
+            self.dual_energy_dual_valid = dual_valid.copy()
+            self.dual_energy_pressure_selection_code = selection_code
             fluid.pre[use_dual] = dual_pressure[use_dual]
             fluid.pre[use_total] = total_pressure[use_total]
 
@@ -534,12 +597,12 @@ class Solver():
                 np.count_nonzero(fallback)
             )
 
-            # Neither estimate is usable.  Add a small positive thermal
-            # energy to the conservative state, retain total-energy
-            # conservation accounting separately, and use its pressure.
+            # Neither estimate is usable.  Add only the configured small
+            # positive thermal energy to the conservative state, retain
+            # total-energy accounting separately, and use its pressure.  In
+            # particular, do not use a large dual estimate when E-K is
+            # inadmissible.
             both_invalid = active & ~numerical_vacuum & ~total_valid
-            if not conservative_pressure:
-                both_invalid &= ~dual_valid
             if np.any(both_invalid):
                 floor_pressure_value = max(
                     0.0, float(np.asarray(
@@ -569,6 +632,7 @@ class Solver():
                 self.dual_energy_floor_injected_energy += float(
                     np.sum(injected_energy[both_invalid])
                 )
+                selection_code[both_invalid] = 2
             # Keep the conservative fallback pressure for cells where the
             # dual field is invalid but E-K is admissible.
             fluid.pre[fallback] = total_pressure[fallback]
@@ -624,6 +688,10 @@ class Solver():
             if dual_energy and hasattr(fluid, 'Mom')
             else None
         )
+        old_angular_momentum = (
+            np.asarray(fluid.AngularMomentum, dtype=float).copy()
+            if hasattr(fluid, 'AngularMomentum') else None
+        )
         old_conserved = None
         if density_floor > 0.0 and all(
             hasattr(fluid, name) for name in ('Mass', 'Mom', 'Energy')
@@ -644,6 +712,15 @@ class Solver():
             fluid.vel,
             fluid.pre,
         ) * vol)
+        if hasattr(fluid, 'specific_angular_momentum') or old_angular_momentum is not None:
+            specific_angular_momentum = np.asarray(
+                getattr(fluid, 'specific_angular_momentum',
+                        np.zeros_like(fluid.rho)),
+                dtype=float,
+            )
+            fluid.AngularMomentum = as_named_array(
+                fluid.rho * specific_angular_momentum * vol
+            )
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         if old_total_energy is not None:
@@ -661,6 +738,12 @@ class Solver():
             count = int(getattr(par, 'nogrid', len(fluid.Mass) - first))
             fluid.Mass[first:first + count] = old_total_mass[first:first + count]
             fluid.Mom[first:first + count] = old_total_momentum[first:first + count]
+        if old_angular_momentum is not None:
+            first = int(getattr(par, 'noghost', 0))
+            count = int(getattr(par, 'nogrid', len(old_angular_momentum) - first))
+            fluid.AngularMomentum[first:first + count] = (
+                old_angular_momentum[first:first + count]
+            )
         if dual_energy and getattr(fluid.eos, 'is_polytropic', False):
             internal = np.asarray(
                 fluid.eos.thermal_energy_density(fluid.pre) * vol,
@@ -836,11 +919,25 @@ class Solver():
             fluid.vel.L = ru.periodic_roll(fluid.vel, 1)
             fluid.pre.R = as_named_array(np.asarray(fluid.pre, dtype=float).copy())
             fluid.pre.L = ru.periodic_roll(fluid.pre, 1)
+            if hasattr(fluid, 'specific_angular_momentum'):
+                fluid.specific_angular_momentum.R = as_named_array(
+                    np.asarray(fluid.specific_angular_momentum, dtype=float).copy()
+                )
+                fluid.specific_angular_momentum.L = ru.periodic_roll(
+                    fluid.specific_angular_momentum, 1
+                )
             if order == 1:
                 self.SetGradient(mesh, fluid)
                 fluid.rho.R.first, fluid.rho.L.first = ru.extrapolateToFace(fluid.rho, mesh.boundary, fluid.rho.grad, order=1)
                 fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
                 fluid.pre.R.first, fluid.pre.L.first = ru.extrapolateToFace(fluid.pre, mesh.boundary, fluid.pre.grad, order=1)
+                if hasattr(fluid, 'specific_angular_momentum'):
+                    fluid.specific_angular_momentum.R.first = (
+                        fluid.specific_angular_momentum.R.copy()
+                    )
+                    fluid.specific_angular_momentum.L.first = (
+                        fluid.specific_angular_momentum.L.copy()
+                    )
             self._apply_low_density_face_mask(
                 fluid, getattr(mesh, '_par', None), order
             )
@@ -880,6 +977,15 @@ class Solver():
             if order == 1:
                 quantity.R.first[outer_face] = value
                 quantity.L.first[outer_face] = value
+        if hasattr(fluid, 'specific_angular_momentum'):
+            angular_momentum = float(getattr(
+                par, 'specific_angular_momentum_inflow', 0.0
+            ))
+            fluid.specific_angular_momentum.R[outer_face] = angular_momentum
+            fluid.specific_angular_momentum.L[outer_face] = angular_momentum
+            if order == 1:
+                fluid.specific_angular_momentum.R.first[outer_face] = angular_momentum
+                fluid.specific_angular_momentum.L.first[outer_face] = angular_momentum
 
     @staticmethod
     def _vacuum_safe_primitive_state(rho, vel, pre):

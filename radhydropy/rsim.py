@@ -45,6 +45,9 @@ class Rsim():
         self.cumulative_gravity_work_by_cell = np.zeros(
             int(getattr(self.par, "nogrid", 0)), dtype=float
         )
+        self.cumulative_hydro_energy_change_by_cell = np.zeros(
+            int(getattr(self.par, "nogrid", 0)), dtype=float
+        )
         self.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
             int(getattr(self.par, "nogrid", 0)), dtype=float
         )
@@ -79,6 +82,9 @@ class Rsim():
         sim.cumulative_gravity_work_by_cell = np.zeros(
             int(sim.par.nogrid), dtype=float
         )
+        sim.cumulative_hydro_energy_change_by_cell = np.zeros(
+            int(sim.par.nogrid), dtype=float
+        )
         sim.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
             int(sim.par.nogrid), dtype=float
         )
@@ -104,6 +110,9 @@ class Rsim():
             getattr(self.par, "energy_diagnostics", False)
         )
         self.cumulative_gravity_work_by_cell = np.zeros(
+            int(self.par.nogrid), dtype=float
+        )
+        self.cumulative_hydro_energy_change_by_cell = np.zeros(
             int(self.par.nogrid), dtype=float
         )
         self.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
@@ -208,6 +217,7 @@ class Rsim():
             'alpha': length_unit ** 3 / time_unit,
             'acceleration': length_unit / time_unit ** 2,
             'potential': units['velocity'] ** 2,
+            'specific_angular_momentum': length_unit * units['velocity'],
         }
         apply_code_unit_specs(self.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
         source_rate = getattr(
@@ -288,6 +298,7 @@ class Rsim():
         first = int(self.par.noghost)
         last = first + int(self.par.nogrid)
         rho = np.asarray(fluid.rho[first:last], dtype=float)
+        old_energy = np.asarray(fluid.Energy[first:last], dtype=float).copy()
         pressure = np.asarray(fluid.pre[first:last], dtype=float)
         velocity = np.asarray(fluid.vel[first:last], dtype=float)
         coordinate = np.asarray(self.mesh.coordinate[first:last], dtype=float)
@@ -328,6 +339,13 @@ class Rsim():
             self, stage='hydro face reconstruction'
         )
         self.solver.AddFluxes(dt, self.mesh, fluid, self.par.boundcond)
+        if self.energy_diagnostics_enabled:
+            self.last_hydro_energy_change_by_cell = (
+                np.asarray(fluid.Energy[first:last], dtype=float) - old_energy
+            )
+            self.cumulative_hydro_energy_change_by_cell += (
+                self.last_hydro_energy_change_by_cell
+            )
         return old_mass, mass_flux
 
     def AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=None):
@@ -516,6 +534,8 @@ class Rsim():
         )
 
         conserved_fields = ["Mass", "Mom", "Energy"]
+        if hasattr(initial_state, "AngularMomentum") and hasattr(stage2, "AngularMomentum"):
+            conserved_fields.append("AngularMomentum")
         if hasattr(initial_state, "InternalEnergy") and hasattr(stage2, "InternalEnergy"):
             conserved_fields.append("InternalEnergy")
         for attr in conserved_fields:

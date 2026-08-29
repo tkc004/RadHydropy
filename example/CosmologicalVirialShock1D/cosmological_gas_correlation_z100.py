@@ -16,6 +16,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
+import radhydropy.radiative_transfer as rrt
+import radhydropy.thermo_chemistry as rtc
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.example_config import load_example_parameters
@@ -25,6 +27,7 @@ from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 import tools as et
 import plot_entropy_evolution as entropy_plotter
+import plot_halo_energy_accounting as energy_plotter
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(
@@ -98,6 +101,7 @@ def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
     if times.size > 1:
         axes[1].set_xlim(times[0], times[-1])
     axes[1].set_xlabel("cosmic time [Gyr]")
+    _add_redshift_top_axis(axes[1], times, scale_factors)
     axes[1].set_ylabel("proper radius [kpc]")
     axes[1].grid(alpha=0.25)
     if np.any(finite):
@@ -279,6 +283,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
     if times.size > 1:
         axes[1].set_xlim(times[0], times[-1])
     axes[1].set_xlabel("cosmic time [Gyr]")
+    _add_redshift_top_axis(axes[1], times, scale_factors)
     axes[1].set_ylabel("comoving radius [kpc]")
     axes[1].grid(alpha=0.25)
     if np.any(finite):
@@ -389,6 +394,64 @@ def plot_velocity_evolution(
     )
     axis.grid(alpha=0.25, which="both")
     axis.legend(loc="best", fontsize=8, ncol=3)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=220)
+    plt.close(fig)
+
+
+def plot_baryon_fraction_evolution(
+    times, baryon_fraction, halo_mass_msun, scale_factors, filename,
+    cosmic_baryon_fraction,
+):
+    """Plot normalized baryons and total mass inside resolved r200."""
+    times = np.asarray(times, dtype=float)
+    values = np.asarray(baryon_fraction, dtype=float)
+    scale_factors = np.asarray(scale_factors, dtype=float)
+    halo_mass_msun = np.asarray(halo_mass_msun, dtype=float)
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    axis = axes[0]
+    axis.plot(
+        times, values, "o-", lw=2,
+        label=r"$M_g(<r_{200})/[f_b M_{200}]$",
+    )
+    axis.axhline(
+        1.0, color="black", ls="--", lw=1.0,
+        label=r"cosmic fraction ($f_b=%.3f$)" % cosmic_baryon_fraction,
+    )
+    # ``times`` is already converted to physical Gyr by the caller.  Use an
+    # explicit unit-bearing label here so this diagnostic cannot silently
+    # regress to the dimensionless cosmology/code-time coordinate.
+    axis.set_xlim(float(times[0]), float(times[-1]))
+    axis.set_ylim(bottom=0.0)
+    axis.set_xlabel("cosmic time [Gyr]")
+    axis.set_ylabel("normalized baryon mass fraction")
+    axis.set_title(r"Baryon content inside resolved $r_{200}$")
+    axis.grid(alpha=0.3)
+    axis.legend(frameon=False)
+    mass_axis = axes[1]
+    mass_axis.plot(
+        times, halo_mass_msun, "s-", color="tab:purple", lw=2,
+        label=r"$M_{\rm vir}=M(<r_{200})$",
+    )
+    mass_axis.set_yscale("log")
+    mass_axis.set_ylabel(r"total halo mass $M_{\rm vir}$ [$M_\odot$]")
+    mass_axis.set_xlabel("cosmic time [Gyr]")
+    mass_axis.grid(alpha=0.3, which="both")
+    mass_axis.legend(frameon=False)
+    finite = np.isfinite(times) & np.isfinite(scale_factors) & (scale_factors > 0.0)
+    if np.count_nonzero(finite) >= 2:
+        # Place redshift ticks at the actual saved cosmic-time snapshots.
+        # This avoids treating code time as Gyr and avoids an interpolated
+        # redshift transform whose labels can be misleading between outputs.
+        time_valid = times[finite]
+        redshift_valid = 1.0 / scale_factors[finite] - 1.0
+        selected = np.unique(np.linspace(0, time_valid.size - 1,
+                                         min(6, time_valid.size), dtype=int))
+        top_axis = axis.twiny()
+        top_axis.set_xlim(axis.get_xlim())
+        top_axis.set_xticks(time_valid[selected])
+        top_axis.set_xticklabels(["%.0f" % value for value in redshift_valid[selected]])
+        top_axis.set_xlabel("redshift z (from saved scale factor)")
     fig.tight_layout()
     fig.savefig(filename, dpi=220)
     plt.close(fig)
@@ -593,6 +656,14 @@ def _energy_cell_state(sim):
             ),
             dtype=float,
         ).copy(),
+        "hydro_energy_change": np.asarray(
+            getattr(
+                sim,
+                "cumulative_hydro_energy_change_by_cell",
+                np.zeros(last - first),
+            ),
+            dtype=float,
+        ).copy(),
         "thermochemistry_energy_change": np.asarray(
             getattr(sim, "cumulative_thermochemistry_energy_change_by_cell", np.zeros(last - first)),
             dtype=float,
@@ -605,6 +676,88 @@ def _energy_cell_state(sim):
             getattr(sim, "cumulative_shock_work_by_cell", np.zeros(last - first)),
             dtype=float,
         ).copy(),
+        # Same-state dual-energy reconstruction diagnostics.  A missing
+        # diagnostic means dual energy was disabled or the solver has not yet
+        # reconstructed primitive variables; retain NaNs rather than mixing
+        # values from a different timestep.
+        "dual_energy_total_thermal": _solver_cell_array(
+            sim, "dual_energy_total_thermal", last - first
+        ),
+        "dual_energy_internal_density": _solver_cell_array(
+            sim, "dual_energy_internal_density", last - first
+        ),
+        "dual_energy_total_pressure": _solver_cell_array(
+            sim, "dual_energy_total_pressure", last - first
+        ),
+        "dual_energy_dual_pressure": _solver_cell_array(
+            sim, "dual_energy_dual_pressure", last - first
+        ),
+        "dual_energy_total_valid": _solver_cell_array(
+            sim, "dual_energy_total_valid", last - first, dtype=float
+        ),
+        "dual_energy_dual_valid": _solver_cell_array(
+            sim, "dual_energy_dual_valid", last - first, dtype=float
+        ),
+        "dual_energy_pressure_selection_code": _solver_cell_array(
+            sim, "dual_energy_pressure_selection_code", last - first, dtype=float
+        ),
+    }
+
+
+def _solver_cell_array(sim, name, size, dtype=float):
+    """Return a physical-cell solver diagnostic from the last reconstruction."""
+    value = getattr(sim.solver, name, None)
+    if value is None:
+        return np.full(size, np.nan, dtype=dtype)
+    array = np.asarray(value, dtype=dtype).ravel()
+    first = int(sim.par.noghost)
+    if array.size < first + size:
+        return np.full(size, np.nan, dtype=dtype)
+    return array[first:first + size].copy()
+
+
+def _instantaneous_source_diagnostics(sim, gas_profile):
+    """Return same-state physical source and compression diagnostics."""
+    state = rtc.source_state(sim.mesh, sim.fluid, sim.par)
+    thermal_rate = np.asarray(rtc.thermal_rate(
+        state, rrt.trace_photon_density(state, sim.par), sim.par
+    ), dtype=float)
+    rho = np.asarray(state["rho_g_cm3"], dtype=float)
+    specific_energy = np.asarray(state["specific_energy_erg_g"], dtype=float)
+    temperature = np.asarray(state["temperature_K"], dtype=float)
+    mu = np.asarray(
+        state.get("mu", sim.fluid.mu[int(sim.par.noghost):int(sim.par.noghost) + int(sim.par.nogrid)]),
+        dtype=float,
+    )
+    radius_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
+    velocity_cm_s = np.asarray(
+        gas_profile["radial_velocity_physical_km_s"], dtype=float
+    ) * 1.0e5
+    divergence = np.gradient(radius_cm**2 * velocity_cm_s, radius_cm) / np.maximum(radius_cm, 1.0e-30)**2
+    rho_dot = -rho * divergence
+    sound_speed = np.sqrt(
+        float(sim.par.gamma) * 1.380649e-16 * np.maximum(temperature, 0.0)
+        / (np.maximum(mu, 1.0e-30) * 1.67262192369e-24)
+    )
+    mach = np.divide(
+        np.abs(velocity_cm_s), sound_speed,
+        out=np.full_like(sound_speed, np.nan), where=sound_speed > 0.0,
+    )
+    # thermal_rate is heating minus cooling; q is defined positive for cooling.
+    q = -thermal_rate
+    # q is volumetric [erg cm^-3 s^-1].  The equivalent expression using a
+    # specific cooling rate q/rho is gamma - rho*(q/rho)/(rho_dot*e).
+    gamma_eff = np.full_like(rho, np.nan)
+    valid = (rho_dot > 0.0) & (specific_energy > 0.0)
+    gamma_eff[valid] = (
+        float(sim.par.gamma) - q[valid] / (rho_dot[valid] * specific_energy[valid])
+    )
+    return {
+        "q_erg_cm3_s": q,
+        "rho_dot_g_cm3_s": rho_dot,
+        "specific_energy_erg_g": specific_energy,
+        "local_mach": mach,
+        "gamma_eff": gamma_eff,
     }
 
 
@@ -653,6 +806,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         dual_energy_entropy_limiter=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
+    # This workflow always produces energy-balance plots and per-cell energy
+    # histories, so make the required diagnostics the example default.
+    runparams.setdefault("energy_diagnostics", True)
     if riemann_solver is not None:
         runparams["riemann_solver"] = riemann_solver
     if dual_energy_entropy_limiter is not None:
@@ -696,6 +852,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     initial = et.Simwrap(
         icparams, units, cosmology, correlation_table=correlation_table
     )
+    if bool(runparams.get("gas_angular_momentum", False)):
+        initial.par.gas_angular_momentum = True
+        initial.fluid.specific_angular_momentum = np.full(
+            initial.par.nogrid,
+            float(runparams.get("gas_specific_angular_momentum", 0.0)),
+        )
     rio.writehdf5(initial, ic_filename)
     dm = et.make_dark_matter(
         icparams, units, cosmology, correlation_table=correlation_table
@@ -908,8 +1070,50 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         gas_profile["radial_velocity_physical_km_s"] = signed_velocity_km_s
         gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
+        gas_profile.update(_instantaneous_source_diagnostics(sim, gas_profile))
+        radius_record = et.profiles(sim, dm, cosmic_time, cosmology, icparams)
+        gas_radius = np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
+        gas_edges = np.asarray(sim.mesh.boundary[first:last + 1], dtype=float)
+        gas_mass = (
+            np.asarray(sim.fluid.rho[first:last], dtype=float)
+            * (4.0 * np.pi / 3.0)
+            * np.diff(gas_edges**3)
+        )
+        rvir = float(radius_record.get("rvir_kpc", np.nan))
+        mvir = float(radius_record.get("mvir", np.nan))
+        if np.isfinite(rvir) and np.isfinite(mvir) and mvir > 0.0:
+            gas_inside = float(np.sum(gas_mass[gas_radius <= rvir]))
+            radius_record["gas_mass_rvir"] = gas_inside
+            radius_record["normalized_baryon_fraction"] = gas_inside / (
+                float(icparams["baryon_fraction"]) * mvir
+            )
+        else:
+            radius_record["gas_mass_rvir"] = np.nan
+            radius_record["normalized_baryon_fraction"] = np.nan
+        shock_index = int(radius_record.get("shock_cell_index", -1))
+        if 0 <= shock_index < int(sim.par.nogrid):
+            # These scalar values are deliberately extracted after shock
+            # selection from the same snapshot and cell.  They are the only
+            # quantities intended for a local gamma_eff comparison.
+            for source_key, report_key in (
+                ("q_erg_cm3_s", "shock_q_erg_cm3_s"),
+                ("rho_dot_g_cm3_s", "shock_rho_dot_g_cm3_s"),
+                ("specific_energy_erg_g", "shock_specific_energy_erg_g"),
+                ("local_mach", "shock_local_mach"),
+                ("gamma_eff", "shock_gamma_eff"),
+            ):
+                radius_record[report_key] = float(
+                    np.asarray(gas_profile[source_key], dtype=float)[shock_index]
+                )
+        else:
+            for report_key in (
+                "shock_q_erg_cm3_s", "shock_rho_dot_g_cm3_s",
+                "shock_specific_energy_erg_g", "shock_local_mach",
+                "shock_gamma_eff",
+            ):
+                radius_record[report_key] = np.nan
         gas_profiles.append(gas_profile)
-        radius_history.append(et.profiles(sim, dm, cosmic_time, cosmology, icparams))
+        radius_history.append(radius_record)
         dm_profile = et.density_profiles(sim, dm, cosmic_time, cosmology)
         dm_profile["scale_factor"] = scale_factor
         dm_profiles.append(dm_profile)
@@ -928,7 +1132,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 previous_halo_mask & ~current_halo_mask
             )) if previous_halo_mask is not None else 0}
         for key in ("total", "thermal", "kinetic", "gravitational_work",
-                    "thermochemistry_energy_change", "compression_work",
+                    "hydro_energy_change", "thermochemistry_energy_change", "compression_work",
                     "shock_work"):
             if previous_halo_mask is None:
                 value = 0.0
@@ -1114,8 +1318,28 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
              temperature_physical_K=temperature,
              velocity_physical_km_s=velocity,
              radial_velocity_physical_km_s=radial_velocity,
+             q_erg_cm3_s=np.asarray([item["q_erg_cm3_s"] for item in gas_profiles]),
+             rho_dot_g_cm3_s=np.asarray([item["rho_dot_g_cm3_s"] for item in gas_profiles]),
+             specific_energy_erg_g=np.asarray([item["specific_energy_erg_g"] for item in gas_profiles]),
+             local_mach=np.asarray([item["local_mach"] for item in gas_profiles]),
+             gamma_eff=np.asarray([item["gamma_eff"] for item in gas_profiles]),
              rvir_proper_kpc=virial_radius,
              virial_temperature_K=virial_temperature)
+    baryon_fraction_figure = output_dir / (
+        figure_prefix + "_BaryonMassFraction_TimeEvolution.jpg"
+    )
+    plot_baryon_fraction_evolution(
+        times,
+        np.asarray([
+            item["normalized_baryon_fraction"] for item in radius_history
+        ]),
+        np.asarray([
+            item["mvir"] for item in radius_history
+        ]) * float(sim.par.CodeUnits.mass_in_cgs) / 1.98847e33,
+        scale_factors,
+        baryon_fraction_figure,
+        float(icparams["baryon_fraction"]),
+    )
     entropy_plotter.main(
         output_dir,
         figure_prefix,
@@ -1139,6 +1363,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "gravitational_work": _pad_energy_history(
             gas_energy_history, "gravitational_work"
         ),
+        "hydro_energy_change": _pad_energy_history(
+            gas_energy_history, "hydro_energy_change"
+        ),
         "thermochemistry_energy_change": _pad_energy_history(
             gas_energy_history, "thermochemistry_energy_change"
         ),
@@ -1146,6 +1373,27 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             gas_energy_history, "compression_work"
         ),
         "shock_work": _pad_energy_history(gas_energy_history, "shock_work"),
+        "dual_energy_total_thermal": _pad_energy_history(
+            gas_energy_history, "dual_energy_total_thermal"
+        ),
+        "dual_energy_internal_density": _pad_energy_history(
+            gas_energy_history, "dual_energy_internal_density"
+        ),
+        "dual_energy_total_pressure": _pad_energy_history(
+            gas_energy_history, "dual_energy_total_pressure"
+        ),
+        "dual_energy_dual_pressure": _pad_energy_history(
+            gas_energy_history, "dual_energy_dual_pressure"
+        ),
+        "dual_energy_total_valid": _pad_energy_history(
+            gas_energy_history, "dual_energy_total_valid"
+        ),
+        "dual_energy_dual_valid": _pad_energy_history(
+            gas_energy_history, "dual_energy_dual_valid"
+        ),
+        "dual_energy_pressure_selection_code": _pad_energy_history(
+            gas_energy_history, "dual_energy_pressure_selection_code"
+        ),
         "halo_crossing_total_energy": np.asarray(
             [item["total"] for item in halo_crossing_history], dtype=float
         ),
@@ -1177,6 +1425,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     per_cell["delta_total_energy"] = per_cell["total_energy"] - per_cell["total_energy"][0]
     per_cell["delta_kinetic_energy"] = per_cell["kinetic_energy"] - per_cell["kinetic_energy"][0]
     per_cell["delta_thermal_energy"] = per_cell["thermal_energy"] - per_cell["thermal_energy"][0]
+    per_cell["energy_balance_residual"] = (
+        per_cell["delta_total_energy"]
+        - per_cell["hydro_energy_change"]
+        - per_cell["gravitational_work"]
+        - per_cell["thermochemistry_energy_change"]
+    )
     per_shell = {
         "time_Gyr": np.asarray([item["time_Gyr"] for item in dm_profiles]),
         "shell_id": _pad_energy_history(dm_energy_history, "id", fill=-1),
@@ -1196,6 +1450,18 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         **{f"gas_{key}": value for key, value in per_cell.items()},
         **{f"dm_{key}": value for key, value in per_shell.items()},
     )
+    energy_balance_figure = None
+    if bool(runparams.get("energy_diagnostics", True)):
+        try:
+            energy_plotter.main(output_dir, figure_prefix, radius_factor=2.0)
+            energy_balance_figure = output_dir / (
+                figure_prefix + "_2RvirEnergyBalance_TimeEvolution.jpg"
+            )
+        except RuntimeError as error:
+            # A developing perturbation may not yet have a resolved r200.
+            # Keep the run and its ordinary diagnostics usable; the energy
+            # plot will be generated automatically once a resolved halo exists.
+            print("energy-balance figure skipped: %s" % error)
     figure = output_dir / (figure_prefix + ".jpg")
     radius_figure = output_dir / (figure_prefix + "_Radii.jpg")
     plot_mass_history(history, figure)
@@ -1294,6 +1560,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("gas/DM density comparison = %s" % density_comparison_figure)
     print("energy audit = %s" % energy_audit_file)
     print("per-cell/shell energy history = %s" % energy_entity_file)
+    print("baryon mass fraction figure = %s" % baryon_fraction_figure)
+    if energy_balance_figure is not None:
+        print("2-rvir energy balance figure = %s" % energy_balance_figure)
     return data_file
 
 

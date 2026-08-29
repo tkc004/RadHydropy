@@ -1,9 +1,9 @@
 runparams:
-  simname: CosmologicalGasCorrelationZ100Adiabatic256
-  figure_prefix: CosmologicalGasCorrelationZ100_Adiabatic256
-  ICfilename: outputs_correlation_gas_compton_atomic/InitialCondition.hdf5
-  outdir: outputs_correlation_gas_adiabatic_256
-  savedir: outputs_correlation_gas_adiabatic_256
+  simname: CosmologicalGasCorrelationZ100ComptonAtomicM1e11
+  figure_prefix: CosmologicalGasCorrelationZ100_ComptonAtomic_M1e11
+  ICfilename: outputs_correlation_gas_compton_atomic_m1e11/InitialCondition.hdf5
+  outdir: outputs_correlation_gas_compton_atomic_m1e11
+  savedir: outputs_correlation_gas_compton_atomic_m1e11
   outfileprefix: Output
   coordsys: spherical
   EOStype: polytropic
@@ -18,16 +18,15 @@ runparams:
   boundcond: InflowSph
   cosmological_background_boundary_reconstruction: true
   noghost: 2
+  gas_angular_momentum: false
+  gas_specific_angular_momentum: 0.0
   order: 1
   dual_energy: true
   dual_energy_eta1: 1.0e-3
   dual_energy_eta2: 1.0e-1
-  dual_energy_consistency_factor: 1.0e-1
   dual_energy_pressure_floor: 1.0e-20
-  dual_energy_pressure_selection: switch
-  dual_energy_entropy_limiter: true
-  energy_diagnostics: true
   CFL: 0.10
+  energy_diagnostics: true
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_crossing_batch_fraction: 0.01
   dark_matter_global_timestep_limit: false
@@ -36,28 +35,38 @@ runparams:
   dtmin: {value: 1.0e-12, unit: Myr}
   cfl_density_floor: 9.3e-20
   temperature_jump_error_threshold: 1.0e8
-  minimum_temperature: null
+  minimum_temperature: {value: 2.69851485e-5, unit: K}
   temperature_plot_ymin: {value: 1.0, unit: K}
   dtmax: {value: 200.0, unit: Myr}
   final_cosmic_time: 1.0
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   thermochemistry_network: hydrogen
-  hydrogen_chemistry: false
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  hydrogen_atomic_cooling: false
-  hydrogen_update_mu: false
-  hydrogen_thermal_coupling: false
+  hydrogen_chemistry: true
+  hydrogen_xHI_initial: 0.9998
+  hydrogen_recombination: true
+  hydrogen_collisional_ionization: true
+  hydrogen_atomic_cooling: true
+  hydrogen_update_mu: true
+  hydrogen_thermal_coupling: true
   compton_only: false
+  hydrogen_source_solver: split_implicit
+  hydrogen_source_skip_floor_cells: true
+  hydrogen_source_density_floor: {value: 1.0e-26, unit: g/cm**3}
+  hydrogen_source_floor_temperature_tolerance: 1.0e-2
+  hydrogen_hybrid_change_tolerance: 0.10
+  hydrogen_implicit_tolerance: 1.0e-4
+  hydrogen_implicit_absolute_temperature_tolerance: {value: 0.1, unit: K}
+  hydrogen_implicit_fallback: error
+  hydrogen_implicit_max_refinements: 24
   cie_cooling: false
   metal_pie_enabled: false
-  compton_cmb_enabled: false
+  compton_cmb_enabled: true
   compton_cmb_redshift: 100.0
   cmb_temperature_0: {value: 2.7255, unit: K}
   hydrogen_mass_fraction: 0.76
   CodeUnits:
-    name: cosmological_gas_correlation_adiabatic_256_unit_system
+    name: cosmological_gas_correlation_compton_atomic_m1e11_unit_system
     InternalUnitSystem:
       UnitMass_in_cgs: 1.98847e43
       UnitLength_in_cgs: 3.085677581e21
@@ -68,11 +77,11 @@ runparams:
 ICparams:
   nogrid: 256
   rmin: 3.0
-  rmax: 4000.0
+  rmax: 20000.0
   verbal: 1
   initial_cosmic_time: 0.01418666885
   perturbation_radius: 250.0
-  target_halo_mass: 100.0
+  target_halo_mass: 100000.0
   initial_overdensity: 0.0166930693
   initial_density_profile: linear_correlation
   correlation_h: 0.674

@@ -296,6 +296,11 @@ class Simwrap:
         if not bool(ic.get("cmb_equilibrium_initial", False)):
             self.fluid.mu = np.full(self.par.nogrid, float(ic["mu"]))
         self.fluid.vel = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
+        if "gas_specific_angular_momentum" in ic:
+            self.fluid.specific_angular_momentum = np.full(
+                self.par.nogrid,
+                float(ic["gas_specific_angular_momentum"]),
+            )
 
 
 def make_dark_matter(ic, units, cosmology, correlation_table=None):
@@ -523,6 +528,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         & np.isfinite(temp_phys) & (temp_phys > 1.0)
         & np.isfinite(rho) & (rho > 0.0)
     )
+    shock_cell_index = -1
     if np.count_nonzero(finite_entropy) >= 7:
         lower_radius = proper[0]
         if np.isfinite(rvir) and rvir > proper[0]:
@@ -585,6 +591,10 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
             rshock = np.nan
     else:
         rshock = np.nan
+        shock_cell_index = -1
+
+    if np.isfinite(rshock):
+        shock_cell_index = int(np.argmin(np.abs(proper - rshock)))
 
     rsplashback = splashback_radius(
         dm_proper,
@@ -615,6 +625,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         "rho_crit_code": rho_crit,
         "max_delta200": float(np.nanmax(overdensity)),
         "rshock_kpc": rshock,
+        "shock_cell_index": shock_cell_index,
         "rsplashback_kpc": rsplashback,
         "rdisc_kpc": rdisc,
         "mvir": mvir,

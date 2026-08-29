@@ -373,13 +373,23 @@ def pie_stability_diagnostics(
             radius_cm**2 * velocity_cm_s, radius_cm
         ) / radius_cm**2
         compression_rate = -float(np.median(divergence[upstream]))
+        # Birnboim & Dekel's local definition follows directly from
+        # P=(gamma-1)*rho*e and de/dt=P/rho**2*d(rho)/dt-q:
+        # gamma_eff = gamma - rho*q/(dot(rho)*e).  Keep q as the net
+        # volumetric cooling rate and e as specific internal energy here;
+        # this avoids hiding the density and energy conventions inside a
+        # cooling/compression-timescale ratio.
+        density_rate = rho1 * compression_rate
+        analytic_density_rate = rho_analytic * compression_rate
+        specific_energy1 = energy1 / max(rho1, 1.0e-99)
+        specific_energy_analytic = energy_analytic / max(rho_analytic, 1.0e-99)
         gamma_eff = (
-            gamma - (gamma - 1.0) * net_rate / (pressure1 * compression_rate)
+            gamma - rho1 * net_rate / (density_rate * specific_energy1)
             if compression_rate > 1.0e-30 else np.nan
         )
         gamma_eff_analytic = (
-            gamma - (gamma - 1.0) * analytic_net_rate
-            / (pressure_analytic * compression_rate)
+            gamma - rho_analytic * analytic_net_rate
+            / (analytic_density_rate * specific_energy_analytic)
             if compression_rate > 1.0e-30 else np.nan
         )
         rows.append({

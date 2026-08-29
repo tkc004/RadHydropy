@@ -242,6 +242,55 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.vel[:2].value, [12.0, 12.0])
         np.testing.assert_array_equal(fluid.vel[-2:].value, [15.0, 15.0])
 
+    def test_optional_gas_angular_momentum_initializes_and_reconstructs(self):
+        par = make_code_par('Periodic')
+        par.gas_angular_momentum = True
+        par.gas_specific_angular_momentum = 0.25
+        mesh = make_code_mesh(n=12)
+        mesh._par = par
+        fluid = make_code_fluid(n=8)
+        fluid.SetUpFluid(par, mesh=mesh)
+        self.assertTrue(hasattr(fluid, 'specific_angular_momentum'))
+        np.testing.assert_allclose(
+            fluid.specific_angular_momentum[par.noghost:par.noghost + par.nogrid],
+            0.25,
+        )
+
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        solver.SetConserved(mesh, fluid)
+        active = slice(par.noghost, par.noghost + par.nogrid)
+        np.testing.assert_allclose(
+            fluid.AngularMomentum[active], 0.25 * fluid.Mass[active]
+        )
+        fluid.specific_angular_momentum[:] = -1.0
+        solver.SetPrimitive(mesh, fluid, par=par)
+        np.testing.assert_allclose(
+            fluid.specific_angular_momentum[par.noghost:par.noghost + par.nogrid],
+            0.25,
+        )
+
+    def test_gas_angular_momentum_boundaries_copy_without_sign_change(self):
+        fluid = Fluid()
+        fluid.specific_angular_momentum = np.arange(8, dtype=float) + 1.0
+        solver = Solver()
+        solver.SetBoundary(None, fluid, Par('Periodic'))
+        np.testing.assert_array_equal(
+            fluid.specific_angular_momentum[:2], [5.0, 6.0]
+        )
+        np.testing.assert_array_equal(
+            fluid.specific_angular_momentum[-2:], [3.0, 4.0]
+        )
+
+        fluid.specific_angular_momentum = np.arange(8, dtype=float) + 1.0
+        solver.SetBoundary(None, fluid, Par('Reflecting'))
+        np.testing.assert_array_equal(
+            fluid.specific_angular_momentum[:2], [4.0, 3.0]
+        )
+        np.testing.assert_array_equal(
+            fluid.specific_angular_momentum[-2:], [6.0, 5.0]
+        )
+
     def test_periodic_boundary_wraps_interior(self):
         fluid = Fluid()
         Solver().SetBoundary(None, fluid, Par('Periodic'))
