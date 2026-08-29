@@ -395,8 +395,21 @@ class Testing(unittest.TestCase):
             + np.asarray(fluid.Mass[active], dtype=float)
             * expected_acceleration[active] * 1.0e-3,
         )
+        centrifugal_work = 0.5 * (
+            old_momentum
+            + (
+                old_momentum
+                + np.asarray(fluid.Mass, dtype=float)
+                * expected_acceleration * 1.0e-3
+            )
+        ) * expected_acceleration * 1.0e-3
         np.testing.assert_allclose(
-            np.asarray(fluid.Energy, dtype=float), old_energy
+            np.asarray(fluid.Energy, dtype=float),
+            old_energy + centrifugal_work,
+        )
+        np.testing.assert_allclose(
+            solver.last_centrifugal_work,
+            np.sum(centrifugal_work[active]),
         )
 
     def test_periodic_boundary_wraps_interior(self):

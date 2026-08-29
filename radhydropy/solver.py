@@ -44,6 +44,8 @@ class Solver():
         self.dual_energy_total_valid = None
         self.dual_energy_dual_valid = None
         self.dual_energy_pressure_selection_code = None
+        self.last_centrifugal_work = 0.0
+        self.last_centrifugal_work_by_cell = None
 
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
@@ -2141,6 +2143,8 @@ class Solver():
         if rotational_support and getattr(mesh, 'coordsys', None) != 'spherical':
             raise ValueError('gas_rotational_energy requires a spherical mesh')
         if gravity is None and not rotational_support:
+            self.last_centrifugal_work = 0.0
+            self.last_centrifugal_work_by_cell = None
             self.last_gravity_work_by_cell = (
                 np.zeros(int(par.nogrid), dtype=float)
                 if getattr(par, "energy_diagnostics", False) else None
@@ -2206,19 +2210,26 @@ class Solver():
             )
             rotational_acceleration[~valid_radius] = 0.0
 
-        # Apply gravity and centrifugal momentum sources as one coupled
-        # momentum update.  Gravity does work on the radial flow; centrifugal
-        # work is exchanged with the rotational-energy reservoir and is not an
-        # independent source of total energy.  Use the trapezoidal work of the
-        # combined source update so equal and opposite forces leave a circular
-        # orbit's total energy unchanged.
+        # Apply gravity and centrifugal momentum sources as sequential coupled
+        # source updates. Each work term uses the midpoint momentum for that
+        # source, so the energy update is consistent with the momentum update.
+        # Centrifugal work is the radial part of the exchange with the
+        # rotational reservoir; E_rot is reconstructed from J/M and radius in
+        # SetPrimitive, while advective/geometric exchange is handled by the
+        # rotational-energy flux.
         dt_value = float(np.asarray(dt, dtype=float))
         gravity_momentum = momentum + mass * gravity_acceleration * dt_value
         new_momentum = gravity_momentum + mass * rotational_acceleration * dt_value
         gravity_work = 0.5 * (
-            momentum + new_momentum
+            momentum + gravity_momentum
         ) * gravity_acceleration * dt_value
-        new_energy = np.asarray(fluid.Energy, dtype=float) + gravity_work
+        centrifugal_work = 0.5 * (
+            gravity_momentum + new_momentum
+        ) * rotational_acceleration * dt_value
+        new_energy = (
+            np.asarray(fluid.Energy, dtype=float)
+            + gravity_work + centrifugal_work
+        )
         fluid.Mom[...] = new_momentum
         fluid.Energy[...] = new_energy
         self.last_gravity_work = float(
@@ -2226,6 +2237,11 @@ class Solver():
         )
         self.last_gravity_work_by_cell = (
             np.asarray(gravity_work[interior], dtype=float).copy()
+            if getattr(par, "energy_diagnostics", False) else None
+        )
+        self.last_centrifugal_work = float(np.sum(centrifugal_work[interior]))
+        self.last_centrifugal_work_by_cell = (
+            np.asarray(centrifugal_work[interior], dtype=float).copy()
             if getattr(par, "energy_diagnostics", False) else None
         )
         self.last_dark_matter_substeps = int(

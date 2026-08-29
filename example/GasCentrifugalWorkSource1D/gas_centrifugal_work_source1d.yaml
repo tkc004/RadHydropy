@@ -1,0 +1,36 @@
+runparams:
+  simname: GasCentrifugalWorkSource1D
+  ICfilename: outputs/InitialCondition.hdf5
+  outdir: outputs
+  savedir: outputs
+  outfileprefix: Output
+  coordsys: spherical
+  EOStype: polytropic
+  gamma: 1.4
+  gas_angular_momentum: true
+  gas_rotational_energy: true
+  dual_energy: true
+  positivity_preserving: false
+  boundcond: Reflecting
+  noghost: 2
+  nogrid: 1
+  dtmax: 1.0e-3
+  dtmin: 1.0e-8
+  timesim: 0.1
+  outdeltatime: 0.05
+  temperature: 1.0e-8
+  CodeUnits:
+    name: gas_centrifugal_work_source_units
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  radius: 1.0
+  density: 1.0
+  radial_velocity: -0.2
+  specific_angular_momentum: 0.7
+  timestep: 1.0e-3

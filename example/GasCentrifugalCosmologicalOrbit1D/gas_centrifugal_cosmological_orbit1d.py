@@ -237,8 +237,40 @@ def main(config_filename=CONFIG):
         ode_final[:, index] = shell_reference.y[:, -1]
     order = np.argsort(ode_final[0])
     ode_velocity = np.interp(sim_radius, ode_final[0, order], ode_final[1, order])
+    simulation_velocity_error = float(
+        np.max(np.abs(sim_velocity - ode_velocity))
+    )
+    simulation_j_error = float(
+        np.max(np.abs(sim_j - np.sqrt(central_mass * sim_radius)))
+    )
+    # The 32-cell Eulerian run is intentionally lightweight; retain a
+    # regression tolerance that reflects its finite-volume shell mixing.
+    if simulation_velocity_error > 4.0e-2:
+        raise RuntimeError(
+            'saved cosmological Rsim velocity disagrees with Eulerian-mapped '
+            'ODE: max error = %.6g' % simulation_velocity_error
+        )
+    if simulation_j_error > 3.0e-3:
+        raise RuntimeError(
+            'saved cosmological Rsim J/M drifted from the initialized profile: '
+            'max error = %.6g' % simulation_j_error
+        )
+    sim_temperature = np.asarray(saved_fluid.temp[sim_active], dtype=float)
+    sim_density = np.asarray(saved_fluid.rho[sim_active], dtype=float)
+    sim_mu = np.asarray(saved_fluid.mu[sim_active], dtype=float)
+    sim_pressure = np.asarray(
+        simulation.fluid.eos.pressure(sim_density, sim_temperature, sim_mu),
+        dtype=float,
+    )
+    # This is the local thermal-pressure scale divided by the circular
+    # centrifugal scale.  It is a diagnostic, not an extra source term.
+    pressure_support_ratio = np.divide(
+        sim_pressure / np.maximum(sim_density, np.finfo(float).tiny),
+        central_mass / np.maximum(sim_radius, np.finfo(float).tiny),
+    )
     simulation_figure = savedir / 'GasCentrifugalCosmologicalOrbit1D_simulation.jpg'
-    sim_fig, sim_axes = plt.subplots(1, 3, figsize=(13, 4))
+    sim_fig, sim_axes = plt.subplots(2, 2, figsize=(11, 7))
+    sim_axes = sim_axes.flat
     sim_axes[0].plot(sim_radius, sim_velocity, 'o-', label='saved Rsim')
     sim_axes[0].plot(sim_radius, ode_velocity, '--', label='Eulerian-mapped ODE')
     sim_axes[0].set_ylabel('supercomoving radial velocity')
@@ -250,6 +282,12 @@ def main(config_filename=CONFIG):
     sim_axes[1].set_ylabel('specific angular momentum')
     sim_axes[2].plot(sim_radius, sim_energy, 'o-', label='saved total energy')
     sim_axes[2].set_ylabel('total energy')
+    sim_axes[3].semilogy(
+        sim_radius, np.maximum(pressure_support_ratio, np.finfo(float).tiny),
+        'o-', label=r'$p/\rho\,/\,(GM/x)$',
+    )
+    sim_axes[3].axhline(1.0, color='k', linestyle=':', linewidth=1.0)
+    sim_axes[3].set_ylabel('thermal / centrifugal scale')
     for axis in sim_axes:
         axis.set_xlabel('comoving radius $x$')
         axis.grid(alpha=0.25)
@@ -261,6 +299,9 @@ def main(config_filename=CONFIG):
     print('cosmological eccentric-orbit analytic check passed')
     print('maximum comoving-radius error = %.6g' % radius_error)
     print('maximum supercomoving-velocity error = %.6g' % velocity_error)
+    print('maximum saved-Rsim velocity error = %.6g' % simulation_velocity_error)
+    print('maximum saved J/M profile error = %.6g' % simulation_j_error)
+    print('maximum thermal/centrifugal scale = %.6g' % np.max(pressure_support_ratio))
     print('figure = %s' % figure)
     print('simulation figure = %s' % simulation_figure)
 
