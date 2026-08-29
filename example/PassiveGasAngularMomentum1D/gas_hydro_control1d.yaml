@@ -1,0 +1,38 @@
+runparams:
+  simname: GasHydroControl1D
+  ICfilename: GasHydroControl1D_InitialCondition.hdf5
+  outdir: outputs_control
+  savedir: outputs_control
+  outfileprefix: Output
+  coordsys: cartesian
+  EOStype: polytropic
+  gamma: 1.4
+  gas_angular_momentum: false
+  timesim: {value: 0.2, unit: s}
+  outdeltatime: {value: 0.1, unit: s}
+  CFL: 0.1
+  dtmin: {value: 1.0e-8, unit: s}
+  dtmax: {value: 0.05, unit: s}
+  boundcond: Periodic
+  noghost: 2
+  order: 0
+  verbose: 0
+  CodeUnits:
+    name: gas_hydro_control_cgs
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  nogrid: 32
+  coordsys: cartesian
+  boxsize: {value: 1.0, unit: cm}
+  time: {value: 0.0, unit: s}
+  rhoini: {value: 1.0, unit: g/cm**3}
+  vini: {value: 0.1, unit: cm/s}
+  tempini: {value: 1.0e-10, unit: K}
+  muini: 1.0
+  include_angular_momentum: false

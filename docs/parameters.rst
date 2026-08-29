@@ -100,6 +100,15 @@ Common Runtime Keys
      - Record per-cell energy-work terms and cumulative energy-audit data.
        The default is ``false``.
      - boolean
+   * - ``gas_angular_momentum``
+     - Enable signed gas specific-angular-momentum storage and conservative
+       transport. The default is ``false``.
+     - boolean
+   * - ``gas_rotational_energy``
+     - Include ``E_rot = J**2/(2*M*r**2)`` in conserved ``Energy``. Requires
+       ``gas_angular_momentum: true`` and a spherical mesh; the default is
+       ``false``.
+     - boolean
    * - ``temperature``
      - Default gas/background temperature used for scalar temperature
        parameters. The default is ``2.7 K``.
@@ -659,3 +668,35 @@ For a supercomoving run, set at minimum:
    cosmology_type: einstein_de_sitter
    cosmology_t_ref: 1.0
    cosmology_a_ref: 1.0
+
+Angular momentum in supercomoving coordinates
+----------------------------------------------
+
+For an optional rotating gas field, ``specific_angular_momentum`` denotes the
+physical specific angular momentum
+
+.. math::
+
+   j = r_{\rm phys} v_\phi.
+
+In a supercomoving run, the mesh coordinate is the comoving radius ``x`` and
+the tangential velocity transforms as
+
+.. math::
+
+   v_{\phi,{\rm sc}} = a v_{\phi,{\rm phys}}, \qquad
+   r_{\rm phys} = a x.
+
+Consequently the stored field is scale-factor invariant:
+
+.. math::
+
+   j = r_{\rm phys}v_{\phi,{\rm phys}}
+     = x v_{\phi,{\rm sc}}.
+
+Do not multiply ``specific_angular_momentum`` by a scale-factor power when
+converting physical initial conditions. The Hubble subtraction in the
+supercomoving velocity conversion is radial and does not affect this
+tangential field. The same invariant applies to the conserved field
+``AngularMomentum = rho * j * volume``; only the density and volume
+representations carry the usual comoving scale factors.

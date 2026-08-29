@@ -241,15 +241,26 @@ def load_lcdm_correlation_table(filename):
 def generate_lcdm_correlation_table(
     filename=None, radius_mpc_h=None, k_hmpc=None,
     omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965, sigma8=0.811,
-    omega_lambda=0.685,
+    omega_lambda=0.685, k_min_hmpc=None,
 ):
-    """Generate and optionally write a tabulated linear LCDM correlation."""
+    """Generate a linear correlation table, optionally with a box cutoff.
+
+    ``k_min_hmpc`` removes modes larger than the modeled comoving box.  The
+    same cutoff is used in the correlation integral and in the stored power
+    spectrum, so the table describes the finite-volume realization rather
+    than an infinite-volume correlation function.
+    """
     if radius_mpc_h is None:
         radius_mpc_h = np.geomspace(1.0e-2, 3.0e3, 1024)
     if k_hmpc is None:
-        k_hmpc = np.geomspace(1.0e-5, 1.0e3, 8192)
+        k_lower = 1.0e-5 if k_min_hmpc is None else float(k_min_hmpc)
+        if k_lower <= 0.0:
+            raise ValueError("k_min_hmpc must be positive")
+        k_hmpc = np.geomspace(k_lower, 1.0e3, 8192)
     radius_mpc_h = np.asarray(radius_mpc_h, dtype=float)
     k_hmpc = np.asarray(k_hmpc, dtype=float)
+    if k_min_hmpc is not None and np.min(k_hmpc) < float(k_min_hmpc):
+        raise ValueError("k_hmpc contains modes below k_min_hmpc")
     power = linear_matter_power_spectrum(
         k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
         n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
@@ -274,5 +285,7 @@ def generate_lcdm_correlation_table(
                 "omega_lambda": omega_lambda, "n_s": n_s, "sigma8": sigma8,
             }.items():
                 handle.attrs[key] = float(value)
+            if k_min_hmpc is not None:
+                handle.attrs["k_min_hmpc"] = float(k_min_hmpc)
             handle.attrs["transfer_function"] = "Eisenstein-Hu no-wiggle"
     return result

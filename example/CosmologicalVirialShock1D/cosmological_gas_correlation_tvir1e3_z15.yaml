@@ -44,7 +44,10 @@ runparams:
   energy_diagnostics: true
   plot_exclude_outer_cells: 2
   gas_profile_cadence: 0.05
-  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  # EdS transfer shape with modes larger than this 1 Mpc comoving domain
+  # removed (k_min = 2 pi / L_box).  This matches the evolution cosmology
+  # and the finite radial box used by this test.
+  linear_correlation_table_filename: outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5
   thermochemistry_network: hydrogen
   hydrogen_chemistry: false
   hydrogen_atomic_cooling: false
@@ -72,8 +75,14 @@ ICparams:
   verbal: 1
   initial_cosmic_time: 0.01418666885
   perturbation_radius: 250.0
-  target_halo_mass: 100.0
-  initial_overdensity: 0.0166930693
+  # Code mass units are 1e10 Msun.  A 1e-4 target therefore corresponds to
+  # 1e6 Msun, appropriate for Tvir~1e3 K at z=15.  Keeping this mass scale
+  # below the finite 1 Mpc box is essential for the correlation profile.
+  target_halo_mass: 1.0e-4
+  # Calibrate the linear perturbation to collapse at z=20, leaving the
+  # simulation time from z=20 to z=15 for shell crossing and virialization.
+  # EdS: delta_i = delta_c D_i/D_coll = 1.686*(21/101) = 0.3503168.
+  initial_overdensity: 0.3503168317
   initial_density_profile: linear_correlation
   correlation_h: 0.674
   baryon_fraction: 0.157

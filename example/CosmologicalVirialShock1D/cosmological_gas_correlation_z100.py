@@ -526,7 +526,7 @@ def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
 
 
 def plot_baryon_normalized_density_comparison(
-    gas_profiles, dm_profiles, baryon_fraction, filename,
+    gas_profiles, dm_profiles, baryon_fraction, virial_radius, filename,
 ):
     """Compare gas and DM profiles after removing their cosmic fractions."""
     selected = np.unique(
@@ -534,6 +534,7 @@ def plot_baryon_normalized_density_comparison(
     )
     colors = plt.get_cmap("viridis")(np.linspace(0.05, 0.95, selected.size))
     fb = float(baryon_fraction)
+    virial_radius = np.asarray(virial_radius, dtype=float)
     all_comoving = np.concatenate([
         np.asarray(profile["dm_radius_kpc"], dtype=float)
         / float(profile["scale_factor"])
@@ -574,13 +575,22 @@ def plot_baryon_normalized_density_comparison(
         axes[0].loglog(bin_radii[valid], gas_density[valid], color=color, lw=1.5, label=label + " gas/$f_b$")
         axes[0].loglog(bin_radii[valid], dm_density[valid], color=color, lw=1.0, ls="--", alpha=0.85, label=label + " DM/$1-f_b$")
         axes[1].semilogx(bin_radii[valid], gas_density[valid] / dm_density[valid], color=color, lw=1.5)
+        if index < virial_radius.size and np.isfinite(virial_radius[index]):
+            rvir_comoving = virial_radius[index] / scale_factor
+            axes[0].axvline(
+                rvir_comoving, color=color, ls=":", lw=1.5,
+                label=label + r" $r_{200}$",
+            )
+            axes[1].axvline(
+                rvir_comoving, color=color, ls=":", lw=1.2,
+            )
     axes[0].set_ylabel(r"density / cosmic fraction")
     axes[0].set_title("Gas versus dark matter (densities normalized by cosmic fractions)")
     axes[0].legend(fontsize=7, ncol=2)
     axes[0].grid(alpha=0.25, which="both")
     axes[1].axhline(1.0, color="black", ls=":", lw=1.0)
     axes[1].set_ylabel(r"$(\rho_g/f_b)/(\rho_{DM}/(1-f_b))$")
-    axes[1].set_xlabel("proper radius [kpc]")
+    axes[1].set_xlabel("comoving radius [kpc]")
     axes[1].set_ylim(1.0e-2, 1.0e2)
     axes[1].set_yscale("log")
     axes[1].grid(alpha=0.25, which="both")
@@ -1518,6 +1528,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
     plot_baryon_normalized_density_comparison(
         plot_gas_profiles, dm_profiles, icparams["baryon_fraction"],
+        virial_radius,
         density_comparison_figure,
     )
     dm_data_file = output_dir / (figure_prefix + "_DarkMatterDensities.npz")

@@ -500,10 +500,18 @@ class Solver():
             fluid.specific_angular_momentum = as_named_array(
                 specific_angular_momentum
             )
+        rotational_energy_density = self._rotational_energy_density(
+            mesh, fluid, par
+        )
         density_floor = self._cfl_density_floor(par)
         numerical_vacuum = active & (rho <= density_floor)
         fluid.vel[numerical_vacuum] = 0.0
-        energy_density = as_named_array(energy_density)
+        # Conserved Energy contains rotational kinetic energy when the opt-in
+        # model is enabled; pressure sees only thermal plus radial kinetic
+        # energy at this stage.
+        energy_density = as_named_array(
+            energy_density - rotational_energy_density
+        )
         total_pressure = fluid.eos.pressure_from_conserved(
             fluid.rho,
             fluid.vel,
@@ -707,11 +715,6 @@ class Solver():
         vol = mesh.vol
         fluid.Mass = as_named_array(fluid.rho * vol)
         fluid.Mom = as_named_array(fluid.rho * fluid.vel * vol)
-        fluid.Energy = as_named_array(fluid.eos.total_energy_density(
-            fluid.rho,
-            fluid.vel,
-            fluid.pre,
-        ) * vol)
         if hasattr(fluid, 'specific_angular_momentum') or old_angular_momentum is not None:
             specific_angular_momentum = np.asarray(
                 getattr(fluid, 'specific_angular_momentum',
@@ -721,6 +724,15 @@ class Solver():
             fluid.AngularMomentum = as_named_array(
                 fluid.rho * specific_angular_momentum * vol
             )
+        rotational_energy_density = self._rotational_energy_density(
+            mesh, fluid, par
+        )
+        fluid.Energy = as_named_array(
+            (
+                fluid.eos.total_energy_density(fluid.rho, fluid.vel, fluid.pre)
+                + rotational_energy_density
+            ) * vol
+        )
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         if old_total_energy is not None:
@@ -854,6 +866,31 @@ class Solver():
     @staticmethod
     def _dual_energy_enabled(par):
         return bool(getattr(par, 'dual_energy', False))
+
+    @staticmethod
+    def _rotational_energy_enabled(par):
+        return bool(getattr(par, 'gas_rotational_energy', False))
+
+    def _rotational_energy_density(self, mesh, fluid, par):
+        """Return opt-in rotational kinetic-energy density."""
+        rho = np.asarray(fluid.rho, dtype=float)
+        result = np.zeros_like(rho)
+        if not self._rotational_energy_enabled(par):
+            return result
+        if not getattr(par, 'gas_angular_momentum', False):
+            raise ValueError(
+                'gas_rotational_energy requires gas_angular_momentum: true'
+            )
+        if getattr(mesh, 'coordsys', None) != 'spherical':
+            raise ValueError('gas_rotational_energy requires a spherical mesh')
+        radius = np.asarray(mesh.coordinate, dtype=float)
+        specific = np.asarray(fluid.specific_angular_momentum, dtype=float)
+        valid = (
+            np.isfinite(rho) & (rho > 0.0)
+            & np.isfinite(specific) & np.isfinite(radius) & (radius > 0.0)
+        )
+        result[valid] = 0.5 * rho[valid] * specific[valid]**2 / radius[valid]**2
+        return result
 
     @staticmethod
     def _dual_energy_eta(par, name, legacy):

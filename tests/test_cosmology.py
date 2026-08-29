@@ -99,6 +99,25 @@ def test_supercomoving_variable_round_trip():
     assert np.allclose(physical_velocity(velocity, radius, a, hubble), physical_vel)
 
 
+def test_supercomoving_specific_angular_momentum_is_scale_factor_invariant():
+    cosmology = EinsteinDeSitter()
+    tau = cosmology.supercomoving_time(2.0)
+    class Par:
+        time = tau
+    par = Par()
+    par.cosmology = cosmology
+    a, _ = supercomoving_scale(par)
+
+    comoving_radius = np.array([2.0, 4.0])
+    physical_tangential_velocity = np.array([3.0, -1.5])
+    physical_radius = a * comoving_radius
+    supercomoving_tangential_velocity = a * physical_tangential_velocity
+
+    physical_j = physical_radius * physical_tangential_velocity
+    supercomoving_j = comoving_radius * supercomoving_tangential_velocity
+    assert np.allclose(supercomoving_j, physical_j)
+
+
 def test_cosmology_header_round_trip_and_supercomoving_input_output():
     units = code_units()
     cosmology = EinsteinDeSitter.from_code_units(units)

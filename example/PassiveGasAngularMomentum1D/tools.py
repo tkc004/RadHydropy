@@ -41,7 +41,8 @@ class Simwrap:
         self.fluid.vel = np.ones(self.par.nogrid) * icparams['vini']
         self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
-        self.fluid.specific_angular_momentum = (
-            icparams['angular_momentum_offset']
-            + icparams['angular_momentum_amplitude'] * np.sin(phase)
-        )
+        if icparams.get('include_angular_momentum', True):
+            self.fluid.specific_angular_momentum = (
+                icparams['angular_momentum_offset']
+                + icparams['angular_momentum_amplitude'] * np.sin(phase)
+            )

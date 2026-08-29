@@ -326,6 +326,42 @@ class Testing(unittest.TestCase):
             atol=1.0e-13,
         )
 
+    def test_optional_rotational_energy_is_added_and_removed_for_pressure(self):
+        par = make_code_par('Periodic')
+        par.gas_angular_momentum = True
+        par.gas_rotational_energy = True
+        mesh = make_code_mesh(n=12)
+        mesh.coordsys = 'spherical'
+        mesh._par = par
+        mesh.coordinate = np.arange(12, dtype=float) + 0.5
+        fluid = make_code_fluid(n=8)
+        fluid.SetUpFluid(par, mesh=mesh)
+        fluid.specific_angular_momentum[:] = 0.5
+
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        solver.SetConserved(mesh, fluid)
+        active = slice(par.noghost, par.noghost + par.nogrid)
+        rho = np.asarray(fluid.rho[active], dtype=float)
+        radius = np.asarray(mesh.coordinate[active], dtype=float)
+        volume = np.asarray(mesh.vol[active], dtype=float)
+        hydro_energy = np.asarray(
+            fluid.eos.total_energy_density(
+                fluid.rho[active], fluid.vel[active], fluid.pre[active]
+            ) * volume,
+            dtype=float,
+        )
+        expected_rotational = 0.5 * rho * 0.5**2 / radius**2 * volume
+        np.testing.assert_allclose(
+            np.asarray(fluid.Energy[active], dtype=float),
+            hydro_energy + expected_rotational,
+        )
+        pressure_before = np.asarray(fluid.pre[active], dtype=float).copy()
+        solver.SetPrimitive(mesh, fluid, par=par)
+        np.testing.assert_allclose(
+            np.asarray(fluid.pre[active], dtype=float), pressure_before
+        )
+
     def test_periodic_boundary_wraps_interior(self):
         fluid = Fluid()
         Solver().SetBoundary(None, fluid, Par('Periodic'))
