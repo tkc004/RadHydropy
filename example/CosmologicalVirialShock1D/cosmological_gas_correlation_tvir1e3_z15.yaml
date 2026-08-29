@@ -1,9 +1,9 @@
 runparams:
   simname: CosmologicalGasCorrelationTvir1e3Z15
   figure_prefix: CosmologicalGasCorrelationTvir1e3Z15
-  ICfilename: outputs_correlation_gas_tvir1e3_z15/InitialCondition.hdf5
-  outdir: outputs_correlation_gas_tvir1e3_z15
-  savedir: outputs_correlation_gas_tvir1e3_z15
+  ICfilename: outputs_correlation_gas_tvir1e3_z15_gas1024/InitialCondition.hdf5
+  outdir: outputs_correlation_gas_tvir1e3_z15_gas1024
+  savedir: outputs_correlation_gas_tvir1e3_z15_gas1024
   outfileprefix: Output
   coordsys: spherical
   EOStype: polytropic
@@ -69,7 +69,7 @@ runparams:
       UnitTemp_in_cgs: 1.0
 
 ICparams:
-  nogrid: 512
+  nogrid: 1024
   rmin: 3.0
   rmax: 4000.0
   verbal: 1
