@@ -813,7 +813,7 @@ def _pad_energy_history(history, key, fill=np.nan):
 
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         output_suffix=None, riemann_solver=None,
-        dual_energy_entropy_limiter=None):
+        dual_energy_entropy_limiter=None, dual_energy=None, cfl=None):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
     # This workflow always produces energy-balance plots and per-cell energy
@@ -825,6 +825,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         runparams["dual_energy_entropy_limiter"] = bool(
             dual_energy_entropy_limiter
         )
+    if dual_energy is not None:
+        runparams["dual_energy"] = bool(dual_energy)
+    if cfl is not None:
+        runparams["CFL"] = float(cfl)
     if runparams.get("compton_only", False):
         runparams.update({
             "hydrogen_recombination": False,
@@ -1599,6 +1603,10 @@ if __name__ == "__main__":
         "--disable-dual-energy-entropy-limiter", action="store_true",
         help="disable the experimental dual-energy entropy limiter",
     )
+    parser.add_argument(
+        "--cfl", type=float, default=None,
+        help="override the configured CFL number for this run",
+    )
     args = parser.parse_args()
     run(
         args.config,
@@ -1608,4 +1616,5 @@ if __name__ == "__main__":
         dual_energy_entropy_limiter=(
             False if args.disable_dual_energy_entropy_limiter else None
         ),
+        cfl=args.cfl,
     )

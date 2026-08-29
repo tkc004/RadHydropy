@@ -75,7 +75,8 @@ refparams = {
     'dual_energy_consistency_factor': 1.0e-1,
     'dual_energy_entropy_limiter': True,
     # Pressure source in dual-energy mode: 'switch' selects between E-K and
-    # InternalEnergy; 'conservative' always selects admissible E-K.
+    # InternalEnergy; 'internal' always selects the evolved InternalEnergy;
+    # 'conservative' always selects admissible E-K.
     'dual_energy_pressure_selection': 'switch',
     # Code-unit pressure used only when both energy estimates are invalid.
     'dual_energy_pressure_floor': 1.0e-20,

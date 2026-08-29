@@ -658,6 +658,33 @@ class Testing(unittest.TestCase):
             (fluid.eos.gamma - 1.0) * float(fluid.InternalEnergy[0]),
         )
 
+    def test_internal_pressure_selection_uses_evolved_internal_energy(self):
+        """The YAML internal mode must not reconstruct pressure from E-K."""
+        par = make_code_par()
+        par.noghost = 0
+        par.nogrid = 1
+        par.cfl_density_floor = 0.0
+        par.dual_energy = True
+        par.dual_energy_pressure_selection = 'internal'
+        mesh = make_code_mesh(1)
+        mesh._par = par
+        fluid = make_code_fluid(1)
+        fluid.rho[:] = 1.0
+        fluid.vel[:] = 10.0
+        fluid.pre = as_named_array(np.ones(1))
+        solver = Solver()
+        solver.SetConserved(mesh, fluid)
+        fluid.Energy[:] = 0.5 * fluid.Mom[:]**2 / fluid.Mass[:] + 1.0e-12
+        fluid.InternalEnergy[:] = 1.0e-2
+
+        solver.SetPrimitive(mesh, fluid, par=par)
+
+        self.assertEqual(int(solver.dual_energy_pressure_selection_code[0]), 1)
+        self.assertAlmostEqual(
+            float(fluid.pre[0]),
+            (fluid.eos.gamma - 1.0) * float(fluid.InternalEnergy[0]),
+        )
+
     def test_spherical_origin_flux_is_zeroed(self):
         mesh = Mesh()
         mesh.coordsys = 'spherical'

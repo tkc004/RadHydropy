@@ -578,7 +578,14 @@ class Solver():
             if pressure_selection in ('conservative', 'e-k', 'ek'):
                 use_total = total_valid
                 use_dual = np.zeros_like(use_total, dtype=bool)
-            conservative_pressure = pressure_selection in ('conservative', 'e-k', 'ek')
+            elif pressure_selection in (
+                'internal', 'internal-energy', 'dual', 'dual-energy'
+            ):
+                # Use the independently evolved internal-energy equation for
+                # primitive pressure reconstruction.  Total Energy remains
+                # the conservative flux variable and is retained for audits.
+                use_total = np.zeros_like(use_total, dtype=bool)
+                use_dual = dual_valid
 
             # Preserve the exact same-state quantities used below for
             # pressure selection.  Codes: -1 inactive, 0 conservative E-K,
