@@ -553,25 +553,25 @@ class Solver():
                 out=np.full_like(internal_density, np.inf),
                 where=total_valid,
             )
-            # A dual estimate is safe only while the conservative state is
-            # admissible and the two thermal estimates agree.  The previous
-            # logic checked only the lower ratio bound and, more seriously,
-            # allowed a positive dual state to override an invalid E-K state.
-            # That can create pressure from energy which is not present in the
-            # conservative state and is the high-Mach failure seen at 256
-            # cells.  Reject both too-small and too-large ratios.
+            # If dual thermal energy is much larger than conservative E-K,
+            # cancellation has made E-K unusably small even though it remains
+            # formally positive.  Prefer the independently evolved dual
+            # estimate in that case.  Conversely, if dual energy is much
+            # smaller than E-K, retain the conservative estimate.  Rejecting
+            # the dual estimate in both directions was the source of the
+            # artificial near-zero temperatures outside strong shocks.
             upper_consistency_factor = (
                 1.0 / consistency_factor if consistency_factor > 0.0 else np.inf
             )
-            inconsistent_dual = dual_valid & (
-                ~total_valid
+            dual_preferred = dual_valid & (
+                ~total_valid | (dual_to_total > upper_consistency_factor)
+            )
+            use_total = total_valid & ~dual_preferred & (
+                (thermal_fraction > eta1)
+                | ~dual_valid
                 | (dual_to_total < consistency_factor)
-                | (dual_to_total > upper_consistency_factor)
             )
-            use_total = total_valid & (
-                (thermal_fraction > eta1) | ~dual_valid | inconsistent_dual
-            )
-            use_dual = dual_valid & ~use_total & ~inconsistent_dual
+            use_dual = dual_valid & ~use_total
             pressure_selection = str(getattr(
                 par, 'dual_energy_pressure_selection', 'switch'
             )).lower()
