@@ -293,6 +293,67 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
     plt.close(fig)
 
 
+def plot_specific_angular_momentum_evolution(
+    times, radius, density, specific_angular_momentum, virial_radius,
+    splashback_radius, scale_factors, filename, radial_bin_count=32,
+):
+    """Plot the signed gas specific-angular-momentum profile evolution."""
+    selected = np.unique(
+        np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
+    )
+    colors = plt.get_cmap("viridis")(np.linspace(0.05, 0.95, selected.size))
+    fig, axes = plt.subplots(
+        2, 1, figsize=(8.0, 8.0),
+        gridspec_kw={"height_ratios": (3.0, 1.25)},
+    )
+    for color, index in zip(colors, selected):
+        values = np.asarray(specific_angular_momentum[index], dtype=float)
+        cell_edges = np.empty(radius.size + 1, dtype=float)
+        if radius.size > 1:
+            cell_edges[1:-1] = np.sqrt(radius[:-1] * radius[1:])
+            cell_edges[0] = radius[0] ** 2 / cell_edges[1]
+            cell_edges[-1] = radius[-1] ** 2 / cell_edges[-2]
+        else:
+            cell_edges[:] = (0.5 * radius[0], 1.5 * radius[0])
+        mass_weight = np.asarray(density[index], dtype=float) * np.maximum(
+            np.diff(cell_edges ** 3), 0.0
+        )
+        binned_radius, binned_j = _log_radial_bin_profile(
+            radius, values, weights=mass_weight, bin_count=radial_bin_count,
+            log_weighted=False,
+        )
+        axes[0].semilogx(
+            binned_radius, binned_j,
+            color=color, lw=1.7, label="t = %.2f Gyr" % times[index],
+        )
+        if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
+            axes[0].axvline(
+                virial_radius[index] / scale_factors[index],
+                color=color, ls="--", lw=0.9, alpha=0.65,
+            )
+    axes[0].set_xlabel("comoving radius [kpc]")
+    axes[0].set_ylabel("specific angular momentum [code units]")
+    axes[0].set_title(
+        "Gas specific-angular-momentum evolution from the z=100 LCDM IC\n"
+        "solid: j; dashed: corresponding virial radius"
+    )
+    axes[0].grid(alpha=0.25, which="both")
+    axes[0].legend(loc="best", fontsize=8, ncol=3)
+    finite = np.isfinite(virial_radius) & (virial_radius > 0.0)
+    if np.any(finite):
+        axes[1].plot(
+            times[finite], virial_radius[finite] / scale_factors[finite],
+            "k.-", label=r"$r_{200}$",
+        )
+    axes[1].set_xlabel("cosmic time [Gyr]")
+    axes[1].set_ylabel("comoving radius [kpc]")
+    axes[1].grid(alpha=0.25)
+    axes[1].legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=200)
+    plt.close(fig)
+
+
 def plot_temperature_density_evolution(
     times, density, temperature, filename, bin_count=48, ymin=0.1,
     density_to_nH_cm3=1.0,
@@ -1073,6 +1134,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         gas_profile["temperature_physical_K"] = (
             np.asarray(sim.fluid.temp[first:last], dtype=float) / scale_factor**2
         )
+        if hasattr(sim.fluid, "specific_angular_momentum"):
+            gas_profile["specific_angular_momentum"] = np.asarray(
+                sim.fluid.specific_angular_momentum[first:last], dtype=float
+            ).copy()
         physical_velocity = cosmology.physical_velocity(
             np.asarray(sim.mesh.coordinate[first:last], dtype=float),
             np.asarray(sim.fluid.vel[first:last], dtype=float),
@@ -1357,6 +1422,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     velocity = np.asarray(
         [item["velocity_physical_km_s"] for item in gas_profiles]
     )
+    specific_angular_momentum = np.asarray(
+        [item.get("specific_angular_momentum", np.zeros_like(radius))
+         for item in gas_profiles]
+    )
     radial_velocity = np.asarray(
         [item["radial_velocity_physical_km_s"] for item in gas_profiles]
     )
@@ -1376,6 +1445,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "radius_proper_kpc", "density_proper_code",
             "temperature_physical_K", "velocity_physical_km_s",
             "radial_velocity_physical_km_s",
+            "specific_angular_momentum",
         ):
             if key in trimmed:
                 trimmed[key] = np.asarray(trimmed[key])[:plot_cell_count]
@@ -1396,6 +1466,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
              temperature_physical_K=temperature,
              velocity_physical_km_s=velocity,
              radial_velocity_physical_km_s=radial_velocity,
+             specific_angular_momentum=specific_angular_momentum,
              q_erg_cm3_s=np.asarray([item["q_erg_cm3_s"] for item in gas_profiles]),
              rho_dot_g_cm3_s=np.asarray([item["rho_dot_g_cm3_s"] for item in gas_profiles]),
              specific_energy_erg_g=np.asarray([item["specific_energy_erg_g"] for item in gas_profiles]),
@@ -1561,6 +1632,15 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         inner_radius=float(icparams.get("inner_wall_radius_comoving", icparams["rmin"])),
         box_boundary=float(icparams["rmax"]),
     )
+    specific_angular_momentum_figure = output_dir / (
+        figure_prefix + "_SpecificAngularMomentum.jpg"
+    )
+    plot_specific_angular_momentum_evolution(
+        times, plot_radius, plot_density,
+        specific_angular_momentum[:, :plot_cell_count],
+        virial_radius, splashback_radius, scale_factors,
+        specific_angular_momentum_figure,
+    )
     density_figure = output_dir / (figure_prefix + "_Densities.jpg")
     cosmic_gas_density_z0 = baryon_fraction * float(
         cosmology.background_density(cosmology.t_ref)
@@ -1631,6 +1711,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("figure = %s" % figure)
     print("radius figure = %s" % radius_figure)
     print("temperature figure = %s" % temperature_figure)
+    print("specific-angular-momentum figure = %s" % specific_angular_momentum_figure)
     print("entropy figure = %s" % (output_dir / (figure_prefix + "_Entropy.jpg")))
     print("temperature-density figure = %s" % temperature_density_figure)
     print("velocity figure = %s" % velocity_figure)

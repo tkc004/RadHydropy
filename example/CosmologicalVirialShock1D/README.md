@@ -130,3 +130,13 @@ dark-matter force (`smooth_dm_force_for_gas: true`). Shell trajectories remain
 raw and conserve shell mass; only the enclosed mass sampled by gas cells is
 interpolated linearly in `r^3`, removing 64/1024-shell force jumps without
 altering the collisionless evolution.
+
+The gas-correlation plots also include the signed specific-angular-momentum
+profile evolution. The gas initial and inflow values are `j = 0.02` in code
+units, and the profile is transported with the same mass-consistent local FCT
+scheme used by the solver. The standard output is
+`outputs_correlation_gas/CosmologicalGasCorrelationZ100_SpecificAngularMomentum.jpg`;
+the Compton+atomic run writes
+`outputs_correlation_gas_compton_atomic/CosmologicalGasCorrelationZ100_ComptonAtomic_SpecificAngularMomentum.jpg`.
+The corresponding arrays are stored as `specific_angular_momentum` in the
+main `.npz` files.
