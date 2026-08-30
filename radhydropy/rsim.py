@@ -83,20 +83,21 @@ class Rsim():
         sim.cumulative_gravity_work = 0.0
         sim.cumulative_gravity_potential_change = 0.0
         sim.cumulative_gravity_potential_flux = 0.0
+        nogrid = int(getattr(sim.par, "nogrid", 0))
         sim.cumulative_gravity_work_by_cell = np.zeros(
-            int(sim.par.nogrid), dtype=float
+            nogrid, dtype=float
         )
         sim.cumulative_hydro_energy_change_by_cell = np.zeros(
-            int(sim.par.nogrid), dtype=float
+            nogrid, dtype=float
         )
         sim.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
-            int(sim.par.nogrid), dtype=float
+            nogrid, dtype=float
         )
         sim.cumulative_compression_work_by_cell = np.zeros(
-            int(sim.par.nogrid), dtype=float
+            nogrid, dtype=float
         )
         sim.cumulative_shock_work_by_cell = np.zeros(
-            int(sim.par.nogrid), dtype=float
+            nogrid, dtype=float
         )
         sim.last_dark_matter_substeps = 0
         sim.cumulative_dark_matter_substeps = 0
@@ -321,7 +322,14 @@ class Rsim():
         gravity = getattr(self.par, 'gravity', None)
         potential_cell = None
         potential_face = None
-        if gravity is not None and hasattr(gravity, 'potential_on'):
+        if (
+            gravity is not None
+            and hasattr(gravity, 'potential_on')
+            and (
+                not hasattr(gravity, 'potential')
+                or getattr(gravity, 'potential') is not None
+            )
+        ):
             potential_cell = np.asarray(
                 gravity.potential_on(self.mesh.coordinate), dtype=float
             )

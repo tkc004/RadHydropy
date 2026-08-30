@@ -1548,7 +1548,11 @@ class Solver():
         energy = np.asarray(fluid.Energy, dtype=float).copy()
         angular = (np.asarray(fluid.AngularMomentum, dtype=float).copy()
                    if angular_face is not None else None)
-        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+        radius = (
+            np.abs(np.asarray(mesh.coordinate, dtype=float))
+            if angular is not None and hasattr(mesh, 'coordinate')
+            else None
+        )
         count = len(mass)
         first = int(getattr(par, 'noghost', 0))
         last = min(first + int(getattr(par, 'nogrid', count - first)), count)
@@ -1616,7 +1620,11 @@ class Solver():
                 return energy_value >= energy_floor[index]
             kinetic_value = 0.5 * momentum_value**2 / mass_value
             rotational_value = 0.0
-            if angular_value is not None and radius[index] > 0.0:
+            if (
+                angular_value is not None
+                and radius is not None
+                and radius[index] > 0.0
+            ):
                 rotational_value = 0.5 * angular_value**2 / (
                     mass_value * radius[index]**2
                 )
@@ -1634,6 +1642,8 @@ class Solver():
             tolerance *= 1.0 - 1.0e-8
             return internal_value >= energy_floor[index] - tolerance
 
+        geometry_increment = np.zeros_like(momentum)
+        geometry_fraction = np.ones(len(momentum), dtype=float)
         if geometric_mom is not None:
             # The spherical pressure geometry term is a momentum source while
             # total energy remains governed by the conservative energy flux.
@@ -1647,7 +1657,6 @@ class Solver():
             base_valid = valid(mass, momentum, energy, angular)
             full_geometry_momentum = momentum + geometry_increment
             full_valid = valid(mass, full_geometry_momentum, energy, angular)
-            geometry_fraction = np.ones(len(momentum), dtype=float)
             affected = physical & base_valid & ~full_valid
             for index in np.flatnonzero(affected):
                 low, high = 0.0, 1.0
@@ -1665,7 +1674,6 @@ class Solver():
                     else:
                         high = middle
                 geometry_fraction[index] = low
-            momentum = momentum + geometry_fraction * geometry_increment
 
         mass_face = np.asarray(mass_face, dtype=float)
         mom_face = np.asarray(mom_face, dtype=float)
@@ -1679,7 +1687,10 @@ class Solver():
         # Accept the unlimited conservative update immediately when possible.
         # This is the overwhelmingly common path and avoids limiter overhead.
         full_mass = mass + delta_mass - ru.periodic_roll(delta_mass, -1)
-        full_mom = momentum + delta_mom - ru.periodic_roll(delta_mom, -1)
+        full_mom = (
+            momentum + geometry_increment
+            + delta_mom - ru.periodic_roll(delta_mom, -1)
+        )
         full_energy = energy + delta_energy - ru.periodic_roll(delta_energy, -1)
         full_angular = (
             angular + delta_angular - ru.periodic_roll(delta_angular, -1)
@@ -1697,6 +1708,7 @@ class Solver():
             # is an invariant of the construction rather than something a
             # fixed number of repair passes must recover afterward.
             factors = np.zeros(len(mass_face), dtype=float)
+            momentum = momentum + geometry_fraction * geometry_increment
             total_mass = mass.copy()
             total_mom = momentum.copy()
             total_energy = energy.copy()
@@ -1951,29 +1963,6 @@ class Solver():
                 )
 
         par = getattr(mesh, '_par', None)
-        if par is None:
-            # Standalone/unit-test meshes have no physical-cell metadata.  In
-            # particular, retain the exact spherical pressure cancellation in
-            # this legacy path; configured simulations use the paired-face
-            # limiter below.
-            positivity_factor = self._positivity_limited_increment(
-                fluid, dt, mesh, par, df_Mass, df_Mom, df_Energy,
-                df_angular=(df_AngularMomentum
-                            if self._rotational_energy_enabled(par) else None),
-            )
-            fluid.Mass += positivity_factor * df_Mass * dt
-            fluid.Mom += positivity_factor * df_Mom * dt
-            fluid.Energy += positivity_factor * df_Energy * dt
-            if df_AngularMomentum is not None:
-                fluid.AngularMomentum += (
-                    positivity_factor * df_AngularMomentum * dt
-                )
-            if df_potential is not None:
-                fluid.GravitationalPotentialEnergy += (
-                    positivity_factor * df_potential * dt
-                )
-            fluid.time += dt
-            return
         geometric_mom = None
         if getattr(mesh, 'coordsys', None) == 'spherical':
             area_right = ru.periodic_roll(area, -1)
