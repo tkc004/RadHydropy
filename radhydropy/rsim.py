@@ -500,6 +500,11 @@ class Rsim():
             where=mass > 0.0,
         )
         thermal = total_energy - kinetic
+        if getattr(self.par, 'gas_rotational_energy', False):
+            rotational = self.solver._rotational_energy_from_conserved(
+                self.mesh, self.fluid, self.par
+            )
+            thermal = thermal - rotational
         valid = (
             np.isfinite(thermal[first:stop])
             & (thermal[first:stop] > 0.0)

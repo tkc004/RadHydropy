@@ -844,6 +844,22 @@ def _fast_source_scaling(fluid, par, gamma):
     }
 
 
+def _rotational_specific_energy_code(mesh, fluid, par):
+    """Return rotational specific energy in the conserved code units."""
+    if not getattr(par, 'gas_rotational_energy', False):
+        return np.zeros(par.nogrid, dtype=float)
+    interior = slice(par.noghost, par.noghost + par.nogrid)
+    mass = np.asarray(fluid.Mass[interior], dtype=float)
+    angular = np.asarray(fluid.AngularMomentum[interior], dtype=float)
+    radius = np.abs(np.asarray(mesh.coordinate[interior], dtype=float))
+    j = np.zeros_like(mass)
+    np.divide(angular, mass, out=j, where=mass > 0.0)
+    result = np.zeros_like(mass)
+    valid = (mass > 0.0) & (radius > 0.0) & np.isfinite(radius)
+    result[valid] = 0.5 * j[valid]**2 / radius[valid]**2
+    return result
+
+
 def _fast_source_state(mesh, fluid, par):
     """Return a cgs float snapshot for the fast thermo-chemistry path."""
     code = _code_units(par)
@@ -873,6 +889,7 @@ def _fast_source_state(mesh, fluid, par):
         np.asarray(fluid.Energy[interior], dtype=float)
         * unit_conversion['energy_erg']
     )
+    rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
     state = {
         'interior': interior,
         'boundary_cm': as_named_array(
@@ -1049,10 +1066,22 @@ def _fast_source_state(mesh, fluid, par):
         specific_kinetic_supercomoving = (
             0.5 * velocity_supercomoving_cm_s**2
         )
+        # Conserved Energy includes rotational kinetic energy when enabled.
+        # Remove it before sending the thermal state to the chemistry solver.
+        rotational_specific_erg_g = (
+            rotational_specific_code
+            * unit_conversion['velocity_cm_s']**2
+            / scaling['temperature_factor']
+        )
         specific_internal_physical = np.maximum(
-            specific_total_supercomoving - specific_kinetic_supercomoving,
+            specific_total_supercomoving
+            - specific_kinetic_supercomoving
+            - rotational_specific_code
+            * unit_conversion['velocity_cm_s']**2,
             0.0,
         ) / scaling['temperature_factor']
+        state['specific_rotational_energy_erg_g'] = rotational_specific_erg_g
+        state['specific_rotational_energy_code'] = rotational_specific_code
         state['specific_kinetic_energy_supercomoving_erg_g'] = (
             specific_kinetic_supercomoving
         )
@@ -2198,8 +2227,14 @@ def _fast_sync_state_to_fluid(state, fluid, par):
             state.get('specific_kinetic_energy_supercomoving_erg_g', 0.0)
             / specific_energy_code_factor
         )
+        rotational_specific_code = np.asarray(
+            state.get('specific_rotational_energy_code',
+                      np.zeros_like(specific_internal_energy_code)),
+            dtype=float,
+        )
         specific_total_energy = (
             specific_internal_energy_code + specific_kinetic_energy_code
+            + rotational_specific_code
         )
         pressure = (
             specific_internal_energy_code

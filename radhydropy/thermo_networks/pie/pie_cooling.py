@@ -4,6 +4,7 @@ import numpy as np
 
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 from radhydropy.thermo_networks.cie.cie_cooling import _state, _update_temperature
+from radhydropy.thermo_networks.hydrogen import _rotational_specific_energy_code
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.units import from_unit_value, to_unit_value
 
@@ -288,6 +289,11 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         total_super = internal_super + 0.5 * state["velocity_supercomoving_cm_s"]**2
         fluid.Energy[interior] = from_unit_value(
             state["mass_g"] * total_super,
+            code.energy_unit,
+        )
+        rotational_code = _rotational_specific_energy_code(mesh, fluid, par)
+        fluid.Energy[interior] += from_unit_value(
+            np.asarray(fluid.Mass[interior], dtype=float) * rotational_code,
             code.energy_unit,
         )
         fluid.temp[interior] = from_unit_value(

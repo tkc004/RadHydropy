@@ -11,7 +11,10 @@ from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.units import _code_units, from_unit_value, to_unit_value
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 from radhydropy.thermo_networks.compton import cmb_compton_rate
-from radhydropy.thermo_networks.hydrogen import _fast_source_scaling
+from radhydropy.thermo_networks.hydrogen import (
+    _fast_source_scaling,
+    _rotational_specific_energy_code,
+)
 from radhydropy.diagnostics import thermochemistry_active_mask
 
 
@@ -67,8 +70,13 @@ def _state(mesh, fluid, par):
         mass = rho_super * volume_code * code.mass_in_cgs
     total_energy_super = to_unit_value(fluid.Energy[interior], code.energy_unit)
     specific_total_super = total_energy_super / np.maximum(mass, 1.0e-99)
+    rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
+    rotational_specific_super = (
+        rotational_specific_code * code.unit_conversion['velocity_cm_s']**2
+    )
     specific_internal = np.maximum(
-        specific_total_super - 0.5 * velocity_super**2,
+        specific_total_super - 0.5 * velocity_super**2
+        - rotational_specific_super,
         0.0,
     ) / scaling["temperature_factor"]
     thermal_energy = specific_internal * mass
@@ -83,6 +91,9 @@ def _state(mesh, fluid, par):
         "velocity_cm_s": velocity,
         "thermal_energy_erg": thermal_energy,
         "specific_energy_erg_g": specific_internal,
+        "specific_rotational_energy_erg_g": (
+            rotational_specific_super / scaling["temperature_factor"]
+        ),
         "temperature_K": to_unit_value(fluid.temp[interior], code.temperature_unit) / scaling["temperature_factor"],
         "gamma": gamma,
         "mu": mu,
@@ -242,6 +253,17 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         total_super = internal_super + 0.5 * state["velocity_supercomoving_cm_s"]**2
         updated_energy = from_unit_value(
             state["mass_g"] * total_super, code.energy_unit
+        )
+        rotational_code = _rotational_specific_energy_code(mesh, fluid, par)
+        mass_code = (
+            np.asarray(fluid.Mass[interior], dtype=float)
+            if hasattr(fluid, "Mass") else
+            np.asarray(fluid.rho[interior], dtype=float)
+            * np.asarray(mesh.vol[interior], dtype=float)
+        )
+        updated_energy = updated_energy + from_unit_value(
+            mass_code * rotational_code,
+            code.energy_unit,
         )
         updated_temperature = from_unit_value(
             state["temperature_K"] * state["source_temperature_factor"],

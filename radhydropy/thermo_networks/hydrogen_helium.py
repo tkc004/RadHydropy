@@ -15,6 +15,7 @@ from radhydropy.thermo_networks.hydrogen import (
     _cgs_alpha_B, _cgs_beta, _cgs_gamma_B_eHII, _cgs_gamma_ff_eHII,
     _cgs_gamma_ion_eHI, _cgs_gamma_line_eHI,
     _fast_source_scaling,
+    _rotational_specific_energy_code,
 )
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.diagnostics import thermochemistry_active_mask
@@ -214,7 +215,13 @@ def source_state(mesh, fluid, par):
     else:
         mass = rho_super * np.asarray(mesh.vol[interior], dtype=float) * code.mass_in_cgs
     total_super = to_unit_value(fluid.Energy[interior], code.energy_unit) / np.maximum(mass, 1.0e-99)
-    specific_internal = np.maximum(total_super - 0.5 * velocity_super**2, 0.0) / scaling['temperature_factor']
+    rotational_super = (
+        _rotational_specific_energy_code(mesh, fluid, par)
+        * code.unit_conversion['velocity_cm_s']**2
+    )
+    specific_internal = np.maximum(
+        total_super - 0.5 * velocity_super**2 - rotational_super, 0.0
+    ) / scaling['temperature_factor']
     rho_physical = rho_super / scaling['density_factor']
     state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit) * scaling['scale_factor'], 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit) * scaling['density_factor'], 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) * scaling['scale_factor'] / 3.08567758e21, 'rho_g_cm3': rho_physical, 'active': thermochemistry_active_mask(rho_physical, par, scaling['density_factor']), 'temperature_K': to_unit_value(fluid.temp[interior], code.temperature_unit) / scaling['temperature_factor'], 'specific_energy_erg_g': specific_internal, 'gamma': gamma, 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'metal_pie_redshift': getattr(par, 'metal_pie_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10), 'metal_pie_table': getattr(par, 'metal_pie_table', None), 'metallicity': getattr(par, 'metallicity', 1.0), 'metal_pie_photoheating_max_density_cm3': getattr(par, 'metal_pie_photoheating_max_density_cm3', 50.0), 'source_scale_factor': scaling['scale_factor'], 'source_temperature_factor': scaling['temperature_factor'], 'velocity_supercomoving_cm_s': velocity_super}
     state['coupled_implicit'] = getattr(par, 'hydrogen_helium_coupled_implicit', True)
@@ -343,6 +350,7 @@ def apply_state(state, fluid, par):
         internal_super = state['specific_energy_erg_g'] * temperature_factor
         total_super = internal_super + 0.5 * state.get('velocity_supercomoving_cm_s', 0.0)**2
         specific_code = from_unit_value(total_super, code.specific_energy_unit)
+        specific_code += _rotational_specific_energy_code(mesh, fluid, par)
         fluid.Energy[i] = fluid.Mass[i] * specific_code
         if hasattr(fluid, 'pre'):
             fluid.pre[i] = fluid.eos.pressure(fluid.rho[i], fluid.temp[i], fluid.mu[i])
