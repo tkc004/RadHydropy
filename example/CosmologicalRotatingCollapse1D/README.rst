@@ -59,3 +59,14 @@ cells by spherical-volume overlap.  This avoids pointwise interpolation of
 the density and writes ``CosmologicalRotatingCollapse1D_density_comparison.jpg``.
 The comparison is qualitative because the simulated gas includes pressure,
 while the reference is pressureless.
+
+Hydrogen source-energy check
+----------------------------
+
+The companion ``cosmological_rotating_collapse1d_hydrogen.py`` uses the
+high-rotation initial condition and applies one hydrogen thermochemistry
+source step without hydrodynamic evolution.  It verifies that cooling changes
+only the thermal energy while preserving
+``E_rot = J**2 / (2*M*r**2)``::
+
+   python cosmological_rotating_collapse1d_hydrogen.py

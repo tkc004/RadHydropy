@@ -12,6 +12,7 @@ from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 import radhydropy.thermo_chemistry as rtc
 from radhydropy.units import CodeUnits
+from radhydropy.thermo_networks.hydrogen import _fast_sync_state_to_fluid
 
 
 class Par:
@@ -580,6 +581,48 @@ class Testing(unittest.TestCase):
         )
         np.testing.assert_allclose(
             np.asarray(fluid.GravitationalPotentialEnergy, dtype=float), expected
+        )
+
+    def test_thermochemistry_sync_preserves_rotational_energy(self):
+        par = make_code_par('Periodic')
+        par.gas_angular_momentum = True
+        par.gas_rotational_energy = True
+        fluid = SimpleNamespace(
+            Mass=np.array([2.0]),
+            Energy=np.array([0.0]),
+            rho=np.array([1.0]),
+            temp=np.array([1.0]),
+            xHI=np.array([1.0]),
+            mu=np.array([1.0]),
+            eos=SimpleNamespace(gamma=5.0 / 3.0),
+            pre=np.array([1.0]),
+        )
+        internal = 3.0
+        kinetic = 0.5
+        rotational = 0.75
+        state = {
+            'interior': slice(0, 1),
+            'active': np.array([True]),
+            'rho_g_cm3': np.array([1.0]),
+            'xHI': np.array([1.0]),
+            'mu': np.array([1.0]),
+            'temperature_K': np.array([1.0]),
+            'source_temperature_factor': 1.0,
+            'thermal_coupling': True,
+            'hydrogen_update_mu': False,
+            'gamma': 5.0 / 3.0,
+            'specific_total_energy_erg_g': np.array([internal + kinetic]),
+            'specific_energy_erg_g': np.array([internal]),
+            'specific_kinetic_energy_erg_g': np.array([kinetic]),
+            'specific_kinetic_energy_supercomoving_erg_g': np.array([kinetic]),
+            'specific_rotational_energy_code': np.array([rotational]),
+        }
+
+        _fast_sync_state_to_fluid(state, fluid, par)
+
+        np.testing.assert_allclose(
+            fluid.Energy,
+            fluid.Mass * (internal + kinetic + rotational),
         )
 
     def test_optional_rotational_energy_is_added_and_removed_for_pressure(self):
