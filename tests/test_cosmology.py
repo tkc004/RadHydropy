@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import h5py
 import tempfile
+import unyt
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -186,6 +187,130 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     # diagnostic rather than a second direct energy update.
     assert fluid.Energy[0] == pytest.approx(7.0)
     assert solver.last_centrifugal_work_by_cell[0] != 0.0
+
+
+def test_cosmological_angular_momentum_evolution_and_restart():
+    units = code_units()
+    cosmology = EinsteinDeSitter.from_code_units(units)
+    cosmic_times = (1.0, 2.0, 8.0)
+    x = np.array([1.0, 2.0])
+    j = np.array([0.6, -0.35])
+    physical_density_at_a1 = np.array([2.0, 3.0])
+    physical_tangential_velocity_at_a1 = j / x
+
+    rotational_energy_ratios = []
+    centrifugal_accelerations = []
+    for cosmic_time in cosmic_times:
+        scale_factor = cosmology.scale_factor(cosmic_time)
+        physical_density = physical_density_at_a1 / scale_factor**3
+        physical_tangential_velocity = j / (scale_factor * x)
+        rho_sc = to_supercomoving_density(physical_density, scale_factor)
+        j_from_velocity = x * (
+            scale_factor * physical_tangential_velocity
+        )
+        energy_sc = 0.5 * rho_sc * (j / x)**2
+        energy_phys = 0.5 * physical_density * physical_tangential_velocity**2
+
+        np.testing.assert_allclose(j_from_velocity, j)
+        rotational_energy_ratios.append(energy_sc / energy_phys)
+        centrifugal_accelerations.append(j**2 / x**3)
+
+    for cosmic_time, ratio in zip(cosmic_times, rotational_energy_ratios):
+        assert np.allclose(
+            ratio,
+            cosmology.scale_factor(cosmic_time)**5,
+        )
+    np.testing.assert_allclose(
+        centrifugal_accelerations[0],
+        centrifugal_accelerations[1],
+    )
+    np.testing.assert_allclose(
+        centrifugal_accelerations[1],
+        centrifugal_accelerations[2],
+    )
+
+    tau_initial = cosmology.supercomoving_time(cosmic_times[0])
+    tau_restart = cosmology.supercomoving_time(cosmic_times[1])
+    scale_initial = cosmology.scale_factor(cosmic_times[0])
+    rho_sc = to_supercomoving_density(
+        physical_density_at_a1 / scale_initial**3,
+        scale_initial,
+    )
+    volume = (
+        4.0 * np.pi / 3.0
+        * ((x + 0.5)**3 - (x - 0.5)**3)
+    ) * units.volume_unit
+    specific_quantity = j * units.length_unit**2 / units.time_unit
+    radius_quantity = x * units.length_unit
+    rho_quantity = rho_sc * units.density_unit
+    angular_quantity = rho_quantity * specific_quantity * volume
+    rotational_specific_energy = (
+        0.5 * (specific_quantity / radius_quantity)**2
+    )
+    par = SimpleNamespace(
+        coordsys='spherical', nogrid=2, noghost=0,
+        CodeUnits=units, time=tau_initial,
+        boxsize=3.0 * units.length_unit,
+        cosmological_expansion=True, supercomoving_coordinates=True,
+        cosmology=cosmology, cosmology_type='einstein_de_sitter',
+        cosmology_t_ref=1.0, cosmology_a_ref=1.0,
+        coordinate_frame='comoving', time_coordinate='supercomoving',
+        velocity_representation='supercomoving_peculiar',
+        density_representation='comoving', pressure_representation='supercomoving',
+        temperature_representation='supercomoving', gamma=5.0 / 3.0,
+        gas_angular_momentum=True, gas_rotational_energy=True,
+    )
+    mesh = SimpleNamespace(
+        boundary=np.array([0.5, 1.5, 2.5]) * units.length_unit,
+    )
+    fluid = SimpleNamespace(
+        rho=rho_quantity,
+        vel=np.zeros(2) * units.velocity_unit,
+        temp=np.ones(2) * units.temperature_unit,
+        mu=np.ones(2),
+        specific_angular_momentum=specific_quantity,
+        Mass=rho_quantity * volume,
+        AngularMomentum=angular_quantity,
+        Energy=rho_quantity * rotational_specific_energy * volume,
+    )
+    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+
+    with tempfile.TemporaryDirectory() as directory:
+        filename = Path(directory) / 'angular_momentum_restart.hdf5'
+        rio.writehdf5(sim, filename)
+        loaded_par = SimpleNamespace()
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+        rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, filename)
+
+        np.testing.assert_allclose(
+            loaded_fluid.specific_angular_momentum, j
+        )
+        np.testing.assert_allclose(
+            loaded_fluid.AngularMomentum,
+            np.asarray(angular_quantity.to_value(
+                units.mass_unit * units.length_unit**2 / units.time_unit
+            )),
+        )
+        assert loaded_par.time == pytest.approx(tau_initial)
+
+        # Continue from the reloaded state at a later supercomoving time.
+        loaded_par.time = tau_restart
+        loaded_fluid.time = tau_restart
+        restart_scale = cosmology.scale_factor(cosmic_times[1])
+        restart_rho = np.asarray(loaded_fluid.rho, dtype=float)
+        restart_j = np.asarray(loaded_fluid.specific_angular_momentum, dtype=float)
+        restart_energy = 0.5 * restart_rho * (restart_j / x)**2
+        physical_restart_energy = (
+            0.5 * (physical_density_at_a1 / restart_scale**3)
+            * (j / (restart_scale * x))**2
+        )
+        np.testing.assert_allclose(restart_j, j)
+        np.testing.assert_allclose(
+            restart_energy / physical_restart_energy,
+            restart_scale**5,
+        )
+        np.testing.assert_allclose(restart_j**2 / x**3, j**2 / x**3)
 
 
 def test_cosmology_header_round_trip_and_supercomoving_input_output():

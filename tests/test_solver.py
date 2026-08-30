@@ -420,6 +420,73 @@ class Testing(unittest.TestCase):
         self.assertEqual(float(fluid.rotational_energy_flux[inner_face]), 0.0)
         self.assertGreater(float(fluid.Mom.flux[inner_face]), 0.0)
 
+    def test_origin_adjacent_rotating_cells_are_regular_and_signed(self):
+        # The first active cell is adjacent to the exact spherical origin.
+        par = make_code_par('Reflecting')
+        par.noghost = 1
+        par.nogrid = 4
+        par.gas_angular_momentum = True
+        par.gas_rotational_energy = True
+        par.positivity_preserving = False
+        mesh = SimpleNamespace(
+            coordsys='spherical',
+            boundary=np.arange(-1.0, 6.0),
+            coordinate=np.arange(-0.5, 5.5),
+            vol=np.ones(6),
+            xdelta=np.ones(6),
+            area=np.ones(6),
+            _par=par,
+        )
+        fluid = make_code_fluid(n=6)
+        fluid.rho = as_named_array(fluid.rho)
+        fluid.vel = as_named_array(fluid.vel)
+        fluid.vel[:] = 0.2
+        fluid.specific_angular_momentum = as_named_array(
+            -0.4 * mesh.coordinate**1
+        )
+        fluid.SetPressure()
+        fluid.pre = as_named_array(fluid.pre)
+        # A regular signed profile has negative angular momentum here;
+        # reflection must copy j, not reverse its sign.
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        self.assertEqual(float(fluid.specific_angular_momentum[0]), -0.2)
+        self.assertEqual(float(fluid.vel[0]), -0.2)
+
+        solver.SetConserved(mesh, fluid)
+        solver.GetTimeStep(mesh, fluid, par)
+        solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=1)
+        origin_face = int(np.where(mesh.boundary[:-1] == 0.0)[0][0])
+        self.assertEqual(origin_face, par.noghost)
+        self.assertEqual(float(fluid.AngularMomentum.flux[origin_face]), 0.0)
+        self.assertEqual(float(fluid.rotational_energy_flux[origin_face]), 0.0)
+
+        first_active = par.noghost
+        rotational_energy = solver._rotational_energy_density(
+            mesh, fluid, par
+        )
+        self.assertTrue(np.isfinite(rotational_energy[first_active]))
+        self.assertGreater(rotational_energy[first_active], 0.0)
+
+        # Source updates are cell-centred. An explicitly represented r=0 cell
+        # receives no centrifugal acceleration, while the adjacent positive-r
+        # cell does receive the regular source.
+        source_mesh = SimpleNamespace(
+            coordsys='spherical', coordinate=np.array([0.0, 0.75]),
+            vol=np.ones(2),
+        )
+        source_fluid = SimpleNamespace(
+            rho=np.ones(2), Mass=np.ones(2), Mom=np.zeros(2),
+            Energy=np.ones(2), AngularMomentum=np.array([1.0, 0.75]),
+        )
+        source_par = SimpleNamespace(
+            noghost=0, nogrid=2, gas_angular_momentum=True,
+            gas_rotational_energy=True, energy_diagnostics=True,
+        )
+        solver.ApplyGravity(0.1, source_mesh, source_fluid, source_par)
+        self.assertEqual(float(source_fluid.Mom[0]), 0.0)
+        self.assertGreater(float(source_fluid.Mom[1]), 0.0)
+
     def test_optional_gravity_potential_energy_is_source_balanced(self):
         par = make_code_par('Periodic')
         par.gravity_potential_energy = True
