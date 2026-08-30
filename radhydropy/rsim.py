@@ -168,38 +168,6 @@ class Rsim():
         if getattr(self.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
             self.solver.ApplyRadiativeTransfer(self.mesh, self.fluid, self.par)
 
-    def ConvertToCodeUnits(self):
-        """Convert the runtime mesh and fluid state into the internal unit system."""
-        code = self._require_code_units()
-        if getattr(self, '_runtime_converted_to_code_units', False):
-            return
-
-        units = code_units_from_system(code)
-        length_unit = units['length']
-        mass_unit = units['mass']
-        time_unit = units['time']
-        velocity_unit = units['velocity']
-        area_unit = length_unit ** 2
-        volume_unit = length_unit ** 3
-        mass_flux_unit = mass_unit / (length_unit ** 2 * time_unit)
-
-        derived_units = {
-            'length_inv': 1.0 / length_unit,
-            'area': area_unit,
-            'volume': volume_unit,
-            'number_density': 1.0 / volume_unit,
-            'momentum': mass_unit * velocity_unit,
-            'mass_flux': mass_flux_unit,
-            'photon_flux': 1.0 / (area_unit * time_unit),
-            'photon_rate': 1.0 / time_unit,
-            'alpha': length_unit ** 3 / time_unit,
-        }
-        unit_map = {**units, **derived_units}
-
-        for group in _CODE_UNIT_GROUPS:
-            apply_code_unit_specs(getattr(self, group.target), group.specs, unit_map)
-        self._runtime_converted_to_code_units = True
-
     def ConvertParametersToCodeUnits(self):
         """Convert only the runtime parameters into the internal unit system."""
         code = self._require_code_units()
