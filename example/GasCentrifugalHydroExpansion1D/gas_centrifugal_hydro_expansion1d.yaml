@@ -38,3 +38,4 @@ ICparams:
   density: 1.0
   central_mass: 1.0
   rotation_factor: 1.2
+  reference_samples_per_cell: 32

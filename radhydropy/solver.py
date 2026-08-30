@@ -67,13 +67,6 @@ class Solver():
             and hasattr(fluid, 'ngamma')
         )
 
-    def _thermochemistry_radiation_evolution_enabled(self, fluid, par):
-        return (
-            self._thermochemistry_radiation_enabled(fluid, par)
-            and getattr(par, 'hydrogen_radiation_evolution', True)
-            and not getattr(par, 'radiative_transfer', False)
-        )
-
     def ApplyRadiativeTransfer(self, mesh, fluid, par):
         """Refresh photon density from the shared radiative-transfer solver."""
         if not getattr(par, 'radiative_transfer', False):
@@ -208,6 +201,10 @@ class Solver():
         fluid.Mass.flux[origin_face] = 0.0
         fluid.Mom.flux[origin_face] = 0.0
         fluid.Energy.flux[origin_face] = 0.0
+        if hasattr(fluid, 'AngularMomentum') and hasattr(fluid.AngularMomentum, 'flux'):
+            fluid.AngularMomentum.flux[origin_face] = 0.0
+        if hasattr(fluid, 'rotational_energy_flux'):
+            fluid.rotational_energy_flux[origin_face] = 0.0
 
     @staticmethod
     def _hydrostatic_core_enabled(par):
@@ -844,6 +841,10 @@ class Solver():
         fluid.rho.grad = ru.CalGradient(fluid.rho, xdelta)
         fluid.vel.grad = ru.CalGradient(fluid.vel, xdelta)
         fluid.pre.grad = ru.CalGradient(fluid.pre, xdelta)
+        if hasattr(fluid, 'specific_angular_momentum'):
+            fluid.specific_angular_momentum.grad = ru.CalGradient(
+                fluid.specific_angular_momentum, xdelta
+            )
 
     @staticmethod
     def _positivity_limited_internal_flux(old_internal, flux, area, dt,
@@ -1014,30 +1015,44 @@ class Solver():
         ) = fluid.eos.fluxes(fluid.rho, fluid.vel, fluid.pre)
 
     @staticmethod
-    def _set_angular_momentum_flux(fluid):
-        """Build a mass-consistent flux for the optional gas angular momentum."""
+    def _set_angular_momentum_flux(fluid, order=0):
+        """Build a mass-consistent flux for optional gas angular momentum."""
         if not (
             hasattr(fluid, 'specific_angular_momentum')
             and hasattr(fluid, 'AngularMomentum')
         ):
-            return
+            return None
         mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
-        j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
+        if order == 1 and hasattr(fluid.specific_angular_momentum.R, 'first'):
+            j_left = np.asarray(
+                fluid.specific_angular_momentum.L.first, dtype=float
+            )
+            j_right = np.asarray(
+                fluid.specific_angular_momentum.R.first, dtype=float
+            )
+        else:
+            j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
+            j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
         # L is the cell inside the face and R is the cell outside it.  The
         # Euler mass-flux sign selects the donor-side specific angular
         # momentum, so J follows exactly the mass transfer.
         j_face = np.where(mass_flux >= 0.0, j_left, j_right)
         fluid.AngularMomentum.flux = as_named_array(mass_flux * j_face)
+        # Rotational energy must use the same donor state as J.  Keep this as
+        # a scratch field rather than reconstructing j a second time after
+        # the mass flux has been limited.
+        fluid.angular_momentum_face = as_named_array(j_face)
+        return j_face
 
-    def _set_rotational_energy_flux(self, mesh, fluid, par):
+    def _set_rotational_energy_flux(self, mesh, fluid, par, j_face=None):
         """Add the advected rotational-energy flux to the total-energy flux."""
         if not self._rotational_energy_enabled(par):
             return
         mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
-        j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
-        j_face = np.where(mass_flux >= 0.0, j_left, j_right)
+        if j_face is None:
+            j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
+            j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
+            j_face = np.where(mass_flux >= 0.0, j_left, j_right)
         radius = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
         rotational_specific = np.zeros_like(radius)
         valid = np.isfinite(radius) & (radius > 0.0) & np.isfinite(j_face)
@@ -1077,11 +1092,14 @@ class Solver():
                 fluid.vel.R.first, fluid.vel.L.first = ru.extrapolateToFace(fluid.vel, mesh.boundary, fluid.vel.grad, order=1)
                 fluid.pre.R.first, fluid.pre.L.first = ru.extrapolateToFace(fluid.pre, mesh.boundary, fluid.pre.grad, order=1)
                 if hasattr(fluid, 'specific_angular_momentum'):
-                    fluid.specific_angular_momentum.R.first = (
-                        fluid.specific_angular_momentum.R.copy()
-                    )
-                    fluid.specific_angular_momentum.L.first = (
-                        fluid.specific_angular_momentum.L.copy()
+                    (
+                        fluid.specific_angular_momentum.R.first,
+                        fluid.specific_angular_momentum.L.first,
+                    ) = ru.extrapolateToFace(
+                        fluid.specific_angular_momentum,
+                        mesh.boundary,
+                        fluid.specific_angular_momentum.grad,
+                        order=1,
                     )
             self._apply_low_density_face_mask(
                 fluid, getattr(mesh, '_par', None), order
@@ -1759,10 +1777,19 @@ class Solver():
             )
             self._apply_hydrostatic_core_flux(fluid, getattr(mesh, '_par', None))
             self._zero_spherical_origin_flux(mesh, fluid)
-            self._set_angular_momentum_flux(fluid)
-            self._set_rotational_energy_flux(
-                mesh, fluid, getattr(mesh, '_par', None)
+            angular_momentum_face = self._set_angular_momentum_flux(
+                fluid, order=order
             )
+            self._set_rotational_energy_flux(
+                mesh,
+                fluid,
+                getattr(mesh, '_par', None),
+                j_face=angular_momentum_face,
+            )
+            # Optional fluxes are constructed after the primary hydro fluxes;
+            # enforce the exact-origin condition once more at the end so a
+            # later reconstruction cannot repopulate that face.
+            self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError("Interface flux method unknown: %s"%method) 
         if (verbose>=2):

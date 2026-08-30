@@ -426,19 +426,21 @@ class Rsim():
         fluid=None,
         temperature_before=None,
         gravity_dt=None,
+        apply_gravity=True,
     ):
         """Complete a hydro step after conserved variables have been advanced."""
         if fluid is None:
             fluid = self.fluid
         if gravity_dt is None:
             gravity_dt = dt
-        self.solver.ApplyGravity(gravity_dt, self.mesh, fluid, self.par)
-        diagnostics.check_conserved_energy_admissibility(
-            self, stage='gravity update'
-        )
-        diagnostics.check_temperature_jump(
-            self, temperature_before, stage='gravity update'
-        )
+        if apply_gravity:
+            self.solver.ApplyGravity(gravity_dt, self.mesh, fluid, self.par)
+            diagnostics.check_conserved_energy_admissibility(
+                self, stage='gravity update'
+            )
+            diagnostics.check_temperature_jump(
+                self, temperature_before, stage='gravity update'
+            )
         if advect_chemistry:
             self.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
         self._sync_hydro_state(fluid=fluid)
@@ -513,7 +515,9 @@ class Rsim():
             fluid = self.fluid
         return copy.deepcopy(fluid)
 
-    def _hydro_step_once(self, dt, fluid=None, advect_chemistry=True):
+    def _hydro_step_once(
+        self, dt, fluid=None, advect_chemistry=True, apply_gravity=True
+    ):
         """Advance one explicit hydro step on the supplied fluid state."""
         if fluid is None:
             fluid = self.fluid
@@ -525,6 +529,7 @@ class Rsim():
             mass_flux,
             advect_chemistry=advect_chemistry,
             fluid=fluid,
+            apply_gravity=apply_gravity,
         )
         return {
             "dt": dt,
@@ -532,7 +537,9 @@ class Rsim():
             "source_steps": 0,
         }
 
-    def _hydro_step_ssprk2(self, dt, advect_chemistry=True):
+    def _hydro_step_ssprk2(
+        self, dt, advect_chemistry=True, apply_gravity=True
+    ):
         """Advance hydro variables with the SSPRK2 strong-stability-preserving scheme."""
         initial_state = self._clone_fluid()
         stage1 = self._clone_fluid()
@@ -540,12 +547,14 @@ class Rsim():
             dt,
             fluid=stage1,
             advect_chemistry=advect_chemistry,
+            apply_gravity=apply_gravity,
         )
         stage2 = self._clone_fluid(stage1)
         self._hydro_step_once(
             dt,
             fluid=stage2,
             advect_chemistry=advect_chemistry,
+            apply_gravity=apply_gravity,
         )
 
         conserved_fields = ["Mass", "Mom", "Energy"]
@@ -575,6 +584,24 @@ class Rsim():
             "source_steps": 0,
         }
 
+    def _accumulate_gravity_work(self):
+        """Accumulate work from one completed gravity/source substep."""
+        gravity_work = float(getattr(self.solver, "last_gravity_work", 0.0))
+        centrifugal_work = float(
+            getattr(self.solver, "last_centrifugal_work", 0.0)
+        )
+        self.last_gravity_work += gravity_work
+        self.last_centrifugal_work = getattr(
+            self, "last_centrifugal_work", 0.0
+        ) + centrifugal_work
+        self.cumulative_gravity_work += gravity_work
+        if self.energy_diagnostics_enabled:
+            work_by_cell = getattr(self.solver, "last_gravity_work_by_cell", None)
+            if work_by_cell is not None:
+                self.cumulative_gravity_work_by_cell += np.asarray(
+                    work_by_cell, dtype=float
+                )
+
     def Step(
         self,
         dt=None,
@@ -603,11 +630,6 @@ class Rsim():
             )
         if source_integrator == 'strang' and mode != 'hydro':
             raise ValueError("source_integrator='strang' requires mode='hydro'")
-        if source_integrator == 'strang' and hydro_integrator == 'ssprk2':
-            raise ValueError(
-                "source_integrator='strang' is currently supported with "
-                "hydro_integrator='euler' only"
-            )
         dt = self.GetStepTime(dt=dt)
         temperature_before = diagnostics.temperature_physical_K(self)
         if temperature_before is not None:
@@ -617,6 +639,8 @@ class Rsim():
         self.last_hydro_potential_flux = 0.0
         self.last_gravity_work = 0.0
         self.last_gravity_work_by_cell = None
+        self.last_centrifugal_work = 0.0
+        self.last_centrifugal_work_by_cell = None
         self.last_compression_work_by_cell = None
         self.last_shock_work_by_cell = None
         self.last_thermochemistry_energy_change = 0.0
@@ -640,12 +664,17 @@ class Rsim():
             "hydro_steps": 0,
             "source_steps": 0,
         }
-        half_source_work = 0.0
+        source_enabled = bool(
+            getattr(self.par, 'gravity', None) is not None
+            or getattr(self.par, 'externalgravity', False)
+            or getattr(self.par, 'selfgravity', False)
+            or getattr(self.par, 'cosmological_gravity', False)
+            or getattr(self.par, 'dark_matter', None) is not None
+            or getattr(self.par, 'gas_rotational_energy', False)
+        )
         if source_integrator == 'strang':
             self.solver.ApplyGravity(0.5 * dt, self.mesh, self.fluid, self.par)
-            half_source_work = float(
-                getattr(self.solver, 'last_gravity_work', 0.0)
-            )
+            self._accumulate_gravity_work()
             self._sync_hydro_state()
 
         if mode in ("hydro", "hydro_sources"):
@@ -653,7 +682,25 @@ class Rsim():
                 result = self._hydro_step_ssprk2(
                     dt,
                     advect_chemistry=advect_chemistry,
+                    apply_gravity=False,
                 )
+                # SSPRK2 integrates only the hydro operator.  Apply the
+                # source operator outside the RK stages so Strang has the
+                # ordering S(dt/2) -> H(dt) -> S(dt/2).  With Lie splitting,
+                # this is the corresponding H(dt) -> S(dt) ordering.
+                if source_enabled:
+                    source_dt = 0.5 * dt if source_integrator == 'strang' else dt
+                    self.solver.ApplyGravity(
+                        source_dt, self.mesh, self.fluid, self.par
+                    )
+                    self._accumulate_gravity_work()
+                    diagnostics.check_conserved_energy_admissibility(
+                        self, stage='gravity update'
+                    )
+                    diagnostics.check_temperature_jump(
+                        self, temperature_before, stage='gravity update'
+                    )
+                    self._sync_hydro_state()
             else:
                 self.PrepareConservedStep()
                 old_mass, mass_flux = self.AdvanceHydroFluxes(dt)
@@ -671,15 +718,7 @@ class Rsim():
                     temperature_before=temperature_before,
                     gravity_dt=(0.5 * dt if source_integrator == 'strang' else dt),
                 )
-                self.last_gravity_work = float(
-                    getattr(self.solver, "last_gravity_work", 0.0)
-                )
-                self.last_gravity_work += half_source_work
-                self.cumulative_gravity_work += self.last_gravity_work
-                if self.energy_diagnostics_enabled:
-                    self.cumulative_gravity_work_by_cell += np.asarray(
-                        self.solver.last_gravity_work_by_cell, dtype=float
-                    )
+                self._accumulate_gravity_work()
                 first = int(self.par.noghost)
                 last = first + int(self.par.nogrid)
                 mass = np.asarray(self.fluid.Mass[first:last], dtype=float)

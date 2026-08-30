@@ -17,6 +17,7 @@ from radhydropy.cosmological_variables import (
 )
 from radhydropy.units import CodeUnits
 from radhydropy.params import Par
+from radhydropy.solver import Solver
 import radhydropy.io as rio
 
 
@@ -116,6 +117,75 @@ def test_supercomoving_specific_angular_momentum_is_scale_factor_invariant():
     physical_j = physical_radius * physical_tangential_velocity
     supercomoving_j = comoving_radius * supercomoving_tangential_velocity
     assert np.allclose(supercomoving_j, physical_j)
+
+
+def test_supercomoving_rotational_energy_density_scales_as_a5():
+    cosmology = EinsteinDeSitter()
+    tau = cosmology.supercomoving_time(2.0)
+
+    class Par:
+        time = tau
+
+    par = Par()
+    par.cosmology = cosmology
+    a, _ = supercomoving_scale(par)
+    x = np.array([1.5, 3.0])
+    physical_radius = a * x
+    physical_density_value = np.array([2.0, 5.0])
+    physical_tangential_velocity = np.array([0.75, -1.25])
+    rho_sc = to_supercomoving_density(physical_density_value, a)
+    j = physical_radius * physical_tangential_velocity
+
+    mesh = SimpleNamespace(coordsys='spherical', coordinate=x)
+    fluid = SimpleNamespace(rho=rho_sc, specific_angular_momentum=j)
+    options = SimpleNamespace(gas_rotational_energy=True, gas_angular_momentum=True)
+    energy_sc = Solver()._rotational_energy_density(mesh, fluid, options)
+    energy_phys = 0.5 * physical_density_value * physical_tangential_velocity**2
+
+    # Comoving density and radius make this a^5 times the physical density.
+    assert np.allclose(energy_sc, a**5 * energy_phys)
+
+
+def test_supercomoving_centrifugal_source_has_expected_scale_factor():
+    cosmology = EinsteinDeSitter()
+    tau = cosmology.supercomoving_time(2.0)
+
+    class Par:
+        time = tau
+        nogrid = 1
+        noghost = 0
+        gas_rotational_energy = True
+        gas_angular_momentum = True
+        energy_diagnostics = True
+
+    par = Par()
+    par.cosmology = cosmology
+    a, _ = supercomoving_scale(par)
+    x = 2.0
+    physical_radius = a * x
+    physical_tangential_velocity = 1.25
+    j = physical_radius * physical_tangential_velocity
+    mass = 3.0
+    dt = 0.125
+    mesh = SimpleNamespace(
+        coordsys='spherical', coordinate=np.array([x]), vol=np.array([1.0]),
+    )
+    fluid = SimpleNamespace(
+        rho=np.array([mass]), Mass=np.array([mass]), Mom=np.array([0.0]),
+        Energy=np.array([7.0]), AngularMomentum=np.array([mass * j]),
+    )
+
+    solver = Solver()
+    solver.ApplyGravity(dt, mesh, fluid, par)
+    supercomoving_acceleration = j**2 / x**3
+    physical_acceleration = j**2 / physical_radius**3
+
+    assert fluid.Mom[0] == pytest.approx(mass * supercomoving_acceleration * dt)
+    assert supercomoving_acceleration == pytest.approx(a**3 * physical_acceleration)
+    # Rotational energy is already in total energy, so source work is a
+    # diagnostic rather than a second direct energy update.
+    assert fluid.Energy[0] == pytest.approx(7.0)
+    assert solver.last_centrifugal_work_by_cell[0] != 0.0
 
 
 def test_cosmology_header_round_trip_and_supercomoving_input_output():

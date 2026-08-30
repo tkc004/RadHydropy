@@ -11,12 +11,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import solve_ivp
 
 from gas_centrifugal_hydro_expansion1d import (
     CONFIG, run_simulation, spherical_centers,
 )
 from radhydropy.example_config import load_example_parameters
+from shell_remap import centrifugal_shell_reference
 
 
 def measure(runparams, icparams):
@@ -26,28 +26,25 @@ def measure(runparams, icparams):
         run_simulation(runparams, icparams)
     )
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
-    radius = np.asarray(sim.mesh.coordinate[active], dtype=float)
+    source_boundary = np.asarray(
+        saved_mesh.boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1],
+        dtype=float,
+    )
+    saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
     central_mass = float(icparams['central_mass'])
     rotation_factor = float(icparams['rotation_factor'])
-    shell_j = rotation_factor * np.sqrt(central_mass * radius)
     final_time = float(sim.fluid.time)
-
-    def rhs(_time, state, specific_j):
-        position, velocity = state
-        position = max(position, np.finfo(float).tiny)
-        return velocity, -central_mass / position**2 + specific_j**2 / position**3
-
-    shell_final = np.empty((2, len(radius)))
-    for index, (position, specific_j) in enumerate(zip(radius, shell_j)):
-        solution = solve_ivp(
-            lambda time, state: rhs(time, state, specific_j),
-            (0.0, final_time), (position, 0.0), rtol=1.0e-10, atol=1.0e-12,
-        )
-        shell_final[:, index] = solution.y[:, -1]
-    saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
-    order = np.argsort(shell_final[0])
-    ode_velocity = np.interp(saved_radius, shell_final[0, order], shell_final[1, order])
-    ode_j = np.interp(saved_radius, shell_final[0, order], shell_j[order])
+    reference = centrifugal_shell_reference(
+        source_boundary,
+        source_boundary,
+        final_time,
+        float(icparams['density']),
+        central_mass,
+        rotation_factor,
+        samples_per_cell=int(icparams.get('reference_samples_per_cell', 32)),
+    )
+    ode_velocity = reference['velocity']
+    ode_j = reference['specific_angular_momentum']
     saved_velocity = np.asarray(saved.vel[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum[active], dtype=float)
     saved_mass = np.asarray(saved.Mass[active], dtype=float)
@@ -55,15 +52,7 @@ def measure(runparams, icparams):
     velocity_error = np.max(np.abs(saved_velocity - ode_velocity))
     j_error = np.max(np.abs(saved_j - ode_j))
     simulated_energy = np.sum(saved_energy - central_mass * saved_mass / saved_radius)
-    shell_specific_energy = (
-        0.5 * shell_final[1]**2
-        + 0.5 * shell_j**2 / shell_final[0]**2
-        - central_mass / shell_final[0]
-    )
-    mapped_specific_energy = np.interp(
-        saved_radius, shell_final[0, order], shell_specific_energy[order]
-    )
-    shell_energy = np.sum(saved_mass * mapped_specific_energy)
+    shell_energy = np.sum(reference['energy'])
     energy_error = abs(simulated_energy - shell_energy) / max(abs(shell_energy), 1.0e-12)
     mass_error = abs(np.sum(saved_mass) - np.sum(initial_mass)) / max(
         abs(np.sum(initial_mass)), 1.0e-300

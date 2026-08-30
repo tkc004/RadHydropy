@@ -15,12 +15,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import solve_ivp
 
 from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+from shell_remap import centrifugal_shell_reference
 
 
 CONFIG = ROOT / 'gas_centrifugal_hydro_expansion1d.yaml'
@@ -125,26 +125,21 @@ def main(config_filename=CONFIG):
     radius = np.asarray(sim.mesh.coordinate[active], dtype=float)
     central_mass = float(icparams['central_mass'])
     rotation_factor = float(icparams['rotation_factor'])
-    shell_j = rotation_factor * np.sqrt(central_mass * radius)
     final_time = float(sim.fluid.time)
-
-    def rhs(_time, state, specific_j):
-        position, velocity = state
-        safe_position = max(position, np.finfo(float).tiny)
-        return velocity, -central_mass / safe_position**2 + specific_j**2 / safe_position**3
-
-    shell_final = np.empty((2, len(radius)))
-    for index, (shell_radius, specific_j) in enumerate(zip(radius, shell_j)):
-        solution = solve_ivp(
-            lambda time, state: rhs(time, state, specific_j),
-            (0.0, final_time), (shell_radius, 0.0),
-            rtol=1.0e-10, atol=1.0e-12,
-        )
-        shell_final[:, index] = solution.y[:, -1]
-    order = np.argsort(shell_final[0])
-    saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
-    ode_velocity = np.interp(saved_radius, shell_final[0, order], shell_final[1, order])
-    ode_j = np.interp(saved_radius, shell_final[0, order], shell_j[order])
+    saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
+    source_boundary = saved_boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1]
+    saved_radius = spherical_centers(saved_boundary)[active]
+    reference = centrifugal_shell_reference(
+        source_boundary,
+        source_boundary,
+        final_time,
+        float(icparams['density']),
+        central_mass,
+        rotation_factor,
+        samples_per_cell=int(icparams.get('reference_samples_per_cell', 32)),
+    )
+    ode_velocity = reference['velocity']
+    ode_j = reference['specific_angular_momentum']
     saved_velocity = np.asarray(saved.vel[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum[active], dtype=float)
     saved_mass = np.asarray(saved.Mass[active], dtype=float)
@@ -176,15 +171,7 @@ def main(config_filename=CONFIG):
     saved_total_energy = (
         np.sum(saved_energy) - np.sum(central_mass * saved_mass / saved_radius)
     )
-    shell_specific_energy = (
-        0.5 * shell_final[1]**2
-        + 0.5 * shell_j**2 / shell_final[0]**2
-        - central_mass / shell_final[0]
-    )
-    mapped_specific_energy = np.interp(
-        saved_radius, shell_final[0, order], shell_specific_energy[order]
-    )
-    ode_total_energy = np.sum(saved_mass * mapped_specific_energy)
+    ode_total_energy = np.sum(reference['energy'])
     energy_error = float(abs(saved_total_energy - ode_total_energy))
     energy_scale = max(abs(float(ode_total_energy)), 1.0e-12)
     if energy_error / energy_scale > 2.0e-3:

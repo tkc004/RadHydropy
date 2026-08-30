@@ -707,3 +707,28 @@ supercomoving velocity conversion is radial and does not affect this
 tangential field. The same invariant applies to the conserved field
 ``AngularMomentum = rho * j * volume``; only the density and volume
 representations carry the usual comoving scale factors.
+
+When ``gas_rotational_energy`` is enabled, the rotational contribution to
+the stored supercomoving energy density is
+
+.. math::
+
+   e_{{\rm rot},{\rm sc}} = \frac{1}{2}\rho_{\rm sc}
+       \left(\frac{j}{x}\right)^2
+       = a^5 e_{{\rm rot},{\rm phys}}.
+
+The factor ``a^5`` is the representation change: ``rho_sc = a^3 rho_phys``
+and ``x = r_phys/a``. It is not an additional physical energy source. The
+centrifugal acceleration used by the supercomoving momentum equation is
+
+.. math::
+
+   a_{{\rm cent},{\rm sc}} = \frac{j^2}{x^3}
+       = a^3 a_{{\rm cent},{\rm phys}},
+   \qquad
+   a_{{\rm cent},{\rm phys}} = \frac{j^2}{r_{{\rm phys}}^3}.
+
+Thus no extra scale-factor power is applied to ``j``, the rotational-energy
+formula, or the centrifugal source. Centrifugal work is retained as a
+diagnostic; it is not added directly to total energy because the transported
+rotational-energy reservoir already contains that exchange.
