@@ -351,8 +351,23 @@ def run_case(base_runparams, icparams, label, rotation_factor, units, cosmology)
     return label, sim, history, output_dir
 
 
-def main(config_filename=DEFAULT_CONFIG):
+def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
+         output_root_override=None, cfl_override=None,
+         positivity_override=None):
     runparams, icparams = load_example_parameters(config_filename, ROOT)
+    if nogrid_override is not None:
+        icparams = dict(icparams)
+        icparams["nogrid"] = int(nogrid_override)
+    if output_root_override is not None:
+        runparams = dict(runparams)
+        runparams["output_root"] = str(output_root_override)
+        runparams["savedir"] = str(output_root_override)
+    if cfl_override is not None:
+        runparams = dict(runparams)
+        runparams["CFL"] = float(cfl_override)
+    if positivity_override is not None:
+        runparams = dict(runparams)
+        runparams["positivity_preserving"] = bool(positivity_override)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
@@ -568,4 +583,16 @@ def main(config_filename=DEFAULT_CONFIG):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
-    main(parser.parse_args().config)
+    parser.add_argument("--nogrid", type=int, default=None)
+    parser.add_argument("--output-root", default=None)
+    parser.add_argument("--cfl", type=float, default=None)
+    parser.add_argument("--positivity-preserving", action="store_true",
+                        default=None)
+    args = parser.parse_args()
+    main(
+        args.config,
+        nogrid_override=args.nogrid,
+        output_root_override=args.output_root,
+        cfl_override=args.cfl,
+        positivity_override=args.positivity_preserving,
+    )

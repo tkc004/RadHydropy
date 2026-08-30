@@ -46,6 +46,8 @@ class Solver():
         self.dual_energy_pressure_selection_code = None
         self.last_centrifugal_work = 0.0
         self.last_centrifugal_work_by_cell = None
+        self.last_centrifugal_source_factors = None
+        self.centrifugal_source_limited_count = 0
 
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
@@ -1101,6 +1103,10 @@ class Solver():
         mass_new = mass + dt * (
             mass_flux_area - ru.periodic_roll(mass_flux_area, -1)
         )
+        momentum_flux_area = np.asarray(fluid.Mom.flux, dtype=float) * area
+        mom_new = np.asarray(fluid.Mom, dtype=float) + dt * (
+            momentum_flux_area - ru.periodic_roll(momentum_flux_area, -1)
+        )
         low_area = low * area
         trial_angular = angular + dt * (
             low_area - ru.periodic_roll(low_area, -1)
@@ -1113,23 +1119,84 @@ class Solver():
         upper = np.maximum.reduce((specific, ru.periodic_roll(specific, 1),
                                    ru.periodic_roll(specific, -1)))
         correction_area = correction * area
+        radius_face = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
+        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
+        rotational_low_flux = np.zeros_like(mass_flux)
+        rotational_high_flux = np.zeros_like(mass_flux)
+        valid_face_radius = (radius_face > 0.0) & np.isfinite(radius_face)
+        rotational_low_flux[valid_face_radius] = (
+            0.5 * np.asarray(fluid.angular_momentum_face_low, dtype=float)[valid_face_radius]**2
+            / radius_face[valid_face_radius]**2 * mass_flux[valid_face_radius]
+        )
+        rotational_high_flux[valid_face_radius] = (
+            0.5 * np.asarray(fluid.angular_momentum_face, dtype=float)[valid_face_radius]**2
+            / radius_face[valid_face_radius]**2 * mass_flux[valid_face_radius]
+        )
+        rotational_correction_area = (
+            rotational_high_flux - rotational_low_flux
+        ) * area
+        base_energy_flux = np.asarray(fluid.Energy.flux, dtype=float)
+        if hasattr(fluid, 'rotational_energy_flux'):
+            base_energy_flux -= np.asarray(fluid.rotational_energy_flux, dtype=float)
+        base_energy_area = base_energy_flux * area
+        base_energy = np.asarray(fluid.Energy, dtype=float) + dt * (
+            base_energy_area - ru.periodic_roll(base_energy_area, -1)
+        )
+        rotational_low_area = rotational_low_flux * area
+        trial_energy = base_energy + dt * (
+            rotational_low_area - ru.periodic_roll(rotational_low_area, -1)
+        )
+        thermal = np.asarray(fluid.Energy, dtype=float).copy()
+        kinetic = np.zeros_like(mass)
+        np.divide(
+            0.5 * np.asarray(fluid.Mom, dtype=float)**2,
+            mass, out=kinetic, where=mass > 0.0
+        )
+        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+        rotational = np.zeros_like(mass)
+        valid_radius = (mass > 0.0) & (radius > 0.0)
+        rotational[valid_radius] = (
+            0.5 * angular[valid_radius]**2
+            / (mass[valid_radius] * radius[valid_radius]**2)
+        )
+        thermal -= kinetic + rotational
+        thermal_fraction = np.divide(
+            thermal, np.maximum(np.abs(np.asarray(fluid.Energy, dtype=float)), 1.0e-300),
+            out=np.full_like(thermal, -np.inf),
+            where=np.isfinite(np.asarray(fluid.Energy, dtype=float)),
+        )
+        margin = max(0.0, float(getattr(
+            par, 'angular_momentum_energy_margin_fraction', 1.0e-4
+        )))
+        energy_problematic = physical & (thermal_fraction <= margin)
+        factors[energy_problematic | np.roll(energy_problematic, -1)] = 0.0
 
-        def valid_cell(index, value):
+        def valid_cell(index, value, energy_value):
             if not physical[index] or mass_new[index] <= 0.0:
                 return True
             candidate = value / mass_new[index]
             tolerance = 1.0e-12 * max(1.0, abs(lower[index]), abs(upper[index]))
-            return (
+            angular_ok = (
                 np.isfinite(candidate)
                 and candidate >= lower[index] - tolerance
                 and candidate <= upper[index] + tolerance
             )
+            kinetic_new = 0.5 * mom_new[index]**2 / mass_new[index]
+            radius_value = abs(float(np.asarray(mesh.coordinate, dtype=float)[index]))
+            rotational_new = (
+                0.5 * value**2 / (mass_new[index] * radius_value**2)
+                if radius_value > 0.0 else 0.0
+            )
+            energy_ok = energy_value >= kinetic_new + rotational_new
+            return angular_ok and energy_ok
 
         # Start from the donor update and recover as much MUSCL correction
         # as each face can support.  Each accepted face changes only its two
         # neighboring cells, so the limiter remains local.
         for face in range(len(factors)):
             if scheme == 'donor':
+                continue
+            if factors[face] == 0.0:
                 continue
             left = (face - 1) % len(mass)
             right = face
@@ -1139,14 +1206,24 @@ class Solver():
 
             def trial_valid(alpha):
                 return (
-                    valid_cell(left, trial_angular[left] - alpha * increment)
-                    and valid_cell(right, trial_angular[right] + alpha * increment)
+                    valid_cell(
+                        left,
+                        trial_angular[left] - alpha * increment,
+                        trial_energy[left] - alpha * dt * rotational_correction_area[face],
+                    )
+                    and valid_cell(
+                        right,
+                        trial_angular[right] + alpha * increment,
+                        trial_energy[right] + alpha * dt * rotational_correction_area[face],
+                    )
                 )
 
             if trial_valid(1.0):
                 factors[face] = 1.0
                 trial_angular[left] -= increment
                 trial_angular[right] += increment
+                trial_energy[left] -= dt * rotational_correction_area[face]
+                trial_energy[right] += dt * rotational_correction_area[face]
                 continue
             if not trial_valid(0.0):
                 factors[face] = 0.0
@@ -1161,6 +1238,8 @@ class Solver():
             factors[face] = lo
             trial_angular[left] -= lo * increment
             trial_angular[right] += lo * increment
+            trial_energy[left] -= lo * dt * rotational_correction_area[face]
+            trial_energy[right] += lo * dt * rotational_correction_area[face]
 
         limited = low + factors * correction
         fluid.AngularMomentum.flux = as_named_array(limited)
@@ -1200,6 +1279,53 @@ class Solver():
         rotational_flux[~valid] = 0.0
         fluid.rotational_energy_flux = as_named_array(rotational_flux)
         fluid.Energy.flux += fluid.rotational_energy_flux
+
+    def _apply_local_angular_energy_fallback(self, mesh, fluid, par):
+        """Use first-order hydro fluxes only near a cold rotating cell."""
+        if not (
+            self._rotational_energy_enabled(par)
+            and hasattr(fluid, 'angular_momentum_mass_flux_low')
+        ):
+            return
+        threshold = max(0.0, float(getattr(
+            par, 'angular_momentum_energy_margin_fraction', 1.0e-4
+        )))
+        mass = np.asarray(fluid.Mass, dtype=float)
+        momentum = np.asarray(fluid.Mom, dtype=float)
+        energy = np.asarray(fluid.Energy, dtype=float)
+        angular = np.asarray(fluid.AngularMomentum, dtype=float)
+        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+        kinetic = np.zeros_like(mass)
+        np.divide(0.5 * momentum**2, mass, out=kinetic, where=mass > 0.0)
+        rotational = np.zeros_like(mass)
+        valid_radius = (mass > 0.0) & (radius > 0.0)
+        rotational[valid_radius] = (
+            0.5 * angular[valid_radius]**2
+            / (mass[valid_radius] * radius[valid_radius]**2)
+        )
+        thermal = energy - kinetic - rotational
+        fraction = np.divide(
+            thermal, np.maximum(np.abs(energy), 1.0e-300),
+            out=np.full_like(thermal, -np.inf), where=np.isfinite(energy)
+        )
+        first = int(getattr(par, 'noghost', 0))
+        last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
+        problematic = np.zeros(len(mass), dtype=bool)
+        problematic[first:last] = fraction[first:last] <= threshold
+        # Face i bounds cells i-1 and i.
+        face_mask = problematic | np.roll(problematic, -1)
+        if not np.any(face_mask):
+            return
+        fluid.Mass.flux[face_mask] = np.asarray(
+            fluid.angular_momentum_mass_flux_low, dtype=float
+        )[face_mask]
+        fluid.Mom.flux[face_mask] = np.asarray(
+            fluid.angular_momentum_mom_flux_low, dtype=float
+        )[face_mask]
+        fluid.Energy.flux[face_mask] = np.asarray(
+            fluid.angular_momentum_energy_flux_low, dtype=float
+        )[face_mask]
+        fluid.angular_momentum_local_fallback = as_named_array(face_mask)
         
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):
         """Construct left and right states at cell faces.
@@ -1463,6 +1589,9 @@ class Solver():
         )
         if order==0:
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
+            fluid.angular_momentum_mass_flux_low = as_named_array(Mass_flux_0.copy())
+            fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
+            fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
         elif order==1:
             rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
                 fluid.rho.L.first, fluid.vel.L.first, fluid.pre.L.first
@@ -1484,6 +1613,9 @@ class Solver():
             fluid.Energy.flux, fluid.philim_Energy = ru.ApplyFluxLimiter(
                 fluid.Energy.q, Energy_flux_1, Energy_flux_0, limiter=limiter
             )
+            fluid.angular_momentum_mass_flux_low = as_named_array(Mass_flux_0.copy())
+            fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
+            fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
             # A MUSCL reconstruction is not valid across a vacuum jump.  Use
             # the positivity-safe first-order flux on gas-vacuum faces; this
             # preserves injection into vacuum while retaining order one away
@@ -1978,6 +2110,9 @@ class Solver():
             )
             self._apply_hydrostatic_core_flux(fluid, getattr(mesh, '_par', None))
             self._zero_spherical_origin_flux(mesh, fluid)
+            self._apply_local_angular_energy_fallback(
+                mesh, fluid, getattr(mesh, '_par', None)
+            )
             angular_momentum_face = self._set_angular_momentum_flux(
                 fluid, order=order
             )
@@ -2402,23 +2537,75 @@ class Solver():
             rotational_acceleration[~valid_radius] = 0.0
 
         # Apply gravity and centrifugal momentum sources sequentially. Gravity
-        # work updates the gas energy, while the centrifugal source does not:
-        # total Energy already contains E_rot and its face flux is transported
-        # separately. Adding centrifugal work here would count the exchange
-        # with the rotational reservoir twice.
+        # work updates the gas energy. Centrifugal acceleration is an internal
+        # transfer from rotational to radial kinetic energy, so it must not
+        # add energy to the total-energy field.  Limit the local momentum
+        # increment when the split source step would otherwise make
+        # E_total < E_kin + E_rot.
         dt_value = float(np.asarray(dt, dtype=float))
         gravity_momentum = momentum + mass * gravity_acceleration * dt_value
-        new_momentum = gravity_momentum + mass * rotational_acceleration * dt_value
         gravity_work = 0.5 * (
             momentum + gravity_momentum
         ) * gravity_acceleration * dt_value
-        centrifugal_work = 0.5 * (
-            gravity_momentum + new_momentum
-        ) * rotational_acceleration * dt_value
         new_energy = (
             np.asarray(fluid.Energy, dtype=float)
             + gravity_work
         )
+
+        source_increment = mass * rotational_acceleration * dt_value
+        source_factors = np.ones_like(source_increment)
+        if rotational_support:
+            angular = np.asarray(fluid.AngularMomentum, dtype=float)
+            radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+            rotational_energy = np.zeros_like(mass)
+            valid_rotational = (
+                (mass > 0.0) & (radius > 0.0)
+                & np.isfinite(angular) & np.isfinite(radius)
+            )
+            rotational_energy[valid_rotational] = (
+                0.5 * angular[valid_rotational]**2
+                / (mass[valid_rotational] * radius[valid_rotational]**2)
+            )
+            available_radial_energy = new_energy - rotational_energy
+            base_admissible = (
+                np.isfinite(mass) & (mass > 0.0)
+                & np.isfinite(gravity_momentum)
+                & np.isfinite(available_radial_energy)
+                & (0.5 * gravity_momentum**2 / mass
+                   <= available_radial_energy)
+            )
+
+            def source_admissible(index, factor):
+                trial_momentum = (
+                    gravity_momentum[index] + factor * source_increment[index]
+                )
+                trial_kinetic = (
+                    0.5 * trial_momentum**2 / mass[index]
+                    if mass[index] > 0.0 else 0.0
+                )
+                tolerance = 1.0e-12 * max(
+                    abs(new_energy[index]),
+                    abs(rotational_energy[index]),
+                    np.finfo(float).tiny,
+                )
+                return trial_kinetic <= available_radial_energy[index] + tolerance
+
+            for index in np.flatnonzero(base_admissible & (source_increment != 0.0)):
+                if source_admissible(index, 1.0):
+                    continue
+                low, high = 0.0, 1.0
+                for _ in range(48):
+                    middle = 0.5 * (low + high)
+                    if source_admissible(index, middle):
+                        low = middle
+                    else:
+                        high = middle
+                source_factors[index] = low
+
+        new_momentum = gravity_momentum + source_factors * source_increment
+        centrifugal_work = 0.5 * (
+            gravity_momentum + new_momentum
+        ) * rotational_acceleration * dt_value
         fluid.Mom[...] = new_momentum
         fluid.Energy[...] = new_energy
         if (
@@ -2437,6 +2624,10 @@ class Solver():
             if getattr(par, "energy_diagnostics", False) else None
         )
         self.last_centrifugal_work = float(np.sum(centrifugal_work[interior]))
+        self.last_centrifugal_source_factors = source_factors.copy()
+        self.centrifugal_source_limited_count = int(
+            np.count_nonzero(source_factors[interior] < 1.0 - 1.0e-12)
+        )
         self.last_centrifugal_work_by_cell = (
             np.asarray(centrifugal_work[interior], dtype=float).copy()
             if getattr(par, "energy_diagnostics", False) else None

@@ -114,6 +114,11 @@ Common Runtime Keys
        low-order base and limits the MUSCL correction face by face; ``donor``
        selects donor upwind everywhere. The default is ``fct``.
      - string
+   * - ``angular_momentum_energy_margin_fraction``
+     - Local thermal-energy margin for rotating cells. Faces touching cells
+       below this fraction use first-order hydro fluxes; other faces retain
+       MUSCL. The default is ``1e-4``.
+     - dimensionless
    * - ``gravity_potential_energy``
      - Evolve the opt-in conserved field ``U_phi = M*Phi``. It is initialized
        from the configured gravity potential, transported with
