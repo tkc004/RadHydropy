@@ -50,9 +50,6 @@ def build_static_problem(config):
         thermochemistry_network=config.get('thermochemistry_network', 'hydrogen'),
         hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
         helium_mass_fraction=config.get('helium_mass_fraction', 0.0),
-        hydrogen_helium_implicit_local_update=config.get(
-            'hydrogen_helium_implicit_local_update', False
-        ),
         hydrogen_helium_coupled_implicit=config.get(
             'hydrogen_helium_coupled_implicit', True
         ),

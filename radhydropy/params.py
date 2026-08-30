@@ -111,7 +111,6 @@ refparams = {
     'hydrogen_chemistry': False,
     'hydrogen_mass_fraction': 1.0,
     'helium_mass_fraction': 0.0,
-    'hydrogen_helium_implicit_local_update': False,
     'hydrogen_helium_coupled_implicit': True,
     'hydrogen_helium_xHeI_initial': 1.0,
     'hydrogen_helium_xHeII_initial': 0.0,
