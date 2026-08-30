@@ -61,6 +61,7 @@ refparams = {
     # First-stage optional passive gas angular-momentum storage.
     'gas_angular_momentum': False,
     'gas_rotational_energy': False,
+    'gravity_potential_energy': False,
     'gas_specific_angular_momentum': 0.0,
     'specific_angular_momentum_inflow': 0.0,
     'specific_angular_momentum_outflow': 0.0,

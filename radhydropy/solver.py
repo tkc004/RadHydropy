@@ -709,6 +709,16 @@ class Solver():
             np.asarray(fluid.AngularMomentum, dtype=float).copy()
             if hasattr(fluid, 'AngularMomentum') else None
         )
+        old_potential_energy = (
+            np.asarray(fluid.GravitationalPotentialEnergy, dtype=float).copy()
+            if (
+                hasattr(fluid, 'GravitationalPotentialEnergy')
+                and (
+                    getattr(fluid, '_gravity_potential_energy_initialized', False)
+                    or np.any(np.asarray(fluid.GravitationalPotentialEnergy, dtype=float) != 0.0)
+                )
+            ) else None
+        )
         old_conserved = None
         if density_floor > 0.0 and all(
             hasattr(fluid, name) for name in ('Mass', 'Mom', 'Energy')
@@ -742,6 +752,13 @@ class Solver():
                 + rotational_energy_density
             ) * vol
         )
+        potential = self._gravity_potential(mesh, par)
+        if potential is not None:
+            fluid.GravitationalPotentialEnergy = as_named_array(
+                fluid.Mass * potential
+                if old_potential_energy is None else old_potential_energy
+            )
+            fluid._gravity_potential_energy_initialized = True
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         if old_total_energy is not None:
@@ -882,6 +899,30 @@ class Solver():
     @staticmethod
     def _rotational_energy_enabled(par):
         return bool(getattr(par, 'gas_rotational_energy', False))
+
+    @staticmethod
+    def _gravity_potential_energy_enabled(par):
+        return bool(getattr(par, 'gravity_potential_energy', False))
+
+    def _gravity_potential(self, mesh, par):
+        if not self._gravity_potential_energy_enabled(par):
+            return None
+        gravity = self._gravity_model(par)
+        if gravity is None or not hasattr(gravity, 'potential_on'):
+            raise ValueError(
+                'gravity_potential_energy requires a gravity model with potential_on'
+            )
+        return np.asarray(gravity.potential_on(mesh.coordinate), dtype=float)
+
+    def _gravity_potential_faces(self, mesh, par):
+        if not self._gravity_potential_energy_enabled(par):
+            return None
+        gravity = self._gravity_model(par)
+        if gravity is None or not hasattr(gravity, 'potential_on'):
+            raise ValueError(
+                'gravity_potential_energy requires a gravity model with potential_on'
+            )
+        return np.asarray(gravity.potential_on(mesh.boundary[:-1]), dtype=float)
 
     def _rotational_energy_density(self, mesh, fluid, par):
         """Return opt-in rotational kinetic-energy density."""
@@ -1477,6 +1518,29 @@ class Solver():
         nonuniform spherical faces).
         """
         if not getattr(par, 'positivity_preserving', True):
+            area = np.asarray(mesh.area, dtype=float)
+            fluid.Mass += dt * (
+                np.asarray(mass_face, dtype=float) * area
+                - ru.periodic_roll(np.asarray(mass_face, dtype=float) * area, -1)
+            )
+            fluid.Mom += dt * (
+                np.asarray(mom_face, dtype=float) * area
+                - ru.periodic_roll(np.asarray(mom_face, dtype=float) * area, -1)
+                + (np.asarray(geometric_mom, dtype=float)
+                   if geometric_mom is not None else 0.0)
+            )
+            fluid.Energy += dt * (
+                np.asarray(energy_face, dtype=float) * area
+                - ru.periodic_roll(np.asarray(energy_face, dtype=float) * area, -1)
+            )
+            if angular_face is not None and hasattr(fluid, 'AngularMomentum'):
+                angular_area = np.asarray(angular_face, dtype=float) * area
+                fluid.AngularMomentum += dt * (
+                    angular_area - ru.periodic_roll(angular_area, -1)
+                )
+            self._last_face_limiter_factors = np.ones_like(
+                np.asarray(mass_face, dtype=float)
+            )
             return 1.0
         dt_value = float(np.asarray(dt, dtype=float))
         mass = np.asarray(fluid.Mass, dtype=float).copy()
@@ -1826,6 +1890,14 @@ class Solver():
             df_AngularMomentum = (
                 angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
             )
+        potential_face = self._gravity_potential_faces(mesh, getattr(mesh, '_par', None))
+        df_potential = None
+        if potential_face is not None:
+            potential_flux_area = potential_face * fluid.Mass.flux * area
+            df_potential = (
+                potential_flux_area
+                - ru.periodic_roll(potential_flux_area, -1)
+            )
         if getattr(mesh, 'coordsys', None) == 'spherical':
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
@@ -1896,6 +1968,10 @@ class Solver():
                 fluid.AngularMomentum += (
                     positivity_factor * df_AngularMomentum * dt
                 )
+            if df_potential is not None:
+                fluid.GravitationalPotentialEnergy += (
+                    positivity_factor * df_potential * dt
+                )
             fluid.time += dt
             return
         geometric_mom = None
@@ -1907,9 +1983,7 @@ class Solver():
             fluid.Mass.flux, fluid.Mom.flux, fluid.Energy.flux,
             geometric_mom=geometric_mom,
             angular_face=(fluid.AngularMomentum.flux
-                          if (df_AngularMomentum is not None and
-                              self._rotational_energy_enabled(
-                                  getattr(mesh, '_par', None))) else None),
+                          if df_AngularMomentum is not None else None),
         )
         if df_InternalEnergy is not None:
             # Couple the dual-energy advection to the same face coefficients
@@ -2102,6 +2176,19 @@ class Solver():
             fluid.InternalEnergy = as_named_array(
                 np.maximum(candidate_internal, 0.0)
             )
+        if df_potential is not None:
+            factors = np.asarray(
+                getattr(self, '_last_face_limiter_factors',
+                        np.ones(len(fluid.Mass.flux))),
+                dtype=float,
+            )
+            limited_potential_flux_area = (
+                potential_face * fluid.Mass.flux * factors * area
+            )
+            fluid.GravitationalPotentialEnergy += dt * (
+                limited_potential_flux_area
+                - ru.periodic_roll(limited_potential_flux_area, -1)
+            )
         # advance time
         fluid.time += dt
 
@@ -2232,6 +2319,14 @@ class Solver():
         )
         fluid.Mom[...] = new_momentum
         fluid.Energy[...] = new_energy
+        if (
+            gravity is not None
+            and hasattr(fluid, 'GravitationalPotentialEnergy')
+        ):
+            # The explicit potential-energy reservoir receives the opposite
+            # of the gravity work.  Centrifugal work is an exchange with the
+            # rotational reservoir, not with the fixed gravitational field.
+            fluid.GravitationalPotentialEnergy[...] -= gravity_work
         self.last_gravity_work = float(
             np.sum(gravity_work[interior])
         )

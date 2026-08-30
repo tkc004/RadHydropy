@@ -109,6 +109,13 @@ Common Runtime Keys
        ``gas_angular_momentum: true`` and a spherical mesh; the default is
        ``false``.
      - boolean
+   * - ``gravity_potential_energy``
+     - Evolve the opt-in conserved field ``U_phi = M*Phi``. It is initialized
+       from the configured gravity potential, transported with
+       ``F_phi = Phi_face F_M``, and receives the opposite of gravity work.
+       Requires a gravity model providing ``potential_on``; the default is
+       ``false``.
+     - boolean
    * - ``temperature``
      - Default gas/background temperature used for scalar temperature
        parameters. The default is ``2.7 K``.

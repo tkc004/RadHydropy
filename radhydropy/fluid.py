@@ -179,6 +179,15 @@ class Fluid():
         if hasattr(self, 'specific_angular_momentum'):
             attrlist.append('specific_angular_momentum')
             valuelist.append(0.0)
+        if getattr(par, 'gravity_potential_energy', False) and not hasattr(
+            self, 'GravitationalPotentialEnergy'
+        ):
+            self.GravitationalPotentialEnergy = as_named_array(
+                np.zeros(np.shape(self.rho), dtype=float)
+            )
+        if hasattr(self, 'GravitationalPotentialEnergy'):
+            attrlist.append('GravitationalPotentialEnergy')
+            valuelist.append(0.0)
             
 
         #add ghost cells:

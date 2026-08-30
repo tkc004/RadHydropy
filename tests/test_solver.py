@@ -326,6 +326,73 @@ class Testing(unittest.TestCase):
             atol=1.0e-13,
         )
 
+    def test_optional_gravity_potential_energy_is_source_balanced(self):
+        par = make_code_par('Periodic')
+        par.gravity_potential_energy = True
+        par.externalgravity = True
+        par.gravity = SimpleNamespace(
+            potential_on=lambda coordinate: -np.asarray(coordinate, dtype=float),
+            acceleration_on_mesh=lambda mesh, rho=None, par=None:
+                np.ones_like(np.asarray(mesh.coordinate, dtype=float)),
+        )
+        mesh = make_code_mesh()
+        mesh._par = par
+        fluid = make_code_fluid()
+        fluid.pre = fluid.eos.pressure(fluid.rho, fluid.temp, fluid.mu)
+        solver = Solver()
+        solver.SetConserved(mesh, fluid)
+
+        np.testing.assert_allclose(
+            np.asarray(fluid.GravitationalPotentialEnergy, dtype=float),
+            np.asarray(fluid.Mass, dtype=float) * (-mesh.coordinate),
+        )
+        initial_total = (
+            np.asarray(fluid.Energy, dtype=float)
+            + np.asarray(fluid.GravitationalPotentialEnergy, dtype=float)
+        )
+        solver.ApplyGravity(1.0e-3, mesh, fluid, par)
+        np.testing.assert_allclose(
+            np.asarray(fluid.Energy, dtype=float)
+            + np.asarray(fluid.GravitationalPotentialEnergy, dtype=float),
+            initial_total,
+            rtol=1.0e-13,
+            atol=1.0e-13,
+        )
+
+    def test_optional_gravity_potential_energy_uses_face_mass_flux(self):
+        par = make_code_par('Periodic')
+        par.gravity_potential_energy = True
+        par.positivity_preserving = False
+        par.externalgravity = True
+        par.gravity = SimpleNamespace(
+            potential_on=lambda coordinate: -np.asarray(coordinate, dtype=float),
+            acceleration_on_mesh=lambda mesh, rho=None, par=None:
+                np.zeros_like(np.asarray(mesh.coordinate, dtype=float)),
+        )
+        mesh = make_code_mesh()
+        mesh._par = par
+        fluid = make_code_fluid()
+        fluid.pre = fluid.eos.pressure(fluid.rho, fluid.temp, fluid.mu)
+        solver = Solver()
+        solver.SetConserved(mesh, fluid)
+        old_potential_energy = np.asarray(
+            fluid.GravitationalPotentialEnergy, dtype=float
+        ).copy()
+        mass_flux = np.linspace(0.1, 0.8, len(fluid.Mass))
+        fluid.Mass.flux = as_named_array(mass_flux)
+        fluid.Mom.flux = as_named_array(np.zeros_like(mass_flux))
+        fluid.Energy.flux = as_named_array(np.zeros_like(mass_flux))
+        dt = 1.0e-3
+        solver.AddFluxes(dt, mesh, fluid, par)
+        face_potential = -np.asarray(mesh.boundary[:-1], dtype=float)
+        expected = old_potential_energy + dt * (
+            face_potential * mass_flux
+            - np.roll(face_potential * mass_flux, -1)
+        )
+        np.testing.assert_allclose(
+            np.asarray(fluid.GravitationalPotentialEnergy, dtype=float), expected
+        )
+
     def test_optional_rotational_energy_is_added_and_removed_for_pressure(self):
         par = make_code_par('Periodic')
         par.gas_angular_momentum = True
@@ -410,6 +477,62 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(
             solver.last_centrifugal_work,
             np.sum(centrifugal_work[active]),
+        )
+
+    def test_manufactured_spherical_hydro_step_transports_j_conservatively(self):
+        par = make_code_par('Periodic')
+        par.gas_angular_momentum = True
+        par.gas_rotational_energy = True
+        par.positivity_preserving = False
+        mesh = make_code_mesh(n=12)
+        mesh.coordsys = 'spherical'
+        mesh._par = par
+        mesh.coordinate = np.arange(12, dtype=float) + 1.0
+        fluid = make_code_fluid(n=8)
+        fluid.vel[:] = 0.1 + 0.01 * np.arange(8)
+        fluid.SetUpFluid(par, mesh=mesh)
+        fluid.specific_angular_momentum[:] = np.linspace(
+            0.2, 0.9, len(fluid.specific_angular_momentum)
+        )
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        solver.SetConserved(mesh, fluid)
+        solver.GetTimeStep(mesh, fluid, par)
+        solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=0)
+
+        old_mass = np.asarray(fluid.Mass, dtype=float).copy()
+        old_momentum = np.asarray(fluid.Mom, dtype=float).copy()
+        old_energy = np.asarray(fluid.Energy, dtype=float).copy()
+        old_angular = np.asarray(fluid.AngularMomentum, dtype=float).copy()
+        area = np.asarray(mesh.area, dtype=float)
+        dt = 1.0e-4
+        mass_flux_area = np.asarray(fluid.Mass.flux, dtype=float) * area
+        momentum_flux_area = np.asarray(fluid.Mom.flux, dtype=float) * area
+        energy_flux_area = np.asarray(fluid.Energy.flux, dtype=float) * area
+        angular_flux_area = (
+            np.asarray(fluid.AngularMomentum.flux, dtype=float) * area
+        )
+        expected_mass = old_mass + dt * (
+            mass_flux_area - np.roll(mass_flux_area, -1)
+        )
+        expected_momentum = old_momentum + dt * (
+            momentum_flux_area - np.roll(momentum_flux_area, -1)
+            + np.asarray(fluid.pre, dtype=float) * (
+                np.roll(area, -1) - area
+            )
+        )
+        expected_energy = old_energy + dt * (
+            energy_flux_area - np.roll(energy_flux_area, -1)
+        )
+        expected_angular = old_angular + dt * (
+            angular_flux_area - np.roll(angular_flux_area, -1)
+        )
+        solver.AddFluxes(dt, mesh, fluid, par.boundcond)
+        np.testing.assert_allclose(np.asarray(fluid.Mass, dtype=float), expected_mass)
+        np.testing.assert_allclose(np.asarray(fluid.Mom, dtype=float), expected_momentum)
+        np.testing.assert_allclose(np.asarray(fluid.Energy, dtype=float), expected_energy)
+        np.testing.assert_allclose(
+            np.asarray(fluid.AngularMomentum, dtype=float), expected_angular
         )
 
     def test_periodic_boundary_wraps_interior(self):

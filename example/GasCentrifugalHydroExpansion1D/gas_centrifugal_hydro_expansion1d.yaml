@@ -1,0 +1,40 @@
+runparams:
+  simname: GasCentrifugalHydroExpansion1D
+  ICfilename: outputs/InitialCondition.hdf5
+  outdir: outputs
+  savedir: outputs
+  outfileprefix: Output
+  coordsys: spherical
+  EOStype: isothermal
+  gamma: 1.4
+  gas_angular_momentum: true
+  gas_rotational_energy: true
+  gravity_potential_energy: true
+  dual_energy: true
+  source_integrator: strang
+  positivity_preserving: false
+  boundcond: Reflecting
+  noghost: 2
+  nogrid: 32
+  CFL: 0.05
+  order: 0
+  dtmax: 5.0e-4
+  dtmin: 1.0e-8
+  timesim: 0.01
+  outdeltatime: 0.005
+  temperature: 1.0e-8
+  CodeUnits:
+    name: gas_centrifugal_hydro_expansion_units
+    InternalUnitSystem:
+      UnitMass_in_cgs: 1.0
+      UnitLength_in_cgs: 1.0
+      UnitVelocity_in_cgs: 1.0e5
+      UnitCurrent_in_cgs: 1.0
+      UnitTemp_in_cgs: 1.0
+
+ICparams:
+  radius_min: 0.5
+  radius_max: 1.5
+  density: 1.0
+  central_mass: 1.0
+  rotation_factor: 1.2

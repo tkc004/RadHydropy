@@ -771,6 +771,7 @@ def writehdf5(ric,ICfilename):
             ("Energy", "Energy"),
             ("InternalEnergy", "InternalEnergy"),
             ("AngularMomentum", "AngularMomentum"),
+            ("GravitationalPotentialEnergy", "GravitationalPotentialEnergy"),
         ):
             if hasattr(ric.fluid, attr):
                 scale_key = (
@@ -930,6 +931,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
             "InternalEnergy": "energy_erg",
             "SpecificAngularMomentum": "specific_angular_momentum",
             "AngularMomentum": "angular_momentum",
+            "GravitationalPotentialEnergy": "energy_erg",
         }
         _populate_group_targets(
             gdata,

@@ -42,6 +42,8 @@ class Rsim():
         self.solver = Solver()
         self.cumulative_hydro_boundary_energy = 0.0
         self.cumulative_gravity_work = 0.0
+        self.cumulative_gravity_potential_change = 0.0
+        self.cumulative_gravity_potential_flux = 0.0
         self.cumulative_gravity_work_by_cell = np.zeros(
             int(getattr(self.par, "nogrid", 0)), dtype=float
         )
@@ -79,6 +81,8 @@ class Rsim():
         )
         sim.cumulative_hydro_boundary_energy = 0.0
         sim.cumulative_gravity_work = 0.0
+        sim.cumulative_gravity_potential_change = 0.0
+        sim.cumulative_gravity_potential_flux = 0.0
         sim.cumulative_gravity_work_by_cell = np.zeros(
             int(sim.par.nogrid), dtype=float
         )
@@ -314,6 +318,16 @@ class Rsim():
             if self.energy_diagnostics_enabled else None
         )
         old_mass = fluid.Mass.copy()
+        gravity = getattr(self.par, 'gravity', None)
+        potential_cell = None
+        potential_face = None
+        if gravity is not None and hasattr(gravity, 'potential_on'):
+            potential_cell = np.asarray(
+                gravity.potential_on(self.mesh.coordinate), dtype=float
+            )
+            potential_face = np.asarray(
+                gravity.potential_on(self.mesh.boundary[:-1]), dtype=float
+            )
         self.solver.SetInterFaceFlux(
             self.mesh,
             fluid,
@@ -327,6 +341,14 @@ class Rsim():
         last = first + int(self.par.nogrid)
         area = np.asarray(self.mesh.area, dtype=float)
         energy_flux = np.asarray(fluid.Energy.flux, dtype=float)
+        if potential_face is not None:
+            mass_flux_area = np.asarray(mass_flux, dtype=float) * area
+            potential_flux_area = potential_face * mass_flux_area
+            self.last_hydro_potential_flux = float(
+                dt * (potential_flux_area[first] - potential_flux_area[last])
+            )
+        else:
+            self.last_hydro_potential_flux = 0.0
         # AddFluxes uses inner-face minus outer-face fluxes.  This is the
         # net energy entering the physical domain through its boundaries.
         self.last_hydro_boundary_energy_flux = float(
@@ -340,6 +362,19 @@ class Rsim():
             self, stage='hydro face reconstruction'
         )
         self.solver.AddFluxes(dt, self.mesh, fluid, self.par.boundcond)
+        if potential_cell is not None:
+            old_mass_active = np.asarray(old_mass[first:last], dtype=float)
+            new_mass_active = np.asarray(fluid.Mass[first:last], dtype=float)
+            phi_active = potential_cell[first:last]
+            self.last_hydro_potential_change = float(
+                np.sum((new_mass_active - old_mass_active) * phi_active)
+            )
+            self.cumulative_gravity_potential_change += (
+                self.last_hydro_potential_change
+            )
+            self.cumulative_gravity_potential_flux += self.last_hydro_potential_flux
+        else:
+            self.last_hydro_potential_change = 0.0
         if self.energy_diagnostics_enabled:
             self.last_hydro_energy_change_by_cell = (
                 np.asarray(fluid.Energy[first:last], dtype=float) - old_energy
@@ -414,11 +449,14 @@ class Rsim():
         advect_chemistry=True,
         fluid=None,
         temperature_before=None,
+        gravity_dt=None,
     ):
         """Complete a hydro step after conserved variables have been advanced."""
         if fluid is None:
             fluid = self.fluid
-        self.solver.ApplyGravity(dt, self.mesh, fluid, self.par)
+        if gravity_dt is None:
+            gravity_dt = dt
+        self.solver.ApplyGravity(gravity_dt, self.mesh, fluid, self.par)
         diagnostics.check_conserved_energy_admissibility(
             self, stage='gravity update'
         )
@@ -537,6 +575,11 @@ class Rsim():
         conserved_fields = ["Mass", "Mom", "Energy"]
         if hasattr(initial_state, "AngularMomentum") and hasattr(stage2, "AngularMomentum"):
             conserved_fields.append("AngularMomentum")
+        if (
+            hasattr(initial_state, "GravitationalPotentialEnergy")
+            and hasattr(stage2, "GravitationalPotentialEnergy")
+        ):
+            conserved_fields.append("GravitationalPotentialEnergy")
         if hasattr(initial_state, "InternalEnergy") and hasattr(stage2, "InternalEnergy"):
             conserved_fields.append("InternalEnergy")
         for attr in conserved_fields:
@@ -576,11 +619,26 @@ class Rsim():
                 "Unknown hydro integrator %r; valid options are %s"
                 % (hydro_integrator, ", ".join(valid_hydro_integrators))
             )
+        source_integrator = str(getattr(self.par, 'source_integrator', 'lie')).lower()
+        if source_integrator not in ('lie', 'strang'):
+            raise ValueError(
+                "Unknown source integrator %r; valid options are lie, strang"
+                % source_integrator
+            )
+        if source_integrator == 'strang' and mode != 'hydro':
+            raise ValueError("source_integrator='strang' requires mode='hydro'")
+        if source_integrator == 'strang' and hydro_integrator == 'ssprk2':
+            raise ValueError(
+                "source_integrator='strang' is currently supported with "
+                "hydro_integrator='euler' only"
+            )
         dt = self.GetStepTime(dt=dt)
         temperature_before = diagnostics.temperature_physical_K(self)
         if temperature_before is not None:
             temperature_before = temperature_before.copy()
         self.last_hydro_boundary_energy_flux = 0.0
+        self.last_hydro_potential_change = 0.0
+        self.last_hydro_potential_flux = 0.0
         self.last_gravity_work = 0.0
         self.last_gravity_work_by_cell = None
         self.last_compression_work_by_cell = None
@@ -606,6 +664,13 @@ class Rsim():
             "hydro_steps": 0,
             "source_steps": 0,
         }
+        half_source_work = 0.0
+        if source_integrator == 'strang':
+            self.solver.ApplyGravity(0.5 * dt, self.mesh, self.fluid, self.par)
+            half_source_work = float(
+                getattr(self.solver, 'last_gravity_work', 0.0)
+            )
+            self._sync_hydro_state()
 
         if mode in ("hydro", "hydro_sources"):
             if hydro_integrator == "ssprk2":
@@ -628,10 +693,12 @@ class Rsim():
                     mass_flux,
                     advect_chemistry=advect_chemistry,
                     temperature_before=temperature_before,
+                    gravity_dt=(0.5 * dt if source_integrator == 'strang' else dt),
                 )
                 self.last_gravity_work = float(
                     getattr(self.solver, "last_gravity_work", 0.0)
                 )
+                self.last_gravity_work += half_source_work
                 self.cumulative_gravity_work += self.last_gravity_work
                 if self.energy_diagnostics_enabled:
                     self.cumulative_gravity_work_by_cell += np.asarray(
@@ -757,6 +824,12 @@ class Rsim():
             ),
             "dual_energy_entropy_limiter_count": int(
                 getattr(self.solver, "dual_energy_entropy_limiter_count", 0)
+            ),
+            "gravity_potential_flux": float(
+                getattr(self, "last_hydro_potential_flux", 0.0)
+            ),
+            "gravity_potential_change": float(
+                getattr(self, "last_hydro_potential_change", 0.0)
             ),
         })
         return result
