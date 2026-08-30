@@ -99,6 +99,23 @@ integral for any supplied tabulated linear `P(k)`. The built-in spectrum uses
 the analytic Eisenstein--Hu no-wiggle transfer shape; CAMB/CLASS output can be
 passed to the same integral when BAO-accurate correlation structure is needed.
 
+For comparison with the Bertschinger/Fillmore--Goldreich similarity solution,
+the enclosed initial overdensity in this correlation-function IC is locally
+well represented by `delta M / M propto M^-s` with `s ~= 0.2` around the target
+halo scale. For `s < 2/3`, the nonlinear collapsed dark-matter profile has the
+similarity slope
+
+```text
+rho_DM propto r^(-9 s / (1 + 3 s)) ~= r^-1.125.
+```
+
+The saved profiles in
+`outputs_correlation/CosmologicalDarkMatterOnlyDensityProfiles.npz` give an
+outer-halo fit of approximately `rho_DM propto r^-1.2` over
+`1.2 r_200 < r < 3 r_200`, broadly consistent with this prediction. The
+linear far-field overdensity instead scales approximately as `r^(-3 s)`, or
+`r^-0.6`; that is not the nonlinear halo slope.
+
 For the correlation-gas run, the gas mesh has a finite reflecting inner wall
 at `inner_wall_radius_comoving: 5.0` kpc. This is about 0.05 kpc proper at the
 z=100 start and avoids the singular zero-area origin. The energy audit records

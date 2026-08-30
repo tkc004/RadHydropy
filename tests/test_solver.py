@@ -326,7 +326,7 @@ class Testing(unittest.TestCase):
             atol=1.0e-13,
         )
 
-    def test_gas_angular_momentum_order_one_uses_reconstructed_signed_donor(self):
+    def test_gas_angular_momentum_order_one_uses_bounded_donor_flux(self):
         par = make_code_par('Periodic')
         par.gas_angular_momentum = True
         par.positivity_preserving = False
@@ -343,22 +343,50 @@ class Testing(unittest.TestCase):
         solver.GetTimeStep(mesh, fluid, par)
         solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=1)
 
-        j_left = np.asarray(fluid.specific_angular_momentum.L.first, dtype=float)
-        j_right = np.asarray(fluid.specific_angular_momentum.R.first, dtype=float)
         mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        expected = mass_flux * np.where(mass_flux >= 0.0, j_left, j_right)
+        expected = mass_flux * np.asarray(
+            fluid.angular_momentum_face, dtype=float
+        )
         np.testing.assert_allclose(
             np.asarray(fluid.AngularMomentum.flux, dtype=float), expected
         )
         self.assertTrue(
-            np.any(
-                np.asarray(fluid.specific_angular_momentum.R.first, dtype=float)
-                != np.asarray(fluid.specific_angular_momentum.R, dtype=float)
-            )
-        )
-        self.assertTrue(
             np.any(np.asarray(fluid.angular_momentum_face, dtype=float) < 0.0)
         )
+
+    def test_gas_angular_momentum_reconstruction_is_locally_bounded(self):
+        par = make_code_par('Periodic')
+        par.gas_angular_momentum = True
+        par.positivity_preserving = False
+        mesh = make_code_mesh(n=12)
+        mesh._par = par
+        fluid = make_code_fluid(n=8)
+        fluid.SetUpFluid(par, mesh=mesh)
+        fluid.specific_angular_momentum[:] = np.array(
+            [0.02, 0.20, 0.02, -0.10, 0.02, 0.15, 0.02, -0.05,
+             0.02, 0.18, 0.02, -0.08]
+        )
+
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        solver.SetConserved(mesh, fluid)
+        solver.GetTimeStep(mesh, fluid, par)
+        solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=1)
+
+        j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
+        j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
+        j_min = np.minimum(j_left, j_right)
+        j_max = np.maximum(j_left, j_right)
+        for face_state in (
+            fluid.specific_angular_momentum.L.first,
+            fluid.specific_angular_momentum.R.first,
+        ):
+            np.testing.assert_array_less(
+                np.asarray(face_state, dtype=float), j_max + 1.0e-14
+            )
+            np.testing.assert_array_less(
+                j_min - 1.0e-14, np.asarray(face_state, dtype=float)
+            )
 
     def test_spherical_origin_zeroes_optional_fluxes_after_construction(self):
         par = make_code_par('Periodic')

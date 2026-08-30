@@ -24,6 +24,14 @@ future multidimensional disk calculation will require: cosmological variable
 conversion, conservative ``J`` transport, centrifugal support, and rotational
 energy accounting.
 
+The gas angular-momentum transport uses a local flux-corrected transport
+(FCT) construction.  The donor-cell flux, ``F_J = j_donor F_M``, is the
+positivity-safe low-order flux.  The MUSCL flux supplies an antidiffusive
+correction with a face-by-face coefficient between zero and one.  Only faces
+whose adjacent cells would violate local ``J/M`` bounds are reduced toward the
+donor flux; the limiter is not applied globally.  Rotational-energy fluxes
+use the same limited face value of ``j``.
+
 Run it with::
 
    python cosmological_rotating_collapse1d.py

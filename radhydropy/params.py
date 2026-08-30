@@ -61,6 +61,8 @@ refparams = {
     # First-stage optional passive gas angular-momentum storage.
     'gas_angular_momentum': False,
     'gas_rotational_energy': False,
+    # Donor upwind plus face-local MUSCL/FCT limiting is the robust default.
+    'angular_momentum_flux_scheme': 'fct',
     'gravity_potential_energy': False,
     'gas_specific_angular_momentum': 0.0,
     'specific_angular_momentum_inflow': 0.0,

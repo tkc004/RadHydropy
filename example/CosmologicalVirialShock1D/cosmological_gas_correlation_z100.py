@@ -1162,6 +1162,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     save_snapshot(initial_time)
     audit_initial = _energy_audit_state(sim)
+    first = int(sim.par.noghost)
+    last = first + int(sim.par.nogrid)
+    angular_initial = float(np.sum(np.asarray(
+        sim.fluid.AngularMomentum[first:last], dtype=float
+    ))) if hasattr(sim.fluid, "AngularMomentum") else 0.0
     energy_audit = {
         "step": [0],
         "time_Gyr": [initial_time * sim.par.CodeUnits.time_unit.to_value("Gyr")],
@@ -1176,6 +1181,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "energy_closure_residual": [0.0],
         "inner_wall_momentum_flux": [0.0],
         "inner_wall_energy_flux": [0.0],
+        "angular_momentum_total": [angular_initial],
+        "angular_momentum_change": [0.0],
+        "angular_momentum_boundary_change": [0.0],
+        "angular_momentum_conservation_residual": [0.0],
     }
     next_snapshot += cadence
     while float(sim.fluid.time) < target_tau - 1.0e-12:
@@ -1205,10 +1214,65 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         wall_energy_flux = float(
             np.asarray(sim.fluid.Energy.flux, dtype=float)[wall_face]
         )
+        angular_before = float(np.sum(np.asarray(
+            sim.fluid.AngularMomentum[first:last], dtype=float
+        ))) if hasattr(sim.fluid, "AngularMomentum") else 0.0
+        angular_boundary_change = 0.0
+        if hasattr(sim.fluid, "AngularMomentum"):
+            # AddFluxes applies +dt*(F_left A_left - F_right A_right) to
+            # the active domain.  Include the final paired-face positivity
+            # factors, since those are the actual flux corrections used.
+            angular_flux_area = (
+                np.asarray(sim.fluid.AngularMomentum.flux, dtype=float)
+                * np.asarray(sim.mesh.area, dtype=float)
+            )
         # This run has active Compton/atomic or PIE thermal sources.  Using
         # hydro-only mode would select the networks but never apply their
         # energy update.
         sim.Step(dt=dt, mode="hydro_sources")
+        angular_after = float(np.sum(np.asarray(
+            sim.fluid.AngularMomentum[first:last], dtype=float
+        ))) if hasattr(sim.fluid, "AngularMomentum") else 0.0
+        if hasattr(sim.fluid, "AngularMomentum"):
+            factors = np.asarray(
+                getattr(sim.solver, "_last_face_limiter_factors",
+                        np.ones_like(angular_flux_area)),
+                dtype=float,
+            )
+            angular_flux_area *= factors
+            angular_boundary_change = float(
+                dt * (angular_flux_area[first] - angular_flux_area[last])
+            )
+        angular_change = angular_after - angular_before
+        angular_residual = angular_change - angular_boundary_change
+        if bool(getattr(sim.par, "gas_angular_momentum", False)) and (
+            steps % 100 == 0
+        ):
+            first = int(sim.par.noghost)
+            last = first + int(sim.par.nogrid)
+            mass = np.asarray(sim.fluid.Mass[first:last], dtype=float)
+            angular = np.asarray(
+                sim.fluid.AngularMomentum[first:last], dtype=float
+            )
+            specific = np.divide(
+                angular, mass, out=np.zeros_like(angular), where=mass > 0.0
+            )
+            print(
+                "angular diagnostic: step=%d j=[%.8g, %.8g] "
+                "dJ=%.8g boundary=%.8g residual=%.8g"
+                % (steps, np.nanmin(specific), np.nanmax(specific),
+                   angular_change, angular_boundary_change,
+                   angular_residual),
+                flush=True,
+            )
+        energy_audit["angular_momentum_total"].append(angular_after)
+        energy_audit["angular_momentum_change"].append(angular_change)
+        energy_audit["angular_momentum_boundary_change"].append(
+            angular_boundary_change
+        )
+        energy_audit["angular_momentum_conservation_residual"].append(
+            angular_residual
+        )
         energy_audit["inner_wall_momentum_flux"].append(
             wall_momentum_flux
         )

@@ -17,6 +17,7 @@ runparams:
   hydro_integrator: ssprk2
   source_integrator: strang
   positivity_preserving: false
+  angular_momentum_flux_scheme: fct
   dual_energy: true
   energy_diagnostics: true
   CFL: 0.1

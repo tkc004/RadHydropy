@@ -295,6 +295,41 @@ def run_live_shell_density_profiles(
         if np.isfinite(rvir):
             scale_factor = float(cosmology.scale_factor(time))
             plt.axvline(rvir / scale_factor, color=color, ls="--", lw=1.1, alpha=0.8)
+    # Bertschinger/Fillmore--Goldreich similarity reference for the local
+    # initial perturbation slope delta M/M propto M^-s.  Normalize the
+    # nonlinear rho propto r^(-9s/(1+3s)) reference to the latest resolved
+    # r200 profile so it indicates the predicted slope rather than an
+    # arbitrary density normalization.
+    similarity_s = 0.2
+    similarity_slope = 9.0 * similarity_s / (1.0 + 3.0 * similarity_s)
+    resolved = np.flatnonzero(np.isfinite(virial_radii) & (virial_radii > 0.0))
+    if resolved.size:
+        reference_index = int(resolved[-1])
+        reference_radius = float(virial_radii[reference_index])
+        reference_profile = np.asarray(densities[reference_index], dtype=float)
+        reference_radius_bins = np.asarray(
+            bin_radii, dtype=float
+        )
+        valid_reference = np.isfinite(reference_profile) & (reference_profile > 0.0)
+        if np.count_nonzero(valid_reference) >= 2:
+            reference_density = float(np.exp(np.interp(
+                np.log(reference_radius),
+                np.log(reference_radius_bins[valid_reference]),
+                np.log(reference_profile[valid_reference]),
+            )))
+            line_radius = np.geomspace(
+                max(reference_radius * 0.5, reference_radius_bins[valid_reference].min()),
+                min(reference_radius * 3.0, reference_radius_bins[valid_reference].max()),
+                64,
+            )
+            line_density = reference_density * (
+                line_radius / reference_radius
+            ) ** (-similarity_slope)
+            plt.plot(
+                line_radius / scale_factors[reference_index], line_density,
+                color="black", ls="-.", lw=1.8,
+                label=r"Bertschinger reference ($s=0.2$, $\rho\propto r^{-1.125}$)",
+            )
     plt.xlabel("comoving radius [kpc]")
     plt.ylabel(r"dark-matter density [code mass / kpc$^3$]")
     plt.title("Live dark-matter-only density evolution")

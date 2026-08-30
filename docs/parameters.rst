@@ -109,6 +109,11 @@ Common Runtime Keys
        ``gas_angular_momentum: true`` and a spherical mesh; the default is
        ``false``.
      - boolean
+   * - ``angular_momentum_flux_scheme``
+     - Angular-momentum transport scheme. ``fct`` uses donor upwind as the
+       low-order base and limits the MUSCL correction face by face; ``donor``
+       selects donor upwind everywhere. The default is ``fct``.
+     - string
    * - ``gravity_potential_energy``
      - Evolve the opt-in conserved field ``U_phi = M*Phi``. It is initialized
        from the configured gravity potential, transported with
@@ -707,6 +712,21 @@ supercomoving velocity conversion is radial and does not affect this
 tangential field. The same invariant applies to the conserved field
 ``AngularMomentum = rho * j * volume``; only the density and volume
 representations carry the usual comoving scale factors.
+
+Angular-momentum transport uses a mass-consistent local flux-corrected
+transport (FCT) construction.  The donor-cell flux is the low-order base,
+
+.. math::
+
+   F_{J,f}^{\rm low} = j_{\rm donor} F_{M,f},
+
+while MUSCL supplies a high-order candidate.  A separate face coefficient
+``alpha_f`` blends the two candidates.  It is reduced only when either cell
+sharing that face would violate local ``J/M`` bounds; unaffected faces retain
+the MUSCL correction.  The same limited face value of ``j`` is used for
+rotational-energy transport.  This preserves global ``J`` conservation while
+preventing excessive angular momentum from being deposited in a low-mass
+cell.
 
 When ``gas_rotational_energy`` is enabled, the rotational contribution to
 the stored supercomoving energy density is

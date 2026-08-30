@@ -1023,26 +1023,165 @@ class Solver():
         ):
             return None
         mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
+        j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
+        j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
+        j_donor = np.where(mass_flux >= 0.0, j_left, j_right)
         if order == 1 and hasattr(fluid.specific_angular_momentum.R, 'first'):
-            j_left = np.asarray(
+            j_left_high = np.asarray(
                 fluid.specific_angular_momentum.L.first, dtype=float
             )
-            j_right = np.asarray(
+            j_right_high = np.asarray(
                 fluid.specific_angular_momentum.R.first, dtype=float
             )
         else:
-            j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
-            j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
-        # L is the cell inside the face and R is the cell outside it.  The
-        # Euler mass-flux sign selects the donor-side specific angular
-        # momentum, so J follows exactly the mass transfer.
-        j_face = np.where(mass_flux >= 0.0, j_left, j_right)
-        fluid.AngularMomentum.flux = as_named_array(mass_flux * j_face)
+            j_left_high, j_right_high = j_left, j_right
+        j_high = np.where(mass_flux >= 0.0, j_left_high, j_right_high)
+        # The high-order candidate is bounded at reconstruction time.  The
+        # face-level FCT limiter in AddFluxes decides how much of its
+        # antidiffusive correction is admissible for the two cells.
+        fluid.angular_momentum_flux_low = as_named_array(
+            mass_flux * j_donor
+        )
+        fluid.angular_momentum_flux_high = as_named_array(
+            mass_flux * j_high
+        )
+        fluid.AngularMomentum.flux = as_named_array(
+            fluid.angular_momentum_flux_high.copy()
+        )
         # Rotational energy must use the same donor state as J.  Keep this as
         # a scratch field rather than reconstructing j a second time after
         # the mass flux has been limited.
-        fluid.angular_momentum_face = as_named_array(j_face)
-        return j_face
+        fluid.angular_momentum_face = as_named_array(j_high)
+        fluid.angular_momentum_face_low = as_named_array(j_donor)
+        return j_high
+
+    def _limit_angular_momentum_flux(self, dt, mesh, fluid, par):
+        """Apply a local FCT limiter to the angular-momentum flux.
+
+        The donor flux is the bound-preserving low-order base.  A MUSCL
+        correction is recovered face by face only while both adjacent cells
+        retain locally bounded J/M.  This preserves the shared mass-flux
+        relation and avoids globally reducing angular-momentum accuracy.
+        """
+        if not (
+            hasattr(fluid, 'AngularMomentum')
+            and hasattr(fluid, 'angular_momentum_flux_low')
+            and hasattr(fluid, 'angular_momentum_flux_high')
+        ):
+            return
+        low = np.asarray(fluid.angular_momentum_flux_low, dtype=float)
+        high = np.asarray(fluid.angular_momentum_flux_high, dtype=float)
+        correction = high - low
+        factors = np.ones_like(low)
+        scheme = str(getattr(par, 'angular_momentum_flux_scheme', 'fct')).lower()
+        if scheme not in ('fct', 'donor'):
+            raise ValueError(
+                "Unknown angular_momentum_flux_scheme %r; valid options are fct, donor"
+                % scheme
+            )
+        if scheme == 'donor':
+            factors[...] = 0.0
+        if not np.any(correction):
+            fluid.AngularMomentum.flux = as_named_array(low.copy())
+            fluid.angular_momentum_face = as_named_array(
+                np.divide(low, np.asarray(fluid.Mass.flux, dtype=float),
+                          out=np.zeros_like(low),
+                          where=np.asarray(fluid.Mass.flux, dtype=float) != 0.0)
+            )
+            return
+
+        mass = np.asarray(fluid.Mass, dtype=float)
+        angular = np.asarray(fluid.AngularMomentum, dtype=float)
+        area = np.asarray(mesh.area, dtype=float)
+        first = int(getattr(par, 'noghost', 0))
+        last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
+        physical = np.zeros(len(mass), dtype=bool)
+        physical[first:last] = True
+        mass_flux_area = np.asarray(fluid.Mass.flux, dtype=float) * area
+        mass_new = mass + dt * (
+            mass_flux_area - ru.periodic_roll(mass_flux_area, -1)
+        )
+        low_area = low * area
+        trial_angular = angular + dt * (
+            low_area - ru.periodic_roll(low_area, -1)
+        )
+        specific = np.divide(
+            angular, mass, out=np.zeros_like(angular), where=mass > 0.0
+        )
+        lower = np.minimum.reduce((specific, ru.periodic_roll(specific, 1),
+                                   ru.periodic_roll(specific, -1)))
+        upper = np.maximum.reduce((specific, ru.periodic_roll(specific, 1),
+                                   ru.periodic_roll(specific, -1)))
+        correction_area = correction * area
+
+        def valid_cell(index, value):
+            if not physical[index] or mass_new[index] <= 0.0:
+                return True
+            candidate = value / mass_new[index]
+            tolerance = 1.0e-12 * max(1.0, abs(lower[index]), abs(upper[index]))
+            return (
+                np.isfinite(candidate)
+                and candidate >= lower[index] - tolerance
+                and candidate <= upper[index] + tolerance
+            )
+
+        # Start from the donor update and recover as much MUSCL correction
+        # as each face can support.  Each accepted face changes only its two
+        # neighboring cells, so the limiter remains local.
+        for face in range(len(factors)):
+            if scheme == 'donor':
+                continue
+            left = (face - 1) % len(mass)
+            right = face
+            if not (physical[left] or physical[right]):
+                continue
+            increment = dt * correction_area[face]
+
+            def trial_valid(alpha):
+                return (
+                    valid_cell(left, trial_angular[left] - alpha * increment)
+                    and valid_cell(right, trial_angular[right] + alpha * increment)
+                )
+
+            if trial_valid(1.0):
+                factors[face] = 1.0
+                trial_angular[left] -= increment
+                trial_angular[right] += increment
+                continue
+            if not trial_valid(0.0):
+                factors[face] = 0.0
+                continue
+            lo, hi = 0.0, 1.0
+            for _ in range(48):
+                middle = 0.5 * (lo + hi)
+                if trial_valid(middle):
+                    lo = middle
+                else:
+                    hi = middle
+            factors[face] = lo
+            trial_angular[left] -= lo * increment
+            trial_angular[right] += lo * increment
+
+        limited = low + factors * correction
+        fluid.AngularMomentum.flux = as_named_array(limited)
+        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
+        fluid.angular_momentum_face = as_named_array(
+            np.divide(limited, mass_flux, out=np.zeros_like(limited),
+                      where=mass_flux != 0.0)
+        )
+        fluid.angular_momentum_fct_factors = as_named_array(factors)
+        if hasattr(fluid, 'rotational_energy_flux'):
+            radius = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
+            new_rotational = np.zeros_like(mass_flux)
+            valid = (radius > 0.0) & np.isfinite(radius)
+            new_rotational[valid] = (
+                0.5 * fluid.angular_momentum_face[valid]**2
+                / radius[valid]**2 * mass_flux[valid]
+            )
+            fluid.Energy.flux += new_rotational - np.asarray(
+                fluid.rotational_energy_flux, dtype=float
+            )
+            fluid.rotational_energy_flux = as_named_array(new_rotational)
 
     def _set_rotational_energy_flux(self, mesh, fluid, par, j_face=None):
         """Add the advected rotational-energy flux to the total-energy flux."""
@@ -1100,6 +1239,39 @@ class Solver():
                         mesh.boundary,
                         fluid.specific_angular_momentum.grad,
                         order=1,
+                    )
+                    # MUSCL reconstruction of j is a passive-scalar
+                    # reconstruction, but j also enters the rotational-energy
+                    # admissibility condition.  Keep both states at each face
+                    # inside the local cell-average range so an antidiffusive
+                    # gradient cannot create a new angular-momentum extremum.
+                    j_right_cell = np.asarray(
+                        fluid.specific_angular_momentum.R, dtype=float
+                    )
+                    j_left_cell = np.asarray(
+                        fluid.specific_angular_momentum.L, dtype=float
+                    )
+                    j_min = np.minimum(j_left_cell, j_right_cell)
+                    j_max = np.maximum(j_left_cell, j_right_cell)
+                    fluid.specific_angular_momentum.R.first = as_named_array(
+                        np.clip(
+                            np.asarray(
+                                fluid.specific_angular_momentum.R.first,
+                                dtype=float,
+                            ),
+                            j_min,
+                            j_max,
+                        )
+                    )
+                    fluid.specific_angular_momentum.L.first = as_named_array(
+                        np.clip(
+                            np.asarray(
+                                fluid.specific_angular_momentum.L.first,
+                                dtype=float,
+                            ),
+                            j_min,
+                            j_max,
+                        )
                     )
             self._apply_low_density_face_mask(
                 fluid, getattr(mesh, '_par', None), order
@@ -1620,11 +1792,40 @@ class Solver():
                 invalid = ~valid(total_mass, total_mom, total_energy,
                                   total_angular)
                 index = int(np.flatnonzero(invalid)[0])
+                mass_value = float(total_mass[index])
+                momentum_value = float(total_mom[index])
+                energy_value = float(total_energy[index])
+                kinetic_value = (
+                    0.5 * momentum_value**2 / mass_value
+                    if mass_value > 0.0 else 0.0
+                )
+                angular_value = (
+                    float(total_angular[index])
+                    if total_angular is not None else 0.0
+                )
+                radius_value = (
+                    float(radius[index])
+                    if radius is not None else float("nan")
+                )
+                rotational_value = (
+                    0.5 * angular_value**2
+                    / (mass_value * radius_value**2)
+                    if mass_value > 0.0 and radius_value > 0.0 else 0.0
+                )
+                internal_value = (
+                    energy_value - kinetic_value - rotational_value
+                )
+                specific_value = (
+                    angular_value / mass_value if mass_value > 0.0 else 0.0
+                )
                 raise ValueError(
                     'hydro state is outside positivity domain before paired '
-                    'face construction at cell %d (mass=%s mom=%s energy=%s)'
-                    % (index, total_mass[index], total_mom[index],
-                       total_energy[index])
+                    'face construction at cell %d '
+                    '(mass=%s mom=%s energy=%s radius=%s J=%s j=%s '
+                    'kinetic=%s rotational=%s internal=%s)'
+                    % (index, mass_value, momentum_value, energy_value,
+                       radius_value, angular_value, specific_value,
+                       kinetic_value, rotational_value, internal_value)
                 )
 
             def adjacent_valid(face, factor):
@@ -1801,6 +2002,9 @@ class Solver():
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
         """Apply interface fluxes to conserved quantities and advance time."""
         old_mass_for_internal = np.asarray(fluid.Mass, dtype=float).copy()
+        self._limit_angular_momentum_flux(
+            dt, mesh, fluid, getattr(mesh, '_par', None)
+        )
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
         area = mesh.area
