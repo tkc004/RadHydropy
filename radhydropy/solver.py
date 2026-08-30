@@ -2297,13 +2297,11 @@ class Solver():
             )
             rotational_acceleration[~valid_radius] = 0.0
 
-        # Apply gravity and centrifugal momentum sources as sequential coupled
-        # source updates. Each work term uses the midpoint momentum for that
-        # source, so the energy update is consistent with the momentum update.
-        # Centrifugal work is the radial part of the exchange with the
-        # rotational reservoir; E_rot is reconstructed from J/M and radius in
-        # SetPrimitive, while advective/geometric exchange is handled by the
-        # rotational-energy flux.
+        # Apply gravity and centrifugal momentum sources sequentially. Gravity
+        # work updates the gas energy, while the centrifugal source does not:
+        # total Energy already contains E_rot and its face flux is transported
+        # separately. Adding centrifugal work here would count the exchange
+        # with the rotational reservoir twice.
         dt_value = float(np.asarray(dt, dtype=float))
         gravity_momentum = momentum + mass * gravity_acceleration * dt_value
         new_momentum = gravity_momentum + mass * rotational_acceleration * dt_value
@@ -2315,7 +2313,7 @@ class Solver():
         ) * rotational_acceleration * dt_value
         new_energy = (
             np.asarray(fluid.Energy, dtype=float)
-            + gravity_work + centrifugal_work
+            + gravity_work
         )
         fluid.Mom[...] = new_momentum
         fluid.Energy[...] = new_energy
@@ -2324,8 +2322,8 @@ class Solver():
             and hasattr(fluid, 'GravitationalPotentialEnergy')
         ):
             # The explicit potential-energy reservoir receives the opposite
-            # of the gravity work.  Centrifugal work is an exchange with the
-            # rotational reservoir, not with the fixed gravitational field.
+            # of the gravity work. Centrifugal work is retained as a diagnostic
+            # only because E_rot is already part of total Energy.
             fluid.GravitationalPotentialEnergy[...] -= gravity_work
         self.last_gravity_work = float(
             np.sum(gravity_work[interior])

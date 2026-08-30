@@ -472,7 +472,7 @@ class Testing(unittest.TestCase):
         ) * expected_acceleration * 1.0e-3
         np.testing.assert_allclose(
             np.asarray(fluid.Energy, dtype=float),
-            old_energy + centrifugal_work,
+            old_energy,
         )
         np.testing.assert_allclose(
             solver.last_centrifugal_work,

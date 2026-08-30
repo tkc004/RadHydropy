@@ -1,8 +1,9 @@
 Gas Centrifugal Hydro Expansion Benchmark
 =========================================
 
-This benchmark tests centrifugal work together with spherical Eulerian hydro
-advection.  The initial gas sphere uses the low-temperature isothermal closure
+This benchmark tests centrifugal acceleration and rotational-energy transport
+together with spherical Eulerian hydro advection.  The initial gas sphere uses
+the low-temperature isothermal closure
 to remain pressureless numerically, and rotates above circular support,
 
 .. math::
@@ -34,3 +35,8 @@ Run with::
 Run the 32/64/128-cell convergence study with::
 
    python convergence.py
+
+Run the fixed-resolution timestep study for the coupled centrifugal source
+update with::
+
+   python time_convergence.py
