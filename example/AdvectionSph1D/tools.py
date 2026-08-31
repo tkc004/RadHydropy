@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from types import SimpleNamespace
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
@@ -28,43 +29,47 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         if code_units is not None:
             self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
-        self.par.time = icparams['time'] * np.ones(1)
+        grid_cells = icparams['grid_cells']
+        box_size = icparams['box_size'] * np.ones(1)
+        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=icparams['coordinate_system'],
+            current_time=icparams['current_time'] * np.ones(1),
+            box_size=box_size,
+        )
 
-        dx = self.par.boxsize[0] / self.par.nogrid
+        dx = box_size[0] / grid_cells
         self.mesh.boundary = np.linspace(
             dx,
-            self.par.boxsize[0] + dx,
-            self.par.nogrid + 1,
+            box_size[0] + dx,
+            grid_cells + 1,
         )
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
 
-        self.fluid.vel = icparams['vini'] * np.ones(self.par.nogrid)
-        self.fluid.temp = icparams['tempini'] * np.ones(self.par.nogrid)
-        rho = icparams['rhoini'] * np.ones(self.par.nogrid)
+        self.fluid.vel = icparams['initial_velocity'] * np.ones(grid_cells)
+        self.fluid.temp = icparams['initial_temperature'] * np.ones(grid_cells)
+        rho = icparams['initial_density'] * np.ones(grid_cells)
         rho[
             np.logical_or(
-                coordinate < 0.25 * self.par.boxsize[0],
-                coordinate > 0.75 * self.par.boxsize[0],
+                coordinate < 0.25 * box_size[0],
+                coordinate > 0.75 * box_size[0],
             )
         ] *= 0.01
         self.fluid.rho = rho
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout.par.CodeUnits = code_units_obj
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    rout.par.units.CodeUnits = code_units_obj
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    time = rout.par.time * code_units_obj.time_unit
+    time = rout.par.simulation.current_time * code_units_obj.time_unit
     radius = rout.mesh.boundary[:-1] * code_units_obj.length_unit
     rplot1d(rout, yquan='rho', showfig=0, **kwargs)
     rout.mesh.vol = np.absolute(
@@ -76,8 +81,8 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rho = asa.top_hat_density_profile(
         radius,
         time,
-        icparams['vini'],
-        icparams['boxsize'],
-        icparams['rhoini'],
+        icparams['initial_velocity'],
+        icparams['box_size'],
+        icparams['initial_density'],
     )
     plt.plot(x, rho, color=kwargs['color'], ls='solid')

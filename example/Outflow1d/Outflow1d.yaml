@@ -1,64 +1,65 @@
-runparams:
-  simname: outflow1d
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outdeltatime:
-    value: 0.2
-    unit: s
-  savedir: .
-  coordsys: cartesian
-  EOStype: polytropic
-  gamma: 1.4
-  timesim:
-    value: 2.0
-    unit: s
-  CFL: 0.1
-  boundcond: OutflowSph
-  vel_outflow:
-    value: 1.0
-    unit: cm/s
-  rho_outflow:
-    value: 1.0
-    unit: g/cm**3
-  temp_outflow:
-    value: 0.0
-    unit: K
-  mu_outflow: 1.0
-  verbose: 0
-  order: 0
-  noghost: 10
-  dtmin:
-    value: 2.0e-8
-    unit: s
-  dtmax:
-    value: 2.0e-2
-    unit: s
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
+par:
+  simulation:
+    name: outflow1d
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 2.0, unit: s}
+  mesh:
+    ghost_cells: 10
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: OutflowSph
+    outflow_velocity: {value: 1.0, unit: cm/s}
+    outflow_density: {value: 1.0, unit: g/cm**3}
+    outflow_temperature: {value: 0.0, unit: K}
+    outflow_mu: 1.0
+  timestep:
+    dtmin: {value: 2.0e-8, unit: s}
+    dtmax: {value: 2.0e-2, unit: s}
+  output:
+    directory: .
+    filename_prefix: Output
+    cadence:
+      value: 0.2
+      unit: s
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 
-ICparams:
-  nogrid: 1000
-  coordsys: cartesian
-  boxsize:
+initial_condition:
+  grid_cells: 1000
+  coordinate_system: cartesian
+  box_size:
     value: 2.0
     unit: cm
-  time:
+  current_time:
     value: 0.0
     unit: s
-  tempini:
+  initial_temperature:
     value: 0.0
     unit: K
-  muini: 1.0
-  vini:
+  mean_molecular_weight: 1.0
+  initial_velocity:
     value: 1.0
     unit: cm/s
-  rhoini:
+  initial_density:
     value: 0.001
     unit: g/cm**3
+
+example:
+  plot:
+    filename: Outflow1D.jpg
+    markevery: 1
+  output_indices: [0, 2, 4, 6, 8]

@@ -135,7 +135,7 @@ def ConvertParametersToCodeUnits(sim):
 
 def _require_code_units(sim):
     """Return the active code-unit system or fail fast during startup."""
-    code = getattr(sim.par, 'CodeUnits', None)
+    code = getattr(getattr(sim.par, 'units', None), 'CodeUnits', None)
     if code is None:
         raise ValueError("simulation startup requires configured code units")
     return code

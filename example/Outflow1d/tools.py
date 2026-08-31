@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from types import SimpleNamespace
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
@@ -27,35 +28,38 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         if code_units is not None:
             self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
-        self.par.time = icparams['time'] * np.ones(1)
+        grid_cells = icparams['grid_cells']
+        box_size = icparams['box_size'] * np.ones(1)
+        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=icparams['coordinate_system'],
+            current_time=icparams['current_time'] * np.ones(1),
+            box_size=box_size,
+        )
 
         self.mesh.boundary = np.linspace(
-            0.0 * self.par.boxsize[0],
-            self.par.boxsize[0],
-            self.par.nogrid + 1,
+            0.0 * box_size[0], box_size[0], grid_cells + 1,
         )
-        self.fluid.vel = icparams['vini'] * np.ones(self.par.nogrid)
-        self.fluid.temp = icparams['tempini'] * np.ones(self.par.nogrid)
-        self.fluid.rho = icparams['rhoini'] * np.ones(self.par.nogrid)
-        self.fluid.mu = icparams['muini'] * np.ones(self.par.nogrid)
+        self.fluid.vel = icparams['initial_velocity'] * np.ones(grid_cells)
+        self.fluid.temp = icparams['initial_temperature'] * np.ones(grid_cells)
+        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout.par.CodeUnits = code_units_obj
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    rout.par.units.CodeUnits = code_units_obj
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho', showhalf=0, showfig=0, **kwargs)
     plt.axvline(
-        x=(rout.par.time * code_units_obj.time_unit) * runparams['vel_outflow'],
+        x=(rout.par.simulation.current_time * code_units_obj.time_unit)
+        * runparams['boundary']['outflow_velocity'],
         color=kwargs['color'],
         ls='dashed',
     )

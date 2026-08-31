@@ -1,13 +1,21 @@
 Run Parameters
 ==============
 
-Runtime parameters are passed to :class:`radhydropy.params.Par` as a dictionary.
-Missing keys are filled from :data:`radhydropy.params.refparams`.
+Runtime parameters are passed to :class:`radhydropy.params.Par` as a nested
+mapping. The mapping mirrors the runtime object: ``simulation``, ``mesh``,
+``hydrodynamics``, ``boundary``, ``timestep``, ``units``, and ``radiation``
+are parameter groups. Missing values are filled from
+:data:`radhydropy.params.refparams`.
+
+For example, use ``par.mesh.grid_cells`` and
+``par.simulation.final_time`` in code; do not use the former flat names
+``par.nogrid`` or ``par.timesim``. ``Par`` does not expose those flat runtime
+aliases.
 
 Unit System
 -----------
 
-Every run must define a mandatory ``CodeUnits`` block in ``runparams``.
+Every run must define a mandatory ``par.units.CodeUnits`` block.
 
 Cosmological initial conditions and outputs carry their cosmology and variable
 representation in the HDF5 ``Header``. When
@@ -30,22 +38,36 @@ Example helpers can still accept ``unyt`` quantities at the script boundary,
 but they should convert to code units or plain floats internally before they
 enter any repeated solver loop or gravity calculation.
 
-The YAML form used by the examples is:
+The nested YAML form used by migrated examples is:
 
 .. code-block:: yaml
 
-   CodeUnits:
-     name: galactic_unit_system
-     InternalUnitSystem:
-       UnitMass_in_cgs:     4.92e31
-       UnitLength_in_cgs:   3.08567758e21
-       UnitVelocity_in_cgs: 1.0e5
-       UnitCurrent_in_cgs:  1.0
-       UnitTemp_in_cgs:     1.0
+   par:
+     simulation:
+       coordinate_system: cartesian
+       final_time: {value: 2.0, unit: s}
+     mesh:
+       grid_cells: 100
+       ghost_cells: 5
+     hydrodynamics:
+       eos_type: polytropic
+       gamma: 1.4
+       CFL: 0.1
+     timestep:
+       dtmax: {value: 0.2, unit: s}
+     units:
+       CodeUnits:
+         name: galactic_unit_system
+         InternalUnitSystem:
+           UnitMass_in_cgs: 4.92e31
+           UnitLength_in_cgs: 3.08567758e21
+           UnitVelocity_in_cgs: 1.0e5
+           UnitCurrent_in_cgs: 1.0
+           UnitTemp_in_cgs: 1.0
 
 If you already have a :class:`unyt.unit_systems.UnitSystem`, it can also be
-passed as ``CodeUnits``. The loader converts that object into the same
-``CodeUnits`` dataclass used by the runtime.
+provided as the value of ``par.units.CodeUnits``. The loader converts that
+object into the same ``CodeUnits`` dataclass used by the runtime.
 
 Common Runtime Keys
 -------------------
@@ -186,7 +208,7 @@ Energy Diagnostics
 
 Energy diagnostics are intended for conservation checks and physical-flow
 interpretation, not for the normal production path. Enable them in
-``runparams`` with:
+``par`` with:
 
 .. code-block:: yaml
 

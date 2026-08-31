@@ -4,6 +4,7 @@ import argparse
 import os
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -16,7 +17,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -28,22 +28,33 @@ DEFAULT_CONFIG = Path(__file__).with_name('outflow_sph_vacuum1d.yaml')
 
 def run(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    runparams, icparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    config = eu.load_nested_example_config(config_filename)
+    runparams = config['par']
+    icparams = config['initial_condition']
+    exampleparams = config['example']
+    eu.clean_previous_outputs(runparams['output'])
+    units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     initial = tools.Simwrap(icparams, units)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    rio.writehdf5(
+        initial,
+        rundir / runparams['simulation']['initial_condition_filename'],
+    )
 
     sim = Rsim(runparams)
     sim.RunAll(outputtime=0)
 
     profiles = []
-    first = int(runparams['noghost'])
-    active_count = int(icparams['nogrid'])
-    output_files = sorted(Path(runparams['outdir']).glob('Output_*.hdf5'))
+    first = int(runparams['mesh']['ghost_cells'])
+    active_count = int(icparams['grid_cells'])
+    output = runparams['output']
+    output_files = sorted(
+        Path(output['directory']).glob(f"{output['filename_prefix']}_*.hdf5")
+    )
     for filename in output_files:
         par, mesh, fluid = tools.Par(), tools.Mesh(), tools.Fluid()
-        par.CodeUnits = units
+        par.units = SimpleNamespace(CodeUnits=units)
+        par.mesh = SimpleNamespace(ghost_cells=first, grid_cells=active_count)
+        par.simulation = SimpleNamespace(coordinate_system='spherical')
         rio.readhdf5(par, mesh, fluid, filename)
         rho = np.asarray(fluid.rho, dtype=float)
         temp = np.asarray(getattr(fluid, 'temp', np.zeros_like(rho)), dtype=float)
@@ -59,12 +70,14 @@ def run(config_filename=DEFAULT_CONFIG):
     if not profiles:
         raise RuntimeError('vacuum outflow produced no output snapshots')
     filled = [
-        np.count_nonzero(rho[first:first + active_count] > runparams['cfl_density_floor'])
+        np.count_nonzero(
+            rho[first:first + active_count] > runparams['cfl_density_floor']
+        )
         for _, rho, _, _ in profiles
     ]
     if filled[-1] == 0:
         raise RuntimeError('outflow did not fill any physical vacuum cells')
-    figure = Path(runparams['savedir']) / 'OutflowSphVacuum1D.jpg'
+    figure = Path(output['directory']) / exampleparams['plot_filename']
     analytic_label_used = False
     for time, rho, _, boundary in profiles:
         radius = 0.5 * (boundary[1:] + boundary[:-1])

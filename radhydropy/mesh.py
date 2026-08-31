@@ -42,9 +42,9 @@ class Mesh:
         attr = 'boundary'
         if not hasattr(self, attr):
             raise AttributeError("%s does not exist in mesh; quitting."%attr)
-        for attr in ('nogrid', 'noghost', 'coordsys'):
-            if not hasattr(par, attr):
-                raise AttributeError("%s does not exist in params; quitting."%attr)
+        for attr in ('grid_cells', 'ghost_cells'):
+            if not hasattr(par.mesh, attr):
+                raise AttributeError("mesh.%s does not exist in params; quitting." % attr)
         if nogrid < 1:
             raise ValueError("nogrid has to be at least 1")
         if noghost < 1:
@@ -67,8 +67,8 @@ class Mesh:
         self.xdelta = as_named_array(self.boundary[1:] - self.boundary[:-1])
         self.oneoverdx = as_named_array(1.0/self.xdelta)
         if self.coordsys == 'cartesian':
-            if not hasattr(par, 'area'):
-                raise AttributeError("area does not exist in params; quitting.")
+            if not hasattr(par.mesh, 'area'):
+                raise AttributeError("mesh.area does not exist in params; quitting.")
             # coordinate is the midpoint of boundary
             self.coordinate = as_named_array(0.5 * (self.boundary[1:]+self.boundary[:-1]))
             area_value = quantity_to_value(

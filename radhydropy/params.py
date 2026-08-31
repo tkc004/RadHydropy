@@ -99,6 +99,7 @@ refparams = {
     'dual_energy_pressure_floor': 1.0e-20,
     # Backward-compatible alias for the old single pressure-selection switch.
     'dual_energy_switch': 1.0e-3,
+    'nogrid': None,
     'noghost':2,
     'dtmin': 2.0e-8*unyt.s,
     'dtmax': 2.0e-1*unyt.s,   
@@ -551,6 +552,7 @@ class Par:
 
     def __init__(self, params) -> None:
         params = self._validate_mapping(params)
+        params = self._flatten_nested_parameters(params)
         self._validate_keys(params)
         self.runparams = dict(params)
         self._parameter_values = {}
@@ -567,6 +569,59 @@ class Par:
         if not hasattr(params, 'items'):
             raise TypeError('run parameters must be supplied as a mapping')
         return params
+
+    @staticmethod
+    def _flatten_nested_parameters(params):
+        """Translate the nested YAML shape into internal input names."""
+        if not any(isinstance(params.get(group), dict) for group in (
+            'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
+            'units', 'radiation',
+        )):
+            return params
+        flattened = dict(params)
+        groups = {
+            'simulation': {
+                'name': 'simname',
+                'initial_condition_filename': 'ICfilename',
+                'coordinate_system': 'coordsys',
+                'final_time': 'timesim',
+                'box_size': 'boxsize',
+                'current_time': 'time',
+            },
+            'mesh': {'grid_cells': 'nogrid', 'ghost_cells': 'noghost', 'area': 'area'},
+            'hydrodynamics': {
+                'eos_type': 'EOStype', 'gamma': 'gamma', 'temperature': 'temperature',
+                'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
+            },
+            'boundary': {
+                'condition': 'boundcond', 'inflow_velocity': 'vel_inflow',
+                'inflow_density': 'rho_inflow', 'inflow_temperature': 'temp_inflow',
+                'inflow_mu': 'mu_inflow', 'outflow_velocity': 'vel_outflow',
+                'outflow_density': 'rho_outflow', 'outflow_temperature': 'temp_outflow',
+                'outflow_mu': 'mu_outflow',
+            },
+            'timestep': {'dtmin': 'dtmin', 'dtmax': 'dtmax'},
+            'units': {'CodeUnits': 'CodeUnits'},
+            'output': {
+                'directory': 'outdir', 'savedir': 'savedir',
+                'filename_prefix': 'outfileprefix', 'cadence': 'outdeltatime',
+                'time_list_filename': 'outputtimefilename',
+            },
+            'diagnostics': {'verbose': 'verbose'},
+            'radiation': {
+                'direction': 'radiative_transfer_direction',
+                'boundary_flux': 'radiative_transfer_boundary_flux',
+                'source_photon_rate': 'radiative_transfer_source_photon_rate',
+            },
+        }
+        for group, names in groups.items():
+            values = params.get(group, {})
+            if isinstance(values, dict):
+                for nested_name, input_name in names.items():
+                    if nested_name in values:
+                        flattened[input_name] = values[nested_name]
+            flattened.pop(group, None)
+        return flattened
 
     @staticmethod
     def _validate_keys(params):

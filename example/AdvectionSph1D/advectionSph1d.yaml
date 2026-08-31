@@ -1,47 +1,60 @@
-runparams:
-  simname: advection1d
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outdeltatime:
-    value: 0.1
-    unit: s
-  savedir: .
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.4
-  timesim:
-    value: 1.0
-    unit: s
-  CFL: 0.1
-  boundcond: OpenSph
-  verbose: 0
-  order: 0
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
+par:
+  simulation:
+    name: advection1d
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time:
+      value: 1.0
+      unit: s
+  mesh:
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: OpenSph
+  output:
+    directory: .
+    filename_prefix: Output
+    cadence:
+      value: 0.1
+      unit: s
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 
-ICparams:
-  nogrid: 1000
-  coordsys: spherical
-  boxsize:
+initial_condition:
+  grid_cells: 1000
+  coordinate_system: spherical
+  box_size:
     value: 4.0
     unit: cm
-  time:
+  current_time:
     value: 0.0
     unit: s
-  tempini:
+  initial_temperature:
     value: 0.0
     unit: K
-  muini: 1.0
-  vini:
+  mean_molecular_weight: 1.0
+  initial_velocity:
     value: 1.0
     unit: cm/s
-  rhoini:
+  initial_density:
     value: 1.0
     unit: g/cm**3
+
+example:
+  plot:
+    filename: AdvectionSph1D.jpg
+    markevery: 10
+  output_indices: [0, 2, 4, 6, 8]

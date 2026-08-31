@@ -29,6 +29,11 @@ def _as_cgs_float(value, unit):
 
 
 def _code_units(par):
+    units = getattr(par, "units", None)
+    if units is not None and getattr(units, "CodeUnits", None) is not None:
+        return units.CodeUnits
+    # Component objects such as EOS, Gravity, Fluid, and Mesh own their
+    # code-unit system directly; this is not a Par-level configuration alias.
     return getattr(par, "CodeUnits", None)
 
 

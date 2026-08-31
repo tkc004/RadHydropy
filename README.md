@@ -69,26 +69,31 @@ cd example/SodShock1D
 python sodshock1d.py
 ```
 
-Most examples follow the same pattern:
+Most migrated examples follow the same pattern:
 
-1. load `runparams` and `ICparams` from the example YAML file;
-2. create an HDF5 initial-condition file from `ICparams`, attaching
-   `CodeUnits` before calling `writehdf5`;
-3. construct `Rsim` with the runtime parameters, including `CodeUnits`;
-4. call `RunAll()`; and
-5. inspect or plot the output files.
+1. load the nested `par`, `initial_condition`, and `example` sections from
+   the example YAML file;
+2. convert YAML `{value, unit}` entries to `unyt` quantities with
+   `example_utils.load_nested_example_config()`;
+3. create an HDF5 initial-condition file from `initial_condition`;
+4. construct `Rsim` with nested runtime parameters;
+5. call `RunAll()`; and
+6. inspect or plot the output files.
 
-The bundled YAML files define the internal unit system with a block like:
+The bundled YAML files define the internal unit system under
+`par.units.CodeUnits`:
 
 ```yaml
-CodeUnits:
-  name: galactic_unit_system
-  InternalUnitSystem:
-    UnitMass_in_cgs:     4.92e31
-    UnitLength_in_cgs:   3.08567758e21
-    UnitVelocity_in_cgs: 1.0e5
-    UnitCurrent_in_cgs:  1.0
-    UnitTemp_in_cgs:     1.0
+par:
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 4.92e31
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 ```
 
 That block is required for the current runtime path and must also be stored in
@@ -121,20 +126,22 @@ from pathlib import Path
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import tools as et
 import matplotlib.pyplot as plt
 
 config = Path("example/SodShock1D/sodshock1d.yaml")
-runparams, ICparams = load_example_parameters(config)
-code_units = CodeUnits.from_mapping(runparams["CodeUnits"])
+config_data = load_nested_example_config(config)
+par_config = config_data["par"]
+icparams = config_data["initial_condition"]
+code_units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
 
-ric = et.Simwrap(ICparams, code_units=code_units)
-rio.writehdf5(ric, runparams["ICfilename"])
+ric = et.Simwrap(icparams, code_units=code_units)
+rio.writehdf5(ric, par_config["simulation"]["initial_condition_filename"])
 
-sim = Rsim(runparams)
+sim = Rsim(par_config)
 sim.RunAll()
 
 rio.readhdf5(sim.par, sim.mesh, sim.fluid, "Output_001.hdf5")
@@ -142,11 +149,11 @@ rplot1d(sim, yquan="rho")
 plt.show()
 ```
 
-This is the same pattern used by the bundled example scripts: load the YAML
-file, generate ``InitialCondition.hdf5`` from ``ICparams`` with the mandatory
-``CodeUnits`` attached, then launch the run with ``Rsim``. The helper resolves
-relative ``ICfilename``, ``outdir``,
-``outputtimefilename``, and ``savedir`` paths against the example directory.
+This is the same pattern used by the migrated example scripts: load the YAML
+file, generate ``InitialCondition.hdf5`` from ``initial_condition`` using the
+unit system under ``par.units.CodeUnits``, then launch the run with ``Rsim``.
+The helper converts ``{value, unit}`` mappings to ``unyt`` quantities and
+resolves paths against the example directory.
 The plotting step reloads the first output snapshot and renders the density
 profile with the built-in plotting helper.
 
@@ -212,7 +219,7 @@ and API reference, plus standalone pages for the main simulation subsystems:
 
 - [Installation guide](docs/installation.rst)
 - [Quickstart](docs/quickstart.rst)
-- [Initial-condition parameters](docs/icparams.rst)
+- [Initial-condition and example parameters](docs/icparams.rst)
 - [Hydrodynamics solver](docs/hydrodynamics.rst)
 - [Gravity](docs/gravity.rst)
 - [Thermo-chemistry solver](docs/thermo_chemistry.rst)

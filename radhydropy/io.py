@@ -470,7 +470,7 @@ def writehdf5(ric,ICfilename):
     if output_time is None:
         output_time = ric.par.simulation.current_time
     with h5py.File(ICfilename, 'w') as fic:
-        code_units = getattr(ric.par, "CodeUnits", None)
+        code_units = getattr(getattr(ric.par, "units", None), "CodeUnits", None)
         # saving initial condition
         # first, save header:
         header = fic.create_group("Header")
@@ -484,6 +484,13 @@ def writehdf5(ric,ICfilename):
             }:
                 continue
             header.attrs[key] = _header_attr_value(value)
+        if code_units is not None:
+            header.attrs["CodeUnits"] = _header_attr_value(code_units)
+        header.attrs["GridCells"] = int(ric.par.mesh.grid_cells)
+        header.attrs["GhostCells"] = int(ric.par.mesh.ghost_cells)
+        header.attrs["CoordinateSystem"] = getattr(
+            getattr(ric.par, "simulation", None), "coordinate_system", "cartesian"
+        )
         if hasattr(ric, "cumulative_hydro_boundary_energy"):
             header.attrs["CumulativeHydroBoundaryEnergyCode"] = float(
                 ric.cumulative_hydro_boundary_energy
@@ -725,6 +732,13 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 continue
             setattr(par, key, restored)
         _restore_cosmology_from_header(par, header, code_units)
+        if hasattr(par, 'mesh'):
+            if 'GridCells' in header.attrs:
+                par.mesh.grid_cells = int(header.attrs['GridCells'])
+            if 'GhostCells' in header.attrs:
+                par.mesh.ghost_cells = int(header.attrs['GhostCells'])
+        if hasattr(par, 'simulation') and 'CoordinateSystem' in header.attrs:
+            par.simulation.coordinate_system = header.attrs['CoordinateSystem']
         coordinate_system = par.simulation.coordinate_system
         if expected_coordsys is not None and coordinate_system != expected_coordsys:
             raise Exception(

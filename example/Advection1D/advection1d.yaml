@@ -1,54 +1,67 @@
-runparams:
-  simname: advection1d
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outdeltatime:
-    value: 0.2
-    unit: s
-  savedir: .
-  coordsys: cartesian
-  EOStype: polytropic
-  gamma: 1.4
-  timesim:
-    value: 2.0
-    unit: s
-  CFL: 0.1
-  boundcond: Periodic
-  noghost: 5
-  verbose: 0
-  order: 0
-  dtmin:
-    value: 2.0e-8
-    unit: s
-  dtmax:
-    value: 0.2
-    unit: s
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
+par:
+  simulation:
+    name: advection1d
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time:
+      value: 2.0
+      unit: s
+  mesh:
+    ghost_cells: 5
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: Periodic
+  timestep:
+    dtmin:
+      value: 2.0e-8
+      unit: s
+    dtmax:
+      value: 0.2
+      unit: s
+  output:
+    directory: .
+    filename_prefix: Output
+    cadence:
+      value: 0.2
+      unit: s
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 
-ICparams:
-  nogrid: 100
-  coordsys: cartesian
-  boxsize:
+initial_condition:
+  grid_cells: 100
+  coordinate_system: cartesian
+  box_size:
     value: 1.0
     unit: cm
-  time:
+  current_time:
     value: 0.0
     unit: s
-  rhoini:
+  initial_density:
     value: 1.0
     unit: g/cm**3
-  vini:
+  initial_velocity:
     value: 1.0
     unit: cm/s
-  tempini:
+  initial_temperature:
     value: 1.0e-10
     unit: K
-  muini: 1.0
+  mean_molecular_weight: 1.0
+
+example:
+  plot:
+    filename: Advection1D.jpg
+    markevery: 10
+  output_indices: [0, 5]

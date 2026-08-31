@@ -7,6 +7,9 @@ from pathlib import Path
 import h5py
 import numpy as np
 import unyt
+import yaml
+
+from radhydropy.example_config import _load_yaml_value, _resolve_path
 
 from radhydropy.cosmological_variables import (
     physical_density,
@@ -17,6 +20,45 @@ from radhydropy.cosmological_variables import (
 )
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.io import _restore_header_attr_value
+
+
+def load_nested_example_config(config_filename):
+    """Load a nested example YAML configuration with unit-aware values.
+
+    The returned mapping has separate ``par``, ``initial_condition``, and
+    ``example`` sections. Values written as ``{value: ..., unit: ...}`` are
+    converted to unyt quantities before being passed to the runtime.
+    """
+    config_filename = Path(config_filename).resolve()
+    with config_filename.open(encoding='utf-8') as config_file:
+        raw = yaml.safe_load(config_file)
+    config = _load_yaml_value(raw)
+    if not isinstance(config, dict) or 'par' not in config:
+        raise ValueError("nested example configuration requires a 'par' section")
+    par = config['par']
+    initial_condition = config.get('initial_condition', {})
+    if 'mesh' in par and 'grid_cells' not in par['mesh']:
+        if 'grid_cells' in initial_condition:
+            par['mesh']['grid_cells'] = initial_condition['grid_cells']
+    if 'simulation' in par and 'initial_condition_filename' in par['simulation']:
+        par['simulation']['initial_condition_filename'] = _resolve_path(
+            par['simulation']['initial_condition_filename'], config_filename.parent
+        )
+    for section in ('par', 'example'):
+        values = config.get(section, {})
+        for key in ('output_directory', 'savedir', 'outputtimefilename'):
+            if key in values:
+                values[key] = _resolve_path(values[key], config_filename.parent)
+        if section == 'par' and 'output' in values:
+            output = values['output']
+            for key in ('directory', 'time_list_filename'):
+                if key in output:
+                    output[key] = _resolve_path(output[key], config_filename.parent)
+    return {
+        'par': par,
+        'initial_condition': initial_condition,
+        'example': config.get('example', {}),
+    }
 
 
 def snapshot_physical_fields(hdf5_filename):
@@ -70,8 +112,13 @@ def snapshot_physical_fields(hdf5_filename):
 
 def clean_previous_outputs(runparams):
     """Delete stale ``Output_*.hdf5`` files before running an example."""
-    outdir = Path(runparams.get('outdir', '.'))
-    prefix = runparams.get('outfileprefix', 'Output')
+    if 'output' in runparams:
+        runparams = runparams['output']
+        outdir = Path(runparams.get('directory', '.'))
+        prefix = runparams.get('filename_prefix', 'Output')
+    else:
+        outdir = Path(runparams.get('outdir', '.'))
+        prefix = runparams.get('outfileprefix', 'Output')
     if not outdir.exists():
         return
     for path in outdir.glob(f'{prefix}_*.hdf5'):
