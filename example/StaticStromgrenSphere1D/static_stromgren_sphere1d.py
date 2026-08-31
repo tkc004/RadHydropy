@@ -29,7 +29,6 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 import stromgren_analytic as sa
@@ -43,9 +42,12 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('static_stromgren_sphere1d.y
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, icparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    config = {**runparams, **icparams}
+    nested = eu.load_nested_example_config(config_filename)
+    runtime = nested['par']
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = runparams
+    config = runparams
+    eu.clean_previous_outputs(runtime['output'])
     for alias, source in (
         ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
         ('alpha_B_coefficient', 'hydrogen_alpha_B'),
@@ -60,15 +62,15 @@ def main(config_filename=DEFAULT_CONFIG):
 
     et.write_initial_condition(config, runparams)
 
-    sim = Rsim(runparams)
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
 
     front_history = sim.EvolveStaticThermochemistry(
-        runparams['final_time'],
-        runparams['chemistry_timestep'],
+        runtime['simulation']['final_time'],
+        runtime['timestep']['chemistry_timestep'],
     )
 
     output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"

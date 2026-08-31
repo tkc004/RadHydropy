@@ -32,7 +32,6 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
-from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 import example_utils as eu
@@ -45,34 +44,37 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('radiative_transfer_sph1d.ya
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    config = {**runparams, **ICparams}
+    nested = eu.load_nested_example_config(config_filename)
+    runtime = nested['par']
+    config = eu.legacy_example_parameters(nested)
+    runparams = config
+    ICparams = nested['initial_condition']
+    eu.clean_previous_outputs(runtime['output'])
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config, runparams)
 
-    mainrun = Rsim(runparams)
+    mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
-    if runparams.get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray':
+    if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray':
         mainrun.EvolveStaticThermochemistry(
-            runparams['final_time'],
-            runparams['evolution_timestep'],
+            runtime['simulation']['final_time'],
+            runtime['timestep']['evolution_timestep'],
         )
     rio.write_numbered_hdf5(mainrun, 0)
 
-    output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
+    output_filename = Path(runtime['output']['directory']) / f"{runtime['output']['filename_prefix']}_000.hdf5"
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
     relative_error = et.save_plot(
         out_mesh,
         out_fluid,
         out_par,
-        runparams.get(
+        config.get(
             'radiative_transfer_source_photon_rate',
             runparams.get('source_photon_rate'),
         ),
@@ -80,17 +82,17 @@ def main(config_filename=DEFAULT_CONFIG):
             Path(runparams['savedir'])
             / (
                 'RadiativeTransferSph1D_C2Ray.jpg'
-                if runparams.get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+                if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
                 else 'RadiativeTransferSph1D.jpg'
             )
         ),
-        code_units=runparams.get('CodeUnits'),
+        code_units=config.get('CodeUnits'),
     )
 
     print('max relative error = %.3e' % relative_error)
     figure_name = (
         'RadiativeTransferSph1D_C2Ray.jpg'
-        if runparams.get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+        if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
         else 'RadiativeTransferSph1D.jpg'
     )
     print('figure = %s' % (Path(runparams['savedir']) / figure_name))

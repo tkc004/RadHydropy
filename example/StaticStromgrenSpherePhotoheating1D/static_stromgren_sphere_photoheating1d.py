@@ -32,7 +32,6 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 import stromgren_analytic as sa
@@ -48,8 +47,11 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, icparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
+    nested = eu.load_nested_example_config(config_filename)
+    runtime = nested['par']
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = runparams
+    eu.clean_previous_outputs(runtime['output'])
     config_dir = Path(config_filename).resolve().parent
     for key in (
         'temperature_reference_filename',
@@ -59,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
             value = Path(runparams[key])
             if not value.is_absolute():
                 runparams[key] = str(config_dir / value)
-    config = {**runparams, **icparams}
+    config = runparams
     print('config', config)
     for alias, source in (
         ('hydrogen_alpha_B', 'alpha_B_coefficient'),
@@ -75,15 +77,15 @@ def main(config_filename=DEFAULT_CONFIG):
 
     et.write_initial_condition(config, runparams)
 
-    mainrun = Rsim(runparams)
+    mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
 
     history = mainrun.EvolveStaticThermochemistry(
-        runparams['final_time'],
-        runparams['evolution_timestep'],
+        runtime['simulation']['final_time'],
+        runtime['timestep']['evolution_timestep'],
         include_thermal_history=True,
         reference_time=runparams['reference_time'],
     )

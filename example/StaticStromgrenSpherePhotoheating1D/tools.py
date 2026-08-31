@@ -111,6 +111,13 @@ def build_static_problem(config):
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
     )
+    par.units = SimpleNamespace(CodeUnits=code_units_obj)
+    par.simulation = SimpleNamespace(
+        coordinate_system=par.coordsys,
+        current_time=0.0 * unyt.Myr,
+        box_size=par.boxsize,
+    )
+    par.mesh = SimpleNamespace(grid_cells=par.nogrid, ghost_cells=par.noghost)
 
     mesh = Mesh()
     mesh.boundary = np.linspace(

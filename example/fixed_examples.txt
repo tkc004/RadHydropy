@@ -22,6 +22,10 @@ Fixed (nested par / initial_condition / example configuration)
 - InflowSph1D
 - NohSphericalImplosion1D
 - HighMachAdvection1D
+- RadiativeTransferSph1D
+- StaticStromgrenC2RayComparison
+- StaticStromgrenSphere1D
+- StaticStromgrenSpherePhotoheating1D
 
 Notes
 -----

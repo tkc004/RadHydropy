@@ -32,10 +32,10 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 import stromgren_analytic as sa
+import example_utils as eu
 
 STATIC_EXAMPLE = static_example
 
@@ -58,23 +58,24 @@ def _aliases(runparams):
             runparams[alias] = runparams[source]
 
 
-def _run_case(base_runparams, icparams, tools, label, scheme, steps, root):
-    runparams = deepcopy(base_runparams)
+def _run_case(base_runtime, icparams, tools, label, scheme, steps, root):
+    runparams = deepcopy(base_runtime)
     icparams_case = deepcopy(icparams)
     case_dir = root / label
     case_dir.mkdir(parents=True, exist_ok=True)
-    runparams.update({
-        'simname': f'StaticStromgren_{label}',
-        'outdir': str(case_dir),
-        'savedir': str(case_dir),
-        'outfileprefix': 'Output',
-        'ICfilename': str(case_dir / 'InitialCondition.hdf5'),
-        'radiative_transfer_temporal_scheme': scheme,
-        'chemistry_timestep': runparams['final_time'] / steps,
+    runparams['simulation']['name'] = f'StaticStromgren_{label}'
+    runparams['output']['directory'] = str(case_dir)
+    runparams['output']['savedir'] = str(case_dir)
+    runparams['output']['filename_prefix'] = 'Output'
+    runparams['simulation']['initial_condition_filename'] = str(case_dir / 'InitialCondition.hdf5')
+    runparams['radiation']['radiative_transfer_temporal_scheme'] = scheme
+    runparams['timestep']['chemistry_timestep'] = runparams['simulation']['final_time'] / steps
+    helper_config = eu.legacy_example_parameters({
+        'par': runparams,
+        'initial_condition': icparams_case,
+        'example': {},
     })
-    _aliases(runparams)
-    config = {**runparams, **icparams_case}
-    tools.write_initial_condition(config, runparams)
+    tools.write_initial_condition(helper_config, helper_config)
 
     sim = Rsim(runparams)
     sim.Callreadhdf5()
@@ -82,8 +83,8 @@ def _run_case(base_runparams, icparams, tools, label, scheme, steps, root):
     sim.SetFluid()
     sim.SetInitFluid()
     history = sim.EvolveStaticThermochemistry(
-        runparams['final_time'],
-        runparams['chemistry_timestep'],
+        runparams['simulation']['final_time'],
+        runparams['timestep']['chemistry_timestep'],
     )
     output_filename = case_dir / 'Output_000.hdf5'
     rio.writehdf5(sim, output_filename)
@@ -172,7 +173,10 @@ def _write_summary(histories, config, filename):
 
 
 def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_comparison.yaml')):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd().resolve())
+    nested = eu.load_nested_example_config(config_filename)
+    runtime = nested['par']
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = runparams
     _aliases(runparams)
     root = Path(runparams['savedir']) / 'comparison_runs'
     root.mkdir(parents=True, exist_ok=True)
@@ -181,12 +185,12 @@ def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_compar
     histories = {}
     c2ray_steps = int(runparams['comparison_c2ray_steps'])
     histories[f'c2ray_{c2ray_steps}'] = _run_case(
-        runparams, icparams, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
+        runtime, icparams, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
     )
     for steps in runparams['comparison_instantaneous_steps']:
         steps = int(steps)
         histories[f'instantaneous_{steps}'] = _run_case(
-            runparams, icparams, tools, f'instantaneous_{steps}',
+            runtime, icparams, tools, f'instantaneous_{steps}',
             'instantaneous', steps, root,
         )
     figure = Path(runparams['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'

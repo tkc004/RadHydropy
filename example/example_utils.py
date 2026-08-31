@@ -61,6 +61,49 @@ def load_nested_example_config(config_filename):
     }
 
 
+def legacy_example_parameters(config):
+    """Project a nested example config for legacy IC/plot helper APIs.
+
+    Runtime solvers must receive ``config['par']`` directly.  This narrow
+    adapter is retained for older example helper functions while they are
+    being migrated to consume nested groups themselves.
+    """
+    par = config['par']
+    initial = config.get('initial_condition', {})
+    flat = dict(initial)
+    simulation = par.get('simulation', {})
+    mesh = par.get('mesh', {})
+    hydro = par.get('hydrodynamics', {})
+    boundary = par.get('boundary', {})
+    timestep = par.get('timestep', {})
+    output = par.get('output', {})
+    flat.update({
+        'simname': simulation.get('name'),
+        'ICfilename': simulation.get('initial_condition_filename'),
+        'coordsys': simulation.get('coordinate_system'),
+        'final_time': simulation.get('final_time'),
+        'timesim': simulation.get('final_time'),
+        'nogrid': mesh.get('grid_cells', initial.get('grid_cells')),
+        'number_of_cells': mesh.get('grid_cells', initial.get('grid_cells')),
+        'noghost': mesh.get('ghost_cells', 2),
+        'EOStype': hydro.get('eos_type', 'polytropic'),
+        'gamma': hydro.get('gamma', 5.0 / 3.0),
+        'CFL': hydro.get('CFL', 0.1),
+        'order': hydro.get('order', 0),
+        'boundcond': boundary.get('condition', 'OpenSph'),
+        'dtmin': timestep.get('dtmin'),
+        'dtmax': timestep.get('dtmax'),
+        'outdir': output.get('directory', '.'),
+        'savedir': output.get('savedir', output.get('directory', '.')),
+        'outfileprefix': output.get('filename_prefix', 'Output'),
+        'CodeUnits': par.get('units', {}).get('CodeUnits'),
+    })
+    for group in ('chemistry', 'thermochemistry', 'radiation'):
+        flat.update(par.get(group, {}))
+    flat.update(config.get('example', {}))
+    return flat
+
+
 def snapshot_physical_fields(hdf5_filename):
     """Return radial snapshot fields converted to physical quantities.
 

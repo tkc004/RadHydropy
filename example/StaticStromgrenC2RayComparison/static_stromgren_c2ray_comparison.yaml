@@ -1,92 +1,67 @@
-runparams:
-  simname: StaticStromgrenC2RayComparison
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  savedir: .
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 4.92e31
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim:
-    value: 500.0
-    unit: Myr
-  area:
-    value: 1.0
-    unit: cm**2
-  CFL: 0.1
-  boundcond: OpenSph
-  noghost: 2
-  verbose: 0
-  order: 0
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 1.0
-  hydrogen_xHI_initial: 1.0
-  hydrogen_xHI_inflow: 1.0
-  hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 0.1
-  hydrogen_source_dtmin:
-    value: 1.0e-3
-    unit: Myr
-  hydrogen_update_mu: false
-  hydrogen_thermal_coupling: false
-  hydrogen_recombination: true
-  hydrogen_collisional_ionization: false
-  hydrogen_alpha_B:
-    value: 2.59e-13
-    unit: cm**3/s
-  hydrogen_beta:
-    value: 0.0
-    unit: cm**3/s
-  hydrogen_radiation_field: false
-  hydrogen_radiation_evolution: false
-  hydrogen_ngamma_initial:
-    value: 0.0
-    unit: 1/cm**3
-  hydrogen_sigma_gamma:
-    value: 8.13e-18
-    unit: cm**2
-  hydrogen_epsilon_gamma:
-    value: 0.0
-    unit: erg
-  radiative_transfer: true
-  radiative_transfer_method: long_characteristics
-  radiative_transfer_temporal_scheme: instantaneous
-  radiative_transfer_boundary_flux:
-    value: 0.0
-    unit: 1/(cm**2*s)
-  radiative_transfer_source_photon_rate:
-    value: 5.0e48
-    unit: 1/s
-  radiative_transfer_direction: 1
-  c2ray_max_iterations: 32
-  c2ray_convergence_tolerance: 1.0e-6
-  c2ray_relaxation: 1.0
-  c2ray_nonconvergence: raise
-  final_time:
-    value: 500.0
-    unit: Myr
-  plot_radius_max:
-    value: 7.5
-    unit: kpc
-  analytic_inner_radius:
-    value: 0.1
-    unit: kpc
+par:
+  simulation:
+    name: StaticStromgrenC2RayComparison
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 500.0, unit: Myr}
+  mesh:
+    grid_cells: 256
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: OpenSph
+  timestep:
+    dtmin: {value: 1.0e-6, unit: Myr}
+    dtmax: {value: 1.0, unit: Myr}
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 4.92e31
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  chemistry:
+    hydrogen_mass_fraction: 1.0
+    hydrogen_xHI_initial: 1.0
+    hydrogen_xHI_inflow: 1.0
+    hydrogen_xHI_outflow: 1.0
+  thermochemistry:
+    hydrogen_chemistry: true
+    hydrogen_source_CFL: 0.1
+    hydrogen_source_dtmin: {value: 1.0e-3, unit: Myr}
+    hydrogen_update_mu: false
+    hydrogen_thermal_coupling: false
+    hydrogen_recombination: true
+    hydrogen_collisional_ionization: false
+    hydrogen_alpha_B: {value: 2.59e-13, unit: cm**3/s}
+    hydrogen_beta: {value: 0.0, unit: cm**3/s}
+    hydrogen_ngamma_initial: {value: 0.0, unit: 1/cm**3}
+    hydrogen_sigma_gamma: {value: 8.13e-18, unit: cm**2}
+    hydrogen_epsilon_gamma: {value: 0.0, unit: erg}
+  radiation:
+    radiative_transfer: true
+    radiative_transfer_method: long_characteristics
+    radiative_transfer_source_photon_rate: {value: 5.0e48, unit: 1/s}
+    radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
+    radiative_transfer_direction: 1
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+  diagnostics:
+    verbose: 0
+initial_condition:
+  hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
+  boxsize: {value: 20.0, unit: kpc}
+example:
+  plot_radius_max: {value: 7.5, unit: kpc}
   comparison_c2ray_steps: 100
   comparison_instantaneous_steps: [100, 1000, 10000, 100000]
-
-ICparams:
-  hydrogen_number_density:
-    value: 1.0e-3
-    unit: 1/cm**3
-  boxsize:
-    value: 20.0
-    unit: kpc
-  number_of_cells: 256
+  alpha_B_coefficient: {value: 2.59e-13, unit: cm**3/s}
+  source_photon_rate: {value: 5.0e48, unit: 1/s}

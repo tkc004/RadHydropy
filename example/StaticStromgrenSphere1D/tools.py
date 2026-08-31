@@ -77,6 +77,13 @@ def build_static_problem(config):
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
     )
+    par.units = SimpleNamespace(CodeUnits=code_units_obj)
+    par.simulation = SimpleNamespace(
+        coordinate_system=par.coordsys,
+        current_time=0.0 * unyt.Myr,
+        box_size=par.boxsize,
+    )
+    par.mesh = SimpleNamespace(grid_cells=par.nogrid, ghost_cells=par.noghost)
 
     mesh = Mesh()
     mesh.boundary = np.linspace(
@@ -146,8 +153,8 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
-    par.time = unyt.unyt_array(np.asarray(par.time, dtype=float), code_units_obj.time_unit)
-    par.boxsize = unyt.unyt_array(np.asarray(par.boxsize, dtype=float), code_units_obj.length_unit)
+    par.time = unyt.unyt_array(np.asarray(getattr(par, 'time', par.Time), dtype=float), code_units_obj.time_unit)
+    par.boxsize = unyt.unyt_array(np.asarray(getattr(par, 'boxsize', par.BoxSize), dtype=float), code_units_obj.length_unit)
     mesh.boundary = unyt.unyt_array(np.asarray(mesh.boundary, dtype=float), code_units_obj.length_unit)
     fluid.rho = unyt.unyt_array(np.asarray(fluid.rho, dtype=float), code_units_obj.density_unit)
     fluid.vel = unyt.unyt_array(np.asarray(fluid.vel, dtype=float), code_units_obj.velocity_unit)
