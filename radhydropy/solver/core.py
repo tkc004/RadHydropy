@@ -1115,24 +1115,25 @@ class Solver():
         nonuniform spherical faces).
         """
         if not getattr(par, 'positivity_preserving', True):
+            dt_value = float(np.asarray(dt, dtype=float))
             area = np.asarray(mesh.area, dtype=float)
-            fluid.Mass += dt * (
+            fluid.Mass += dt_value * (
                 np.asarray(mass_face, dtype=float) * area
                 - ru.periodic_roll(np.asarray(mass_face, dtype=float) * area, -1)
             )
-            fluid.Mom += dt * (
+            fluid.Mom += dt_value * (
                 np.asarray(mom_face, dtype=float) * area
                 - ru.periodic_roll(np.asarray(mom_face, dtype=float) * area, -1)
                 + (np.asarray(geometric_mom, dtype=float)
                    if geometric_mom is not None else 0.0)
             )
-            fluid.Energy += dt * (
+            fluid.Energy += dt_value * (
                 np.asarray(energy_face, dtype=float) * area
                 - ru.periodic_roll(np.asarray(energy_face, dtype=float) * area, -1)
             )
             if angular_face is not None and hasattr(fluid, 'AngularMomentum'):
                 angular_area = np.asarray(angular_face, dtype=float) * area
-                fluid.AngularMomentum += dt * (
+                fluid.AngularMomentum += dt_value * (
                     angular_area - ru.periodic_roll(angular_area, -1)
                 )
             self._last_face_limiter_factors = np.ones_like(

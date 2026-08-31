@@ -1,0 +1,19 @@
+RadHydropy example migration status
+===================================
+
+Fixed (nested par / initial_condition / example configuration)
+----------------------------------------------------------------
+- Advection1D
+- AdvectionSph1D
+- HIIRegionExpansion1D (not successfully finished yet)
+- HydrogenPhotoheating1D
+- HydrogenPhotoionization1D
+- HydrogenRecombination1D
+- Outflow1d
+- OutflowSph1d
+- OutflowSphVacuum1D
+
+Notes
+-----
+- HIIRegionExpansion1D includes early/late and standard/C2Ray configurations.
+- The remaining examples still use the legacy runparams/ICparams layout.

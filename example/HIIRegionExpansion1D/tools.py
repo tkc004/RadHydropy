@@ -30,12 +30,92 @@ def _config_value(config, *keys, default=None):
     return default
 
 
-def build_problem(config):
+def _runtime_values(runparams):
+    """Expose nested runtime values to the IC fixture builder."""
+    if 'simulation' not in runparams:
+        return runparams
+    simulation = runparams['simulation']
+    mesh = runparams['mesh']
+    hydro = runparams['hydrodynamics']
+    boundary = runparams['boundary']
+    timestep = runparams['timestep']
+    output = runparams['output']
+    diagnostics = runparams.get('diagnostics', {})
+    radiation = runparams.get('radiation', {})
+    chemistry = runparams.get('chemistry', {})
+    thermochemistry = runparams.get('thermochemistry', {})
+    values = {
+        'CodeUnits': runparams['units']['CodeUnits'],
+        'coordsys': simulation['coordinate_system'],
+        'boundcond': boundary['condition'],
+        'noghost': mesh['ghost_cells'],
+        'outdir': output['directory'],
+        'outfileprefix': output['filename_prefix'],
+        'savedir': output.get('savedir', output['directory']),
+        'outputtimefilename': output.get('time_list_filename'),
+        'verbose': diagnostics.get('verbose', 0),
+        'timesim': simulation['final_time'],
+        'area': mesh.get('area', 1.0 * unyt.cm**2),
+        'EOStype': hydro['eos_type'],
+        'gamma': hydro['gamma'],
+        'CFL': hydro['CFL'],
+        'order': hydro['order'],
+        'dtmin': timestep['dtmin'],
+        'dtmax': timestep['dtmax'],
+        'hydrogen_source_CFL': timestep.get('hydrogen_source_CFL'),
+        'hydrogen_source_dtmin': timestep.get('hydrogen_source_dtmin'),
+        'radiative_transfer_direction': radiation.get('direction', 1),
+        'radiative_transfer_boundary_flux': radiation.get('boundary_flux'),
+        'radiative_transfer_source_photon_rate': radiation.get('source_photon_rate'),
+        'radiative_transfer_method': radiation.get('method', 'long_characteristics'),
+        'radiative_transfer_temporal_scheme': radiation.get('temporal_scheme', 'instantaneous'),
+    }
+    for nested, legacy in (
+        ('c2ray_max_iterations', 'radiative_transfer_c2ray_max_iterations'),
+        ('c2ray_tolerance', 'radiative_transfer_c2ray_tolerance'),
+        ('c2ray_relaxation', 'radiative_transfer_c2ray_relaxation'),
+        ('c2ray_nonconvergence', 'radiative_transfer_c2ray_nonconvergence'),
+    ):
+        if nested in radiation:
+            values[legacy] = radiation[nested]
+    for key in (
+        'hydrogen_source_CFL', 'hydrogen_source_dtmin',
+        'radiative_transfer',
+    ):
+        if key in runparams:
+            values[key] = runparams[key]
+    for key in (
+        'hydrogen_chemistry', 'hydrogen_mass_fraction', 'hydrogen_xHI_initial',
+        'hydrogen_xHI_inflow', 'hydrogen_xHI_outflow', 'hydrogen_update_mu',
+        'hydrogen_alpha_B', 'hydrogen_beta',
+    ):
+        if key in chemistry:
+            values[key] = chemistry[key]
+    for key in (
+        'hydrogen_chemistry', 'hydrogen_thermal_coupling',
+        'hydrogen_recombination', 'hydrogen_collisional_ionization',
+    ):
+        if key in thermochemistry:
+            values[key] = thermochemistry[key]
+    for key in (
+        'hydrogen_radiation_field', 'hydrogen_radiation_evolution',
+        'hydrogen_ngamma_initial', 'hydrogen_sigma_gamma',
+        'hydrogen_epsilon_gamma',
+    ):
+        if key in radiation:
+            values[key] = radiation[key]
+    return values
+
+
+def build_problem(config, runparams=None):
+    if runparams is None:
+        runparams = config.get('par', config)
+    config = {**config, **_runtime_values(runparams)}
     code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys='spherical',
         boundcond='OpenSph',
-        nogrid=config['number_of_cells'],
+        nogrid=_config_value(config, 'number_of_cells', 'grid_cells'),
         noghost=config.get('noghost', 2),
         boxsize=config['boxsize'],
         outdir=config.get('outdir', '.'),
@@ -175,14 +255,18 @@ def build_problem(config):
 
 def write_initial_condition(config, runparams):
     """Build the raw IC state and write it to ``ICfilename``."""
-    par, mesh, fluid, _ = build_problem(config)
+    par, mesh, fluid, _ = build_problem(config, runparams)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    Path(runparams['ICfilename']).unlink(missing_ok=True)
-    rio.writehdf5(sim, runparams['ICfilename'])
+    icfilename = runparams.get(
+        'ICfilename',
+        runparams['simulation']['initial_condition_filename'],
+    )
+    Path(icfilename).unlink(missing_ok=True)
+    rio.writehdf5(sim, icfilename)
 
 
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_problem(config)
+    par, mesh, fluid, _ = build_problem(config, config.get('par', config))
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
     par.Time = np.asarray(par.Time, dtype=float) * code_units_obj.time_unit
@@ -259,7 +343,10 @@ def output_files(outdir, outfileprefix):
 
 
 def interior_slice(par):
-    return slice(par.noghost, par.noghost + par.nogrid)
+    mesh = getattr(par, 'mesh', None)
+    ghost_cells = getattr(mesh, 'ghost_cells', getattr(par, 'noghost', 0))
+    grid_cells = getattr(mesh, 'grid_cells', getattr(par, 'nogrid', None))
+    return slice(ghost_cells, ghost_cells + grid_cells)
 
 
 def refresh_state(mesh, fluid, par, solver):
@@ -284,19 +371,19 @@ def time_myr(value, code_units):
 
 def print_startup_diagnostics(sim, config, icparams):
     """Print the main physical scales before the long run starts."""
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = interior_slice(sim.par)
     rho = np.asarray(sim.fluid.rho[interior], dtype=float)
     vel = np.asarray(sim.fluid.vel[interior], dtype=float)
     temp = np.asarray(sim.fluid.temp[interior], dtype=float)
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma = np.asarray(sim.fluid.ngamma[interior], dtype=float) if hasattr(sim.fluid, 'ngamma') else None
-    code_units_obj = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
+    code_units_obj = sim.par.units.CodeUnits
     ngamma_cgs = None
     if ngamma is not None:
         ngamma_cgs = code_quantity_to_cgs(ngamma, code_units_obj, 'number_density_cm3')
 
     print('--- Startup diagnostics ---')
-    print('cells = %d' % sim.par.nogrid)
+    print('cells = %d' % sim.par.mesh.grid_cells)
     print('time = %.6e Myr' % time_myr(sim.fluid.time, code_units_obj))
     print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho), np.max(rho)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel)) / 1.0e5))
@@ -343,7 +430,7 @@ def print_startup_diagnostics(sim, config, icparams):
             sim.mesh,
             sim.fluid,
             sim.par,
-            sim.par.dtmax,
+            sim.par.timestep.dtmax,
         )
         source_dt_s = source_dt.to_value(unyt.s) if hasattr(source_dt, 'to_value') else float(source_dt)
         print('source timestep estimate = %.3e s' % source_dt_s)
@@ -364,9 +451,9 @@ def print_startup_diagnostics(sim, config, icparams):
 def make_logging_step_backend(sim, config, max_logged_steps=5):
     """Wrap the isothermal step backend with a short startup trace."""
     base_step_backend = make_piecewise_isothermal_step_backend(sim, config)
-    code_units_obj = CodeUnits.from_mapping(getattr(sim.par, 'CodeUnits', None))
+    code_units_obj = sim.par.units.CodeUnits
     state = {'count': 0}
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = interior_slice(sim.par)
 
     def step_backend(dt=None, mode='hydro_sources', advect_chemistry=True):
         step_index = state['count']

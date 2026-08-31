@@ -575,7 +575,7 @@ class Par:
         """Translate the nested YAML shape into internal input names."""
         if not any(isinstance(params.get(group), dict) for group in (
             'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
-            'units', 'radiation',
+            'units', 'radiation', 'chemistry', 'thermochemistry',
         )):
             return params
         flattened = dict(params)
@@ -592,6 +592,7 @@ class Par:
             'hydrodynamics': {
                 'eos_type': 'EOStype', 'gamma': 'gamma', 'temperature': 'temperature',
                 'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
+                'positivity_preserving': 'positivity_preserving',
             },
             'boundary': {
                 'condition': 'boundcond', 'inflow_velocity': 'vel_inflow',
@@ -600,7 +601,11 @@ class Par:
                 'outflow_density': 'rho_outflow', 'outflow_temperature': 'temp_outflow',
                 'outflow_mu': 'mu_outflow',
             },
-            'timestep': {'dtmin': 'dtmin', 'dtmax': 'dtmax'},
+            'timestep': {
+                'dtmin': 'dtmin', 'dtmax': 'dtmax',
+                'hydrogen_source_CFL': 'hydrogen_source_CFL',
+                'hydrogen_source_dtmin': 'hydrogen_source_dtmin',
+            },
             'units': {'CodeUnits': 'CodeUnits'},
             'output': {
                 'directory': 'outdir', 'savedir': 'savedir',
@@ -612,6 +617,38 @@ class Par:
                 'direction': 'radiative_transfer_direction',
                 'boundary_flux': 'radiative_transfer_boundary_flux',
                 'source_photon_rate': 'radiative_transfer_source_photon_rate',
+                'radiative_transfer': 'radiative_transfer',
+                'method': 'radiative_transfer_method',
+                'temporal_scheme': 'radiative_transfer_temporal_scheme',
+                'c2ray_max_iterations': 'radiative_transfer_c2ray_max_iterations',
+                'c2ray_tolerance': 'radiative_transfer_c2ray_tolerance',
+                'c2ray_relaxation': 'radiative_transfer_c2ray_relaxation',
+                'c2ray_nonconvergence': 'radiative_transfer_c2ray_nonconvergence',
+                'hydrogen_radiation_field': 'hydrogen_radiation_field',
+                'hydrogen_radiation_evolution': 'hydrogen_radiation_evolution',
+                'hydrogen_ngamma_initial': 'hydrogen_ngamma_initial',
+                'hydrogen_ngamma_inflow': 'hydrogen_ngamma_inflow',
+                'hydrogen_ngamma_outflow': 'hydrogen_ngamma_outflow',
+                'hydrogen_sigma_gamma': 'hydrogen_sigma_gamma',
+                'hydrogen_epsilon_gamma': 'hydrogen_epsilon_gamma',
+            },
+            'chemistry': {
+                'hydrogen_mass_fraction': 'hydrogen_mass_fraction',
+                'hydrogen_xHI_initial': 'hydrogen_xHI_initial',
+                'hydrogen_xHI_inflow': 'hydrogen_xHI_inflow',
+                'hydrogen_xHI_outflow': 'hydrogen_xHI_outflow',
+                'hydrogen_update_mu': 'hydrogen_update_mu',
+                'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
+                'hydrogen_recombination': 'hydrogen_recombination',
+                'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
+                'hydrogen_alpha_B': 'hydrogen_alpha_B',
+                'hydrogen_beta': 'hydrogen_beta',
+            },
+            'thermochemistry': {
+                'hydrogen_chemistry': 'hydrogen_chemistry',
+                'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
+                'hydrogen_recombination': 'hydrogen_recombination',
+                'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
             },
         }
         for group, names in groups.items():

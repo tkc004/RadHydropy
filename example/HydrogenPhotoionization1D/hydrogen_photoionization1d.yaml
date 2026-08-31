@@ -1,105 +1,116 @@
-runparams:
-  simname: HydrogenPhotoionization1D
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outdeltatime:
-    value: 5.0e2
-    unit: yr
-  savedir: .
-  coordsys: cartesian
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim:
-    value: 2.0e4
-    unit: yr
-  area:
-    value: 1.0
-    unit: cm**2
-  CFL: 0.5
-  boundcond: Periodic
-  vel_inflow:
-    value: 0.0
-    unit: cm/s
-  rho_inflow:
-    value: 1.0
-    unit: mp/cm**3
-  temp_inflow:
-    value: 0.0
-    unit: K
-  mu_inflow: 1.0
-  vel_outflow:
-    value: 0.0
-    unit: cm/s
-  rho_outflow:
-    value: 1.0
-    unit: mp/cm**3
-  temp_outflow:
-    value: 0.0
-    unit: K
-  mu_outflow: 1.0
-  noghost: 2
-  verbose: 0
-  order: 0
-  dtmin:
-    value: 1.0e-6
-    unit: yr
-  dtmax:
-    value: 2.0e1
-    unit: yr
-  target_neutral_fraction: 0.01
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 1.0
-  hydrogen_xHI_initial: 1.0
-  hydrogen_xHI_inflow: 1.0
-  hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 0.1
-  hydrogen_update_mu: false
-  hydrogen_thermal_coupling: false
-  hydrogen_collisional_ionization: false
-  hydrogen_radiation_field: true
-  hydrogen_radiation_evolution: false
-  hydrogen_ngamma_initial:
-    value: 1.0e-3
-    unit: 1/cm**3
-  hydrogen_ngamma_inflow:
-    value: 1.0e-3
-    unit: 1/cm**3
-  hydrogen_ngamma_outflow:
-    value: 1.0e-3
-    unit: 1/cm**3
-  hydrogen_sigma_gamma:
-    value: 6.3e-18
-    unit: cm**2
-  hydrogen_epsilon_gamma:
-    value: 0.0
-    unit: erg
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
+par:
+  simulation:
+    name: HydrogenPhotoionization1D
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time:
+      value: 2.0e4
+      unit: yr
+  mesh:
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.5
+    order: 0
+  boundary:
+    condition: Periodic
+    inflow_velocity:
+      value: 0.0
+      unit: cm/s
+    inflow_density:
+      value: 1.0
+      unit: mp/cm**3
+    inflow_temperature:
+      value: 0.0
+      unit: K
+    inflow_mu: 1.0
+    outflow_velocity:
+      value: 0.0
+      unit: cm/s
+    outflow_density:
+      value: 1.0
+      unit: mp/cm**3
+    outflow_temperature:
+      value: 0.0
+      unit: K
+    outflow_mu: 1.0
+  timestep:
+    dtmin:
+      value: 1.0e-6
+      unit: yr
+    dtmax:
+      value: 2.0e1
+      unit: yr
+    hydrogen_source_CFL: 0.1
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+    cadence:
+      value: 5.0e2
+      unit: yr
+  diagnostics:
+    verbose: 0
+  chemistry:
+    hydrogen_mass_fraction: 1.0
+    hydrogen_xHI_initial: 1.0
+    hydrogen_xHI_inflow: 1.0
+    hydrogen_xHI_outflow: 1.0
+  thermochemistry:
+    hydrogen_chemistry: true
+    hydrogen_update_mu: false
+    hydrogen_thermal_coupling: false
+    hydrogen_collisional_ionization: false
+  radiation:
+    hydrogen_radiation_field: true
+    hydrogen_radiation_evolution: false
+    hydrogen_ngamma_initial:
+      value: 1.0e-3
+      unit: 1/cm**3
+    hydrogen_ngamma_inflow:
+      value: 1.0e-3
+      unit: 1/cm**3
+    hydrogen_ngamma_outflow:
+      value: 1.0e-3
+      unit: 1/cm**3
+    hydrogen_sigma_gamma:
+      value: 6.3e-18
+      unit: cm**2
+    hydrogen_epsilon_gamma:
+      value: 0.0
+      unit: erg
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 
-ICparams:
-  nogrid: 16
-  coordsys: cartesian
-  boxsize:
+initial_condition:
+  grid_cells: 16
+  coordinate_system: cartesian
+  box_size:
     value: 1.0
     unit: kpc
-  time:
+  current_time:
     value: 0.0
     unit: yr
-  nHini:
+  hydrogen_number_density:
     value: 1.0
     unit: 1/cm**3
-  tempini:
+  temperature:
     value: 2.0e4
     unit: K
-  xHIini: 1.0
-  ngammaini:
+  neutral_fraction: 1.0
+  photon_number_density:
     value: 1.0e-3
     unit: 1/cm**3
-  muini: 1.0
+  mean_molecular_weight: 1.0
+
+example:
+  target_neutral_fraction: 0.01
+  plot_filename: HydrogenPhotoionization1D.jpg

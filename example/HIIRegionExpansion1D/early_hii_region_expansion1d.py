@@ -40,6 +40,7 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 import unyt
 
 from radhydropy.rsim import Rsim
+import example_utils as eu
 import tools as et
 
 
@@ -47,11 +48,15 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('early_hii_region_expansion1
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, icparams = et.load_parameters(config_filename, rundir)
-    config = {**runparams, **icparams}
+    loaded_config = eu.load_nested_example_config(config_filename)
+    runparams = loaded_config['par']
+    icparams = loaded_config['initial_condition']
+    exampleparams = loaded_config['example']
+    config = {**icparams, **loaded_config}
+    output = runparams['output']
 
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
+    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config, runparams)
 
@@ -63,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
     et.print_startup_diagnostics(sim, config, icparams)
 
-    output_specs = icparams['output_snapshots']
+    output_specs = exampleparams['output_snapshots']
     step_backend = et.make_logging_step_backend(sim, config, max_logged_steps=5)
     print('starting hydro_sources evolution; this may take a while...')
     sim.Run(
@@ -72,14 +77,14 @@ def main(config_filename=DEFAULT_CONFIG):
         step_backend=step_backend,
     )
     print('finished evolution; loading saved outputs and building plots...')
-    outputfilenames = et.output_files(runparams['outdir'], runparams['outfileprefix'])
+    outputfilenames = et.output_files(output['directory'], output['filename_prefix'])
 
     history = et.load_history_from_outputs(outputfilenames, config)
 
     figure_stem = 'EarlyHIIRegionExpansion1D'
-    if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
+    if runparams['radiation'].get('temporal_scheme') == 'c2ray':
         figure_stem += '_C2Ray'
-    figure_filename = Path(runparams['savedir']) / f'{figure_stem}_IFront.jpg'
+    figure_filename = Path(output['savedir']) / f'{figure_stem}_IFront.jpg'
     et.save_front_plot(history, config, figure_filename)
 
     density_figure_filenames = []
@@ -88,7 +93,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         output_specs,
     ):
-        density_figure_filename = Path(runparams['savedir']) / (
+        density_figure_filename = Path(output['savedir']) / (
             f"{figure_stem}_Density_{label}Myr.jpg"
         )
         et.save_density_profile_plot(snapshot, config, density_figure_filename)
@@ -109,7 +114,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ).to_value(unyt.pc)
     stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
-    print('time = %.6e Myr' % et.time_myr(sim.fluid.time, sim.par.CodeUnits))
+    print('time = %.6e Myr' % et.time_myr(sim.fluid.time, sim.par.units.CodeUnits))
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
     print('stagnation radius = %.3e pc' % stagnation_radius_pc)
     print('output files = %d' % len(outputfilenames))
@@ -143,7 +148,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file containing runparams and ICparams.',
+        help='YAML file containing nested par, initial_condition, and example sections.',
     )
     return parser.parse_args()
 

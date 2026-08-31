@@ -172,12 +172,14 @@ class Testing(unittest.TestCase):
             / 'HydrogenPhotoionization1D'
             / 'hydrogen_photoionization1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
-        self.assertEqual(runparams['target_neutral_fraction'], 0.01)
-        self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(icparams['nogrid'], 16)
-        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 1.0)
+        self.assertEqual(config['example']['target_neutral_fraction'], 0.01)
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output')
+        self.assertEqual(icparams['grid_cells'], 16)
+        self.assertEqual(icparams['box_size'].to_value(unyt.kpc), 1.0)
 
     def test_hydrogen_photoionization1d_analytic_neutral_fraction_uses_units(self):
         config_filename = (
@@ -186,15 +188,17 @@ class Testing(unittest.TestCase):
             / 'HydrogenPhotoionization1D'
             / 'hydrogen_photoionization1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
         neutral_fraction = hydrogen_photoionization_analytic.neutral_fraction(
             0.0,
-            icparams['xHIini'],
-            icparams['tempini'],
-            icparams['nHini'],
-            icparams['ngammaini'],
-            runparams['hydrogen_sigma_gamma'],
+            icparams['neutral_fraction'],
+            icparams['temperature'],
+            icparams['hydrogen_number_density'],
+            icparams['photon_number_density'],
+            runparams['radiation']['hydrogen_sigma_gamma'],
         )
 
         self.assertAlmostEqual(float(neutral_fraction), 1.0, places=12)
@@ -226,15 +230,20 @@ class Testing(unittest.TestCase):
             / 'HydrogenPhotoheating1D'
             / 'hydrogen_photoheating1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
-        self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(runparams['source_switch_time'].to_value(unyt.yr), 5.0e7)
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output')
+        self.assertEqual(config['example']['source_switch_time'].to_value(unyt.yr), 5.0e7)
         self.assertAlmostEqual(
-            runparams['thermal_equilibrium_timescale'].to_value(unyt.yr),
+            config['example']['thermal_equilibrium_timescale'].to_value(unyt.yr),
             1.99526231496888e9,
         )
-        self.assertEqual(icparams['nHini'].to_value(1.0 / unyt.cm**3), 1.0)
+        self.assertEqual(
+            icparams['hydrogen_number_density'].to_value(1.0 / unyt.cm**3),
+            1.0,
+        )
 
     def test_hydrostatic_equilibrium1d_uses_yaml_config(self):
         config_filename = (
@@ -968,14 +977,16 @@ class Testing(unittest.TestCase):
             / 'HIIRegionExpansion1D'
             / 'early_hii_region_expansion1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
-        self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(runparams['noghost'], 2)
-        self.assertEqual(runparams['CFL'], 0.5)
-        self.assertEqual(runparams['order'], 1)
-        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.14)
-        self.assertEqual(icparams['number_of_cells'], 2048)
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output')
+        self.assertEqual(runparams['mesh']['ghost_cells'], 2)
+        self.assertEqual(runparams['hydrodynamics']['CFL'], 0.5)
+        self.assertEqual(runparams['hydrodynamics']['order'], 1)
+        self.assertEqual(runparams['simulation']['final_time'].to_value(unyt.Myr), 0.14)
+        self.assertEqual(icparams['grid_cells'], 2048)
 
     def test_early_hii_region_expansion1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
@@ -984,19 +995,21 @@ class Testing(unittest.TestCase):
             / 'HIIRegionExpansion1D'
             / 'early_hii_region_expansion1d_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
-        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
-        self.assertEqual(runparams['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
-        self.assertEqual(runparams['radiative_transfer_c2ray_nonconvergence'], 'warn')
-        self.assertEqual(icparams['number_of_cells'], 2048)
+        self.assertEqual(runparams['radiation']['temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output_C2Ray')
+        self.assertEqual(runparams['simulation']['initial_condition_filename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
+        self.assertEqual(runparams['radiation']['c2ray_nonconvergence'], 'warn')
+        self.assertEqual(icparams['grid_cells'], 2048)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 2.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 0.14)
-        self.assertTrue(Path(runparams['outputtimefilename']).exists())
-        self.assertEqual(len(icparams['output_snapshots']), 8)
+        self.assertTrue(Path(runparams['output']['time_list_filename']).exists())
+        self.assertEqual(len(config['example']['output_snapshots']), 8)
         self.assertEqual(
-            icparams['output_snapshots'][1]['label'],
+            config['example']['output_snapshots'][1]['label'],
             '0p005',
         )
 
@@ -1007,17 +1020,19 @@ class Testing(unittest.TestCase):
             / 'HIIRegionExpansion1D'
             / 'late_hii_region_expansion1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
-        self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(runparams['noghost'], 2)
-        self.assertEqual(runparams['CFL'], 0.5)
-        self.assertEqual(runparams['order'], 1)
-        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 3.0)
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output')
+        self.assertEqual(runparams['mesh']['ghost_cells'], 2)
+        self.assertEqual(runparams['hydrodynamics']['CFL'], 0.5)
+        self.assertEqual(runparams['hydrodynamics']['order'], 1)
+        self.assertEqual(runparams['simulation']['final_time'].to_value(unyt.Myr), 3.0)
         self.assertTrue(
-            runparams['ICfilename'].endswith('InitialCondition_lateHII.hdf5')
+            runparams['simulation']['initial_condition_filename'].endswith('InitialCondition_lateHII.hdf5')
         )
-        self.assertEqual(icparams['number_of_cells'], 512)
+        self.assertEqual(icparams['grid_cells'], 512)
 
     def test_late_hii_region_expansion1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
@@ -1026,25 +1041,27 @@ class Testing(unittest.TestCase):
             / 'HIIRegionExpansion1D'
             / 'late_hii_region_expansion1d_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams = config['par']
+        icparams = config['initial_condition']
 
-        self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(runparams['outfileprefix'], 'Output_lateHII_C2Ray')
+        self.assertEqual(runparams['radiation']['temporal_scheme'], 'c2ray')
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output_lateHII_C2Ray')
         self.assertEqual(
-            runparams['ICfilename'].split('/')[-1],
+            runparams['simulation']['initial_condition_filename'].split('/')[-1],
             'InitialCondition_lateHII_C2Ray.hdf5',
         )
-        self.assertEqual(runparams['radiative_transfer_c2ray_nonconvergence'], 'warn')
-        self.assertEqual(icparams['number_of_cells'], 512)
+        self.assertEqual(runparams['radiation']['c2ray_nonconvergence'], 'warn')
+        self.assertEqual(icparams['grid_cells'], 512)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 7.0)
         self.assertEqual(icparams['final_time'].to_value(unyt.Myr), 3.0)
-        self.assertEqual(runparams['hydrogen_source_CFL'], 10000.0)
-        self.assertTrue(Path(runparams['outputtimefilename']).exists())
-        self.assertIn('CodeUnits', runparams)
-        self.assertIsNotNone(runparams['CodeUnits'])
-        self.assertTrue(icparams['show_stagnation_radius'])
+        self.assertEqual(runparams['timestep']['hydrogen_source_CFL'], 10000.0)
+        self.assertTrue(Path(runparams['output']['time_list_filename']).exists())
+        self.assertIn('CodeUnits', runparams['units'])
+        self.assertIsNotNone(runparams['units']['CodeUnits'])
+        self.assertTrue(config['example']['show_stagnation_radius'])
         self.assertEqual(
-            icparams['output_snapshots'][-1]['label'],
+            config['example']['output_snapshots'][-1]['label'],
             '3p00',
         )
 
@@ -1068,8 +1085,10 @@ class Testing(unittest.TestCase):
             / 'HIIRegionExpansion1D'
             / 'late_hii_region_expansion1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
-        config = {**runparams, **icparams}
+        loaded_config = example_utils.load_nested_example_config(config_filename)
+        runparams = loaded_config['par']
+        icparams = loaded_config['initial_condition']
+        config = {**icparams, **loaded_config}
 
         par, mesh, fluid, _ = hii_tools.build_problem(config)
         par = parameter_namespace(**vars(par))

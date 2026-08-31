@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import glob
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
@@ -29,35 +30,37 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         if code_units is not None:
             self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        grid_cells = icparams['grid_cells']
+        box_size = np.ones(1) * icparams['box_size']
+        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=icparams['coordinate_system'],
+            current_time=np.ones(1) * icparams['current_time'],
+            box_size=box_size,
+        )
 
         self.mesh.boundary = np.linspace(
-            0.0,
-            1.0,
-            self.par.nogrid + 1,
-        ) * icparams['boxsize']
+            0.0 * box_size[0], box_size[0], grid_cells + 1,
+        )
 
         self.fluid.rho = (
-            np.ones(self.par.nogrid)
-            * icparams['nHini']
+            np.ones(grid_cells)
+            * icparams['hydrogen_number_density']
             * unyt.mp
         ).to(unyt.g / unyt.cm**3)
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.xHI = np.ones(self.par.nogrid) * icparams['xHIini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.vel = np.zeros(grid_cells) * unyt.cm / unyt.s
+        self.fluid.temp = np.ones(grid_cells) * icparams['temperature']
+        self.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
 def interior_slice(sim):
-    first = sim.par.noghost
-    return slice(first, first + sim.par.nogrid)
+    first = sim.par.mesh.ghost_cells
+    return slice(first, first + sim.par.mesh.grid_cells)
 
 
 def mean_temperature(sim):
@@ -66,7 +69,7 @@ def mean_temperature(sim):
         np.mean(
             code_quantity_to_cgs(
                 sim.fluid.temp[interior],
-                getattr(sim.par, 'CodeUnits', None),
+                getattr(sim.par.units, 'CodeUnits', None),
                 'temperature_K',
             )
         )
@@ -84,20 +87,21 @@ def mean_ionized_fraction(sim):
 
 
 def time_value(sim, units):
-    code = getattr(sim.par, 'CodeUnits', None)
+    code = getattr(sim.par.units, 'CodeUnits', None)
     time_s = time_seconds(sim.fluid.time, code)
     unit_seconds = float((1.0 * units).to_value(unyt.s))
     return float(time_s / unit_seconds)
 
 
-def load_history_from_outputs(outputfiles, config, noghost):
+def load_history_from_outputs(outputfiles, config):
     history = {'time_yr': [], 'temperature_K': [], 'ionized_fraction': []}
-    interior = slice(noghost, noghost + config['nogrid'])
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    icparams = config['initial_condition']
+    runparams = config['par']
+    interior = slice(0, icparams['grid_cells'])
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(config, code_units=code_units_obj)
-        rout.par.CodeUnits = code_units_obj
+        rout = Simwrap(icparams, code_units=code_units_obj)
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
@@ -141,9 +145,9 @@ def save_history_plot(history, filename, icparams, target_neutral_fraction):
         dense_time_yr = time_yr
     dense_analytic = hra.ionized_fraction(
         dense_time_yr,
-        icparams['xHIini'],
-        icparams['tempini'],
-        icparams['nHini'],
+        icparams['neutral_fraction'],
+        icparams['temperature'],
+        icparams['hydrogen_number_density'],
     )
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))

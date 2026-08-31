@@ -1,57 +1,47 @@
-runparams:
-  simname: SedovTaylorSph1d
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outdeltatime:
-    value: 100.0
-    unit: s
-  savedir: .
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim:
-    value: 1000.0
-    unit: s
-  CFL: 0.1
-  boundcond: OpenSph
-  noghost: 10
-  verbose: 0
-  order: 0
-  dtmin:
-    value: 2.0e-8
-    unit: s
-  dtmax:
-    value: 2.0e-1
-    unit: s
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 1000
-  coordsys: spherical
-  boxsize:
-    value: 5.0
-    unit: cm
-  time:
-    value: 0.0
-    unit: s
-  rhoini:
-    value: 1.0
-    unit: g/cm**3
-  Eini:
-    value: 1.0e-4
-    unit: erg
-  rini:
-    value: 0.5
-    unit: cm
-  muini: 1.0
-  rinj:
-    value: 0.0
-    unit: cm
+par:
+  simulation:
+    name: SedovTaylorSph1d
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 1000.0, unit: s}
+  mesh:
+    ghost_cells: 10
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: OpenSph
+  timestep:
+    dtmin: {value: 2.0e-8, unit: s}
+    dtmax: {value: 2.0e-1, unit: s}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+    cadence: {value: 100.0, unit: s}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  grid_cells: 1000
+  coordinate_system: spherical
+  box_size: {value: 5.0, unit: cm}
+  current_time: {value: 0.0, unit: s}
+  initial_density: {value: 1.0, unit: g/cm**3}
+  explosion_energy: {value: 1.0e-4, unit: erg}
+  explosion_radius: {value: 0.5, unit: cm}
+  injection_radius: {value: 0.0, unit: cm}
+  mean_molecular_weight: 1.0
+example:
+  output_indices: [5, 6, 7, 8, 9]
+  plot_filename: SedovTaylorSph1D.jpg

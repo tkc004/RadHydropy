@@ -30,10 +30,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import unyt
-import yaml
-
 from radhydropy.rsim import Rsim
-from radhydropy.example_config import load_example_parameters
 from radhydropy.units import CodeUnits
 import radhydropy.io as rio
 import example_utils as eu
@@ -44,44 +41,47 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_recombination1d.ya
 
 def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
     config_filename = Path(config_filename)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    with config_filename.open() as config_file:
-        config = yaml.safe_load(config_file)
-    return runparams, ICparams, config.get('target_neutral_fraction', 0.99)
+    config = eu.load_nested_example_config(config_filename)
+    return config
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams, target_neutral_fraction = load_parameters(
+    config = load_parameters(
         config_filename,
         rundir,
     )
-    eu.clean_previous_outputs(runparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    runparams = config['par']
+    ICparams = config['initial_condition']
+    exampleparams = config['example']
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     ric = et.Simwrap(ICparams, code_units=code_units_obj)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
-    et.run_hydrogen_recombination(sim, target_neutral_fraction, outputtime=0)
+    et.run_hydrogen_recombination(
+        sim, exampleparams['target_neutral_fraction'], outputtime=0
+    )
 
     outputfiles = et.output_files(
-        runparams['outdir'],
-        runparams['outfileprefix'],
+        output['directory'],
+        output['filename_prefix'],
     )
     history = et.load_history_from_outputs(
         outputfiles,
-        {**runparams, **ICparams},
-        runparams['noghost'],
+        config,
     )
 
-    figure_filename = rundir / 'HydrogenRecombination1D.jpg'
+    figure_filename = Path(output['savedir']) / exampleparams['plot_filename']
     et.save_history_plot(
         history,
         str(figure_filename),
         ICparams,
-        target_neutral_fraction,
+        exampleparams['target_neutral_fraction'],
     )
 
     print('Hydrogen recombination example finished')

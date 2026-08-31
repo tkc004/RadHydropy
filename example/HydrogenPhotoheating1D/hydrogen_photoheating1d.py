@@ -29,7 +29,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 import unyt
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 import example_utils as eu
@@ -42,19 +41,24 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_photoheating1d.yam
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = config['par']
+    ICparams = config['initial_condition']
+    exampleparams = config['example']
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
 
     reference = et.reference_values(
-        runparams['photon_flux'],
-        ICparams['nHini'],
-        runparams['excess_photoionization_energy'],
-        runparams['sigma_gamma'],
-        runparams['thermal_equilibrium_timescale'],
+        exampleparams['photon_flux'],
+        ICparams['hydrogen_number_density'],
+        exampleparams['excess_photoionization_energy'],
+        exampleparams['sigma_gamma'],
+        exampleparams['thermal_equilibrium_timescale'],
     )
 
-    ric = et.Simwrap(ICparams)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    code_units = et.CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    ric = et.Simwrap(ICparams, code_units=code_units)
+    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
     sim.Callreadhdf5()
@@ -63,22 +67,21 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetInitFluid()
     et.RunHydrogenPhotoheating(
         sim,
-        runparams['source_switch_time'],
+        exampleparams['source_switch_time'],
         reference['photon_density_on'],
         outputtime=0,
     )
 
     outputfiles = et.output_files(
-        runparams['outdir'],
-        runparams['outfileprefix'],
+        output['directory'],
+        output['filename_prefix'],
     )
     history = et.load_history_from_outputs(
         outputfiles,
-        {**runparams, **ICparams},
-        runparams['noghost'],
+        config,
     )
 
-    figure_filename = Path(runparams['savedir']) / 'HydrogenPhotoheating1D.jpg'
+    figure_filename = Path(output['savedir']) / exampleparams['plot_filename']
     xHI_reference = et.save_history_plot(history, str(figure_filename), reference)
 
     print('Hydrogen photoheating example finished')
@@ -91,11 +94,11 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     print(
         'sigma_gamma = %.3e cm^2'
-        % runparams['sigma_gamma'].to_value(unyt.cm**2)
+        % exampleparams['sigma_gamma'].to_value(unyt.cm**2)
     )
     print(
         'epsilon_gamma = %.3e eV'
-        % runparams['excess_photoionization_energy'].to_value(unyt.eV)
+        % exampleparams['excess_photoionization_energy'].to_value(unyt.eV)
     )
     print(
         'photoionization equilibrium temperature = %.3e K'

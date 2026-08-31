@@ -58,6 +58,13 @@ def check_conserved_energy_admissibility(
     larger deficits are reported at the update stage that created them.
     """
     par = sim.par
+    # Isothermal EOS runs do not evolve thermal energy as an Euler
+    # conservative variable.  Their Energy field may therefore contain only
+    # kinetic energy (or zero), while pressure is reconstructed from T and mu;
+    # the adiabatic E >= K invariant is not applicable here.
+    if getattr(getattr(sim, 'fluid', None), 'eos', None) is not None:
+        if getattr(sim.fluid.eos, 'is_isothermal', False):
+            return
     if not all(
         hasattr(sim.fluid, name) for name in ('Mass', 'Mom', 'Energy')
     ):

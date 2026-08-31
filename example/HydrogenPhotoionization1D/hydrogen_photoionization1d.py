@@ -30,7 +30,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 import unyt
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import radhydropy.io as rio
@@ -54,37 +53,40 @@ def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    config = eu.load_nested_example_config(config_filename)
+    runparams = config['par']
+    ICparams = config['initial_condition']
+    exampleparams = config['example']
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     ric = et.Simwrap(ICparams, code_units=code_units_obj)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
     RunHydrogenPhotoionization(
         sim,
-        runparams['target_neutral_fraction'],
+        exampleparams['target_neutral_fraction'],
         outputtime=0,
     )
 
     outputfiles = et.output_files(
-        runparams['outdir'],
-        runparams['outfileprefix'],
+        output['directory'],
+        output['filename_prefix'],
     )
     history = et.load_history_from_outputs(
         outputfiles,
-        {**runparams, **ICparams},
-        runparams['noghost'],
+        config,
     )
 
-    figure_filename = Path(runparams['savedir']) / 'HydrogenPhotoionization1D.jpg'
+    figure_filename = Path(output['savedir']) / exampleparams['plot_filename']
     et.save_history_plot(
         history,
         str(figure_filename),
         ICparams,
         runparams,
-        runparams['target_neutral_fraction'],
+        exampleparams['target_neutral_fraction'],
     )
 
     print('Hydrogen photoionization example finished')
