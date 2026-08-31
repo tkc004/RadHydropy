@@ -29,6 +29,28 @@ start_time = time.time()
 class Rsim():
     """Coordinate parameters, mesh, fluid state, solver, and output."""
 
+    def _initialize_runtime_state(self):
+        """Initialize counters and per-cell diagnostic state for this run."""
+        self.energy_diagnostics_enabled = bool(
+            getattr(self.par, "energy_diagnostics", False)
+        )
+        self.cumulative_hydro_boundary_energy = 0.0
+        self.cumulative_gravity_work = 0.0
+        self.cumulative_gravity_potential_change = 0.0
+        self.cumulative_gravity_potential_flux = 0.0
+        diagnostic_count = int(getattr(self.par, "nogrid", 0))
+        for name in (
+            "cumulative_gravity_work_by_cell",
+            "cumulative_hydro_energy_change_by_cell",
+            "cumulative_thermochemistry_energy_change_by_cell",
+            "cumulative_compression_work_by_cell",
+            "cumulative_shock_work_by_cell",
+        ):
+            setattr(self, name, np.zeros(diagnostic_count, dtype=float))
+        self.last_dark_matter_substeps = 0
+        self.cumulative_dark_matter_substeps = 0
+        self.dark_matter_substep_history = []
+
     def __init__(self,params) -> None:
         """Create a simulation from a run-parameter dictionary."""
         print("--- Get simulation parameters ---")
@@ -36,32 +58,8 @@ class Rsim():
         self.fluid = Fluid()
         self.mesh  = Mesh()
         self.par    = Par(params)
-        self.energy_diagnostics_enabled = bool(
-            getattr(self.par, "energy_diagnostics", False)
-        )
         self.solver = Solver()
-        self.cumulative_hydro_boundary_energy = 0.0
-        self.cumulative_gravity_work = 0.0
-        self.cumulative_gravity_potential_change = 0.0
-        self.cumulative_gravity_potential_flux = 0.0
-        self.cumulative_gravity_work_by_cell = np.zeros(
-            int(getattr(self.par, "nogrid", 0)), dtype=float
-        )
-        self.cumulative_hydro_energy_change_by_cell = np.zeros(
-            int(getattr(self.par, "nogrid", 0)), dtype=float
-        )
-        self.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
-            int(getattr(self.par, "nogrid", 0)), dtype=float
-        )
-        self.cumulative_compression_work_by_cell = np.zeros(
-            int(getattr(self.par, "nogrid", 0)), dtype=float
-        )
-        self.cumulative_shock_work_by_cell = np.zeros(
-            int(getattr(self.par, "nogrid", 0)), dtype=float
-        )
-        self.last_dark_matter_substeps = 0
-        self.cumulative_dark_matter_substeps = 0
-        self.dark_matter_substep_history = []
+        self._initialize_runtime_state()
         self.fluid.eos = EOS(
             self.par.EOStype,
             self.par.gamma,
@@ -76,32 +74,7 @@ class Rsim():
         sim.mesh = mesh
         sim.fluid = fluid
         sim.solver = solver if solver is not None else Solver()
-        sim.energy_diagnostics_enabled = bool(
-            getattr(sim.par, "energy_diagnostics", False)
-        )
-        sim.cumulative_hydro_boundary_energy = 0.0
-        sim.cumulative_gravity_work = 0.0
-        sim.cumulative_gravity_potential_change = 0.0
-        sim.cumulative_gravity_potential_flux = 0.0
-        nogrid = int(getattr(sim.par, "nogrid", 0))
-        sim.cumulative_gravity_work_by_cell = np.zeros(
-            nogrid, dtype=float
-        )
-        sim.cumulative_hydro_energy_change_by_cell = np.zeros(
-            nogrid, dtype=float
-        )
-        sim.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
-            nogrid, dtype=float
-        )
-        sim.cumulative_compression_work_by_cell = np.zeros(
-            nogrid, dtype=float
-        )
-        sim.cumulative_shock_work_by_cell = np.zeros(
-            nogrid, dtype=float
-        )
-        sim.last_dark_matter_substeps = 0
-        sim.cumulative_dark_matter_substeps = 0
-        sim.dark_matter_substep_history = []
+        sim._initialize_runtime_state()
         return sim
         
 
