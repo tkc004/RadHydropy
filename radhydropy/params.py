@@ -593,6 +593,9 @@ class Par:
                 'eos_type': 'EOStype', 'gamma': 'gamma', 'temperature': 'temperature',
                 'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
                 'positivity_preserving': 'positivity_preserving',
+                'dual_energy': 'dual_energy',
+                'cfl_density_floor': 'cfl_density_floor',
+                'temperature_jump_error_threshold': 'temperature_jump_error_threshold',
             },
             'boundary': {
                 'condition': 'boundcond', 'inflow_velocity': 'vel_inflow',
@@ -634,6 +637,7 @@ class Par:
             },
             'chemistry': {
                 'hydrogen_mass_fraction': 'hydrogen_mass_fraction',
+                'metallicity': 'metallicity',
                 'hydrogen_xHI_initial': 'hydrogen_xHI_initial',
                 'hydrogen_xHI_inflow': 'hydrogen_xHI_inflow',
                 'hydrogen_xHI_outflow': 'hydrogen_xHI_outflow',
@@ -645,10 +649,14 @@ class Par:
                 'hydrogen_beta': 'hydrogen_beta',
             },
             'thermochemistry': {
+                'network': 'thermochemistry_network',
                 'hydrogen_chemistry': 'hydrogen_chemistry',
                 'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
                 'hydrogen_recombination': 'hydrogen_recombination',
                 'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
+                'cie_cooling': 'cie_cooling',
+                'cooling_safety_factor': 'cooling_safety_factor',
+                'cooling_temperature_floor': 'cooling_temperature_floor',
             },
         }
         for group, names in groups.items():

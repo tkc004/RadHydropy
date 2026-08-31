@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
@@ -22,6 +23,20 @@ class Mesh:
 
 class Fluid:
     pass
+
+
+def _current_time(rout):
+    simulation = getattr(rout.par, 'simulation', None)
+    if simulation is not None and hasattr(simulation, 'current_time'):
+        return simulation.current_time
+    return rout.par.time
+
+
+def _config_value(mapping, group, key, legacy):
+    values = mapping.get(group)
+    if isinstance(values, dict) and key in values:
+        return values[key]
+    return mapping[legacy]
 
 
 def set_plot_style():
@@ -53,35 +68,38 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         if code_units is not None:
             self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
-        self.par.time = icparams['time'] * np.ones(1)
+        grid_cells = icparams['grid_cells']
+        box_size = icparams['box_size'] * np.ones(1)
+        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=icparams['coordinate_system'],
+            current_time=icparams['current_time'] * np.ones(1),
+            box_size=box_size,
+        )
 
         self.mesh.boundary = np.linspace(
-            icparams['rinj'],
-            icparams['rinj'] + self.par.boxsize[0],
-            self.par.nogrid + 1,
+            icparams['injection_radius'],
+            icparams['injection_radius'] + box_size[0],
+            grid_cells + 1,
         )
-        self.fluid.vel = icparams['vini'] * np.ones(self.par.nogrid)
-        self.fluid.temp = icparams['tempini'] * np.ones(self.par.nogrid)
-        self.fluid.rho = icparams['rhoini'] * np.ones(self.par.nogrid)
-        self.fluid.mu = icparams['muini'] * np.ones(self.par.nogrid)
+        self.fluid.vel = icparams['velocity'] * np.ones(grid_cells)
+        self.fluid.temp = icparams['temperature'] * np.ones(grid_cells)
+        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
 
 def load_snapshot(outfilename, icparams, runparams):
     """Load an output snapshot into a lightweight simulation wrapper."""
 
     rout = Simwrap(icparams)
-    code_units_obj = CodeUnits.from_mapping(runparams['CodeUnits'])
-    rout.par.CodeUnits = code_units_obj
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rout.par.time = unyt.unyt_array(np.asarray(rout.par.time, dtype=float), code_units_obj.time_unit)
-    rout.par.boxsize = unyt.unyt_array(np.asarray(rout.par.boxsize, dtype=float), code_units_obj.length_unit)
+    rout.par.simulation.current_time = unyt.unyt_array(np.asarray(rout.par.simulation.current_time, dtype=float), code_units_obj.time_unit)
+    rout.par.simulation.box_size = unyt.unyt_array(np.asarray(rout.par.simulation.box_size, dtype=float), code_units_obj.length_unit)
     rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit)
     rout.fluid.vel = unyt.unyt_array(np.asarray(rout.fluid.vel, dtype=float), code_units_obj.velocity_unit)
     rout.fluid.temp = unyt.unyt_array(np.asarray(rout.fluid.temp, dtype=float), code_units_obj.temperature_unit)
@@ -205,11 +223,11 @@ def weaver_forward_shock_radius(rout, icparams, runparams):
     """Return the Weaver shock radius for a loaded snapshot."""
 
     return wa.shock_radius(
-        rout.par.time,
-        icparams['rhoini'],
-        runparams['rho_outflow'],
-        runparams['vel_outflow'],
-        icparams['rinj'],
+        _current_time(rout),
+        icparams.get('initial_density', icparams.get('rhoini')),
+        _config_value(runparams, 'boundary', 'outflow_density', 'rho_outflow'),
+        _config_value(runparams, 'boundary', 'outflow_velocity', 'vel_outflow'),
+        icparams.get('injection_radius', icparams.get('rinj')),
     )
 
 
@@ -288,9 +306,9 @@ def make_profile_figure(snapshots, icparams, runparams):
             markevery=5,
             color=color,
         )
-        if rout.par.time > 0 * rout.par.time.units:
+        if _current_time(rout) > 0 * _current_time(rout).units:
             shock_radius = weaver_forward_shock_radius(rout, icparams, runparams)
-            shock_value = shock_radius.to_value(icparams['rinj'].units).item()
+            shock_value = shock_radius.to_value(icparams['injection_radius'].units).item()
             for ax in (ax_density, ax_temperature):
                 ax.axvline(
                     x=shock_value,
@@ -317,20 +335,20 @@ def make_radius_figure(snapshots, icparams, runparams):
     numerical_radii = []
     weaver_times = []
     weaver_radii = []
-    shell_threshold_factor = runparams['shell_edge_density_threshold_factor']
+    shell_threshold_factor = runparams.get('example', {}).get('shell_edge_density_threshold_factor', runparams.get('shell_edge_density_threshold_factor', 1.0))
 
     for rout in snapshots:
-        if rout.par.time <= 0 * rout.par.time.units:
+        if _current_time(rout) <= 0 * _current_time(rout).units:
             continue
         numerical_radius = shell_inner_edge_radius(
             rout,
-            icparams['rhoini'],
+            icparams.get('initial_density', icparams.get('rhoini')),
             shell_threshold_factor,
         )
         if numerical_radius is None:
             continue
         weaver_radius = weaver_forward_shock_radius(rout, icparams, runparams)
-        time_myr = rout.par.time.to_value(unyt.Myr)
+        time_myr = _current_time(rout).to_value(unyt.Myr)
         numerical_times.append(time_myr)
         numerical_radii.append(numerical_radius.to_value(unyt.pc))
         weaver_times.append(time_myr)
@@ -398,17 +416,17 @@ def numerical_bubble_pressure(rout, shell_radius):
 def collect_shell_diagnostics(snapshots, icparams, runparams):
     """Collect shell radius, velocity, and pressure comparison data."""
 
-    shell_threshold_factor = runparams['shell_edge_density_threshold_factor']
+    shell_threshold_factor = runparams.get('example', {}).get('shell_edge_density_threshold_factor', runparams.get('shell_edge_density_threshold_factor', 1.0))
     times = []
     radii = []
     pressures = []
 
     for rout in snapshots:
-        if rout.par.time <= 0 * rout.par.time.units:
+        if _current_time(rout) <= 0 * _current_time(rout).units:
             continue
         shell_radius = shell_inner_edge_radius(
             rout,
-            icparams['rhoini'],
+            icparams.get('initial_density', icparams.get('rhoini')),
             shell_threshold_factor,
         )
         if shell_radius is None:
@@ -416,7 +434,7 @@ def collect_shell_diagnostics(snapshots, icparams, runparams):
         bubble_pressure = numerical_bubble_pressure(rout, shell_radius)
         if bubble_pressure is None:
             continue
-        times.append(rout.par.time)
+        times.append(_current_time(rout))
         radii.append(shell_radius)
         pressures.append(bubble_pressure)
 
@@ -442,10 +460,10 @@ def collect_shell_diagnostics(snapshots, icparams, runparams):
     for time in times:
         radius, velocity, pressure = wa.weaver_solution(
             time,
-            icparams['rhoini'],
-            runparams['rho_outflow'],
-            runparams['vel_outflow'],
-            icparams['rinj'],
+            icparams.get('initial_density', icparams.get('rhoini')),
+            _config_value(runparams, 'boundary', 'outflow_density', 'rho_outflow'),
+            _config_value(runparams, 'boundary', 'outflow_velocity', 'vel_outflow'),
+            icparams.get('injection_radius', icparams.get('rinj')),
         )
         weaver_radii.append(radius.to_value(unyt.pc))
         weaver_velocities.append(velocity.to_value(unyt.km / unyt.s))
@@ -534,10 +552,10 @@ def make_pressure_figure(snapshots, icparams, runparams):
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = load_snapshot(outfilename, icparams, runparams)
     plot_density_snapshot(plt.gca(), rout, **kwargs)
-    if np.all(rout.par.time > 0 * rout.par.time.units):
+    if np.all(_current_time(rout) > 0 * _current_time(rout).units):
         shock_radius = weaver_forward_shock_radius(rout, icparams, runparams)
         plt.axvline(
-            x=shock_radius.to_value(icparams['rinj'].units).item(),
+            x=shock_radius.to_value(icparams['injection_radius'].units).item(),
             color=kwargs['color'],
             ls='dashed',
         )

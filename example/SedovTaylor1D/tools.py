@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from pylab import rcParams
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
@@ -60,36 +61,40 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         if code_units is not None:
             self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
-        self.par.time = icparams['time'] * np.ones(1)
+        grid_cells = icparams['grid_cells']
+        box_size = icparams['box_size'] * np.ones(1)
+        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=icparams['coordinate_system'],
+            current_time=icparams['current_time'] * np.ones(1),
+            box_size=box_size,
+        )
 
-        dx = self.par.boxsize[0] / self.par.nogrid
+        dx = box_size[0] / grid_cells
         self.mesh.boundary = np.linspace(
             -0.5 * dx,
-            self.par.boxsize[0] + dx,
-            self.par.nogrid + 1,
+            box_size[0] + dx,
+            grid_cells + 1,
         )
         self.mesh.coordinate = 0.5 * (
             self.mesh.boundary[:-1] + self.mesh.boundary[1:]
         )
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho = icparams['rhoini'] * np.ones(self.par.nogrid)
-        self.mesh.area = runparams['area'] * np.ones(self.par.nogrid)
+        self.fluid.vel = np.zeros(grid_cells) * unyt.cm / unyt.s
+        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.mesh.area = runparams['mesh']['area'] * np.ones(grid_cells)
         self.mesh.vol = self.mesh.area * (
             self.mesh.boundary[1:] - self.mesh.boundary[:-1]
         )
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
         self.fluid.mass = self.fluid.rho * self.mesh.vol
-        self.fluid.temp = np.ones(self.par.nogrid) * 0.0 * unyt.K
+        self.fluid.temp = np.ones(grid_cells) * 0.0 * unyt.K
         icut = 1
-        pre = icparams['Eini'] / np.sum(self.mesh.vol[icut]) * (
-            runparams['gamma'] - 1.0
+        pre = icparams['explosion_energy'] / np.sum(self.mesh.vol[icut]) * (
+            runparams['hydrodynamics']['gamma'] - 1.0
         )
         self.fluid.temp[icut] = ru.CalTemperature(
             self.fluid.rho[icut],
@@ -100,21 +105,20 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams, runparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    rout.par.CodeUnits = code_units_obj
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rout.fluid.pre = ru.CalPressure(rout.fluid.rho, rout.fluid.temp, rout.fluid.mu)
     nu = 1
-    g = runparams['gamma']
+    g = runparams['hydrodynamics']['gamma']
     w = 0.0
-    if runparams['boundcond'] == 'Periodic' or runparams['boundcond'] == 'Open':
-        E0 = icparams['Eini']
+    if runparams['boundary']['condition'] == 'Periodic' or runparams['boundary']['condition'] == 'Open':
+        E0 = icparams['explosion_energy']
     else:
-        E0 = icparams['Eini'] * 2.0
-    rho1d0 = icparams['rhoini'] * runparams['area']
+        E0 = icparams['explosion_energy'] * 2.0
+    rho1d0 = icparams['initial_density'] * runparams['mesh']['area']
     A0 = rho1d0
-    t = rout.par.time * code_units_obj.time_unit
+    t = rout.par.simulation.current_time * code_units_obj.time_unit
     r, rho, v, p, Rs = sa.get_blastwave_solution(E0, A0, nu, g, w, t)
     r = unyt.uconcatenate((r, unyt.unyt_array([1.0, 2] * Rs)))
     rho = unyt.uconcatenate((rho, unyt.unyt_array([rho1d0, rho1d0])))
@@ -132,4 +136,4 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     plt.plot(r.in_cgs(), v.in_cgs(), color=kwargs['color'])
     plt.subplot(1, 3, 3)
     rplot1d(rout, yquan='rho', showfig=0, showhalf=1, **kwargs)
-    plt.plot(r.in_cgs(), (rho / runparams['area']).in_cgs(), color=kwargs['color'])
+    plt.plot(r.in_cgs(), (rho / runparams['mesh']['area']).in_cgs(), color=kwargs['color'])

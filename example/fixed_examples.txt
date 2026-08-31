@@ -10,8 +10,14 @@ Fixed (nested par / initial_condition / example configuration)
 - HydrogenPhotoionization1D
 - HydrogenRecombination1D
 - Outflow1d
+- SphericalShellReflectingWall1D
+- StellarWindBubble1D
+- SphericalConvergingShock1D (migrated; runtime baseline still needs positivity-limit investigation)
 - OutflowSph1d
 - OutflowSphVacuum1D
+- SedovTaylor1D
+- SedovTaylorSph1d
+- SodShock1D
 
 Notes
 -----

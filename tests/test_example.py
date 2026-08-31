@@ -428,30 +428,31 @@ class Testing(unittest.TestCase):
             / 'StellarWindBubble1D'
             / 'stellar_wind_bubble1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        runparams, icparams = config['par'], config['initial_condition']
 
-        self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(runparams['coordsys'], 'spherical')
-        self.assertEqual(runparams['boundcond'], 'OutflowSph')
-        self.assertEqual(runparams['EOStype'], 'polytropic')
+        self.assertEqual(runparams['output']['filename_prefix'], 'Output')
+        self.assertEqual(runparams['simulation']['coordinate_system'], 'spherical')
+        self.assertEqual(runparams['boundary']['condition'], 'OutflowSph')
+        self.assertEqual(runparams['hydrodynamics']['eos_type'], 'polytropic')
         self.assertTrue(
-            runparams['outputtimefilename'].endswith(
-                'stellar_wind_bubble1d_output_times.txt'
+            runparams['output']['time_list_filename'].endswith(
+                'stellar_wind_bubble1d_with_metal_output_times.txt'
             )
         )
         self.assertEqual(
-            runparams['shell_edge_density_threshold_factor'],
+            config['example']['shell_edge_density_threshold_factor'],
             1.0,
         )
-        self.assertEqual(runparams['order'], 1)
-        self.assertEqual(icparams['nogrid'], 1024)
-        self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 25.0)
-        self.assertEqual(icparams['rinj'].to_value(unyt.pc), 0.05)
-        self.assertEqual(icparams['rhoini'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
-        self.assertEqual(runparams['vel_outflow'].to_value(unyt.km / unyt.s), 1000.0)
-        self.assertEqual(runparams['rho_outflow'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
-        self.assertEqual(icparams['time'].to_value(unyt.Myr), 0.0)
-        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.1)
+        self.assertEqual(runparams['hydrodynamics']['order'], 1)
+        self.assertEqual(icparams['grid_cells'], 1024)
+        self.assertEqual(icparams['box_size'].to_value(unyt.pc), 25.0)
+        self.assertEqual(icparams['injection_radius'].to_value(unyt.pc), 0.05)
+        self.assertEqual(icparams['initial_density'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
+        self.assertEqual(runparams['boundary']['outflow_velocity'].to_value(unyt.km / unyt.s), 1000.0)
+        self.assertEqual(runparams['boundary']['outflow_density'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
+        self.assertEqual(icparams['current_time'].to_value(unyt.Myr), 0.0)
+        self.assertEqual(runparams['simulation']['final_time'].to_value(unyt.Myr), 0.1)
 
     def test_stellar_wind_shell_edge_radius_uses_inner_shell(self):
         boundary = unyt.unyt_array(

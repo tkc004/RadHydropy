@@ -72,8 +72,8 @@ class Simwrap:
 def getAnalyticSolution(icparams, runparams, rout):
     code_units_obj = getattr(rout.par.units, 'CodeUnits', None)
     if code_units_obj is None:
-        code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
-    time = rout.par.time
+        code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    time = rout.par.simulation.current_time
     if not hasattr(time, 'in_cgs'):
         time = time * code_units_obj.time_unit
     boundary = rout.mesh.boundary

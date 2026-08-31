@@ -11,7 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import unyt
@@ -39,8 +38,8 @@ def load_snapshots(runparams, ICparams, max_outputs=10, start_index=1):
     snapshots = []
     for outindex in range(start_index, max_outputs):
         outfilename = os.path.join(
-            runparams['outdir'],
-            runparams['outfileprefix'] + '_%03d' % outindex + '.hdf5',
+            runparams['output']['directory'],
+            runparams['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
         )
         snapshots.append(et.load_snapshot(outfilename, ICparams, runparams))
     return snapshots
@@ -50,22 +49,25 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     et.set_plot_style()
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
+    config = eu.load_nested_example_config(config_filename)
+    runparams, ICparams = config['par'], config['initial_condition']
+    exampleparams = config['example']
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
 
     if not plot_only:
-        code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+        code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
         ric = et.Simwrap(ICparams, code_units=code_units_obj)
-        rio.writehdf5(ric, runparams['ICfilename'])
+        rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
         mainrun = Rsim(runparams)
         mainrun.RunAll(outputtime=0)
 
     snapshots = load_snapshots(runparams, ICparams)
-    figure_prefix = runparams.get('figure_prefix', 'StellarWindBubble1D')
+    figure_prefix = exampleparams.get('figure_prefix', 'StellarWindBubble1D')
 
     profile_figure = et.make_profile_figure(snapshots, ICparams, runparams)
     profile_figure_filename = os.path.join(
-        runparams['savedir'],
+        output['savedir'],
         f'{figure_prefix}_profiles.jpg',
     )
     profile_figure.savefig(profile_figure_filename, dpi=200)
@@ -74,7 +76,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
     radius_figure = et.make_radius_figure(snapshots, ICparams, runparams)
     radius_figure_filename = os.path.join(
-        runparams['savedir'],
+        output['savedir'],
         f'{figure_prefix}_radius.jpg',
     )
     radius_figure.savefig(radius_figure_filename, dpi=200)
@@ -84,7 +86,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     velocity_figure = et.make_velocity_figure(snapshots, ICparams, runparams)
     if velocity_figure is not None:
         velocity_figure_filename = os.path.join(
-            runparams['savedir'],
+            output['savedir'],
             f'{figure_prefix}_velocity.jpg',
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
@@ -94,7 +96,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     pressure_figure = et.make_pressure_figure(snapshots, ICparams, runparams)
     if pressure_figure is not None:
         pressure_figure_filename = os.path.join(
-            runparams['savedir'],
+            output['savedir'],
             f'{figure_prefix}_pressure.jpg',
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)

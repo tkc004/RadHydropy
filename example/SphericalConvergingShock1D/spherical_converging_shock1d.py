@@ -21,7 +21,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -40,21 +39,26 @@ def make_initial_condition(ic, units):
     state.par = InitialCondition()
     state.mesh = InitialCondition()
     state.fluid = InitialCondition()
-    state.par.CodeUnits = units
+    state.par.units = type('Units', (), {'CodeUnits': units})()
     state.par.unit_system = units.unit_system
-    state.par.nogrid = int(ic["nogrid"])
+    state.par.simulation = type('Simulation', (), {})()
+    state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': int(ic['grid_cells'])})()
+    state.par.nogrid = int(ic["grid_cells"])
     state.par.coordsys = "spherical"
-    state.par.boxsize = np.asarray([float(ic["boxsize"].to_value("cm"))])
+    state.par.boxsize = np.asarray([float(ic["box_size"].to_value("cm"))])
     state.par.time = np.asarray([0.0])
+    state.par.simulation.current_time = state.par.time
+    state.par.simulation.coordinate_system = 'spherical'
+    state.par.simulation.box_size = state.par.boxsize
     faces = np.linspace(0.0, state.par.boxsize[0], state.par.nogrid + 1)
     state.mesh.boundary = faces
     state.mesh.coordinate = 0.5 * (faces[1:] + faces[:-1])
     state.mesh.area = 4.0 * np.pi * faces[:-1] ** 2
     state.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(faces ** 3)
-    state.fluid.rho = np.full(state.par.nogrid, float(ic["rhoini"].to_value("g/cm**3")))
-    state.fluid.temp = np.full(state.par.nogrid, float(ic["tempini"].to_value("K")))
-    state.fluid.vel = np.full(state.par.nogrid, float(ic["vini"].to_value("cm/s")))
-    state.fluid.mu = np.full(state.par.nogrid, float(ic["muini"]))
+    state.fluid.rho = np.full(state.par.nogrid, float(ic["initial_density"].to_value("g/cm**3")))
+    state.fluid.temp = np.full(state.par.nogrid, float(ic["temperature"].to_value("K")))
+    state.fluid.vel = np.full(state.par.nogrid, float(ic["velocity"].to_value("cm/s")))
+    state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
     return state
 
 
@@ -98,19 +102,21 @@ def _read_profile(filename, units):
 
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd())
+    config = eu.load_nested_example_config(config_filename)
+    runparams, icparams = config['par'], config['initial_condition']
     if riemann_solver is not None:
-        runparams["riemann_solver"] = riemann_solver
+        runparams["hydrodynamics"]["riemann_solver"] = riemann_solver
     if dual_energy is not None:
-        runparams["dual_energy"] = dual_energy
-    eu.clean_previous_outputs(runparams)
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+        runparams["hydrodynamics"]["dual_energy"] = dual_energy
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
+    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
     initial = make_initial_condition(icparams, units)
-    rio.writehdf5(initial, runparams["ICfilename"])
+    rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
 
     sim = Rsim(runparams)
     sim.RunAll(outputtime=0)
-    outputs = sorted(Path(runparams["outdir"]).glob("Output_*.hdf5"))
+    outputs = sorted(Path(output["directory"]).glob("Output_*.hdf5"))
     if len(outputs) < 2:
         raise RuntimeError("spherical converging benchmark produced too few outputs")
 
@@ -132,7 +138,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if not np.isclose(final_energy, initial_energy, rtol=2.0e-5, atol=2.0e-10):
         raise RuntimeError("spherical reflecting benchmark lost total energy")
 
-    figure = Path(runparams["savedir"]) / "SphericalConvergingShock1D.jpg"
+    figure = Path(output["savedir"]) / "SphericalConvergingShock1D.jpg"
     selected = np.unique(np.linspace(0, len(profiles) - 1, min(6, len(profiles))).astype(int))
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
     for index in selected:
