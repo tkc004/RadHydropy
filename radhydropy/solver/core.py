@@ -284,187 +284,60 @@ class Solver():
         fluid.Energy.flux[face] = 0.0
         fluid.Mom.flux[face] = fluid.pre[core_last]
 
-    def _boundary_field_names(self, fluid):
-        fields = ['rho', 'vel', 'pre']
-        if hasattr(fluid, 'specific_angular_momentum'):
-            fields.append('specific_angular_momentum')
-        if hasattr(fluid, 'xHI'):
-            fields.append('xHI')
-        if hasattr(fluid, 'ngamma'):
-            fields.append('ngamma')
-        return fields
+    def _boundary_field_names(self, *args, **kwargs):
+        from .boundary_conditions import _boundary_field_names
 
-    def _copy_boundary_state(self, fluid, target_slice, values):
-        for attr, value in values.items():
-            target = getattr(fluid, attr)
-            if attr == 'ngamma' and np.ndim(target) == 2:
-                value_array = np.asarray(value)
-                if value_array.ndim == 1:
-                    value_array = value_array[:, None]
-                target[:, target_slice] = value_array
-            else:
-                target[target_slice] = value
+        return _boundary_field_names(self, *args, **kwargs)
 
-    def _boundary_state(
-        self,
-        fluid,
-        source,
-        include_velocity=True,
-        negate_velocity=False,
-        reverse=False,
-    ):
-        state = {
-            'rho': fluid.rho[source],
-            'pre': fluid.pre[source],
-        }
-        if include_velocity:
-            velocity = fluid.vel[source]
-            state['vel'] = -velocity if negate_velocity else velocity
-        if hasattr(fluid, 'specific_angular_momentum'):
-            state['specific_angular_momentum'] = fluid.specific_angular_momentum[source]
-        if hasattr(fluid, 'xHI'):
-            state['xHI'] = fluid.xHI[source]
-        if hasattr(fluid, 'ngamma'):
-            if np.ndim(fluid.ngamma) == 2:
-                state['ngamma'] = fluid.ngamma[:, source]
-            else:
-                state['ngamma'] = fluid.ngamma[source]
-        if reverse:
-            for key, value in list(state.items()):
-                state[key] = value[::-1]
-        return state
+    def _copy_boundary_state(self, *args, **kwargs):
+        from .boundary_conditions import _copy_boundary_state
 
-    def _to_code_number_density(self, value, scales):
-        density = np.asarray(photon_number_density(value).to_value(unyt.cm**-3), dtype=float)
-        if scales is None:
-            return density
-        return density / scales['number_density_cm3']
+        return _copy_boundary_state(self, *args, **kwargs)
 
-    def _apply_periodic_boundary(self, fluid, interior, left_ghost, right_ghost, noghost):
-        fields = self._boundary_field_names(fluid)
-        for attr in fields:
-            quan = getattr(fluid, attr)
-            if attr == 'ngamma' and np.ndim(quan) == 2:
-                quan[:, left_ghost] = quan[:, interior][:, -noghost:]
-                quan[:, right_ghost] = quan[:, interior][:, :noghost]
-            else:
-                quan[left_ghost] = quan[interior][-noghost:]
-                quan[right_ghost] = quan[interior][:noghost]
+    def _boundary_state(self, *args, **kwargs):
+        from .boundary_conditions import _boundary_state
 
-    def _apply_open_boundary(self, fluid, first, nolast, left_ghost, right_ghost):
-        fields = self._boundary_field_names(fluid)
-        for attr in fields:
-            quan = getattr(fluid, attr)
-            if attr == 'ngamma' and np.ndim(quan) == 2:
-                quan[:, left_ghost] = quan[:, first]
-                quan[:, right_ghost] = quan[:, nolast]
-            else:
-                quan[left_ghost] = quan[first]
-                quan[right_ghost] = quan[nolast]
+        return _boundary_state(self, *args, **kwargs)
 
-    def _apply_reflecting_boundary(self, fluid, interior, left_ghost, right_ghost, noghost):
-        for attr in ('rho', 'pre', 'specific_angular_momentum'):
-            if not hasattr(fluid, attr):
-                continue
-            quan = getattr(fluid, attr)
-            quan[left_ghost] = quan[interior][:noghost][::-1]
-            quan[right_ghost] = quan[interior][-noghost:][::-1]
-        fluid.vel[left_ghost] = -fluid.vel[interior][:noghost][::-1]
-        fluid.vel[right_ghost] = -fluid.vel[interior][-noghost:][::-1]
+    def _to_code_number_density(self, *args, **kwargs):
+        from .boundary_conditions import _to_code_number_density
 
-    def _apply_spherical_inner_boundary(self, mesh, fluid, first, noghost):
-        mirror_start = first
-        if mesh is not None and hasattr(mesh, 'boundary'):
-            boundary_units = getattr(mesh.boundary, 'units', None)
-            origin = 0.0 * boundary_units if boundary_units is not None else 0.0
-            if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
-                mirror_start = first + 1
-        left_state = self._boundary_state(
-            fluid,
-            slice(mirror_start, mirror_start + noghost),
-            negate_velocity=True,
-            reverse=True,
-        )
-        self._copy_boundary_state(fluid, slice(0, noghost), left_state)
+        return _to_code_number_density(self, *args, **kwargs)
 
-    def _apply_open_spherical_boundary(
-        self,
-        mesh,
-        fluid,
-        par,
-        scales,
-        first,
-        nolast,
-        left_ghost,
-        right_ghost,
-        noghost,
-    ):
-        self._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
-        right_state = self._boundary_state(fluid, nolast)
-        self._copy_boundary_state(fluid, right_ghost, right_state)
+    def _apply_periodic_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_periodic_boundary
 
-    def _apply_inflow_spherical_boundary(
-        self,
-        mesh,
-        fluid,
-        par,
-        scales,
-        first,
-        nolast,
-        left_ghost,
-        right_ghost,
-        noghost,
-    ):
-        self._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
-        right_state = {
-            'rho': par.rho_inflow,
-            'vel': par.vel_inflow,
-            'pre': fluid.eos.pressure(par.rho_inflow, par.temp_inflow, par.mu_inflow),
-        }
-        if hasattr(fluid, 'specific_angular_momentum'):
-            right_state['specific_angular_momentum'] = getattr(
-                par, 'specific_angular_momentum_inflow', 0.0
-            )
-        if hasattr(fluid, 'xHI'):
-            right_state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
-        if hasattr(fluid, 'ngamma'):
-            right_state['ngamma'] = self._to_code_number_density(
-                getattr(par, 'hydrogen_ngamma_inflow', 0.0),
-                scales,
-            )
-        self._copy_boundary_state(fluid, right_ghost, right_state)
+        return _apply_periodic_boundary(self, *args, **kwargs)
 
-    def _apply_outflow_spherical_boundary(
-        self,
-        mesh,
-        fluid,
-        par,
-        scales,
-        first,
-        nolast,
-        left_ghost,
-        right_ghost,
-        noghost,
-    ):
-        left_state = {
-            'rho': par.rho_outflow,
-            'vel': par.vel_outflow,
-            'pre': fluid.eos.pressure(par.rho_outflow, par.temp_outflow, par.mu_outflow),
-        }
-        if hasattr(fluid, 'specific_angular_momentum'):
-            left_state['specific_angular_momentum'] = getattr(
-                par, 'specific_angular_momentum_outflow', 0.0
-            )
-        if hasattr(fluid, 'xHI'):
-            left_state['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
-        if hasattr(fluid, 'ngamma'):
-            left_state['ngamma'] = self._to_code_number_density(
-                getattr(par, 'hydrogen_ngamma_outflow', 0.0),
-                scales,
-            )
-        self._copy_boundary_state(fluid, left_ghost, left_state)
-        right_state = self._boundary_state(fluid, nolast)
-        self._copy_boundary_state(fluid, right_ghost, right_state)
+    def _apply_open_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_open_boundary
+
+        return _apply_open_boundary(self, *args, **kwargs)
+
+    def _apply_reflecting_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_reflecting_boundary
+
+        return _apply_reflecting_boundary(self, *args, **kwargs)
+
+    def _apply_spherical_inner_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_spherical_inner_boundary
+
+        return _apply_spherical_inner_boundary(self, *args, **kwargs)
+
+    def _apply_open_spherical_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_open_spherical_boundary
+
+        return _apply_open_spherical_boundary(self, *args, **kwargs)
+
+    def _apply_inflow_spherical_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_inflow_spherical_boundary
+
+        return _apply_inflow_spherical_boundary(self, *args, **kwargs)
+
+    def _apply_outflow_spherical_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_outflow_spherical_boundary
+
+        return _apply_outflow_spherical_boundary(self, *args, **kwargs)
 
     def SetPrimitive(self, mesh, fluid, par=None, verbose=None):
         """Update primitive variables from conserved quantities."""
@@ -851,130 +724,64 @@ class Solver():
     @staticmethod
     def _positivity_limited_internal_flux(old_internal, flux, area, dt,
                                           physical):
-        """Limit dual internal-energy face fluxes to preserve positivity.
+        from .positivity import limit_internal_flux
 
-        The total-energy flux has its own paired-face limiter.  This second
-        limiter acts on the independently evolved dual field, scaling only a
-        face flux when either cell sharing that face would become negative.
-        InternalEnergy is not the conservative authority, so this local
-        limiter may be more restrictive than the total-energy limiter without
-        changing conserved mass, momentum, or total energy.
-        """
-        result = np.ones(len(flux), dtype=float)
-        state = np.asarray(old_internal, dtype=float).copy()
-        area = np.asarray(area, dtype=float)
-        dt_value = float(np.asarray(dt, dtype=float))
-        for face in range(len(flux)):
-            left = (face - 1) % len(state)
-            right = face
-            if not (physical[left] or physical[right]):
-                continue
-            increment = dt_value * float(flux[face]) * float(area[face])
-            alpha = 1.0
-            if increment > 0.0 and physical[left] and state[left] < increment:
-                alpha = max(0.0, state[left] / increment)
-            elif increment < 0.0 and physical[right] and state[right] < -increment:
-                alpha = max(0.0, state[right] / -increment)
-            result[face] = alpha
-            applied = alpha * increment
-            if physical[left]:
-                state[left] -= applied
-            if physical[right]:
-                state[right] += applied
-            # Roundoff at the positivity boundary must not be turned into a
-            # negative dual state by the next vectorized update.
-            if physical[left]:
-                state[left] = max(0.0, state[left])
-            if physical[right]:
-                state[right] = max(0.0, state[right])
-        return result
+        return limit_internal_flux(old_internal, flux, area, dt, physical)
 
     @staticmethod
-    def _cfl_density_floor(par):
-        return max(0.0, float(np.asarray(
-            getattr(par, 'cfl_density_floor', 0.0), dtype=float
-        )))
+    @staticmethod
+    def _cfl_density_floor( *args, **kwargs):
+        from .dual_energy import _cfl_density_floor
+
+        return _cfl_density_floor(*args, **kwargs)
 
     @staticmethod
-    def _dual_energy_enabled(par):
-        return bool(getattr(par, 'dual_energy', False))
+    @staticmethod
+    def _dual_energy_enabled( *args, **kwargs):
+        from .dual_energy import _dual_energy_enabled
+
+        return _dual_energy_enabled(*args, **kwargs)
 
     @staticmethod
-    def _rotational_energy_enabled(par):
-        return bool(getattr(par, 'gas_rotational_energy', False))
+    @staticmethod
+    def _rotational_energy_enabled( *args, **kwargs):
+        from .dual_energy import _rotational_energy_enabled
+
+        return _rotational_energy_enabled(*args, **kwargs)
 
     @staticmethod
-    def _gravity_potential_energy_enabled(par):
-        return bool(getattr(par, 'gravity_potential_energy', False))
+    @staticmethod
+    def _gravity_potential_energy_enabled( *args, **kwargs):
+        from .dual_energy import _gravity_potential_energy_enabled
 
-    def _gravity_potential(self, mesh, par):
-        if not self._gravity_potential_energy_enabled(par):
-            return None
-        gravity = self._gravity_model(par)
-        if gravity is None or not hasattr(gravity, 'potential_on'):
-            raise ValueError(
-                'gravity_potential_energy requires a gravity model with potential_on'
-            )
-        return np.asarray(gravity.potential_on(mesh.coordinate), dtype=float)
+        return _gravity_potential_energy_enabled(*args, **kwargs)
 
-    def _gravity_potential_faces(self, mesh, par):
-        if not self._gravity_potential_energy_enabled(par):
-            return None
-        gravity = self._gravity_model(par)
-        if gravity is None or not hasattr(gravity, 'potential_on'):
-            raise ValueError(
-                'gravity_potential_energy requires a gravity model with potential_on'
-            )
-        return np.asarray(gravity.potential_on(mesh.boundary[:-1]), dtype=float)
+    def _gravity_potential(self, *args, **kwargs):
+        from .dual_energy import _gravity_potential
 
-    def _rotational_energy_density(self, mesh, fluid, par):
-        """Return opt-in rotational kinetic-energy density."""
-        rho = np.asarray(fluid.rho, dtype=float)
-        result = np.zeros_like(rho)
-        if not self._rotational_energy_enabled(par):
-            return result
-        if not getattr(par, 'gas_angular_momentum', False):
-            raise ValueError(
-                'gas_rotational_energy requires gas_angular_momentum: true'
-            )
-        if getattr(mesh, 'coordsys', None) != 'spherical':
-            raise ValueError('gas_rotational_energy requires a spherical mesh')
-        radius = np.asarray(mesh.coordinate, dtype=float)
-        specific = np.asarray(fluid.specific_angular_momentum, dtype=float)
-        valid = (
-            np.isfinite(rho) & (rho > 0.0)
-            & np.isfinite(specific) & np.isfinite(radius) & (radius > 0.0)
-        )
-        result[valid] = 0.5 * rho[valid] * specific[valid]**2 / radius[valid]**2
-        return result
+        return _gravity_potential(self, *args, **kwargs)
 
-    def _rotational_energy_from_conserved(self, mesh, fluid, par):
-        """Return opt-in rotational kinetic energy from conserved J and M."""
-        result = np.zeros_like(np.asarray(fluid.Mass, dtype=float))
-        if not self._rotational_energy_enabled(par):
-            return result
-        if not hasattr(fluid, 'AngularMomentum'):
-            return result
-        mass = np.asarray(fluid.Mass, dtype=float)
-        angular_momentum = np.asarray(fluid.AngularMomentum, dtype=float)
-        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
-        valid = (
-            np.isfinite(mass) & (mass > 0.0)
-            & np.isfinite(angular_momentum)
-            & np.isfinite(radius) & (radius > 0.0)
-        )
-        result[valid] = (
-            0.5 * angular_momentum[valid]**2
-            / (mass[valid] * radius[valid]**2)
-        )
-        return result
+    def _gravity_potential_faces(self, *args, **kwargs):
+        from .dual_energy import _gravity_potential_faces
+
+        return _gravity_potential_faces(self, *args, **kwargs)
+
+    def _rotational_energy_density(self, *args, **kwargs):
+        from .dual_energy import _rotational_energy_density
+
+        return _rotational_energy_density(self, *args, **kwargs)
+
+    def _rotational_energy_from_conserved(self, *args, **kwargs):
+        from .dual_energy import _rotational_energy_from_conserved
+
+        return _rotational_energy_from_conserved(self, *args, **kwargs)
 
     @staticmethod
-    def _dual_energy_eta(par, name, legacy):
-        value = getattr(par, name, None)
-        if value is None:
-            value = getattr(par, 'dual_energy_switch', legacy)
-        return max(0.0, float(value))
+    @staticmethod
+    def _dual_energy_eta( *args, **kwargs):
+        from .dual_energy import _dual_energy_eta
+
+        return _dual_energy_eta(*args, **kwargs)
 
     def _apply_low_density_face_mask(self, fluid, par, order):
         """Make below-floor reconstructed states vacuum-safe.
@@ -1017,315 +824,26 @@ class Solver():
         ) = fluid.eos.fluxes(fluid.rho, fluid.vel, fluid.pre)
 
     @staticmethod
-    def _set_angular_momentum_flux(fluid, order=0):
-        """Build a mass-consistent flux for optional gas angular momentum."""
-        if not (
-            hasattr(fluid, 'specific_angular_momentum')
-            and hasattr(fluid, 'AngularMomentum')
-        ):
-            return None
-        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
-        j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
-        j_donor = np.where(mass_flux >= 0.0, j_left, j_right)
-        if order == 1 and hasattr(fluid.specific_angular_momentum.R, 'first'):
-            j_left_high = np.asarray(
-                fluid.specific_angular_momentum.L.first, dtype=float
-            )
-            j_right_high = np.asarray(
-                fluid.specific_angular_momentum.R.first, dtype=float
-            )
-        else:
-            j_left_high, j_right_high = j_left, j_right
-        j_high = np.where(mass_flux >= 0.0, j_left_high, j_right_high)
-        # The high-order candidate is bounded at reconstruction time.  The
-        # face-level FCT limiter in AddFluxes decides how much of its
-        # antidiffusive correction is admissible for the two cells.
-        fluid.angular_momentum_flux_low = as_named_array(
-            mass_flux * j_donor
-        )
-        fluid.angular_momentum_flux_high = as_named_array(
-            mass_flux * j_high
-        )
-        fluid.AngularMomentum.flux = as_named_array(
-            fluid.angular_momentum_flux_high.copy()
-        )
-        # Rotational energy must use the same donor state as J.  Keep this as
-        # a scratch field rather than reconstructing j a second time after
-        # the mass flux has been limited.
-        fluid.angular_momentum_face = as_named_array(j_high)
-        fluid.angular_momentum_face_low = as_named_array(j_donor)
-        return j_high
+    @staticmethod
+    def _set_angular_momentum_flux( *args, **kwargs):
+        from .angular_momentum import _set_angular_momentum_flux
 
-    def _limit_angular_momentum_flux(self, dt, mesh, fluid, par):
-        """Apply a local FCT limiter to the angular-momentum flux.
+        return _set_angular_momentum_flux(*args, **kwargs)
 
-        The donor flux is the bound-preserving low-order base.  A MUSCL
-        correction is recovered face by face only while both adjacent cells
-        retain locally bounded J/M.  This preserves the shared mass-flux
-        relation and avoids globally reducing angular-momentum accuracy.
-        """
-        if not (
-            hasattr(fluid, 'AngularMomentum')
-            and hasattr(fluid, 'angular_momentum_flux_low')
-            and hasattr(fluid, 'angular_momentum_flux_high')
-        ):
-            return
-        low = np.asarray(fluid.angular_momentum_flux_low, dtype=float)
-        high = np.asarray(fluid.angular_momentum_flux_high, dtype=float)
-        correction = high - low
-        factors = np.ones_like(low)
-        scheme = str(getattr(par, 'angular_momentum_flux_scheme', 'fct')).lower()
-        if scheme not in ('fct', 'donor'):
-            raise ValueError(
-                "Unknown angular_momentum_flux_scheme %r; valid options are fct, donor"
-                % scheme
-            )
-        if scheme == 'donor':
-            factors[...] = 0.0
-        if not np.any(correction):
-            fluid.AngularMomentum.flux = as_named_array(low.copy())
-            fluid.angular_momentum_face = as_named_array(
-                np.divide(low, np.asarray(fluid.Mass.flux, dtype=float),
-                          out=np.zeros_like(low),
-                          where=np.asarray(fluid.Mass.flux, dtype=float) != 0.0)
-            )
-            return
+    def _limit_angular_momentum_flux(self, *args, **kwargs):
+        from .angular_momentum import _limit_angular_momentum_flux
 
-        mass = np.asarray(fluid.Mass, dtype=float)
-        angular = np.asarray(fluid.AngularMomentum, dtype=float)
-        area = np.asarray(mesh.area, dtype=float)
-        first = int(getattr(par, 'noghost', 0))
-        last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
-        physical = np.zeros(len(mass), dtype=bool)
-        physical[first:last] = True
-        mass_flux_area = np.asarray(fluid.Mass.flux, dtype=float) * area
-        mass_new = mass + dt * (
-            mass_flux_area - ru.periodic_roll(mass_flux_area, -1)
-        )
-        momentum_flux_area = np.asarray(fluid.Mom.flux, dtype=float) * area
-        mom_new = np.asarray(fluid.Mom, dtype=float) + dt * (
-            momentum_flux_area - ru.periodic_roll(momentum_flux_area, -1)
-        )
-        low_area = low * area
-        trial_angular = angular + dt * (
-            low_area - ru.periodic_roll(low_area, -1)
-        )
-        specific = np.divide(
-            angular, mass, out=np.zeros_like(angular), where=mass > 0.0
-        )
-        lower = np.minimum.reduce((specific, ru.periodic_roll(specific, 1),
-                                   ru.periodic_roll(specific, -1)))
-        upper = np.maximum.reduce((specific, ru.periodic_roll(specific, 1),
-                                   ru.periodic_roll(specific, -1)))
-        correction_area = correction * area
-        radius_face = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
-        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        rotational_low_flux = np.zeros_like(mass_flux)
-        rotational_high_flux = np.zeros_like(mass_flux)
-        valid_face_radius = (radius_face > 0.0) & np.isfinite(radius_face)
-        rotational_low_flux[valid_face_radius] = (
-            0.5 * np.asarray(fluid.angular_momentum_face_low, dtype=float)[valid_face_radius]**2
-            / radius_face[valid_face_radius]**2 * mass_flux[valid_face_radius]
-        )
-        rotational_high_flux[valid_face_radius] = (
-            0.5 * np.asarray(fluid.angular_momentum_face, dtype=float)[valid_face_radius]**2
-            / radius_face[valid_face_radius]**2 * mass_flux[valid_face_radius]
-        )
-        rotational_correction_area = (
-            rotational_high_flux - rotational_low_flux
-        ) * area
-        base_energy_flux = np.asarray(fluid.Energy.flux, dtype=float)
-        if hasattr(fluid, 'rotational_energy_flux'):
-            base_energy_flux -= np.asarray(fluid.rotational_energy_flux, dtype=float)
-        base_energy_area = base_energy_flux * area
-        base_energy = np.asarray(fluid.Energy, dtype=float) + dt * (
-            base_energy_area - ru.periodic_roll(base_energy_area, -1)
-        )
-        rotational_low_area = rotational_low_flux * area
-        trial_energy = base_energy + dt * (
-            rotational_low_area - ru.periodic_roll(rotational_low_area, -1)
-        )
-        thermal = np.asarray(fluid.Energy, dtype=float).copy()
-        kinetic = np.zeros_like(mass)
-        np.divide(
-            0.5 * np.asarray(fluid.Mom, dtype=float)**2,
-            mass, out=kinetic, where=mass > 0.0
-        )
-        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
-        rotational = np.zeros_like(mass)
-        valid_radius = (mass > 0.0) & (radius > 0.0)
-        rotational[valid_radius] = (
-            0.5 * angular[valid_radius]**2
-            / (mass[valid_radius] * radius[valid_radius]**2)
-        )
-        thermal -= kinetic + rotational
-        thermal_fraction = np.divide(
-            thermal, np.maximum(np.abs(np.asarray(fluid.Energy, dtype=float)), 1.0e-300),
-            out=np.full_like(thermal, -np.inf),
-            where=np.isfinite(np.asarray(fluid.Energy, dtype=float)),
-        )
-        margin = max(0.0, float(getattr(
-            par, 'angular_momentum_energy_margin_fraction', 1.0e-4
-        )))
-        energy_problematic = physical & (thermal_fraction <= margin)
-        factors[energy_problematic | np.roll(energy_problematic, -1)] = 0.0
+        return _limit_angular_momentum_flux(self, *args, **kwargs)
 
-        def valid_cell(index, value, energy_value):
-            if not physical[index] or mass_new[index] <= 0.0:
-                return True
-            candidate = value / mass_new[index]
-            tolerance = 1.0e-12 * max(1.0, abs(lower[index]), abs(upper[index]))
-            angular_ok = (
-                np.isfinite(candidate)
-                and candidate >= lower[index] - tolerance
-                and candidate <= upper[index] + tolerance
-            )
-            kinetic_new = 0.5 * mom_new[index]**2 / mass_new[index]
-            radius_value = abs(float(np.asarray(mesh.coordinate, dtype=float)[index]))
-            rotational_new = (
-                0.5 * value**2 / (mass_new[index] * radius_value**2)
-                if radius_value > 0.0 else 0.0
-            )
-            energy_ok = energy_value >= kinetic_new + rotational_new
-            return angular_ok and energy_ok
+    def _set_rotational_energy_flux(self, *args, **kwargs):
+        from .angular_momentum import _set_rotational_energy_flux
 
-        # Start from the donor update and recover as much MUSCL correction
-        # as each face can support.  Each accepted face changes only its two
-        # neighboring cells, so the limiter remains local.
-        for face in range(len(factors)):
-            if scheme == 'donor':
-                continue
-            if factors[face] == 0.0:
-                continue
-            left = (face - 1) % len(mass)
-            right = face
-            if not (physical[left] or physical[right]):
-                continue
-            increment = dt * correction_area[face]
+        return _set_rotational_energy_flux(self, *args, **kwargs)
 
-            def trial_valid(alpha):
-                return (
-                    valid_cell(
-                        left,
-                        trial_angular[left] - alpha * increment,
-                        trial_energy[left] - alpha * dt * rotational_correction_area[face],
-                    )
-                    and valid_cell(
-                        right,
-                        trial_angular[right] + alpha * increment,
-                        trial_energy[right] + alpha * dt * rotational_correction_area[face],
-                    )
-                )
+    def _apply_local_angular_energy_fallback(self, *args, **kwargs):
+        from .angular_momentum import _apply_local_angular_energy_fallback
 
-            if trial_valid(1.0):
-                factors[face] = 1.0
-                trial_angular[left] -= increment
-                trial_angular[right] += increment
-                trial_energy[left] -= dt * rotational_correction_area[face]
-                trial_energy[right] += dt * rotational_correction_area[face]
-                continue
-            if not trial_valid(0.0):
-                factors[face] = 0.0
-                continue
-            lo, hi = 0.0, 1.0
-            for _ in range(48):
-                middle = 0.5 * (lo + hi)
-                if trial_valid(middle):
-                    lo = middle
-                else:
-                    hi = middle
-            factors[face] = lo
-            trial_angular[left] -= lo * increment
-            trial_angular[right] += lo * increment
-            trial_energy[left] -= lo * dt * rotational_correction_area[face]
-            trial_energy[right] += lo * dt * rotational_correction_area[face]
-
-        limited = low + factors * correction
-        fluid.AngularMomentum.flux = as_named_array(limited)
-        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        fluid.angular_momentum_face = as_named_array(
-            np.divide(limited, mass_flux, out=np.zeros_like(limited),
-                      where=mass_flux != 0.0)
-        )
-        fluid.angular_momentum_fct_factors = as_named_array(factors)
-        if hasattr(fluid, 'rotational_energy_flux'):
-            radius = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
-            new_rotational = np.zeros_like(mass_flux)
-            valid = (radius > 0.0) & np.isfinite(radius)
-            new_rotational[valid] = (
-                0.5 * fluid.angular_momentum_face[valid]**2
-                / radius[valid]**2 * mass_flux[valid]
-            )
-            fluid.Energy.flux += new_rotational - np.asarray(
-                fluid.rotational_energy_flux, dtype=float
-            )
-            fluid.rotational_energy_flux = as_named_array(new_rotational)
-
-    def _set_rotational_energy_flux(self, mesh, fluid, par, j_face=None):
-        """Add the advected rotational-energy flux to the total-energy flux."""
-        if not self._rotational_energy_enabled(par):
-            return
-        mass_flux = np.asarray(fluid.Mass.flux, dtype=float)
-        if j_face is None:
-            j_left = np.asarray(fluid.specific_angular_momentum.L, dtype=float)
-            j_right = np.asarray(fluid.specific_angular_momentum.R, dtype=float)
-            j_face = np.where(mass_flux >= 0.0, j_left, j_right)
-        radius = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
-        rotational_specific = np.zeros_like(radius)
-        valid = np.isfinite(radius) & (radius > 0.0) & np.isfinite(j_face)
-        rotational_specific[valid] = 0.5 * j_face[valid]**2 / radius[valid]**2
-        rotational_flux = mass_flux * rotational_specific
-        rotational_flux[~valid] = 0.0
-        fluid.rotational_energy_flux = as_named_array(rotational_flux)
-        fluid.Energy.flux += fluid.rotational_energy_flux
-
-    def _apply_local_angular_energy_fallback(self, mesh, fluid, par):
-        """Use first-order hydro fluxes only near a cold rotating cell."""
-        if not (
-            self._rotational_energy_enabled(par)
-            and hasattr(fluid, 'angular_momentum_mass_flux_low')
-        ):
-            return
-        threshold = max(0.0, float(getattr(
-            par, 'angular_momentum_energy_margin_fraction', 1.0e-4
-        )))
-        mass = np.asarray(fluid.Mass, dtype=float)
-        momentum = np.asarray(fluid.Mom, dtype=float)
-        energy = np.asarray(fluid.Energy, dtype=float)
-        angular = np.asarray(fluid.AngularMomentum, dtype=float)
-        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
-        kinetic = np.zeros_like(mass)
-        np.divide(0.5 * momentum**2, mass, out=kinetic, where=mass > 0.0)
-        rotational = np.zeros_like(mass)
-        valid_radius = (mass > 0.0) & (radius > 0.0)
-        rotational[valid_radius] = (
-            0.5 * angular[valid_radius]**2
-            / (mass[valid_radius] * radius[valid_radius]**2)
-        )
-        thermal = energy - kinetic - rotational
-        fraction = np.divide(
-            thermal, np.maximum(np.abs(energy), 1.0e-300),
-            out=np.full_like(thermal, -np.inf), where=np.isfinite(energy)
-        )
-        first = int(getattr(par, 'noghost', 0))
-        last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
-        problematic = np.zeros(len(mass), dtype=bool)
-        problematic[first:last] = fraction[first:last] <= threshold
-        # Face i bounds cells i-1 and i.
-        face_mask = problematic | np.roll(problematic, -1)
-        if not np.any(face_mask):
-            return
-        fluid.Mass.flux[face_mask] = np.asarray(
-            fluid.angular_momentum_mass_flux_low, dtype=float
-        )[face_mask]
-        fluid.Mom.flux[face_mask] = np.asarray(
-            fluid.angular_momentum_mom_flux_low, dtype=float
-        )[face_mask]
-        fluid.Energy.flux[face_mask] = np.asarray(
-            fluid.angular_momentum_energy_flux_low, dtype=float
-        )[face_mask]
-        fluid.angular_momentum_local_fallback = as_named_array(face_mask)
+        return _apply_local_angular_energy_fallback(self, *args, **kwargs)
         
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):
         """Construct left and right states at cell faces.
@@ -1450,131 +968,22 @@ class Solver():
 
     @staticmethod
     def _vacuum_safe_primitive_state(rho, vel, pre):
-        """Return a finite, positive primitive state for a face Riemann solve.
+        from .fluxes import vacuum_safe_primitive_state
 
-        This operates on temporary face states only.  It does not alter the
-        cell-centered density or conserved variables, so a vacuum cell can be
-        populated by a later hydrodynamic flux update.
-        """
-        rho_value = np.asarray(rho, dtype=float)
-        vel_value = np.asarray(vel, dtype=float)
-        pre_value = np.asarray(pre, dtype=float)
-        active = np.isfinite(rho_value) & (rho_value > 0.0)
-        finite_velocity = np.isfinite(vel_value)
-        finite_pressure = np.isfinite(pre_value) & (pre_value > 0.0)
-        rho_safe = np.where(active, rho_value, 0.0)
-        vel_safe = np.where(active & finite_velocity, vel_value, 0.0)
-        pre_safe = np.where(active & finite_pressure, pre_value, 0.0)
-
-        def restore_units(values, original):
-            units = getattr(original, 'units', None)
-            return values * units if units is not None else as_named_array(values)
-
-        return (
-            restore_units(rho_safe, rho),
-            restore_units(vel_safe, vel),
-            restore_units(pre_safe, pre),
-        )
-
+        return vacuum_safe_primitive_state(rho, vel, pre)
 
     @staticmethod
     def _hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
-        """Return an HLLC Euler flux for positive, non-vacuum states.
+        from .fluxes import hllc_flux
 
-        The caller supplies the Rusanov flux for vacuum, non-finite, or
-        degenerate states.  Keeping that fallback explicit is important for
-        the vacuum examples: HLLC's star-state formula is undefined when one
-        side has zero density.
-        """
-        rho_L = np.asarray(rho_L, dtype=float)
-        vel_L = np.asarray(vel_L, dtype=float)
-        pre_L = np.asarray(pre_L, dtype=float)
-        rho_R = np.asarray(rho_R, dtype=float)
-        vel_R = np.asarray(vel_R, dtype=float)
-        pre_R = np.asarray(pre_R, dtype=float)
-        valid = (
-            np.isfinite(rho_L) & np.isfinite(vel_L) & np.isfinite(pre_L)
-            & np.isfinite(rho_R) & np.isfinite(vel_R) & np.isfinite(pre_R)
-            & (rho_L > 0.0) & (rho_R > 0.0)
-            & (pre_L > 0.0) & (pre_R > 0.0)
-        )
-        sound_L = np.zeros_like(rho_L)
-        sound_R = np.zeros_like(rho_R)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            sound_L = np.sqrt(gamma * pre_L / rho_L)
-            sound_R = np.sqrt(gamma * pre_R / rho_R)
-        valid &= np.isfinite(sound_L) & np.isfinite(sound_R)
-
-        energy_L = pre_L / (gamma - 1.0) + 0.5 * rho_L * vel_L**2
-        energy_R = pre_R / (gamma - 1.0) + 0.5 * rho_R * vel_R**2
-        flux_L = np.stack((rho_L * vel_L,
-                           rho_L * vel_L**2 + pre_L,
-                           vel_L * (gamma * pre_L / (gamma - 1.0)
-                                    + 0.5 * rho_L * vel_L**2)))
-        flux_R = np.stack((rho_R * vel_R,
-                           rho_R * vel_R**2 + pre_R,
-                           vel_R * (gamma * pre_R / (gamma - 1.0)
-                                    + 0.5 * rho_R * vel_R**2)))
-        result = 0.5 * (flux_L + flux_R)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            wave_L = np.minimum(vel_L - sound_L, vel_R - sound_R)
-            wave_R = np.maximum(vel_L + sound_L, vel_R + sound_R)
-            wave_M = (
-                pre_R - pre_L
-                + rho_L * vel_L * (wave_L - vel_L)
-                - rho_R * vel_R * (wave_R - vel_R)
-            ) / (rho_L * (wave_L - vel_L) - rho_R * (wave_R - vel_R))
-            pressure_M = pre_L + rho_L * (wave_L - vel_L) * (wave_M - vel_L)
-            rho_star_L = rho_L * (wave_L - vel_L) / (wave_L - wave_M)
-            rho_star_R = rho_R * (wave_R - vel_R) / (wave_R - wave_M)
-            energy_star_L = (
-                (wave_L - vel_L) * energy_L - pre_L * vel_L
-                + pressure_M * wave_M
-            ) / (wave_L - wave_M)
-            energy_star_R = (
-                (wave_R - vel_R) * energy_R - pre_R * vel_R
-                + pressure_M * wave_M
-            ) / (wave_R - wave_M)
-        star_L = np.stack((rho_star_L, rho_star_L * wave_M, energy_star_L))
-        star_R = np.stack((rho_star_R, rho_star_R * wave_M, energy_star_R))
-        flux_star_L = flux_L + wave_L * (star_L - np.stack((rho_L, rho_L * vel_L, energy_L)))
-        flux_star_R = flux_R + wave_R * (star_R - np.stack((rho_R, rho_R * vel_R, energy_R)))
-        left = wave_L >= 0.0
-        left_star = (wave_L < 0.0) & (wave_M >= 0.0)
-        right_star = (wave_M < 0.0) & (wave_R > 0.0)
-        right = wave_R <= 0.0
-        result = np.where(left[None, :], flux_L, result)
-        result = np.where(left_star[None, :], flux_star_L, result)
-        result = np.where(right_star[None, :], flux_star_R, result)
-        result = np.where(right[None, :], flux_R, result)
-        valid &= np.isfinite(result).all(axis=0)
-        return result, valid
+        return hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma)
 
     def _interface_fluxes(self, fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
-        states = fluid.eos.fluxes(rho_L, vel_L, pre_L)
-        states_R = fluid.eos.fluxes(rho_R, vel_R, pre_R)
-        if method != 'HLLC' or not getattr(fluid.eos, 'is_polytropic', False):
-            return tuple(
-                ru.CalInterFaceFluxGLF(left, right, qleft, qright, fluid.cmax)
-                for left, right, qleft, qright in (
-                    (states[0], states_R[0], states[1], states_R[1]),
-                    (states[2], states_R[2], states[3], states_R[3]),
-                    (states[4], states_R[4], states[5], states_R[5]),
-                )
-            )
-        hllc, valid = self._hllc_flux(
-            rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, fluid.eos.gamma
+        from .fluxes import interface_fluxes
+
+        return interface_fluxes(
+            fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
         )
-        rusanov = np.stack(tuple(
-            ru.CalInterFaceFluxGLF(left, right, qleft, qright, fluid.cmax)
-            for left, right, qleft, qright in (
-                (states[0], states_R[0], states[1], states_R[1]),
-                (states[2], states_R[2], states[3], states_R[3]),
-                (states[4], states_R[4], states[5], states_R[5]),
-            )
-        ))
-        flux = np.where(valid[None, :], hllc, rusanov)
-        return tuple(flux[index] for index in range(3))
 
     def SetFluxOnFace(self,fluid,boundcond,order=0,par=None,method='Rusanov'):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
@@ -1674,40 +1083,13 @@ class Solver():
     def _positive_conserved_state(mass, momentum, energy, mass_floor=0.0,
                                   energy_floor=0.0, relative_tolerance=1.0e-12,
                                   angular_momentum=None, radius=None):
-        """Return the invariant-domain admissibility mask for Euler states."""
-        mass = np.asarray(mass, dtype=float)
-        momentum = np.asarray(momentum, dtype=float)
-        energy = np.asarray(energy, dtype=float)
-        finite = np.isfinite(mass) & np.isfinite(momentum) & np.isfinite(energy)
-        mass_ok = mass >= mass_floor
-        internal = np.zeros_like(energy)
-        positive_mass = mass > np.maximum(mass_floor, 0.0)
-        internal[positive_mass] = (
-            energy[positive_mass]
-            - 0.5 * momentum[positive_mass]**2 / mass[positive_mass]
+        from .positivity import positive_conserved_state
+
+        return positive_conserved_state(
+            mass, momentum, energy, mass_floor=mass_floor,
+            energy_floor=energy_floor, relative_tolerance=relative_tolerance,
+            angular_momentum=angular_momentum, radius=radius,
         )
-        if angular_momentum is not None and radius is not None:
-            angular_momentum = np.asarray(angular_momentum, dtype=float)
-            radius = np.asarray(radius, dtype=float)
-            valid_radius = positive_mass & np.isfinite(radius) & (radius > 0.0)
-            internal[valid_radius] -= (
-                0.5 * angular_momentum[valid_radius]**2
-                / (mass[valid_radius] * radius[valid_radius]**2)
-            )
-        vacuum = ~positive_mass
-        internal[vacuum] = energy[vacuum]
-        kinetic = np.zeros_like(energy)
-        kinetic[positive_mass] = (
-            0.5 * momentum[positive_mass]**2 / mass[positive_mass]
-        )
-        # Cold pressureless states lie on the invariant-domain boundary.  A
-        # relative tolerance prevents harmless cancellation in E-K from
-        # turning that boundary state into a negative internal energy.
-        tolerance = relative_tolerance * np.maximum(
-            np.maximum(np.abs(energy), kinetic),
-            np.maximum(np.abs(energy_floor), np.finfo(float).tiny),
-        )
-        return finite & mass_ok & (internal >= energy_floor - tolerance)
 
     def _positivity_limited_face_fluxes(
         self, fluid, dt, mesh, par, mass_face, mom_face, energy_face,
@@ -2431,212 +1813,15 @@ class Solver():
         # advance time
         fluid.time += dt
 
-    def _gravity_model(self, par):
-        """Return the configured gravity model, if any."""
-        gravity = getattr(par, "gravity", None)
-        if isinstance(gravity, rg.Gravity):
-            return gravity
-        if gravity is not None and hasattr(gravity, "acceleration_on_mesh"):
-            return gravity
-        if not (
-            getattr(par, "externalgravity", False)
-            or getattr(par, "selfgravity", False)
-            or getattr(par, "cosmological_gravity", False)
-            or getattr(par, "dark_matter", None) is not None
-        ):
-            return None
-        return rg.Gravity(
-            selfgravity=getattr(par, "selfgravity", False),
-            externalgravity=getattr(par, "externalgravity", False),
-            potential=getattr(par, "gravity_potential", None),
-            coordinate=getattr(par, "gravity_coordinate", None),
-            acceleration=getattr(par, "gravity_acceleration", None),
-            code_units=getattr(par, "CodeUnits", None),
-            selfgravity_softening=getattr(par, "selfgravity_softening", 0.0),
-            selfgravity_boundary_acceleration=getattr(
-                par, "selfgravity_boundary_acceleration", 0.0
-            ),
-            dark_matter=getattr(par, "dark_matter", None),
-            cosmological=getattr(par, "cosmological_gravity", False),
-            cosmology=getattr(par, "cosmology", None),
-        )
+    def _gravity_model(self, *args, **kwargs):
+        from .gravity_sources import _gravity_model
 
-    def ApplyGravity(self, dt, mesh, fluid, par):
-        """Apply the combined external and gas self-gravity source update."""
-        interior = self._interior_slice(par)
-        gravity = self._gravity_model(par)
-        rotational_support = self._rotational_energy_enabled(par)
-        if rotational_support and getattr(mesh, 'coordsys', None) != 'spherical':
-            raise ValueError('gas_rotational_energy requires a spherical mesh')
-        if gravity is None and not rotational_support:
-            self.last_centrifugal_work = 0.0
-            self.last_centrifugal_work_by_cell = None
-            self.last_gravity_work_by_cell = (
-                np.zeros(int(par.nogrid), dtype=float)
-                if getattr(par, "energy_diagnostics", False) else None
-            )
-            return 0
-        if gravity is not None and getattr(gravity, "cosmological", False):
-            par.fluid_time = fluid.time
-        crossing_safety_factor = getattr(par, "dark_matter_crossing_safety_factor", 0.1)
-        if gravity is not None and getattr(gravity, "dark_matter", None) is not None:
-            gravity.advance_dark_matter(
-                dt,
-                mesh,
-                fluid.rho,
-                par,
-                crossing_safety_factor=crossing_safety_factor,
-            )
-        # ApplyGravity follows the conservative hydro flux update and precedes
-        # the primitive-state refresh.  Therefore fluid.rho and fluid.vel can
-        # still describe the pre-hydro state, while Mass and Mom already
-        # describe the post-hydro state.  Derive both quantities from the
-        # current conserved fields so the gravity momentum and work updates
-        # use the same state.
-        volume = np.asarray(mesh.vol, dtype=float)
-        mass = np.asarray(fluid.Mass, dtype=float)
-        momentum = np.asarray(fluid.Mom, dtype=float)
-        current_rho = np.zeros_like(mass)
-        np.divide(mass, volume, out=current_rho, where=volume > 0.0)
-        current_vel = np.zeros_like(momentum)
-        np.divide(momentum, mass, out=current_vel, where=mass > 0.0)
-        if gravity is None:
-            acceleration = np.zeros_like(current_rho)
-        else:
-            acceleration = gravity.acceleration_on_mesh(
-                mesh, rho=current_rho, par=par
-            )
-        code_units = getattr(par, "CodeUnits", None)
-        if code_units is not None:
-            target_unit = code_units.length_unit / code_units.time_unit**2
-            if hasattr(acceleration, "to_value"):
-                acceleration = np.asarray(acceleration.to_value(target_unit), dtype=float)
-            else:
-                acceleration = np.asarray(acceleration, dtype=float)
-        if np.shape(acceleration) != np.shape(fluid.rho):
-            raise ValueError(
-                "Gravity acceleration shape %s does not match fluid state shape %s"
-                % (np.shape(acceleration), np.shape(fluid.rho))
-            )
-        gravity_acceleration = acceleration.copy()
-        rotational_acceleration = np.zeros_like(current_rho)
-        if rotational_support:
-            angular_momentum = np.asarray(fluid.AngularMomentum, dtype=float)
-            specific = np.zeros_like(current_rho)
-            np.divide(
-                angular_momentum, mass, out=specific, where=mass > 0.0
-            )
-            radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
-            valid_radius = (
-                (radius > 0.0) & np.isfinite(radius)
-                & np.isfinite(specific) & (mass > 0.0)
-            )
-            rotational_acceleration[valid_radius] = (
-                specific[valid_radius]**2 / radius[valid_radius]**3
-            )
-            rotational_acceleration[~valid_radius] = 0.0
+        return _gravity_model(self, *args, **kwargs)
 
-        # Apply gravity and centrifugal momentum sources sequentially. Gravity
-        # work updates the gas energy. Centrifugal acceleration is an internal
-        # transfer from rotational to radial kinetic energy, so it must not
-        # add energy to the total-energy field.  Limit the local momentum
-        # increment when the split source step would otherwise make
-        # E_total < E_kin + E_rot.
-        dt_value = float(np.asarray(dt, dtype=float))
-        gravity_momentum = momentum + mass * gravity_acceleration * dt_value
-        gravity_work = 0.5 * (
-            momentum + gravity_momentum
-        ) * gravity_acceleration * dt_value
-        new_energy = (
-            np.asarray(fluid.Energy, dtype=float)
-            + gravity_work
-        )
+    def ApplyGravity(self, *args, **kwargs):
+        from .gravity_sources import ApplyGravity
 
-        source_increment = mass * rotational_acceleration * dt_value
-        source_factors = np.ones_like(source_increment)
-        if rotational_support:
-            angular = np.asarray(fluid.AngularMomentum, dtype=float)
-            radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
-            rotational_energy = np.zeros_like(mass)
-            valid_rotational = (
-                (mass > 0.0) & (radius > 0.0)
-                & np.isfinite(angular) & np.isfinite(radius)
-            )
-            rotational_energy[valid_rotational] = (
-                0.5 * angular[valid_rotational]**2
-                / (mass[valid_rotational] * radius[valid_rotational]**2)
-            )
-            available_radial_energy = new_energy - rotational_energy
-            base_admissible = (
-                np.isfinite(mass) & (mass > 0.0)
-                & np.isfinite(gravity_momentum)
-                & np.isfinite(available_radial_energy)
-                & (0.5 * gravity_momentum**2 / mass
-                   <= available_radial_energy)
-            )
-
-            def source_admissible(index, factor):
-                trial_momentum = (
-                    gravity_momentum[index] + factor * source_increment[index]
-                )
-                trial_kinetic = (
-                    0.5 * trial_momentum**2 / mass[index]
-                    if mass[index] > 0.0 else 0.0
-                )
-                tolerance = 1.0e-12 * max(
-                    abs(new_energy[index]),
-                    abs(rotational_energy[index]),
-                    np.finfo(float).tiny,
-                )
-                return trial_kinetic <= available_radial_energy[index] + tolerance
-
-            for index in np.flatnonzero(base_admissible & (source_increment != 0.0)):
-                if source_admissible(index, 1.0):
-                    continue
-                low, high = 0.0, 1.0
-                for _ in range(48):
-                    middle = 0.5 * (low + high)
-                    if source_admissible(index, middle):
-                        low = middle
-                    else:
-                        high = middle
-                source_factors[index] = low
-
-        new_momentum = gravity_momentum + source_factors * source_increment
-        centrifugal_work = 0.5 * (
-            gravity_momentum + new_momentum
-        ) * rotational_acceleration * dt_value
-        fluid.Mom[...] = new_momentum
-        fluid.Energy[...] = new_energy
-        if (
-            gravity is not None
-            and hasattr(fluid, 'GravitationalPotentialEnergy')
-        ):
-            # The explicit potential-energy reservoir receives the opposite
-            # of the gravity work. Centrifugal work is retained as a diagnostic
-            # only because E_rot is already part of total Energy.
-            fluid.GravitationalPotentialEnergy[...] -= gravity_work
-        self.last_gravity_work = float(
-            np.sum(gravity_work[interior])
-        )
-        self.last_gravity_work_by_cell = (
-            np.asarray(gravity_work[interior], dtype=float).copy()
-            if getattr(par, "energy_diagnostics", False) else None
-        )
-        self.last_centrifugal_work = float(np.sum(centrifugal_work[interior]))
-        self.last_centrifugal_source_factors = source_factors.copy()
-        self.centrifugal_source_limited_count = int(
-            np.count_nonzero(source_factors[interior] < 1.0 - 1.0e-12)
-        )
-        self.last_centrifugal_work_by_cell = (
-            np.asarray(centrifugal_work[interior], dtype=float).copy()
-            if getattr(par, "energy_diagnostics", False) else None
-        )
-        self.last_dark_matter_substeps = int(
-            getattr(getattr(gravity, "dark_matter", None),
-                    "last_substep_count", 0)
-        )
-        return 1
+        return ApplyGravity(self, *args, **kwargs)
 
     def AdvectIonizationFraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
         """Advect the chemistry fraction consistently with the mass flux."""
@@ -2782,170 +1967,6 @@ class Solver():
     
     def GetTimeStep(self, mesh, fluid, par, CFL=None):
         """Return a CFL-limited timestep in the active time coordinate."""
-        if CFL is None:
-            CFL = par.CFL
-        fluid.SetSoundSpeed()
-        vsignal = np.absolute(fluid.vel) + fluid.cs
-        xdelta = mesh.xdelta
-        density = np.asarray(fluid.rho, dtype=float)
-        if xdelta.shape != vsignal.shape:
-            interior = self._interior_slice(par)
-            if xdelta[interior].shape == vsignal.shape:
-                xdelta = xdelta[interior]
-                density = density[interior]
-            elif vsignal[interior].shape == xdelta.shape:
-                vsignal = vsignal[interior]
-                density = density[interior]
+        from .timestep import get_time_step
 
-        # Ghost zones are needed by the Riemann solve but must not determine
-        # the CFL step.  In particular, reflecting/outflow boundary updates
-        # can leave a ghost velocity temporarily very large while the active
-        # solution remains valid.  Keep the full signal-speed array for later
-        # flux work, and reduce only over the active cells here.
-        active_xdelta = xdelta
-        active_density = density
-        active_vsignal = vsignal
-        first = int(getattr(par, 'noghost', 0))
-        active_count = int(getattr(par, 'nogrid', len(vsignal)))
-        active_slice = slice(first, first + active_count)
-        if (
-            xdelta.ndim == 1
-            and vsignal.ndim == 1
-            and len(vsignal) >= first + active_count + first
-        ):
-            active_xdelta = xdelta[active_slice]
-            active_density = density[active_slice]
-            active_vsignal = vsignal[active_slice]
-
-        core_mask = getattr(par, '_hydrostatic_core_mask', None)
-        if core_mask is not None:
-            core_active = np.asarray(core_mask[active_slice], dtype=bool)
-            active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
-            active_vsignal[core_active] = 0.0
-
-        # A vacuum cell has no characteristic speed for the CFL constraint.
-        # EOS sound-speed evaluation can produce ``inf`` for rho == 0 because
-        # pressure/rho is undefined; exclude such cells from the minimum and
-        # keep their interface signal speed neutral for the next flux update.
-        density_floor = max(
-            0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
-        )
-        zero_density = active_density <= density_floor
-        if np.any(zero_density):
-            active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
-            active_vsignal[zero_density] = 0.0
-        dt_array = self._safe_divide(CFL * active_xdelta, active_vsignal)
-        dtmax = float(np.asarray(par.dtmax, dtype=float))
-        dt_array = np.where(active_vsignal != 0.0, dt_array, dtmax)
-        dt = np.amin(dt_array)
-        fluid.vsignal = np.asarray(vsignal, dtype=float)
-        if len(fluid.vsignal) == len(active_vsignal):
-            fluid.vsignal[zero_density] = 0.0
-        else:
-            fluid.vsignal[active_slice] = active_vsignal
-        self.dt = dt
-        if np.isnan(np.asarray(dt)):
-            print('vsignal', vsignal)
-            print('fluid.vel', fluid.vel)
-            print('fluid.cs', fluid.cs)
-            raise Exception(" time step is nan")
-        if dt < float(np.asarray(par.dtmin, dtype=float)):
-            active_index = int(np.argmin(dt_array))
-            min_index = active_index + first
-            if len(np.asarray(fluid.vel)) == len(active_vsignal):
-                diagnostic_index = active_index
-            else:
-                diagnostic_index = min_index
-            raise ValueError(
-                " time step %.2e smaller than the minimum time step %.2e "
-                "at cell %d (rho=%.2e, vel=%.2e, cs=%.2e, dx=%.2e)"
-                % (
-                    dt,
-                    par.dtmin,
-                    min_index,
-                    active_density[active_index],
-                    fluid.vel[diagnostic_index],
-                    fluid.cs[diagnostic_index],
-                    active_xdelta[active_index],
-                )
-            )
-        if dt > dtmax:
-            dt = dtmax
-        if (
-            getattr(par, 'verbose', 0) >= 1
-            # Keep routine CFL reductions quiet; report only a timestep that
-            # has fallen at least four decades below the configured maximum.
-            and dt <= 1.0e-4 * float(np.asarray(par.dtmax, dtype=float))
-        ):
-            min_index = int(np.argmin(dt_array))
-            if len(np.asarray(fluid.vel)) == len(active_vsignal):
-                diagnostic_index = min_index
-            else:
-                diagnostic_index = min_index + first
-            print(
-                '[hydro dt] t=%s dt=%s idx=%d radius=%s rho=%s vel=%s '
-                'cs=%s vsignal=%s dx=%s pre=%s dtmin=%s dtmax=%s'
-                % (
-                    fluid.time,
-                    dt,
-                    diagnostic_index,
-                    np.asarray(mesh.coordinate)[diagnostic_index],
-                    np.asarray(fluid.rho)[diagnostic_index],
-                    np.asarray(fluid.vel)[diagnostic_index],
-                    np.asarray(fluid.cs)[diagnostic_index],
-                    np.asarray(vsignal)[diagnostic_index],
-                    np.asarray(mesh.xdelta)[diagnostic_index],
-                    np.asarray(fluid.pre)[diagnostic_index],
-                    par.dtmin,
-                    par.dtmax,
-                )
-            )
-            cell_volume = np.asarray(mesh.vol)[diagnostic_index]
-            cell_rho = np.asarray(fluid.rho)[diagnostic_index]
-            cell_vel = np.asarray(fluid.vel)[diagnostic_index]
-            cell_energy_density = (
-                np.asarray(fluid.Energy)[diagnostic_index] / cell_volume
-            )
-            cell_kinetic_density = 0.5 * cell_rho * cell_vel**2
-            cell_thermal_density = cell_energy_density - cell_kinetic_density
-            cell_specific_thermal = (
-                cell_thermal_density / cell_rho
-                if cell_rho > 0.0 else 0.0
-            )
-            print(
-                '[hydro dt energy] idx=%d energy_density=%s '
-                'kinetic_density=%s thermal_density=%s '
-                'specific_thermal=%s'
-                % (
-                    diagnostic_index,
-                    cell_energy_density,
-                    cell_kinetic_density,
-                    cell_thermal_density,
-                    cell_specific_thermal,
-                )
-            )
-            print(
-                '[hydro dt mask] cfl_density_floor=%s masked=%s' % (
-                    density_floor,
-                    int(np.count_nonzero(zero_density)),
-                )
-            )
-            neighbor_start = max(first, diagnostic_index - 2)
-            neighbor_stop = min(
-                first + int(getattr(par, 'nogrid', len(np.asarray(fluid.rho)))),
-                diagnostic_index + 3,
-            )
-            print('[hydro dt neighbors] idx radius rho vel cs pre')
-            for neighbor in range(neighbor_start, neighbor_stop):
-                print(
-                    '[hydro dt neighbors] %d %s %s %s %s %s'
-                    % (
-                        neighbor,
-                        np.asarray(mesh.coordinate)[neighbor],
-                        np.asarray(fluid.rho)[neighbor],
-                        np.asarray(fluid.vel)[neighbor],
-                        np.asarray(fluid.cs)[neighbor],
-                        np.asarray(fluid.pre)[neighbor],
-                    )
-                )
-        return dt
+        return get_time_step(self, mesh, fluid, par, CFL=CFL)
