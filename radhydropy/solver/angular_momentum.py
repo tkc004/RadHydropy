@@ -97,8 +97,8 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     mass = np.asarray(fluid.Mass, dtype=float)
     angular = np.asarray(fluid.AngularMomentum, dtype=float)
     area = np.asarray(mesh.area, dtype=float)
-    first = int(getattr(par, 'noghost', 0))
-    last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
+    first = int(par.mesh.ghost_cells)
+    last = min(first + int(par.mesh.grid_cells), len(mass))
     physical = np.zeros(len(mass), dtype=bool)
     physical[first:last] = True
     mass_flux_area = np.asarray(fluid.Mass.flux, dtype=float) * area
@@ -310,8 +310,8 @@ def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
         thermal, np.maximum(np.abs(energy), 1.0e-300),
         out=np.full_like(thermal, -np.inf), where=np.isfinite(energy)
     )
-    first = int(getattr(par, 'noghost', 0))
-    last = min(first + int(getattr(par, 'nogrid', len(mass) - first)), len(mass))
+    first = int(par.mesh.ghost_cells)
+    last = min(first + int(par.mesh.grid_cells), len(mass))
     problematic = np.zeros(len(mass), dtype=bool)
     problematic[first:last] = fraction[first:last] <= threshold
     # Face i bounds cells i-1 and i.
@@ -328,4 +328,3 @@ def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
         fluid.angular_momentum_energy_flux_low, dtype=float
     )[face_mask]
     fluid.angular_momentum_local_fallback = as_named_array(face_mask)
-

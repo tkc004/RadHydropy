@@ -3,6 +3,7 @@ from radhydropy.mesh import Mesh
 from radhydropy.units import CodeUnits
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 class Par():
     def __init__(self):
@@ -22,6 +23,9 @@ class Par():
         self.noghost = 2
         self.coordsys = 'cartesian'
         self.area = 3.0 * unyt.cm**2
+        self.mesh = SimpleNamespace(ghost_cells=2, grid_cells=10, area=self.area)
+        self.simulation = SimpleNamespace(coordinate_system='cartesian')
+        self.units = SimpleNamespace(CodeUnits=self.CodeUnits)
 
 class Testing(unittest.TestCase):
     def setUp(self):
@@ -38,11 +42,13 @@ class Testing(unittest.TestCase):
 
     def test_unknown_coordinate_system_raises(self):
         self.par.coordsys = 'cylindrical'
+        self.par.simulation.coordinate_system = 'cylindrical'
         with self.assertRaises(ValueError):
             self.mesh.SetUpMesh(self.par)
 
     def test_spherical_origin_face_has_zero_area(self):
         self.par.coordsys = 'spherical'
+        self.par.simulation.coordinate_system = 'spherical'
         self.mesh.boundary = np.linspace(-0.5, 1.5, num=self.par.nogrid + 1)
 
         self.mesh.SetUpMesh(self.par)
@@ -55,6 +61,7 @@ class Testing(unittest.TestCase):
 
     def test_spherical_zero_inner_boundary_has_zero_area(self):
         self.par.coordsys = 'spherical'
+        self.par.simulation.coordinate_system = 'spherical'
         self.mesh.boundary = np.linspace(0.0, 1.0, num=self.par.nogrid + 1)
 
         self.mesh.SetUpMesh(self.par)

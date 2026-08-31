@@ -54,9 +54,11 @@ def _get_table(par):
 def _state(mesh, fluid, par):
     code = _code_units(par)
     if code is None:
-        raise ValueError("CIE cooling requires par.CodeUnits")
-    interior = slice(par.noghost, par.noghost + par.nogrid)
-    gamma = getattr(getattr(fluid, "eos", None), "gamma", getattr(par, "gamma", 5.0 / 3.0))
+        raise ValueError("CIE cooling requires configured code units")
+    ghost_cells = int(par.mesh.ghost_cells)
+    grid_cells = int(par.mesh.grid_cells)
+    interior = slice(ghost_cells, ghost_cells + grid_cells)
+    gamma = getattr(getattr(fluid, "eos", None), "gamma", 5.0 / 3.0)
     scaling = _fast_source_scaling(fluid, par, gamma)
     rho_super = to_unit_value(fluid.rho[interior], code.density_unit)
     rho = rho_super / scaling["density_factor"]

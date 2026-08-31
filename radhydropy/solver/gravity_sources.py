@@ -60,12 +60,15 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         solver.last_centrifugal_work = 0.0
         solver.last_centrifugal_work_by_cell = None
         solver.last_gravity_work_by_cell = (
-            np.zeros(int(par.nogrid), dtype=float)
+            np.zeros(
+                int(par.mesh.grid_cells),
+                dtype=float,
+            )
             if getattr(par, "energy_diagnostics", False) else None
         )
         return 0
     if gravity is not None and getattr(gravity, "cosmological", False):
-        par.fluid_time = fluid.time
+        gravity.fluid_time = fluid.time
     crossing_safety_factor = getattr(par, "dark_matter_crossing_safety_factor", 0.1)
     if gravity is not None and getattr(gravity, "dark_matter", None) is not None:
         gravity.advance_dark_matter(
@@ -225,4 +228,3 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
                 "last_substep_count", 0)
     )
     return 1
-

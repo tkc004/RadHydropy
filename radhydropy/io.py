@@ -4,7 +4,6 @@ from pathlib import Path
 
 import h5py
 import os
-import time
 import unyt
 import numpy as np
 import yaml
@@ -17,11 +16,6 @@ try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
     SympyBasic = None
-
-
-def _read_quantity(group, name):
-    dataset = group[name]
-    return np.asarray(dataset[()]) * unyt.Unit(dataset.attrs['units'])
 
 
 def _scale_unit_for_key(scale_key):
@@ -48,58 +42,6 @@ def _scale_unit_for_key(scale_key):
         "specific_angular_momentum": unyt.cm**2 / unyt.s,
         "angular_momentum": unyt.g * unyt.cm**2 / unyt.s,
     }.get(scale_key, None)
-
-
-def _code_unit_for_key(code_units, scale_key):
-    if code_units is None:
-        return None
-    return {
-        "length_cm": code_units.length_unit,
-        "mass_g": code_units.mass_unit,
-        "velocity_cm_s": code_units.velocity_unit,
-        "time_s": code_units.time_unit,
-        "temperature_K": code_units.temperature_unit,
-        "area_cm2": code_units.area_unit,
-        "volume_cm3": code_units.volume_unit,
-        "density_g_cm3": code_units.density_unit,
-        "pressure_erg_cm3": code_units.pressure_unit,
-        "energy_erg": code_units.energy_unit,
-        "specific_energy_erg_g": code_units.specific_energy_unit,
-        "momentum_g_cm_s": code_units.momentum_unit,
-        "mass_flux_g_cm2_s": code_units.mass_flux_unit,
-        "energy_flux_erg_cm2_s": code_units.energy_flux_unit,
-        "number_density_cm3": code_units.number_density_unit,
-        "photon_flux_per_cm2_s": 1.0 / (code_units.area_unit * code_units.time_unit),
-        "photon_rate_per_s": 1.0 / code_units.time_unit,
-        "alpha_cm3_s": code_units.volume_unit / code_units.time_unit,
-        "acceleration_cm_s2": code_units.length_unit / code_units.time_unit**2,
-        "specific_angular_momentum": code_units.length_unit * code_units.velocity_unit,
-        "angular_momentum": code_units.mass_unit * code_units.length_unit * code_units.velocity_unit,
-        "potential": code_units.velocity_unit**2,
-    }.get(scale_key, None)
-
-
-def _read_runtime_quantity(group, name, code_units=None, scale_key=None):
-    dataset = group[name]
-    data = np.asarray(dataset[()], dtype=float)
-    unit_name = dataset.attrs.get("units", None)
-    if code_units is not None and scale_key is not None:
-        scales = code_unit_scales(code_units)
-        if unit_name:
-            stored_unit = unyt.Unit(unit_name)
-            cgs_unit = _scale_unit_for_key(scale_key)
-            if cgs_unit is not None:
-                data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
-        return as_named_array(data / scales[scale_key])
-    if unit_name:
-        raise ValueError(
-            f"Cannot read dataset {name!r} with units {unit_name!r} without a code-unit mapping."
-        )
-    return as_named_array(data)
-
-
-def _read_dataset(group, name):
-    return as_named_array(group[name][()])
 
 
 def _normalize_attr_name(name):
@@ -322,15 +264,19 @@ def _restore_cosmology_from_header(par, header, code_units):
         par.cosmology_omega_m = omega_m
         par.cosmology_omega_lambda = omega_lambda
         par.cosmology_hubble_ref = hubble_ref
-        par.cosmology = LambdaCDM.from_code_units(
+        cosmology = LambdaCDM.from_code_units(
             code_units, t_ref=t_ref, a_ref=a_ref,
             omega_m=omega_m, omega_lambda=omega_lambda,
             hubble_ref=hubble_ref,
         )
     else:
-        par.cosmology = EinsteinDeSitter.from_code_units(
+        cosmology = EinsteinDeSitter.from_code_units(
             code_units, t_ref=t_ref, a_ref=a_ref
         )
+    if hasattr(par, "set_cosmology_model"):
+        par.set_cosmology_model(cosmology)
+    else:
+        par.cosmology = cosmology
 
 
 def _used_parameters_payload(runparams=None, icparams=None, existing=None):
@@ -479,51 +425,15 @@ def load_output_time_list(filename):
 
 
 def write_numbered_hdf5(sim, outindex):
-    """Write ``Output_###.hdf5`` for the supplied simulation."""
-    filename = (
-        sim.par.outdir
-        + '/'
-        + sim.par.outfileprefix
-        + '_%03d' % outindex
-        + '.hdf5'
-    )
-    writehdf5(sim, filename)
+    from .output import write_numbered_hdf5 as implementation
+
+    return implementation(sim, outindex)
 
 
 def hdf5_output_callback(sim, outputtime=0, output_state=None):
-    """Return a callback that writes HDF5 snapshots at fixed cadence."""
-    if output_state is None:
-        output_state = {
-            'outtime': 0.0 * sim.par.timesim,
-            'outindex': 1,
-            'last_output_time_s': float(np.asarray(sim.fluid.time, dtype=float)),
-        }
-    else:
-        output_state.setdefault('outtime', 0.0 * sim.par.timesim)
-        output_state.setdefault('outindex', 1)
-        output_state.setdefault(
-            'last_output_time_s',
-            float(np.asarray(sim.fluid.time, dtype=float)),
-        )
+    from .output import hdf5_output_callback as implementation
 
-    def callback(sim, step):
-        dt = step["dt"]
-        if getattr(dt, "shape", None) == (1,):
-            dt = dt[0]
-        if getattr(sim.par, 'verbose', 0) >= 1:
-            print("time, dt", sim.fluid.time, dt)
-        if output_state['outtime'] >= sim.par.outdeltatime:
-            sim.fluid.SetTemperature()
-            write_numbered_hdf5(sim, output_state['outindex'])
-            output_state['last_output_time_s'] = float(
-                np.asarray(sim.fluid.time, dtype=float)
-            )
-            output_state['outtime'] = 0.0 * sim.par.timesim
-            output_state['outindex'] += 1
-        else:
-            output_state['outtime'] += dt
-
-    return callback
+    return implementation(sim, outputtime, output_state)
 
 
 def run_with_output_times(
@@ -535,94 +445,18 @@ def run_with_output_times(
     step_backend=None,
     step_backend_kwargs=None,
 ):
-    """Run a simulation using an explicit output-time list."""
-    start = time.time()
-    if step_backend is None:
-        step_backend = sim.Step
-    if step_backend_kwargs is None:
-        step_backend_kwargs = {}
-    print("--- Initization finished. Start running ... ---")
-    print("--- %s seconds ---" % (time.time() - start))
-    write_numbered_hdf5(sim, 0)
-    last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))
+    from .output import run_with_output_times as implementation
 
-    current_time = sim.fluid.time
-    final_time = sim.par.timesim
-    time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
-    output_times = load_output_time_list(getattr(sim.par, 'outputtimefilename', None))
-    if output_times is None:
-        output_times = []
-    else:
-        if hasattr(final_time, 'units'):
-            target_unit = final_time.units
-            sorted_values = np.unique(
-                np.asarray(output_times.to_value(target_unit), dtype=float)
-            )
-        else:
-            code_units = getattr(sim.par, 'CodeUnits', None)
-            sorted_values = np.unique(
-                np.asarray(output_times.to_value(unyt.s), dtype=float)
-                / code_unit_scales(code_units)['time_s']
-            )
-        output_times = [
-            value * final_time.units if hasattr(final_time, 'units') else value
-            for value in sorted_values
-            if (
-                (value * final_time.units if hasattr(final_time, 'units') else value)
-                > current_time
-                and (value * final_time.units if hasattr(final_time, 'units') else value)
-                <= final_time
-            )
-        ]
-
-    outindex = 1
-    for target_time in output_times:
-        if stop_condition is not None and stop_condition(sim):
-            break
-        target_time_value = float(np.asarray(target_time, dtype=float))
-        while float(np.asarray(sim.fluid.time, dtype=float)) < target_time_value - time_tol:
-            if stop_condition is not None and stop_condition(sim):
-                break
-            dt = sim.GetStepTime(final_time=target_time)
-            if getattr(sim.par, 'verbose', 0) >= 1:
-                print("time, dt", sim.fluid.time, dt)
-            step_backend(
-                dt=dt,
-                mode=mode,
-                advect_chemistry=advect_chemistry,
-                **step_backend_kwargs,
-            )
-        if stop_condition is not None and stop_condition(sim):
-            break
-        # Euler/source steps can cross a target by a roundoff- or CFL-sized
-        # amount.  Treat the first state at or beyond the target as the
-        # requested snapshot instead of silently dropping the output.
-        if float(np.asarray(sim.fluid.time, dtype=float)) >= target_time_value - time_tol:
-            sim.fluid.SetTemperature()
-            write_numbered_hdf5(sim, outindex)
-            last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))
-            outindex += 1
-
-    final_time_value = float(np.asarray(final_time, dtype=float))
-    while float(np.asarray(sim.fluid.time, dtype=float)) < final_time_value - time_tol:
-        if stop_condition is not None and stop_condition(sim):
-            break
-        dt = sim.GetStepTime(final_time=final_time)
-        if getattr(sim.par, 'verbose', 0) >= 1:
-            print("time, dt", sim.fluid.time, dt)
-        step_backend(
-            dt=dt,
-            mode=mode,
-            advect_chemistry=advect_chemistry,
-            **step_backend_kwargs,
-        )
-
-    if stop_condition is not None and abs(float(np.asarray(sim.fluid.time, dtype=float)) - last_output_time_s) > time_tol:
-        sim.fluid.SetTemperature()
-        write_numbered_hdf5(sim, outindex)
-
-    print("--- Simulation finished. ---")
-    print("--- %s seconds ---" % (time.time() - start))
+    return implementation(
+        sim,
+        outputtime=outputtime,
+        mode=mode,
+        advect_chemistry=advect_chemistry,
+        stop_condition=stop_condition,
+        step_backend=step_backend,
+        step_backend_kwargs=step_backend_kwargs,
+        output_writer=write_numbered_hdf5,
+    )
 
 def writehdf5(ric,ICfilename):
     """Write simulation state to a RadHydropy HDF5 file.
@@ -632,17 +466,22 @@ def writehdf5(ric,ICfilename):
     """
     ICfilename = str(ICfilename)
     print(f"--- writing {ICfilename} --- ")
-    if hasattr(ric.fluid, "time"):
-        output_time = ric.fluid.time
-    else:
-        output_time = ric.par.time
+    output_time = getattr(ric.fluid, "time", None)
+    if output_time is None:
+        output_time = ric.par.simulation.current_time
     with h5py.File(ICfilename, 'w') as fic:
         code_units = getattr(ric.par, "CodeUnits", None)
         # saving initial condition
         # first, save header:
         header = fic.create_group("Header")
         for key, value in sorted(vars(ric.par).items()):
-            if key.startswith("_") or key in {"dark_matter", "dark_matter_snapshot", "cosmology"}:
+            if key.startswith("_") or key in {
+                "dark_matter", "dark_matter_snapshot", "cosmology",
+                "hydrodynamics", "boundary", "timestep", "thermochemistry",
+                "gravity", "output", "simulation", "diagnostics", "mesh",
+                "chemistry", "angular_momentum", "dark_matter_config",
+                "dual_energy_config", "positivity", "radiation", "units",
+            }:
                 continue
             header.attrs[key] = _header_attr_value(value)
         if hasattr(ric, "cumulative_hydro_boundary_energy"):
@@ -665,7 +504,7 @@ def writehdf5(ric,ICfilename):
         _write_quantity(
             header,
             "BoxSize",
-            ric.par.boxsize,
+            ric.par.simulation.box_size,
             code_units=code_units,
             scale_key="length_cm",
             default_unit=unyt.cm,
@@ -751,7 +590,7 @@ def writehdf5(ric,ICfilename):
                     else "physical"
                 ),
                 "scale_factor_power": (
-                    3.0 * (getattr(ric.par, "gamma", 5.0 / 3.0) - 1.0)
+                    3.0 * (ric.par.hydrodynamics.gamma - 1.0)
                     if getattr(ric.par, "supercomoving_coordinates", False)
                     else 0.0
                 ),
@@ -856,8 +695,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
     with h5py.File(ICfilename, 'r') as fic:
-        expected_coordsys = getattr(par, "coordsys", None)
-        expected_nogrid = getattr(par, "nogrid", None)
+        expected_coordsys = par.simulation.coordinate_system
+        expected_nogrid = getattr(
+            getattr(par, 'mesh', None), 'grid_cells', None
+        )
         # saving initial condition
         # first, save header:
         header = fic["Header"]
@@ -877,19 +718,24 @@ def readhdf5(par, mesh, fluid, ICfilename):
             if key == "CodeUnits":
                 if isinstance(restored, dict):
                     restored = CodeUnits.from_mapping(restored)
-                setattr(par, "CodeUnits", restored)
+                if hasattr(par, "set_code_units"):
+                    par.set_code_units(restored)
+                else:
+                    setattr(par, "CodeUnits", restored)
                 continue
             setattr(par, key, restored)
         _restore_cosmology_from_header(par, header, code_units)
-        if expected_coordsys is not None and par.coordsys != expected_coordsys:
+        coordinate_system = par.simulation.coordinate_system
+        if expected_coordsys is not None and coordinate_system != expected_coordsys:
             raise Exception(
                 "Coordinate systems in IC (%s) and run (%s) do not agree!"
-                % (par.coordsys, expected_coordsys)
+                % (coordinate_system, expected_coordsys)
             )
-        if expected_nogrid is not None and par.nogrid != expected_nogrid:
+        grid_cells = par.mesh.grid_cells
+        if expected_nogrid is not None and grid_cells != expected_nogrid:
             raise Exception(
                 "Number of grids in IC (%s) and run (%s) do not agree!"
-                % (par.nogrid, expected_nogrid)
+                % (grid_cells, expected_nogrid)
             )
         header_scale_map = {
             "Time": "time_s",
@@ -912,11 +758,24 @@ def readhdf5(par, mesh, fluid, ICfilename):
         for header_name, parameter_name in metadata_fields.items():
             if header_name in header.attrs:
                 setattr(par, parameter_name, _restore_header_attr_value(header.attrs[header_name]))
+        if hasattr(par, "_sync_simulation_parameters"):
+            par._sync_simulation_parameters()
+        if hasattr(par, "_sync_mesh_parameters"):
+            par._sync_mesh_parameters()
         if hasattr(par, 'load_radiation_spectrum'):
-            par.load_radiation_spectrum(getattr(par, 'outdir', None))
-        par.time = getattr(par, "Time")
-        par.boxsize = getattr(par, "BoxSize")
-        fluid.time = par.time.copy() if hasattr(par.time, "copy") else float(par.time)
+            par.load_radiation_spectrum(
+                par.output.directory
+            )
+        if hasattr(par, 'simulation'):
+            par.simulation.current_time = getattr(par, "Time")
+            par.simulation.box_size = getattr(par, "BoxSize")
+            fluid.time = par.simulation.current_time.copy() if hasattr(
+                par.simulation.current_time, "copy"
+            ) else float(par.simulation.current_time)
+        else:
+            # Plain parameter namespaces are accepted only as an I/O boundary
+            # for callers that do not construct a full Par object.
+            fluid.time = getattr(par, "Time")
 
         #second, save mesh and fluid data:
         gdata = fic["Data"]

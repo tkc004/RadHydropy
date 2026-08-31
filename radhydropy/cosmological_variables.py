@@ -6,7 +6,7 @@ import numpy as np
 def supercomoving_scale(par, time=None):
     """Return ``(a, H)`` at the active supercomoving time."""
     if time is None:
-        time = par.time
+        time = getattr(getattr(par, 'simulation', None), 'current_time', 0.0)
     tau = float(np.asarray(time, dtype=float))
     cosmology = par.cosmology
     _, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)

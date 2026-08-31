@@ -34,26 +34,27 @@ class Mesh:
         """
         code_units = _code_units(par)
         if code_units is None:
-            raise ValueError("SetUpMesh requires par.CodeUnits")
+            raise ValueError("SetUpMesh requires configured code units")
+        nogrid = par.mesh.grid_cells
+        noghost = par.mesh.ghost_cells
         self.CodeUnits = code_units
-        self.coordsys = par.coordsys
+        self.coordsys = par.simulation.coordinate_system
         attr = 'boundary'
         if not hasattr(self, attr):
             raise AttributeError("%s does not exist in mesh; quitting."%attr)
         for attr in ('nogrid', 'noghost', 'coordsys'):
             if not hasattr(par, attr):
                 raise AttributeError("%s does not exist in params; quitting."%attr)
-        if par.nogrid < 1:
+        if nogrid < 1:
             raise ValueError("nogrid has to be at least 1")
-        if par.noghost < 1:
+        if noghost < 1:
             raise ValueError("noghost has to be at least 1")
-        if len(self.boundary) != par.nogrid + 1:
+        if len(self.boundary) != nogrid + 1:
             raise ValueError("boundary point and nogrid are inconsistent")
         # note that we use first (0) and final (nogrid+1) cells as ghost cells
         # to set boundary conditions
 
         # add ghost cells:
-        noghost = par.noghost
         self.boundary = as_named_array(quantity_to_value(self.boundary, code_units.length_unit))
         dx = self.boundary[1] - self.boundary[0] 
         start = self.boundary[0] - dx * noghost
@@ -65,17 +66,20 @@ class Mesh:
         # mesh size
         self.xdelta = as_named_array(self.boundary[1:] - self.boundary[:-1])
         self.oneoverdx = as_named_array(1.0/self.xdelta)
-        if par.coordsys == 'cartesian':
+        if self.coordsys == 'cartesian':
             if not hasattr(par, 'area'):
                 raise AttributeError("area does not exist in params; quitting.")
             # coordinate is the midpoint of boundary
             self.coordinate = as_named_array(0.5 * (self.boundary[1:]+self.boundary[:-1]))
-            area_value = quantity_to_value(par.area, code_units.area_unit)
+            area_value = quantity_to_value(
+                par.mesh.area,
+                code_units.area_unit,
+            )
             self.area = as_named_array(
-                np.ones(par.nogrid + noghost * 2, dtype=float) * np.asarray(area_value, dtype=float)
+                np.ones(nogrid + noghost * 2, dtype=float) * np.asarray(area_value, dtype=float)
             )
             self.vol = as_named_array((self.boundary[1:] - self.boundary[:-1]) * self.area)
-        elif par.coordsys == 'spherical':
+        elif self.coordsys == 'spherical':
             # check if any value is <0:
             #if len(self.boundary[self.boundary<0.0]) > 0:
             #    raise Exception("Radial coordinate cannot be negative")
@@ -101,7 +105,7 @@ class Mesh:
                     
 
         else:
-            raise ValueError("coordsys unknown: %s"%par.coordsys)
+            raise ValueError("coordinate system unknown: %s" % self.coordsys)
             
         if np.any(self.vol == 0.0) or np.any(np.isnan(self.vol)):
             raise ValueError("volume vanished") 

@@ -1,5 +1,6 @@
 import numpy as np
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 from radhydropy.eos import EOS
 from radhydropy.solver import Solver
@@ -71,7 +72,7 @@ def test_primitive_reconstruction_stores_active_mask_for_vacuum_cells():
 
 
 def test_low_density_active_cell_blocks_both_interface_fluxes():
-    par = SimpleNamespace(noghost=1, nogrid=3, cfl_density_floor=1.0e-9)
+    par = parameter_namespace(noghost=1, nogrid=3, cfl_density_floor=1.0e-9)
     fluid = SimpleNamespace(
         rho=np.array([1.0, 1.0, 1.0e-12, 1.0e-12, 1.0]),
         Mass=SimpleNamespace(flux=np.ones(5)),

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import h5py
 import numpy as np
@@ -73,7 +74,7 @@ def test_cie_table_electron_fraction_scales_metals(tmp_path):
 
 
 def make_network_state(paths, temperature=1.0e5, rho=1.0e-20, metallicity=1.0):
-    par = SimpleNamespace(
+    par = parameter_namespace(
         cie_ion_fraction_table=str(paths[0]),
         cie_cooling_table=str(paths[1]),
         cie_abundance_file=str(paths[2]),
@@ -146,7 +147,7 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
         eos=SimpleNamespace(gamma=gamma),
     )
     mesh = SimpleNamespace(vol=np.ones(2))
-    par = SimpleNamespace(
+    par = parameter_namespace(
         CodeUnits=code_units,
         noghost=1,
         nogrid=0,
@@ -162,6 +163,7 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
     # Use one interior cell and one ghost cell; the source implementation
     # indexes [noghost:noghost+nogrid].
     par.nogrid = 1
+    par.mesh.grid_cells = 1
     initial_energy = fluid.Energy[1]
     steps = network.apply_fast(1.0e8, mesh, fluid, par)
 
@@ -205,7 +207,7 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
         eos=SimpleNamespace(gamma=gamma),
     )
     mesh = SimpleNamespace(vol=np.array([1.0]))
-    par = SimpleNamespace(
+    par = parameter_namespace(
         CodeUnits=code_units,
         noghost=0,
         nogrid=1,

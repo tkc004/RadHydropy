@@ -397,8 +397,9 @@ def _cgs_static_neutral_fraction_implicit_update(
 
 
 def interior_slice(par):
-    first = par.noghost
-    return slice(first, first + par.nogrid)
+    first = int(par.mesh.ghost_cells)
+    grid_cells = int(par.mesh.grid_cells)
+    return slice(first, first + grid_cells)
 
 
 def thermochemistry_enabled(fluid, par):
@@ -446,7 +447,7 @@ def source_state(mesh, fluid, par):
     """Return a float state for fixed-density thermo-chemistry tests."""
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
+        raise ValueError("hydrogen thermo-chemistry requires configured code units")
     kpc_in_cm = float((1.0 * unyt.kpc).to_value(unyt.cm))
     interior = interior_slice(par)
     boundary = as_named_array(
@@ -770,7 +771,7 @@ def apply_state(state, fluid, par):
     fluid.xHI[interior] = state['xHI']
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
+        raise ValueError("hydrogen thermo-chemistry requires configured code units")
     if hasattr(fluid, 'ngamma') and 'ngamma_cm3' in state:
         target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
         if np.ndim(target) == 2:
@@ -795,7 +796,7 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     state = _fast_source_state(mesh, fluid, par)
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
+        raise ValueError("hydrogen thermo-chemistry requires configured code units")
     remaining_s = (
         to_unit_value(remaining, code.time_unit)
         * state['source_scale_factor']**2
@@ -830,9 +831,15 @@ def _fast_source_scaling(fluid, par, gamma):
     cosmology = getattr(par, 'cosmology', None)
     if cosmology is None:
         raise ValueError("supercomoving thermo-chemistry requires par.cosmology")
-    time = getattr(par, 'fluid_time', None)
-    if time is None:
-        time = getattr(fluid, 'time', getattr(par, 'time', 0.0))
+    if hasattr(getattr(par, 'simulation', None), 'current_time'):
+        time = getattr(fluid, 'time', None)
+        if time is None:
+            time = par.simulation.current_time
+    else:
+        # Lightweight source-test objects predate grouped parameters.
+        time = getattr(
+            par, 'fluid_time', getattr(par, 'time', getattr(fluid, 'time', 0.0))
+        )
     tau = float(np.asarray(time, dtype=float).flat[0])
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
     return {
@@ -847,8 +854,13 @@ def _fast_source_scaling(fluid, par, gamma):
 def _rotational_specific_energy_code(mesh, fluid, par):
     """Return rotational specific energy in the conserved code units."""
     if not getattr(par, 'gas_rotational_energy', False):
-        return np.zeros(par.nogrid, dtype=float)
-    interior = slice(par.noghost, par.noghost + par.nogrid)
+        return np.zeros(
+            int(par.mesh.grid_cells),
+            dtype=float,
+        )
+    ghost_cells = int(par.mesh.ghost_cells)
+    grid_cells = int(par.mesh.grid_cells)
+    interior = slice(ghost_cells, ghost_cells + grid_cells)
     mass = np.asarray(fluid.Mass[interior], dtype=float)
     angular = np.asarray(fluid.AngularMomentum[interior], dtype=float)
     radius = np.abs(np.asarray(mesh.coordinate[interior], dtype=float))
@@ -864,10 +876,12 @@ def _fast_source_state(mesh, fluid, par):
     """Return a cgs float snapshot for the fast thermo-chemistry path."""
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
+        raise ValueError("hydrogen thermo-chemistry requires configured code units")
     unit_conversion = code.unit_conversion
-    interior = slice(par.noghost, par.noghost + par.nogrid)
-    gamma = getattr(getattr(fluid, 'eos', None), 'gamma', getattr(par, 'gamma', 5.0 / 3.0))
+    ghost_cells = int(par.mesh.ghost_cells)
+    grid_cells = int(par.mesh.grid_cells)
+    interior = slice(ghost_cells, ghost_cells + grid_cells)
+    gamma = getattr(getattr(fluid, 'eos', None), 'gamma', par.hydrodynamics.gamma)
     scaling = _fast_source_scaling(fluid, par, gamma)
     rho_g_cm3 = (
         np.asarray(fluid.rho[interior], dtype=float)
@@ -914,7 +928,9 @@ def _fast_source_state(mesh, fluid, par):
         ),
         'temperature_K': temperature_K,
         'xHI': as_named_array(
-            fluid.xHI[interior] if hasattr(fluid, 'xHI') else np.ones(par.nogrid),
+            fluid.xHI[interior]
+            if hasattr(fluid, 'xHI')
+            else np.ones(int(par.mesh.grid_cells)),
         ),
         'nH_cm3': rho_g_cm3 * getattr(par, 'hydrogen_mass_fraction', 1.0) / PROTON_MASS_CGS,
         'gamma': gamma,
@@ -926,7 +942,9 @@ def _fast_source_state(mesh, fluid, par):
             if hasattr(fluid, 'mu')
             else rh.mean_molecular_weight_mu(
                 np.asarray(
-                    fluid.xHI[interior] if hasattr(fluid, 'xHI') else np.ones(par.nogrid),
+                    fluid.xHI[interior]
+                    if hasattr(fluid, 'xHI')
+                    else np.ones(int(par.mesh.grid_cells)),
                     dtype=float,
                 ),
                 hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
@@ -2274,7 +2292,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     state = _fast_source_state(mesh, fluid, par)
     code = _code_units(par)
     if code is None:
-        raise ValueError("hydrogen thermo-chemistry requires par.CodeUnits")
+        raise ValueError("hydrogen thermo-chemistry requires configured code units")
     remaining_s = (
         to_unit_value(dt, code.time_unit)
         * state['source_scale_factor']**2

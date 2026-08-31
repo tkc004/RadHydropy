@@ -1,6 +1,7 @@
 """Tests for momentum deposition from absorbed radiation."""
 
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 
@@ -38,7 +39,7 @@ def make_state(rho):
         Mom=np.zeros(ncell, dtype=float),
         Energy=np.zeros(ncell, dtype=float),
     )
-    par = SimpleNamespace(
+    par = parameter_namespace(
         CodeUnits=CODE_UNITS,
         noghost=0,
         nogrid=ncell,

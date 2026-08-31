@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.thermo_networks.hydrogen import (
@@ -124,7 +125,7 @@ def _source_test_problem(
         physical_specific_energy * units.mass_in_cgs
         / units.energy_unit.to_value('erg') * temperature_factor
     )
-    par = SimpleNamespace(
+    par = parameter_namespace(
         CodeUnits=units,
         noghost=0,
         nogrid=1,
@@ -551,7 +552,7 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
         mu * PROTON_MASS_CGS
     )
     energy_code = specific_energy * 1.0e33 / units.energy_unit.to_value('erg')
-    par = SimpleNamespace(
+    par = parameter_namespace(
         CodeUnits=units,
         noghost=0,
         nogrid=1,
@@ -774,7 +775,7 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     physical_temperature = 275.2755
 
-    par = SimpleNamespace(
+    par = parameter_namespace(
         CodeUnits=units,
         noghost=0,
         nogrid=1,

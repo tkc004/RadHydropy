@@ -11,6 +11,7 @@ from radhydropy.gravity import Gravity
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
 from radhydropy.cosmology import EinsteinDeSitter
+from types import SimpleNamespace
 
 
 def code_units():
@@ -251,6 +252,7 @@ class Par:
     CodeUnits = code_units()
     noghost = 0
     nogrid = 3
+    mesh = SimpleNamespace(ghost_cells=0, grid_cells=3)
 
 
 def test_enclosed_gas_mass_handles_partial_cells():
@@ -338,6 +340,9 @@ def test_dark_matter_snapshot_group_is_written():
             self.time = np.array([0.0])
             self.boxsize = np.array([2.0])
             self.dark_matter = dm
+            self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
+            self.simulation = SimpleNamespace(box_size=self.boxsize, current_time=self.time)
+            self.units = SimpleNamespace(CodeUnits=units)
     class State:
         par = ParForIO()
         mesh = MeshForIO()
@@ -374,6 +379,9 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
             self.time = np.array([0.0])
             self.boxsize = np.array([2.0])
             self.dark_matter = dm
+            self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
+            self.simulation = SimpleNamespace(box_size=self.boxsize, current_time=self.time)
+            self.units = SimpleNamespace(CodeUnits=units)
 
     class State:
         par = ParForIO()
@@ -383,6 +391,8 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
     class LoadedPar:
         coordsys = None
         nogrid = None
+        mesh = SimpleNamespace(ghost_cells=0, grid_cells=None)
+        simulation = SimpleNamespace(coordinate_system=None)
 
     class LoadedMesh:
         pass

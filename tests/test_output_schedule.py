@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 from unittest import mock
 import importlib.util
 import sys
@@ -48,7 +49,7 @@ class Testing(unittest.TestCase):
                 time=0.0 * unyt.s,
                 SetTemperature=lambda: None,
             )
-            par = SimpleNamespace(
+            par = parameter_namespace(
                 outputtimefilename=str(path),
                 timesim=3.0 * unyt.s,
                 outdir=str(tmpdir),
@@ -93,7 +94,7 @@ class Testing(unittest.TestCase):
                 time=0.0 * unyt.s,
                 SetTemperature=lambda: None,
             )
-            par = SimpleNamespace(
+            par = parameter_namespace(
                 timesim=5.0 * unyt.s,
                 outdir=str(tmpdir),
                 outfileprefix='Output',
@@ -141,7 +142,7 @@ class Testing(unittest.TestCase):
             cwd = Path.cwd()
             try:
                 os.chdir(tmpdir)
-                par = SimpleNamespace(
+                par = parameter_namespace(
                     timesim=0.0 * unyt.s,
                     outdir=str(tmpdir),
                     outfileprefix='Output',
@@ -261,7 +262,7 @@ class Testing(unittest.TestCase):
             sys.path.pop(0)
 
         sim = SimpleNamespace(
-            par=SimpleNamespace(noghost=2, nogrid=3),
+            par = parameter_namespace(noghost=2, nogrid=3),
             fluid=SimpleNamespace(
                 xHI=np.array([0.0, 0.0, 0.8, 0.9, 1.0]),
             ),

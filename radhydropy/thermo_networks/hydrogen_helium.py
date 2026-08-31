@@ -199,8 +199,11 @@ def _rates(state, ngamma):
 
 
 def source_state(mesh, fluid, par):
-    code = _code_units(par); interior = slice(par.noghost, par.noghost + par.nogrid)
-    gamma = getattr(par, 'gamma', 5.0 / 3.0)
+    code = _code_units(par)
+    ghost_cells = int(par.mesh.ghost_cells)
+    grid_cells = int(par.mesh.grid_cells)
+    interior = slice(ghost_cells, ghost_cells + grid_cells)
+    gamma = par.hydrodynamics.gamma
     scaling = _fast_source_scaling(fluid, par, gamma)
     xHI = np.asarray(getattr(fluid, 'xHI', np.ones_like(fluid.rho[interior]))[interior], float).copy()
     xHeI = np.asarray(getattr(fluid, 'xHeI', np.ones_like(xHI))[interior] if hasattr(fluid, 'xHeI') else np.ones_like(xHI), float).copy()

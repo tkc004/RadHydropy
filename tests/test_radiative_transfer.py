@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 import unyt
@@ -147,7 +148,7 @@ class Testing(unittest.TestCase):
             "xHeI": np.ones(2),
             "xHeII": np.zeros(2),
         }
-        par = SimpleNamespace(
+        par = parameter_namespace(
             noghost=1,
             nogrid=2,
             coordsys="cartesian",
@@ -212,7 +213,7 @@ class Testing(unittest.TestCase):
             "rho_g_cm3": np.array([unyt.mp.to_value(unyt.g)], dtype=float),
             "xHI": np.array([1.0], dtype=float),
         }
-        par = SimpleNamespace(
+        par = parameter_namespace(
             noghost=1,
             nogrid=1,
             coordsys="cartesian",
@@ -252,7 +253,7 @@ class Testing(unittest.TestCase):
             "rho_g_cm3": np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g),
             "xHI": np.ones(2, dtype=float),
         }
-        par = SimpleNamespace(
+        par = parameter_namespace(
             CodeUnits=code_units,
             noghost=1,
             nogrid=2,

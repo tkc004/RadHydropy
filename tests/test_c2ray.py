@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 

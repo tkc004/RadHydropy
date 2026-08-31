@@ -48,7 +48,7 @@ def load_example_parameters(config_filename, rundir=None):
     runparams = _load_yaml_value(config['runparams'])
     icparams = _load_yaml_value(config['ICparams'])
     if 'CodeUnits' not in runparams and 'InternalUnitSystem' not in runparams:
-        raise ValueError("CodeUnits or InternalUnitSystem unknown: %s" % par.coordsys)
+        raise ValueError("CodeUnits or InternalUnitSystem is required")
     for key in {'ICfilename', 'outdir', 'outputtimefilename', 'savedir'}:
         if key in runparams:
             runparams[key] = _resolve_path(runparams[key], rundir)

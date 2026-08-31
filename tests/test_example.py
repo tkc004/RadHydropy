@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 import importlib.util
 import sys
 import tempfile
@@ -479,7 +480,7 @@ class Testing(unittest.TestCase):
                 len(boundary) - 1 - shell_start_index
             )
             return SimpleNamespace(
-                par=SimpleNamespace(time=unyt.unyt_quantity(time_myr, unyt.Myr)),
+                par = parameter_namespace(time=unyt.unyt_quantity(time_myr, unyt.Myr)),
                 mesh=SimpleNamespace(boundary=boundary),
                 fluid=SimpleNamespace(
                     rho=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
@@ -671,6 +672,7 @@ class Testing(unittest.TestCase):
         par, mesh, fluid, solver = static_stromgren_photoheating_tools.build_static_problem(
             config
         )
+        par = parameter_namespace(**vars(par))
         sim = Rsim.FromComponents(par, mesh, fluid, solver)
 
         state = {
@@ -724,6 +726,7 @@ class Testing(unittest.TestCase):
         config = {**runparams, **icparams}
 
         par, mesh, fluid, solver = static_stromgren_tools.build_static_problem(config)
+        par = parameter_namespace(**vars(par))
         sim = Rsim.FromComponents(par, mesh, fluid, solver)
         sim.ConvertParametersToCodeUnits()
 
@@ -901,7 +904,7 @@ class Testing(unittest.TestCase):
         assert spec.loader is not None
         spec.loader.exec_module(tools)
 
-        par = SimpleNamespace(noghost=0, nogrid=5, CodeUnits=None)
+        par = parameter_namespace(noghost=0, nogrid=5, CodeUnits=None)
         mesh = SimpleNamespace(
             coordinate=np.arange(1.0, 6.0) * unyt.kpc,
         )
@@ -1069,6 +1072,7 @@ class Testing(unittest.TestCase):
         config = {**runparams, **icparams}
 
         par, mesh, fluid, _ = hii_tools.build_problem(config)
+        par = parameter_namespace(**vars(par))
         modified_boundary = np.asarray(mesh.boundary, dtype=float).copy() * 1.25
         mesh.boundary = modified_boundary * unyt.cm
 

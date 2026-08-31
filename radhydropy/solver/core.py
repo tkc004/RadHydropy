@@ -53,8 +53,11 @@ class Solver():
         return ru.SafeDivide(numerator, denominator)
 
     def _interior_slice(self, par):
-        first = par.noghost
-        return slice(first, first + par.nogrid)
+        first = int(par.mesh.ghost_cells)
+        return slice(
+            first,
+            first + int(par.mesh.grid_cells),
+        )
 
     def _thermochemistry_enabled(self, fluid, par):
         return rtc.thermochemistry_enabled(fluid, par)
@@ -229,8 +232,8 @@ class Solver():
         radius = getattr(par, 'gas_core_radius', None)
         if radius is None or float(radius) <= 0.0:
             raise ValueError('gas_core_radius must be positive for gas_core_model')
-        first = int(par.noghost)
-        last = first + int(par.nogrid)
+        first = int(par.mesh.ghost_cells)
+        last = first + int(par.mesh.grid_cells)
         coordinate = np.asarray(mesh.coordinate[first:last], dtype=float)
         core_local = coordinate < float(radius)
         if not np.any(core_local) or np.all(core_local):
@@ -634,8 +637,8 @@ class Solver():
         fluid.Mass[np.logical_or(fluid.Mass<0.0, np.isnan(fluid.Mass))] = 0.0
         fluid.Energy[np.logical_or(fluid.Energy<0.0, np.isnan(fluid.Energy))] = 0.0
         if old_total_energy is not None:
-            first = int(getattr(par, 'noghost', 0))
-            count = int(getattr(par, 'nogrid', len(fluid.Energy) - first))
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
             fluid.Energy[first:first + count] = old_total_energy[first:first + count]
         if old_total_mass is not None and old_total_momentum is not None:
             # In dual-energy mode Mass/Mom are the authoritative conservative
@@ -644,13 +647,13 @@ class Solver():
             # in a kinetic-dominated cell that roundoff can make K exceed the
             # preserved total Energy.  Keep the conserved hydro quantities
             # exact and synchronize only the primitive/thermal quantities.
-            first = int(getattr(par, 'noghost', 0))
-            count = int(getattr(par, 'nogrid', len(fluid.Mass) - first))
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
             fluid.Mass[first:first + count] = old_total_mass[first:first + count]
             fluid.Mom[first:first + count] = old_total_momentum[first:first + count]
         if old_angular_momentum is not None:
-            first = int(getattr(par, 'noghost', 0))
-            count = int(getattr(par, 'nogrid', len(old_angular_momentum) - first))
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
             fluid.AngularMomentum[first:first + count] = (
                 old_angular_momentum[first:first + count]
             )
@@ -660,8 +663,8 @@ class Solver():
                 dtype=float,
             )
             if old_internal is not None:
-                first = int(getattr(par, 'noghost', 0))
-                count = int(getattr(par, 'nogrid', len(internal) - first))
+                first = int(par.mesh.ghost_cells)
+                count = int(par.mesh.grid_cells)
                 internal[first:first + count] = old_internal[first:first + count]
             fluid.InternalEnergy = as_named_array(np.maximum(internal, 0.0))
         if old_conserved is not None:
@@ -694,8 +697,8 @@ class Solver():
                 out=np.zeros_like(total_thermal),
                 where=np.isfinite(total_thermal),
             )
-            first = int(getattr(par, 'noghost', 0))
-            count = int(getattr(par, 'nogrid', len(total_thermal) - first))
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
             physical = np.zeros(len(total_thermal), dtype=bool)
             physical[first:first + count] = True
             sync = (
@@ -931,19 +934,25 @@ class Solver():
             par, 'cosmological_background_boundary_reconstruction', False
         ):
             return
-        if getattr(par, 'boundcond', None) != 'InflowSph':
+        if par.boundary.condition != 'InflowSph':
             return
-        first = int(par.noghost)
-        outer_face = first + int(par.nogrid)
+        first = int(par.mesh.ghost_cells)
+        outer_face = first + int(par.mesh.grid_cells)
         if outer_face >= len(fluid.rho.R):
             return
-        rho_background = float(par.rho_inflow)
-        velocity_background = float(par.vel_inflow)
+        rho_background = float(
+            par.boundary.inflow_density
+        )
+        velocity_background = float(
+            par.boundary.inflow_velocity
+        )
         pressure_background = float(
             fluid.eos.pressure(
                 rho_background,
-                float(par.temp_inflow),
-                float(par.mu_inflow),
+                float(
+                    par.boundary.inflow_temperature
+                ),
+                float(par.boundary.inflow_mu),
             )
         )
         for quantity, value in (
@@ -1062,8 +1071,8 @@ class Solver():
         if density_floor <= 0.0:
             return
         density = np.asarray(fluid.rho, dtype=float)
-        first = int(getattr(par, 'noghost', 0))
-        count = int(getattr(par, 'nogrid', len(density) - first))
+        first = int(par.mesh.ghost_cells)
+        count = int(par.mesh.grid_cells)
         last = min(first + count, len(density))
         inactive = ~np.isfinite(density) | (density <= density_floor)
         face_mask = np.zeros(len(density), dtype=bool)
@@ -1142,8 +1151,11 @@ class Solver():
             else None
         )
         count = len(mass)
-        first = int(getattr(par, 'noghost', 0))
-        last = min(first + int(getattr(par, 'nogrid', count - first)), count)
+        if par is None:
+            first, last = 0, count
+        else:
+            first = int(par.mesh.ghost_cells)
+            last = min(first + int(par.mesh.grid_cells), count)
         physical = np.zeros(count, dtype=bool)
         physical[first:last] = True
         volume = np.asarray(mesh.vol, dtype=float)
@@ -1616,8 +1628,8 @@ class Solver():
                 dtype=float,
             )
             limited_internal_flux = np.asarray(internal_flux, dtype=float) * factors
-            first = int(getattr(par, 'noghost', 0))
-            count = int(getattr(par, 'nogrid', len(fluid.InternalEnergy) - first))
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
             physical = np.zeros(len(fluid.InternalEnergy), dtype=bool)
             physical[first:first + count] = True
             internal_factors = self._positivity_limited_internal_flux(
@@ -1670,8 +1682,8 @@ class Solver():
             conservative_internal -= self._rotational_energy_from_conserved(
                 mesh, fluid, getattr(mesh, '_par', None)
             )
-            first = int(getattr(par, 'noghost', 0))
-            count = int(getattr(par, 'nogrid', len(candidate_internal) - first))
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
             physical = np.zeros(len(candidate_internal), dtype=bool)
             physical[first:first + count] = True
             fallback = (
@@ -1866,7 +1878,8 @@ class Solver():
             energies = energies[None]
         if absorbed.shape[0] != energies.size:
             raise ValueError("absorbed photon groups and photon energies disagree")
-        if absorbed.shape[1] != par.nogrid:
+        grid_cells = int(par.mesh.grid_cells)
+        if absorbed.shape[1] != grid_cells:
             raise ValueError("absorbed photon rate must contain physical cells only")
 
         rho_cgs = np.asarray(fluid.rho[interior], dtype=float) * scales["density_g_cm3"]
@@ -1903,11 +1916,11 @@ class Solver():
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
         self.ApplyHydrostaticCore(mesh, fluid, par)
-        btype = par.boundcond
+        btype = par.boundary.condition
         code_units = getattr(par, 'CodeUnits', None)
         scales = code_unit_scales(code_units)
-        noghost = par.noghost
-        nogrid = par.nogrid
+        noghost = int(par.mesh.ghost_cells)
+        nogrid = int(par.mesh.grid_cells)
         nolast = noghost + nogrid -1
         first = noghost
         right_start = noghost + nogrid

@@ -6,7 +6,7 @@ import numpy as np
 def get_time_step(solver, mesh, fluid, par, CFL=None):
     """Return a CFL-limited timestep in the active time coordinate."""
     if CFL is None:
-        CFL = par.CFL
+        CFL = par.hydrodynamics.CFL
     fluid.SetSoundSpeed()
     vsignal = np.absolute(fluid.vel) + fluid.cs
     xdelta = mesh.xdelta
@@ -28,8 +28,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     active_xdelta = xdelta
     active_density = density
     active_vsignal = vsignal
-    first = int(getattr(par, 'noghost', 0))
-    active_count = int(getattr(par, 'nogrid', len(vsignal)))
+    first = int(par.mesh.ghost_cells)
+    active_count = int(par.mesh.grid_cells)
     active_slice = slice(first, first + active_count)
     if (
         xdelta.ndim == 1
@@ -58,7 +58,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
         active_vsignal[zero_density] = 0.0
     dt_array = solver._safe_divide(CFL * active_xdelta, active_vsignal)
-    dtmax = float(np.asarray(par.dtmax, dtype=float))
+    dtmax_value = par.timestep.dtmax
+    dtmax = float(np.asarray(dtmax_value, dtype=float))
     dt_array = np.where(active_vsignal != 0.0, dt_array, dtmax)
     dt = np.amin(dt_array)
     fluid.vsignal = np.asarray(vsignal, dtype=float)
@@ -72,7 +73,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         print('fluid.vel', fluid.vel)
         print('fluid.cs', fluid.cs)
         raise Exception(" time step is nan")
-    if dt < float(np.asarray(par.dtmin, dtype=float)):
+    dtmin_value = par.timestep.dtmin
+    if dt < float(np.asarray(dtmin_value, dtype=float)):
         active_index = int(np.argmin(dt_array))
         min_index = active_index + first
         if len(np.asarray(fluid.vel)) == len(active_vsignal):
@@ -84,7 +86,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             "at cell %d (rho=%.2e, vel=%.2e, cs=%.2e, dx=%.2e)"
             % (
                 dt,
-                par.dtmin,
+                dtmin_value,
                 min_index,
                 active_density[active_index],
                 fluid.vel[diagnostic_index],
@@ -98,7 +100,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         getattr(par, 'verbose', 0) >= 1
         # Keep routine CFL reductions quiet; report only a timestep that
         # has fallen at least four decades below the configured maximum.
-        and dt <= 1.0e-4 * float(np.asarray(par.dtmax, dtype=float))
+        and dt <= 1.0e-4 * dtmax
     ):
         min_index = int(np.argmin(dt_array))
         if len(np.asarray(fluid.vel)) == len(active_vsignal):
@@ -119,8 +121,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 np.asarray(vsignal)[diagnostic_index],
                 np.asarray(mesh.xdelta)[diagnostic_index],
                 np.asarray(fluid.pre)[diagnostic_index],
-                par.dtmin,
-                par.dtmax,
+                dtmin_value,
+                dtmax_value,
             )
         )
         cell_volume = np.asarray(mesh.vol)[diagnostic_index]
@@ -155,7 +157,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         )
         neighbor_start = max(first, diagnostic_index - 2)
         neighbor_stop = min(
-            first + int(getattr(par, 'nogrid', len(np.asarray(fluid.rho)))),
+        first + int(par.mesh.grid_cells),
             diagnostic_index + 3,
         )
         print('[hydro dt neighbors] idx radius rho vel cs pre')

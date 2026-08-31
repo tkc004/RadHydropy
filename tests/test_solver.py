@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 from unittest.mock import patch
 
 import numpy as np
@@ -31,6 +32,30 @@ class Par:
         self.vel_outflow = 6.0 * unyt.cm/unyt.s
         self.temp_outflow = 0.0 * unyt.K
         self.mu_outflow = 1.0
+        self.mesh = SimpleNamespace(ghost_cells=2, grid_cells=4)
+        self.hydrodynamics = SimpleNamespace(
+            CFL=0.1, gamma=5.0 / 3.0, riemann_solver='Rusanov', order=0,
+        )
+        self.boundary = SimpleNamespace(
+            condition=boundcond,
+            inflow_density=self.rho_inflow,
+            inflow_velocity=self.vel_inflow,
+            inflow_temperature=self.temp_inflow,
+            inflow_mu=self.mu_inflow,
+            outflow_density=self.rho_outflow,
+            outflow_velocity=self.vel_outflow,
+            outflow_temperature=self.temp_outflow,
+            outflow_mu=self.mu_outflow,
+        )
+        self.radiation = SimpleNamespace(
+            radiative_transfer=False,
+            method='long_characteristics',
+            direction=1,
+            boundary_flux=0.0,
+            source_photon_rate=0.0,
+        )
+        self.timestep = SimpleNamespace(dtmin=self.dtmin, dtmax=self.dtmax)
+        self.units = SimpleNamespace(CodeUnits=None)
 
 
 class EOS:
@@ -145,6 +170,14 @@ def make_code_par(boundcond='Periodic'):
     par.radiative_transfer_boundary_flux = 0.0
     par.radiative_transfer_source_photon_rate = 0.0
     par.radiative_transfer_direction = 1
+    par.mesh.grid_cells = par.nogrid
+    par.mesh.ghost_cells = par.noghost
+    par.hydrodynamics.CFL = par.CFL
+    par.hydrodynamics.gamma = par.gamma if hasattr(par, 'gamma') else 5.0 / 3.0
+    par.boundary.condition = par.boundcond
+    par.timestep.dtmin = par.dtmin
+    par.timestep.dtmax = par.dtmax
+    par.units.CodeUnits = par.CodeUnits
     return par
 
 
@@ -184,11 +217,11 @@ class Testing(unittest.TestCase):
 
     def test_callreadhdf5_requires_code_units(self):
         sim = Rsim.__new__(Rsim)
-        sim.par = SimpleNamespace(ICfilename='dummy.hdf5')
+        sim.par = parameter_namespace(ICfilename='dummy.hdf5')
         sim.mesh = SimpleNamespace()
         sim.fluid = SimpleNamespace()
 
-        with self.assertRaisesRegex(ValueError, "par\\.CodeUnits"):
+        with self.assertRaisesRegex(ValueError, "configured code units"):
             sim.Callreadhdf5()
 
     @patch('radhydropy.rsim.rio.readhdf5')
@@ -206,7 +239,7 @@ class Testing(unittest.TestCase):
             }
         )
         sim = Rsim.__new__(Rsim)
-        sim.par = SimpleNamespace(
+        sim.par = parameter_namespace(
             ICfilename='dummy.hdf5',
             CodeUnits=CODE_UNITS,
             EOStype='polytropic',
@@ -224,6 +257,11 @@ class Testing(unittest.TestCase):
             par.gamma = 5.0 / 3.0
             par.CodeUnits = restored_units
             par.time = 7.0
+            par.hydrodynamics.eos_type = 'polytropic'
+            par.hydrodynamics.gamma = 5.0 / 3.0
+            par.units.CodeUnits = restored_units
+            par.simulation.current_time = 7.0
+            par.mesh.grid_cells = 1
 
         readhdf5.side_effect = restore_header
         sim.Callreadhdf5()
@@ -453,7 +491,9 @@ class Testing(unittest.TestCase):
         # The first active cell is adjacent to the exact spherical origin.
         par = make_code_par('Reflecting')
         par.noghost = 1
+        par.mesh.ghost_cells = 1
         par.nogrid = 4
+        par.mesh.grid_cells = 4
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
         par.positivity_preserving = False
@@ -512,6 +552,7 @@ class Testing(unittest.TestCase):
             noghost=0, nogrid=2, gas_angular_momentum=True,
             gas_rotational_energy=True, energy_diagnostics=True,
         )
+        source_par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
         solver.ApplyGravity(0.1, source_mesh, source_fluid, source_par)
         self.assertEqual(float(source_fluid.Mom[0]), 0.0)
         self.assertGreater(float(source_fluid.Mom[1]), 0.0)
@@ -957,7 +998,9 @@ class Testing(unittest.TestCase):
     def test_positivity_limiter_preserves_mass_and_internal_energy(self):
         par = make_code_par()
         par.noghost = 0
+        par.mesh.ghost_cells = 0
         par.nogrid = 4
+        par.mesh.grid_cells = 4
         par.positivity_preserving = True
         mesh = make_code_mesh(4)
         mesh._par = par
@@ -982,7 +1025,9 @@ class Testing(unittest.TestCase):
         """Neighboring restrictions must not survive a fixed repair count."""
         par = make_code_par()
         par.noghost = 0
+        par.mesh.ghost_cells = 0
         par.nogrid = 5
+        par.mesh.grid_cells = 5
         par.positivity_preserving = True
         par.positivity_density_floor = 0.0
         par.positivity_energy_floor = 0.0
@@ -1049,7 +1094,9 @@ class Testing(unittest.TestCase):
         """Dual energy must not hide an inadmissible conservative state."""
         par = make_code_par()
         par.noghost = 0
+        par.mesh.ghost_cells = 0
         par.nogrid = 1
+        par.mesh.grid_cells = 1
         par.positivity_preserving = True
         par.positivity_density_floor = 0.0
         par.positivity_energy_floor = 0.0
@@ -1075,7 +1122,9 @@ class Testing(unittest.TestCase):
         """A tiny positive E-K must not create a spurious cold cell."""
         par = make_code_par()
         par.noghost = 0
+        par.mesh.ghost_cells = 0
         par.nogrid = 1
+        par.mesh.grid_cells = 1
         par.cfl_density_floor = 0.0
         par.dual_energy = True
         par.dual_energy_pressure_selection = 'switch'
@@ -1102,7 +1151,9 @@ class Testing(unittest.TestCase):
         """The YAML internal mode must not reconstruct pressure from E-K."""
         par = make_code_par()
         par.noghost = 0
+        par.mesh.ghost_cells = 0
         par.nogrid = 1
+        par.mesh.grid_cells = 1
         par.cfl_density_floor = 0.0
         par.dual_energy = True
         par.dual_energy_pressure_selection = 'internal'
@@ -1597,7 +1648,7 @@ class Testing(unittest.TestCase):
     def test_rsim_evolve_uses_step_and_history_callback(self):
         par = make_code_par()
         par.hydrogen_chemistry = False
-        par.dtmax = 0.2
+        par.timestep.dtmax = 0.2
         mesh = make_code_mesh()
         fluid = make_code_fluid()
         fluid.rho = np.ones(8, dtype=float)

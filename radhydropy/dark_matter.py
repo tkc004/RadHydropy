@@ -16,15 +16,15 @@ class EnclosedGasMassProfile:
     def __init__(self, mesh, rho, par):
         code_units = _code_units(par)
         if code_units is None:
-            raise ValueError("gas mass coupling requires par.CodeUnits")
+            raise ValueError("gas mass coupling requires configured code units")
         boundaries = np.asarray(
             quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
         )
         density = np.asarray(
             quantity_to_value(rho, code_units.density_unit), dtype=float
         )
-        first = int(par.noghost)
-        last = first + int(par.nogrid)
+        first = int(par.mesh.ghost_cells)
+        last = first + int(par.mesh.grid_cells)
         self.inner = boundaries[first:last]
         self.outer = boundaries[first + 1:last + 1]
         self.density = density[first:last]

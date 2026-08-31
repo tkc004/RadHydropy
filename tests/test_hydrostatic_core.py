@@ -1,5 +1,6 @@
 import numpy as np
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 from radhydropy.eos import EOS
 from radhydropy.solver import Solver
@@ -30,7 +31,7 @@ def _core_problem(model="hydrostatic_fixed"):
         mu=np.ones(6),
         pre=np.ones(6),
     )
-    par = SimpleNamespace(
+    par = parameter_namespace(
         gas_core_model=model,
         gas_core_radius=10.0,
         noghost=1,

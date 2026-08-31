@@ -117,6 +117,41 @@ def build_problem(config):
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
     )
+    # Runtime code consumes explicit nested parameter groups.  Keep the flat
+    # fields above as configuration metadata, but make the runtime groups
+    # authoritative for the returned fixture.
+    par.mesh = SimpleNamespace(ghost_cells=par.noghost, grid_cells=par.nogrid, area=par.area)
+    par.simulation = SimpleNamespace(
+        coordinate_system=par.coordsys,
+        final_time=par.timesim,
+        initial_condition_filename=_config_value(config, 'ICfilename'),
+        current_time=0.0 * unyt.Myr,
+        box_size=par.boxsize,
+    )
+    par.hydrodynamics = SimpleNamespace(
+        eos_type=par.EOStype,
+        gamma=par.gamma,
+        CFL=par.CFL,
+        order=par.order,
+        riemann_solver=_config_value(config, 'riemann_solver', default='Rusanov'),
+    )
+    par.units = SimpleNamespace(CodeUnits=code_units_obj)
+    par.boundary = SimpleNamespace(condition=par.boundcond)
+    par.timestep = SimpleNamespace(dtmin=par.dtmin, dtmax=par.dtmax)
+    par.output = SimpleNamespace(
+        directory=par.outdir,
+        filename_prefix=par.outfileprefix,
+        cadence=None,
+        time_list_filename=par.outputtimefilename,
+    )
+    par.radiation = SimpleNamespace(
+        radiative_transfer=par.radiative_transfer,
+        method=par.radiative_transfer_method,
+        temporal_scheme=par.radiative_transfer_temporal_scheme,
+        direction=par.radiative_transfer_direction,
+        boundary_flux=par.radiative_transfer_boundary_flux,
+        source_photon_rate=par.radiative_transfer_source_photon_rate,
+    )
 
     mesh = Mesh()
     mesh.boundary = np.linspace(
@@ -150,8 +185,8 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
-    par.time = np.asarray(par.time, dtype=float) * code_units_obj.time_unit
-    par.boxsize = np.asarray(par.boxsize, dtype=float) * code_units_obj.length_unit
+    par.Time = np.asarray(par.Time, dtype=float) * code_units_obj.time_unit
+    par.BoxSize = np.asarray(par.BoxSize, dtype=float) * code_units_obj.length_unit
     fluid.time = np.asarray(fluid.time, dtype=float) * code_units_obj.time_unit
     mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units_obj.length_unit
     fluid.rho = np.asarray(fluid.rho, dtype=float) * code_units_obj.density_unit

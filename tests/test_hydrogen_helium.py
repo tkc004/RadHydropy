@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 
@@ -142,7 +143,7 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
             vol=np.array([1.0]),
             coordinate=np.array([0.5]),
         )
-        par = SimpleNamespace(
+        par = parameter_namespace(
             CodeUnits=code,
             noghost=0,
             nogrid=1,

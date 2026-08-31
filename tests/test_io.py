@@ -3,6 +3,7 @@ import unittest
 import os
 from pathlib import Path
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 import unyt
@@ -33,7 +34,7 @@ class Testing(unittest.TestCase):
         return float(np.ravel(np.asarray(value))[0])
 
     def test_hdf5_roundtrip_handles_scalar_header_quantities(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=0.0 * unyt.s,
@@ -50,7 +51,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -63,7 +64,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(self._scalar_value(loaded_fluid.time), 0.0)
 
     def test_hdf5_roundtrip_preserves_gas_angular_momentum_fields(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=0.0 * unyt.s,
@@ -84,7 +85,7 @@ class Testing(unittest.TestCase):
             AngularMomentum=angular,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -98,7 +99,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(loaded_fluid.AngularMomentum, np.asarray(angular))
 
     def test_writehdf5_writes_all_par_values_into_header_attributes(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=1.5 * unyt.s,
@@ -149,7 +150,7 @@ class Testing(unittest.TestCase):
                 )
 
     def test_readhdf5_restores_header_attributes_and_code_units(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=1.5 * unyt.s,
@@ -168,7 +169,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace()
+        loaded_par = parameter_namespace()
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -186,7 +187,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
 
     def test_writehdf5_does_not_mutate_par_time(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=1.5 * unyt.s,
@@ -211,7 +212,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par.time, 1.5 * unyt.s)
 
     def test_hdf5_roundtrip_preserves_neutral_fraction_when_present(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
@@ -229,7 +230,7 @@ class Testing(unittest.TestCase):
             xHI=np.array([1.0, 0.5, 0.0]),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -241,7 +242,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(loaded_fluid.xHI, fluid.xHI)
 
     def test_hdf5_roundtrip_preserves_photon_number_density_when_present(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
@@ -259,7 +260,7 @@ class Testing(unittest.TestCase):
             ngamma=np.array([0.0, 1.0, 2.0]) / unyt.cm**3,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -272,7 +273,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma), fluid.ngamma.value)
 
     def test_hdf5_roundtrip_preserves_internal_energy_when_present(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
@@ -290,7 +291,7 @@ class Testing(unittest.TestCase):
             InternalEnergy=np.array([1.0, 2.0, 3.0]) * unyt.erg,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -306,7 +307,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_readhdf5_errors_when_header_missing_code_units(self):
-        par = SimpleNamespace(
+        par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time=np.array([0.0]) * unyt.s,
@@ -323,7 +324,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-        loaded_par = SimpleNamespace(coordsys='cartesian')
+        loaded_par = parameter_namespace(coordsys='cartesian')
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
 
@@ -353,7 +354,7 @@ class Testing(unittest.TestCase):
                     )
                 )
 
-                par = SimpleNamespace(
+                par = parameter_namespace(
                     coordsys='cartesian',
                     nogrid=3,
                     time=0.0 * unyt.s,
@@ -390,7 +391,7 @@ class Testing(unittest.TestCase):
                 os.chdir(tmpdir)
                 Path('used_parameters.yaml').write_text('runparams: [unclosed\n')
 
-                par = SimpleNamespace(
+                par = parameter_namespace(
                     coordsys='cartesian',
                     nogrid=3,
                     time=0.0 * unyt.s,

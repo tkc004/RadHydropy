@@ -80,7 +80,7 @@ class Fluid():
         """
         code_units = _code_units(par)
         if code_units is None:
-            raise ValueError("SetUpFluid requires par.CodeUnits")
+            raise ValueError("SetUpFluid requires configured code units")
         self.CodeUnits = code_units
         self.supercomoving = bool(getattr(par, 'supercomoving_coordinates', False))
         self.time = 0.0
@@ -116,7 +116,7 @@ class Fluid():
         if getattr(par, 'supercomoving_coordinates', False):
             if not hasattr(par, 'cosmology'):
                 raise ValueError("supercomoving coordinates require par.cosmology")
-            a, hubble = supercomoving_scale(par, time=par.time)
+            a, hubble = supercomoving_scale(par, time=self.time)
             gamma = float(self.eos.gamma)
             if getattr(par, 'density_representation', 'physical') == 'physical':
                 self.rho = as_named_array(to_supercomoving_density(self.rho, a))
@@ -127,8 +127,8 @@ class Fluid():
                     raise ValueError(
                         "physical velocity ICs require mesh for supercomoving conversion"
                     )
-                first = int(par.noghost)
-                last = first + int(par.nogrid)
+                first = int(par.mesh.ghost_cells)
+                last = first + int(par.mesh.grid_cells)
                 radius = np.asarray(mesh.coordinate[first:last], dtype=float)
                 self.vel = as_named_array(
                     to_supercomoving_velocity(self.vel, radius, a, hubble)
@@ -191,7 +191,7 @@ class Fluid():
             
 
         #add ghost cells:
-        noghost = par.noghost
+        noghost = int(par.mesh.ghost_cells)
         for iattr, attr in enumerate(attrlist): 
             quan = getattr(self, attr)
             #print('attr,qaun',attr,quan)

@@ -194,7 +194,7 @@ radhydropy/
   mesh.py                mesh and geometry setup
   params.py              default runtime parameters
   radiative_transfer.py  one-dimensional radiative-transfer routines
-  rsim.py                high-level simulation runner
+  rsim/                  high-level simulation runner and execution components
   solver.py              finite-volume update operations
   thermo_chemistry.py    thermo-chemistry source terms
   thermo_networks/       thermo-network implementations

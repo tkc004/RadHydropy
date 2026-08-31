@@ -152,9 +152,13 @@ def _apply_inflow_spherical_boundary(
 ):
     solver._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
     right_state = {
-        'rho': par.rho_inflow,
-        'vel': par.vel_inflow,
-        'pre': fluid.eos.pressure(par.rho_inflow, par.temp_inflow, par.mu_inflow),
+        'rho': par.boundary.inflow_density,
+        'vel': par.boundary.inflow_velocity,
+        'pre': fluid.eos.pressure(
+            par.boundary.inflow_density,
+            par.boundary.inflow_temperature,
+            par.boundary.inflow_mu,
+        ),
     }
     if hasattr(fluid, 'specific_angular_momentum'):
         right_state['specific_angular_momentum'] = getattr(
@@ -182,9 +186,13 @@ def _apply_outflow_spherical_boundary(
     noghost,
 ):
     left_state = {
-        'rho': par.rho_outflow,
-        'vel': par.vel_outflow,
-        'pre': fluid.eos.pressure(par.rho_outflow, par.temp_outflow, par.mu_outflow),
+        'rho': par.boundary.outflow_density,
+        'vel': par.boundary.outflow_velocity,
+        'pre': fluid.eos.pressure(
+            par.boundary.outflow_density,
+            par.boundary.outflow_temperature,
+            par.boundary.outflow_mu,
+        ),
     }
     if hasattr(fluid, 'specific_angular_momentum'):
         left_state['specific_angular_momentum'] = getattr(

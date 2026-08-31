@@ -3,6 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 import unyt
@@ -108,8 +109,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
         module.Simwrap(icparams, code_units=code_units),
         code_units,
     )
-
-    par = SimpleNamespace(
+    par = parameter_namespace(
         noghost=2,
         nogrid=icparams["nogrid"],
         coordsys="cartesian",
@@ -118,6 +118,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
         dtmin=1.0e-20,
         dtmax=1.0,
         order=0,
+        riemann_solver='Rusanov',
         gravity=Gravity(
             externalgravity=True,
             acceleration=module.constant_gravity_acceleration(

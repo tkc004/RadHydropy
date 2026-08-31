@@ -5,6 +5,7 @@ import tempfile
 import unyt
 from pathlib import Path
 from types import SimpleNamespace
+from tests.parameter_fixtures import parameter_namespace
 
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmological_variables import (
@@ -155,6 +156,7 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
         time = tau
         nogrid = 1
         noghost = 0
+        mesh = SimpleNamespace(ghost_cells=0, grid_cells=1)
         gas_rotational_energy = True
         gas_angular_momentum = True
         energy_diagnostics = True
@@ -247,7 +249,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     rotational_specific_energy = (
         0.5 * (specific_quantity / radius_quantity)**2
     )
-    par = SimpleNamespace(
+    par = parameter_namespace(
         coordsys='spherical', nogrid=2, noghost=0,
         CodeUnits=units, time=tau_initial,
         boxsize=3.0 * units.length_unit,
@@ -278,7 +280,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     with tempfile.TemporaryDirectory() as directory:
         filename = Path(directory) / 'angular_momentum_restart.hdf5'
         rio.writehdf5(sim, filename)
-        loaded_par = SimpleNamespace()
+        loaded_par = parameter_namespace()
         loaded_mesh = SimpleNamespace()
         loaded_fluid = SimpleNamespace()
         rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, filename)
@@ -317,7 +319,7 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     units = code_units()
     cosmology = EinsteinDeSitter.from_code_units(units)
     tau = cosmology.supercomoving_time(2.0)
-    par = SimpleNamespace(
+    par = parameter_namespace(
         coordsys='cartesian', nogrid=2, noghost=0,
         CodeUnits=units, time=tau, boxsize=2.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
@@ -343,7 +345,7 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
             assert header.attrs['CosmologyType'] == 'einstein_de_sitter'
             assert header.attrs['TimeCoordinate'] == 'supercomoving'
             assert header.attrs['ScaleFactor'] == pytest.approx(2.0 ** (2.0 / 3.0))
-        loaded = SimpleNamespace()
+        loaded = parameter_namespace()
         rio.readhdf5(loaded, SimpleNamespace(), SimpleNamespace(), filename)
         assert loaded.cosmological_expansion
         assert loaded.supercomoving_coordinates
@@ -357,7 +359,7 @@ def test_lambda_cdm_header_round_trip():
         hubble_ref=0.4,
     )
     tau = cosmology.supercomoving_time(2.0)
-    par = SimpleNamespace(
+    par = parameter_namespace(
         coordsys='cartesian', nogrid=1, noghost=0,
         CodeUnits=units, time=tau, boxsize=1.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
@@ -374,7 +376,7 @@ def test_lambda_cdm_header_round_trip():
     with tempfile.TemporaryDirectory() as directory:
         filename = Path(directory) / 'lambda_cdm.hdf5'
         rio.writehdf5(sim, filename)
-        loaded = SimpleNamespace()
+        loaded = parameter_namespace()
         rio.readhdf5(loaded, SimpleNamespace(), SimpleNamespace(), filename)
         assert loaded.cosmology.type_name == 'lambda_cdm'
         assert loaded.cosmology.omega_m == pytest.approx(0.3)
@@ -403,3 +405,76 @@ def test_par_constructs_lambda_cdm_from_parameters():
     })
     assert par.cosmology.type_name == "lambda_cdm"
     assert par.cosmology._hubble_ref == pytest.approx(0.4)
+    assert par.cosmology.type == "lambda_cdm"
+    assert par.cosmology.model.type_name == "lambda_cdm"
+    assert par.units.CodeUnits is not None
+    assert par.units.unit_system is par.unit_system
+    assert par.hydrodynamics.eos_type == "polytropic"
+    assert par.hydrodynamics.gamma == pytest.approx(1.4)
+    assert par.hydrodynamics.temperature == par.temperature
+    assert par.hydrodynamics.dual_energy is False
+    assert par.boundary.condition == "Periodic"
+    assert par.boundary.inflow_density == 1.0 * unyt.g / unyt.cm**3
+    assert par.timestep.dtmin == 2.0e-8 * unyt.s
+    assert par.timestep.dtmax == 2.0e-1 * unyt.s
+    assert par.timestep.cooling_safety_factor == pytest.approx(0.1)
+    assert par.timestep.relaxation_damping_time == par.relaxation_damping_time
+    assert par.thermochemistry.network == "hydrogen"
+    assert par.thermochemistry.cie_cooling is False
+    assert par.thermochemistry.metallicity == pytest.approx(1.0)
+    assert par.thermochemistry.hydrogen_atomic_cooling is True
+    assert par.gravity.selfgravity is False
+    assert par.gravity.model is None
+    assert par.gravity.potential_energy is False
+    assert par.output.directory == par.outdir
+    assert par.output.savedir == par.savedir
+    assert par.output.filename_prefix == par.outfileprefix
+    assert par.simulation.name == par.simname
+    assert par.simulation.coordinate_system == "cartesian"
+    assert par.simulation.final_time == 2.0 * unyt.s
+    assert par.diagnostics.verbose == par.verbose
+    assert par.diagnostics.energy_diagnostics is False
+    assert par.mesh.ghost_cells == 2
+    assert par.mesh.area == par.area
+    assert par.chemistry.key == "H"
+    assert par.chemistry.hydrogen_mass_fraction == pytest.approx(1.0)
+    assert par.chemistry.hydrogen_xHI_initial == pytest.approx(1.0)
+    assert par.chemistry.helium_coupled_implicit is True
+    assert par.chemistry.implicit_max_iterations == 32
+    assert par.chemistry.implicit_fallback == "explicit"
+    assert par.chemistry.alpha_B is None
+    assert par.chemistry.beta is None
+    assert par.angular_momentum.enabled is False
+    assert par.angular_momentum.flux_scheme == "fct"
+    assert par.angular_momentum.inflow == par.specific_angular_momentum_inflow
+    assert par.dark_matter_config.crossing_safety_factor == pytest.approx(0.1)
+    assert par.dark_matter_config.global_timestep_limit is True
+    assert par.radiation.radiative_transfer_method == "long_characteristics"
+    assert par.radiation.radiation_pressure_efficiency == pytest.approx(1.0)
+    assert par.radiation.c2ray_max_iterations == 32
+    assert par.radiation.c2ray_nonconvergence == "warn"
+    assert par.radiation.compton_cmb_enabled is False
+    assert par.radiation.hydrogen_radiation_evolution is True
+    assert par.radiation.hydrogen_ngamma_initial == par.hydrogen_ngamma_initial
+    assert par.dual_energy_config.enabled is False
+    assert par.dual_energy_config.pressure_selection == "switch"
+    assert par.positivity.enabled is True
+    assert par.positivity.density_floor == pytest.approx(0.0)
+
+
+def test_par_gravity_assignment_updates_nested_model():
+    par = Par({"CodeUnits": code_units()})
+    model = SimpleNamespace(acceleration_on_mesh=lambda *args: None)
+    par.gravity.model = model
+    assert par.gravity.model is model
+    assert par.gravity.acceleration_on_mesh is model.acceleration_on_mesh
+
+
+def test_par_rejects_unknown_run_parameters():
+    with pytest.raises(ValueError, match="unknown run parameter.*typo"):
+        Par({"CodeUnits": code_units(), "typo": True})
+
+
+def test_par_warns_when_verbose_defaults_are_used():
+    with pytest.warns(UserWarning, match="run parameter 'gamma'.*default"):
+        Par({"CodeUnits": code_units(), "verbose": 1})

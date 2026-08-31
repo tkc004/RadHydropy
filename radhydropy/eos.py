@@ -159,7 +159,9 @@ class EOS:
         if not self.is_isothermal:
             raise ValueError('piecewise isothermal state requires an isothermal EOS')
 
-        interior = slice(par.noghost, par.noghost + par.nogrid)
+        ghost_cells = int(par.mesh.ghost_cells)
+        grid_cells = int(par.mesh.grid_cells)
+        interior = slice(ghost_cells, ghost_cells + grid_cells)
         ionized_fraction = 1.0 - np.clip(fluid.xHI[interior], 0.0, 1.0)
         if ionized_fraction_threshold is None:
             fluid.temp[interior] = (

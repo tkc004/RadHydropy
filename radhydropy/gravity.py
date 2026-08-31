@@ -228,8 +228,8 @@ class Gravity:
         if rho.shape != coordinate.shape or volume.shape != coordinate.shape:
             raise ValueError("self-gravity inputs must match the mesh cell shape")
 
-        first = par.noghost
-        last = first + par.nogrid
+        first = int(par.mesh.ghost_cells)
+        last = first + int(par.mesh.grid_cells)
         interior = slice(first, last)
         result = np.zeros_like(coordinate)
         g_code = _gravitational_constant_code(code_units)
@@ -296,15 +296,20 @@ class Gravity:
         volume = np.asarray(
             quantity_to_value(mesh.vol, code_units.volume_unit), dtype=float
         )
-        first = int(par.noghost)
-        last = first + int(par.nogrid)
+        first = int(par.mesh.ghost_cells)
+        last = first + int(par.mesh.grid_cells)
         interior = slice(first, last)
         if not (density.shape == coordinate.shape == volume.shape):
             raise ValueError("cosmological gravity inputs must match mesh shape")
-        tau = float(np.asarray(getattr(par, "time", 0.0), dtype=float))
-        # A simulation's fluid time is authoritative once the run has started.
-        if hasattr(par, "fluid_time"):
-            tau = float(np.asarray(par.fluid_time, dtype=float))
+        tau = float(
+            np.asarray(
+                getattr(getattr(par, 'simulation', None), 'current_time', 0.0),
+                dtype=float,
+            )
+        )
+        # A gravity model's live fluid time is authoritative once the run has started.
+        if hasattr(self, 'fluid_time'):
+            tau = float(np.asarray(self.fluid_time, dtype=float))
         cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
         background_physical = float(cosmology.background_density(cosmic_time))
         background_comoving = background_physical * scale_factor**3
@@ -397,7 +402,10 @@ class Gravity:
                 raise ValueError(
                     "cosmological dark-matter shells require supercomoving cosmology"
                 )
-            tau = float(np.asarray(getattr(par, "fluid_time", getattr(par, "time", 0.0)), dtype=float))
+            tau = float(np.asarray(
+                getattr(getattr(par, 'simulation', None), 'current_time', 0.0),
+                dtype=float,
+            ))
             cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
             tau_start = tau - float(dt)
             if tau_start < 0.0:

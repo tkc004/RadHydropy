@@ -64,8 +64,8 @@ def check_conserved_energy_admissibility(
         # Source-only/unit-test states may not have been initialized with
         # hydrodynamic conserved fields.
         return
-    first = int(getattr(par, 'noghost', 0))
-    last = first + int(getattr(par, 'nogrid', 0))
+    first = int(par.mesh.ghost_cells)
+    last = first + int(par.mesh.grid_cells)
     volume = np.asarray(sim.mesh.vol, dtype=float)
     mass = np.asarray(sim.fluid.Mass, dtype=float)
     momentum = np.asarray(sim.fluid.Mom, dtype=float)
@@ -135,8 +135,8 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         crossing &= before <= threshold
     if not np.any(crossing):
         return
-    first = int(getattr(sim.par, 'noghost', 0))
-    last = first + int(getattr(sim.par, 'nogrid', len(temperature_after)))
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     candidates = np.flatnonzero(crossing)
     candidates = candidates[(candidates >= first) & (candidates < last)]
     if candidates.size == 0:
@@ -182,7 +182,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         )
     diagnostic = '\n'.join(lines)
     print(diagnostic)
-    output_dir = getattr(sim.par, 'outdir', None)
+    output_dir = sim.par.output.directory
     if output_dir is not None:
         try:
             filename = Path(output_dir) / 'temperature_jump_error.txt'
@@ -239,7 +239,7 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
         )
     )
     print(diagnostic)
-    output_dir = getattr(par, 'outdir', None)
+    output_dir = par.output.directory
     if output_dir is not None:
         try:
             filename = Path(output_dir) / 'temperature_jump_error.txt'

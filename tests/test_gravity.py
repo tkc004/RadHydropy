@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 from radhydropy.gravity import (
@@ -42,6 +43,7 @@ class DummyPar:
     selfgravity = False
     noghost = 0
     nogrid = 3
+    mesh = SimpleNamespace(ghost_cells=0, grid_cells=3)
 
 
 def _code_units():
@@ -180,6 +182,8 @@ def test_cosmological_gravity_cancels_homogeneous_background(cosmology_type):
         nogrid = 3
         time = tau
         supercomoving_coordinates = True
+        mesh = SimpleNamespace(ghost_cells=0, grid_cells=3)
+        simulation = SimpleNamespace(current_time=tau)
     par = Par()
     par.cosmology = cosmology
 
@@ -215,6 +219,8 @@ def test_cosmological_gravity_scales_excess_mass_with_scale_factor(cosmology_typ
         nogrid = 3
         time = tau
         supercomoving_coordinates = True
+        mesh = SimpleNamespace(ghost_cells=0, grid_cells=3)
+        simulation = SimpleNamespace(current_time=tau)
     par = Par()
     par.cosmology = cosmology
 
