@@ -122,15 +122,23 @@ class Simwrap:
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        from types import SimpleNamespace
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        self.par.nogrid = icparams['grid_cells']
+        self.par.coordsys = icparams['coordinate_system']
+        self.par.boxsize = np.ones(1) * icparams['box_size']
+        self.par.time = np.ones(1) * icparams['current_time']
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=self.par.coordsys,
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+        )
 
         self.mesh.boundary = np.linspace(
-            icparams['rmin'],
-            icparams['rmax'],
+            icparams['inner_radius'],
+            icparams['outer_radius'],
             self.par.nogrid + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
@@ -142,12 +150,12 @@ class Simwrap:
             / 3.0
         )
 
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.temp = np.ones(self.par.nogrid) * icparams['initial_temperature']
+        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
         self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
         self.fluid.rho = ballistic_density_profile(
             self.mesh.coordinate,
-            icparams['rho_ref'],
+            icparams['reference_density'],
         )
 
 
@@ -168,7 +176,7 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         xcoord = xall
         rho_num = rout.fluid.rho
         vel_num = rout.fluid.vel
-    rho_analytic = ballistic_density_profile(xcoord, icparams['rho_ref'])
+    rho_analytic = ballistic_density_profile(xcoord, icparams['reference_density'])
     vel_analytic = ballistic_velocity_profile(
         xcoord,
         icparams['point_mass'],

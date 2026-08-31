@@ -26,6 +26,7 @@ Fixed (nested par / initial_condition / example configuration)
 - StaticStromgrenC2RayComparison
 - StaticStromgrenSphere1D
 - StaticStromgrenSpherePhotoheating1D
+- BallisticInfallSphericalPointMass1D
 
 Notes
 -----

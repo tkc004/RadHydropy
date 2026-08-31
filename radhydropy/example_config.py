@@ -87,6 +87,19 @@ def load_example_parameters(config_filename, rundir=None):
         icparams.setdefault(
             'number_of_cells', mesh.get('grid_cells', icparams.get('grid_cells'))
         )
+        icparams.setdefault('nogrid', icparams.get('grid_cells'))
+        icparams.setdefault('coordsys', icparams.get('coordinate_system'))
+        icparams.setdefault('boxsize', icparams.get('box_size'))
+        for alias, source in (
+            ('rmin', 'inner_radius'),
+            ('rmax', 'outer_radius'),
+            ('rho_ref', 'reference_density'),
+            ('tempini', 'initial_temperature'),
+            ('muini', 'mean_molecular_weight'),
+            ('time', 'current_time'),
+        ):
+            if alias not in icparams and source in icparams:
+                icparams[alias] = icparams[source]
         for group in ('chemistry', 'thermochemistry', 'radiation'):
             runparams.update(nested_par.get(group, {}))
         runparams.setdefault(

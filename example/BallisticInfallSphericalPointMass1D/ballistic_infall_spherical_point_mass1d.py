@@ -11,7 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -36,14 +35,17 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    nested = eu.load_nested_example_config(config_filename)
+    runtime = nested['par']
+    ICparams = nested['initial_condition']
+    runparams = eu.legacy_example_parameters(nested)
+    eu.clean_previous_outputs(runtime['output'])
+    code_units_obj = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
     ric = et.Simwrap(ICparams, code_units=code_units_obj)
     rio.writehdf5(ric, runparams['ICfilename'])
 
-    mainrun = Rsim(runparams)
+    mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
     mainrun.SetMesh()
     mainrun.SetFluid()
@@ -52,15 +54,15 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         acceleration=et.point_mass_acceleration(
             ICparams['point_mass'],
-            code_units=mainrun.par.CodeUnits,
+            code_units=code_units_obj,
         ),
-        code_units=mainrun.par.CodeUnits,
+        code_units=code_units_obj,
     )
     mainrun.Run(mode='hydro')
 
     final_outfile = os.path.join(
-        runparams['outdir'],
-        runparams['outfileprefix'] + '_001.hdf5',
+        runtime['output']['directory'],
+        runtime['output']['filename_prefix'] + '_001.hdf5',
     )
     et.ReadandPlot(
         final_outfile,
@@ -73,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG):
         color='C0',
     )
     figure_filename = os.path.join(
-        runparams['savedir'],
+        runtime['output']['savedir'],
         'BallisticInfallSphericalPointMass1D.jpg',
     )
     plt.tight_layout()

@@ -1,6 +1,8 @@
 """Rsim execution subsystem helpers."""
 
 import time
+from dataclasses import fields, is_dataclass
+from collections.abc import Mapping
 import numpy as np
 import unyt
 
@@ -116,6 +118,84 @@ def ConvertParametersToCodeUnits(sim):
         'specific_angular_momentum': length_unit * units['velocity'],
     }
     apply_code_unit_specs(sim.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
+    nested_specs = {
+        "simulation": (
+            ("final_time", "time"),
+            ("current_time", "time"),
+            ("box_size", "length"),
+        ),
+        "output": (("cadence", "time"),),
+        "timestep": (
+            ("dtmin", "time"),
+            ("dtmax", "time"),
+            ("hydrogen_source_dtmin", "time"),
+        ),
+        "mesh": (("area", "area"),),
+        "boundary": (
+            ("inflow_velocity", "velocity"),
+            ("inflow_density", "density"),
+            ("inflow_temperature", "temperature"),
+            ("outflow_velocity", "velocity"),
+            ("outflow_density", "density"),
+            ("outflow_temperature", "temperature"),
+        ),
+        "radiation": (
+            ("boundary_flux", "photon_flux"),
+            ("source_photon_rate", "photon_rate"),
+            ("cmb_temperature_0", "temperature"),
+            ("hydrogen_ngamma_initial", "number_density"),
+            ("hydrogen_ngamma_inflow", "number_density"),
+            ("hydrogen_ngamma_outflow", "number_density"),
+            ("hydrogen_sigma_gamma", "area"),
+            ("hydrogen_epsilon_gamma", "energy"),
+        ),
+        "chemistry": (
+            ("hydrogen_alpha_B", "alpha"),
+            ("hydrogen_beta", "alpha"),
+            ("hydrogen_photon_energy", "energy"),
+        ),
+        "thermochemistry": (
+            ("cooling_temperature_floor", "temperature"),
+            ("hydrogen_implicit_absolute_temperature_tolerance", "temperature"),
+        ),
+    }
+    for group_name, specs in nested_specs.items():
+        group = getattr(sim.par, group_name, None)
+        if group is not None:
+            apply_code_unit_specs(group, specs, unit_map)
+    # The structured parameter groups are created before this conversion.
+    # Refresh the groups that contain values consumed directly by the runtime;
+    # otherwise, for example, ``simulation.final_time`` can retain the
+    # unitful YAML value while the flat ``timesim`` attribute is code-valued.
+    initialize_groups = getattr(sim.par, "_initialize_parameter_groups", None)
+    if initialize_groups is not None:
+        initialize_groups()
+        sync_simulation = getattr(
+            sim.par, "_sync_simulation_parameters", None
+        )
+        if sync_simulation is not None:
+            sync_simulation()
+    else:
+        for sync_name in (
+            "_sync_simulation_parameters",
+            "_sync_output_parameters",
+            "_sync_timestep_parameters",
+        ):
+            sync = getattr(sim.par, sync_name, None)
+            if sync is not None:
+                sync()
+    # Preserve compatibility with lightweight parameter namespaces used by
+    # component-level callers, which do not provide Par's sync methods.
+    simulation = getattr(sim.par, "simulation", None)
+    if simulation is not None and not hasattr(sim.par, "_sync_simulation_parameters"):
+        for nested_name, flat_name in (
+            ("final_time", "timesim"),
+            ("current_time", "time"),
+            ("box_size", "boxsize"),
+        ):
+            if hasattr(simulation, nested_name) and hasattr(sim.par, flat_name):
+                setattr(simulation, nested_name, getattr(sim.par, flat_name))
+    _require_unitless_runtime_parameters(sim)
     source_rate = getattr(
         sim.par,
         'radiative_transfer_source_photon_rate',
@@ -132,6 +212,64 @@ def ConvertParametersToCodeUnits(sim):
             )
         )
     sim._runtime_parameters_converted_to_code_units = True
+
+
+def _require_unitless_runtime_parameters(sim):
+    """Fail fast if any unitful value leaked into runtime parameters.
+
+    ``runparams`` is deliberately excluded because it preserves the original
+    unit-aware configuration for provenance and output.  ``units`` is also
+    excluded because it contains the code-unit definitions themselves.
+    """
+    leaked = []
+    visited = set()
+
+    def visit(value, path):
+        if value is None or id(value) in visited:
+            return
+        if hasattr(value, "to_value"):
+            leaked.append(path)
+            return
+        if isinstance(value, (str, bytes, int, float, bool, np.number)):
+            return
+        visited.add(id(value))
+        if isinstance(value, Mapping):
+            for name, child in value.items():
+                if name in {"CodeUnits", "unit_system"}:
+                    continue
+                visit(child, f"{path}.{name}")
+        elif is_dataclass(value):
+            for field in fields(value):
+                if field.name in {"CodeUnits", "unit_system", "model"}:
+                    continue
+                visit(getattr(value, field.name), f"{path}.{field.name}")
+        elif isinstance(value, (list, tuple, set)):
+            for index, child in enumerate(value):
+                visit(child, f"{path}[{index}]")
+        elif isinstance(value, np.ndarray) and value.dtype == object:
+            for index, child in np.ndenumerate(value):
+                visit(child, f"{path}{index}")
+        elif hasattr(value, "__dict__"):
+            for name, child in vars(value).items():
+                if name.startswith("_") or name in {
+                    "runparams", "units", "unit_system", "CodeUnits", "model",
+                }:
+                    continue
+                visit(child, f"{path}.{name}")
+
+    for name, value in vars(sim.par).items():
+        if name in {"runparams", "units", "unit_system", "CodeUnits"}:
+            continue
+        visit(value, f"par.{name}")
+
+    if leaked:
+        names = ", ".join(leaked[:20])
+        if len(leaked) > 20:
+            names += f", ... ({len(leaked)} total)"
+        raise TypeError(
+            "runtime parameters must be unitless code values after startup "
+            f"conversion; unitful value(s) found in: {names}"
+        )
 
 def _require_code_units(sim):
     """Return the active code-unit system or fail fast during startup."""

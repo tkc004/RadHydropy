@@ -98,6 +98,10 @@ def run_with_output_times(
             )
         else:
             code_units = getattr(sim.par, 'CodeUnits', None)
+            if code_units is None:
+                code_units = getattr(
+                    getattr(sim.par, 'units', None), 'CodeUnits', None
+                )
             sorted_values = np.unique(
                 np.asarray(output_times.to_value(unyt.s), dtype=float)
                 / code_unit_scales(code_units)['time_s']

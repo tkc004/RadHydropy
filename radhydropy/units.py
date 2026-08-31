@@ -82,8 +82,11 @@ _CODE_UNIT_GROUPS = (
             ('dtmax', 'time'),
             ('relaxation_damping_time', 'time'),
             ('outdeltatime', 'time'),
+            ('hydrogen_source_dtmin', 'time'),
             ('boxsize', 'length'),
             ('area', 'area'),
+            ('selfgravity_softening', 'length'),
+            ('selfgravity_boundary_acceleration', 'acceleration'),
             ('rho_inflow', 'density'),
             ('rho_outflow', 'density'),
             ('vel_inflow', 'velocity'),
@@ -93,6 +96,10 @@ _CODE_UNIT_GROUPS = (
             ('temperature', 'temperature'),
             ('temp_inflow', 'temperature'),
             ('temp_outflow', 'temperature'),
+            ('cooling_temperature_floor', 'temperature'),
+            ('hydrogen_implicit_absolute_temperature_tolerance', 'temperature'),
+            ('cmb_temperature_0', 'temperature'),
+            ('hydrogen_photon_energy', 'energy'),
             ('hydrogen_ngamma_initial', 'number_density'),
             ('hydrogen_ngamma_inflow', 'number_density'),
             ('hydrogen_ngamma_outflow', 'number_density'),
@@ -189,8 +196,21 @@ def from_unit_value(value, unit):
 def apply_code_unit_specs(obj, specs, units):
     """Apply code-unit conversions for each named attribute in ``specs``."""
     for attr, unit_key in specs:
+        parameter_values = getattr(obj, "_parameter_values", None)
         if hasattr(obj, attr):
-            setattr(obj, attr, quantity_to_value(getattr(obj, attr), units[unit_key]))
+            source = getattr(obj, attr)
+        elif parameter_values is not None and attr in parameter_values:
+            source = parameter_values[attr]
+        else:
+            continue
+        value = quantity_to_value(source, units[unit_key])
+        if hasattr(obj, attr):
+            setattr(obj, attr, value)
+        # ``Par`` uses this mapping as the source of truth when rebuilding its
+        # nested runtime groups. Keep it synchronized with the conversion,
+        # including fields intentionally exposed only through nested groups.
+        if parameter_values is not None and attr in parameter_values:
+            parameter_values[attr] = value
 
 
 def time_seconds(value, code_units=None):
