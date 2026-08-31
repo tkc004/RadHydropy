@@ -45,8 +45,25 @@ def load_example_parameters(config_filename, rundir=None):
     with config_filename.open() as config_file:
         config = yaml.safe_load(config_file)
 
-    runparams = _load_yaml_value(config['runparams'])
-    icparams = _load_yaml_value(config['ICparams'])
+    if 'runparams' in config:
+        runparams = _load_yaml_value(config['runparams'])
+        icparams = _load_yaml_value(config['ICparams'])
+    else:
+        # Keep the legacy helper usable for migrated examples and older tests.
+        # New runners should use load_nested_example_config instead.
+        runparams = _load_yaml_value(config['par'])
+        icparams = _load_yaml_value(config['initial_condition'])
+        output = runparams.get('output', {})
+        simulation = runparams.get('simulation', {})
+        units = runparams.get('units', {})
+        if 'CodeUnits' in units:
+            runparams['CodeUnits'] = units['CodeUnits']
+        if 'initial_condition_filename' in simulation:
+            runparams['ICfilename'] = simulation['initial_condition_filename']
+        if 'directory' in output:
+            runparams['outdir'] = output['directory']
+        if 'time_list_filename' in output:
+            runparams['outputtimefilename'] = output['time_list_filename']
     if 'CodeUnits' not in runparams and 'InternalUnitSystem' not in runparams:
         raise ValueError("CodeUnits or InternalUnitSystem is required")
     for key in {'ICfilename', 'outdir', 'outputtimefilename', 'savedir'}:

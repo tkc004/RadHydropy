@@ -11,7 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import unyt
@@ -34,19 +33,21 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('InflowSph1d.yaml')
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    config = eu.load_nested_example_config(config_filename)
+    runparams, ICparams = config['par'], config['initial_condition']
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     ric = et.Simwrap(ICparams, code_units=code_units_obj)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
     for outindex in range(0, 9, 2):
         outfilename = os.path.join(
-            runparams['outdir'],
-            runparams['outfileprefix'] + '_%03d' % outindex + '.hdf5',
+            output['directory'],
+            output['filename_prefix'] + '_%03d' % outindex + '.hdf5',
         )
         et.ReadandPlot(
             outfilename,
@@ -58,7 +59,7 @@ def main(config_filename=DEFAULT_CONFIG):
             markevery=1,
             color=next(ax._get_lines.prop_cycler)['color'],
         )
-    figure_filename = os.path.join(runparams['savedir'], 'InflowSph1D.jpg')
+    figure_filename = os.path.join(output['savedir'], config['example']['plot_filename'])
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()

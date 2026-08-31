@@ -1,44 +1,53 @@
-runparams:
-  simname: high_mach_contact_advection1d
-  ICfilename: InitialCondition_contact.hdf5
-  outdir: outputs_high_mach_contact_advection1d
-  savedir: outputs_high_mach_contact_advection1d
-  outfileprefix: Output
-  outdeltatime: {value: 0.5, unit: s}
-  coordsys: cartesian
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim: {value: 10.0, unit: s}
-  CFL: 0.1
-  boundcond: Periodic
-  noghost: 2
-  verbose: 0
-  order: 0
-  riemann_solver: Rusanov
-  dual_energy: true
-  dual_energy_eta1: 1.0e-3
-  dual_energy_eta2: 1.0e-1
-  dual_energy_pressure_floor: 1.0e-20
-  hydro_temperature_floor: null
-  positivity_preserving: true
-  dtmin: {value: 1.0e-12, unit: s}
-  dtmax: {value: 0.05, unit: s}
-  CodeUnits:
-    name: high_mach_contact_advection_cgs
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 128
-  coordsys: cartesian
-  boxsize: {value: 1.0e10, unit: cm}
-  time: {value: 0.0, unit: s}
+par:
+  simulation:
+    name: high_mach_contact_advection1d
+    initial_condition_filename: InitialCondition_contact.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 10.0, unit: s}
+  mesh:
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.1
+    order: 0
+    riemann_solver: Rusanov
+    dual_energy: true
+    dual_energy_eta1: 1.0e-3
+    dual_energy_eta2: 1.0e-1
+    dual_energy_pressure_floor: 1.0e-20
+    hydro_temperature_floor: null
+    positivity_preserving: true
+  boundary:
+    condition: Periodic
+  timestep:
+    dtmin: {value: 1.0e-12, unit: s}
+    dtmax: {value: 0.05, unit: s}
+  output:
+    directory: outputs_high_mach_contact_advection1d
+    savedir: outputs_high_mach_contact_advection1d
+    filename_prefix: Output
+    cadence: {value: 0.5, unit: s}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: high_mach_contact_advection_cgs
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  grid_cells: 128
+  coordinate_system: cartesian
+  box_size: {value: 1.0e10, unit: cm}
+  current_time: {value: 0.0, unit: s}
   rho_left: {value: 10.0, unit: g/cm**3}
   rho_right: {value: 1.0, unit: g/cm**3}
-  pressureini: {value: 8.254e7, unit: erg/cm**3}
-  vini: {value: 1.0e8, unit: cm/s}
-  muini: 1.0
+  pressure_initial: {value: 8.254e7, unit: erg/cm**3}
+  initial_velocity: {value: 1.0e8, unit: cm/s}
+  mean_molecular_weight: 1.0
+example:
+  plot_filename: HighMachAdvection1D_EntropyEvolution.jpg

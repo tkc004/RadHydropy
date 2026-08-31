@@ -1,6 +1,7 @@
 """Initial conditions and analysis helpers for high-Mach advection."""
 
 import numpy as np
+from types import SimpleNamespace
 
 from radhydropy.eos import EOS
 
@@ -24,37 +25,44 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         if code_units is not None:
             self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams["nogrid"])
-        self.par.coordsys = "cartesian"
-        self.par.boxsize = icparams["boxsize"]
-        self.par.time = icparams["time"]
+        grid_cells = int(icparams["grid_cells"])
+        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system=icparams["coordinate_system"],
+            box_size=icparams["box_size"],
+            current_time=icparams["current_time"],
+        )
+        self.par.nogrid = grid_cells
+        self.par.coordsys = self.par.simulation.coordinate_system
+        self.par.boxsize = self.par.simulation.box_size
+        self.par.time = self.par.simulation.current_time
         self.mesh.boundary = np.linspace(
             0.0 * self.par.boxsize,
-            self.par.boxsize,
-            self.par.nogrid + 1,
+            self.par.simulation.box_size,
+            grid_cells + 1,
         )
         cell_center = 0.5 * (self.mesh.boundary[:-1] + self.mesh.boundary[1:])
         if "rho_left" in icparams or "rho_right" in icparams:
-            rho_left = icparams.get("rho_left", icparams.get("rhoini"))
-            rho_right = icparams.get("rho_right", icparams.get("rhoini"))
+            rho_left = icparams.get("rho_left", icparams.get("initial_density"))
+            rho_right = icparams.get("rho_right", icparams.get("initial_density"))
             self.fluid.rho = np.where(cell_center < 0.5 * self.par.boxsize, rho_left, rho_right)
         else:
-            self.fluid.rho = np.ones(self.par.nogrid) * icparams["rhoini"]
-        self.fluid.vel = np.ones(self.par.nogrid) * icparams["vini"]
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams["muini"]
+            self.fluid.rho = np.ones(grid_cells) * icparams["initial_density"]
+        self.fluid.vel = np.ones(grid_cells) * icparams["initial_velocity"]
+        self.fluid.mu = np.ones(grid_cells) * icparams["mean_molecular_weight"]
         if "temp_left" in icparams or "temp_right" in icparams:
-            temp_left = icparams.get("temp_left", icparams.get("tempini", 0.0))
-            temp_right = icparams.get("temp_right", icparams.get("tempini", 0.0))
+            temp_left = icparams.get("temp_left", icparams.get("initial_temperature", 0.0))
+            temp_right = icparams.get("temp_right", icparams.get("initial_temperature", 0.0))
             self.fluid.temp = np.where(
                 cell_center < 0.5 * self.par.boxsize,
                 temp_left,
                 temp_right,
             )
-        elif "pressureini" in icparams:
-            pressure = float(icparams["pressureini"])
+        elif "pressure_initial" in icparams:
+            pressure = float(icparams["pressure_initial"])
             pressure_factor = np.longdouble(
                 code_units.unit_conversion["boltzmann_code"]
                 / code_units.unit_conversion["proton_mass_code"]
@@ -64,7 +72,7 @@ class Simwrap:
                 dtype=float,
             )
         else:
-            self.fluid.temp = np.ones(self.par.nogrid) * icparams["tempini"]
+            self.fluid.temp = np.ones(grid_cells) * icparams["initial_temperature"]
 
 
 def energy_components(state):

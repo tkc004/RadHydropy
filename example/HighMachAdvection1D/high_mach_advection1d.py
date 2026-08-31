@@ -13,43 +13,46 @@ EXAMPLE_ROOT = HERE.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import radhydropy.io as rio
 
 import tools as et
+import example_utils as eu
 
 
 DEFAULT_CONFIG = HERE / "high_mach_advection1d.yaml"
 
 
 def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=None):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd())
+    config = eu.load_nested_example_config(config_filename)
+    runparams = config["par"]
+    icparams = config["initial_condition"]
+    exampleparams = config["example"]
     if dual_energy is not None:
-        runparams["dual_energy"] = bool(dual_energy)
+        runparams["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            runparams["savedir"] = str(
-                Path(runparams["savedir"]).with_name(
-                    Path(runparams["savedir"]).name + "_no_dual_energy"
+            runparams["output"]["savedir"] = str(
+                Path(runparams["output"]["savedir"]).with_name(
+                    Path(runparams["output"]["savedir"]).name + "_no_dual_energy"
                 )
             )
-            runparams["outdir"] = runparams["savedir"]
+            runparams["output"]["directory"] = runparams["output"]["savedir"]
     if pressure_selection is not None:
-        runparams["dual_energy"] = True
-        runparams["dual_energy_pressure_selection"] = pressure_selection
-        runparams["savedir"] = str(
-            Path(runparams["savedir"]).with_name(
-                Path(runparams["savedir"]).name + "_conservative_pressure"
+        runparams["hydrodynamics"]["dual_energy"] = True
+        runparams["hydrodynamics"]["dual_energy_pressure_selection"] = pressure_selection
+        runparams["output"]["savedir"] = str(
+            Path(runparams["output"]["savedir"]).with_name(
+                Path(runparams["output"]["savedir"]).name + "_conservative_pressure"
             )
         )
-        runparams["outdir"] = runparams["savedir"]
-    output = Path(runparams["savedir"])
+        runparams["output"]["directory"] = runparams["output"]["savedir"]
+    output = Path(runparams["output"]["directory"])
     output.mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(runparams.get("CodeUnits"))
+    code_units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
     initial = et.Simwrap(icparams, code_units=code_units)
     initial.fluid.eos = None
-    rio.writehdf5(initial, runparams["ICfilename"])
+    rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
 
     sim = Rsim(runparams)
     sim.RunAll()
@@ -71,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         density_history.append(density)
         temperature_history.append(temperature)
         history.append({
-            "time": float(np.asarray(state.par.time).flat[0]),
+            "time": float(np.asarray(state.par.simulation.current_time).flat[0]),
             **et.energy_components(state),
         })
     if not history:
@@ -100,9 +103,9 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         temperature=np.asarray(temperature_history),
     )
     times = np.asarray([item["time"] for item in history])
-    radius_scale = max(float(np.asarray(icparams["boxsize"])), 1.0)
+    radius_scale = max(float(np.asarray(icparams["box_size"])), 1.0)
 
-    def save_profile_map(values, filename, title, colorbar_label):
+    def save_profile_map(values, filename, title, colorbar_label, **image_kwargs):
         values = np.asarray(values)
         log_values = np.full_like(values, np.nan, dtype=float)
         positive = values > 0.0
@@ -114,6 +117,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
             np.ma.masked_invalid(log_values),
             shading="auto",
             cmap="viridis",
+            **image_kwargs,
         )
         figure.colorbar(image, ax=axis, label=colorbar_label)
         axis.set_xlabel(r"Radius / $L_{\rm box}$")
@@ -123,12 +127,20 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         figure.savefig(output / filename, dpi=180)
         plt.close(figure)
 
-    entropy_figure = "HighMachAdvection1D_EntropyEvolution.jpg"
+    # Entropy is undefined only in exact vacuum.  Keep positive-density cells
+    # visible: floor-dominated regions are part of this dual-energy test.  The
+    # fixed limits expose those regions as saturated colors without allowing
+    # extreme vacuum values to hide the gas-side entropy structure.
+    entropy_plot_values = entropy_values.copy()
+    entropy_plot_values[np.asarray(density_history) <= 0.0] = np.nan
+    entropy_figure = exampleparams.get("entropy_plot_filename", "HighMachAdvection1D_EntropyEvolution.jpg")
     save_profile_map(
-        entropy_values,
+        entropy_plot_values,
         entropy_figure,
         "High-Mach advection entropy evolution",
         r"$\log_{10}[T/\rho^{\gamma-1}]$",
+        vmin=-2.0,
+        vmax=2.0,
     )
     density_figure = "HighMachAdvection1D_DensityEvolution.jpg"
     save_profile_map(

@@ -5,7 +5,7 @@ Fixed (nested par / initial_condition / example configuration)
 ----------------------------------------------------------------
 - Advection1D
 - AdvectionSph1D
-- HIIRegionExpansion1D (not successfully finished yet)
+- HIIRegionExpansion1D
 - HydrogenPhotoheating1D
 - HydrogenPhotoionization1D
 - HydrogenRecombination1D
@@ -18,6 +18,10 @@ Fixed (nested par / initial_condition / example configuration)
 - SedovTaylor1D
 - SedovTaylorSph1d
 - SodShock1D
+- Inflow1D
+- InflowSph1D
+- NohSphericalImplosion1D
+- HighMachAdvection1D
 
 Notes
 -----

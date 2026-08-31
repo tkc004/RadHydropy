@@ -1,56 +1,50 @@
-runparams:
-  simname: Inflow1d
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outputtimefilename: output_times.txt
-  savedir: .
-  coordsys: cartesian
-  EOStype: polytropic
-  gamma: 1.4
-  timesim:
-    value: 2.0
-    unit: s
-  CFL: 0.1
-  boundcond: InflowSph
-  vel_inflow:
-    value: -1.0
-    unit: cm/s
-  rho_inflow:
-    value: 1.0
-    unit: g/cm**3
-  temp_inflow:
-    value: 0.0
-    unit: K
-  mu_inflow: 1.0
-  verbose: 0
-  order: 0
-  noghost: 5
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 100
-  coordsys: cartesian
-  boxsize:
-    value: 2.0
-    unit: cm
-  time:
-    value: 0.0
-    unit: s
-  tempini:
-    value: 0.0
-    unit: K
-  muini: 1.0
-  vini:
-    value: 0.0
-    unit: cm/s
-  rhoini:
-    value: 0.001
-    unit: g/cm**3
+par:
+  simulation:
+    name: Inflow1d
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 2.0, unit: s}
+  mesh:
+    ghost_cells: 5
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: InflowSph
+    inflow_velocity: {value: -1.0, unit: cm/s}
+    inflow_density: {value: 1.0, unit: g/cm**3}
+    inflow_temperature: {value: 0.0, unit: K}
+    inflow_mu: 1.0
+  timestep:
+    dtmin: {value: 1.0e-8, unit: s}
+    dtmax: {value: 2.0e-3, unit: s}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+    time_list_filename: output_times.txt
+    cadence: {value: 0.1, unit: s}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  grid_cells: 100
+  coordinate_system: cartesian
+  box_size: {value: 2.0, unit: cm}
+  current_time: {value: 0.0, unit: s}
+  temperature: {value: 0.0, unit: K}
+  mean_molecular_weight: 1.0
+  velocity: {value: 0.0, unit: cm/s}
+  initial_density: {value: 0.001, unit: g/cm**3}
+example:
+  plot_filename: Inflow1D.jpg

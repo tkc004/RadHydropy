@@ -8,6 +8,10 @@ resolutions and compares final radial profiles.
 
 import argparse
 from pathlib import Path
+import sys
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
 
 import matplotlib
 matplotlib.use("Agg")
@@ -16,12 +20,11 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.eos import EOS
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import example_utils as eu
 
 
-HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
 
@@ -32,13 +35,18 @@ class State:
 def make_initial_condition(ic, units):
     state = State()
     state.par, state.mesh, state.fluid = State(), State(), State()
-    state.par.CodeUnits = units
+    state.par.units = type('Units', (), {'CodeUnits': units})()
     state.par.unit_system = units.unit_system
-    state.par.nogrid = int(ic["nogrid"])
+    state.par.simulation = type('Simulation', (), {})()
+    state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': int(ic['grid_cells'])})()
+    state.par.nogrid = int(ic["grid_cells"])
     state.par.coordsys = "spherical"
-    rmax = float(ic["rmax"].to_value(units.length_unit))
+    rmax = float(ic["box_size"].to_value(units.length_unit))
     state.par.boxsize = np.asarray([rmax]) * units.length_unit
     state.par.time = np.asarray([0.0]) * units.time_unit
+    state.par.simulation.current_time = state.par.time
+    state.par.simulation.coordinate_system = 'spherical'
+    state.par.simulation.box_size = state.par.boxsize
     boundary = np.linspace(0.0, rmax, state.par.nogrid + 1)
     state.mesh.boundary = boundary * units.length_unit
     state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1]) * units.length_unit
@@ -48,21 +56,23 @@ def make_initial_condition(ic, units):
         4.0 * np.pi / 3.0 * np.diff(boundary**3) * units.volume_unit
     )
     state.fluid.rho = np.full(
-        state.par.nogrid, float(ic["rhoini"].to_value("g/cm**3"))
+        state.par.nogrid, float(ic["initial_density"].to_value("g/cm**3"))
     )
     state.fluid.vel = np.full(
-        state.par.nogrid, float(ic["vini"].to_value(units.velocity_unit))
+        state.par.nogrid, float(ic["velocity"].to_value(units.velocity_unit))
     )
     state.fluid.temp = np.full(
-        state.par.nogrid, float(ic["tempini"].to_value("K"))
+        state.par.nogrid, float(ic["temperature"].to_value("K"))
     )
-    state.fluid.mu = np.full(state.par.nogrid, float(ic["muini"]))
+    state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
     return state
 
 
 def read_profile(filename, units, gamma):
     par, mesh, fluid = State(), State(), State()
     par.CodeUnits = units
+    par.simulation = type("Simulation", (), {"coordinate_system": "spherical"})()
+    par.mesh = type("MeshParameters", (), {"grid_cells": None, "ghost_cells": 0})()
     rio.readhdf5(par, mesh, fluid, filename)
     first = int(getattr(par, "noghost", 2))
     last = first + int(par.nogrid)
@@ -90,20 +100,22 @@ def read_profile(filename, units, gamma):
 
 
 def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
-    base_runparams, base_icparams = load_example_parameters(config_filename, Path.cwd())
-    resolutions = [int(value) for value in base_runparams.pop("resolutions", [256])]
+    config = eu.load_nested_example_config(config_filename)
+    base_runparams, base_icparams = config['par'], config['initial_condition']
+    exampleparams = config['example']
+    resolutions = [int(value) for value in exampleparams.get("resolutions", [256])]
     if dual_energy is not None:
-        base_runparams["dual_energy"] = bool(dual_energy)
+        base_runparams["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            base_runparams["savedir"] = str(
-                Path(base_runparams["savedir"]).with_name(
-                    Path(base_runparams["savedir"]).name + "_no_dual_energy"
+            base_runparams["output"]["savedir"] = str(
+                Path(base_runparams["output"]["savedir"]).with_name(
+                    Path(base_runparams["output"]["savedir"]).name + "_no_dual_energy"
                 )
             )
-            base_runparams["outdir"] = base_runparams["savedir"]
-    root = Path(base_runparams["savedir"])
+            base_runparams["output"]["directory"] = base_runparams["output"]["savedir"]
+    root = Path(base_runparams["output"]["savedir"])
     root.mkdir(parents=True, exist_ok=True)
-    units = CodeUnits.from_mapping(base_runparams["CodeUnits"])
+    units = CodeUnits.from_mapping(base_runparams["units"]["CodeUnits"])
     all_profiles = {}
 
     for resolution in resolutions:
@@ -111,19 +123,22 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         icparams = dict(base_icparams)
         output = root / f"resolution_{resolution}"
         output.mkdir(parents=True, exist_ok=True)
-        runparams["outdir"] = str(output)
-        runparams["savedir"] = str(output)
-        runparams["ICfilename"] = str(output / "InitialCondition.hdf5")
-        icparams["nogrid"] = resolution
+        runparams["output"]["directory"] = str(output)
+        runparams["output"]["savedir"] = str(output)
+        runparams["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
+        icparams["grid_cells"] = resolution
+        runparams["mesh"]["grid_cells"] = resolution
         initial = make_initial_condition(icparams, units)
-        rio.writehdf5(initial, runparams["ICfilename"])
+        rio.writehdf5(
+            initial, runparams["simulation"]["initial_condition_filename"]
+        )
 
         sim = Rsim(runparams)
         sim.RunAll(outputtime=0)
         snapshots = sorted(output.glob("Output_*.hdf5"))
         if len(snapshots) < 2:
             raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
-        profiles = [read_profile(filename, units, runparams["gamma"]) for filename in snapshots]
+        profiles = [read_profile(filename, units, runparams["hydrodynamics"]["gamma"]) for filename in snapshots]
         all_profiles[resolution] = profiles
         initial_profile, final_profile = profiles[0], profiles[-1]
         if not final_profile["thermal"] > initial_profile["thermal"]:
@@ -143,7 +158,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
 
     selected = sorted(all_profiles)
     final = {resolution: all_profiles[resolution][-1] for resolution in selected}
-    rmax = float(base_icparams["rmax"].to_value(units.length_unit))
+    rmax = float(base_icparams["box_size"].to_value(units.length_unit))
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex="col")
     for resolution in selected:
         profile = final[resolution]
