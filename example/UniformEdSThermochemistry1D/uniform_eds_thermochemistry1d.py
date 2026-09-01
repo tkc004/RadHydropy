@@ -13,44 +13,48 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
+sys.path.insert(0, str(EXAMPLE_ROOT.parent))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
+import copy
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 from tools import UniformEdSInitialCondition, analytic_compton_temperature
+import example_utils as eu
 
 
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
 
 def run_case(runparams, icparams, units, cosmology, atomic_cooling):
-    case = dict(runparams)
+    case = copy.deepcopy(runparams)
     label = "atomic_compton" if atomic_cooling else "compton_only"
-    case["simname"] = f"UniformEdSThermochemistry1D_{label}"
-    case["ICfilename"] = str(EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5")
-    case["outfileprefix"] = f"{label}_Output"
-    case["hydrogen_atomic_cooling"] = atomic_cooling
-    case["outdir"] = str(EXAMPLE_ROOT / "outputs")
-    case["savedir"] = case["outdir"]
-    Path(case["outdir"]).mkdir(parents=True, exist_ok=True)
+    case["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
+    case["simulation"]["initial_condition_filename"] = str(EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5")
+    case["output"]["filename_prefix"] = f"{label}_Output"
+    case["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
+    case["output"]["directory"] = str(EXAMPLE_ROOT / "outputs")
+    case["output"]["savedir"] = case["output"]["directory"]
+    Path(case["output"]["directory"]).mkdir(parents=True, exist_ok=True)
+    source_dt = float(case["_example"].get("source_timestep", 2.0))
+    case.pop("_example", None)
 
-    initial = UniformEdSInitialCondition(icparams, units, cosmology)
-    rio.writehdf5(initial, case["ICfilename"])
+    initial = UniformEdSInitialCondition(icparams, case["mesh"], units, cosmology)
+    rio.writehdf5(initial, case["simulation"]["initial_condition_filename"])
 
     sim = Rsim(case)
+    sim.par.cosmology = cosmology
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.time)
     sim.SetInitFluid()
+    sim.par.cosmology = cosmology
 
     # Rsim.Run normally obtains an outer timestep from the hydro CFL
     # estimator.  This is a source-only uniform-cell benchmark, so provide a
     # fixed outer timestep while retaining the Rsim.Run execution path.
-    source_dt = float(case.get("source_timestep", 2.0))
-
     def fixed_step_time(dt=None, final_time=None):
         if dt is not None:
             return float(dt)
@@ -59,7 +63,7 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
 
     sim.GetStepTime = fixed_step_time
 
-    physical = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     history = {
         "time_s": [],
         "temperature_K": [],
@@ -89,7 +93,7 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
         cosmic_time = float(np.asarray(sim.fluid.time).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         history["time_s"].append(
-            cosmic_time * float(sim.par.CodeUnits.time_unit.to_value("s"))
+            cosmic_time * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
         )
         history["scale_factor"].append(scale_factor)
         history["temperature_K"].append(
@@ -114,12 +118,14 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
 
 
 def main():
-    runparams, icparams = load_example_parameters(CONFIG, EXAMPLE_ROOT)
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+    config = eu.load_nested_example_config(CONFIG)
+    runparams, icparams = config["par"], config["initial_condition"]
+    runparams["_example"] = config["example"]
+    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["cosmology_t_ref"]),
-        a_ref=float(runparams["cosmology_a_ref"]),
+        t_ref=float(runparams["gravity"]["cosmology_t_ref"]),
+        a_ref=float(runparams["gravity"]["cosmology_a_ref"]),
     )
 
     compton, sim, physical = run_case(
@@ -145,8 +151,8 @@ def main():
         float(icparams["hydrogen_density_cm3"]),
         float(icparams["hydrogen_mass_fraction"]),
         float(icparams["xHI"]),
-        float(runparams["gamma"]),
-        float(runparams["cmb_temperature_0"].to_value("K")),
+        float(runparams["hydrodynamics"]["gamma"]),
+        float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K")),
         1.0 / (float(icparams["hydrogen_mass_fraction"]) * (2.0 - float(icparams["xHI"]))),
     )
     analytic_plot = analytic_compton_temperature(
@@ -158,8 +164,8 @@ def main():
         float(icparams["hydrogen_density_cm3"]),
         float(icparams["hydrogen_mass_fraction"]),
         float(icparams["xHI"]),
-        float(runparams["gamma"]),
-        float(runparams["cmb_temperature_0"].to_value("K")),
+        float(runparams["hydrodynamics"]["gamma"]),
+        float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K")),
         1.0 / (float(icparams["hydrogen_mass_fraction"]) * (2.0 - float(icparams["xHI"]))),
     )
     error = np.max(np.abs(compton["temperature_K"] - analytic) / analytic)
@@ -177,7 +183,7 @@ def main():
     if atomic["temperature_K"][-1] >= compton["temperature_K"][-1]:
         raise RuntimeError("atomic cooling did not cool below Compton-only run")
 
-    figure = Path(runparams["savedir"]) / "UniformEdSThermochemistry1D.jpg"
+    figure = Path(runparams["output"]["savedir"]) / "UniformEdSThermochemistry1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton")

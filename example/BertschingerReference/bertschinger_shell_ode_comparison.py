@@ -21,7 +21,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
 import tools as example_tools
 from bertschinger_ode import (
     first_outer_caustic,
@@ -157,7 +156,7 @@ def _density_slope_profile(shells, cosmic_time, cosmology, turnaround, bins=192,
 
 
 def run_comparison(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd().resolve())
+    runparams, icparams = example_tools.load_reference_parameters(config_filename)
     units = example_tools.load_units(runparams)
     cosmology = EinsteinDeSitter.from_code_units(
         units,

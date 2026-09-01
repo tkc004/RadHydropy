@@ -7,6 +7,7 @@ import sys
 import tempfile
 
 import numpy as np
+from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +22,6 @@ import matplotlib.pyplot as plt
 import unyt
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.gravity import Gravity
 from radhydropy.dark_matter import DarkMatterShells
@@ -60,10 +60,10 @@ class BertschingerBoundarySolver(Solver):
 
     def SetBoundary(self, mesh, fluid, par):
         super().SetBoundary(mesh, fluid, par)
-        first = int(par.noghost)
-        last = first + int(par.nogrid)
+        first = int(par.mesh.ghost_cells)
+        last = first + int(par.mesh.grid_cells)
         left = slice(0, first)
-        right = slice(last, last + int(par.noghost))
+        right = slice(last, last + int(par.mesh.ghost_cells))
         for name in ('rho', 'vel', 'pre', 'temp', 'mu'):
             if hasattr(fluid, name):
                 getattr(fluid, name)[left] = getattr(fluid, name)[first]
@@ -124,14 +124,19 @@ def _interpolate_profile(solution, radius):
 class Simwrap:
     """Build an HDF5 initial condition from the similarity profile."""
 
-    def __init__(self, icparams, code_units, solution):
+    def __init__(self, icparams, runtime, solution):
+        simulation = runtime['simulation']
+        mesh = runtime['mesh']
+        code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.coordsys = 'spherical'
+        self.par.nogrid = int(mesh['grid_cells'])
+        self.par.coordsys = simulation['coordinate_system']
+        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
         initial_time = float(icparams['initial_cosmic_time'])
         self.par.cosmological_expansion = True
         self.par.supercomoving_coordinates = True
@@ -150,9 +155,13 @@ class Simwrap:
         self.par.pressure_representation = 'physical'
         self.par.temperature_representation = 'physical'
         self.par.perturbation_amplitude = float(icparams['perturbation_amplitude'])
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
+        self.par.boxsize = np.ones(1) * icparams['box_size']
+        self.par.simulation = SimpleNamespace(
+            current_time=icparams['initial_cosmic_time'],
+            box_size=icparams['box_size'], coordinate_system=simulation['coordinate_system'])
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
         self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
+            icparams['inner_radius'], icparams['outer_radius'], self.par.nogrid + 1
         )
         self.mesh.coordinate = _spherical_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -172,7 +181,7 @@ class Simwrap:
             1.0 - delta / 3.0
         )
         pressure = np.full_like(radius, 0.0)
-        temperature_code = pressure * float(icparams['mu']) / (
+        temperature_code = pressure * float(icparams['mean_molecular_weight']) / (
             np.maximum(density, 1.0e-300)
             * code_units.boltzmann_code / code_units.proton_mass_code
         )
@@ -181,15 +190,15 @@ class Simwrap:
             / code_units.temperature_in_cgs
         )
         self.par.initial_temperature_code = float(temperature_code[0])
-        self.par.mu_outflow = float(icparams['mu'])
+        self.par.mu_outflow = float(icparams['mean_molecular_weight'])
         self.fluid.rho = density * code_units.density_unit
         self.fluid.vel = velocity * code_units.velocity_unit
         self.fluid.temp = temperature_code * code_units.temperature_unit
-        self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['mu'])
+        self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['mean_molecular_weight'])
 
         delta_mass = 4.0 * np.pi / 3.0 * rho_background * amplitude
         self.dark_matter = DarkMatterShells(
-            radius=np.array([float(icparams['rmax'].to_value(unyt.kpc)) * 2.0]),
+            radius=np.array([float(icparams['outer_radius'].to_value(unyt.kpc)) * 2.0]),
             velocity=np.zeros(1),
             mass=np.full(1, 1.0e-30) * code_units.mass_unit,
             fixed_enclosed_mass=delta_mass * code_units.mass_unit,
@@ -198,7 +207,7 @@ class Simwrap:
 
 
 def _similarity_profiles(sim, solution):
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     tau = float(np.asarray(sim.fluid.time, dtype=float).reshape(-1)[0])
     cosmology = sim.par.cosmology
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
@@ -212,10 +221,10 @@ def _similarity_profiles(sim, solution):
         np.asarray(sim.fluid.vel[interior], dtype=float), tau,
     )
     pressure = cosmology.physical_pressure(
-        np.asarray(sim.fluid.pre[interior], dtype=float), tau, sim.par.gamma
+        np.asarray(sim.fluid.pre[interior], dtype=float), tau, sim.par.hydrodynamics.gamma
     )
     boundaries = np.asarray(
-        sim.mesh.boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1],
+        sim.mesh.boundary[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1],
         dtype=float,
     ) * scale_factor
     time = cosmic_time
@@ -289,12 +298,14 @@ def _plot_comparison(numerical, reference, output, numerical_label):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
-    eu.clean_previous_outputs(runparams)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    config = eu.load_nested_example_config(config_filename)
+    runparams = config['par']
+    icparams = config['initial_condition']
+    output = runparams['output']
+    eu.clean_previous_outputs(output)
     reference = solve_bertschinger_gas()
-    initial = Simwrap(icparams, code_units, reference)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    initial = Simwrap(icparams, runparams, reference)
+    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
     sim.Callreadhdf5()
@@ -302,9 +313,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.time)
     sim.SetInitFluid()
+    sim.par.cosmology = initial.par.cosmology
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
-        dark_matter=initial.dark_matter, code_units=sim.par.CodeUnits,
+        dark_matter=initial.dark_matter, code_units=sim.par.units.CodeUnits,
     )
     sim.par.dark_matter = initial.dark_matter
     sim.solver = BertschingerBoundarySolver()
@@ -312,12 +324,12 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Run(mode='hydro')
 
     numerical = _similarity_profiles(sim, reference)
-    initial_output = Path(runparams['savedir']) / 'BertschingerGasReference_RadHydroInitialCondition.jpg'
+    initial_output = Path(output['savedir']) / 'BertschingerGasReference_RadHydroInitialCondition.jpg'
     _plot_comparison(initial_numerical, reference, initial_output, 'RadHydro IC')
-    output = Path(runparams['savedir']) / 'BertschingerGasReference_RadHydroComparison.jpg'
-    analytic_profiles = _plot_comparison(numerical, reference, output, 'RadHydro final')
+    comparison_output = Path(output['savedir']) / 'BertschingerGasReference_RadHydroComparison.jpg'
+    analytic_profiles = _plot_comparison(numerical, reference, comparison_output, 'RadHydro final')
 
-    report = Path(runparams['savedir']) / 'BertschingerGasReference_RadHydroComparison.txt'
+    report = Path(output['savedir']) / 'BertschingerGasReference_RadHydroComparison.txt'
     lam = numerical['lambda']
     with report.open('w', encoding='utf-8') as stream:
         stream.write('final_similarity_time %.12g\n' % numerical['time'])
@@ -334,7 +346,7 @@ def main(config_filename=DEFAULT_CONFIG):
         stream.write('outer_density_max %.12g\n' % np.max(numerical['density'][outer]))
     print('shock lambda = %.8f' % reference.shock_lambda)
     print('initial-condition figure = %s' % initial_output)
-    print('comparison figure = %s' % output)
+    print('comparison figure = %s' % comparison_output)
     print('comparison report = %s' % report)
 
 

@@ -21,7 +21,6 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.example_config import load_example_parameters
 import tools as example_tools
 from bertschinger_ode import solve_eq41_self_similar
 
@@ -47,7 +46,7 @@ def make_turnaround_shells(icparams, units, cosmology):
                               code_units=units)
     return shells, 0
 def run_pre_crossing(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd().resolve())
+    runparams, icparams = example_tools.load_reference_parameters(config_filename)
     units = example_tools.load_units(runparams)
     cosmology = EinsteinDeSitter.from_code_units(
         units,

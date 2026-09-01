@@ -26,14 +26,13 @@ from bertschinger_ode import (
     plot_xi_lambda,
     solve_eq41_self_similar,
 )
-from radhydropy.example_config import load_example_parameters
 
 
 DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_reference.yaml')
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd().resolve())
+    runparams, icparams = et.load_reference_parameters(config_filename)
     units = et.load_units(runparams)
     cosmology = EinsteinDeSitter.from_code_units(
         units, t_ref=float(runparams['cosmology_t_ref']),

@@ -5,10 +5,24 @@ import numpy as np
 
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits
+from example import example_utils as eu
 
 
 def load_units(runparams):
     return CodeUnits.from_mapping(runparams['CodeUnits'])
+
+
+def load_reference_parameters(filename):
+    """Return the analytic settings and IC section from nested YAML."""
+    config = eu.load_nested_example_config(filename)
+    par = config['par']
+    settings = dict(config['example'])
+    settings.update({
+        'simname': par['simulation']['name'],
+        'savedir': par['output']['savedir'],
+        'CodeUnits': par['units']['CodeUnits'],
+    })
+    return settings, config['initial_condition']
 
 
 def make_scale_free_shells(icparams, units, cosmology):

@@ -6,6 +6,7 @@ solution for Compton coupling to an isotropic CMB background.
 """
 
 import argparse
+import copy
 import os
 import sys
 import tempfile
@@ -35,7 +36,6 @@ import unyt
 import yaml
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.units import CodeUnits
@@ -86,33 +86,35 @@ def _run_case(
     initial_temperature,
     timestep_override=None,
 ):
-    case_params = dict(runparams)
+    case_params = copy.deepcopy(runparams)
+    example = runparams['_example']
     if timestep_override is not None:
-        case_params['evolution_timestep'] = timestep_override
-    case_params['ICfilename'] = str(
-        Path(runparams['outdir']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
+        example['evolution_timestep'] = timestep_override
+    case_params['simulation']['initial_condition_filename'] = str(
+        Path(runparams['output']['directory']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
     )
     case_icparams = dict(icparams)
-    case_icparams['tempini'] = initial_temperature * unyt.K
-    code_units = CodeUnits.from_mapping(case_params.get('CodeUnits'))
+    case_icparams['initial_temperature'] = initial_temperature * unyt.K
+    code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
+    case_params.pop('_example', None)
 
-    ric = Simwrap(case_icparams, code_units)
-    rio.writehdf5(ric, case_params['ICfilename'])
+    ric = Simwrap(case_icparams, case_params['simulation'], case_params['mesh'], code_units)
+    rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
 
     sim = Rsim(case_params)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    final_time_s = float(case_params['final_time'].to_value(unyt.s))
+    final_time_s = float(case_params['simulation']['final_time'].to_value(unyt.s))
     source_timestep_s = float(
-        case_params['evolution_timestep'].to_value(unyt.s)
+        example['evolution_timestep'].to_value(unyt.s)
     )
-    code_time_s = float(sim.par.CodeUnits.time_unit.to_value(unyt.s))
+    code_time_s = float(sim.par.units.CodeUnits.time_unit.to_value(unyt.s))
     time_s = 0.0
     times_s = [time_s]
     temperatures = [
-        float(np.mean(sim.fluid.temp[sim.par.noghost:sim.par.noghost + sim.par.nogrid]))
+        float(np.mean(sim.fluid.temp[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]))
     ]
     source_steps = 0
     while time_s < final_time_s - 1.0e-12:
@@ -127,7 +129,7 @@ def _run_case(
         temperatures.append(
             float(np.mean(
                 sim.fluid.temp[
-                    sim.par.noghost:sim.par.noghost + sim.par.nogrid
+                    sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells
                 ]
             ))
         )
@@ -142,13 +144,13 @@ def _run_case(
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history['time_Myr']) * myr_seconds
     temperature = np.asarray(history['mean_ionized_temp_K'])
-    if case_params.get('compare_compton_analytic', True):
+    if example.get('compare_compton_analytic', True):
         analytic = _analytic_temperature(
             time_s,
             initial_temperature,
-            float(case_params['compton_cmb_redshift']),
-            float(case_icparams['nHini'].to_value(1.0 / unyt.cm**3)),
-            float(case_icparams['xHIini']),
+            float(case_params['thermochemistry']['compton_cmb_redshift']),
+            float(case_icparams['hydrogen_density'].to_value(1.0 / unyt.cm**3)),
+            float(case_icparams['xHI']),
         )
         relative_error = np.abs((temperature - analytic) / analytic)
         print('%s: max relative error=%.6e' % (label, np.max(relative_error)))
@@ -173,13 +175,10 @@ def _timestep_difference(coarse_history, fine_history):
 
 def _run_converged_case(runparams, icparams, label, initial_temperature):
     """Refine the implicit source timestep until two runs agree."""
-    timestep = runparams['evolution_timestep']
-    tolerance = float(
-        runparams.get('hydrogen_implicit_convergence_tolerance', 1.0e-3)
-    )
-    max_refinements = int(
-        runparams.get('hydrogen_implicit_max_refinements', 4)
-    )
+    timestep = runparams['_example']['evolution_timestep']
+    thermo = runparams['thermochemistry']
+    tolerance = float(thermo.get('hydrogen_implicit_convergence_tolerance', 1.0e-3))
+    max_refinements = int(thermo.get('hydrogen_implicit_max_refinements', 4))
     coarse = _run_case(
         runparams,
         icparams,
@@ -221,15 +220,15 @@ def _run_converged_case(runparams, icparams, label, initial_temperature):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename)
-    runparams, icparams = load_example_parameters(config_filename)
-    with config_filename.open() as config_file:
-        raw_config = yaml.safe_load(config_file)
-    cases = raw_config['cases']
-    eu.clean_previous_outputs(runparams)
+    config = eu.load_nested_example_config(config_filename)
+    runparams, icparams = config['par'], config['initial_condition']
+    runparams['_example'] = config['example']
+    cases = config['example']['cases']
+    eu.clean_previous_outputs(runparams['output'])
 
     histories = {}
     for label, initial_temperature in cases.items():
-        if str(runparams.get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
+        if str(runparams['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
             histories[label] = _run_converged_case(
                 runparams,
                 icparams,
@@ -244,8 +243,8 @@ def main(config_filename=DEFAULT_CONFIG):
                 float(initial_temperature),
             )
 
-    cmb_temperature = 2.7255 * (1.0 + runparams['compton_cmb_redshift'])
-    figure_filename = Path(runparams['savedir']) / 'ComptonCMBHeating1D.jpg'
+    cmb_temperature = 2.7255 * (1.0 + runparams['thermochemistry']['compton_cmb_redshift'])
+    figure_filename = Path(runparams['output']['savedir']) / 'ComptonCMBHeating1D.jpg'
     figure_filename.parent.mkdir(parents=True, exist_ok=True)
     fig, (temperature_axis, error_axis) = plt.subplots(
         2,
@@ -279,7 +278,7 @@ def main(config_filename=DEFAULT_CONFIG):
         error_axis.legend(frameon=False)
     fig.suptitle(
         'CMB Compton heating and cooling '
-        f'($z={runparams["compton_cmb_redshift"]:.1f}$)'
+        f'($z={runparams["thermochemistry"]["compton_cmb_redshift"]:.1f}$)'
     )
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches='tight')

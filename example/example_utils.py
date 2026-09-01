@@ -51,7 +51,7 @@ def load_nested_example_config(config_filename):
                 values[key] = _resolve_path(values[key], config_filename.parent)
         if section == 'par' and 'output' in values:
             output = values['output']
-            for key in ('directory', 'time_list_filename'):
+            for key in ('directory', 'savedir', 'time_list_filename'):
                 if key in output:
                     output[key] = _resolve_path(output[key], config_filename.parent)
     return {

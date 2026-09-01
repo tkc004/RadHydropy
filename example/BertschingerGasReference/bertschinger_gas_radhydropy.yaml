@@ -1,70 +1,46 @@
-runparams:
-  simname: BertschingerGasReferenceRadHydro
-  ICfilename: InitialCondition_RadHydro.hdf5
-  outdir: .
-  outfileprefix: Output_RadHydro
-  savedir: .
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  selfgravity: true
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: true
-  cosmology_type: einstein_de_sitter
-  cosmology_t_ref: 0.1
-  cosmology_a_ref: 1.0
-  externalgravity: false
-  timesim: 0.291535719769
-  outdeltatime: 0.01
-  CFL: 0.15
-  dtmin:
-    value: 1.0e-5
-    unit: yr
-  dtmax:
-    value: 1.0e-3
-    unit: Myr
-  boundcond: OutflowSph
-  rho_outflow:
-    value: 8.0e-22
-    unit: g/cm**3
-  temp_outflow:
-    value: 7.0e5
-    unit: K
-  vel_outflow:
-    value: 0.0
-    unit: km/s
-  mu_outflow: 0.6
-  verbose: 0
-  order: 0
-  noghost: 2
-  CodeUnits:
-    name: bertschinger_gas_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 4.42e44
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 9.77792221e7
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 8192
-  coordsys: spherical
-  boxsize:
-    value: 800.0
-    unit: kpc
-  rmin:
-    value: 0.15
-    unit: kpc
-  rmax:
-    value: 800.0
-    unit: kpc
-  time:
-    value: 0.1
-    unit: Myr
-  mu: 0.6
+par:
+  simulation:
+    name: BertschingerGasReferenceRadHydro
+    initial_condition_filename: InitialCondition_RadHydro.hdf5
+    coordinate_system: spherical
+    final_time: 0.291535719769
+  mesh: {grid_cells: 8192, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 1.6666666666666667, CFL: 0.15, order: 0, temperature_jump_error_threshold: 1.0e99}
+  boundary:
+    condition: OutflowSph
+    outflow_density: {value: 8.0e-22, unit: g/cm**3}
+    outflow_temperature: {value: 7.0e5, unit: K}
+    outflow_velocity: {value: 0.0, unit: km/s}
+    outflow_mu: 0.6
+  timestep:
+    dtmin: {value: 1.0e-5, unit: yr}
+    dtmax: {value: 1.0e-3, unit: Myr}
+  output: {directory: ., savedir: ., filename_prefix: Output_RadHydro}
+  diagnostics: {verbose: 0}
+  units:
+    CodeUnits:
+      name: bertschinger_gas_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 4.42e44
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 9.77792221e7
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  gravity:
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 0.1
+    cosmology_a_ref: 1.0
+    externalgravity: false
+initial_condition:
+  box_size: {value: 800.0, unit: kpc}
+  inner_radius: {value: 0.15, unit: kpc}
+  outer_radius: {value: 800.0, unit: kpc}
   initial_cosmic_time: 0.1
   perturbation_amplitude: 5.0
-  initial_temperature:
-    value: 1.0e-6
-    unit: K
+  mean_molecular_weight: 0.6
+  initial_temperature: {value: 1.0e-6, unit: K}
+example: {}

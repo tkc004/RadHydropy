@@ -12,17 +12,18 @@ from radhydropy.units import quantity_to_value
 class UniformEdSInitialCondition:
     """Build a few-cell uniform supercomoving initial condition."""
 
-    def __init__(self, icparams, units, cosmology):
+    def __init__(self, icparams, mesh_config, units, cosmology):
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
 
-        count = int(icparams["nogrid"])
-        rmin = quantity_to_value(icparams["rmin"], units.length_unit)
-        rmax = quantity_to_value(icparams["rmax"], units.length_unit)
+        count = int(mesh_config["grid_cells"])
+        rmin = quantity_to_value(icparams["inner_radius"], units.length_unit)
+        rmax = quantity_to_value(icparams["outer_radius"], units.length_unit)
         initial_time = float(icparams["initial_cosmic_time"])
 
         self.par.CodeUnits = units
+        self.par.units = SimpleNamespace(CodeUnits=units)
         self.par.unit_system = units.unit_system
         self.par.nogrid = count
         self.par.coordsys = "spherical"
@@ -43,6 +44,12 @@ class UniformEdSInitialCondition:
         self.par.density_representation = "physical"
         self.par.pressure_representation = "physical"
         self.par.temperature_representation = "physical"
+        self.par.simulation = SimpleNamespace(
+            current_time=initial_time,
+            box_size=np.asarray([rmax]),
+            coordinate_system="spherical",
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
 
         self.mesh.boundary = np.linspace(rmin, rmax, count + 1)
         self.mesh.coordinate = 0.75 * (

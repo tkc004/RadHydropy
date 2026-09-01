@@ -1,6 +1,12 @@
-runparams:
-  simname: BertschingerGasReference
-  gamma: 1.6666666666666667
+par:
+  simulation:
+    name: BertschingerGasReference
+  hydrodynamics:
+    gamma: 1.6666666666666667
+
+initial_condition: {}
+
+example:
   shock_lambda: 0.339
   lambda_min: 1.0e-5
   profile_points: 2048

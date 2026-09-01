@@ -1,70 +1,48 @@
-runparams:
-  simname: ComptonCMBHeating1D_coupled_implicit
-  ICfilename: ComptonCMBHeating1D_coupled_implicit_InitialCondition.hdf5
-  outdir: .
-  outfileprefix: ComptonCMBHeating1D_CoupledImplicit_Output
-  savedir: outputs_coupled_implicit
-  coordsys: cartesian
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  final_time:
-    value: 1.0
-    unit: Myr
-  evolution_timestep:
-    value: 1.0e-2
-    unit: Myr
-  noghost: 2
-  verbose: 0
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 1.0
-  hydrogen_xHI_initial: 0.0
-  hydrogen_xHI_inflow: 0.0
-  hydrogen_xHI_outflow: 0.0
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  hydrogen_atomic_cooling: false
-  hydrogen_source_solver: coupled_implicit
-  hydrogen_implicit_tolerance: 1.0e-8
-  hydrogen_implicit_max_iterations: 32
-  hydrogen_implicit_fallback: error
-  hydrogen_implicit_convergence_tolerance: 1.0e-3
-  hydrogen_implicit_max_refinements: 4
-  hydrogen_update_mu: false
-  hydrogen_thermal_coupling: true
-  hydrogen_radiation_field: false
-  radiative_transfer: false
-  compton_cmb_enabled: true
-  compton_cmb_redshift: 100.0
-  cmb_temperature_0:
-    value: 2.7255
-    unit: K
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 8
-  coordsys: cartesian
-  boxsize:
-    value: 1.0
-    unit: kpc
-  time:
-    value: 0.0
-    unit: Myr
-  nHini:
-    value: 1.0e-3
-    unit: 1/cm**3
-  tempini:
-    value: 1.0e6
-    unit: K
-  xHIini: 0.99
-  muini: 0.9900990099
-
-cases:
-  cooling: 1.0e6
-  heating: 1.0
+par:
+  simulation:
+    name: ComptonCMBHeating1D_coupled_implicit
+    initial_condition_filename: ComptonCMBHeating1D_coupled_implicit_InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 1.0, unit: Myr}
+  mesh: {grid_cells: 8, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 1.6666666666666667}
+  chemistry:
+    hydrogen_mass_fraction: 1.0
+    hydrogen_xHI_initial: 0.0
+    hydrogen_xHI_inflow: 0.0
+    hydrogen_xHI_outflow: 0.0
+    hydrogen_recombination: false
+    hydrogen_collisional_ionization: false
+    hydrogen_update_mu: false
+    hydrogen_thermal_coupling: true
+  thermochemistry:
+    hydrogen_chemistry: true
+    hydrogen_atomic_cooling: false
+    hydrogen_source_solver: coupled_implicit
+    hydrogen_implicit_tolerance: 1.0e-8
+    hydrogen_implicit_max_iterations: 32
+    hydrogen_implicit_fallback: error
+    hydrogen_implicit_convergence_tolerance: 1.0e-3
+    hydrogen_implicit_max_refinements: 4
+    compton_cmb_enabled: true
+    compton_cmb_redshift: 100.0
+    cmb_temperature_0: {value: 2.7255, unit: K}
+  radiation: {hydrogen_radiation_field: false, radiative_transfer: false}
+  output:
+    directory: .
+    savedir: outputs_coupled_implicit
+    filename_prefix: ComptonCMBHeating1D_CoupledImplicit_Output
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
+  box_size: {value: 1.0, unit: kpc}
+  current_time: {value: 0.0, unit: Myr}
+  hydrogen_density: {value: 1.0e-3, unit: 1/cm**3}
+  initial_temperature: {value: 1.0e6, unit: K}
+  xHI: 0.99
+  mean_molecular_weight: 0.9900990099
+example:
+  evolution_timestep: {value: 1.0e-2, unit: Myr}
+  cases: {cooling: 1.0e6, heating: 1.0}

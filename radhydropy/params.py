@@ -575,7 +575,8 @@ class Par:
         """Translate the nested YAML shape into internal input names."""
         if not any(isinstance(params.get(group), dict) for group in (
             'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
-            'units', 'radiation', 'chemistry', 'thermochemistry',
+            'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
+            'diagnostics', 'gravity',
         )):
             return params
         flattened = dict(params)
@@ -616,6 +617,16 @@ class Par:
                 'time_list_filename': 'outputtimefilename',
             },
             'diagnostics': {'verbose': 'verbose'},
+            'gravity': {
+                'selfgravity': 'selfgravity',
+                'externalgravity': 'externalgravity',
+                'cosmological_expansion': 'cosmological_expansion',
+                'supercomoving_coordinates': 'supercomoving_coordinates',
+                'cosmological_gravity': 'cosmological_gravity',
+                'cosmology_type': 'cosmology_type',
+                'cosmology_t_ref': 'cosmology_t_ref',
+                'cosmology_a_ref': 'cosmology_a_ref',
+            },
             'radiation': {
                 'direction': 'radiative_transfer_direction',
                 'boundary_flux': 'radiative_transfer_boundary_flux',
@@ -651,12 +662,25 @@ class Par:
             'thermochemistry': {
                 'network': 'thermochemistry_network',
                 'hydrogen_chemistry': 'hydrogen_chemistry',
+                'hydrogen_atomic_cooling': 'hydrogen_atomic_cooling',
                 'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
                 'hydrogen_recombination': 'hydrogen_recombination',
                 'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
                 'cie_cooling': 'cie_cooling',
                 'cooling_safety_factor': 'cooling_safety_factor',
                 'cooling_temperature_floor': 'cooling_temperature_floor',
+                'compton_cmb_enabled': 'compton_cmb_enabled',
+                'compton_cmb_redshift': 'compton_cmb_redshift',
+                'cmb_temperature_0': 'cmb_temperature_0',
+                'hydrogen_source_solver': 'hydrogen_source_solver',
+                'hydrogen_implicit_tolerance': 'hydrogen_implicit_tolerance',
+                'hydrogen_implicit_max_iterations': 'hydrogen_implicit_max_iterations',
+                'hydrogen_implicit_fallback': 'hydrogen_implicit_fallback',
+                'hydrogen_hybrid_change_tolerance': 'hydrogen_hybrid_change_tolerance',
+                'hydrogen_implicit_convergence_tolerance': 'hydrogen_implicit_convergence_tolerance',
+                'hydrogen_implicit_max_refinements': 'hydrogen_implicit_max_refinements',
+                'hydrogen_source_CFL': 'hydrogen_source_CFL',
+                'hydrogen_split_implicit_max_subcycles': 'hydrogen_split_implicit_max_subcycles',
             },
         }
         for group, names in groups.items():

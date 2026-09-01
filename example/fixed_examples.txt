@@ -36,6 +36,9 @@ Fixed (nested par / initial_condition / example configuration)
 - NFWHydrostaticEquilibrium1D
 - NFWVirialShock1D
 - NFWVirialShockAdiabatic1D
+- BertschingerGasReference
+- ComptonCMBHeating1D
+- UniformEdSThermochemistry1D
 
 Notes
 -----

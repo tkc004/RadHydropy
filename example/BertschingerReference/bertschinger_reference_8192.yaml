@@ -1,6 +1,12 @@
-runparams:
-  simname: BertschingerReference8192
-  savedir: outputs_caustic_convergence/shells_8192_slope
+par:
+  simulation: {name: BertschingerReference8192}
+  output: {directory: ., savedir: outputs_caustic_convergence/shells_8192_slope}
+  units:
+    CodeUnits:
+      name: bertschinger_reference_unit_system
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0e33, UnitLength_in_cgs: 3.08567758e18, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition: {number_of_shells: 8192, inner_radius: 0.05, outer_radius: 20.0, initial_cosmic_time: 1.0, perturbation_amplitude: 5.0, softening: 0.02}
+example:
   cosmology_t_ref: 1.0
   cosmology_a_ref: 1.0
   final_cosmic_time: 1.1
@@ -26,19 +32,3 @@ runparams:
   pre_crossing_match_lambda: 0.002
   pre_crossing_turnaround_radius: 1.0
   pre_crossing_softening: 0.00001
-  CodeUnits:
-    name: bertschinger_reference_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  number_of_shells: 8192
-  inner_radius: 0.05
-  outer_radius: 20.0
-  initial_cosmic_time: 1.0
-  perturbation_amplitude: 5.0
-  softening: 0.02

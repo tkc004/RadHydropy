@@ -1,69 +1,51 @@
-runparams:
-  simname: UniformEdSThermochemistry1D
-  ICfilename: UniformEdSThermochemistry1D_InitialCondition.hdf5
-  outdir: outputs
-  savedir: outputs
-  outfileprefix: Output
-  coordsys: spherical
-  boundcond: Reflecting
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  cosmological_expansion: true
-  supercomoving_coordinates: false
-  cosmological_gravity: false
-  selfgravity: false
-  cosmology_type: einstein_de_sitter
-  # One code time unit is 0.978 Myr; this reference gives an approximately
-  # gigayear-long physical interval from z=100 to z=10.
-  cosmology_t_ref: 50000.0
-  cosmology_a_ref: 1.0
-  noghost: 2
-  order: 0
-  CFL: 0.1
-  hydrogen_source_solver: hybrid
-  hydrogen_hybrid_change_tolerance: 0.10
-  hydrogen_implicit_fallback: error
-  hydrogen_implicit_tolerance: 1.0e-8
-  hydrogen_implicit_convergence_tolerance: 1.0e-5
-  hydrogen_implicit_max_iterations: 64
-  hydrogen_implicit_max_refinements: 8
-  # EdS: a=(t/t_ref)^(2/3). These times correspond to z=100 -> z=10.
-  timesim: 1370.5061117171075
-  source_timestep: 1.0
-  dtmin: 1.0e-8
-  dtmax: 1.0e-4
-  outdeltatime: 1.0e99
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 1.0
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  hydrogen_update_mu: false
-  hydrogen_thermal_coupling: true
-  hydrogen_atomic_cooling: false
-  compton_cmb_enabled: true
-  compton_cmb_redshift: 100.0
-  cmb_temperature_0:
-    value: 2.7255
-    unit: K
-  CodeUnits:
-    name: uniform_eds_thermochemistry_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.085677581e18
-      UnitVelocity_in_cgs: 100000.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 4
-  rmin:
-    value: 0.0
-    unit: pc
-  rmax:
-    value: 1.0
-    unit: pc
+par:
+  simulation:
+    name: UniformEdSThermochemistry1D
+    initial_condition_filename: UniformEdSThermochemistry1D_InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: 1370.5061117171075
+  mesh: {grid_cells: 4, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 1.6666666666666667, CFL: 0.1, order: 0}
+  boundary: {condition: Reflecting}
+  gravity:
+    cosmological_expansion: true
+    supercomoving_coordinates: false
+    cosmological_gravity: false
+    selfgravity: false
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 50000.0
+    cosmology_a_ref: 1.0
+  thermochemistry:
+    hydrogen_chemistry: true
+    hydrogen_mass_fraction: 1.0
+    hydrogen_recombination: false
+    hydrogen_collisional_ionization: false
+    hydrogen_update_mu: false
+    hydrogen_thermal_coupling: true
+    hydrogen_atomic_cooling: false
+    hydrogen_source_solver: hybrid
+    hydrogen_hybrid_change_tolerance: 0.10
+    hydrogen_implicit_fallback: error
+    hydrogen_implicit_tolerance: 1.0e-8
+    hydrogen_implicit_convergence_tolerance: 1.0e-5
+    hydrogen_implicit_max_iterations: 64
+    hydrogen_implicit_max_refinements: 8
+    compton_cmb_enabled: true
+    compton_cmb_redshift: 100.0
+    cmb_temperature_0: {value: 2.7255, unit: K}
+  timestep: {dtmin: 1.0e-8, dtmax: 1.0e-4}
+  output: {directory: outputs, savedir: outputs, filename_prefix: Output}
+  units:
+    CodeUnits:
+      name: uniform_eds_thermochemistry_unit_system
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0e33, UnitLength_in_cgs: 3.085677581e18, UnitVelocity_in_cgs: 100000.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
+  inner_radius: {value: 0.0, unit: pc}
+  outer_radius: {value: 1.0, unit: pc}
   initial_cosmic_time: 49.25926684207865
   hydrogen_density_cm3: 1.0e-3
   hydrogen_mass_fraction: 1.0
   temperature_K: 275.2755
   xHI: 0.9998
+example:
+  source_timestep: 1.0

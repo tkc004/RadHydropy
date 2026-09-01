@@ -11,6 +11,7 @@ import numpy as np
 import yaml
 
 from bertschinger_shell_ode_comparison import run_comparison
+import tools as example_tools
 
 
 ROOT = Path(__file__).resolve().parent
@@ -27,22 +28,26 @@ CASES = {
 
 
 def _config(runparams, icparams, filename):
+    example = {key: value for key, value in runparams.items()
+               if key not in {'simname', 'savedir', 'CodeUnits'}}
     with filename.open('w') as handle:
-        yaml.safe_dump({'runparams': runparams, 'ICparams': icparams}, handle,
+        yaml.safe_dump({'par': {'simulation': {'name': runparams['simname']},
+                                'output': {'directory': '.', 'savedir': runparams['savedir']},
+                                'units': {'CodeUnits': runparams['CodeUnits']}},
+                        'initial_condition': icparams, 'example': example}, handle,
                        sort_keys=False)
 
 
 def main():
-    with CONFIG.open() as handle:
-        base = yaml.safe_load(handle)
+    base_runparams, base_icparams = example_tools.load_reference_parameters(CONFIG)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     rows = []
     with tempfile.TemporaryDirectory(prefix='radhydropy-caustic-') as temp:
         temp = Path(temp)
         for parameter, values in CASES.items():
             for value in values:
-                runparams = deepcopy(base['runparams'])
-                icparams = deepcopy(base['ICparams'])
+                runparams = deepcopy(base_runparams)
+                icparams = deepcopy(base_icparams)
                 if parameter == 'shells':
                     icparams['number_of_shells'] = value
                 elif parameter == 'smoothing':
