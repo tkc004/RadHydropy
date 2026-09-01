@@ -1,76 +1,70 @@
-runparams:
-  simname: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  savedir: .
+par:
+  simulation:
+    name: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 100.0, unit: Myr}
+  mesh:
+    grid_cells: 128
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.5
+    order: 0
+  boundary:
+    condition: OpenSph
+  timestep:
+    dtmin: {value: 1.0e-6, unit: Myr}
+    dtmax: {value: 0.5, unit: Myr}
+    evolution_timestep: {value: 0.5, unit: Myr}
+  chemistry:
+    hydrogen_mass_fraction: 0.75
+    helium_mass_fraction: 0.25
+    hydrogen_xHI_initial: 1.0
+    hydrogen_helium_xHeI_initial: 1.0
+    hydrogen_helium_xHeII_initial: 0.0
+    hydrogen_helium_xHeIII_initial: 0.0
+  thermochemistry:
+    thermochemistry_network: hydrogen_helium
+    hydrogen_chemistry: true
+    hydrogen_update_mu: true
+    hydrogen_thermal_coupling: true
+    hydrogen_recombination: true
+    hydrogen_collisional_ionization: true
+    hydrogen_initial_collisional_equilibrium: true
+    metal_pie_enabled: true
+    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
+    metallicity: 1.0
+    explicit_tolerance: 0.1
+    relative_tolerance: 1.0e-3
+    absolute_tolerance: 1.0e-10
+  radiation:
+    radiative_transfer: true
+    radiative_transfer_method: long_characteristics
+    radiative_transfer_direction: 1
+    radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB30000K_5groups_HHe.h5
+    radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
+    stellar_spectrum_blackbody_temperature_K: 30000.0
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98841586e33
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  grid_cells: 128
+  coordinate_system: spherical
+  box_size: {value: 10.0, unit: kpc}
+  current_time: {value: 0.0, unit: Myr}
+  hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
+  initial_temperature: {value: 100.0, unit: K}
+example:
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_PIE.jpg
-  coordsys: spherical
-  boundcond: OpenSph
-  noghost: 2
-  thermochemistry_network: hydrogen_helium
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 0.75
-  helium_mass_fraction: 0.25
-  hydrogen_xHI_initial: 1.0
-  hydrogen_helium_xHeI_initial: 1.0
-  hydrogen_helium_xHeII_initial: 0.0
-  hydrogen_helium_xHeIII_initial: 0.0
-  hydrogen_update_mu: true
-  hydrogen_thermal_coupling: true
-  hydrogen_recombination: true
-  hydrogen_collisional_ionization: true
-  hydrogen_initial_collisional_equilibrium: true
-  radiative_transfer: true
-  radiative_transfer_method: long_characteristics
-  radiative_transfer_direction: 1
-  radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB30000K_5groups_HHe.h5
-  stellar_spectrum_blackbody_temperature_K: 30000.0
-  metal_pie_enabled: true
-  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
-  metallicity: 1.0
-  radiation_spectrum_total_photon_rate:
-    value: 5.0e48
-    unit: 1/s
-  explicit_tolerance: 0.1
-  relative_tolerance: 1.0e-3
-  absolute_tolerance: 1.0e-10
-  timesim:
-    value: 100.0
-    unit: Myr
-  final_time:
-    value: 100.0
-    unit: Myr
-  evolution_timestep:
-    value: 0.5
-    unit: Myr
-  initial_temperature:
-    value: 100.0
-    unit: K
-  hydrogen_number_density:
-    value: 1.0e-3
-    unit: 1/cm**3
-  boxsize:
-    value: 10.0
-    unit: kpc
-  number_of_cells: 128
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.98841586e33
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  number_of_cells: 128
-  boxsize:
-    value: 10.0
-    unit: kpc
-  hydrogen_number_density:
-    value: 1.0e-3
-    unit: 1/cm**3
-  initial_temperature:
-    value: 100.0
-    unit: K

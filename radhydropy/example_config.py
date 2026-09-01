@@ -100,7 +100,7 @@ def load_example_parameters(config_filename, rundir=None):
         ):
             if alias not in icparams and source in icparams:
                 icparams[alias] = icparams[source]
-        for group in ('chemistry', 'thermochemistry', 'radiation'):
+        for group in ('chemistry', 'thermochemistry', 'radiation', 'gravity'):
             runparams.update(nested_par.get(group, {}))
         runparams.setdefault(
             'radiative_transfer_temporal_scheme',

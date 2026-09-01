@@ -37,13 +37,25 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     runparams, ICparams = load_example_parameters(config_filename, rundir)
+    runparams['nogrid'] = ICparams['nogrid']
     eu.clean_previous_outputs(runparams)
     code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
 
     ric = et.Simwrap(ICparams, code_units=code_units_obj)
     rio.writehdf5(ric, runparams['ICfilename'])
 
-    mainrun = Rsim(runparams)
+    runtime_only = {
+        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
+        'number_of_cells',
+        'inner_radius', 'outer_radius', 'reference_density',
+        'initial_temperature', 'mean_molecular_weight', 'point_mass',
+        'final_time', 'evolution_timestep', 'chemistry_timestep',
+    }
+    runtime = {
+        key: value for key, value in runparams.items()
+        if key not in runtime_only
+    }
+    mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
     mainrun.SetMesh()
     mainrun.SetFluid()
@@ -53,10 +65,10 @@ def main(config_filename=DEFAULT_CONFIG):
         potential=point_mass_potential(
             mainrun.mesh.coordinate,
             ICparams['point_mass'],
-            code_units=mainrun.par.CodeUnits,
+            code_units=code_units_obj,
         ),
         coordinate=mainrun.mesh.coordinate.copy(),
-        code_units=mainrun.par.CodeUnits,
+        code_units=code_units_obj,
     )
     mainrun.Run(mode='hydro')
 

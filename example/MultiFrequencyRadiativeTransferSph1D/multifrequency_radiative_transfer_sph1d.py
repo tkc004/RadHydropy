@@ -167,7 +167,23 @@ def main(config_filename=DEFAULT_CONFIG):
     config.update(runparams)
 
     tools.write_initial_condition(config, runparams)
-    sim = Rsim(runparams)
+    runtime_only = {
+        "absolute_tolerance", "boxsize", "evolution_timestep",
+        "explicit_tolerance", "final_time",
+        "figure_filename",
+        "box_size", "chemistry_timestep", "coordinate_system",
+        "current_time", "grid_cells", "plot_filename",
+        "hydrogen_initial_collisional_equilibrium", "hydrogen_number_density",
+        "initial_temperature", "neutral_fraction_reference_filename",
+        "number_of_cells", "reference_radius_unit", "relative_tolerance",
+        "temperature_reference_filename",
+    }
+    runtime = {
+        key: value for key, value in runparams.items()
+        if key not in runtime_only
+    }
+    runtime["nogrid"] = runparams["number_of_cells"]
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()

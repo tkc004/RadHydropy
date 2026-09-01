@@ -105,7 +105,15 @@ _CODE_UNIT_GROUPS = (
             ('hydrogen_ngamma_outflow', 'number_density'),
             ('radiative_transfer_boundary_flux', 'photon_flux'),
             ('radiative_transfer_source_photon_rate', 'photon_rate'),
+            ('radiative_transfer_boundary_flux_groups', 'photon_flux'),
+            ('radiative_transfer_source_photon_rate_groups', 'photon_rate'),
             ('radiation_spectrum_total_photon_rate', 'photon_rate'),
+            ('radiation_group_sigma_gamma', 'area'),
+            ('radiation_group_epsilon_gamma', 'energy'),
+            ('radiation_group_sigma_gamma_HeI', 'area'),
+            ('radiation_group_sigma_gamma_HeII', 'area'),
+            ('radiation_group_epsilon_gamma_HeI', 'energy'),
+            ('radiation_group_epsilon_gamma_HeII', 'energy'),
             ('hydrogen_sigma_gamma', 'area'),
             ('hydrogen_epsilon_gamma', 'energy'),
             ('hydrogen_alpha_B', 'alpha'),
@@ -275,6 +283,19 @@ def code_quantity_to_cgs(value, code, scale_key):
     if scales is None:
         return np.asarray(value, dtype=float)
     return np.asarray(value, dtype=float) * scales[scale_key]
+
+
+def quantity_or_code_to_cgs(value, code, unit, scale_key):
+    """Convert a unitful or code-unit value to a plain CGS array.
+
+    Runtime parameters may still be unyt quantities at source-state
+    boundaries, while values loaded from serialized runtime parameters may be
+    plain code-unit numbers.  Keep this distinction in the shared units
+    layer so physics modules do not each implement their own conversion.
+    """
+    if hasattr(value, "to_value"):
+        return np.asarray(value.to_value(unit), dtype=float)
+    return np.asarray(code_quantity_to_cgs(value, code, scale_key), dtype=float)
 
 
 def cgs_quantity_to_code(value, code, scale_key):

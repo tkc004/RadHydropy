@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import (
     BOLTZMANN_CONSTANT_CGS,
@@ -51,12 +52,19 @@ class InitialCondition:
         self.mesh = type("Mesh", (), {})()
         self.fluid = type("Fluid", (), {})()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.nogrid = int(icparams["nogrid"])
         self.par.noghost = 2
         self.par.coordsys = "spherical"
         self.par.time = 0.0
         self.par.boxsize = np.asarray(
             [float(icparams["rmax"].to_value(code_units.length_unit))]
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=2)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system="spherical",
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
         )
 
         self.mesh.boundary = np.linspace(
@@ -72,9 +80,9 @@ class InitialCondition:
         )
         self.fluid.rho = point_mass_density(
             self.mesh.coordinate * code_units.length_unit,
-            icparams["rho_ref"],
-            icparams["temperature"],
-            icparams["mu"],
+            icparams["reference_density"],
+            icparams["initial_temperature"],
+            icparams["mean_molecular_weight"],
             icparams["point_mass"],
             self.mesh.coordinate[0] * code_units.length_unit,
         )
@@ -84,19 +92,19 @@ class InitialCondition:
         )
         self.fluid.temp = np.full(
             self.par.nogrid,
-            float(icparams["temperature"].to_value(unyt.K))
+            float(icparams["initial_temperature"].to_value(unyt.K))
             / scales["temperature_K"],
         )
-        self.fluid.mu = np.full(self.par.nogrid, float(icparams["mu"]))
+        self.fluid.mu = np.full(self.par.nogrid, float(icparams["mean_molecular_weight"]))
         self.fluid.vel = np.zeros(self.par.nogrid)
 
 
 def analytic_density_code(radius_code, icparams, code_units):
     density = point_mass_density(
         np.asarray(radius_code) * code_units.length_unit,
-        icparams["rho_ref"],
-        icparams["temperature"],
-        icparams["mu"],
+        icparams["reference_density"],
+        icparams["initial_temperature"],
+        icparams["mean_molecular_weight"],
         icparams["point_mass"],
         float(radius_code[0]) * code_units.length_unit,
     )

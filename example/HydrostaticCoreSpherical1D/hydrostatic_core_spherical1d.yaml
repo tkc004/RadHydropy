@@ -1,38 +1,47 @@
-runparams:
-  simname: HydrostaticCoreSpherical1D
-  ICfilename: outputs/InitialCondition.hdf5
-  outdir: outputs
-  savedir: outputs
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: isothermal
-  gamma: 1.6666666666666667
-  externalgravity: true
-  selfgravity: false
-  boundcond: Reflecting
-  order: 0
-  noghost: 2
-  CFL: 0.20
-  dtmin: {value: 1.0e-10, unit: s}
-  dtmax: {value: 1.0e12, unit: s}
-  timesim: {value: 1.0, unit: s}
-  outputtimefilename: hydrostatic_core_spherical1d_output_times.txt
-  gas_core_model: hydrostatic_fixed
-  gas_core_radius: {value: 5.0, unit: pc}
-  CodeUnits:
-    name: hydrostatic_core_spherical_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 4.92e31
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 256
-  rmin: {value: 2.0, unit: pc}
-  rmax: {value: 20.0, unit: pc}
-  rho_ref: {value: 1.0e-24, unit: g/cm**3}
-  temperature: {value: 1.0e4, unit: K}
-  mu: 1.0
+par:
+  simulation:
+    name: HydrostaticCoreSpherical1D
+    initial_condition_filename: outputs/InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 1.0, unit: s}
+  mesh:
+    grid_cells: 256
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: isothermal
+    gamma: 1.6666666666666667
+    CFL: 0.20
+    order: 0
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: {value: 1.0e-10, unit: s}
+    dtmax: {value: 1.0e12, unit: s}
+  gravity:
+    externalgravity: true
+    selfgravity: false
+    gas_core_model: hydrostatic_fixed
+    gas_core_radius: {value: 5.0, unit: pc}
+  output:
+    directory: outputs
+    savedir: outputs
+    filename_prefix: Output
+    time_list_filename: hydrostatic_core_spherical1d_output_times.txt
+  units:
+    CodeUnits:
+      name: hydrostatic_core_spherical_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 4.92e31
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  grid_cells: 256
+  coordinate_system: spherical
+  inner_radius: {value: 2.0, unit: pc}
+  outer_radius: {value: 20.0, unit: pc}
+  reference_density: {value: 1.0e-24, unit: g/cm**3}
+  initial_temperature: {value: 1.0e4, unit: K}
+  mean_molecular_weight: 1.0
   point_mass: {value: 1.0e38, unit: g}

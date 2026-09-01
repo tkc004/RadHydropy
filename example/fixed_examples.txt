@@ -27,8 +27,18 @@ Fixed (nested par / initial_condition / example configuration)
 - StaticStromgrenSphere1D
 - StaticStromgrenSpherePhotoheating1D
 - BallisticInfallSphericalPointMass1D
+- HydrostaticCoreSpherical1D
+- HydrostaticEquilibriumSphericalPointMass1D
+- MultiFrequencyRadiativeTransferSph1D
+- MultiFrequencyRadiativeTransferSph1D_HHe_100Myr
+- MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr
+- NFWBoundaryDrivenVirialShock1D
+- NFWHydrostaticEquilibrium1D
+- NFWVirialShock1D
+- NFWVirialShockAdiabatic1D
 
 Notes
 -----
 - HIIRegionExpansion1D includes early/late and standard/C2Ray configurations.
 - The remaining examples still use the legacy runparams/ICparams layout.
+- MultiFrequencyRadiativeTransferSph1D also includes C2Ray and single-frequency variants.

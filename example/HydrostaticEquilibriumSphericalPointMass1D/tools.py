@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, GRAVITATIONAL_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
@@ -137,11 +138,18 @@ class Simwrap:
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
 
         self.par.nogrid = icparams['nogrid']
         self.par.coordsys = icparams['coordsys']
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=2)
+        self.par.simulation = SimpleNamespace(
+            coordinate_system='spherical',
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+        )
 
         self.mesh.boundary = np.linspace(
             icparams['rmin'],

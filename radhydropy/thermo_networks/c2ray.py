@@ -27,8 +27,8 @@ from radhydropy.units import (
     PHOTON_FLUX_UNIT,
     PHOTON_RATE_UNIT,
     _code_units,
-    code_quantity_to_cgs,
     time_seconds,
+    quantity_or_code_to_cgs,
 )
 from radhydropy import radiative_transfer as rrt
 from radhydropy.thermo_networks import hydrogen
@@ -45,14 +45,6 @@ class C2RayResult:
     mean_neutral_fraction: np.ndarray
     converged: np.ndarray
     iterations: np.ndarray
-
-
-def _cgs_parameter(value, code, unit, scale_key):
-    if hasattr(value, "to_value"):
-        return np.asarray(value.to_value(unit), dtype=float)
-    if code is not None:
-        return np.asarray(code_quantity_to_cgs(value, code, scale_key), dtype=float)
-    return np.asarray(value, dtype=float)
 
 
 def _group_parameters(par):
@@ -72,8 +64,8 @@ def _group_parameters(par):
             epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA)
 
     code = _code_units(par)
-    sigma = _cgs_parameter(sigma_value, code, CGS_AREA_UNIT, "area_cm2")
-    epsilon = _cgs_parameter(
+    sigma = quantity_or_code_to_cgs(sigma_value, code, CGS_AREA_UNIT, "area_cm2")
+    epsilon = quantity_or_code_to_cgs(
         epsilon_value,
         code,
         "erg",
@@ -102,13 +94,13 @@ def _group_parameters(par):
     )
     if source_rate is None:
         source_rate = getattr(par, "radiative_transfer_source_photon_rate", 0.0)
-    boundary_flux = _cgs_parameter(
+    boundary_flux = quantity_or_code_to_cgs(
         boundary_flux,
         code,
         PHOTON_FLUX_UNIT,
         "photon_flux_per_cm2_s",
     )
-    source_rate = _cgs_parameter(
+    source_rate = quantity_or_code_to_cgs(
         source_rate,
         code,
         PHOTON_RATE_UNIT,

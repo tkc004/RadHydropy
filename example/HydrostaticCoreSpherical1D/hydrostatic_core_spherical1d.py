@@ -28,13 +28,24 @@ DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 
 def run(config_filename=DEFAULT_CONFIG):
     runparams, icparams = load_example_parameters(config_filename)
+    runparams["nogrid"] = icparams["nogrid"]
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     initial = et.InitialCondition(icparams, units)
     output_dir = Path(runparams["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, output_dir / "InitialCondition.hdf5")
 
-    local = dict(runparams)
+    runtime_only = {
+        "box_size", "coordinate_system", "current_time", "grid_cells",
+        "number_of_cells",
+        "inner_radius", "outer_radius", "reference_density",
+        "initial_temperature", "mean_molecular_weight", "point_mass",
+        "final_time", "evolution_timestep", "chemistry_timestep",
+    }
+    local = {
+        key: value for key, value in runparams.items()
+        if key not in runtime_only
+    }
     local["ICfilename"] = str(output_dir / "InitialCondition.hdf5")
     local["outdir"] = str(output_dir)
     local["savedir"] = str(output_dir)
@@ -48,10 +59,10 @@ def run(config_filename=DEFAULT_CONFIG):
         potential=point_mass_potential(
             sim.mesh.coordinate,
             icparams["point_mass"],
-            code_units=sim.par.CodeUnits,
+            code_units=units,
         ),
         coordinate=sim.mesh.coordinate.copy(),
-        code_units=sim.par.CodeUnits,
+        code_units=units,
     )
 
     step_times = []
@@ -69,7 +80,7 @@ def run(config_filename=DEFAULT_CONFIG):
     last = first + int(sim.par.nogrid)
     radius = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
     density = np.asarray(sim.fluid.rho[first:last], dtype=float)
-    analytic = et.analytic_density_code(radius, icparams, sim.par.CodeUnits)
+    analytic = et.analytic_density_code(radius, icparams, units)
     core_radius = float(np.asarray(sim.par.gas_core_radius))
     halo = radius >= core_radius
     relative_error = np.abs(density - analytic) / np.maximum(analytic, 1.0e-300)
@@ -87,11 +98,11 @@ def run(config_filename=DEFAULT_CONFIG):
     print("mean timestep: %.6e" % mean_step)
 
     figure = output_dir / "HydrostaticCoreSpherical1D.jpg"
-    radius_pc = radius * float(sim.par.CodeUnits.length_in_cgs) / 3.085677581e18
+    radius_pc = radius * float(units.length_in_cgs) / 3.085677581e18
     plt.figure(figsize=(7.0, 5.0))
     plt.loglog(radius_pc, density, label="simulation")
     plt.loglog(radius_pc, analytic, "--", label="analytic")
-    plt.axvline(core_radius * float(sim.par.CodeUnits.length_in_cgs) / 3.085677581e18,
+    plt.axvline(core_radius * float(units.length_in_cgs) / 3.085677581e18,
                 color="0.4", ls=":", label="core radius")
     plt.xlabel("radius [pc]")
     plt.ylabel("density [code units]")
