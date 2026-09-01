@@ -42,38 +42,44 @@ class BoundaryAccretionSolver(Solver):
     """Use a non-injecting inner diode and maintained outer accretion."""
 
     def SetBoundary(self, mesh, fluid, par):
-        first = par.noghost
-        right_start = first + par.nogrid
-        scales = code_unit_scales(getattr(par, 'CodeUnits', None))
+        first = par.mesh.ghost_cells
+        right_start = first + par.mesh.grid_cells
+        scales = code_unit_scales(par.units.CodeUnits)
 
         left = self._boundary_state(fluid, first)
         # Negative velocity points through the inner boundary and out of the
         # domain. Suppress only a positive velocity that would inject gas.
         left['vel'] = min(float(fluid.vel[first]), 0.0)
         right = {
-            'rho': par.rho_inflow,
-            'vel': par.vel_inflow,
+            'rho': par.boundary.inflow_density,
+            'vel': par.boundary.inflow_velocity,
             'pre': fluid.eos.pressure(
-                par.rho_inflow, par.temp_inflow, par.mu_inflow
+                par.boundary.inflow_density,
+                par.boundary.inflow_temperature,
+                par.boundary.inflow_mu,
             ),
         }
         if hasattr(fluid, 'xHI'):
             left['xHI'] = float(fluid.xHI[first])
-            right['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
+            right['xHI'] = getattr(par.chemistry, 'hydrogen_xHI_inflow', 1.0)
         if hasattr(fluid, 'ngamma'):
             left['ngamma'] = fluid.ngamma[..., first]
             right['ngamma'] = self._to_code_number_density(
-                getattr(par, 'hydrogen_ngamma_inflow', 0.0), scales
+                getattr(par.radiation, 'hydrogen_ngamma_inflow', 0.0), scales
             )
         self._copy_boundary_state(fluid, slice(0, first), left)
         self._copy_boundary_state(
-            fluid, slice(right_start, right_start + par.noghost), right
+            fluid, slice(right_start, right_start + par.mesh.ghost_cells), right
         )
 
 
 def _runtime_restart(sim, params, pie_table):
     """Restore stage controls overwritten by snapshot header metadata."""
-    immutable = {'CodeUnits', 'coordsys', 'nogrid', 'noghost', 'gamma', 'EOStype'}
+    immutable = {
+        'CodeUnits', 'coordsys', 'nogrid', 'noghost', 'gamma', 'EOStype',
+        'adiabatic_final_time', 'pie_final_time', 'pie_outdir',
+        'pie_outputtimefilename',
+    }
     for key, value in params.items():
         if key not in immutable:
             setattr(sim.par, key, value)
@@ -83,8 +89,8 @@ def _runtime_restart(sim, params, pie_table):
 
 def _strip_snapshot_ghosts(sim):
     """Convert an evolved snapshot back to the ghost-free IC layout."""
-    first = int(sim.par.noghost)
-    count = int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    count = int(sim.par.mesh.grid_cells)
     total = count + 2 * first
     if len(sim.mesh.boundary) == count + 1:
         return
@@ -103,7 +109,12 @@ def _run_stage(params, halo, mode, pie_table=None, restart=False):
     outdir = Path(params['outdir'])
     outdir.mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(params)
-    sim = Rsim(params)
+    stage_only = {
+        'adiabatic_final_time', 'pie_final_time', 'pie_outdir',
+        'pie_outputtimefilename',
+    }
+    sim = Rsim({key: value for key, value in params.items()
+                if key not in stage_only})
     sim.solver = BoundaryAccretionSolver()
     sim.Callreadhdf5()
     if restart:
@@ -116,10 +127,10 @@ def _run_stage(params, halo, mode, pie_table=None, restart=False):
         externalgravity=True,
         potential=nfw_potential(
             sim.mesh.coordinate, halo['scale_density'], halo['scale_radius'],
-            code_units=sim.par.CodeUnits,
+            code_units=sim.par.units.CodeUnits,
         ),
         coordinate=sim.mesh.coordinate.copy(),
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode=mode)
     return sorted(outdir.glob(f"{params['outfileprefix']}_*.hdf5"))
@@ -182,6 +193,7 @@ def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
 def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config_filename = Path(config_filename).resolve()
     runparams, icparams = load_example_parameters(config_filename)
+    runparams['nogrid'] = icparams['nogrid']
     for key in ('metal_pie_table_filename', 'pie_outputtimefilename', 'pie_outdir'):
         runparams[key] = str((config_filename.parent / runparams[key]).resolve())
 

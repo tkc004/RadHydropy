@@ -38,6 +38,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('nfw_virial_shock1d.yaml')
 
 def main(config_filename=DEFAULT_CONFIG):
     runparams, icparams = load_example_parameters(config_filename)
+    runparams['nogrid'] = icparams['nogrid']
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
     halo = et.NFW.nfw_halo_parameters(
@@ -61,10 +62,10 @@ def main(config_filename=DEFAULT_CONFIG):
             sim.mesh.coordinate,
             halo['scale_density'],
             halo['scale_radius'],
-            code_units=sim.par.CodeUnits,
+            code_units=code_units,
         ),
         coordinate=sim.mesh.coordinate.copy(),
-        code_units=sim.par.CodeUnits,
+        code_units=code_units,
     )
     sim.Run(mode='hydro')
 

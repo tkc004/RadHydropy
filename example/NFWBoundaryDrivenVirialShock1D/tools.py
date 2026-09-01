@@ -99,6 +99,7 @@ class Simwrap:
         self.fluid = SimpleNamespace()
         self.par.CodeUnits = code_units
         self.par.unit_system = code_units.unit_system
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.nogrid = int(icparams['nogrid'])
         self.par.coordsys = 'spherical'
         self.par.time = np.ones(1) * icparams['time']
@@ -111,6 +112,12 @@ class Simwrap:
         inner = float(icparams['inner_radius_over_R200']) * r200
         outer = float(icparams['outer_radius_over_R200']) * r200
         self.par.boxsize = np.ones(1) * outer
+        self.par.simulation = SimpleNamespace(
+            coordinate_system='spherical',
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
         self.mesh.boundary = np.geomspace(
             inner.to_value(unyt.kpc), outer.to_value(unyt.kpc),
             self.par.nogrid + 1,

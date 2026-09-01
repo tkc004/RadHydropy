@@ -6,6 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
@@ -60,11 +61,18 @@ class Simwrap:
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams['nogrid'])
         self.par.coordsys = icparams['coordsys']
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
+        self.par.simulation = SimpleNamespace(
+            coordinate_system='spherical',
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
         self.mesh.boundary = np.linspace(
             icparams['rmin'],
             icparams['rmax'],
