@@ -14,18 +14,24 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import example_utils as eu
 
 from cosmological_rotating_collapse1d import InitialCondition, DEFAULT_CONFIG
 
 
 def main(output_root=None):
-    runparams, icparams = load_example_parameters(DEFAULT_CONFIG, ROOT)
+    config = eu.load_nested_example_config(DEFAULT_CONFIG)
+    runtime = config["par"]
+    icparams = {**config["initial_condition"], "nogrid": runtime["mesh"]["grid_cells"]}
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(runtime.get("gravity", {}))
+    runparams["output_root"] = runtime["output"]["directory"]
     runparams = dict(runparams)
     runparams.update({
         'hydrogen_chemistry': True,
@@ -40,11 +46,21 @@ def main(output_root=None):
         'cooling_temperature_floor': {'value': 1.0e-3, 'unit': 'K'},
         'final_cosmic_time': 1.0,
     })
+    runtime = {key: (dict(value) if isinstance(value, dict) else value)
+               for key, value in runtime.items()}
+    runtime["thermochemistry"] = {
+        **runtime.get("thermochemistry", {}),
+        **{key: value for key, value in runparams.items()
+           if key.startswith("hydrogen_") or key in ("cooling_temperature_floor",)},
+    }
+    runtime["simulation"] = {**runtime["simulation"], "final_time": runparams["final_cosmic_time"]}
     if output_root is not None:
         runparams['output_root'] = str(output_root)
         runparams['savedir'] = str(output_root)
+        runtime["output"] = {**runtime["output"], "directory": str(output_root), "savedir": str(output_root)}
 
     units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    runtime["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
     cosmology = EinsteinDeSitter.from_code_units(
         units,
         t_ref=float(runparams['cosmology_t_ref']),
@@ -65,15 +81,18 @@ def main(output_root=None):
         units, cosmology,
     )
     rio.writehdf5(initial, runparams['ICfilename'])
-    sim = Rsim(runparams)
+    runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": runparams["ICfilename"]}
+    runtime["output"] = {**runtime["output"], "directory": str(output_dir), "savedir": str(output_dir), "filename_prefix": "Output"}
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.time)
     sim.SetInitFluid()
+    sim.par.set_cosmology_model(cosmology)
 
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     active = slice(first, last)
     mass_before = np.asarray(sim.fluid.Mass[active], dtype=float).copy()
     angular_before = np.asarray(sim.fluid.AngularMomentum[active], dtype=float).copy()

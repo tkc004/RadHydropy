@@ -595,6 +595,11 @@ class Par:
                 'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
                 'positivity_preserving': 'positivity_preserving',
                 'dual_energy': 'dual_energy',
+                'gas_angular_momentum': 'gas_angular_momentum',
+                'gas_rotational_energy': 'gas_rotational_energy',
+                'gravity_potential_energy': 'gravity_potential_energy',
+                'source_integrator': 'source_integrator',
+                'angular_momentum_flux_scheme': 'angular_momentum_flux_scheme',
                 'cfl_density_floor': 'cfl_density_floor',
                 'temperature_jump_error_threshold': 'temperature_jump_error_threshold',
             },
@@ -1020,6 +1025,7 @@ class Par:
     def set_code_units(self, code_units):
         """Update the unit system stored in the nested units group."""
         self.unit_system = code_units.unit_system
+        self.CodeUnits = code_units
         self.units = UnitsParameters(
             CodeUnits=code_units,
             unit_system=self.unit_system,

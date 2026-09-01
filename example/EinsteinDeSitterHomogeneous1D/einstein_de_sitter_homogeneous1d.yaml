@@ -1,0 +1,18 @@
+par:
+  simulation:
+    name: EinsteinDeSitterHomogeneous1D
+    initial_time: 1.0
+    final_time: 2.0
+  units:
+    CodeUnits:
+      name: einstein_de_sitter_homogeneous_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e33
+        UnitLength_in_cgs: 1.0e18
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+example:
+  density: 2.0
+  velocity: 3.0
+  pressure: 5.0

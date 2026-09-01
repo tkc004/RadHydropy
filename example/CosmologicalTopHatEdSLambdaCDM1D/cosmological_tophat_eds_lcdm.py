@@ -10,16 +10,18 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE_ROOT = PROJECT_ROOT / "example" / "CosmologicalVirialShock1D"
+EXAMPLE_ROOT = Path(__file__).resolve().parent
+REFERENCE_ROOT = PROJECT_ROOT / "example" / "CosmologicalVirialShock1D"
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
-sys.path.insert(0, str(EXAMPLE_ROOT))
+sys.path.insert(0, str(REFERENCE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits, _gravitational_constant_code
-from radhydropy.example_config import load_example_parameters
+import example_utils as eu
 import cosmological_dark_matter_only as reference_example
 
 
@@ -47,10 +49,15 @@ def units():
 def reproduce_reference():
     """Run the established EdS calibration unchanged before the comparison."""
     config = EXAMPLE_ROOT / "cosmological_dark_matter_correlation_z100.yaml"
-    runparams, icparams = load_example_parameters(config)
-    runparams = dict(runparams)
+    config = eu.load_nested_example_config(config)
+    nested = config["par"]
+    runparams = eu.legacy_example_parameters(config)
+    icparams = config["initial_condition"]
     runparams["savedir"] = str(OUTPUT_ROOT / "reference")
-    reference_units = CodeUnits.from_mapping(runparams["CodeUnits"])
+    runparams["final_cosmic_time"] = nested["simulation"]["final_time"]
+    runparams["cosmology_t_ref"] = nested["gravity"]["cosmology_t_ref"]
+    runparams["cosmology_a_ref"] = nested["gravity"]["cosmology_a_ref"]
+    reference_units = CodeUnits.from_mapping(nested["units"]["CodeUnits"])
     cosmology = CodeEdS.from_code_units(
         reference_units,
         t_ref=float(runparams["cosmology_t_ref"]),

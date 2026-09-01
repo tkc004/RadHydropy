@@ -15,6 +15,7 @@ os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
 import matplotlib
 matplotlib.use("Agg")
@@ -24,9 +25,9 @@ from scipy.integrate import solve_ivp
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
+import example_utils as eu
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_rotating_collapse1d.yaml")
@@ -248,6 +249,13 @@ class InitialCondition:
             gas_angular_momentum=True,
             gas_rotational_energy=True,
         )
+        self.par.units = SimpleNamespace(CodeUnits=units)
+        self.par.simulation = SimpleNamespace(
+            current_time=np.array(tau), box_size=np.array([float(icparams["rmax"])]),
+            coordinate_system="spherical",
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=float(runparams["gamma"]))
         self.mesh = SimpleNamespace(
             boundary=boundary,
             coordinate=radius,
@@ -263,7 +271,7 @@ class InitialCondition:
         )
 
 
-def run_case(base_runparams, icparams, label, rotation_factor, units, cosmology):
+def run_case(base_runparams, runtime, icparams, label, rotation_factor, units, cosmology):
     output_dir = ROOT / base_runparams["output_root"] / label
     output_dir.mkdir(parents=True, exist_ok=True)
     runparams = dict(base_runparams)
@@ -276,13 +284,20 @@ def run_case(base_runparams, icparams, label, rotation_factor, units, cosmology)
         icparams, runparams, rotation_factor, units, cosmology
     )
     rio.writehdf5(initial, runparams["ICfilename"])
-    sim = Rsim(runparams)
+    nested_runtime = {key: (dict(value) if isinstance(value, dict) else value)
+                      for key, value in runtime.items()}
+    nested_runtime.setdefault("simulation", {})["initial_condition_filename"] = runparams["ICfilename"]
+    nested_runtime.setdefault("output", {}).update(
+        directory=str(output_dir), savedir=str(output_dir), filename_prefix="Output"
+    )
+    sim = Rsim(nested_runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.time)
     sim.SetInitFluid()
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    sim.par.cosmology = cosmology
+    active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     target_mass = np.cumsum(
         np.asarray(initial.fluid.rho, dtype=float)
         * np.asarray(initial.mesh.vol, dtype=float)
@@ -354,20 +369,34 @@ def run_case(base_runparams, icparams, label, rotation_factor, units, cosmology)
 def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
          output_root_override=None, cfl_override=None,
          positivity_override=None):
-    runparams, icparams = load_example_parameters(config_filename, ROOT)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config["par"]
+    runparams = eu.legacy_example_parameters(config)
+    icparams = config["initial_condition"]
+    runparams["output_root"] = runtime["output"]["directory"]
+    runparams["savedir"] = runtime["output"]["savedir"]
+    runparams["CodeUnits"] = runtime["units"]["CodeUnits"]
+    runparams["final_cosmic_time"] = runtime["simulation"]["final_time"]
+    icparams = {**icparams, "nogrid": runtime["mesh"]["grid_cells"]}
+    runparams["cosmology_t_ref"] = runtime["gravity"]["cosmology_t_ref"]
+    runparams["cosmology_a_ref"] = runtime["gravity"]["cosmology_a_ref"]
     if nogrid_override is not None:
+        runtime = {**runtime, "mesh": {**runtime["mesh"], "grid_cells": int(nogrid_override)}}
         icparams = dict(icparams)
-        icparams["nogrid"] = int(nogrid_override)
+        runparams["nogrid"] = int(nogrid_override)
     if output_root_override is not None:
         runparams = dict(runparams)
         runparams["output_root"] = str(output_root_override)
         runparams["savedir"] = str(output_root_override)
+        runtime = {**runtime, "output": {**runtime["output"], "directory": str(output_root_override), "savedir": str(output_root_override)}}
     if cfl_override is not None:
         runparams = dict(runparams)
         runparams["CFL"] = float(cfl_override)
+        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "CFL": float(cfl_override)}}
     if positivity_override is not None:
         runparams = dict(runparams)
         runparams["positivity_preserving"] = bool(positivity_override)
+        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "positivity_preserving": bool(positivity_override)}}
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
@@ -380,7 +409,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         ("high", float(icparams["high_rotation_factor"])),
     ]
     results = [
-        run_case(runparams, icparams, label, factor, units, cosmology)
+        run_case(runparams, runtime, icparams, label, factor, units, cosmology)
         for label, factor in cases
     ]
     by_label = {label: (sim, history, directory) for label, sim, history, directory in results}

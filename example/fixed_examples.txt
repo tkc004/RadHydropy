@@ -44,6 +44,21 @@ Fixed (nested par / initial_condition / example configuration)
 - CosmologicalDensityEvolution1D
 - CosmologicalHubbleFlow1D
 - CosmologicalResidualIonization1D
+- CosmologicalRotatingCollapse1D
+- CosmologicalSodShock1D
+- CosmologicalTopHatEdSLambdaCDM1D
+- DarkMatterFixedMassOrbit1D
+- DarkMatterShellCrossing1D
+- EinsteinDeSitterDarkMatterShellGrowth1D
+- EinsteinDeSitterHomogeneous1D
+- EinsteinDeSitterTopHatGravity1D
+- EinsteinDeSitterTopHatGrowth1D
+- GasCentrifugalCircularOrbit1D
+- GasCentrifugalCosmologicalOrbit1D
+- GasCentrifugalHydroExpansion1D
+- GasCentrifugalWorkSource1D
+
+
 
 Notes
 -----

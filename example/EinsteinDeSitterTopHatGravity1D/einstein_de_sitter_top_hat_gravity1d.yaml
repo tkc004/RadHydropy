@@ -1,48 +1,35 @@
-runparams:
-  simname: EinsteinDeSitterTopHatGravity1D
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  savedir: .
-  coordsys: spherical
-  selfgravity: true
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: true
-  cosmology_type: einstein_de_sitter
-  cosmology_t_ref: 1.0
-  cosmology_a_ref: 1.0
-  timesim:
-    value: 0.0
-    unit: s
-  CodeUnits:
-    name: einstein_de_sitter_top_hat_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-  noghost: 2
-  verbose: 0
-
-ICparams:
-  nogrid: 128
-  boxsize:
-    value: 1.0
-    unit: pc
-  rmin:
-    value: 0.0
-    unit: pc
-  rmax:
-    value: 1.0
-    unit: pc
+par:
+  simulation:
+    name: EinsteinDeSitterTopHatGravity1D
+    coordinate_system: spherical
+    initial_condition_filename: InitialCondition.hdf5
+    final_time: {value: 0.0, unit: s}
+  mesh: {grid_cells: 128, ghost_cells: 2}
+  gravity:
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 1.0
+    cosmology_a_ref: 1.0
+  output: {directory: ., savedir: ., filename_prefix: Output}
+  units:
+    CodeUnits:
+      name: einstein_de_sitter_top_hat_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e33
+        UnitLength_in_cgs: 3.08567758e18
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  boxsize: {value: 1.0, unit: pc}
+  rmin: {value: 0.0, unit: pc}
+  rmax: {value: 1.0, unit: pc}
   cosmic_time: 2.0
-  top_hat_radius:
-    value: 0.5
-    unit: pc
+  top_hat_radius: {value: 0.5, unit: pc}
   overdensity: 0.1
-  tempini:
-    value: 10.0
-    unit: K
+  tempini: {value: 10.0, unit: K}
   muini: 1.0
+example: {verbose: 0}

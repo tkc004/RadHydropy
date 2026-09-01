@@ -15,15 +15,15 @@ import numpy as np
 from gas_centrifugal_hydro_expansion1d import (
     CONFIG, run_simulation, spherical_centers,
 )
-from radhydropy.example_config import load_example_parameters
+import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
-def measure(runparams, icparams):
+def measure(runparams, icparams, runtime):
     (sim, saved_mesh, saved, initial_mass, initial_energy, initial_radius,
      cumulative_gravity_work, cumulative_potential_change,
      cumulative_potential_flux) = (
-        run_simulation(runparams, icparams)
+        run_simulation(runparams, icparams, runtime)
     )
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     source_boundary = np.asarray(
@@ -67,13 +67,16 @@ def measure(runparams, icparams):
 
 
 def main():
-    runparams, icparams = load_example_parameters(CONFIG)
+    config = eu.load_nested_example_config(CONFIG)
+    runparams = eu.legacy_example_parameters(config)
+    icparams = {**config['initial_condition'], 'nogrid': config['par']['mesh']['grid_cells']}
     resolutions = (32, 64, 128)
     results = []
     for resolution in resolutions:
         case = dict(runparams)
         case['nogrid'] = resolution
-        results.append(measure(case, icparams))
+        runtime = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': resolution}}
+        results.append(measure(case, icparams, runtime))
         print('resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g' % (
             resolution, *results[-1]
         ))

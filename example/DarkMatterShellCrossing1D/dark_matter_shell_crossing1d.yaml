@@ -1,20 +1,21 @@
-runparams:
-  simname: DarkMatterShellCrossing1D
-  outdir: .
-  savedir: .
-  timesim: 0.6
-  output_interval: 0.002
-  crossing_safety_factor: 0.1
-  CodeUnits:
-    name: dark_matter_shell_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation: {name: DarkMatterShellCrossing1D, final_time: 0.6}
+  output:
+    directory: .
+    savedir: .
+  timestep:
+    output_interval: 0.002
+    crossing_safety_factor: 0.1
+  units:
+    CodeUnits:
+      name: dark_matter_shell_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e33
+        UnitLength_in_cgs: 3.08567758e18
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
   number_of_shells: 32
   inner_radius: 0.08
   outer_radius: 0.8
@@ -22,3 +23,4 @@ ICparams:
   initial_velocity_scale: -0.55
   angular_momentum_fraction: 0.15
   softening: 0.02
+example: {}

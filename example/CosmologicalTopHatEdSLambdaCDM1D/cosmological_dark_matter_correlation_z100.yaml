@@ -1,0 +1,28 @@
+par:
+  simulation:
+    name: CosmologicalDarkMatterCorrelationZ100
+    final_time: 14.4
+  output:
+    directory: outputs_correlation
+    savedir: outputs_correlation
+    filename_prefix: Output
+  gravity:
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
+  units:
+    CodeUnits:
+      name: cosmological_dark_matter_correlation_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.0856775814913673e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  target_halo_mass: 100.0
+  initial_cosmic_time: 0.01418666885
+  initial_overdensity: 0.0166930693
+  dark_matter_shells: 256
+example:
+  dm_only_shells: 1024

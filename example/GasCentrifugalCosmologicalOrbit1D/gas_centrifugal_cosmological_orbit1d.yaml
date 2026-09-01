@@ -1,46 +1,22 @@
-runparams:
-  simname: GasCentrifugalCosmologicalOrbit1D
-  ICfilename: outputs/InitialCondition.hdf5
-  outdir: outputs
-  savedir: outputs
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.4
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: false
-  selfgravity: false
-  externalgravity: false
-  cosmology_type: einstein_de_sitter
-  cosmology_t_ref: 1.0
-  cosmology_a_ref: 1.0
-  gas_angular_momentum: true
-  gas_rotational_energy: true
-  dual_energy: true
-  boundcond: Periodic
-  noghost: 2
-  nogrid: 32
-  CFL: 0.05
-  order: 0
-  positivity_preserving: false
-  temperature: 1.0e-8
-  outdeltatime: 0.2
-  dtmin: 1.0e-8
-  dtmax: 0.001
-  timesim: 0.4
-  timestep: 0.0005
-  CodeUnits:
-    name: gas_centrifugal_cosmological_orbit_units
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation:
+    name: GasCentrifugalCosmologicalOrbit1D
+    coordinate_system: spherical
+    initial_condition_filename: outputs/InitialCondition.hdf5
+    final_time: 0.4
+  mesh: {grid_cells: 32, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 1.4, order: 0, CFL: 0.05, positivity_preserving: false, dual_energy: true, gas_angular_momentum: true, gas_rotational_energy: true}
+  gravity: {cosmological_expansion: true, supercomoving_coordinates: true, cosmological_gravity: false, selfgravity: false, externalgravity: false, cosmology_type: einstein_de_sitter, cosmology_t_ref: 1.0, cosmology_a_ref: 1.0}
+  boundary: {condition: Periodic}
+  timestep: {dtmin: 1.0e-8, dtmax: 0.001}
+  output: {directory: outputs, savedir: outputs, filename_prefix: Output, cadence: 0.2}
+  units:
+    CodeUnits:
+      name: gas_centrifugal_cosmological_orbit_units
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0e33, UnitLength_in_cgs: 3.08567758e18, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
   initial_comoving_radius: 1.0
   initial_supercomoving_velocity: 0.0
   central_excess_mass: 1.0
   angular_momentum_fraction_of_circular: 0.7
+example: {temperature: 1.0e-8, timestep: 0.0005}

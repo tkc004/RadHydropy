@@ -1,35 +1,21 @@
-runparams:
-  simname: GasCentrifugalCircularOrbit1D
-  ICfilename: outputs/InitialCondition.hdf5
-  outdir: outputs
-  savedir: outputs
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.4
-  gas_angular_momentum: true
-  gas_rotational_energy: true
-  externalgravity: false
-  selfgravity: false
-  boundcond: Reflecting
-  noghost: 2
-  CFL: 0.05
-  order: 0
-  timesim: {value: 0.1, unit: s}
-  outdeltatime: {value: 0.05, unit: s}
-  dtmin: {value: 1.0e-8, unit: s}
-  dtmax: {value: 1.0e-3, unit: s}
-  CodeUnits:
-    name: gas_centrifugal_circular_orbit_units
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 64
+par:
+  simulation:
+    name: GasCentrifugalCircularOrbit1D
+    coordinate_system: spherical
+    initial_condition_filename: outputs/InitialCondition.hdf5
+    final_time: {value: 0.1, unit: s}
+  mesh: {grid_cells: 64, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 1.4, order: 0, CFL: 0.05, gas_angular_momentum: true, gas_rotational_energy: true}
+  boundary: {condition: Reflecting}
+  timestep:
+    dtmin: {value: 1.0e-8, unit: s}
+    dtmax: {value: 1.0e-3, unit: s}
+  output: {directory: outputs, savedir: outputs, filename_prefix: Output, cadence: {value: 0.05, unit: s}}
+  units:
+    CodeUnits:
+      name: gas_centrifugal_circular_orbit_units
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
   radius_min: 0.5
   radius_max: 1.5
   radius: 1.0
@@ -39,3 +25,4 @@ ICparams:
   pressure: 1.0e-8
   timestep: 1.0e-3
   nsteps: 100
+example: {}

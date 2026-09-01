@@ -4,25 +4,25 @@ from pathlib import Path
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits
+import example_utils as eu
 
 
-def main():
-    units = CodeUnits.from_mapping({
-        "UnitMass_in_cgs": 1.0e33,
-        "UnitLength_in_cgs": 1.0e18,
-        "UnitVelocity_in_cgs": 1.0e5,
-        "UnitCurrent_in_cgs": 1.0,
-        "UnitTemp_in_cgs": 1.0,
-    })
+def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):
+    config = eu.load_nested_example_config(config_filename)
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     cosmology = EinsteinDeSitter.from_code_units(units)
-    t0, t1 = 1.0, 2.0
+    t0 = float(config['par']['simulation']['initial_time'])
+    t1 = float(config['par']['simulation']['final_time'])
     tau0 = cosmology.supercomoving_time(t0)
     class EOS:
         gamma = 5.0 / 3.0
@@ -33,9 +33,9 @@ def main():
 
     class Fluid:
         time = tau0
-        rho = np.array([2.0])
-        vel = np.array([3.0])
-        pre = np.array([5.0])
+        rho = np.array([config['example']['density']])
+        vel = np.array([config['example']['velocity']])
+        pre = np.array([config['example']['pressure']])
         eos = EOS()
 
     fluid = Fluid()
@@ -54,4 +54,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default=Path(__file__).with_name('einstein_de_sitter_homogeneous1d.yaml'))
+    main(parser.parse_args().config)

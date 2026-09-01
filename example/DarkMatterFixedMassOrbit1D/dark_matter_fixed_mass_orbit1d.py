@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.units import quantity_to_value
+import example_utils as eu
 import tools as et
 
 
@@ -38,7 +38,14 @@ def effective_potential(radius, mass, angular_momentum, softening, g_code):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    icparams = config['initial_condition']
+    runparams = eu.legacy_example_parameters(config)
+    runparams['timesim'] = runtime['simulation']['final_time']
+    runparams['output_interval'] = runtime['timestep']['output_interval']
+    runparams['savedir'] = runtime['output']['savedir']
+    runparams['CodeUnits'] = runtime['units']['CodeUnits']
     code_units = et.load_units(runparams)
     shell = et.make_shell(icparams, code_units)
     g_code = (

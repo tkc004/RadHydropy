@@ -10,16 +10,17 @@ ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / 'example'))
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import example_utils as eu
 
 
 CONFIG = ROOT / 'gas_centrifugal_work_source1d.yaml'
@@ -32,6 +33,10 @@ class InitialCondition:
             CodeUnits=code_units, nogrid=1, noghost=2, coordsys='spherical',
             time=0.0, boxsize=np.asarray([radius]),
         )
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
+        self.par.simulation = SimpleNamespace(current_time=0.0, box_size=np.asarray([radius]), coordinate_system='spherical')
+        self.par.mesh = SimpleNamespace(grid_cells=1, ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
         self.mesh = SimpleNamespace(
             boundary=np.asarray([radius - 0.5, radius + 0.5]),
             coordinate=np.asarray([radius]),
@@ -43,7 +48,7 @@ class InitialCondition:
         )
 
 
-def run_simulation(runparams, icparams):
+def run_simulation(runparams, icparams, runtime):
     units = CodeUnits.from_mapping(runparams['CodeUnits'])
     radius = float(icparams['radius'])
     initial = InitialCondition(
@@ -54,7 +59,7 @@ def run_simulation(runparams, icparams):
     ic_filename = ROOT / runparams['ICfilename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
-    sim = Rsim(runparams)
+    sim = Rsim(runtime)
 
     def source_backend(dt, mode='sources', **kwargs):
         sim.solver.ApplyGravity(dt, sim.mesh, sim.fluid, sim.par)
@@ -89,7 +94,7 @@ def run_simulation(runparams, icparams):
     final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
-    final_par = SimpleNamespace(coordsys='spherical', CodeUnits=units)
+    final_par = sim.par
     final_mesh = SimpleNamespace()
     final_fluid = SimpleNamespace()
     rio.readhdf5(final_par, final_mesh, final_fluid, final_filename)
@@ -101,10 +106,16 @@ def run_simulation(runparams, icparams):
 
 
 def main(config_filename=CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(config.get('example', {}))
+    icparams = config['initial_condition']
+    icparams['nogrid'] = runparams['nogrid']
+    runparams['temperature'] = config['example']['temperature']
+    icparams['timestep'] = config['example']['timestep']
     (sim, saved, mass, initial_momentum, initial_energy,
      initial_internal, source_times, source_momenta, source_energies,
-     source_works) = run_simulation(runparams, icparams)
+     source_works) = run_simulation(runparams, icparams, config['par'])
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     j = float(icparams['specific_angular_momentum'])
     radius = float(sim.mesh.coordinate[sim.par.noghost])
@@ -114,11 +125,16 @@ def main(config_filename=CONFIG):
     final_time = float(sim.fluid.time)
     time = source_times
     expected_momentum = initial_momentum + mass * acceleration * time
-    expected_energy = (
-        initial_energy + initial_momentum * acceleration * time
-        + 0.5 * mass * acceleration**2 * time**2
+    # Centrifugal work is an internal transfer from rotational to radial
+    # kinetic energy; the conserved total-energy field therefore stays fixed.
+    expected_energy = np.full_like(time, initial_energy)
+    # The reported centrifugal work is the transfer into radial kinetic
+    # energy.  It is negative here because the inward radial flow is slowed;
+    # total energy remains constant while rotational and radial reservoirs
+    # exchange energy.
+    expected_work = (
+        0.5 * (expected_momentum**2 - initial_momentum**2) / mass
     )
-    expected_work = expected_energy - initial_energy
     final_momentum = float(saved.Mass[active][0] * saved.vel[active][0])
     final_energy = float(saved.Energy[active][0])
     final_j = float(saved.specific_angular_momentum[active][0])

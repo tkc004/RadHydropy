@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -30,7 +29,16 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_top_hat_growth1d.y
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells']}
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(runtime.get('gravity', {}))
+    runparams.update(runtime.get('timestep', {}))
+    runparams.update(config.get('example', {}))
+    runparams['ICfilename'] = runtime['simulation']['initial_condition_filename']
+    runparams['savedir'] = runtime['output']['savedir']
+    runparams['CodeUnits'] = runtime['units']['CodeUnits']
     eu.clean_previous_outputs(runparams)
     units = CodeUnits.from_mapping(runparams['CodeUnits'])
     cosmology = et.EinsteinDeSitter.from_code_units(
@@ -40,7 +48,10 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.Simwrap(icparams, units, cosmology)
     rio.writehdf5(initial, runparams['ICfilename'])
 
-    sim = Rsim(runparams)
+    runtime = {key: (dict(value) if isinstance(value, dict) else value)
+               for key, value in runtime.items()}
+    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -48,7 +59,8 @@ def main(config_filename=DEFAULT_CONFIG):
     # retain the supercomoving time stored in the IC header.
     sim.fluid.SetFluidTime(sim.par.time)
     sim.SetInitFluid()
-    physical = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    sim.par.set_cosmology_model(cosmology)
+    physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho[physical] * sim.mesh.vol[physical]))
     top_hat_radius = float(icparams['top_hat_radius'])
     initial_inside = sim.mesh.coordinate[physical] < top_hat_radius
@@ -74,12 +86,12 @@ def main(config_filename=DEFAULT_CONFIG):
 
     record(sim)
     sim.Evolve(
-        final_time=sim.par.timesim,
+        final_time=sim.par.simulation.final_time,
         mode='hydro',
         history_callback=record,
     )
     final = sim
-    final_physical = slice(final.par.noghost, final.par.noghost + final.par.nogrid)
+    final_physical = slice(final.par.mesh.ghost_cells, final.par.mesh.ghost_cells + final.par.mesh.grid_cells)
     final_tau = float(np.asarray(final.fluid.time).flat[0])
     final_a = final.par.cosmology.scale_factor_from_supercomoving(final_tau)
     final_cosmic_time = final.par.cosmology.cosmic_time_from_supercomoving(final_tau)

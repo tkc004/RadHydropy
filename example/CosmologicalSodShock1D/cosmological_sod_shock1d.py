@@ -18,7 +18,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -38,8 +37,19 @@ def make_initial_condition(ic, units, runparams):
     state.mesh = State()
     state.fluid = State()
     state.par.CodeUnits = units
+    state.par.units = State()
+    state.par.units.CodeUnits = units
     state.par.unit_system = units.unit_system
     state.par.nogrid = int(ic["nogrid"])
+    state.par.mesh = State()
+    state.par.mesh.grid_cells = int(ic["nogrid"])
+    state.par.mesh.ghost_cells = 0
+    state.par.hydrodynamics = State()
+    state.par.hydrodynamics.gamma = float(runparams["gamma"])
+    state.par.simulation = State()
+    state.par.simulation.current_time = np.asarray([0.0]) * units.time_unit
+    state.par.simulation.box_size = np.asarray([float(ic["boxsize"].to_value(units.length_unit))]) * units.length_unit
+    state.par.simulation.coordinate_system = "cartesian"
     state.par.coordsys = "cartesian"
     boxsize = float(ic["boxsize"].to_value(units.length_unit))
     state.par.boxsize = np.asarray([boxsize]) * units.length_unit
@@ -87,6 +97,13 @@ def make_initial_condition(ic, units, runparams):
 def _read_profile(filename, units):
     par, mesh, fluid = State(), State(), State()
     par.CodeUnits = units
+    par.units = State()
+    par.units.CodeUnits = units
+    par.simulation = State()
+    par.simulation.coordinate_system = "cartesian"
+    par.mesh = State()
+    par.mesh.grid_cells = 800
+    par.mesh.ghost_cells = 2
     rio.readhdf5(par, mesh, fluid, filename)
     first = int(getattr(par, "noghost", 2))
     count = int(par.nogrid)
@@ -104,18 +121,41 @@ def _read_profile(filename, units):
 
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd())
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config["par"]
+    runparams = eu.legacy_example_parameters(config)
+    icparams = config["initial_condition"]
+    icparams = {**icparams, "nogrid": runtime["mesh"]["grid_cells"]}
+    runparams["outdir"] = runtime["output"]["directory"]
+    runparams["savedir"] = runtime["output"]["savedir"]
+    runparams["CodeUnits"] = runtime["units"]["CodeUnits"]
+    runparams["ICfilename"] = str(Path(runparams["outdir"]) / "InitialCondition.hdf5")
+    runparams["nogrid"] = runtime["mesh"]["grid_cells"]
+    runparams["boxsize"] = icparams["boxsize"]
+    runparams["gamma"] = runtime["hydrodynamics"]["gamma"]
+    runparams.update(runtime.get("gravity", {}))
     if riemann_solver is not None:
         runparams["riemann_solver"] = riemann_solver
+        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "riemann_solver": riemann_solver}}
     if dual_energy is not None:
         runparams["dual_energy"] = dual_energy
+        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "dual_energy": dual_energy}}
     Path(runparams["outdir"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(runparams)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     initial = make_initial_condition(icparams, units, runparams)
     rio.writehdf5(initial, runparams["ICfilename"])
-    sim = Rsim(runparams)
-    sim.RunAll(outputtime=0)
+    runtime = {key: (dict(value) if isinstance(value, dict) else value)
+               for key, value in runtime.items()}
+    runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": runparams["ICfilename"]}
+    sim = Rsim(runtime)
+    sim.par.set_cosmology_model(initial.par.cosmology)
+    sim.Callreadhdf5()
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
+    sim.par.set_cosmology_model(initial.par.cosmology)
+    sim.Run(outputtime=0)
     outputs = sorted(Path(runparams["outdir"]).glob("Output_*.hdf5"))
     # The fixed-cadence callback can stop just before the final target time;
     # write the exact final state so the analytic comparison uses the same

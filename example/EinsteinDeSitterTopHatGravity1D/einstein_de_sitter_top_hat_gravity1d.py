@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -31,7 +30,15 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_top_hat_gravity1d.
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells']}
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(runtime.get('gravity', {}))
+    runparams.update(config.get('example', {}))
+    runparams['ICfilename'] = runtime['simulation']['initial_condition_filename']
+    runparams['savedir'] = runtime['output']['savedir']
+    runparams['CodeUnits'] = runtime['units']['CodeUnits']
     eu.clean_previous_outputs(runparams)
     units = CodeUnits.from_mapping(runparams['CodeUnits'])
     cosmology = et.EinsteinDeSitter.from_code_units(
@@ -41,17 +48,21 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.Simwrap(icparams, units, cosmology)
     rio.writehdf5(initial, runparams['ICfilename'])
 
-    sim = Rsim(runparams)
+    runtime = {key: (dict(value) if isinstance(value, dict) else value)
+               for key, value in runtime.items()}
+    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    sim.par.set_cosmology_model(cosmology)
     sim.par.gravity = Gravity(
         selfgravity=True, externalgravity=False, cosmological=True,
         cosmology=sim.par.cosmology, code_units=sim.par.CodeUnits,
     )
     numerical = sim.par.gravity.acceleration_on_mesh(sim.mesh, sim.fluid.rho, sim.par)
-    physical = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = np.asarray(sim.mesh.coordinate[physical], dtype=float)
     tau = float(np.asarray(sim.par.time).flat[0])
     a = sim.par.cosmology.scale_factor_from_supercomoving(tau)

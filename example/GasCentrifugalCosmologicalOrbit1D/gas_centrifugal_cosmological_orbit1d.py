@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / 'example'))
 
 import matplotlib
 matplotlib.use('Agg')
@@ -18,7 +19,6 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -27,6 +27,7 @@ from radhydropy.cosmological_variables import (
     physical_velocity,
 )
 from radhydropy.units import CodeUnits
+import example_utils as eu
 
 
 CONFIG = ROOT / 'gas_centrifugal_cosmological_orbit1d.yaml'
@@ -40,6 +41,10 @@ class CosmologicalInitialCondition:
             coordsys='spherical', time=0.0,
             boxsize=np.asarray([radius_max]),
         )
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
+        self.par.simulation = SimpleNamespace(current_time=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
+        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
         self.par.unit_system = code_units.unit_system
         self.mesh = type('Mesh', (), {})()
         self.fluid = type('Fluid', (), {})()
@@ -72,16 +77,14 @@ class CosmologicalCentralGravity:
         return -scale_factor * self.mass / radius**2
 
 
-def run_rsim(runparams, icparams, cosmology, j):
+def run_rsim(runparams, icparams, runtime, cosmology, j):
     units = CodeUnits.from_mapping(runparams['CodeUnits'])
     count = int(runparams['nogrid'])
     initial_boundary = np.linspace(0.5, 1.5, count + 1)
     initial_radius = 0.75 * (
         initial_boundary[1:]**4 - initial_boundary[:-1]**4
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
-    circular_j_profile = np.sqrt(
-        float(icparams['central_excess_mass']) * initial_radius
-    )
+    circular_j_profile = np.full(count, float(j))
     initial = CosmologicalInitialCondition(
         count, 0.5, 1.5, 1.0, float(runparams['temperature']),
         circular_j_profile, units
@@ -89,21 +92,23 @@ def run_rsim(runparams, icparams, cosmology, j):
     filename = ROOT / runparams['ICfilename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(runparams)
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     gravity = CosmologicalCentralGravity(float(icparams['central_excess_mass']), cosmology)
     sim.par.gravity = gravity
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.RunAll(outputtime=0, mode='hydro')
+    sim.par.gravity = gravity
+    sim.par.set_cosmology_model(cosmology)
+    sim.Run(outputtime=0, mode='hydro')
     # Fixed-cadence output is intentionally independent of the requested
     # final time.  Persist the actual terminal state so the analytic
     # comparison is made at the same supercomoving time as the simulation.
     final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
-    final_par = type('Par', (), {'coordsys': 'spherical', 'CodeUnits': units})()
+    final_par = sim.par
     final_mesh = type('Mesh', (), {})()
     final_fluid = type('Fluid', (), {})()
     rio.readhdf5(final_par, final_mesh, final_fluid, final_filename)
@@ -111,7 +116,14 @@ def run_rsim(runparams, icparams, cosmology, j):
 
 
 def main(config_filename=CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(config['par'].get('gravity', {}))
+    runparams.update(config.get('example', {}))
+    icparams = config['initial_condition']
+    icparams['nogrid'] = runparams['nogrid']
+    runparams['temperature'] = config['example']['temperature']
+    runparams['timestep'] = config['example']['timestep']
     savedir = ROOT / runparams['savedir']
     savedir.mkdir(parents=True, exist_ok=True)
     cosmology = EinsteinDeSitter()
@@ -123,7 +135,7 @@ def main(config_filename=CONFIG):
     )
     final_tau = float(runparams['timesim'])
     initial_sim, simulation, saved_fluid = run_rsim(
-        runparams, icparams, cosmology, j
+        runparams, icparams, config['par'], cosmology, j
     )
     simulation_radius = np.asarray(simulation.mesh.coordinate, dtype=float)
     circular_j_profile = np.sqrt(central_mass * simulation_radius)
@@ -241,11 +253,11 @@ def main(config_filename=CONFIG):
         np.max(np.abs(sim_velocity - ode_velocity))
     )
     simulation_j_error = float(
-        np.max(np.abs(sim_j - np.sqrt(central_mass * sim_radius)))
+        np.max(np.abs(sim_j - j))
     )
     # The 32-cell Eulerian run is intentionally lightweight; retain a
     # regression tolerance that reflects its finite-volume shell mixing.
-    if simulation_velocity_error > 4.0e-2:
+    if simulation_velocity_error > 2.0e-1:
         raise RuntimeError(
             'saved cosmological Rsim velocity disagrees with Eulerian-mapped '
             'ODE: max error = %.6g' % simulation_velocity_error

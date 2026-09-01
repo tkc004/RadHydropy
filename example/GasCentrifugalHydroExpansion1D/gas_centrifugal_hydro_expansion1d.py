@@ -10,16 +10,17 @@ ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / 'example'))
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
@@ -41,6 +42,10 @@ class InitialCondition:
             CodeUnits=code_units, nogrid=count, noghost=2,
             coordsys='spherical', time=0.0, boxsize=np.asarray([radius_max]),
         )
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
+        self.par.simulation = SimpleNamespace(current_time=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
+        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
         self.mesh = SimpleNamespace(
             boundary=boundary, coordinate=radius,
         )
@@ -78,7 +83,7 @@ class FixedCentralGravity:
         return self.potential_on(mesh.coordinate)
 
 
-def run_simulation(runparams, icparams):
+def run_simulation(runparams, icparams, runtime):
     units = CodeUnits.from_mapping(runparams['CodeUnits'])
     count = int(runparams['nogrid'])
     initial = InitialCondition(
@@ -90,12 +95,13 @@ def run_simulation(runparams, icparams):
     filename = ROOT / runparams['ICfilename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(runparams)
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']))
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']))
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     initial_mass = np.asarray(sim.fluid.Mass[active], dtype=float).copy()
     initial_energy = np.asarray(sim.fluid.Energy[active], dtype=float).copy()
@@ -104,7 +110,7 @@ def run_simulation(runparams, icparams):
     final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
-    final_par = SimpleNamespace(coordsys='spherical', CodeUnits=units)
+    final_par = sim.par
     final_mesh = SimpleNamespace()
     final_fluid = SimpleNamespace()
     rio.readhdf5(final_par, final_mesh, final_fluid, final_filename)
@@ -117,10 +123,15 @@ def run_simulation(runparams, icparams):
 
 
 def main(config_filename=CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(config.get('example', {}))
+    icparams = config['initial_condition']
+    icparams['nogrid'] = runparams['nogrid']
+    runparams['temperature'] = config['example']['temperature']
     (sim, saved_mesh, saved, initial_mass, initial_energy,
      initial_radius, cumulative_gravity_work, cumulative_potential_change,
-     cumulative_potential_flux) = run_simulation(runparams, icparams)
+     cumulative_potential_flux) = run_simulation(runparams, icparams, config['par'])
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     radius = np.asarray(sim.mesh.coordinate[active], dtype=float)
     central_mass = float(icparams['central_mass'])

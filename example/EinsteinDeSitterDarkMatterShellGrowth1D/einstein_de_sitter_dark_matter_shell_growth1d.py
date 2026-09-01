@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
+import example_utils as eu
 import tools as et
 
 
@@ -25,9 +26,18 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_dark_matter_shell_
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    from radhydropy.example_config import load_example_parameters
-
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd().resolve())
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    icparams = {**config['initial_condition'],
+                'number_of_shells': runtime['mesh']['grid_cells']
+                if 'mesh' in runtime else config['initial_condition']['number_of_outer_shells']}
+    runparams = eu.legacy_example_parameters(config)
+    runparams.update(runtime.get('gravity', {}))
+    runparams.update(runtime.get('timestep', {}))
+    runparams.update(config.get('example', {}))
+    runparams['final_cosmic_time'] = runtime['simulation']['final_time']
+    runparams['savedir'] = runtime['output']['savedir']
+    runparams['CodeUnits'] = runtime['units']['CodeUnits']
     units = et.load_units(runparams)
     cosmology = EinsteinDeSitter.from_code_units(
         units, t_ref=float(runparams['cosmology_t_ref']),

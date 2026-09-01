@@ -1,6 +1,7 @@
 """Helpers for the Einstein--de Sitter linear-growth benchmark."""
 
 import numpy as np
+from types import SimpleNamespace
 import unyt
 
 from radhydropy.cosmology import EinsteinDeSitter
@@ -40,11 +41,19 @@ class Simwrap:
     def __init__(self, icparams, code_units, cosmology):
         self.par, self.mesh, self.fluid = Par(), Mesh(), Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams['nogrid'])
         self.par.coordsys = 'spherical'
+        self.par.mesh = SimpleNamespace(grid_cells=int(icparams['nogrid']), ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         cosmic_time = float(icparams['cosmic_time'])
+        self.par.simulation = SimpleNamespace(
+            current_time=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
+            box_size=np.ones(1) * icparams['boxsize'],
+            coordinate_system='spherical',
+        )
         scale_factor = cosmology.scale_factor(cosmic_time)
         hubble = cosmology.hubble(cosmic_time)
         self.par.time = np.ones(1) * cosmology.supercomoving_time(cosmic_time)

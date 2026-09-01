@@ -1,36 +1,17 @@
-runparams:
-  simname: GasCentrifugalWorkSource1D
-  ICfilename: outputs/InitialCondition.hdf5
-  outdir: outputs
-  savedir: outputs
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.4
-  gas_angular_momentum: true
-  gas_rotational_energy: true
-  dual_energy: true
-  positivity_preserving: false
-  boundcond: Reflecting
-  noghost: 2
-  nogrid: 1
-  dtmax: 1.0e-3
-  dtmin: 1.0e-8
-  timesim: 0.1
-  outdeltatime: 0.05
-  temperature: 1.0e-8
-  CodeUnits:
-    name: gas_centrifugal_work_source_units
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation: {name: GasCentrifugalWorkSource1D, coordinate_system: spherical, initial_condition_filename: outputs/InitialCondition.hdf5, final_time: 0.1}
+  mesh: {grid_cells: 1, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 1.4, dual_energy: true, gas_angular_momentum: true, gas_rotational_energy: true, positivity_preserving: false}
+  boundary: {condition: Reflecting}
+  timestep: {dtmin: 1.0e-8, dtmax: 1.0e-3}
+  output: {directory: outputs, savedir: outputs, filename_prefix: Output, cadence: 0.05}
+  units:
+    CodeUnits:
+      name: gas_centrifugal_work_source_units
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
   radius: 1.0
   density: 1.0
   radial_velocity: -0.2
   specific_angular_momentum: 0.7
-  timestep: 1.0e-3
+example: {temperature: 1.0e-8, timestep: 1.0e-3}

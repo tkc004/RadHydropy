@@ -19,7 +19,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.units import quantity_to_value
 import example_utils as eu
 import tools as et
@@ -31,7 +30,15 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    icparams = config['initial_condition']
+    runparams = eu.legacy_example_parameters(config)
+    runparams['timesim'] = runtime['simulation']['final_time']
+    runparams['output_interval'] = runtime['timestep']['output_interval']
+    runparams['crossing_safety_factor'] = runtime['timestep']['crossing_safety_factor']
+    runparams['savedir'] = runtime['output']['savedir']
+    runparams['CodeUnits'] = runtime['units']['CodeUnits']
     code_units = et.load_units(runparams)
     shells = et.make_shells(icparams, code_units)
     time = 0.0

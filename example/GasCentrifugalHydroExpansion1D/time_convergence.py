@@ -15,14 +15,14 @@ import numpy as np
 from gas_centrifugal_hydro_expansion1d import (
     CONFIG, run_simulation, spherical_centers,
 )
-from radhydropy.example_config import load_example_parameters
+import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
-def total_energy_error(runparams, icparams):
+def total_energy_error(runparams, icparams, runtime):
     (sim, saved_mesh, saved, _initial_mass, _initial_energy,
      _initial_radius, _gravity_work, _potential_change,
-     _potential_flux) = run_simulation(runparams, icparams)
+     _potential_flux) = run_simulation(runparams, icparams, runtime)
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
     source_boundary = saved_boundary[
@@ -51,7 +51,9 @@ def total_energy_error(runparams, icparams):
 
 
 def main():
-    runparams, icparams = load_example_parameters(CONFIG)
+    config = eu.load_nested_example_config(CONFIG)
+    runparams = eu.legacy_example_parameters(config)
+    icparams = {**config['initial_condition'], 'nogrid': 128}
     # Keep the mesh fixed so this isolates source time integration rather than
     # mixing temporal and spatial convergence errors.
     runparams['nogrid'] = 128
@@ -60,7 +62,8 @@ def main():
     for dtmax in dtmax_values:
         case = dict(runparams)
         case['dtmax'] = float(dtmax)
-        error = total_energy_error(case, icparams)
+        runtime = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': 128, 'ghost_cells': 2}, 'timestep': {**config['par']['timestep'], 'dtmax': float(dtmax)}}
+        error = total_energy_error(case, icparams, runtime)
         errors.append(error)
         print('dtmax %.6g: total-energy error %.8g' % (dtmax, error))
 
