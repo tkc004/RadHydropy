@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 
 class Par:
@@ -17,16 +18,23 @@ class Fluid:
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, icparams, code_units=None, grid_cells=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
-        self.par.time = icparams['time'] * np.ones(1)
+        self.par.nogrid = int(grid_cells)
+        self.par.coordsys = 'cartesian'
+        self.par.boxsize = icparams['box_size'] * np.ones(1)
+        self.par.time = icparams['current_time'] * np.ones(1)
+        self.par.simulation = SimpleNamespace(
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+            coordinate_system='cartesian',
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
 
         dx = self.par.boxsize[0] / self.par.nogrid
         self.mesh.boundary = np.linspace(
@@ -37,10 +45,10 @@ class Simwrap:
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
         phase = 2.0 * np.pi * coordinate / self.par.boxsize[0]
 
-        self.fluid.rho = np.ones(self.par.nogrid) * icparams['rhoini']
-        self.fluid.vel = np.ones(self.par.nogrid) * icparams['vini']
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.rho = np.ones(self.par.nogrid) * icparams['initial_density']
+        self.fluid.vel = np.ones(self.par.nogrid) * icparams['velocity']
+        self.fluid.temp = np.ones(self.par.nogrid) * icparams['temperature']
+        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
         if icparams.get('include_angular_momentum', True):
             self.fluid.specific_angular_momentum = (
                 icparams['angular_momentum_offset']

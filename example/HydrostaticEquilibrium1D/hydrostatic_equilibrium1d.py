@@ -11,7 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -32,30 +31,38 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrostatic_equilibrium1d.y
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.runtime_parameters(config)
+    ICparams = config['initial_condition']
     eu.clean_previous_outputs(runparams)
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
-    ric = et.Simwrap(ICparams, code_units=code_units_obj)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    ric = et.Simwrap(
+        ICparams,
+        code_units=code_units_obj,
+        grid_cells=runparams['mesh']['grid_cells'],
+    )
+    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     mainrun = Rsim(runparams)
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(
-            ICparams['gravity_strength'],
+        ICparams['gravity_strength'],
             code_units=code_units_obj,
         ),
         code_units=code_units_obj,
     )
     mainrun.RunAll(outputtime=0, mode='hydro')
 
-    final_outfile = os.path.join(
-        runparams['outdir'],
-        runparams['outfileprefix'] + '_001.hdf5',
+    output_files = sorted(
+        Path(runparams['output']['directory']).glob(
+            runparams['output']['filename_prefix'] + '_*.hdf5'
+        )
     )
+    if not output_files:
+        raise FileNotFoundError('hydrostatic run produced no output snapshot')
+    final_outfile = str(output_files[-1])
     et.ReadandPlot(
         final_outfile,
         ICparams,
@@ -66,7 +73,7 @@ def main(config_filename=DEFAULT_CONFIG):
         markevery=1,
         color='C0',
     )
-    figure_filename = os.path.join(runparams['savedir'], 'HydrostaticEquilibrium1D.jpg')
+    figure_filename = os.path.join(runparams['output']['savedir'], 'HydrostaticEquilibrium1D.jpg')
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()

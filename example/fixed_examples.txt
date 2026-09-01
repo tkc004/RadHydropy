@@ -38,6 +38,9 @@ Fixed (nested par / initial_condition / example configuration)
 - NFWVirialShock1D
 - NFWVirialShockAdiabatic1D
 - BertschingerGasReference
+- BertschingerReference
+- GasDarkMatterAnalyticOrbit1D
+- HydrostaticEquilibrium1D
 - ComptonCMBHeating1D
 - UniformEdSThermochemistry1D
 - CosmologicalAdiabaticTemperature1D

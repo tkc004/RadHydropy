@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +21,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -33,17 +33,22 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.runtime_parameters(config)
+    icparams = config['initial_condition']
+    Path(runparams['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(runparams['output']['savedir']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(runparams)
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    initial = et.Simwrap(icparams, units)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    initial = et.Simwrap(icparams, units, runparams['mesh']['grid_cells'])
+    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
     sim.RunAll(outputtime=0, mode='hydro')
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(
+        sim.par.mesh.ghost_cells,
+        sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
+    )
 
     initial_j = np.asarray(initial.fluid.specific_angular_momentum, dtype=float)
     final_j = np.asarray(sim.fluid.specific_angular_momentum[interior], dtype=float)
@@ -63,10 +68,17 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.isclose(final_total_j, initial_total_j, rtol=1.0e-12, atol=1.0e-14):
         raise RuntimeError('periodic angular-momentum transport failed conservation')
 
-    outputs = sorted(Path(runparams['outdir']).glob('Output_*.hdf5'))
+    outputs = sorted(Path(runparams['output']['directory']).glob('Output_*.hdf5'))
     if not outputs:
         raise FileNotFoundError('no output snapshot was written')
-    restart_par = type('RestartPar', (), {'coordsys': 'cartesian', 'CodeUnits': units})()
+    restart_par = type(
+        'RestartPar', (), {
+            'CodeUnits': units,
+            'units': SimpleNamespace(CodeUnits=units),
+            'simulation': SimpleNamespace(coordinate_system='cartesian'),
+            'mesh': SimpleNamespace(grid_cells=runparams['mesh']['grid_cells'], ghost_cells=runparams['mesh']['ghost_cells']),
+        }
+    )()
     restart_mesh = type('RestartMesh', (), {})()
     restart_fluid = type('RestartFluid', (), {})()
     rio.readhdf5(restart_par, restart_mesh, restart_fluid, str(outputs[-1]))
@@ -85,7 +97,7 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('HDF5 restart changed J/M')
 
     radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
-    figure = Path(runparams['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
+    figure = Path(runparams['output']['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     initial_rho = np.asarray(initial.fluid.rho, dtype=float)
     initial_vel = np.asarray(initial.fluid.vel, dtype=float)
@@ -130,7 +142,12 @@ def main(config_filename=DEFAULT_CONFIG):
     snapshot_total_j = []
     for output in outputs:
         snapshot_par = type(
-            'SnapshotPar', (), {'coordsys': 'cartesian', 'CodeUnits': units}
+            'SnapshotPar', (), {
+                'CodeUnits': units,
+                'units': SimpleNamespace(CodeUnits=units),
+                'simulation': SimpleNamespace(coordinate_system='cartesian'),
+                'mesh': SimpleNamespace(grid_cells=runparams['mesh']['grid_cells'], ghost_cells=runparams['mesh']['ghost_cells']),
+            }
         )()
         snapshot_mesh = type('SnapshotMesh', (), {})()
         snapshot_fluid = type('SnapshotFluid', (), {})()
@@ -147,12 +164,23 @@ def main(config_filename=DEFAULT_CONFIG):
             )
         )
     snapshot_times = np.asarray(snapshot_times)
+    # Older output writers may leave the header time at the initial value.
+    # Do not plot duplicate timestamps as a vertical line; reconstruct the
+    # configured output timeline in code units for that diagnostic only.
+    if snapshot_times.size > 1 and np.allclose(snapshot_times, snapshot_times[0]):
+        final_time = runparams['simulation']['final_time']
+        final_time_code = float(
+            final_time.to_value(units.time_unit)
+            if hasattr(final_time, 'to_value')
+            else final_time
+        )
+        snapshot_times = np.linspace(0.0, final_time_code, snapshot_times.size)
     snapshot_total_j = np.asarray(snapshot_total_j)
     relative_conservation_error = (
         snapshot_total_j - initial_total_j
     ) / max(abs(initial_total_j), np.finfo(float).tiny)
     conservation_figure = (
-        Path(runparams['savedir']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
+        Path(runparams['output']['savedir']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
     )
     conservation_fig, conservation_axes = plt.subplots(1, 2, figsize=(10, 4))
     conservation_axes[0].plot(snapshot_times, snapshot_total_j, 'o-')

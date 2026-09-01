@@ -76,7 +76,8 @@ def _read_profile(filename, units):
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
-    runparams, icparams = config['par'], config['initial_condition']
+    runparams = eu.runtime_parameters(config)
+    icparams = config['initial_condition']
     if riemann_solver is not None:
         runparams["hydrodynamics"]["riemann_solver"] = riemann_solver
     if dual_energy is not None:

@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
@@ -34,11 +33,13 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.runtime_parameters(config)
+    icparams = config['initial_condition']
     eu.clean_previous_outputs(runparams)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    initial = et.Simwrap(icparams, code_units)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    code_units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    initial = et.Simwrap(icparams, code_units, runparams['mesh']['grid_cells'])
+    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
     initial_density = quantity_to_value(
         initial.fluid.rho,
         'g/cm**3',
@@ -64,7 +65,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.dark_matter = dark_matter
     sim.Run(mode='hydro')
 
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(
+        sim.par.mesh.ghost_cells,
+        sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
+    )
     radius_pc = quantity_to_value(
         np.asarray(sim.mesh.coordinate[interior]) * sim.par.CodeUnits.length_unit,
         'pc',
@@ -74,7 +78,10 @@ def main(config_filename=DEFAULT_CONFIG):
         'g/cm**3',
     )
     physical_boundaries = np.asarray(
-        sim.mesh.boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1],
+        sim.mesh.boundary[
+            sim.par.mesh.ghost_cells:
+            sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1
+        ],
         dtype=float,
     )
     gas_mass = np.sum(
@@ -100,7 +107,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.set_yscale('log')
     axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
+    figure = Path(runparams['output']['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('dark-matter shells = %d' % dark_matter.number_of_shells)

@@ -1,67 +1,48 @@
-runparams:
-  simname: GasDarkMatterShellCoupling1D
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  savedir: .
-  coordsys: spherical
-  EOStype: isothermal
-  gamma: 1.0
-  selfgravity: true
-  externalgravity: false
-  timesim:
-    value: 0.5
-    unit: Myr
-  outdeltatime:
-    value: 0.1
-    unit: Myr
-  CFL: 0.1
-  dtmin:
-    value: 1.0
-    unit: yr
-  dtmax:
-    value: 1.0e3
-    unit: yr
-  boundcond: Reflecting
-  noghost: 2
-  dark_matter_crossing_safety_factor: 0.1
-  CodeUnits:
-    name: gas_dark_matter_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 64
-  coordsys: spherical
-  boxsize:
-    value: 1.0
-    unit: pc
-  rmin:
-    value: 0.0
-    unit: pc
-  rmax:
-    value: 1.0
-    unit: pc
-  time:
-    value: 0.0
-    unit: s
-  gas_density:
-    value: 1.0e-20
-    unit: g/cm**3
-  gas_temperature:
-    value: 10.0
-    unit: K
+par:
+  simulation:
+    name: GasDarkMatterShellCoupling1D
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 0.5, unit: Myr}
+  mesh:
+    grid_cells: 64
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: isothermal
+    gamma: 1.0
+    CFL: 0.05
+  gravity:
+    selfgravity: true
+    externalgravity: false
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: {value: 1.0, unit: yr}
+    dtmax: {value: 10.0, unit: yr}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+    cadence: {value: 0.1, unit: Myr}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: gas_dark_matter_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e33
+        UnitLength_in_cgs: 3.08567758e18
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  rmin: {value: 0.05, unit: pc}
+  rmax: {value: 0.95, unit: pc}
+  gas_density: {value: 1.0e-20, unit: g/cm**3}
+  gas_temperature: {value: 10.0, unit: K}
   mu: 1.0
   dark_matter_shells: 24
-  dark_matter_mass:
-    value: 1.0e-2
-    unit: Msun
+  dark_matter_mass: {value: 1.0e-2, unit: Msun}
   dark_matter_velocity_scale: 0.0
   dark_matter_angular_momentum: 0.02
-  dark_matter_softening:
-    value: 0.01
-    unit: pc
+  dark_matter_softening: {value: 0.01, unit: pc}

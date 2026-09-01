@@ -37,9 +37,16 @@ class Simwrap:
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams['grid_cells'])
         self.par.coordsys = icparams['coordinate_system']
-        self.par.boxsize = np.asarray([
-            quantity_to_value(icparams['box_size'], code_units.length_unit)
-        ])
+        rmin = quantity_to_value(
+            icparams['rmin'], code_units.length_unit
+        )
+        rmax = quantity_to_value(
+            icparams['rmax'], code_units.length_unit
+        )
+        if not 0.0 < rmin < rmax:
+            raise ValueError('spherical IC requires 0 < rmin < rmax')
+        self.par.inner_radius = rmin
+        self.par.boxsize = np.asarray([rmax])
         self.par.time = np.asarray([
             quantity_to_value(icparams['current_time'], code_units.time_unit)
         ])
@@ -59,7 +66,7 @@ class Simwrap:
         self.par.dual_energy = bool(hydro.get('dual_energy', False))
 
         faces = np.linspace(
-            0.0,
+            self.par.inner_radius,
             self.par.boxsize[0],
             self.par.nogrid + 1,
         )

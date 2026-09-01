@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits
@@ -20,15 +21,23 @@ class Fluid:
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units):
+    def __init__(self, icparams, code_units, grid_cells):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
-        self.par.nogrid = int(icparams['nogrid'])
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
+        self.par.unit_system = code_units.unit_system
+        self.par.nogrid = int(grid_cells)
         self.par.coordsys = 'spherical'
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        self.par.boxsize = np.ones(1) * icparams['rmax']
+        self.par.time = np.ones(1) * icparams.get('current_time', 0.0 * unyt.s)
+        self.par.simulation = SimpleNamespace(
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+            coordinate_system='spherical',
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
         self.mesh.boundary = np.linspace(
             icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
         )
@@ -61,4 +70,4 @@ def make_dark_matter(icparams, code_units):
 
 
 def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['CodeUnits'])
+    return CodeUnits.from_mapping(runparams['units']['CodeUnits'])

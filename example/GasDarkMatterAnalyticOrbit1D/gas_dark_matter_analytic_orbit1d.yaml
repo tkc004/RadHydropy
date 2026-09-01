@@ -1,19 +1,22 @@
-runparams:
-  simname: GasDarkMatterAnalyticOrbit1D
-  outdir: .
-  savedir: .
-  timesim: 0.25
+par:
+  simulation:
+    name: GasDarkMatterAnalyticOrbit1D
+    final_time: 0.25
+  output:
+    directory: .
+    savedir: .
+  units:
+    CodeUnits:
+      name: gas_dark_matter_analytic_orbit_units
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e33
+        UnitLength_in_cgs: 3.08567758e18
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+example:
   output_interval: 0.0005
-  CodeUnits:
-    name: gas_dark_matter_analytic_orbit_units
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+initial_condition:
   central_dark_matter_mass: 0.15
   uniform_gas_density: 0.20
   initial_radius: 0.55

@@ -21,7 +21,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
-from radhydropy.example_config import load_example_parameters
+from example import example_utils as eu
 from radhydropy.units import quantity_to_value
 import tools as et
 
@@ -32,7 +32,10 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.runtime_parameters(config)
+    icparams = config['initial_condition']
+    example = config['example']
     code_units = et.load_units(runparams)
     shell = et.make_shell(icparams, code_units)
     g_code = (
@@ -52,17 +55,17 @@ def main(config_filename=DEFAULT_CONFIG):
         enclosed = central_mass + 4.0 * np.pi / 3.0 * gas_density * radius**3
         acceleration = (
             -g_code * enclosed / (radius + softening)**2
-            + angular_momentum**2 / radius_safe**3
+            + angular_momentum**2 / (radius_safe + softening)**3
         )
         return velocity, acceleration
 
     reference = solve_ivp(
         rhs,
-        (0.0, float(runparams['timesim'])),
+        (0.0, float(runparams['simulation']['final_time'])),
         [initial_radius, initial_velocity],
         rtol=1.0e-11,
         atol=1.0e-13,
-        max_step=float(runparams['output_interval']) / 4.0,
+        max_step=float(example['output_interval']) / 4.0,
         dense_output=True,
     )
 
@@ -71,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG):
     numerical_radius = [shell.radius[0]]
     numerical_velocity = [shell.velocity[0]]
     while time < reference.t[-1]:
-        dt = min(float(runparams['output_interval']) / 4.0, reference.t[-1] - time)
+        dt = min(float(example['output_interval']) / 4.0, reference.t[-1] - time)
         time += shell.step(dt)
         numerical_time.append(time)
         numerical_radius.append(shell.radius[0])
@@ -104,7 +107,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['savedir']) / 'GasDarkMatterAnalyticOrbit1D.jpg'
+    figure = Path(runparams['output']['savedir']) / 'GasDarkMatterAnalyticOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

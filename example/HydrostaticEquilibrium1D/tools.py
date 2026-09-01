@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.analysis import rplot1d
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
@@ -19,6 +20,18 @@ from radhydropy.units import (
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
+
+
+def _physical_value(value, unit, name):
+    """Convert a physical IC quantity only at the IC/code-unit boundary."""
+    if not hasattr(value, 'to_value'):
+        raise TypeError('%s must be a unit-bearing physical quantity' % name)
+    try:
+        return value.to_value(unit)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            '%s must have units equivalent to %s' % (name, unit)
+        ) from error
 
 
 class Par:
@@ -101,22 +114,36 @@ def constant_gravity_acceleration(gravity_strength, code_units=None):
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, icparams, code_units=None, grid_cells=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
+        self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        self.par.nogrid = int(grid_cells)
+        self.par.coordsys = 'cartesian'
+        box_size = _physical_value(
+            icparams['box_size'], unyt.cm, 'box_size'
+        ) * unyt.cm
+        current_time = _physical_value(
+            icparams['current_time'], unyt.s, 'current_time'
+        ) * unyt.s
+        self.par.boxsize = np.ones(1) * box_size
+        self.par.time = np.ones(1) * current_time
+        self.par.simulation = SimpleNamespace(
+            current_time=self.par.time,
+            box_size=self.par.boxsize,
+            coordinate_system='cartesian',
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
 
         self.mesh.boundary = np.linspace(
             0.0,
             1.0,
             self.par.nogrid + 1,
-        ) * icparams['boxsize']
+        ) * box_size
         self.mesh.coordinate = 0.5 * (
             self.mesh.boundary[:-1] + self.mesh.boundary[1:]
         )
@@ -124,14 +151,14 @@ class Simwrap:
         self.mesh.area = np.ones(self.par.nogrid) * (1.0 * unyt.cm**2)
         self.mesh.vol = self.mesh.area * dx
 
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.temp = np.ones(self.par.nogrid) * icparams['initial_temperature']
+        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
         self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
         self.fluid.rho = hydrostatic_density_profile(
             self.mesh.coordinate,
-            icparams['rho_ref'],
-            icparams['tempini'],
-            icparams['muini'],
+            icparams['reference_density'],
+            icparams['initial_temperature'],
+            icparams['mean_molecular_weight'],
             icparams['gravity_strength'],
             code_units=code_units,
         )
@@ -139,14 +166,18 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
-    code_units_mapping = runparams.get('CodeUnits')
+    code_units_mapping = runparams.get('units', {}).get('CodeUnits')
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = Simwrap(icparams, code_units=code_units_obj)
+    rout = Simwrap(
+        icparams,
+        code_units=code_units_obj,
+        grid_cells=runparams['mesh']['grid_cells'],
+    )
     if code_units_obj is not None:
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(runparams.get('mesh', {}).get('ghost_cells', 0))
     xall = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
     if nghost > 0:
         xcoord = xall[nghost:-nghost]
@@ -158,9 +189,9 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         vel_num = rout.fluid.vel
     rho_analytic = hydrostatic_density_profile(
         xcoord,
-        icparams['rho_ref'],
-        icparams['tempini'],
-        icparams['muini'],
+        icparams['reference_density'],
+        icparams['initial_temperature'],
+        icparams['mean_molecular_weight'],
         icparams['gravity_strength'],
         code_units=code_units_obj,
     )

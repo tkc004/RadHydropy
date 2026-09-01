@@ -1,52 +1,46 @@
-runparams:
-  simname: HydrostaticEquilibrium1d
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outputtimefilename: hydrostatic_equilibrium1d_output_times.txt
-  savedir: .
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 4.92e31
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-  coordsys: cartesian
-  EOStype: isothermal
-  gamma: 1.0
-  timesim:
-    value: 0.0001
-    unit: Myr
-  CFL: 0.2
-  dtmin:
-    value: 1.0e-10
-    unit: s
-  dtmax:
-    value: 1.0e12
-    unit: s
-  boundcond: Reflecting
-  verbose: 0
-  order: 0
-  noghost: 2
-
-ICparams:
-  nogrid: 256
-  coordsys: cartesian
-  boxsize:
-    value: 10.0
-    unit: pc
-  time:
-    value: 0.0
-    unit: s
-  rho_ref:
-    value: 1.0e-24
-    unit: g/cm**3
-  tempini:
-    value: 1.0e4
-    unit: K
-  muini: 1.0
-  gravity_strength:
-    value: 1.0e-7
-    unit: cm/s**2
+par:
+  simulation:
+    name: HydrostaticEquilibrium1D
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 1.0e-6, unit: Myr}
+  temperature: {value: 1.0e4, unit: K}
+  mesh:
+    grid_cells: 256
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: isothermal
+    gamma: 1.0
+    CFL: 0.2
+    order: 1
+  gravity:
+    externalgravity: true
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: {value: 1.0e-10, unit: s}
+    dtmax: {value: 1.0e7, unit: s}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
+    time_list_filename: hydrostatic_equilibrium1d_output_times.txt
+    cadence: {value: 1.0e-6, unit: Myr}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 4.92e31
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  box_size: {value: 10.0, unit: pc}
+  current_time: {value: 0.0, unit: s}
+  reference_density: {value: 1.0e-24, unit: g/cm**3}
+  initial_temperature: {value: 1.0e4, unit: K}
+  mean_molecular_weight: 1.0
+  gravity_strength: {value: 1.0e-7, unit: cm/s**2}

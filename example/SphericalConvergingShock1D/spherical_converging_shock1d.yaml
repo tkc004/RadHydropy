@@ -31,7 +31,7 @@ par:
   boundary:
     condition: Reflecting
   timestep:
-    dtmin: {value: 1.0e-8, unit: s}
+    dtmin: {value: 9.0e-9, unit: s}
     dtmax: {value: 2.0e-3, unit: s}
   output:
     directory: .
@@ -52,7 +52,8 @@ par:
 initial_condition:
   grid_cells: 512
   coordinate_system: spherical
-  box_size: {value: 1.0, unit: cm}
+  rmin: {value: 1.0e-2, unit: cm}
+  rmax: {value: 1.0, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_density: {value: 1.0, unit: g/cm**3}
   temperature: {value: 1.0e-10, unit: K}
