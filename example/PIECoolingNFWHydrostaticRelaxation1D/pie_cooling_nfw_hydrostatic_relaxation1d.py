@@ -47,7 +47,18 @@ def main(config_filename=DEFAULT_CONFIG):
     temperature = et.virial_temperature(halo, icparams['mu'])
     initial = et.Simwrap(icparams, code_units=code_units)
     rio.writehdf5(initial, runparams['ICfilename'])
-    sim = Rsim(runparams)
+    runtime_only = {
+        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
+        'number_of_cells', 'inner_radius', 'outer_radius', 'halo_mass',
+        'concentration', 'redshift', 'overdensity', 'h0', 'gas_fraction',
+        'mean_molecular_weight', 'mu', 'reference_density',
+        'initial_temperature', 'final_time', 'evolution_timestep',
+        'chemistry_timestep', 'runaway_density_factor',
+    }
+    runtime = {key: value for key, value in runparams.items()
+               if key not in runtime_only}
+    sim = Rsim(runtime)
+    sim.par.CodeUnits = code_units
     sim.Callreadhdf5(); sim.SetMesh(); sim.SetFluid(); sim.SetInitFluid()
     nghost = int(runparams.get('noghost', 0))
     interior = slice(nghost, -nghost if nghost else None)

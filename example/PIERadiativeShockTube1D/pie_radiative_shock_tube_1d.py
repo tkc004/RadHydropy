@@ -61,7 +61,14 @@ def _run_case(
         case_icparams, code_units, case['hydrogen_mass_fraction']
     )
     rio.writehdf5(initial, case['ICfilename'])
-    sim = Rsim(case)
+    runtime_only = {
+        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
+        'number_of_cells', 'hydrogen_density', 'collision_velocity',
+        'initial_temperature', 'mean_molecular_weight', 'final_time',
+        'evolution_timestep', 'chemistry_timestep',
+    }
+    sim = Rsim({key: value for key, value in case.items()
+                if key not in runtime_only})
     sim.RunAll(outputtime=0, mode='hydro' if adiabatic else 'hydro_sources')
     snapshots = sorted(output_dir.glob(f'{case["outfileprefix"]}_*.hdf5'))
     if len(snapshots) < 2:

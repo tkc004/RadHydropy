@@ -40,5 +40,8 @@ Fixed (nested par / initial_condition / example configuration)
 Notes
 -----
 - HIIRegionExpansion1D includes early/late and standard/C2Ray configurations.
-- The remaining examples still use the legacy runparams/ICparams layout.
 - MultiFrequencyRadiativeTransferSph1D also includes C2Ray and single-frequency variants.
+- PIECoolingIsobaricParcel1D
+- PIEC​​oolingIsochoricParcel1D
+- PIEC​​oolingNFWHydrostaticRelaxation1D
+- PIERadiativeShockTube1D

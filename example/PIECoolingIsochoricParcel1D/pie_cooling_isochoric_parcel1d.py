@@ -99,8 +99,16 @@ def _run_case(runparams, icparams, label, density, temperature, table):
     code_units = CodeUnits.from_mapping(case['CodeUnits'])
     initial = Simwrap(case_icparams, code_units, density)
     rio.writehdf5(initial, case['ICfilename'])
-    sim = Rsim(case)
-    sim.RunAll(outputtime=0, mode='hydro_sources')
+    runtime_only = {
+        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
+        'number_of_cells', 'initial_temperature', 'mean_molecular_weight',
+        'final_time', 'evolution_timestep', 'chemistry_timestep',
+    }
+    sim = Rsim({key: value for key, value in case.items()
+                if key not in runtime_only})
+    # This is a one-cell isochoric parcel.  Use the dedicated source-only
+    # mode so no hydro flux gradient is evaluated on the single active cell.
+    sim.RunAll(outputtime=0, mode='sources')
     snapshots = sorted(output_dir.glob(f'{case["outfileprefix"]}_*.hdf5'))
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
