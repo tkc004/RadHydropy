@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
@@ -34,7 +33,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def _profile(sim, rho, pressure):
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
     code = sim.par.CodeUnits
     radius_q = radius * code.length_unit
@@ -66,14 +65,19 @@ def _profile(sim, rho, pressure):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = dict(config['par'])
+    runtime['relaxation_damping_time'] = config['example']['relaxation_damping_time']
+    runparams = eu.legacy_example_parameters(config)
+    runparams['relaxation_damping_time'] = config['example']['relaxation_damping_time']
+    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells'], 'coordsys': 'spherical'}
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
     initial_condition = et.Simwrap(icparams, code_units)
     rio.writehdf5(initial_condition, runparams['ICfilename'])
 
-    sim = Rsim(runparams)
+    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -100,7 +104,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if output is None:
         raise FileNotFoundError('no output snapshots were written')
     final = et.read_output(output, runparams)
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     k_poly = et.polytropic_constant(icparams['polytropic_radius'])
     radius = np.asarray(final.mesh.coordinate[interior], dtype=float) * sim.par.CodeUnits.length_unit
     rho_final = np.asarray(final.fluid.rho[interior], dtype=float) * sim.par.CodeUnits.density_unit

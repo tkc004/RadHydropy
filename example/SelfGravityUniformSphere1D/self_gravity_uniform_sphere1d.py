@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
@@ -37,15 +36,18 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    runparams = eu.legacy_example_parameters(config)
+    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells']}
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
 
     initial_condition = et.Simwrap(icparams, code_units=code_units)
     rio.writehdf5(initial_condition, runparams['ICfilename'])
 
-    sim = Rsim(runparams)
+    runtime = {**runtime, 'simulation': {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}}
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -61,7 +63,7 @@ def main(config_filename=DEFAULT_CONFIG):
         rho=sim.fluid.rho,
         par=sim.par,
     )
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = sim.mesh.coordinate[interior]
     rho0 = icparams['rho0']
     radius_quantity = np.asarray(radius, dtype=float) * sim.par.CodeUnits.length_unit

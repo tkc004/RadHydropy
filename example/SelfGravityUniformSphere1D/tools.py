@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
@@ -48,11 +49,15 @@ class Simwrap:
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams['nogrid'])
         self.par.coordsys = icparams['coordsys']
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
+        self.par.simulation = SimpleNamespace(current_time=self.par.time, box_size=self.par.boxsize, coordinate_system='spherical')
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
 
         self.mesh.boundary = np.linspace(
             icparams['rmin'],

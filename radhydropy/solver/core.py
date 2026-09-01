@@ -494,7 +494,15 @@ class Solver():
             # total-energy accounting separately, and use its pressure.  In
             # particular, do not use a large dual estimate when E-K is
             # inadmissible.
-            both_invalid = active & ~numerical_vacuum & ~total_valid
+            # The pressure floor is a last resort only when both the
+            # conservative E-K estimate and the independently evolved
+            # InternalEnergy are invalid.  In particular, an inadmissible
+            # E-K residual is the normal reason for selecting dual energy in
+            # a cold converging flow; it must not overwrite a valid dual
+            # state with the configured floor.
+            both_invalid = (
+                active & ~numerical_vacuum & ~total_valid & ~dual_valid
+            )
             if np.any(both_invalid):
                 floor_pressure_value = max(
                     0.0, float(np.asarray(
@@ -1170,7 +1178,7 @@ class Solver():
             # Keep the same roundoff allowance used by the global increment
             # limiter.  Dual energy may tolerate tiny E-K cancellation, but
             # it must still reject a substantive K > E state.
-            1.0e-7
+            1.0e-6
             if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy')
             else 1.0e-12
         )
@@ -1409,7 +1417,12 @@ class Solver():
             # Alternate traversal direction to reduce ordering bias.  The
             # first sweep already produces a globally admissible update;
             # later sweeps only recover additional face flux monotonically.
+            # Keep the recovery policy independent of geometry and energy
+            # formulation; reducing it for cold spherical dual-energy runs
+            # would be a performance heuristic rather than a numerical
+            # criterion and could leave more ordering-dependent limiting.
             max_recovery_sweeps = 8
+            recovery_iterations = 48
             factor_tolerance = 1.0e-13
             for sweep in range(max_recovery_sweeps):
                 largest_increase = 0.0
@@ -1430,7 +1443,7 @@ class Solver():
                         # only upward, never stepping outside the invariant
                         # domain as the previous reduce-and-repair scheme did.
                         low, high = current, 1.0
-                        for _ in range(48):
+                        for _ in range(recovery_iterations):
                             middle = 0.5 * (low + high)
                             if adjacent_valid(face, middle):
                                 low = middle

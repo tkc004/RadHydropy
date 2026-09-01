@@ -1,63 +1,24 @@
-runparams:
-  simname: SelfGravityPolytropeRelaxation1D
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  savedir: .
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 2.0
-  selfgravity: true
-  externalgravity: false
-  timesim:
-    value: 0.4
-    unit: Myr
-  CFL: 0.15
-  dtmin:
-    value: 1.0e2
-    unit: yr
-  dtmax:
-    value: 2.0e4
-    unit: yr
-  outdeltatime:
-    value: 0.2
-    unit: Myr
-  boundcond: Reflecting
-  order: 0
-  noghost: 2
-  verbose: 0
-  relaxation_damping_time:
-    value: 0.02
-    unit: Myr
-  CodeUnits:
-    name: polytrope_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0e33
-      UnitLength_in_cgs: 3.08567758e18
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 192
-  coordsys: spherical
-  boxsize:
-    value: 1.0
-    unit: pc
-  rmin:
-    value: 0.0
-    unit: pc
-  rmax:
-    value: 1.0
-    unit: pc
-  time:
-    value: 0.0
-    unit: s
-  central_density:
-    value: 1.0e-20
-    unit: g/cm**3
-  polytropic_radius:
-    value: 0.318309886
-    unit: pc
+par:
+  simulation: {name: SelfGravityPolytropeRelaxation1D, coordinate_system: spherical, initial_condition_filename: InitialCondition.hdf5, final_time: {value: 0.4, unit: Myr}}
+  mesh: {grid_cells: 192, ghost_cells: 2}
+  hydrodynamics: {eos_type: polytropic, gamma: 2.0, CFL: 0.15, order: 0}
+  gravity: {selfgravity: true, externalgravity: false}
+  boundary: {condition: Reflecting}
+  timestep:
+    dtmin: {value: 1.0e2, unit: yr}
+    dtmax: {value: 2.0e4, unit: yr}
+  output: {directory: ., savedir: ., filename_prefix: Output, cadence: {value: 0.2, unit: Myr}}
+  units:
+    CodeUnits:
+      name: polytrope_unit_system
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0e33, UnitLength_in_cgs: 3.08567758e18, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
+  boxsize: {value: 1.0, unit: pc}
+  rmin: {value: 0.0, unit: pc}
+  rmax: {value: 1.0, unit: pc}
+  time: {value: 0.0, unit: s}
+  central_density: {value: 1.0e-20, unit: g/cm**3}
+  polytropic_radius: {value: 0.318309886, unit: pc}
   velocity_perturbation: 0.01
   mu: 1.0
+example: {relaxation_damping_time: {value: 0.02, unit: Myr}}

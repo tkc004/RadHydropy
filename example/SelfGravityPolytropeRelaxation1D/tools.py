@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import (
     BOLTZMANN_CONSTANT_CGS,
@@ -83,12 +84,16 @@ class Simwrap:
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams['nogrid'])
         self.par.noghost = 2
         self.par.coordsys = 'spherical'
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
+        self.par.simulation = SimpleNamespace(current_time=self.par.time, box_size=self.par.boxsize, coordinate_system='spherical')
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.hydrodynamics = SimpleNamespace(gamma=2.0)
 
         self.mesh.boundary = np.linspace(
             icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
@@ -128,6 +133,11 @@ def read_output(filename, runparams):
     result.mesh = Mesh()
     result.fluid = Fluid()
     result.par.CodeUnits = code_units
+    result.par.units = SimpleNamespace(CodeUnits=code_units)
+    result.par.simulation = SimpleNamespace(coordinate_system='spherical')
+    result.par.mesh = SimpleNamespace(grid_cells=int(runparams['nogrid']), ghost_cells=int(runparams.get('noghost', 2)))
+    result.par.EOStype = runparams.get('EOStype', 'polytropic')
+    result.par.gamma = float(runparams.get('gamma', 2.0))
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.mesh.coordinate = spherical_cell_centers(result.mesh.boundary)
     result.fluid.eos = EOS(result.par.EOStype, result.par.gamma, code_units)

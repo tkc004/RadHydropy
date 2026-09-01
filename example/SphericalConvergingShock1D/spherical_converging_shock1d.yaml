@@ -12,7 +12,21 @@ par:
     CFL: 0.1
     order: 1
     riemann_solver: Rusanov
-    dual_energy: false
+    dual_energy: true
+    # Bryan et al. dual-energy switching: eta1 selects the pressure source;
+    # eta2 controls when InternalEnergy is synchronized to conservative E-K.
+    dual_energy_eta1: 1.0e-3
+    dual_energy_eta2: 1.0e-1
+    # Reject a dual-energy update that loses more than this fraction of its
+    # previous thermal state when conservative E-K is not a valid recovery.
+    dual_energy_consistency_factor: 1.0e-1
+    # This benchmark relies on the dual-energy switch and consistency
+    # recovery; the experimental entropy limiter is intentionally disabled.
+    dual_energy_entropy_limiter: false
+    dual_energy_pressure_selection: switch
+    # Code-unit pressure used only when both thermal-energy estimates fail.
+    dual_energy_pressure_floor: 1.0e-20
+    cfl_density_floor: 1.0e-12
     temperature_jump_error_threshold: 1.0e12
   boundary:
     condition: Reflecting

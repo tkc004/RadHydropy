@@ -58,6 +58,11 @@ def check_conserved_energy_admissibility(
     larger deficits are reported at the update stage that created them.
     """
     par = sim.par
+    if getattr(par, 'dual_energy', False):
+        # In dual-energy mode, E-K may lose the tiny thermal component in a
+        # cold spherical flow.  Pressure is reconstructed from InternalEnergy;
+        # audit the conservative state with the same cancellation allowance.
+        relative_tolerance = max(relative_tolerance, 1.0e-6)
     # Isothermal EOS runs do not evolve thermal energy as an Euler
     # conservative variable.  Their Energy field may therefore contain only
     # kinetic energy (or zero), while pressure is reconstructed from T and mu;

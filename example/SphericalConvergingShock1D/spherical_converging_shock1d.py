@@ -19,53 +19,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import radhydropy.io as rio
 from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
+import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
 
-class InitialCondition:
-    pass
-
-
-def make_initial_condition(ic, units):
-    state = InitialCondition()
-    state.par = InitialCondition()
-    state.mesh = InitialCondition()
-    state.fluid = InitialCondition()
-    state.par.units = type('Units', (), {'CodeUnits': units})()
-    state.par.unit_system = units.unit_system
-    state.par.simulation = type('Simulation', (), {})()
-    state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': int(ic['grid_cells'])})()
-    state.par.nogrid = int(ic["grid_cells"])
-    state.par.coordsys = "spherical"
-    state.par.boxsize = np.asarray([float(ic["box_size"].to_value("cm"))])
-    state.par.time = np.asarray([0.0])
-    state.par.simulation.current_time = state.par.time
-    state.par.simulation.coordinate_system = 'spherical'
-    state.par.simulation.box_size = state.par.boxsize
-    faces = np.linspace(0.0, state.par.boxsize[0], state.par.nogrid + 1)
-    state.mesh.boundary = faces
-    state.mesh.coordinate = 0.5 * (faces[1:] + faces[:-1])
-    state.mesh.area = 4.0 * np.pi * faces[:-1] ** 2
-    state.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(faces ** 3)
-    state.fluid.rho = np.full(state.par.nogrid, float(ic["initial_density"].to_value("g/cm**3")))
-    state.fluid.temp = np.full(state.par.nogrid, float(ic["temperature"].to_value("K")))
-    state.fluid.vel = np.full(state.par.nogrid, float(ic["velocity"].to_value("cm/s")))
-    state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
-    return state
-
-
 def _read_profile(filename, units):
-    par = InitialCondition()
-    mesh = InitialCondition()
-    fluid = InitialCondition()
+    par = et.Par()
+    mesh = et.Mesh()
+    fluid = et.Fluid()
+    par.units = type('Units', (), {'CodeUnits': units})()
+    par.simulation = type('Simulation', (), {'coordinate_system': 'spherical'})()
+    par.mesh = type('MeshParameters', (), {'ghost_cells': 2, 'grid_cells': 512})()
     par.CodeUnits = units
     rio.readhdf5(par, mesh, fluid, filename)
     first = int(getattr(par, "noghost", 2))
@@ -111,7 +84,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     output = runparams['output']
     eu.clean_previous_outputs(output)
     units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
-    initial = make_initial_condition(icparams, units)
+    initial = et.Simwrap(icparams, runparams, code_units=units)
     rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
 
     sim = Rsim(runparams)
@@ -121,6 +94,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         raise RuntimeError("spherical converging benchmark produced too few outputs")
 
     profiles = [_read_profile(filename, units) for filename in outputs]
+    # Keep the reference plot focused on the first 13 snapshots.  This also
+    # makes an interrupted run with those snapshots available reproducible
+    # without including a later, potentially incomplete tail.
+    profiles = profiles[:13]
     initial_mass, initial_energy = profiles[0][4:6]
     final_mass, final_energy = profiles[-1][4:6]
     initial_temperature = profiles[0][3]
@@ -169,7 +146,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument("--riemann-solver", choices=("Rusanov", "HLLC"))
-    parser.add_argument("--dual-energy", action="store_true")
+    parser.add_argument("--dual-energy", action="store_true", default=None)
     args = parser.parse_args()
     run(
         args.config,
