@@ -1,33 +1,25 @@
-runparams:
-  simname: CosmologicalResidualIonization1D
-  savedir: outputs
-  gamma: 1.6666666666666667
-  hydrogen_mass_fraction: 1.0
-  hydrogen_recombination: true
-  hydrogen_collisional_ionization: false
-  hydrogen_atomic_cooling: true
-  compton_cmb_enabled: true
-  cmb_temperature_0:
-    value: 2.7255
-    unit: K
-  cosmology_t_ref:
-    value: 17.0
-    unit: Gyr
-  CodeUnits:
-    name: residual_ionization_cgs_units
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation: {name: CosmologicalResidualIonization1D}
+  output: {directory: outputs, savedir: outputs}
+  hydrodynamics: {gamma: 1.6666666666666667}
+  chemistry: {hydrogen_mass_fraction: 1.0}
+  thermochemistry:
+    hydrogen_recombination: true
+    hydrogen_collisional_ionization: false
+    hydrogen_atomic_cooling: true
+    compton_cmb_enabled: true
+    cmb_temperature_0: {value: 2.7255, unit: K}
+  gravity:
+    cosmology_t_ref: {value: 17.0, unit: Gyr}
+  units:
+    CodeUnits:
+      name: residual_ionization_cgs_units
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
   initial_redshift: 100.0
   final_redshift: 4.9
   initial_xe: 2.0e-4
-  initial_temperature:
-    value: 300.0
-    unit: K
+  initial_temperature: {value: 300.0, unit: K}
   present_hydrogen_density_cm3: 1.9e-7
   output_points: 400
+example: {}

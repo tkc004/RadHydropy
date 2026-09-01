@@ -27,6 +27,22 @@ CODE_TIME_S = CODE_LENGTH_CM / CODE_VELOCITY_CM_S
 SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
 
 
+def nested_runtime_parameters(params):
+    """Convert the local benchmark settings to the nested Rsim contract."""
+    return {
+        "simulation": {"name": params["simname"], "initial_condition_filename": params["ICfilename"],
+                        "coordinate_system": params["coordsys"], "final_time": params["timesim"]},
+        "mesh": {"grid_cells": params["nogrid"], "ghost_cells": params.get("noghost", 2)},
+        "hydrodynamics": {key: params[key] for key in ("EOStype", "gamma", "CFL", "order") if key in params},
+        "boundary": {"condition": params["boundcond"]},
+        "timestep": {key: params[key] for key in ("dtmin", "dtmax") if key in params},
+        "output": {"directory": params["outdir"], "savedir": params["savedir"],
+                    "filename_prefix": params["outfileprefix"], "cadence": params["outdeltatime"]},
+        "gravity": {key: params[key] for key in ("cosmological_expansion", "supercomoving_coordinates", "cosmological_gravity", "selfgravity", "externalgravity", "cosmology_type", "cosmology_t_ref", "cosmology_a_ref", "cosmology_omega_m", "cosmology_omega_lambda", "cosmology_hubble_ref") if key in params},
+        "units": {"CodeUnits": params["CodeUnits"]},
+    }
+
+
 def density_msun_mpc3_to_cgs(density):
     return float(density) * float((1.0 * unyt.Msun).to_value("g")) / float(
         (1.0 * unyt.Mpc).to_value("cm")
@@ -63,12 +79,23 @@ def make_initial_condition(
     count = 4
     boxsize = 4.0
     state.par.CodeUnits = units
+    state.par.units = State()
+    state.par.units.CodeUnits = units
     state.par.unit_system = units.unit_system
     state.par.nogrid = count
     state.par.coordsys = "cartesian"
     state.par.boxsize = np.asarray([boxsize])
     initial_tau = float(code_cosmology.supercomoving_time(initial_time))
     state.par.time = np.asarray([initial_tau])
+    state.par.simulation = State()
+    state.par.simulation.current_time = state.par.time
+    state.par.simulation.box_size = state.par.boxsize
+    state.par.simulation.coordinate_system = "cartesian"
+    state.par.mesh = State()
+    state.par.mesh.grid_cells = count
+    state.par.mesh.ghost_cells = 0
+    state.par.hydrodynamics = State()
+    state.par.hydrodynamics.gamma = 5.0 / 3.0
     state.par.cosmological_expansion = True
     state.par.supercomoving_coordinates = True
     state.par.cosmological_gravity = False
@@ -174,12 +201,13 @@ def run():
         "order": 1,
         "CodeUnits": unit_mapping(),
         }
-        sim = Rsim(runparams)
+        sim = Rsim(nested_runtime_parameters(runparams))
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
         sim.fluid.SetFluidTime(sim.par.time)
         sim.SetInitFluid()
+        sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
         final_tau_sim = float(np.asarray(sim.fluid.time, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)

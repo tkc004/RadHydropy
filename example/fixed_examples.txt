@@ -39,6 +39,11 @@ Fixed (nested par / initial_condition / example configuration)
 - BertschingerGasReference
 - ComptonCMBHeating1D
 - UniformEdSThermochemistry1D
+- CosmologicalAdiabaticTemperature1D
+- CosmologicalConvergingShock1D
+- CosmologicalDensityEvolution1D
+- CosmologicalHubbleFlow1D
+- CosmologicalResidualIonization1D
 
 Notes
 -----

@@ -24,6 +24,7 @@ from cosmological_density_evolution1d import (
     make_initial_condition,
     make_units,
     unit_mapping,
+    nested_runtime_parameters,
 )
 
 
@@ -105,12 +106,13 @@ def run():
             "order": 1,
             "CodeUnits": unit_mapping(),
         }
-        sim = Rsim(runparams)
+        sim = Rsim(nested_runtime_parameters(runparams))
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
         sim.fluid.SetFluidTime(sim.par.time)
         sim.SetInitFluid()
+        sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
         final_tau_sim = float(np.asarray(sim.fluid.time, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)

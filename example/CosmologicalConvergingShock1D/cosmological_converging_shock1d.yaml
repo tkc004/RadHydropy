@@ -1,43 +1,41 @@
-runparams:
-  simname: CosmologicalConvergingShock1D
-  ICfilename: InitialCondition.hdf5
-  outdir: outputs_cosmological_converging
-  outfileprefix: Output
-  savedir: outputs_cosmological_converging
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666667
-  gravity: null
-  selfgravity: false
-  externalgravity: false
-  timesim: {value: 30.0, unit: Myr}
-  outdeltatime: {value: 5.0, unit: Myr}
-  CFL: 0.5
-  boundcond: Reflecting
-  order: 0
-  riemann_solver: HLLC
-  dual_energy: false
-  cfl_density_floor: 1.0e-30
-  temperature_jump_error_threshold: null
-  dtmax: {value: 1.0e15, unit: s}
-  dtmin: {value: 1.0e-6, unit: s}
-  CodeUnits:
-    name: spherical_shell_wall_units
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 64
-  coordsys: spherical
-  rmin: {value: 1.0, unit: kpc}
-  rmax: {value: 20.0, unit: kpc}
+par:
+  simulation:
+    name: CosmologicalConvergingShock1D
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 30.0, unit: Myr}
+  mesh: {grid_cells: 64, ghost_cells: 2}
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666667
+    CFL: 0.5
+    order: 0
+    riemann_solver: HLLC
+    dual_energy: false
+    cfl_density_floor: 1.0e-30
+    temperature_jump_error_threshold: null
+  boundary: {condition: Reflecting}
+  timestep:
+    dtmax: {value: 1.0e15, unit: s}
+    dtmin: {value: 1.0e-6, unit: s}
+  output:
+    directory: outputs_cosmological_converging
+    savedir: outputs_cosmological_converging
+    filename_prefix: Output
+    cadence: {value: 5.0, unit: Myr}
+  gravity: {selfgravity: false, externalgravity: false}
+  units:
+    CodeUnits:
+      name: spherical_shell_wall_units
+      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
+  grid_cells: 64
+  inner_radius: {value: 1.0, unit: kpc}
+  outer_radius: {value: 20.0, unit: kpc}
   shell_inner: {value: 8.0, unit: kpc}
   shell_outer: {value: 10.0, unit: kpc}
   rho_shell: 1.0
   temperature: {value: 10.0, unit: K}
   velocity: {value: -300.0, unit: km/s}
   mu: 0.59
+example: {}

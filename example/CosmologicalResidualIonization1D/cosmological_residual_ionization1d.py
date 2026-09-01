@@ -21,7 +21,6 @@ EXAMPLE_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
-from radhydropy.example_config import load_example_parameters
 from radhydropy.thermo_networks.hydrogen import (
     ionization_fraction_rate,
     thermal_rate,
@@ -34,11 +33,11 @@ SECONDS_PER_GYR = 1.0e9 * 365.25 * 86400.0
 
 def evolve(runparams, icparams):
     """Integrate xHI and temperature with the RadHydropy source equations."""
-    gamma = float(runparams["gamma"])
-    hydrogen_fraction = float(runparams["hydrogen_mass_fraction"])
+    gamma = float(runparams["hydrodynamics"]["gamma"])
+    hydrogen_fraction = float(runparams["chemistry"]["hydrogen_mass_fraction"])
     nH0 = float(icparams["present_hydrogen_density_cm3"])
-    t_ref_s = float(runparams["cosmology_t_ref"].to_value("s"))
-    cmb0 = float(runparams["cmb_temperature_0"].to_value("K"))
+    t_ref_s = float(runparams["gravity"]["cosmology_t_ref"].to_value("s"))
+    cmb0 = float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K"))
     z_initial = float(icparams["initial_redshift"])
     z_final = float(icparams["final_redshift"])
     t_initial = t_ref_s * (1.0 / (1.0 + z_initial)) ** 1.5
@@ -97,13 +96,15 @@ def evolve(runparams, icparams):
 
 
 def main():
-    runparams, icparams = load_example_parameters(CONFIG, EXAMPLE_ROOT)
+    from example import example_utils as eu
+    config = eu.load_nested_example_config(CONFIG)
+    runparams, icparams = config['par'], config['initial_condition']
     redshift, xe, temperature = evolve(runparams, icparams)
     # The integration proceeds from high to low redshift; retain that order
     # so the horizontal axis also reads forward in cosmic time.
     order = np.argsort(-redshift)
     redshift, xe, temperature = redshift[order], xe[order], temperature[order]
-    output = EXAMPLE_ROOT / runparams["savedir"]
+    output = Path(runparams["output"]["savedir"])
     output.mkdir(parents=True, exist_ok=True)
     np.savez(output / "CosmologicalResidualIonization1D_History.npz",
              redshift=redshift, xe=xe, temperature_K=temperature)
