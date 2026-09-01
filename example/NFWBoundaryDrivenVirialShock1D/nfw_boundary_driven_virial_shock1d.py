@@ -79,6 +79,8 @@ def _runtime_restart(sim, params, pie_table):
         'CodeUnits', 'coordsys', 'nogrid', 'noghost', 'gamma', 'EOStype',
         'adiabatic_final_time', 'pie_final_time', 'pie_outdir',
         'pie_outputtimefilename',
+        'final_time', 'number_of_cells', 'chemistry_timestep',
+        'evolution_timestep',
     }
     for key, value in params.items():
         if key not in immutable:
@@ -112,6 +114,8 @@ def _run_stage(params, halo, mode, pie_table=None, restart=False):
     stage_only = {
         'adiabatic_final_time', 'pie_final_time', 'pie_outdir',
         'pie_outputtimefilename',
+        'final_time', 'number_of_cells', 'chemistry_timestep',
+        'evolution_timestep',
     }
     sim = Rsim({key: value for key, value in params.items()
                 if key not in stage_only})

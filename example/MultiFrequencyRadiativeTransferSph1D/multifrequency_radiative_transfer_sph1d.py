@@ -176,7 +176,8 @@ def main(config_filename=DEFAULT_CONFIG):
         "hydrogen_initial_collisional_equilibrium", "hydrogen_number_density",
         "initial_temperature", "neutral_fraction_reference_filename",
         "number_of_cells", "reference_radius_unit", "relative_tolerance",
-        "temperature_reference_filename",
+        "temperature_reference_filename", "sigma_gamma", "epsilon_gamma",
+        "source_photon_rate", "alpha_B_coefficient",
     }
     runtime = {
         key: value for key, value in runparams.items()

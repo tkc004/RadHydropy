@@ -38,7 +38,6 @@ import yaml
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.compton import cmb_compton_rate
-from radhydropy.units import CodeUnits
 import example_utils as eu
 from tools import Simwrap
 
@@ -95,10 +94,9 @@ def _run_case(
     )
     case_icparams = dict(icparams)
     case_icparams['initial_temperature'] = initial_temperature * unyt.K
-    code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
     case_params.pop('_example', None)
 
-    ric = Simwrap(case_icparams, case_params['simulation'], case_params['mesh'], code_units)
+    ric = Simwrap(case_icparams, case_params)
     rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
 
     sim = Rsim(case_params)

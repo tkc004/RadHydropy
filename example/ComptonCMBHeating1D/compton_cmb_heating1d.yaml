@@ -27,6 +27,7 @@ par:
   thermochemistry:
     hydrogen_chemistry: true
     hydrogen_atomic_cooling: false
+    hydrogen_source_solver: explicit
     compton_cmb_enabled: true
     compton_cmb_redshift: 100.0
     cmb_temperature_0:

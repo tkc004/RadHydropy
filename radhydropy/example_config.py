@@ -90,7 +90,7 @@ def load_example_parameters(config_filename, rundir=None):
         icparams.setdefault(
             'number_of_cells', mesh.get('grid_cells', icparams.get('grid_cells'))
         )
-        icparams.setdefault('nogrid', icparams.get('grid_cells'))
+        icparams.setdefault('nogrid', mesh.get('grid_cells', icparams.get('grid_cells')))
         icparams.setdefault('coordsys', icparams.get('coordinate_system'))
         icparams.setdefault('boxsize', icparams.get('box_size'))
         for alias, source in (

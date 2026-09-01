@@ -1,6 +1,7 @@
 """Compare homogeneous adiabatic temperature evolution with cosmology tools."""
 
 from pathlib import Path
+import copy
 import sys
 
 import numpy as np
@@ -10,12 +11,14 @@ TOOLS_ROOT = PROJECT_ROOT / "tools"
 DENSITY_EXAMPLE_ROOT = PROJECT_ROOT / "example" / "CosmologicalDensityEvolution1D"
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(TOOLS_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(DENSITY_EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
 from cosmological_density_evolution1d import (
@@ -24,19 +27,23 @@ from cosmological_density_evolution1d import (
     make_initial_condition,
     make_units,
     unit_mapping,
-    nested_runtime_parameters,
 )
+import example_utils as eu
 
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
+CONFIG_FILE = Path(__file__).with_name("cosmological_adiabatic_temperature1d.yaml")
 
 
 def run():
-    units = make_units()
+    config = eu.load_nested_example_config(CONFIG_FILE)
+    base_runtime = config["par"]
+    example = config["example"]
+    units = CodeUnits.from_mapping(base_runtime["units"]["CodeUnits"])
     time_unit_gyr = CODE_TIME_S / SECONDS_PER_GYR
-    initial_scale_factor = 1.0 / 101.0
-    final_scale_factor = 1.0 / 2.0
-    initial_temperature = 1000.0
+    initial_scale_factor = float(example["initial_scale_factor"])
+    final_scale_factor = float(example["final_scale_factor"])
+    initial_temperature = float(example["initial_temperature"])
     cases = [
         ("EdS", PhysicalEdS(h0=70.0), CodeEdS),
         ("LCDM_0p3_0p7", PhysicalLambdaCDM(h0=70.0, omega_m=0.3, omega_lambda=0.7), CodeLambdaCDM),
@@ -78,35 +85,21 @@ def run():
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        runparams = {
-            "simname": f"CosmologicalAdiabaticTemperature1D_{label}",
-            "ICfilename": str(ic_filename),
-            "outdir": str(output_dir),
-            "savedir": str(output_dir),
-            "outfileprefix": "Output",
-            "coordsys": "cartesian",
-            "nogrid": 4,
-            "EOStype": "polytropic",
-            "gamma": 5.0 / 3.0,
-            "cosmological_expansion": True,
-            "supercomoving_coordinates": True,
-            "cosmological_gravity": False,
-            "selfgravity": False,
-            "externalgravity": False,
-            "cosmology_type": cosmology_type,
-            "cosmology_t_ref": physical.age_0 / time_unit_gyr,
-            "cosmology_a_ref": 1.0,
+        runparams = copy.deepcopy(base_runtime)
+        runparams["simulation"].update(
+            name=f"CosmologicalAdiabaticTemperature1D_{label}",
+            initial_condition_filename=str(ic_filename),
+            final_time=final_tau * units.time_unit,
+        )
+        runparams["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        runparams["gravity"].update(
+            cosmology_type=cosmology_type,
+            cosmology_t_ref=physical.age_0 / time_unit_gyr,
+            cosmology_a_ref=1.0,
             **cosmology_parameters,
-            "timesim": final_tau * units.time_unit,
-            "outdeltatime": (final_tau - initial_tau) * units.time_unit,
-            "dtmin": 1.0e-8 * units.time_unit,
-            "dtmax": 1.0 * units.time_unit,
-            "CFL": 0.1,
-            "boundcond": "Periodic",
-            "order": 1,
-            "CodeUnits": unit_mapping(),
-        }
-        sim = Rsim(nested_runtime_parameters(runparams))
+        )
+        runparams["output"]["cadence"] = (final_tau - initial_tau) * units.time_unit
+        sim = Rsim(runparams)
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()

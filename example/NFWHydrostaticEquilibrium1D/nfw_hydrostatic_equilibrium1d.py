@@ -41,6 +41,8 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     runparams, icparams = load_example_parameters(config_filename)
     runparams['nogrid'] = icparams['nogrid']
+    for key in ('final_time', 'number_of_cells', 'chemistry_timestep', 'evolution_timestep'):
+        runparams.pop(key, None)
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
     halo = et.nfw_halo_parameters(

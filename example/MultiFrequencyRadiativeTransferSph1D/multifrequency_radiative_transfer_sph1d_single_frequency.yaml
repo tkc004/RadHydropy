@@ -1,47 +1,72 @@
-runparams:
-  simname: MultiFrequencyRadiativeTransferSph1D_SingleFrequency
-  ICfilename: InitialCondition_SingleFrequency.hdf5
+par:
+  simulation:
+    name: MultiFrequencyRadiativeTransferSph1D_SingleFrequency
+    initial_condition_filename: InitialCondition_SingleFrequency.hdf5
+    coordinate_system: spherical
+    final_time:
+      value: 100.0
+      unit: Myr
+  mesh:
+    grid_cells: 512
+    ghost_cells: 2
+  boundary:
+    condition: OpenSph
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98841586e33
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  chemistry:
+    hydrogen_mass_fraction: 1.0
+    hydrogen_xHI_initial: 0.9988
+    hydrogen_recombination: true
+    hydrogen_chemistry: true
+    hydrogen_update_mu: true
+    hydrogen_collisional_ionization: true
+  thermochemistry:
+    hydrogen_initial_collisional_equilibrium: false
+    hydrogen_sigma_gamma:
+      value: 1.62e-18
+      unit: cm**2
+    hydrogen_thermal_coupling: true
+    relative_tolerance: 0.001
+    absolute_tolerance: 1.0e-10
+    explicit_tolerance: 0.1
+    hydrogen_epsilon_gamma:
+      value: 6.33
+      unit: eV
+  radiation:
+    radiative_transfer_direction: 1
+    radiative_transfer: true
+    radiation_spectrum_filename: null
+    radiative_transfer_method: long_characteristics
+initial_condition:
+  number_of_cells: 512
+  boxsize:
+    value: 10.0
+    unit: kpc
+  hydrogen_number_density:
+    value: 0.001
+    unit: 1/cm**3
+  initial_temperature:
+    value: 100.0
+    unit: K
+example:
   outdir: .
   outfileprefix: Output_SingleFrequency
   savedir: .
-  coordsys: spherical
-  boundcond: OpenSph
-  noghost: 2
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 1.0
-  hydrogen_xHI_initial: 0.9988
-  hydrogen_initial_collisional_equilibrium: false
-  hydrogen_update_mu: true
-  hydrogen_thermal_coupling: true
-  hydrogen_recombination: true
-  hydrogen_collisional_ionization: true
-  radiative_transfer: true
-  radiative_transfer_method: long_characteristics
-  radiative_transfer_direction: 1
-  radiation_spectrum_filename: null
   radiative_transfer_source_photon_rate:
     value: 5.0e48
     unit: 1/s
-  hydrogen_sigma_gamma:
-    value: 1.62e-18
-    unit: cm**2
-  hydrogen_epsilon_gamma:
-    value: 6.33
-    unit: eV
-  explicit_tolerance: 0.1
-  relative_tolerance: 1.0e-3
-  absolute_tolerance: 1.0e-10
   reference_radius_unit:
     value: 5.4
     unit: kpc
   temperature_reference_filename: TTT1D_Stromgren100Myr.txt
   neutral_fraction_reference_filename: xTT1D_Stromgren100Myr.txt
-  timesim:
-    value: 100.0
-    unit: Myr
-  final_time:
-    value: 100.0
-    unit: Myr
   evolution_timestep:
     value: 0.5
     unit: Myr
@@ -49,30 +74,9 @@ runparams:
     value: 100.0
     unit: K
   hydrogen_number_density:
-    value: 1.0e-3
+    value: 0.001
     unit: 1/cm**3
   boxsize:
     value: 10.0
     unit: kpc
-  number_of_cells: 512
   figure_filename: MultiFrequencyRadiativeTransferSph1D_SingleFrequency.jpg
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.98841586e33
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  number_of_cells: 512
-  boxsize:
-    value: 10.0
-    unit: kpc
-  hydrogen_number_density:
-    value: 1.0e-3
-    unit: 1/cm**3
-  initial_temperature:
-    value: 100.0
-    unit: K

@@ -1,6 +1,7 @@
 """Compare uniform-gas density evolution with the standalone cosmology tool."""
 
 from pathlib import Path
+import copy
 import sys
 
 import numpy as np
@@ -8,39 +9,27 @@ import unyt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TOOLS_ROOT = PROJECT_ROOT / "tools"
+EXAMPLE_ROOT = PROJECT_ROOT / "example"
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(TOOLS_ROOT))
+sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import example_utils as eu
 from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
 
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
+CONFIG_FILE = Path(__file__).with_name("cosmological_density_evolution1d.yaml")
 CODE_LENGTH_CM = 1.0e24
 CODE_VELOCITY_CM_S = 1.0e7
 CODE_TIME_S = CODE_LENGTH_CM / CODE_VELOCITY_CM_S
 SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
-
-
-def nested_runtime_parameters(params):
-    """Convert the local benchmark settings to the nested Rsim contract."""
-    return {
-        "simulation": {"name": params["simname"], "initial_condition_filename": params["ICfilename"],
-                        "coordinate_system": params["coordsys"], "final_time": params["timesim"]},
-        "mesh": {"grid_cells": params["nogrid"], "ghost_cells": params.get("noghost", 2)},
-        "hydrodynamics": {key: params[key] for key in ("EOStype", "gamma", "CFL", "order") if key in params},
-        "boundary": {"condition": params["boundcond"]},
-        "timestep": {key: params[key] for key in ("dtmin", "dtmax") if key in params},
-        "output": {"directory": params["outdir"], "savedir": params["savedir"],
-                    "filename_prefix": params["outfileprefix"], "cadence": params["outdeltatime"]},
-        "gravity": {key: params[key] for key in ("cosmological_expansion", "supercomoving_coordinates", "cosmological_gravity", "selfgravity", "externalgravity", "cosmology_type", "cosmology_t_ref", "cosmology_a_ref", "cosmology_omega_m", "cosmology_omega_lambda", "cosmology_hubble_ref") if key in params},
-        "units": {"CodeUnits": params["CodeUnits"]},
-    }
 
 
 def density_msun_mpc3_to_cgs(density):
@@ -127,10 +116,13 @@ def make_initial_condition(
 
 
 def run():
-    units = make_units()
+    config = eu.load_nested_example_config(CONFIG_FILE)
+    base_runtime = config["par"]
+    example = config["example"]
+    units = CodeUnits.from_mapping(base_runtime["units"]["CodeUnits"])
     time_unit_gyr = CODE_TIME_S / SECONDS_PER_GYR
-    initial_scale_factor = 1.0 / 101.0
-    final_scale_factor = 1.0 / 2.0
+    initial_scale_factor = float(example["initial_scale_factor"])
+    final_scale_factor = float(example["final_scale_factor"])
     cases = [
         ("EdS", PhysicalEdS(h0=70.0), CodeEdS),
         ("LCDM_0p3_0p7", PhysicalLambdaCDM(h0=70.0, omega_m=0.3, omega_lambda=0.7), CodeLambdaCDM),
@@ -173,35 +165,21 @@ def run():
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        runparams = {
-        "simname": f"CosmologicalDensityEvolution1D_{label}",
-        "ICfilename": str(ic_filename),
-        "outdir": str(output_dir),
-        "savedir": str(output_dir),
-        "outfileprefix": "Output",
-        "coordsys": "cartesian",
-        "nogrid": 4,
-        "EOStype": "polytropic",
-        "gamma": 5.0 / 3.0,
-        "cosmological_expansion": True,
-        "supercomoving_coordinates": True,
-        "cosmological_gravity": False,
-        "selfgravity": False,
-        "externalgravity": False,
-        "cosmology_type": cosmology_type,
-        "cosmology_t_ref": physical.age_0 / time_unit_gyr,
-        "cosmology_a_ref": 1.0,
-        **cosmology_parameters,
-        "timesim": final_tau * units.time_unit,
-        "outdeltatime": (final_tau - initial_tau) / 2.0 * units.time_unit,
-        "dtmin": 1.0e-8 * units.time_unit,
-        "dtmax": 1.0 * units.time_unit,
-        "CFL": 0.1,
-        "boundcond": "Periodic",
-        "order": 1,
-        "CodeUnits": unit_mapping(),
-        }
-        sim = Rsim(nested_runtime_parameters(runparams))
+        runparams = copy.deepcopy(base_runtime)
+        runparams["simulation"].update(
+            name=f"CosmologicalDensityEvolution1D_{label}",
+            initial_condition_filename=str(ic_filename),
+            final_time=final_tau * units.time_unit,
+        )
+        runparams["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        runparams["gravity"].update(
+            cosmology_type=cosmology_type,
+            cosmology_t_ref=physical.age_0 / time_unit_gyr,
+            cosmology_a_ref=1.0,
+            **cosmology_parameters,
+        )
+        runparams["output"]["cadence"] = (final_tau - initial_tau) / 2.0 * units.time_unit
+        sim = Rsim(runparams)
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
