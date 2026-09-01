@@ -13,11 +13,17 @@ class Simwrap:
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams["nogrid"])
         self.par.coordsys = icparams["coordsys"]
         self.par.boxsize = icparams["boxsize"] * np.ones(1)
         self.par.time = icparams["time"] * np.ones(1)
+        self.par.simulation = SimpleNamespace(
+            current_time=icparams["time"], box_size=icparams["boxsize"],
+            coordinate_system=icparams["coordsys"],
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
 
         dx = self.par.boxsize[0] / self.par.nogrid
         self.mesh.boundary = np.linspace(

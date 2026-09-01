@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +18,6 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import code_unit_scales
@@ -39,25 +39,29 @@ class CollidingStreamsSolver(Solver):
     """Maintain an inner outward stream and an outer inward stream."""
 
     def SetBoundary(self, mesh, fluid, par):
-        first = par.noghost
-        last = first + par.nogrid - 1
-        right_start = first + par.nogrid
+        first = par.mesh.ghost_cells
+        last = first + par.mesh.grid_cells - 1
+        right_start = first + par.mesh.grid_cells
         left_ghost = slice(0, first)
-        right_ghost = slice(right_start, right_start + par.noghost)
+        right_ghost = slice(right_start, right_start + par.mesh.ghost_cells)
         scales = code_unit_scales(getattr(par, 'CodeUnits', None))
 
         left_state = {
-            'rho': par.rho_outflow,
-            'vel': par.vel_outflow,
+            'rho': par.boundary.outflow_density,
+            'vel': par.boundary.outflow_velocity,
             'pre': fluid.eos.pressure(
-                par.rho_outflow, par.temp_outflow, par.mu_outflow
+                par.boundary.outflow_density,
+                par.boundary.outflow_temperature,
+                par.boundary.outflow_mu,
             ),
         }
         right_state = {
-            'rho': par.rho_inflow,
-            'vel': par.vel_inflow,
+            'rho': par.boundary.inflow_density,
+            'vel': par.boundary.inflow_velocity,
             'pre': fluid.eos.pressure(
-                par.rho_inflow, par.temp_inflow, par.mu_inflow
+                par.boundary.inflow_density,
+                par.boundary.inflow_temperature,
+                par.boundary.inflow_mu,
             ),
         }
         for state, side in ((left_state, left_ghost), (right_state, right_ghost)):
@@ -94,7 +98,24 @@ def _run_case(base_runparams, icparams, label, title, pie_enabled, metallicity, 
     )
     rio.writehdf5(initial, case['ICfilename'])
 
-    sim = Rsim(case)
+    runtime_only = {
+        'final_time', 'number_of_cells', 'evolution_timestep',
+        'chemistry_timestep', 'box_size', 'coordinate_system',
+        'current_time', 'grid_cells', 'initial_temperature',
+        'mean_molecular_weight',
+    }
+    sim = Rsim({key: value for key, value in case.items()
+                if key not in runtime_only})
+    sim.par.boundary = SimpleNamespace(
+        outflow_density=case['rho_outflow'],
+        outflow_velocity=case['vel_outflow'],
+        outflow_temperature=case['temp_outflow'],
+        outflow_mu=case['mu_outflow'],
+        inflow_density=case['rho_inflow'],
+        inflow_velocity=case['vel_inflow'],
+        inflow_temperature=case['temp_inflow'],
+        inflow_mu=case['mu_inflow'],
+    )
     sim.solver = CollidingStreamsSolver()
     # Maintain an outward inner stream and inward outer stream so the shock
     # forms near the initial midpoint instead of at a reflecting wall.
@@ -145,7 +166,9 @@ def _run_case(base_runparams, icparams, label, title, pie_enabled, metallicity, 
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    nested = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = nested['initial_condition']
     if runparams.get('metal_pie_table_filename'):
         runparams['metal_pie_table_filename'] = str(
             (config_filename.parent / runparams['metal_pie_table_filename']).resolve()

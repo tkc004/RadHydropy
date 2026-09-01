@@ -1,6 +1,7 @@
 """Shared helpers for example scripts in this directory."""
 
 import csv
+import copy
 from numbers import Integral
 from pathlib import Path
 
@@ -61,6 +62,19 @@ def load_nested_example_config(config_filename):
     }
 
 
+def runtime_parameters(config):
+    """Return an isolated runtime mapping from a nested example config.
+
+    Initial-condition inputs deliberately remain outside the object passed to
+    ``Rsim``.  Keeping this projection in one helper also prevents an IC
+    wrapper from accidentally adding its private fields to the solver
+    parameter namespace.
+    """
+    if not isinstance(config, dict) or 'par' not in config:
+        raise ValueError("nested example configuration requires a 'par' section")
+    return copy.deepcopy(config['par'])
+
+
 def legacy_example_parameters(config):
     """Project a nested example config for legacy IC/plot helper APIs.
 
@@ -70,7 +84,7 @@ def legacy_example_parameters(config):
     """
     par = config['par']
     initial = config.get('initial_condition', {})
-    flat = dict(initial)
+    flat = {}
     simulation = par.get('simulation', {})
     mesh = par.get('mesh', {})
     hydro = par.get('hydrodynamics', {})
@@ -98,8 +112,21 @@ def legacy_example_parameters(config):
         'outfileprefix': output.get('filename_prefix', 'Output'),
         'CodeUnits': par.get('units', {}).get('CodeUnits'),
     })
-    for group in ('chemistry', 'thermochemistry', 'radiation'):
+    # Compatibility projection for older helper code.  The object passed to
+    # Rsim remains ``config['par']``; this projection is only for IC/plot
+    # helpers that still use legacy names.
+    for group in ('chemistry', 'thermochemistry', 'radiation', 'gravity'):
         flat.update(par.get(group, {}))
+    flat.update({
+        'vel_inflow': par.get('boundary', {}).get('inflow_velocity'),
+        'rho_inflow': par.get('boundary', {}).get('inflow_density'),
+        'temp_inflow': par.get('boundary', {}).get('inflow_temperature'),
+        'mu_inflow': par.get('boundary', {}).get('inflow_mu'),
+        'vel_outflow': par.get('boundary', {}).get('outflow_velocity'),
+        'rho_outflow': par.get('boundary', {}).get('outflow_density'),
+        'temp_outflow': par.get('boundary', {}).get('outflow_temperature'),
+        'mu_outflow': par.get('boundary', {}).get('outflow_mu'),
+    })
     flat.update(config.get('example', {}))
     return flat
 

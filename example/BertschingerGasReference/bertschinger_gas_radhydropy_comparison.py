@@ -299,7 +299,7 @@ def _plot_comparison(numerical, reference, output, numerical_label):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
+    runparams = eu.runtime_parameters(config)
     icparams = config['initial_condition']
     output = runparams['output']
     eu.clean_previous_outputs(output)

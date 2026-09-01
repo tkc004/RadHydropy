@@ -53,7 +53,10 @@ def load_example_parameters(config_filename, rundir=None):
         # New runners should use load_nested_example_config instead.
         nested_par = _load_yaml_value(config['par'])
         icparams = _load_yaml_value(config['initial_condition'])
-        runparams = dict(icparams)
+        # Keep IC-builder inputs out of the runtime mapping.  Legacy callers
+        # receive them separately as ``icparams`` and must not pass them to
+        # ``Rsim``.
+        runparams = {}
         simulation = nested_par.get('simulation', {})
         mesh = nested_par.get('mesh', {})
         hydro = nested_par.get('hydrodynamics', {})

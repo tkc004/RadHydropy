@@ -1,44 +1,53 @@
-runparams:
-  simname: PIEUVBGCoolingUniformSph1D
-  ICfilename: InitialCondition.hdf5
-  outdir: outputs
-  outfileprefix: Output
-  savedir: outputs
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim:
-    value: 1.0e-5
-    unit: yr
-  outdeltatime:
-    value: 5.0e-6
-    unit: yr
-  CFL: 0.1
-  boundcond: OpenSph
-  verbose: 0
-  order: 0
-  thermochemistry_network: pie_uvbg_cooling
-  metal_pie_enabled: true
-  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
-  metal_pie_redshift: 4.0
-  metal_pie_photoheating_max_density_cm3: 50.0
-  metallicity: 1.0
-  hydrogen_mass_fraction: 0.7
-  radiative_transfer: false
-  cooling_safety_factor: 0.1
-  cooling_temperature_floor:
-    value: 100.0
-    unit: K
-  CodeUnits:
-    name: cgs_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.0
-      UnitLength_in_cgs: 1.0
-      UnitVelocity_in_cgs: 1.0
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation:
+    name: PIEUVBGCoolingUniformSph1D
+    initial_condition_filename: InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time:
+      value: 1.0e-05
+      unit: yr
+  mesh:
+    grid_cells: 48
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: OpenSph
+  output:
+    directory: outputs
+    savedir: outputs
+    filename_prefix: Output
+    time_interval:
+      value: 5.0e-06
+      unit: yr
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  thermochemistry:
+    verbose: 0
+    thermochemistry_network: pie_uvbg_cooling
+    metal_pie_enabled: true
+    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+    metal_pie_redshift: 4.0
+    metal_pie_photoheating_max_density_cm3: 50.0
+    metallicity: 1.0
+    hydrogen_mass_fraction: 0.7
+    cooling_safety_factor: 0.1
+    cooling_temperature_floor:
+      value: 100.0
+      unit: K
+  radiation:
+    radiative_transfer: false
+initial_condition:
   nogrid: 48
   coordsys: spherical
   boxsize:
@@ -54,3 +63,4 @@ ICparams:
   nHini:
     value: 1.0
     unit: 1/cm**3
+example: {}

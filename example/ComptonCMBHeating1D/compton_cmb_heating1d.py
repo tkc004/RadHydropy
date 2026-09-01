@@ -221,7 +221,8 @@ def _run_converged_case(runparams, icparams, label, initial_temperature):
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename)
     config = eu.load_nested_example_config(config_filename)
-    runparams, icparams = config['par'], config['initial_condition']
+    runparams = eu.runtime_parameters(config)
+    icparams = config['initial_condition']
     runparams['_example'] = config['example']
     cases = config['example']['cases']
     eu.clean_previous_outputs(runparams['output'])

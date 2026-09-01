@@ -21,7 +21,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
@@ -65,7 +64,9 @@ def _write_initial_condition(config, runparams, icparams, output_dir):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    nested = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = nested['initial_condition']
     output_dir = EXAMPLE_DIR / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     legacy_figure = output_dir / "PIEUVBGPhotoionizationTimescale1D.jpg"
@@ -113,8 +114,17 @@ def main(config_filename=DEFAULT_CONFIG):
             _write_initial_condition(
                 config_filename, case_runparams, case_icparams, case_dir
             )
-            sim = Rsim(case_runparams)
-            sim.RunAll(outputtime=0, mode="hydro_sources")
+            runtime_only = {
+                'final_time', 'number_of_cells', 'evolution_timestep',
+                'chemistry_timestep', 'pie_uvbg_photoionization_timescale',
+                'box_size', 'coordinate_system', 'current_time',
+                'grid_cells', 'initial_temperature', 'mean_molecular_weight',
+            }
+            sim = Rsim({key: value for key, value in case_runparams.items()
+                        if key not in runtime_only})
+            # This is a one-cell source-only parcel; a hydro gradient cannot
+            # be evaluated on its single active cell.
+            sim.RunAll(outputtime=0, mode="sources")
             history = load_history(case_dir)
             if len(history) < 2:
                 raise RuntimeError(f"expected evolved snapshots in {case_dir}")

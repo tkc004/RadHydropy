@@ -59,8 +59,11 @@ Fixed (nested par / initial_condition / example configuration)
 - GasCentrifugalHydroExpansion1D
 - GasCentrifugalWorkSource1D
 - PIECoolingIsobaricParcel1D
-- PIEC​​oolingIsochoricParcel1D
-- PIEC​​oolingNFWHydrostaticRelaxation1D
+- PIECoolingIsochoricParcel1D
+- PIECoolingNFWHydrostaticRelaxation1D
+- PIESphericalRadiativeShock1D
+- PIEUVBGCoolingUniformSph1D
+- PIEUVBGPhotoionizationTimescale1D
 - PIERadiativeShockTube1D
 
 

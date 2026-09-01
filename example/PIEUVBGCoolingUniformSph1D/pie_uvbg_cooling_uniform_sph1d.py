@@ -22,7 +22,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
@@ -67,7 +66,14 @@ def _run_case(runparams, icparams, label, hydrogen_density_cm3, table):
     ric = Simwrap(case_icparams, code_units, hydrogen_density_cm3)
     rio.writehdf5(ric, case["ICfilename"])
 
-    sim = Rsim(case)
+    runtime_only = {
+        'final_time', 'number_of_cells', 'evolution_timestep',
+        'chemistry_timestep', 'box_size', 'coordinate_system',
+        'current_time', 'grid_cells', 'initial_temperature',
+        'mean_molecular_weight',
+    }
+    sim = Rsim({key: value for key, value in case.items()
+                if key not in runtime_only})
     sim.RunAll(outputtime=0, mode="hydro")
     snapshots = sorted(output_dir.glob(f"{case['outfileprefix']}_*.hdf5"))
     if len(snapshots) < 2:
@@ -95,7 +101,9 @@ def _run_case(runparams, icparams, label, hydrogen_density_cm3, table):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    nested = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = nested['initial_condition']
     table_path = (config_filename.parent / runparams["metal_pie_table_filename"]).resolve()
     runparams["metal_pie_table_filename"] = str(table_path)
     table = MetalPIETable(table_path)

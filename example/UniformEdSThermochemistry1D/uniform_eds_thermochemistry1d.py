@@ -119,7 +119,8 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    runparams, icparams = config["par"], config["initial_condition"]
+    runparams = eu.runtime_parameters(config)
+    icparams = config["initial_condition"]
     runparams["_example"] = config["example"]
     units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(

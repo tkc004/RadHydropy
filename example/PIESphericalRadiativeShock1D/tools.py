@@ -20,11 +20,17 @@ class Simwrap:
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.par.CodeUnits = code_units
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
         self.par.nogrid = int(icparams['nogrid'])
         self.par.coordsys = 'spherical'
         self.par.boxsize = icparams['boxsize'] * np.ones(1)
         self.par.time = icparams['time'] * np.ones(1)
+        self.par.simulation = SimpleNamespace(
+            current_time=icparams['time'], box_size=icparams['boxsize'],
+            coordinate_system='spherical',
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
 
         self.mesh.boundary = np.linspace(
             icparams['rmin'], icparams['rmax'], self.par.nogrid + 1

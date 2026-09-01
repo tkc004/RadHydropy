@@ -20,6 +20,12 @@ class Simwrap:
             boxsize=np.ones(1) * icparams["boxsize"],
             time=np.ones(1) * icparams["time"],
         )
+        self.par.units = SimpleNamespace(CodeUnits=code_units)
+        self.par.simulation = SimpleNamespace(
+            current_time=icparams["time"], box_size=icparams["boxsize"],
+            coordinate_system=icparams["coordsys"],
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.mesh.boundary = np.linspace(

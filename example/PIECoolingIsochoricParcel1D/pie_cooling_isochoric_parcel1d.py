@@ -20,7 +20,6 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
@@ -245,7 +244,9 @@ REDSHIFT = 0.0
 def main(config_filename=DEFAULT_CONFIG):
     global TABLE, METALLICITY, REDSHIFT
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    nested = eu.load_nested_example_config(config_filename)
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = nested['initial_condition']
     table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     runparams['metal_pie_table_filename'] = str(table_path)
     TABLE = MetalPIETable(table_path)

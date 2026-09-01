@@ -1,60 +1,69 @@
-runparams:
-  simname: PIECoolingNFWHydrostaticRelaxation1D_8000K
-  ICfilename: InitialCondition_8000K.hdf5
-  outdir: outputs_8000K
-  outfileprefix: Output
-  savedir: .
-  outputtimefilename: pie_cooling_nfw_hydrostatic_relaxation1d_output_times.txt
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim:
-    value: 5000.0
-    unit: Myr
-  CFL: 0.2
-  dtmin:
-    value: 1.0e2
-    unit: yr
-  dtmax:
-    value: 2.0
-    unit: Myr
-  boundcond: OutflowSph
-  vel_outflow:
-    value: 0.0
-    unit: km/s
-  rho_outflow:
-    value: 1.0e-26
-    unit: g/cm**3
-  temp_outflow:
-    value: 8000.0
-    unit: K
-  mu_outflow: 0.59
-  verbose: 0
-  order: 0
-  noghost: 2
-  thermochemistry_network: pie_uvbg_cooling
-  metal_pie_enabled: true
-  metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
-  metal_pie_redshift: 0.0
-  metal_pie_photoheating_max_density_cm3: 50.0
-  metallicity: 1.0
-  hydrogen_mass_fraction: 0.76
-  cooling_safety_factor: 0.05
-  cooling_temperature_floor:
-    value: 100.0
-    unit: K
-  radiative_transfer: false
-  runaway_density_factor: 100.0
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.112e9
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation:
+    name: PIECoolingNFWHydrostaticRelaxation1D_8000K
+    initial_condition_filename: InitialCondition_8000K.hdf5
+    coordinate_system: spherical
+    final_time:
+      value: 5000.0
+      unit: Myr
+  mesh:
+    ghost_cells: 2
+    grid_cells: 512
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.2
+    order: 0
+  boundary:
+    condition: OutflowSph
+    outflow_velocity:
+      value: 0.0
+      unit: km/s
+    outflow_density:
+      value: 1.0e-26
+      unit: g/cm**3
+    outflow_temperature:
+      value: 8000.0
+      unit: K
+    outflow_mu: 0.59
+  timestep:
+    dtmin:
+      value: 1.0e2
+      unit: yr
+    dtmax:
+      value: 2.0
+      unit: Myr
+  output:
+    directory: outputs_8000K
+    savedir: .
+    filename_prefix: Output
+    time_list_filename: pie_cooling_nfw_hydrostatic_relaxation1d_output_times.txt
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.112e9
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  thermochemistry:
+    verbose: 0
+    thermochemistry_network: pie_uvbg_cooling
+    metal_pie_enabled: true
+    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+    metal_pie_redshift: 0.0
+    metal_pie_photoheating_max_density_cm3: 50.0
+    metallicity: 1.0
+    hydrogen_mass_fraction: 0.76
+    cooling_safety_factor: 0.05
+    cooling_temperature_floor:
+      value: 100.0
+      unit: K
+    runaway_density_factor: 100.0
+  radiation:
+    radiative_transfer: false
+initial_condition:
   nogrid: 512
   coordsys: spherical
   boxsize:
@@ -86,3 +95,4 @@ ICparams:
   tempini:
     value: 1.0
     unit: K
+example: {}
