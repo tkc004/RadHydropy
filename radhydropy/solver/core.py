@@ -137,7 +137,7 @@ class Solver():
                 sigma_gamma=sigma_groups,
                 boundary_flux=boundary_groups,
                 source_photon_rate=source_groups,
-                direction=getattr(par, 'radiative_transfer_direction', 1),
+                direction=rrt._parameter_value(par, 'radiative_transfer_direction', 1),
                 coordsys=getattr(mesh, 'coordsys', 'cartesian'),
                 group_edges_eV=group_edges_eV,
             )
@@ -147,8 +147,8 @@ class Solver():
             )
             return result
         sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA)
-        boundary_value = getattr(par, 'radiative_transfer_boundary_flux', 0.0)
-        source_value = getattr(par, 'radiative_transfer_source_photon_rate', 0.0)
+        boundary_value = rrt._parameter_value(par, 'radiative_transfer_boundary_flux', 0.0)
+        source_value = rrt._parameter_value(par, 'radiative_transfer_source_photon_rate', 0.0)
         if hasattr(sigma_value, 'to_value'):
             sigma_gamma_cm2 = _as_cgs_float(sigma_value, CGS_AREA_UNIT)
         else:
@@ -181,7 +181,7 @@ class Solver():
             sigma_gamma=sigma_gamma_cm2,
             boundary_flux=boundary_flux,
             source_photon_rate=source_photon_rate,
-            direction=getattr(par, 'radiative_transfer_direction', 1),
+            direction=rrt._parameter_value(par, 'radiative_transfer_direction', 1),
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
         )
         fluid.ngamma[interior] = (

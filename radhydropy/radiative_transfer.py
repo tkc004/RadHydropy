@@ -50,6 +50,15 @@ class CausalCellResult:
     attenuation: np.ndarray
 
 
+def _parameter_value(par, name, default=None):
+    """Read a parameter from the flat store or nested parameter group."""
+    value = getattr(par, name, None)
+    if value is not None:
+        return value
+    parameter = getattr(par, '_parameter', None)
+    return parameter(name, default) if parameter is not None else default
+
+
 def _safe_exp_neg(tau):
     tau = np.asarray(tau, dtype=float)
     return np.exp(-np.clip(tau, 0.0, 700.0))
@@ -568,12 +577,12 @@ def trace_photon_density(state, par):
         boundary_groups = getattr(
             par,
             "radiative_transfer_boundary_flux_groups",
-            getattr(par, "radiative_transfer_boundary_flux", 0.0),
+            _parameter_value(par, "radiative_transfer_boundary_flux", 0.0),
         )
         source_groups = getattr(
             par,
             "radiative_transfer_source_photon_rate_groups",
-            getattr(par, "radiative_transfer_source_photon_rate", 0.0),
+            _parameter_value(par, "radiative_transfer_source_photon_rate", 0.0),
         )
         if hasattr(sigma_groups, "to_value"):
             sigma_groups = sigma_groups.to_value(CGS_AREA_UNIT)
@@ -605,7 +614,7 @@ def trace_photon_density(state, par):
             nHe = getattr(par, "helium_mass_fraction", 0.28) * rho_cgs / (4.0 * PROTON_MASS_CGS)
             absorbers = {"HI": nH * fluid.xHI, "HeI": nHe * state["xHeI"], "HeII": nHe * state["xHeII"]}
             cross_sections = {"HI": sigma_groups, "HeI": getattr(par, "radiation_group_sigma_gamma_HeI", sigma_groups), "HeII": getattr(par, "radiation_group_sigma_gamma_HeII", sigma_groups)}
-            return np.asarray(trace_long_characteristics(mesh, absorber_densities=absorbers, cross_sections_cm2=cross_sections, boundary_flux=boundary_groups, source_photon_rate=source_groups, direction=getattr(par, "radiative_transfer_direction", 1), coordsys=getattr(par, "coordsys", "spherical"), group_edges_eV=group_edges_eV).cell_photon_density, dtype=float)
+            return np.asarray(trace_long_characteristics(mesh, absorber_densities=absorbers, cross_sections_cm2=cross_sections, boundary_flux=boundary_groups, source_photon_rate=source_groups, direction=_parameter_value(par, "radiative_transfer_direction", 1), coordsys=getattr(par, "coordsys", "spherical"), group_edges_eV=group_edges_eV).cell_photon_density, dtype=float)
         result = trace_long_characteristics(
             mesh,
             fluid.rho,
@@ -614,7 +623,7 @@ def trace_photon_density(state, par):
             sigma_gamma=sigma_groups,
             boundary_flux=boundary_groups,
             source_photon_rate=source_groups,
-            direction=getattr(par, "radiative_transfer_direction", 1),
+            direction=_parameter_value(par, "radiative_transfer_direction", 1),
             coordsys=getattr(par, "coordsys", "spherical"),
             group_edges_eV=group_edges_eV,
         )
@@ -626,13 +635,13 @@ def trace_photon_density(state, par):
         "area_cm2",
     )
     boundary_flux = _quantity_or_code_to_cgs(
-        getattr(par, "radiative_transfer_boundary_flux", 0.0),
+        _parameter_value(par, "radiative_transfer_boundary_flux", 0.0),
         code,
         PHOTON_FLUX_UNIT,
         "photon_flux_per_cm2_s",
     )
     source_photon_rate = _quantity_or_code_to_cgs(
-        getattr(par, "radiative_transfer_source_photon_rate", 0.0),
+        _parameter_value(par, "radiative_transfer_source_photon_rate", 0.0),
         code,
         PHOTON_RATE_UNIT,
         "photon_rate_per_s",
@@ -645,7 +654,7 @@ def trace_photon_density(state, par):
         sigma_gamma=sigma_gamma_cm2,
         boundary_flux=boundary_flux,
         source_photon_rate=source_photon_rate,
-        direction=getattr(par, "radiative_transfer_direction", 1),
+        direction=_parameter_value(par, "radiative_transfer_direction", 1),
         coordsys=getattr(par, "coordsys", "spherical"),
     )
     return np.asarray(result.cell_photon_density, dtype=float)

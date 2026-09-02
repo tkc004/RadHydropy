@@ -50,6 +50,15 @@ def _optional_numeric_value(value, unit, default=None):
     return to_unit_value(value, unit)
 
 
+def _parameter_value(par, name, default=None):
+    """Read a parameter from the flat store or nested parameter group."""
+    value = getattr(par, name, None)
+    if value is not None:
+        return value
+    parameter = getattr(par, '_parameter', None)
+    return parameter(name, default) if parameter is not None else default
+
+
 def _cgs_alpha_B(temperature_K):
     temperature_K = np.asarray(temperature_K, dtype=float)
     result = np.zeros_like(temperature_K, dtype=float)
@@ -490,7 +499,7 @@ def source_state(mesh, fluid, par):
         default=DEFAULT_SIGMA_GAMMA,
     )
     source_rate = _optional_numeric_value(
-        getattr(par, 'radiative_transfer_source_photon_rate', None),
+        _parameter_value(par, 'radiative_transfer_source_photon_rate'),
         code.time_unit ** -1,
         default=0.0,
     )
@@ -974,7 +983,7 @@ def _fast_source_state(mesh, fluid, par):
             else None
         ),
         'source_rate_s': _optional_numeric_value(
-            getattr(par, 'radiative_transfer_source_photon_rate', None),
+            _parameter_value(par, 'radiative_transfer_source_photon_rate'),
             1.0 / code.time_unit,
             default=0.0,
         ),
@@ -1815,19 +1824,13 @@ def _explicit_source_state_update(state, remaining_s, par):
 
 
 def _split_implicit_source_state_update(state, dt_s, par):
-    """Advance non-radiative sources with explicit energy and implicit chemistry.
+    """Advance sources with explicit energy and implicit chemistry.
 
-    This is the operator-split source scheme used when the radiation equation
-    is not part of the local update: Compton/atomic thermal sources are
-    evaluated explicitly, while the hydrogen chemistry equation is solved
-    implicitly.  The interval is subcycled until the internal energy changes
-    by no more than ten percent in one subcycle.  ``n_gamma`` is deliberately
-    not evolved by this scheme.
+    The radiation field, when supplied by the outer source driver, is held
+    fixed during this operator-split update. Radiative transfer is refreshed
+    once per hydro step; this routine evolves only the thermal and chemical
+    response to that field.
     """
-    if state.get('ngamma_cm3') is not None:
-        raise ValueError(
-            "split_implicit hydrogen sources do not evolve a radiation field"
-        )
     remaining_s = float(np.asarray(dt_s, dtype=float))
     if not np.isfinite(remaining_s) or remaining_s < 0.0:
         raise ValueError("split-implicit source timestep must be finite and non-negative")
@@ -1856,7 +1859,9 @@ def _split_implicit_source_state_update(state, dt_s, par):
                 _fast_update_temperature_from_energy(trial)
             thermal_rate_value = None
             if trial['thermal_coupling']:
-                thermal_rate_value = thermal_rate(trial, None)
+                thermal_rate_value = thermal_rate(
+                    trial, trial.get('ngamma_cm3')
+                )
                 _fast_apply_thermal_source(
                     trial, thermal_rate_value, candidate_dt_s
                 )
@@ -1865,7 +1870,7 @@ def _split_implicit_source_state_update(state, dt_s, par):
                 or trial['collisional_ionization']
             ):
                 ionization_fraction_implicit_update(
-                    trial, None, candidate_dt_s
+                    trial, trial.get('ngamma_cm3'), candidate_dt_s
                 )
             if trial['hydrogen_update_mu']:
                 trial['mu'] = rh.mean_molecular_weight_mu(
@@ -2583,11 +2588,13 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
                     rho=state['rho_g_cm3'],
                     xHI=state['xHI'],
                     hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
-                    sigma_gamma=np.asarray(state['sigma_gamma_cm2'], dtype=float)
-                    * float((1.0 * code.area_unit).to_value(unyt.cm**2)),
+                    # ``sigma_gamma_cm2`` is already expressed in cgs cm^2.
+                    sigma_gamma=np.asarray(state['sigma_gamma_cm2'], dtype=float),
                     boundary_flux=boundary_flux,
-                    source_photon_rate=np.asarray(state['source_rate_s'], dtype=float)
-                    * float((1.0 / code.time_unit).to_value(1.0 / unyt.s)),
+                    # ``source_rate_s`` is already in cgs s^-1.  It was
+                    # previously multiplied by the inverse code time unit a
+                    # second time, suppressing the transported photon field.
+                    source_photon_rate=np.asarray(state['source_rate_s'], dtype=float),
                     direction=getattr(par, 'radiative_transfer_direction', 1),
                     group_edges_eV=getattr(par, 'radiation_group_edges_eV', None),
                 )

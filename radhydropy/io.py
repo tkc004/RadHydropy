@@ -644,10 +644,17 @@ def writehdf5(ric,ICfilename):
             if hasattr(ric.fluid, attr):
                 gdata.create_dataset(dataset, data=np.asarray(getattr(ric.fluid, attr)))
         if hasattr(ric.fluid, "ngamma"):
+            ngamma = ric.fluid.ngamma
+            # Runtime fluid fields are stored as code-unit arrays.  Some
+            # chemistry paths may temporarily attach units to ngamma; strip
+            # those units in the configured code system before the generic
+            # serializer converts the field to cgs for HDF5.
+            if hasattr(ngamma, "to_value") and code_units is not None:
+                ngamma = np.asarray(ngamma.to_value(code_units.number_density_unit))
             _write_quantity(
                 gdata,
                 "PhotonNumberDensity",
-                ric.fluid.ngamma,
+                ngamma,
                 code_units=code_units,
                 scale_key="number_density_cm3",
                 default_unit=1.0 / unyt.cm**3,

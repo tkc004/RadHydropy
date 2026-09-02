@@ -16,7 +16,7 @@ par:
   boundary:
     condition: OpenSph
   timestep:
-    dtmin: {value: 1.0e-10, unit: Myr}
+    dtmin: {value: 1.0e-15, unit: Myr}
     dtmax: {value: 2.0e-4, unit: Myr}
     hydrogen_source_CFL: 10000.0
     hydrogen_source_dtmin: {value: 1.0e-12, unit: Myr}
@@ -37,7 +37,8 @@ par:
     hydrogen_beta: {value: 0.0, unit: cm**3/s}
   thermochemistry:
     hydrogen_chemistry: true
-    hydrogen_thermal_coupling: false
+    hydrogen_source_solver: split_implicit
+    hydrogen_thermal_coupling: true
     hydrogen_recombination: true
     hydrogen_collisional_ionization: false
   radiation:
@@ -51,7 +52,7 @@ par:
     hydrogen_radiation_evolution: false
     hydrogen_ngamma_initial: {value: 0.0, unit: 1/cm**3}
     hydrogen_sigma_gamma: {value: 6.3e-18, unit: cm**2}
-    hydrogen_epsilon_gamma: {value: 0.0, unit: erg}
+    hydrogen_epsilon_gamma: {value: 6.33, unit: eV}
   units:
     CodeUnits:
       name: galactic_unit_system

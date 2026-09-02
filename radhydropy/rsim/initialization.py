@@ -196,11 +196,13 @@ def ConvertParametersToCodeUnits(sim):
             if hasattr(simulation, nested_name) and hasattr(sim.par, flat_name):
                 setattr(simulation, nested_name, getattr(sim.par, flat_name))
     _require_unitless_runtime_parameters(sim)
-    source_rate = getattr(
-        sim.par,
-        'radiative_transfer_source_photon_rate',
-        0.0 / unyt.s,
-    )
+    source_rate = getattr(sim.par, 'radiative_transfer_source_photon_rate', None)
+    if source_rate is None and hasattr(sim.par, '_parameter'):
+        source_rate = sim.par._parameter(
+            'radiative_transfer_source_photon_rate', 0.0 / unyt.s
+        )
+    if source_rate is None:
+        source_rate = 0.0 / unyt.s
     if hasattr(source_rate, 'to_value'):
         sim.par._static_source_rate_s = float(source_rate.to_value(1.0 / unyt.s))
     else:

@@ -19,10 +19,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, code_quantity_to_cgs
+import example_utils as eu
 
 import power_law_hii_region_analytic as analytic
 
@@ -54,33 +54,18 @@ def build_initial_condition(config):
     ) / unyt.cm**3
 
     par = SimpleNamespace(
-        coordsys="spherical",
-        boundcond="OpenSph",
-        nogrid=ncell,
-        noghost=int(config["noghost"]),
-        boxsize=boxsize,
-        area=config["area"],
-        EOStype=config["EOStype"],
-        gamma=config["gamma"],
-        hydrogen_mass_fraction=1.0,
-        hydrogen_update_mu=True,
-        radiative_transfer_temporal_scheme=config.get(
-            'radiative_transfer_temporal_scheme', 'instantaneous'
+        simulation=SimpleNamespace(
+            coordinate_system="spherical",
+            current_time=0.0 * unyt.yr,
+            box_size=boxsize,
         ),
-        radiative_transfer_c2ray_max_iterations=config.get(
-            'radiative_transfer_c2ray_max_iterations', 32
+        mesh=SimpleNamespace(
+            grid_cells=ncell,
+            ghost_cells=int(config["noghost"]),
+            area=config["area"],
         ),
-        radiative_transfer_c2ray_tolerance=config.get(
-            'radiative_transfer_c2ray_tolerance', 1.0e-6
-        ),
-        radiative_transfer_c2ray_relaxation=config.get(
-            'radiative_transfer_c2ray_relaxation', 1.0
-        ),
-        radiative_transfer_c2ray_nonconvergence=config.get(
-            'radiative_transfer_c2ray_nonconvergence', 'warn'
-        ),
-        CodeUnits=code,
-        unit_system=code.unit_system,
+        hydrodynamics=SimpleNamespace(gamma=config["gamma"]),
+        units=SimpleNamespace(CodeUnits=code),
     )
     mesh = Mesh()
     mesh.boundary = boundary
@@ -102,15 +87,20 @@ def write_initial_condition(config, filename):
     rio.writehdf5(build_initial_condition(config), filename)
 
 
-def load_snapshot(filename, config):
+def load_snapshot(filename, runtime):
     from radhydropy.fluid import Fluid
     from radhydropy.mesh import Mesh
     from radhydropy.params import Par
 
-    par = Par(config)
+    par = Par(runtime)
     mesh = Mesh()
     fluid = Fluid()
     rio.readhdf5(par, mesh, fluid, filename)
+    # The diagnostic helpers below use the historical short names; keep this
+    # compatibility projection local to reloaded snapshots.
+    par.noghost = par.mesh.ghost_cells
+    par.nogrid = par.mesh.grid_cells
+    par.CodeUnits = par.units.CodeUnits
     if par.noghost > 0:
         mesh.boundary = mesh.boundary[par.noghost:-par.noghost]
     mesh.SetUpMesh(par)
@@ -278,9 +268,12 @@ def save_profile_plot(snapshots, output, exponent):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    nested = eu.load_nested_example_config(config_filename)
+    runtime = nested['par']
+    runparams = eu.legacy_example_parameters(nested)
+    icparams = nested['initial_condition']
     config = {**runparams, **icparams}
+    config['area'] = runtime['mesh'].get('area', 1.0 * unyt.cm**2)
     outdir = Path(runparams["outdir"])
     outdir.mkdir(parents=True, exist_ok=True)
     Path(runparams["savedir"]).mkdir(parents=True, exist_ok=True)
@@ -288,7 +281,7 @@ def main(config_filename=DEFAULT_CONFIG):
         filename.unlink()
     write_initial_condition(config, runparams["ICfilename"])
 
-    sim = Rsim(runparams)
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -308,7 +301,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rc = config["core_radius"].to_value(unyt.cm)
     exponent = float(config["density_power_law_exponent"])
     for filename in output_files(outdir, runparams["outfileprefix"]):
-        par, mesh, fluid = load_snapshot(filename, config)
+        par, mesh, fluid = load_snapshot(filename, runtime)
         time_s = code_quantity_to_cgs(fluid.time, par.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
@@ -328,7 +321,7 @@ def main(config_filename=DEFAULT_CONFIG):
     times_yr = np.asarray(times_yr)
     radii_cm = np.asarray(radii_cm)
     shock_radii_cm = np.asarray(shock_radii_cm)
-    end_time_yr = float(runparams["timesim"].to_value(unyt.yr))
+    end_time_yr = float(runtime["simulation"]["final_time"].to_value(unyt.yr))
     source_rate_s = runparams["radiative_transfer_source_photon_rate"].to_value(1.0 / unyt.s)
     analytic_time_s, analytic_radius_cm, _ = analytic.calculate_front(
         source_rate_s,
@@ -391,7 +384,10 @@ def main(config_filename=DEFAULT_CONFIG):
     print(f"wrote {output}")
     print(f"wrote {profile_output}")
     print(f"snapshots = {len(times_yr)}")
-    print(f"final simulated front = {radii_cm[valid][-1]:.6e} cm")
+    if np.any(valid):
+        print(f"final simulated front = {radii_cm[valid][-1]:.6e} cm")
+    else:
+        print("final simulated front = unavailable")
 
 
 if __name__ == "__main__":

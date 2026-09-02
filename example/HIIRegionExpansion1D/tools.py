@@ -277,7 +277,11 @@ def load_output_state(outputfilename, config):
     fluid.vel = np.asarray(fluid.vel, dtype=float) * code_units_obj.velocity_unit
     fluid.temp = np.asarray(fluid.temp, dtype=float) * code_units_obj.temperature_unit
     if hasattr(fluid, 'ngamma'):
-        fluid.ngamma = np.asarray(fluid.ngamma, dtype=float) * code_units_obj.number_density_unit
+        if not hasattr(fluid.ngamma, 'units'):
+            fluid.ngamma = (
+                np.asarray(fluid.ngamma, dtype=float)
+                * code_units_obj.number_density_unit
+            )
     # ``readhdf5`` restores the saved boundary and fluid state, but it does not
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's
@@ -566,10 +570,16 @@ def load_history_from_outputs(outputfilenames, config):
 
 def density_snapshot(mesh, fluid, par):
     interior = interior_slice(par)
+    ngamma = np.asarray(fluid.ngamma)
+    if ngamma.ndim > 1:
+        ngamma = np.sum(ngamma, axis=0)
     return {
         'time_Myr': _scalar_in_unit(fluid.time, unyt.Myr),
         'radius_pc': _value_in_unit(mesh.coordinate[interior], unyt.pc).copy(),
         'density_g_cm3': _value_in_unit(fluid.rho[interior], unyt.g / unyt.cm**3).copy(),
+        'radiation_density_cm3': _value_in_unit(
+            ngamma[interior], 1.0 / unyt.cm**3
+        ).copy(),
     }
 
 
@@ -720,6 +730,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     time = snapshot['time_Myr'] * unyt.Myr
     radius_pc = np.asarray(snapshot['radius_pc'])
     density_g_cm3 = np.asarray(snapshot['density_g_cm3'])
+    radiation_density_cm3 = np.asarray(snapshot['radiation_density_cm3'])
     spitzer_radius_pc = spitzer_radius(time, config).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = hosokawa_inutsuka_radius(
         time,
@@ -729,7 +740,9 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     if show_stagnation_radius:
         radius_stagnation_pc = stagnation_radius(config).to_value(unyt.pc)
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.8))
+    fig, (ax, radiation_ax) = plt.subplots(
+        2, 1, figsize=(7.2, 7.2), sharex=True
+    )
     ax.plot(
         radius_pc,
         density_g_cm3,
@@ -771,6 +784,29 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         ax.set_ylim(ymin, ymax)
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
+    radiation_ax.plot(
+        radius_pc,
+        np.where(radiation_density_cm3 > 0.0, radiation_density_cm3, np.nan),
+        color='tab:purple',
+        lw=2.0,
+        label='RadHydropy',
+    )
+    radiation_ax.axvline(spitzer_radius_pc, color='tab:orange', lw=1.8, ls='--')
+    radiation_ax.axvline(
+        hosokawa_inutsuka_radius_pc, color='tab:green', lw=1.8, ls=':'
+    )
+    if show_stagnation_radius:
+        radiation_ax.axvline(radius_stagnation_pc, color='tab:red', lw=1.6, ls='-.')
+    radiation_ax.set_yscale('log')
+    radiation_ax.set_xlabel('Radius [pc]')
+    radiation_ax.set_ylabel(r'Photon density [cm$^{-3}$]')
+    positive_radiation = radiation_density_cm3[radiation_density_cm3 > 0.0]
+    if positive_radiation.size:
+        ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_radiation)))
+        ymax = 10.0 ** np.ceil(np.log10(1.2 * np.max(positive_radiation)))
+        radiation_ax.set_ylim(ymin, ymax)
+    radiation_ax.grid(True, alpha=0.25)
+    radiation_ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)

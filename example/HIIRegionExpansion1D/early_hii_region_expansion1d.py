@@ -54,6 +54,7 @@ def main(config_filename=DEFAULT_CONFIG):
     exampleparams = loaded_config['example']
     config = {**icparams, **loaded_config}
     output = runparams['output']
+    eu.clean_previous_outputs(runparams)
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)

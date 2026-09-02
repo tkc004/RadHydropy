@@ -16,7 +16,7 @@ par:
   boundary:
     condition: OpenSph
   timestep:
-    dtmin: {value: 1.0e-10, unit: Myr}
+    dtmin: {value: 1.0e-15, unit: Myr}
     dtmax: {value: 2.0e-4, unit: Myr}
     hydrogen_source_CFL: 10000.0
     hydrogen_source_dtmin: {value: 1.0e-12, unit: Myr}
