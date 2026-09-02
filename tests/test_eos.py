@@ -54,33 +54,33 @@ class Testing(unittest.TestCase):
     def test_isothermal_set_conserved_keeps_only_kinetic_energy(self):
         fluid = Fluid()
         fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
-        fluid.rho = np.ones(8) * 2.0
-        fluid.vel = np.ones(8) * 3.0
-        fluid.temp = np.ones(8) * 100.0
+        fluid.rho_code = np.ones(8) * 2.0
+        fluid.vel_code = np.ones(8) * 3.0
+        fluid.temp_code = np.ones(8) * 100.0
         fluid.mu = np.ones(8)
         fluid.SetPressure()
 
         Solver().SetConserved(Mesh(), fluid)
 
-        expected = 0.5 * fluid.rho * fluid.vel**2 * Mesh().vol
-        np.testing.assert_allclose(np.asarray(fluid.Energy), expected)
+        expected = 0.5 * fluid.rho_code * fluid.vel_code**2 * Mesh().vol
+        np.testing.assert_allclose(np.asarray(fluid.Energy_code), expected)
 
     def test_isothermal_set_primitive_recovers_pressure_from_temperature(self):
         mesh = Mesh()
         fluid = Fluid()
         fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
-        fluid.rho = np.ones(8)
-        fluid.vel = np.zeros(8)
-        fluid.temp = np.ones(8) * 250.0
+        fluid.rho_code = np.ones(8)
+        fluid.vel_code = np.zeros(8)
+        fluid.temp_code = np.ones(8) * 250.0
         fluid.mu = np.ones(8)
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
 
-        fluid.Energy[:] = 0.0
+        fluid.Energy_code[:] = 0.0
         Solver().SetPrimitive(mesh, fluid)
 
-        expected_pressure = fluid.eos.pressure(fluid.rho, fluid.temp, fluid.mu)
-        np.testing.assert_allclose(np.asarray(fluid.pre), np.asarray(expected_pressure))
+        expected_pressure = fluid.eos.pressure(fluid.rho_code, fluid.temp_code, fluid.mu)
+        np.testing.assert_allclose(np.asarray(fluid.pre_code), np.asarray(expected_pressure))
 
     def test_code_unit_temperature_is_zero_for_zero_density(self):
         eos = EOS('polytropic', gamma=5.0 / 3.0, code_units=CODE_UNITS)

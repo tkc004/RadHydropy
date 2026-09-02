@@ -70,10 +70,10 @@ class UniformEdSInitialCondition:
         xHI = float(icparams["xHI"])
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))
 
-        self.fluid.rho = np.full(count, rho_code)
-        self.fluid.vel = np.zeros(count)
+        self.fluid.rho_code = np.full(count, rho_code)
+        self.fluid.vel_code = np.zeros(count)
         temperature_unit_K = float(units.temperature_unit.to_value("K"))
-        self.fluid.temp = np.full(count, temperature / temperature_unit_K)
+        self.fluid.temp_code = np.full(count, temperature / temperature_unit_K)
         self.fluid.xHI = np.full(count, xHI)
         self.fluid.mu = np.full(count, mu)
 

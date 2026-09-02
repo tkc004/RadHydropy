@@ -52,15 +52,15 @@ class Simwrap:
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
 
         rho = np.ones(grid_cells) * icparams['initial_density']
-        self.fluid.vel = np.ones(grid_cells) * icparams['initial_velocity']
-        self.fluid.temp = np.ones(grid_cells) * icparams['initial_temperature']
+        self.fluid.vel_code = np.ones(grid_cells) * icparams['initial_velocity']
+        self.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
         rho[
             np.logical_or(
                 coordinate < 0.25 * box_size[0],
                 coordinate > 0.75 * box_size[0],
             )
         ] *= 0.5
-        self.fluid.rho = rho
+        self.fluid.rho_code = rho_code
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 

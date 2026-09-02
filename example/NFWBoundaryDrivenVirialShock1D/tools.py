@@ -170,12 +170,12 @@ class Simwrap:
             (1.0 - weight) * np.log(rho_hot.to_value(unyt.g / unyt.cm**3))
             + weight * np.log(rho_cold.to_value(unyt.g / unyt.cm**3))
         )
-        self.fluid.rho = np.exp(log_density) * unyt.g / unyt.cm**3
-        self.fluid.temp = (
+        self.fluid.rho_code = np.exp(log_density) * unyt.g / unyt.cm**3
+        self.fluid.temp_code = (
             (1.0 - weight) * hot_temperature.to_value(unyt.K)
             + weight * temperature_cold.to_value(unyt.K)
         ) * unyt.K
-        self.fluid.vel = weight * inflow_velocity
+        self.fluid.vel_code = weight * inflow_velocity
         self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['mu'])
 
 

@@ -55,7 +55,7 @@ def _gravity_potential_faces(solver, mesh, par):
 
 def _rotational_energy_density(solver, mesh, fluid, par):
     """Return opt-in rotational kinetic-energy density."""
-    rho = np.asarray(fluid.rho, dtype=float)
+    rho = np.asarray(fluid.rho_code, dtype=float)
     result = np.zeros_like(rho)
     if not solver._rotational_energy_enabled(par):
         return result
@@ -66,7 +66,7 @@ def _rotational_energy_density(solver, mesh, fluid, par):
     if getattr(mesh, 'coordsys', None) != 'spherical':
         raise ValueError('gas_rotational_energy requires a spherical mesh')
     radius = np.asarray(mesh.coordinate, dtype=float)
-    specific = np.asarray(fluid.specific_angular_momentum, dtype=float)
+    specific = np.asarray(fluid.specific_angular_momentum_code, dtype=float)
     valid = (
         np.isfinite(rho) & (rho > 0.0)
         & np.isfinite(specific) & np.isfinite(radius) & (radius > 0.0)
@@ -76,13 +76,13 @@ def _rotational_energy_density(solver, mesh, fluid, par):
 
 def _rotational_energy_from_conserved(solver, mesh, fluid, par):
     """Return opt-in rotational kinetic energy from conserved J and M."""
-    result = np.zeros_like(np.asarray(fluid.Mass, dtype=float))
+    result = np.zeros_like(np.asarray(fluid.Mass_code, dtype=float))
     if not solver._rotational_energy_enabled(par):
         return result
-    if not hasattr(fluid, 'AngularMomentum'):
+    if not hasattr(fluid, 'AngularMomentum_code'):
         return result
-    mass = np.asarray(fluid.Mass, dtype=float)
-    angular_momentum = np.asarray(fluid.AngularMomentum, dtype=float)
+    mass = np.asarray(fluid.Mass_code, dtype=float)
+    angular_momentum = np.asarray(fluid.AngularMomentum_code, dtype=float)
     radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
     valid = (
         np.isfinite(mass) & (mass > 0.0)
@@ -100,4 +100,3 @@ def _dual_energy_eta(par, name, legacy):
     if value is None:
         value = getattr(par, 'dual_energy_switch', legacy)
     return max(0.0, float(value))
-

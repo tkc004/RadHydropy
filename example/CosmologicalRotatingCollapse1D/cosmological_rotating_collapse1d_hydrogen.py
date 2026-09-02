@@ -94,9 +94,9 @@ def main(output_root=None):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     active = slice(first, last)
-    mass_before = np.asarray(sim.fluid.Mass[active], dtype=float).copy()
-    angular_before = np.asarray(sim.fluid.AngularMomentum[active], dtype=float).copy()
-    energy_before = np.asarray(sim.fluid.Energy[active], dtype=float).copy()
+    mass_before = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
+    angular_before = np.asarray(sim.fluid.AngularMomentum_code[active], dtype=float).copy()
+    energy_before = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
     radius = np.abs(np.asarray(sim.mesh.coordinate[active], dtype=float))
     rotational_before = np.zeros_like(mass_before)
     valid = (mass_before > 0.0) & (radius > 0.0)
@@ -108,17 +108,17 @@ def main(output_root=None):
     sim.ApplyThermochemistrySources(1.0e-3)
     sim._synchronize_thermochemistry_internal_energy()
 
-    mass_after = np.asarray(sim.fluid.Mass[active], dtype=float)
-    angular_after = np.asarray(sim.fluid.AngularMomentum[active], dtype=float)
-    energy_after = np.asarray(sim.fluid.Energy[active], dtype=float)
-    momentum_after = np.asarray(sim.fluid.Mom[active], dtype=float)
+    mass_after = np.asarray(sim.fluid.Mass_code[active], dtype=float)
+    angular_after = np.asarray(sim.fluid.AngularMomentum_code[active], dtype=float)
+    energy_after = np.asarray(sim.fluid.Energy_code[active], dtype=float)
+    momentum_after = np.asarray(sim.fluid.Mom_code[active], dtype=float)
     rotational_after = np.zeros_like(mass_after)
     valid = (mass_after > 0.0) & (radius > 0.0)
     rotational_after[valid] = (
         0.5 * angular_after[valid]**2
         / (mass_after[valid] * radius[valid]**2)
     )
-    kinetic_before = 0.5 * np.asarray(sim.fluid.Mom[active], dtype=float)**2 / mass_before
+    kinetic_before = 0.5 * np.asarray(sim.fluid.Mom_code[active], dtype=float)**2 / mass_before
     kinetic_after = 0.5 * momentum_after**2 / mass_after
     thermal_change = (energy_after - kinetic_after - rotational_after) - (
         energy_before - kinetic_before - rotational_before

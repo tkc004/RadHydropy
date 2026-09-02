@@ -211,7 +211,7 @@ def source_state(mesh, fluid, par):
     interior = slice(ghost_cells, ghost_cells + grid_cells)
     gamma = par.hydrodynamics.gamma
     scaling = _fast_source_scaling(fluid, par, gamma)
-    xHI = np.asarray(getattr(fluid, 'xHI', np.ones_like(fluid.rho[interior]))[interior], float).copy()
+    xHI = np.asarray(getattr(fluid, 'xHI', np.ones_like(fluid.rho_code[interior]))[interior], float).copy()
     xHeI = np.asarray(getattr(fluid, 'xHeI', np.ones_like(xHI))[interior] if hasattr(fluid, 'xHeI') else np.ones_like(xHI), float).copy()
     xHeII = np.asarray(getattr(fluid, 'xHeII', np.zeros_like(xHI))[interior] if hasattr(fluid, 'xHeII') else np.zeros_like(xHI), float).copy()
     xHeIII = np.clip(1.0 - xHeI - xHeII, 0.0, 1.0)
@@ -271,13 +271,13 @@ def source_state(mesh, fluid, par):
             'energy_erg',
         ),
     }
-    rho_super = to_unit_value(fluid.rho[interior], code.density_unit)
-    velocity_super = to_unit_value(fluid.vel[interior], code.velocity_unit)
-    if hasattr(fluid, 'Mass'):
-        mass = to_unit_value(fluid.Mass[interior], code.mass_unit)
+    rho_super = to_unit_value(fluid.rho_code[interior], code.density_unit)
+    velocity_super = to_unit_value(fluid.vel_code[interior], code.velocity_unit)
+    if hasattr(fluid, 'Mass_code'):
+        mass = to_unit_value(fluid.Mass_code[interior], code.mass_unit)
     else:
         mass = rho_super * np.asarray(mesh.vol[interior], dtype=float) * code.mass_in_cgs
-    total_super = to_unit_value(fluid.Energy[interior], code.energy_unit) / np.maximum(mass, 1.0e-99)
+    total_super = to_unit_value(fluid.Energy_code[interior], code.energy_unit) / np.maximum(mass, 1.0e-99)
     rotational_super = (
         _rotational_specific_energy_code(mesh, fluid, par)
         * code.unit_conversion['velocity_cm_s']**2
@@ -286,7 +286,7 @@ def source_state(mesh, fluid, par):
         total_super - 0.5 * velocity_super**2 - rotational_super, 0.0
     ) / scaling['temperature_factor']
     rho_physical = rho_super / scaling['density_factor']
-    state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit) * scaling['scale_factor'], 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit) * scaling['density_factor'], 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) * scaling['scale_factor'] / 3.08567758e21, 'rho_g_cm3': rho_physical, 'active': thermochemistry_active_mask(rho_physical, par, scaling['density_factor']), 'temperature_K': to_unit_value(fluid.temp[interior], code.temperature_unit) / scaling['temperature_factor'], 'specific_energy_erg_g': specific_internal, 'rotational_specific_energy_code': rotational_super / code.unit_conversion['velocity_cm_s']**2, 'gamma': gamma, 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'metal_pie_redshift': getattr(par, 'metal_pie_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10), 'metal_pie_table': getattr(par, 'metal_pie_table', None), 'metallicity': getattr(par, 'metallicity', 1.0), 'metal_pie_photoheating_max_density_cm3': getattr(par, 'metal_pie_photoheating_max_density_cm3', 50.0), 'source_scale_factor': scaling['scale_factor'], 'source_temperature_factor': scaling['temperature_factor'], 'velocity_supercomoving_cm_s': velocity_super}
+    state = {'interior': interior, 'boundary_cm': to_unit_value(mesh.boundary[interior.start:interior.stop + 1], code.length_unit) * scaling['scale_factor'], 'volume_cm3': to_unit_value(mesh.vol[interior], code.volume_unit) * scaling['density_factor'], 'radius_kpc': to_unit_value(mesh.coordinate[interior], code.length_unit) * scaling['scale_factor'] / 3.08567758e21, 'rho_g_cm3': rho_physical, 'active': thermochemistry_active_mask(rho_physical, par, scaling['density_factor']), 'temperature_K': to_unit_value(fluid.temp_code[interior], code.temperature_unit) / scaling['temperature_factor'], 'specific_energy_erg_g': specific_internal, 'rotational_specific_energy_code': rotational_super / code.unit_conversion['velocity_cm_s']**2, 'gamma': gamma, 'hydrogen_mass_fraction': getattr(par, 'hydrogen_mass_fraction', 0.7), 'helium_mass_fraction': getattr(par, 'helium_mass_fraction', 0.28), 'xHI': xHI, 'xHeI': xHeI, 'xHeIII': xHeIII, 'sigma_gamma_cm2': sigma, 'epsilon_gamma_erg': eps, 'thermal_coupling': getattr(par, 'hydrogen_thermal_coupling', True), 'compton_cmb_enabled': getattr(par, 'compton_cmb_enabled', False), 'compton_cmb_redshift': getattr(par, 'compton_cmb_redshift', 0.0), 'metal_pie_redshift': getattr(par, 'metal_pie_redshift', 0.0), 'cmb_temperature_0_K': float(to_unit_value(getattr(par, 'cmb_temperature_0', 2.7255), 'K')), 'explicit_tolerance': getattr(par, 'explicit_tolerance', 0.1), 'relative_tolerance': getattr(par, 'relative_tolerance', 1.0e-3), 'absolute_tolerance': getattr(par, 'absolute_tolerance', 1.0e-10), 'metal_pie_table': getattr(par, 'metal_pie_table', None), 'metallicity': getattr(par, 'metallicity', 1.0), 'metal_pie_photoheating_max_density_cm3': getattr(par, 'metal_pie_photoheating_max_density_cm3', 50.0), 'source_scale_factor': scaling['scale_factor'], 'source_temperature_factor': scaling['temperature_factor'], 'velocity_supercomoving_cm_s': velocity_super}
     state['coupled_implicit'] = getattr(par, 'hydrogen_helium_coupled_implicit', True)
     state['nH_cm3'] = state['rho_g_cm3'] * state['hydrogen_mass_fraction'] / PROTON_MASS_CGS
     _closure(state)
@@ -400,29 +400,29 @@ def apply_state(state, fluid, par):
     fluid.xHI[i] = state['xHI']
     fluid.xHeI[i] = state['xHeI']; fluid.xHeII[i] = state['xHeII']; fluid.xHeIII[i] = state['xHeIII']
     temperature_factor = state.get('source_temperature_factor', 1.0)
-    fluid.temp[i] = from_unit_value(
+    fluid.temp_code[i] = from_unit_value(
         state['temperature_K'] * temperature_factor,
         code.temperature_unit,
     )
     fluid.mu[i] = state['mu']
-    if hasattr(fluid, 'ngamma') and state.get('ngamma_cm3') is not None:
+    if hasattr(fluid, 'ngamma_code') and state.get('ngamma_code_cm3') is not None:
         target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
         if np.ndim(target) == 2:
-            fluid.ngamma[:, i] = target
+            fluid.ngamma_code[:, i] = target
         else:
-            fluid.ngamma[i] = target
-    if hasattr(fluid, 'Mass') and hasattr(fluid, 'Energy'):
+            fluid.ngamma_code[i] = target
+    if hasattr(fluid, 'Mass_code') and hasattr(fluid, 'Energy_code'):
         internal_super = state['specific_energy_erg_g'] * temperature_factor
         total_super = internal_super + 0.5 * state.get('velocity_supercomoving_cm_s', 0.0)**2
         specific_code = from_unit_value(total_super, code.specific_energy_unit)
         specific_code += state.get(
             'rotational_specific_energy_code', np.zeros_like(specific_code)
         )
-        fluid.Energy[i] = fluid.Mass[i] * specific_code
-        if hasattr(fluid, 'pre'):
-            fluid.pre[i] = fluid.eos.pressure(fluid.rho[i], fluid.temp[i], fluid.mu[i])
-        if hasattr(fluid, 'eth') and hasattr(fluid, 'pre'):
-            fluid.eth[i] = fluid.eos.thermal_energy_density(fluid.pre[i])
+        fluid.Energy_code[i] = fluid.Mass_code[i] * specific_code
+        if hasattr(fluid, 'pre_code'):
+            fluid.pre_code[i] = fluid.eos.pressure(fluid.rho_code[i], fluid.temp_code[i], fluid.mu[i])
+        if hasattr(fluid, 'eth_code') and hasattr(fluid, 'pre_code'):
+            fluid.eth_code[i] = fluid.eos.thermal_energy_density(fluid.pre_code[i])
 
 
 class HydrogenHeliumNetwork(ThermochemistryNetwork):

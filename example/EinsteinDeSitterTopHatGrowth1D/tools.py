@@ -86,11 +86,11 @@ class Simwrap:
         rho_comoving = rho_background * scale_factor**3
         delta = float(icparams['overdensity'])
         inside = self.mesh.coordinate < float(icparams['top_hat_radius'])
-        self.fluid.rho = rho_comoving * (1.0 + delta * inside) * np.ones(self.par.nogrid)
-        self.fluid.vel = growing_mode_velocity(
+        self.fluid.rho_code = rho_comoving * (1.0 + delta * inside) * np.ones(self.par.nogrid)
+        self.fluid.vel_code = growing_mode_velocity(
             self.mesh.coordinate, delta, scale_factor, hubble,
         )
-        self.fluid.temp = np.ones(self.par.nogrid) * quantity_to_value(
+        self.fluid.temp_code = np.ones(self.par.nogrid) * quantity_to_value(
             icparams['tempini'], code_units.temperature_unit,
         ) * scale_factor**2
         self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['muini'])

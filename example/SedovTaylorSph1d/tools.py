@@ -82,14 +82,14 @@ class Simwrap:
         self.mesh.coordinate = 0.5 * (
             self.mesh.boundary[:-1] + self.mesh.boundary[1:]
         )
-        self.fluid.vel = np.zeros(grid_cells) * unyt.cm / unyt.s
-        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
         self.mesh.vol = (
             self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
         ) * 4.0 * np.pi / 3.0
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-        self.fluid.mass = self.fluid.rho * self.mesh.vol
-        self.fluid.temp = np.ones(grid_cells) * 0.0 * unyt.K
+        self.fluid.mass = self.fluid.rho_code * self.mesh.vol
+        self.fluid.temp_code = np.ones(grid_cells) * 0.0 * unyt.K
         icut = np.logical_and(
             self.mesh.coordinate < icparams['explosion_radius'],
             self.mesh.coordinate >= icparams['injection_radius'],
@@ -97,8 +97,8 @@ class Simwrap:
         pre = icparams['explosion_energy'] / np.sum(self.mesh.vol[icut]) * (
             runparams['hydrodynamics']['gamma'] - 1.0
         )
-        self.fluid.temp[icut] = ru.CalTemperature(
-            self.fluid.rho[icut],
+        self.fluid.temp_code[icut] = ru.CalTemperature(
+            self.fluid.rho_code[icut],
             pre,
             self.fluid.mu[icut],
         )
@@ -108,7 +108,7 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rout = Simwrap(icparams, runparams)
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rout.fluid.pre = ru.CalPressure(rout.fluid.rho, rout.fluid.temp, rout.fluid.mu)
+    rout.fluid.pre_code = ru.CalPressure(rout.fluid.rho_code, rout.fluid.temp_code, rout.fluid.mu)
     nu = 3
     g = runparams['hydrodynamics']['gamma']
     w = 0.0
@@ -134,14 +134,14 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         unyt.unyt_array([0.0 * unyt.dyn / unyt.cm**2, 0.0 * unyt.dyn / unyt.cm**2]),
     ))
     plt.subplot(1, 3, 1)
-    rplot1d(rout, yquan='pre', showfig=0, **kwargs)
+    rplot1d(rout, yquan='pre_code', showfig=0, **kwargs)
     plt.plot(r.in_cgs(), p.in_cgs(), color=kwargs['color'])
     plt.xlim([0, 4])
     plt.subplot(1, 3, 2)
-    rplot1d(rout, yquan='vel', showfig=0, **kwargs)
+    rplot1d(rout, yquan='vel_code', showfig=0, **kwargs)
     plt.plot(r.in_cgs(), v.in_cgs(), color=kwargs['color'])
     plt.xlim([0, 4])
     plt.subplot(1, 3, 3)
-    rplot1d(rout, yquan='rho', showfig=0, **kwargs)
+    rplot1d(rout, yquan='rho_code', showfig=0, **kwargs)
     plt.plot(r.in_cgs(), rho.in_cgs(), color=kwargs['color'])
     plt.xlim([0, 4])

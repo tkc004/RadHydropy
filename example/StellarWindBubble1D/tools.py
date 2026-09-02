@@ -86,9 +86,9 @@ class Simwrap:
             icparams['injection_radius'] + box_size[0],
             grid_cells + 1,
         )
-        self.fluid.vel = icparams['velocity'] * np.ones(grid_cells)
-        self.fluid.temp = icparams['temperature'] * np.ones(grid_cells)
-        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
+        self.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
+        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
         self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
 
@@ -101,15 +101,15 @@ def load_snapshot(outfilename, icparams, runparams):
     rout.par.simulation.current_time = unyt.unyt_array(np.asarray(rout.par.simulation.current_time, dtype=float), code_units_obj.time_unit)
     rout.par.simulation.box_size = unyt.unyt_array(np.asarray(rout.par.simulation.box_size, dtype=float), code_units_obj.length_unit)
     rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit)
-    rout.fluid.vel = unyt.unyt_array(np.asarray(rout.fluid.vel, dtype=float), code_units_obj.velocity_unit)
-    rout.fluid.temp = unyt.unyt_array(np.asarray(rout.fluid.temp, dtype=float), code_units_obj.temperature_unit)
-    rout.fluid.rho = unyt.unyt_array(np.asarray(rout.fluid.rho, dtype=float), code_units_obj.density_unit)
+    rout.fluid.vel_code = unyt.unyt_array(np.asarray(rout.fluid.vel_code, dtype=float), code_units_obj.velocity_unit)
+    rout.fluid.temp_code = unyt.unyt_array(np.asarray(rout.fluid.temp_code, dtype=float), code_units_obj.temperature_unit)
+    rout.fluid.rho_code = unyt.unyt_array(np.asarray(rout.fluid.rho_code, dtype=float), code_units_obj.density_unit)
     rout.fluid.mu = np.asarray(rout.fluid.mu, dtype=float)
     if hasattr(rout.fluid, 'xHI'):
         rout.fluid.xHI = np.asarray(rout.fluid.xHI, dtype=float)
-    if hasattr(rout.fluid, 'ngamma'):
-        rout.fluid.ngamma = unyt.unyt_array(
-            np.asarray(rout.fluid.ngamma, dtype=float),
+    if hasattr(rout.fluid, 'ngamma_code'):
+        rout.fluid.ngamma_code = unyt.unyt_array(
+            np.asarray(rout.fluid.ngamma_code, dtype=float),
             code_units_obj.number_density_unit,
         )
     return rout
@@ -120,10 +120,10 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
 
     coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
     pressure = (
-        rout.fluid.rho
+        rout.fluid.rho_code
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
-        * rout.fluid.temp
+        * rout.fluid.temp_code
     ).to(unyt.dyn / unyt.cm**2)
 
     coordinate_values = coordinate.to_value(coordinate.units)
@@ -167,7 +167,7 @@ def shell_inner_edge_radius(
     """Estimate the cavity-side shell edge from the innermost density crossing."""
 
     coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
-    density = rout.fluid.rho
+    density = rout.fluid.rho_code
 
     coordinate_values = coordinate.to_value(coordinate.units)
     density_values = density.to_value(density.units)
@@ -244,7 +244,7 @@ def plot_density_snapshot(ax, rout, **kwargs):
     """Plot one density snapshot on a supplied axis."""
 
     plt.sca(ax)
-    rplot1d(rout, yquan='rho', showhalf=0, showfig=0, **kwargs)
+    rplot1d(rout, yquan='rho_code', showhalf=0, showfig=0, **kwargs)
     ax.set_yscale('log')
 
 
@@ -252,7 +252,7 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
     """Plot one temperature snapshot on a supplied axis."""
 
     plt.sca(ax)
-    rplot1d(rout, yquan='temp', showhalf=0, showfig=0, **kwargs)
+    rplot1d(rout, yquan='temp_code', showhalf=0, showfig=0, **kwargs)
     ax.set_yscale('log')
 
 
@@ -393,10 +393,10 @@ def numerical_bubble_pressure(rout, shell_radius):
     coordinate_values = coordinate_values[nonnegative]
     shell_radius_value = shell_radius.to_value(unyt.pc)
     pressure = (
-        rout.fluid.rho
+        rout.fluid.rho_code
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
-        * rout.fluid.temp
+        * rout.fluid.temp_code
     ).to(unyt.dyn / unyt.cm**2)
     pressure_values = pressure.to_value(pressure.units)[nonnegative]
 

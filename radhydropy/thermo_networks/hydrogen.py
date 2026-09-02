@@ -422,7 +422,7 @@ def thermochemistry_radiation_enabled(fluid, par):
             getattr(par, 'hydrogen_radiation_field', False)
             or getattr(par, 'radiative_transfer', False)
         )
-        and hasattr(fluid, 'ngamma')
+        and hasattr(fluid, 'ngamma_code')
     )
 
 
@@ -448,7 +448,7 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
         neutral_flux * face_area
         - np.roll(neutral_flux * face_area, -1)
     ) * dt
-    xHI = ru.SafeDivide(neutral_mass, fluid.Mass)
+    xHI = ru.SafeDivide(neutral_mass, fluid.Mass_code)
     fluid.xHI = rh.clip_neutral_fraction(np.asarray(xHI, dtype=float))
 
 
@@ -467,9 +467,9 @@ def source_state(mesh, fluid, par):
     )
     xHI = as_named_array(np.asarray(fluid.xHI[interior], dtype=float).copy())
     temperature = as_named_array(
-        to_unit_value(fluid.temp[interior], code.temperature_unit).copy()
+        to_unit_value(fluid.temp_code[interior], code.temperature_unit).copy()
     )
-    rho = as_named_array(to_unit_value(fluid.rho[interior], code.density_unit))
+    rho_code = as_named_array(to_unit_value(fluid.rho_code[interior], code.density_unit))
     gamma = getattr(
         getattr(fluid, 'eos', None),
         'gamma',
@@ -478,7 +478,7 @@ def source_state(mesh, fluid, par):
     scaling = _fast_source_scaling(fluid, par, gamma)
     mu = 1.0 / (2.0 - np.clip(xHI, 1.0e-12, 1.0))
     temperature_physical = temperature / scaling['temperature_factor']
-    rho_physical = rho / scaling['density_factor']
+    rho_physical = rho_code / scaling['density_factor']
     specific_energy = (
         BOLTZMANN_CONSTANT_CGS
         * temperature_physical
@@ -781,14 +781,14 @@ def apply_state(state, fluid, par):
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires configured code units")
-    if hasattr(fluid, 'ngamma') and 'ngamma_cm3' in state:
+    if hasattr(fluid, 'ngamma_code') and 'ngamma_cm3' in state:
         target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
         if np.ndim(target) == 2:
-            fluid.ngamma[:, interior] = target
+            fluid.ngamma_code[:, interior] = target
         else:
-            fluid.ngamma[interior] = target
-    if hasattr(fluid, 'temp') and 'temperature_K' in state:
-        fluid.temp[interior] = from_unit_value(
+            fluid.ngamma_code[interior] = target
+    if hasattr(fluid, 'temp_code') and 'temperature_K' in state:
+        fluid.temp_code[interior] = from_unit_value(
             state['temperature_K'] * state.get('source_temperature_factor', 1.0),
             code.temperature_unit,
         )
@@ -870,8 +870,8 @@ def _rotational_specific_energy_code(mesh, fluid, par):
     ghost_cells = int(par.mesh.ghost_cells)
     grid_cells = int(par.mesh.grid_cells)
     interior = slice(ghost_cells, ghost_cells + grid_cells)
-    mass = np.asarray(fluid.Mass[interior], dtype=float)
-    angular = np.asarray(fluid.AngularMomentum[interior], dtype=float)
+    mass = np.asarray(fluid.Mass_code[interior], dtype=float)
+    angular = np.asarray(fluid.AngularMomentum_code[interior], dtype=float)
     radius = np.abs(np.asarray(mesh.coordinate[interior], dtype=float))
     j = np.zeros_like(mass)
     np.divide(angular, mass, out=j, where=mass > 0.0)
@@ -893,23 +893,23 @@ def _fast_source_state(mesh, fluid, par):
     gamma = getattr(getattr(fluid, 'eos', None), 'gamma', par.hydrodynamics.gamma)
     scaling = _fast_source_scaling(fluid, par, gamma)
     rho_g_cm3 = (
-        np.asarray(fluid.rho[interior], dtype=float)
+        np.asarray(fluid.rho_code[interior], dtype=float)
         * unit_conversion['density_g_cm3']
         / scaling['density_factor']
     )
     temperature_K = (
-        np.asarray(fluid.temp[interior], dtype=float)
+        np.asarray(fluid.temp_code[interior], dtype=float)
         * unit_conversion['temperature_K']
         / scaling['temperature_factor']
     )
     velocity_supercomoving_cm_s = (
-        np.asarray(fluid.vel[interior], dtype=float)
+        np.asarray(fluid.vel_code[interior], dtype=float)
         * unit_conversion['velocity_cm_s']
     )
     vel_cm_s = velocity_supercomoving_cm_s / scaling['velocity_factor']
-    mass_g = np.asarray(fluid.Mass[interior], dtype=float) * unit_conversion['mass_g']
+    mass_g = np.asarray(fluid.Mass_code[interior], dtype=float) * unit_conversion['mass_g']
     energy_supercomoving_erg = (
-        np.asarray(fluid.Energy[interior], dtype=float)
+        np.asarray(fluid.Energy_code[interior], dtype=float)
         * unit_conversion['energy_erg']
     )
     rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
@@ -968,9 +968,9 @@ def _fast_source_state(mesh, fluid, par):
         'ngamma_cm3': (
                 (
                     np.asarray(
-                        fluid.ngamma[:, interior]
-                        if np.ndim(fluid.ngamma) == 2
-                        else fluid.ngamma[interior],
+                        fluid.ngamma_code[:, interior]
+                        if np.ndim(fluid.ngamma_code) == 2
+                        else fluid.ngamma_code[interior],
                         dtype=float,
                     ) * unit_conversion['number_density_cm3']
                 )
@@ -979,7 +979,7 @@ def _fast_source_state(mesh, fluid, par):
                 getattr(par, 'hydrogen_radiation_field', False)
                 or getattr(par, 'radiative_transfer', False)
             )
-            and hasattr(fluid, 'ngamma')
+            and hasattr(fluid, 'ngamma_code')
             else None
         ),
         'source_rate_s': _optional_numeric_value(
@@ -2207,13 +2207,13 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     xhi = np.asarray(fluid.xHI[interior], dtype=float).copy()
     xhi[active] = state['xHI'][active]
     fluid.xHI[interior] = xhi
-    if hasattr(fluid, 'ngamma') and state.get('ngamma_cm3') is not None:
+    if hasattr(fluid, 'ngamma_code') and state.get('ngamma_cm3') is not None:
         code = _code_units(par)
         target = from_unit_value(state['ngamma_cm3'], code.number_density_unit)
         if np.ndim(target) == 2:
-            fluid.ngamma[:, interior] = target
+            fluid.ngamma_code[:, interior] = target
         else:
-            fluid.ngamma[interior] = target
+            fluid.ngamma_code[interior] = target
     if hasattr(fluid, 'mu'):
         mu = np.asarray(fluid.mu[interior], dtype=float).copy()
         mu[active] = state['mu'][active]
@@ -2223,9 +2223,9 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         state['temperature_K'] * state.get('source_temperature_factor', 1.0)
         / code.unit_conversion['temperature_K']
     )
-    temp = np.asarray(fluid.temp[interior], dtype=float).copy()
-    temp[active] = temperature[active]
-    fluid.temp[interior] = temp
+    temp_code = np.asarray(fluid.temp_code[interior], dtype=float).copy()
+    temp_code[active] = temperature[active]
+    fluid.temp_code[interior] = temp_code
     if state.get('thermal_coupling', False):
         # The source state stores specific energies in physical cgs units
         # (erg/g), while Fluid pressure and Energy use the code velocity
@@ -2261,16 +2261,16 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         )
         pressure = (
             specific_internal_energy_code
-            * np.asarray(fluid.rho[interior], dtype=float)
+            * np.asarray(fluid.rho_code[interior], dtype=float)
             * (fluid.eos.gamma - 1.0)
         )
-        pre = np.asarray(fluid.pre[interior], dtype=float).copy()
+        pre = np.asarray(fluid.pre_code[interior], dtype=float).copy()
         pre[active] = pressure[active]
-        fluid.pre[interior] = pre
-        energy = specific_total_energy * np.asarray(fluid.Mass[interior], dtype=float)
-        conserved_energy = np.asarray(fluid.Energy[interior], dtype=float).copy()
+        fluid.pre_code[interior] = pre
+        energy = specific_total_energy * np.asarray(fluid.Mass_code[interior], dtype=float)
+        conserved_energy = np.asarray(fluid.Energy_code[interior], dtype=float).copy()
         conserved_energy[active] = energy[active]
-        fluid.Energy[interior] = conserved_energy
+        fluid.Energy_code[interior] = conserved_energy
     if state.get('hydrogen_update_mu', False) and hasattr(fluid, 'xHI') and getattr(getattr(fluid, 'eos', None), 'gamma', None) is not None:
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=state['hydrogen_mass_fraction']

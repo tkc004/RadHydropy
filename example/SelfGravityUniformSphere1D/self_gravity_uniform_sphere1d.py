@@ -60,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     numerical = sim.par.gravity.acceleration_on_mesh(
         sim.mesh,
-        rho=sim.fluid.rho,
+        rho_code=sim.fluid.rho_code,
         par=sim.par,
     )
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)

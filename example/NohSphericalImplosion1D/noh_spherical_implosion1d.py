@@ -55,13 +55,13 @@ def make_initial_condition(ic, units):
     state.mesh.vol = (
         4.0 * np.pi / 3.0 * np.diff(boundary**3) * units.volume_unit
     )
-    state.fluid.rho = np.full(
+    state.fluid.rho_code = np.full(
         state.par.nogrid, float(ic["initial_density"].to_value("g/cm**3"))
     )
-    state.fluid.vel = np.full(
+    state.fluid.vel_code = np.full(
         state.par.nogrid, float(ic["velocity"].to_value(units.velocity_unit))
     )
-    state.fluid.temp = np.full(
+    state.fluid.temp_code = np.full(
         state.par.nogrid, float(ic["temperature"].to_value("K"))
     )
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
@@ -79,9 +79,9 @@ def read_profile(filename, units, gamma):
     boundary = np.asarray(mesh.boundary, dtype=float)
     radius = 0.5 * (boundary[1:] + boundary[:-1])
     volume = 4.0 * np.pi / 3.0 * np.diff(boundary**3)
-    rho = np.asarray(fluid.rho, dtype=float)[first:last]
-    velocity = np.asarray(fluid.vel, dtype=float)[first:last]
-    temperature = np.asarray(fluid.temp, dtype=float)[first:last]
+    rho_code = np.asarray(fluid.rho_code, dtype=float)[first:last]
+    velocity = np.asarray(fluid.vel_code, dtype=float)[first:last]
+    temperature = np.asarray(fluid.temp_code, dtype=float)[first:last]
     mu = np.asarray(fluid.mu, dtype=float)[first:last]
     eos = EOS("polytropic", gamma=gamma, code_units=units)
     pressure = np.asarray(eos.pressure(rho, temperature, mu), dtype=float)

@@ -159,10 +159,10 @@ class Simwrap:
             icparams['h0'],
         )
         temperature = virial_temperature(halo, icparams['mu'])
-        self.fluid.temp = np.ones(self.par.nogrid) * temperature
+        self.fluid.temp_code = np.ones(self.par.nogrid) * temperature
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho = hydrostatic_density_profile(
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.rho_code = hydrostatic_density_profile(
             self.mesh.coordinate,
             self.mesh.boundary,
             halo,
@@ -185,8 +185,8 @@ def read_and_plot(outfilename, icparams, runparams, halo, temperature, figure_fi
     ) * unyt.cm
     radius_all = spherical_cell_centers(boundary_cgs)
     radius = radius_all[nghost:-nghost]
-    rho = rout.fluid.rho[nghost:-nghost]
-    velocity = rout.fluid.vel[nghost:-nghost]
+    rho_code = rout.fluid.rho_code[nghost:-nghost]
+    velocity = rout.fluid.vel_code[nghost:-nghost]
     rho_expected = hydrostatic_density_profile(
         radius_all,
         boundary_cgs,

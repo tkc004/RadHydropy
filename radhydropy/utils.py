@@ -70,7 +70,7 @@ def CalEnergyDensity(pressure, gamma):
 
 def CalSoundSpeed(pressure,rho, gamma):
     """Calculate adiabatic sound speed and zero invalid values."""
-    if not (hasattr(pressure, "units") or hasattr(rho, "units")):
+    if not (hasattr(pressure, "units") or hasattr(rho_code, "units")):
         pressure_over_rho = SafeDivide(pressure, rho)
         soundspeed = np.sqrt(gamma * pressure_over_rho)
         soundspeed[np.isnan(soundspeed)] = 0.0

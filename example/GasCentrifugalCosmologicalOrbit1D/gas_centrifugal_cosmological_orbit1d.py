@@ -52,11 +52,11 @@ class CosmologicalInitialCondition:
         self.mesh.coordinate = 0.75 * (
             self.mesh.boundary[1:]**4 - self.mesh.boundary[:-1]**4
         ) / (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-        self.fluid.rho = np.full(count, density)
-        self.fluid.vel = np.zeros(count)
-        self.fluid.temp = np.full(count, temperature)
+        self.fluid.rho_code = np.full(count, density)
+        self.fluid.vel_code = np.zeros(count)
+        self.fluid.temp_code = np.full(count, temperature)
         self.fluid.mu = np.ones(count)
-        self.fluid.specific_angular_momentum = np.asarray(specific_j, dtype=float)
+        self.fluid.specific_angular_momentum_code = np.asarray(specific_j, dtype=float)
 
 
 class CosmologicalCentralGravity:
@@ -139,7 +139,7 @@ def main(config_filename=CONFIG):
     )
     simulation_radius = np.asarray(simulation.mesh.coordinate, dtype=float)
     circular_j_profile = np.sqrt(central_mass * simulation_radius)
-    saved_j = np.asarray(saved_fluid.specific_angular_momentum, dtype=float)
+    saved_j = np.asarray(saved_fluid.specific_angular_momentum_code, dtype=float)
     saved_active = slice(
         simulation.par.noghost,
         simulation.par.noghost + simulation.par.nogrid,
@@ -222,9 +222,9 @@ def main(config_filename=CONFIG):
     )
     sim_radius = np.asarray(simulation.mesh.coordinate[sim_active], dtype=float)
     # readhdf5 returns NamedArray values already converted to code units.
-    sim_velocity = np.asarray(saved_fluid.vel[sim_active], dtype=float)
-    sim_j = np.asarray(saved_fluid.specific_angular_momentum[sim_active], dtype=float)
-    sim_energy = np.asarray(saved_fluid.Energy[sim_active], dtype=float)
+    sim_velocity = np.asarray(saved_fluid.vel_code[sim_active], dtype=float)
+    sim_j = np.asarray(saved_fluid.specific_angular_momentum_code[sim_active], dtype=float)
+    sim_energy = np.asarray(saved_fluid.Energy_code[sim_active], dtype=float)
     # Map the analytic shell ensemble back to the fixed Eulerian grid.
     ode_final = np.empty((2, len(sim_radius)))
     for index, initial_radius in enumerate(sim_radius):
@@ -267,8 +267,8 @@ def main(config_filename=CONFIG):
             'saved cosmological Rsim J/M drifted from the initialized profile: '
             'max error = %.6g' % simulation_j_error
         )
-    sim_temperature = np.asarray(saved_fluid.temp[sim_active], dtype=float)
-    sim_density = np.asarray(saved_fluid.rho[sim_active], dtype=float)
+    sim_temperature = np.asarray(saved_fluid.temp_code[sim_active], dtype=float)
+    sim_density = np.asarray(saved_fluid.rho_code[sim_active], dtype=float)
     sim_mu = np.asarray(saved_fluid.mu[sim_active], dtype=float)
     sim_pressure = np.asarray(
         simulation.fluid.eos.pressure(sim_density, sim_temperature, sim_mu),

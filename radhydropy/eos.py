@@ -164,18 +164,18 @@ class EOS:
         interior = slice(ghost_cells, ghost_cells + grid_cells)
         ionized_fraction = 1.0 - np.clip(fluid.xHI[interior], 0.0, 1.0)
         if ionized_fraction_threshold is None:
-            fluid.temp[interior] = (
+            fluid.temp_code[interior] = (
                 neutral_temperature
                 + ionized_fraction * (ionized_temperature - neutral_temperature)
             )
         else:
             if not 0.0 <= ionized_fraction_threshold <= 1.0:
                 raise ValueError('ionized_fraction_threshold must be in [0, 1]')
-            fluid.temp[interior] = neutral_temperature
+            fluid.temp_code[interior] = neutral_temperature
             ionized = ionized_fraction > ionized_fraction_threshold
-            temperature = np.asarray(fluid.temp[interior])
+            temperature = np.asarray(fluid.temp_code[interior])
             temperature[ionized] = ionized_temperature
-            fluid.temp[interior] = temperature
+            fluid.temp_code[interior] = temperature
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )

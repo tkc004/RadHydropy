@@ -64,11 +64,11 @@ class CircularInitialCondition:
         self.mesh.coordinate = 0.75 * (
             self.mesh.boundary[1:]**4 - self.mesh.boundary[:-1]**4
         ) / (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-        self.fluid.rho = np.full(count, density)
-        self.fluid.vel = np.zeros(count)
-        self.fluid.temp = np.full(count, pressure * 0.4)
+        self.fluid.rho_code = np.full(count, density)
+        self.fluid.vel_code = np.zeros(count)
+        self.fluid.temp_code = np.full(count, pressure * 0.4)
         self.fluid.mu = np.ones(count)
-        self.fluid.specific_angular_momentum = np.sqrt(
+        self.fluid.specific_angular_momentum_code = np.sqrt(
             central_mass * self.mesh.coordinate
         )
 
@@ -90,8 +90,8 @@ def run_rsim(runparams, icparams, runtime):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    initial_mass = np.asarray(sim.fluid.Mass, dtype=float).copy()
-    initial_energy = np.asarray(sim.fluid.Energy, dtype=float).copy()
+    initial_mass = np.asarray(sim.fluid.Mass_code, dtype=float).copy()
+    initial_energy = np.asarray(sim.fluid.Energy_code, dtype=float).copy()
     sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']), 0.0)
     sim.Run(outputtime=0, mode='sources')
     output_files = sorted((ROOT / runparams['outdir']).glob('Output_*.hdf5'))
@@ -145,49 +145,49 @@ def main(config_filename=CONFIG):
     par = mesh._par
     par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=count)
     fluid = SimpleNamespace(
-        rho=np.ones(count) * float(icparams['density']),
-        Mass=mass.copy(),
-        Mom=momentum.copy(),
-        Energy=thermal_energy + rotational_energy,
-        AngularMomentum=mass * specific_j,
+        rho_code=np.ones(count) * float(icparams['density']),
+        Mass_code=mass.copy(),
+        Mom_code=momentum.copy(),
+        Energy_code=thermal_energy + rotational_energy,
+        AngularMomentum_code=mass * specific_j,
     )
 
     solver = Solver()
-    initial_energy = fluid.Energy.copy()
+    initial_energy = fluid.Energy_code.copy()
     times = [0.0]
-    velocity_history = [fluid.Mom[0] / fluid.Mass[0]]
+    velocity_history = [fluid.Mom_code[0] / fluid.Mass_code[0]]
     energy_error = [0.0]
     dt = float(icparams['timestep'])
     for step in range(int(icparams['nsteps'])):
         solver.ApplyGravity(dt, mesh, fluid, par)
         times.append((step + 1) * dt)
-        velocity_history.append(fluid.Mom[0] / fluid.Mass[0])
-        energy_error.append(np.max(np.abs(fluid.Energy - initial_energy)))
+        velocity_history.append(fluid.Mom_code[0] / fluid.Mass_code[0])
+        energy_error.append(np.max(np.abs(fluid.Energy_code - initial_energy)))
 
-    if not np.allclose(fluid.Mom, momentum, rtol=0.0, atol=1.0e-13):
+    if not np.allclose(fluid.Mom_code, momentum, rtol=0.0, atol=1.0e-13):
         raise RuntimeError('circular force balance generated radial momentum')
-    if not np.allclose(fluid.Energy, initial_energy, rtol=0.0, atol=1.0e-2):
+    if not np.allclose(fluid.Energy_code, initial_energy, rtol=0.0, atol=1.0e-2):
         raise RuntimeError('circular force balance changed total energy')
     expected_rotational = rotational_energy
     if not np.allclose(
         expected_rotational,
-        0.5 * fluid.AngularMomentum**2 / (fluid.Mass * radius**2),
+        0.5 * fluid.AngularMomentum_code**2 / (fluid.Mass_code * radius**2),
     ):
         raise RuntimeError('rotational energy bookkeeping is inconsistent')
 
     # Compare the saved Rsim state with the circular analytic solution.
-    saved_velocity = np.asarray(saved_fluid.vel[active], dtype=float)
-    saved_j = np.asarray(saved_fluid.specific_angular_momentum[active], dtype=float)
+    saved_velocity = np.asarray(saved_fluid.vel_code[active], dtype=float)
+    saved_j = np.asarray(saved_fluid.specific_angular_momentum_code[active], dtype=float)
     saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
     saved_radius = 0.75 * (
         saved_boundary[1:]**4 - saved_boundary[:-1]**4
     ) / (saved_boundary[1:]**3 - saved_boundary[:-1]**3)
     saved_radius = saved_radius[active]
-    saved_mass = np.asarray(saved_fluid.Mass[active], dtype=float)
+    saved_mass = np.asarray(saved_fluid.Mass_code[active], dtype=float)
     saved_momentum = np.asarray(
-        saved_fluid.Mass[active] * saved_fluid.vel[active], dtype=float
+        saved_fluid.Mass_code[active] * saved_fluid.vel_code[active], dtype=float
     )
-    saved_energy = np.asarray(saved_fluid.Energy[active], dtype=float)
+    saved_energy = np.asarray(saved_fluid.Energy_code[active], dtype=float)
     if np.max(np.abs(saved_velocity)) > 5.0e-5:
         raise RuntimeError('Rsim circular solution developed radial velocity')
     if not np.allclose(saved_j, np.sqrt(central_mass * saved_radius), atol=1.0e-10):
@@ -275,9 +275,9 @@ def main(config_filename=CONFIG):
     )
     shell_par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=1)
     shell_fluid = SimpleNamespace(
-        rho=np.asarray([1.0]), Mass=np.asarray([1.0]),
-        Mom=np.asarray([0.0]), AngularMomentum=np.asarray([eccentric_j]),
-        Energy=np.asarray([1.0 + 0.5 * eccentric_j**2 / radius**2]),
+        rho_code=np.asarray([1.0]), Mass_code=np.asarray([1.0]),
+        Mom_code=np.asarray([0.0]), AngularMomentum_code=np.asarray([eccentric_j]),
+        Energy_code=np.asarray([1.0 + 0.5 * eccentric_j**2 / radius**2]),
     )
     shell_radius = np.empty(len(eccentric_times))
     shell_velocity = np.empty(len(eccentric_times))
@@ -286,7 +286,7 @@ def main(config_filename=CONFIG):
     for index in range(len(eccentric_times) - 1):
         shell_mesh.coordinate[...] = shell_radius[index]
         shell_solver.ApplyGravity(eccentric_dt, shell_mesh, shell_fluid, shell_par)
-        shell_velocity[index + 1] = shell_fluid.Mom[0] / shell_fluid.Mass[0]
+        shell_velocity[index + 1] = shell_fluid.Mom_code[0] / shell_fluid.Mass_code[0]
         shell_radius[index + 1] = (
             shell_radius[index] + eccentric_dt * shell_velocity[index + 1]
         )

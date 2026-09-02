@@ -66,9 +66,9 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
     temperature_K = (
-        np.asarray(fluid.temp[interior], dtype=float) * code.temperature_unit
+        np.asarray(fluid.temp_code[interior], dtype=float) * code.temperature_unit
     ).to_value(unyt.K)
-    ngamma_values = np.asarray(fluid.ngamma, dtype=float)
+    ngamma_code_values = np.asarray(fluid.ngamma_code, dtype=float)
     if ngamma_values.ndim == 1:
         ngamma_values = ngamma_values[None, :]
     ngamma = (

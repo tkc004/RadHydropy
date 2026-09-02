@@ -150,10 +150,10 @@ class Simwrap:
             / 3.0
         )
 
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['initial_temperature']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['initial_temperature']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho = ballistic_density_profile(
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.rho_code = ballistic_density_profile(
             self.mesh.coordinate,
             icparams['reference_density'],
         )
@@ -170,12 +170,12 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     xall = spherical_cell_centers(rout.mesh.boundary)
     if nghost > 0:
         xcoord = xall[nghost:-nghost]
-        rho_num = rout.fluid.rho[nghost:-nghost]
-        vel_num = rout.fluid.vel[nghost:-nghost]
+        rho_num = rout.fluid.rho_code[nghost:-nghost]
+        vel_code_num = rout.fluid.vel_code[nghost:-nghost]
     else:
         xcoord = xall
-        rho_num = rout.fluid.rho
-        vel_num = rout.fluid.vel
+        rho_num = rout.fluid.rho_code
+        vel_code_num = rout.fluid.vel_code
     rho_analytic = ballistic_density_profile(xcoord, icparams['reference_density'])
     vel_analytic = ballistic_velocity_profile(
         xcoord,

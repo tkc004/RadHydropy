@@ -111,11 +111,11 @@ class Simwrap:
             icparams['polytropic_radius'],
         )
         k_poly = polytropic_constant(icparams['polytropic_radius'])
-        self.fluid.rho = density
-        self.fluid.temp = equilibrium_temperature(density, k_poly, icparams['mu'])
+        self.fluid.rho_code = density
+        self.fluid.temp_code = equilibrium_temperature(density, k_poly, icparams['mu'])
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
         radius_fraction = radius / icparams['polytropic_radius']
-        self.fluid.vel = (
+        self.fluid.vel_code = (
             icparams['velocity_perturbation']
             * np.asarray(radius_fraction, dtype=float)
             * code_units.velocity_unit
@@ -141,9 +141,9 @@ def read_output(filename, runparams):
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.mesh.coordinate = spherical_cell_centers(result.mesh.boundary)
     result.fluid.eos = EOS(result.par.EOStype, result.par.gamma, code_units)
-    result.fluid.pre = result.fluid.eos.pressure(
-        result.fluid.rho,
-        result.fluid.temp,
+    result.fluid.pre_code = result.fluid.eos.pressure(
+        result.fluid.rho_code,
+        result.fluid.temp_code,
         result.fluid.mu,
     )
     return result

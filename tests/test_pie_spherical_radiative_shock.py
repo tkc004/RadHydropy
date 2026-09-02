@@ -55,6 +55,6 @@ def test_spherical_ic_density_is_mass_density():
     })
     initial = TOOLS.Simwrap(icparams, code_units, 0.76)
     assert np.isclose(
-        initial.fluid.rho[0].to_value('g/cm**3'),
+        initial.fluid.rho_code[0].to_value('g/cm**3'),
         1.0e-3 * TOOLS.PROTON_MASS_G / 0.76,
     )

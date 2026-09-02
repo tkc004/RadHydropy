@@ -153,12 +153,12 @@ def _source_test_problem(
         fluid_time=tau,
     )
     fluid = SimpleNamespace(
-        rho=np.array([fluid_density]),
-        temp=np.array([fluid_temperature]),
-        vel=np.array([0.0]),
-        Mass=np.array([1.0]),
-        Energy=np.array([fluid_energy]),
-        pre=np.array([1.0]),
+        rho_code=np.array([fluid_density]),
+        temp_code=np.array([fluid_temperature]),
+        vel_code=np.array([0.0]),
+        Mass_code=np.array([1.0]),
+        Energy_code=np.array([fluid_energy]),
+        pre_code=np.array([1.0]),
         xHI=np.array([xhi]),
         mu=np.array([mu]),
         eos=SimpleNamespace(gamma=5.0 / 3.0),
@@ -468,7 +468,7 @@ def test_coupled_implicit_fallback_to_explicit():
     par.hydrogen_implicit_max_iterations = 0
     result = apply_thermochemistry_fast(1.0, mesh, fluid, par)
     assert result['source_steps'] > 1
-    assert np.isfinite(fluid.temp[0])
+    assert np.isfinite(fluid.temp_code[0])
 
 
 def test_coupled_implicit_error_fallback_raises():
@@ -523,8 +523,8 @@ def test_coupled_implicit_supercomoving_matches_physical_source_update():
         supercomoving_fluid,
         supercomoving_par,
     )
-    physical_temperature = physical_fluid.temp[0]
-    supercomoving_temperature = supercomoving_fluid.temp[0] / scale_factor**2
+    physical_temperature = physical_fluid.temp_code[0]
+    supercomoving_temperature = supercomoving_fluid.temp_code[0] / scale_factor**2
     np.testing.assert_allclose(
         supercomoving_temperature, physical_temperature, rtol=1.0e-10
     )
@@ -577,12 +577,12 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
         hydrogen_photon_energy=13.6,
     )
     fluid = SimpleNamespace(
-        rho=np.array([1.0e-3]),
-        temp=np.array([temperature]),
-        vel=np.array([0.0]),
-        Mass=np.array([1.0]),
-        Energy=np.array([energy_code]),
-        pre=np.array([1.0]),
+        rho_code=np.array([1.0e-3]),
+        temp_code=np.array([temperature]),
+        vel_code=np.array([0.0]),
+        Mass_code=np.array([1.0]),
+        Energy_code=np.array([energy_code]),
+        pre_code=np.array([1.0]),
         xHI=np.array([xhi]),
         mu=np.array([mu]),
         eos=SimpleNamespace(gamma=5.0 / 3.0),
@@ -597,7 +597,7 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
     result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
     assert result['source_steps'] >= 2
     assert fluid.xHI[0] > xhi
-    assert np.isfinite(fluid.temp[0])
+    assert np.isfinite(fluid.temp_code[0])
 
 
 def test_split_implicit_source_includes_compton_and_atomic_cooling():
@@ -610,7 +610,7 @@ def test_split_implicit_source_includes_compton_and_atomic_cooling():
 
     assert result['source_solver'] == 'split_implicit'
     assert result['source_steps'] >= 1
-    assert np.isfinite(fluid.temp[0])
+    assert np.isfinite(fluid.temp_code[0])
     assert np.isfinite(fluid.xHI[0])
 
 
@@ -629,9 +629,9 @@ def test_split_implicit_matches_coupled_solvers_for_identical_source_state():
         fluid.SetPressure = lambda: None
         result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
         results[solver] = (
-            float(fluid.temp[0]),
+            float(fluid.temp_code[0]),
             float(fluid.xHI[0]),
-            float(fluid.Energy[0]),
+            float(fluid.Energy_code[0]),
             result,
         )
 
@@ -800,11 +800,11 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
         vol=np.array([4.0 * np.pi / 3.0]),
     )
     fluid = SimpleNamespace(
-        rho=np.array([scale_factor**3]),
-        temp=np.array([physical_temperature * scale_factor**2]),
-        vel=np.array([0.0]),
-        Mass=np.array([1.0]),
-        Energy=np.array([1.0]),
+        rho_code=np.array([scale_factor**3]),
+        temp_code=np.array([physical_temperature * scale_factor**2]),
+        vel_code=np.array([0.0]),
+        Mass_code=np.array([1.0]),
+        Energy_code=np.array([1.0]),
         xHI=np.array([0.9998]),
         mu=np.array([1.0 / (0.76 * (2.0 - 0.9998))]),
         eos=SimpleNamespace(gamma=5.0 / 3.0),
@@ -816,4 +816,4 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
     density_unit_cgs = units.mass_in_cgs / units.length_in_cgs**3
     assert np.isclose(state["rho_g_cm3"][0], density_unit_cgs)
     _fast_sync_state_to_fluid(state, fluid, par)
-    assert np.isclose(fluid.temp[0], physical_temperature * scale_factor**2)
+    assert np.isclose(fluid.temp_code[0], physical_temperature * scale_factor**2)

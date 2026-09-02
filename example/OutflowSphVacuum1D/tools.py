@@ -62,7 +62,7 @@ class Simwrap:
             float(icparams['injection_radius'] + icparams['box_size']),
             grid_cells + 1,
         )
-        self.fluid.vel = icparams['initial_velocity'] * np.ones(grid_cells)
-        self.fluid.temp = icparams['initial_temperature'] * np.ones(grid_cells)
-        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.vel_code = icparams['initial_velocity'] * np.ones(grid_cells)
+        self.fluid.temp_code = icparams['initial_temperature'] * np.ones(grid_cells)
+        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
         self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)

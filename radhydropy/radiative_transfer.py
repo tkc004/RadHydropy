@@ -556,9 +556,9 @@ def _state_fluid_for_radiative_transfer(state, par):
     xHI = np.asarray(state["xHI"], dtype=float)
     ngamma = np.asarray(state.get("ngamma_cm3", np.zeros_like(rho)), dtype=float)
     return SimpleNamespace(
-        rho=rho,
+        rho_code=rho,
         xHI=xHI,
-        ngamma=ngamma,
+        ngamma_code=ngamma,
     )
 
 
@@ -609,7 +609,7 @@ def trace_photon_density(state, par):
                 "photon_rate_per_s",
             )
         if hasattr(state, "get") and "xHeI" in state:
-            rho_cgs = np.asarray(fluid.rho, dtype=float)
+            rho_cgs = np.asarray(fluid.rho_code, dtype=float)
             nH = getattr(par, "hydrogen_mass_fraction", 0.7) * rho_cgs / PROTON_MASS_CGS
             nHe = getattr(par, "helium_mass_fraction", 0.28) * rho_cgs / (4.0 * PROTON_MASS_CGS)
             absorbers = {"HI": nH * fluid.xHI, "HeI": nHe * state["xHeI"], "HeII": nHe * state["xHeII"]}
@@ -617,7 +617,7 @@ def trace_photon_density(state, par):
             return np.asarray(trace_long_characteristics(mesh, absorber_densities=absorbers, cross_sections_cm2=cross_sections, boundary_flux=boundary_groups, source_photon_rate=source_groups, direction=_parameter_value(par, "radiative_transfer_direction", 1), coordsys=getattr(par, "coordsys", "spherical"), group_edges_eV=group_edges_eV).cell_photon_density, dtype=float)
         result = trace_long_characteristics(
             mesh,
-            fluid.rho,
+            fluid.rho_code,
             fluid.xHI,
             hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
             sigma_gamma=sigma_groups,
@@ -648,7 +648,7 @@ def trace_photon_density(state, par):
     )
     result = trace_long_characteristics(
         mesh,
-        fluid.rho,
+        fluid.rho_code,
         fluid.xHI,
         hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
         sigma_gamma=sigma_gamma_cm2,

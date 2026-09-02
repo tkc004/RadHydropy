@@ -12,7 +12,7 @@ def _initialize_runtime_state(sim):
     sim.cumulative_gravity_work = 0.0
     sim.cumulative_gravity_potential_change = 0.0
     sim.cumulative_gravity_potential_flux = 0.0
-    diagnostic_count = int(sim.par.mesh.grid_cells or len(getattr(sim.fluid, 'Energy', [])))
+    diagnostic_count = int(sim.par.mesh.grid_cells or len(getattr(sim.fluid, 'Energy_code', [])))
     for name in (
         "cumulative_gravity_work_by_cell",
         "cumulative_hydro_energy_change_by_cell",

@@ -40,9 +40,9 @@ class Simwrap:
             box_size[0] + dx,
             grid_cells + 1,
         )
-        self.fluid.vel = icparams['velocity'] * np.ones(grid_cells)
-        self.fluid.temp = icparams['temperature'] * np.ones(grid_cells)
-        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
+        self.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
+        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
         self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
 
@@ -51,4 +51,4 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout, yquan='rho', showhalf=0, showfig=0, **kwargs)
+    rplot1d(rout, yquan='rho_code', showhalf=0, showfig=0, **kwargs)

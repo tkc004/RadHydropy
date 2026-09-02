@@ -67,7 +67,7 @@ class CollidingStreamsSolver(Solver):
         for state, side in ((left_state, left_ghost), (right_state, right_ghost)):
             if hasattr(fluid, 'xHI'):
                 state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
-            if hasattr(fluid, 'ngamma'):
+            if hasattr(fluid, 'ngamma_code'):
                 state['ngamma'] = self._to_code_number_density(
                     getattr(par, 'hydrogen_ngamma_inflow', 0.0), scales
                 )

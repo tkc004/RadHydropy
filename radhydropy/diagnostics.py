@@ -9,9 +9,9 @@ from radhydropy.cosmological_variables import physical_temperature, supercomovin
 
 def temperature_physical_K(sim):
     """Return the simulation gas temperature in physical kelvin."""
-    if not hasattr(sim.fluid, 'temp'):
+    if not hasattr(sim.fluid, 'temp_code'):
         return None
-    temperature = np.asarray(sim.fluid.temp, dtype=float)
+    temperature = np.asarray(sim.fluid.temp_code, dtype=float)
     code = getattr(sim.par, 'CodeUnits', None)
     if code is not None:
         temperature = temperature * float(code.temperature_in_cgs)
@@ -71,7 +71,7 @@ def check_conserved_energy_admissibility(
         if getattr(sim.fluid.eos, 'is_isothermal', False):
             return
     if not all(
-        hasattr(sim.fluid, name) for name in ('Mass', 'Mom', 'Energy')
+        hasattr(sim.fluid, name) for name in ('Mass_code', 'Mom_code', 'Energy_code')
     ):
         # Source-only/unit-test states may not have been initialized with
         # hydrodynamic conserved fields.
@@ -79,9 +79,9 @@ def check_conserved_energy_admissibility(
     first = int(par.mesh.ghost_cells)
     last = first + int(par.mesh.grid_cells)
     volume = np.asarray(sim.mesh.vol, dtype=float)
-    mass = np.asarray(sim.fluid.Mass, dtype=float)
-    momentum = np.asarray(sim.fluid.Mom, dtype=float)
-    energy = np.asarray(sim.fluid.Energy, dtype=float)
+    mass = np.asarray(sim.fluid.Mass_code, dtype=float)
+    momentum = np.asarray(sim.fluid.Mom_code, dtype=float)
+    energy = np.asarray(sim.fluid.Energy_code, dtype=float)
     if last <= first:
         return
     physical = np.zeros(len(mass), dtype=bool)
@@ -137,7 +137,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     if temperature_after is None or temperature_before is None:
         return
     before = np.asarray(temperature_before, dtype=float)
-    density = np.asarray(sim.fluid.rho, dtype=float)
+    density = np.asarray(sim.fluid.rho_code, dtype=float)
     crossing = (
         (density > 0.0)
         & np.isfinite(temperature_after)
@@ -155,13 +155,13 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         return
     index = int(candidates[0])
     radius = np.asarray(sim.mesh.coordinate, dtype=float)
-    velocity = np.asarray(sim.fluid.vel, dtype=float)
-    pressure = np.asarray(sim.fluid.pre, dtype=float)
+    velocity = np.asarray(sim.fluid.vel_code, dtype=float)
+    pressure = np.asarray(sim.fluid.pre_code, dtype=float)
     sound_speed = np.asarray(
-        getattr(sim.fluid, 'cs', np.zeros_like(density)), dtype=float
+        getattr(sim.fluid, 'cs_code', np.zeros_like(density)), dtype=float
     )
-    energy = np.asarray(sim.fluid.Energy, dtype=float)
-    mass = np.asarray(sim.fluid.Mass, dtype=float)
+    energy = np.asarray(sim.fluid.Energy_code, dtype=float)
+    mass = np.asarray(sim.fluid.Mass_code, dtype=float)
     lines = [
         'temperature jump error: physical gas temperature exceeded %.6e K '
         'during %s at cell %d (time=%s)' % (

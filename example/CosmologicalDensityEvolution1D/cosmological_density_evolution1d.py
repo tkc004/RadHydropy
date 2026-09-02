@@ -107,9 +107,9 @@ def make_initial_condition(
     state.mesh.xdelta = np.full(count, boxsize / count)
     state.mesh.area = np.ones(count)
     state.mesh.vol = np.full(count, boxsize / count)
-    state.fluid.rho = np.full(count, density_code * initial_scale_factor**3)
-    state.fluid.vel = np.zeros(count)
-    state.fluid.temp = np.full(count, 1.0)
+    state.fluid.rho_code = np.full(count, density_code * initial_scale_factor**3)
+    state.fluid.vel_code = np.zeros(count)
+    state.fluid.temp_code = np.full(count, 1.0)
     state.fluid.mu = np.ones(count)
     state.fluid.time = np.asarray([initial_tau])
     return state
@@ -189,7 +189,7 @@ def run():
         sim.Run(outputtime=0)
         final_tau_sim = float(np.asarray(sim.fluid.time, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
-        measured_density = float(np.mean(sim.fluid.rho)) / final_a**3
+        measured_density = float(np.mean(sim.fluid.rho_code)) / final_a**3
         expected_density = density_code * (initial_scale_factor / final_scale_factor) ** 3
         expected_critical = density_msun_mpc3_to_cgs(
             physical.critical_density(final_time_gyr)

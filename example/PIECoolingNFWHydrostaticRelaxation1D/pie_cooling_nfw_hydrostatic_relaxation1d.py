@@ -63,13 +63,13 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Callreadhdf5(); sim.SetMesh(); sim.SetFluid(); sim.SetInitFluid()
     nghost = int(runparams.get('noghost', 0))
     interior = slice(nghost, -nghost if nghost else None)
-    initial_density_max = float(np.max(np.asarray(sim.fluid.rho[interior])))
+    initial_density_max = float(np.max(np.asarray(sim.fluid.rho_code[interior])))
     floor = runparams['cooling_temperature_floor'].to_value(unyt.K)
     runaway_factor = float(runparams.get('runaway_density_factor', 100.0))
 
     def stop_on_runaway(runner):
-        density = np.asarray(runner.fluid.rho[interior])
-        temperature_state = np.asarray(runner.fluid.temp[interior])
+        density = np.asarray(runner.fluid.rho_code[interior])
+        temperature_state = np.asarray(runner.fluid.temp_code[interior])
         runaway = np.max(density) >= runaway_factor * initial_density_max
         # Do not terminate because a tenuous outer cell reaches the imposed
         # floor.  The relevant runaway is central loss of pressure support.

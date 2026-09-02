@@ -46,9 +46,9 @@ class Simwrap:
             icparams['injection_radius'] + box_size[0],
             grid_cells + 1,
         )
-        self.fluid.vel = icparams['initial_velocity'] * np.ones(grid_cells)
-        self.fluid.temp = icparams['initial_temperature'] * np.ones(grid_cells)
-        self.fluid.rho = icparams['initial_density'] * np.ones(grid_cells)
+        self.fluid.vel_code = icparams['initial_velocity'] * np.ones(grid_cells)
+        self.fluid.temp_code = icparams['initial_temperature'] * np.ones(grid_cells)
+        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
         self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
 
@@ -60,7 +60,7 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     boundary = np.asarray(rout.mesh.boundary, dtype=float)
     x_center = 0.5 * (boundary[1:] + boundary[:-1]) * code_units_obj.length_unit
-    rho_num = code_quantity_to_cgs(rout.fluid.rho, code_units_obj, 'density_g_cm3')
+    rho_num = code_quantity_to_cgs(rout.fluid.rho_code, code_units_obj, 'density_g_cm3')
     rho_num = rho_num * (1.0 * runparams['boundary']['outflow_density'].units)
     rho_ana = oa.density_profile(
         x_center,

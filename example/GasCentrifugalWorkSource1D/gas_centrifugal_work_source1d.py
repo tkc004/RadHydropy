@@ -42,9 +42,9 @@ class InitialCondition:
             coordinate=np.asarray([radius]),
         )
         self.fluid = SimpleNamespace(
-            rho=np.asarray([density]), vel=np.asarray([velocity]),
-            temp=np.asarray([temperature]), mu=np.ones(1),
-            specific_angular_momentum=np.asarray([specific_j]),
+            rho_code=np.asarray([density]), vel_code=np.asarray([velocity]),
+            temp_code=np.asarray([temperature]), mu=np.ones(1),
+            specific_angular_momentum_code=np.asarray([specific_j]),
         )
 
 
@@ -72,10 +72,10 @@ def run_simulation(runparams, icparams, runtime):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    initial_mass = float(sim.fluid.Mass[sim.par.noghost])
-    initial_momentum = float(sim.fluid.Mom[sim.par.noghost])
-    initial_energy = float(sim.fluid.Energy[sim.par.noghost])
-    initial_internal = float(sim.fluid.InternalEnergy[sim.par.noghost])
+    initial_mass = float(sim.fluid.Mass_code[sim.par.noghost])
+    initial_momentum = float(sim.fluid.Mom_code[sim.par.noghost])
+    initial_energy = float(sim.fluid.Energy_code[sim.par.noghost])
+    initial_internal = float(sim.fluid.InternalEnergy_code[sim.par.noghost])
     source_times = [0.0]
     source_momenta = [initial_momentum]
     source_energies = [initial_energy]
@@ -83,8 +83,8 @@ def run_simulation(runparams, icparams, runtime):
 
     def record_source_state(dt):
         source_times.append(float(sim.fluid.time))
-        source_momenta.append(float(sim.fluid.Mom[sim.par.noghost]))
-        source_energies.append(float(sim.fluid.Energy[sim.par.noghost]))
+        source_momenta.append(float(sim.fluid.Mom_code[sim.par.noghost]))
+        source_energies.append(float(sim.fluid.Energy_code[sim.par.noghost]))
         source_works.append(source_works[-1] + sim.solver.last_centrifugal_work)
 
     source_backend.record_source_state = record_source_state
@@ -135,10 +135,10 @@ def main(config_filename=CONFIG):
     expected_work = (
         0.5 * (expected_momentum**2 - initial_momentum**2) / mass
     )
-    final_momentum = float(saved.Mass[active][0] * saved.vel[active][0])
-    final_energy = float(saved.Energy[active][0])
-    final_j = float(saved.specific_angular_momentum[active][0])
-    final_internal = float(saved.InternalEnergy[active][0]) if hasattr(
+    final_momentum = float(saved.Mass_code[active][0] * saved.vel_code[active][0])
+    final_energy = float(saved.Energy_code[active][0])
+    final_j = float(saved.specific_angular_momentum_code[active][0])
+    final_internal = float(saved.InternalEnergy_code[active][0]) if hasattr(
         saved, 'InternalEnergy') else initial_internal
     momentum_error = abs(final_momentum - expected_momentum[-1])
     energy_error = abs(final_energy - expected_energy[-1])

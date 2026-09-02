@@ -29,10 +29,10 @@ class Simwrap:
         self.mesh.boundary = np.linspace(
             dx, self.par.boxsize[0] + dx, self.par.nogrid + 1
         )
-        self.fluid.vel = np.zeros(self.par.nogrid) * icparams['vini']
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * icparams['vini']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
         hydrogen_mass_fraction = float(icparams['hydrogen_mass_fraction'])
         proton_mass_g = float(icparams['proton_mass_g'])
         rho = hydrogen_density_cm3 * proton_mass_g / hydrogen_mass_fraction
-        self.fluid.rho = np.ones(self.par.nogrid) * rho
+        self.fluid.rho_code = np.ones(self.par.nogrid) * rho_code
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']

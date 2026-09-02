@@ -54,10 +54,10 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         fluid = sim.fluid
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    rho = np.asarray(fluid.rho[first:last], dtype=float)
-    old_energy = np.asarray(fluid.Energy[first:last], dtype=float).copy()
-    pressure = np.asarray(fluid.pre[first:last], dtype=float)
-    velocity = np.asarray(fluid.vel[first:last], dtype=float)
+    rho_code = np.asarray(fluid.rho_code[first:last], dtype=float)
+    old_energy = np.asarray(fluid.Energy_code[first:last], dtype=float).copy()
+    pressure = np.asarray(fluid.pre_code[first:last], dtype=float)
+    velocity = np.asarray(fluid.vel_code[first:last], dtype=float)
     coordinate = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
     if getattr(sim.mesh, "coordsys", None) == "spherical":
         radius = np.maximum(np.abs(coordinate), np.finfo(float).tiny)
@@ -69,7 +69,7 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         * float(np.asarray(dt, dtype=float))
         if sim.energy_diagnostics_enabled else None
     )
-    old_mass = fluid.Mass.copy()
+    old_mass = fluid.Mass_code.copy()
     gravity = getattr(sim.par, 'gravity', None)
     potential_cell = None
     potential_face = None
@@ -95,11 +95,11 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         verbose=getattr(sim.par, 'verbose', 0),
         order=sim.par.hydrodynamics.order,
     )
-    mass_flux = fluid.Mass.flux.copy()
+    mass_flux = fluid.Mass_code.flux.copy()
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     area = np.asarray(sim.mesh.area, dtype=float)
-    energy_flux = np.asarray(fluid.Energy.flux, dtype=float)
+    energy_flux = np.asarray(fluid.Energy_code.flux, dtype=float)
     if potential_face is not None:
         mass_flux_area = np.asarray(mass_flux, dtype=float) * area
         potential_flux_area = potential_face * mass_flux_area
@@ -128,7 +128,7 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     )
     if potential_cell is not None:
         old_mass_active = np.asarray(old_mass[first:last], dtype=float)
-        new_mass_active = np.asarray(fluid.Mass[first:last], dtype=float)
+        new_mass_active = np.asarray(fluid.Mass_code[first:last], dtype=float)
         phi_active = potential_cell[first:last]
         sim.last_hydro_potential_change = float(
             np.sum((new_mass_active - old_mass_active) * phi_active)
@@ -141,7 +141,7 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         sim.last_hydro_potential_change = 0.0
     if sim.energy_diagnostics_enabled:
         sim.last_hydro_energy_change_by_cell = (
-            np.asarray(fluid.Energy[first:last], dtype=float) - old_energy
+            np.asarray(fluid.Energy_code[first:last], dtype=float) - old_energy
         )
         sim.cumulative_hydro_energy_change_by_cell += (
             sim.last_hydro_energy_change_by_cell
@@ -163,7 +163,7 @@ def _sync_hydro_state(sim, fluid=None):
     elif getattr(fluid.eos, 'is_polytropic', False):
         # Hydro-only adiabatic runs still need their primitive temperature
         # refreshed from the conserved internal energy.  Previously this
-        # was done only by the thermochemistry path, leaving ``fluid.temp``
+        # was done only by the thermochemistry path, leaving ``fluid.temp_code``
         # at its initial value and making adiabatic temperature plots lie.
         fluid.SetTemperature()
     sim.solver.SetConserved(sim.mesh, fluid, verbose=getattr(sim.par, 'verbose', 0))
@@ -210,16 +210,16 @@ def _hydro_step_ssprk2(
         apply_gravity=apply_gravity,
     )
 
-    conserved_fields = ["Mass", "Mom", "Energy"]
-    if hasattr(initial_state, "AngularMomentum") and hasattr(stage2, "AngularMomentum"):
-        conserved_fields.append("AngularMomentum")
+    conserved_fields = ["Mass_code", "Mom_code", "Energy_code"]
+    if hasattr(initial_state, "AngularMomentum_code") and hasattr(stage2, "AngularMomentum_code"):
+        conserved_fields.append("AngularMomentum_code")
     if (
-        hasattr(initial_state, "GravitationalPotentialEnergy")
-        and hasattr(stage2, "GravitationalPotentialEnergy")
+        hasattr(initial_state, "GravitationalPotentialEnergy_code")
+        and hasattr(stage2, "GravitationalPotentialEnergy_code")
     ):
-        conserved_fields.append("GravitationalPotentialEnergy")
-    if hasattr(initial_state, "InternalEnergy") and hasattr(stage2, "InternalEnergy"):
-        conserved_fields.append("InternalEnergy")
+        conserved_fields.append("GravitationalPotentialEnergy_code")
+    if hasattr(initial_state, "InternalEnergy_code") and hasattr(stage2, "InternalEnergy_code"):
+        conserved_fields.append("InternalEnergy_code")
     for attr in conserved_fields:
         setattr(
             sim.fluid,
@@ -282,9 +282,9 @@ def Step(
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     if mode != 'sources':
-        mass_before = np.asarray(sim.fluid.Mass[first:last], dtype=float)
-        momentum_before = np.asarray(sim.fluid.Mom[first:last], dtype=float)
-        energy_before = np.asarray(sim.fluid.Energy[first:last], dtype=float)
+        mass_before = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+        momentum_before = np.asarray(sim.fluid.Mom_code[first:last], dtype=float)
+        energy_before = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
         kinetic_before = np.zeros_like(mass_before)
         np.divide(
             0.5 * momentum_before**2,
@@ -356,9 +356,9 @@ def Step(
             sim._accumulate_gravity_work()
             first = int(sim.par.mesh.ghost_cells)
             last = first + int(sim.par.mesh.grid_cells)
-            mass = np.asarray(sim.fluid.Mass[first:last], dtype=float)
-            momentum = np.asarray(sim.fluid.Mom[first:last], dtype=float)
-            energy = np.asarray(sim.fluid.Energy[first:last], dtype=float)
+            mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+            momentum = np.asarray(sim.fluid.Mom_code[first:last], dtype=float)
+            energy = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
             kinetic = np.zeros_like(mass)
             np.divide(
                 0.5 * momentum**2,
@@ -404,7 +404,7 @@ def Step(
 
     if mode == "hydro_sources":
         energy_before_sources_by_cell = np.asarray(
-            sim.fluid.Energy[first:last], dtype=float
+            sim.fluid.Energy_code[first:last], dtype=float
         ).copy()
         energy_before_sources = float(np.sum(energy_before_sources_by_cell))
 
@@ -438,14 +438,14 @@ def Step(
             sim._sync_hydro_state()
         if mode == "hydro_sources":
             energy_after_sources = float(
-                np.sum(np.asarray(sim.fluid.Energy[first:last], dtype=float))
+                np.sum(np.asarray(sim.fluid.Energy_code[first:last], dtype=float))
             )
             sim.last_thermochemistry_energy_change = (
                 energy_after_sources - energy_before_sources
             )
             if sim.energy_diagnostics_enabled:
                 sim.last_thermochemistry_energy_change_by_cell = (
-                    np.asarray(sim.fluid.Energy[first:last], dtype=float)
+                    np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
                     - energy_before_sources_by_cell
                 )
                 sim.cumulative_thermochemistry_energy_change_by_cell += (

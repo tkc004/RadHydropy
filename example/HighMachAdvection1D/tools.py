@@ -48,15 +48,15 @@ class Simwrap:
         if "rho_left" in icparams or "rho_right" in icparams:
             rho_left = icparams.get("rho_left", icparams.get("initial_density"))
             rho_right = icparams.get("rho_right", icparams.get("initial_density"))
-            self.fluid.rho = np.where(cell_center < 0.5 * self.par.boxsize, rho_left, rho_right)
+            self.fluid.rho_code = np.where(cell_center < 0.5 * self.par.boxsize, rho_left, rho_right)
         else:
-            self.fluid.rho = np.ones(grid_cells) * icparams["initial_density"]
-        self.fluid.vel = np.ones(grid_cells) * icparams["initial_velocity"]
+            self.fluid.rho_code = np.ones(grid_cells) * icparams["initial_density"]
+        self.fluid.vel_code = np.ones(grid_cells) * icparams["initial_velocity"]
         self.fluid.mu = np.ones(grid_cells) * icparams["mean_molecular_weight"]
         if "temp_left" in icparams or "temp_right" in icparams:
             temp_left = icparams.get("temp_left", icparams.get("initial_temperature", 0.0))
             temp_right = icparams.get("temp_right", icparams.get("initial_temperature", 0.0))
-            self.fluid.temp = np.where(
+            self.fluid.temp_code = np.where(
                 cell_center < 0.5 * self.par.boxsize,
                 temp_left,
                 temp_right,
@@ -67,12 +67,12 @@ class Simwrap:
                 code_units.unit_conversion["boltzmann_code"]
                 / code_units.unit_conversion["proton_mass_code"]
             )
-            self.fluid.temp = np.asarray(
-                self.fluid.mu * pressure / (self.fluid.rho * pressure_factor),
+            self.fluid.temp_code = np.asarray(
+                self.fluid.mu * pressure / (self.fluid.rho_code * pressure_factor),
                 dtype=float,
             )
         else:
-            self.fluid.temp = np.ones(grid_cells) * icparams["initial_temperature"]
+            self.fluid.temp_code = np.ones(grid_cells) * icparams["initial_temperature"]
 
 
 def energy_components(state):
@@ -86,16 +86,16 @@ def energy_components(state):
             getattr(state.par, "CodeUnits", None),
         )
     if not hasattr(state.fluid, "mu"):
-        state.fluid.mu = np.ones_like(np.asarray(state.fluid.rho, dtype=float))
+        state.fluid.mu = np.ones_like(np.asarray(state.fluid.rho_code, dtype=float))
     if not hasattr(state.fluid, "pre"):
-        state.fluid.pre = state.fluid.eos.pressure(
-            state.fluid.rho,
-            state.fluid.temp,
+        state.fluid.pre_code = state.fluid.eos.pressure(
+            state.fluid.rho_code,
+            state.fluid.temp_code,
             state.fluid.mu,
         )
-    rho = np.asarray(state.fluid.rho, dtype=float)
-    velocity = np.asarray(state.fluid.vel, dtype=float)
-    pressure = np.asarray(state.fluid.pre, dtype=float)
+    rho_code = np.asarray(state.fluid.rho_code, dtype=float)
+    velocity = np.asarray(state.fluid.vel_code, dtype=float)
+    pressure = np.asarray(state.fluid.pre_code, dtype=float)
     if hasattr(state.mesh, "vol"):
         volume = np.asarray(state.mesh.vol, dtype=float)
     else:
@@ -115,8 +115,8 @@ def energy_components(state):
 
 def entropy_profile(state):
     """Return physical-cell radius and ``T/rho**(gamma-1)`` entropy proxy."""
-    rho = np.asarray(state.fluid.rho, dtype=float)
-    temperature = np.asarray(state.fluid.temp, dtype=float)
+    rho_code = np.asarray(state.fluid.rho_code, dtype=float)
+    temperature = np.asarray(state.fluid.temp_code, dtype=float)
     boundary = np.asarray(state.mesh.boundary, dtype=float)
     first = int(getattr(state.par, "noghost", 0))
     last = first + int(state.par.nogrid)
@@ -129,8 +129,8 @@ def entropy_profile(state):
 
 def primitive_profiles(state):
     """Return physical-cell radius, density, and temperature profiles."""
-    rho = np.asarray(state.fluid.rho, dtype=float)
-    temperature = np.asarray(state.fluid.temp, dtype=float)
+    rho_code = np.asarray(state.fluid.rho_code, dtype=float)
+    temperature = np.asarray(state.fluid.temp_code, dtype=float)
     boundary = np.asarray(state.mesh.boundary, dtype=float)
     first = int(getattr(state.par, "noghost", 0))
     last = first + int(state.par.nogrid)

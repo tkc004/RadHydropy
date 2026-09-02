@@ -130,19 +130,19 @@ def _set_background_state(sim, cosmology, cosmic_time, baryon_fraction,
     rho = float(sim.par.rho_inflow)
     velocity = 0.0
     pressure = float(np.asarray(
-        sim.fluid.eos.pressure(rho, initial_temperature_code, mu),
+        sim.fluid.eos.pressure(rho_code, initial_temperature_code, mu),
         dtype=float,
     ))
     volume = float(np.asarray(sim.mesh.vol[index], dtype=float))
-    sim.fluid.rho[index] = rho
-    sim.fluid.vel[index] = velocity
-    sim.fluid.temp[index] = initial_temperature_code
+    sim.fluid.rho_code[index] = rho_code
+    sim.fluid.vel_code[index] = velocity
+    sim.fluid.temp_code[index] = initial_temperature_code
     sim.fluid.mu[index] = mu
-    sim.fluid.pre[index] = pressure
-    sim.fluid.Mass[index] = rho * volume
-    sim.fluid.Mom[index] = 0.0
-    sim.fluid.Energy[index] = float(np.asarray(
-        sim.fluid.eos.total_energy_density(rho, velocity, pressure),
+    sim.fluid.pre_code[index] = pressure
+    sim.fluid.Mass_code[index] = rho_code * volume
+    sim.fluid.Mom_code[index] = 0.0
+    sim.fluid.Energy_code[index] = float(np.asarray(
+        sim.fluid.eos.total_energy_density(rho_code, velocity, pressure),
         dtype=float,
     )) * volume
 
@@ -226,13 +226,13 @@ def _make_matched_initial_state(icparams, units, cosmology,
     target_total_mass = (
         background_comoving * enclosed_volume * (1.0 + mean_delta)
     )
-    initial.fluid.rho = _matched_cell_density(
+    initial.fluid.rho_code = _matched_cell_density(
         boundaries, coordinates, baryon_fraction * target_total_mass
     )
-    initial.fluid.vel = -(
+    initial.fluid.vel_code = -(
         scale_factor**2 * hubble * mean_delta * coordinates / 3.0
     )
-    initial.fluid.temp = np.full(
+    initial.fluid.temp_code = np.full(
         int(icparams["nogrid"]),
         float(icparams["cie_initial_temperature"]) * scale_factor**2,
     )
@@ -256,7 +256,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     first = int(sim.par.noghost)
     last = first + int(sim.par.nogrid)
     x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    rho = np.asarray(sim.fluid.rho[first:last], dtype=float)
+    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     growth = scale_factor / initial_scale_factor
@@ -268,7 +268,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     volume = 4.0 * np.pi / 3.0 * x**3
 
     gas_mass = prepare_enclosed_gas_mass(
-        sim.mesh, sim.fluid.rho, sim.par
+        sim.mesh, sim.fluid.rho_code, sim.par
     )(x)
     dm_x = np.asarray(dm.radius, dtype=float)
     dm_mass = dm.enclosed_mass(dm_x)
@@ -294,7 +294,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     )
     delta_analytic = growth * mean_delta_initial
 
-    gas_velocity = np.asarray(sim.fluid.vel[first:last], dtype=float) / scale_factor
+    gas_velocity = np.asarray(sim.fluid.vel_code[first:last], dtype=float) / scale_factor
     gas_velocity_analytic = -(
         scale_factor * hubble * x * delta_analytic / 3.0
     )

@@ -71,12 +71,12 @@ def build_initial_condition(config):
     mesh.boundary = boundary
     fluid = Fluid()
     fluid.eos = EOS(config["EOStype"], config["gamma"], code)
-    fluid.rho = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
-    fluid.vel = np.zeros(ncell) * unyt.cm / unyt.s
-    fluid.temp = np.ones(ncell) * config["initial_temperature"]
+    fluid.rho_code = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
+    fluid.vel_code = np.zeros(ncell) * unyt.cm / unyt.s
+    fluid.temp_code = np.ones(ncell) * config["initial_temperature"]
     fluid.xHI = np.ones(ncell)
     fluid.mu = np.ones(ncell)
-    fluid.ngamma = np.zeros(ncell) / unyt.cm**3
+    fluid.ngamma_code = np.zeros(ncell) / unyt.cm**3
     fluid.SetFluidTime(0.0 * unyt.yr)
     return SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
@@ -147,7 +147,7 @@ def shock_radius_cm(
         dtype=float,
     )
     rho_cgs = np.asarray(
-        code_quantity_to_cgs(fluid.rho[interior], par.CodeUnits, "density_g_cm3"),
+        code_quantity_to_cgs(fluid.rho_code[interior], par.CodeUnits, "density_g_cm3"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -225,13 +225,13 @@ def save_profile_plot(snapshots, output, exponent):
         radius_pc = radius_cm / (1.0 * unyt.pc).to_value(unyt.cm)
         rho_cgs = np.asarray(
             code_quantity_to_cgs(
-                fluid.rho[interior], par.CodeUnits, "density_g_cm3"
+                fluid.rho_code[interior], par.CodeUnits, "density_g_cm3"
             ),
             dtype=float,
         )
         velocity_cm_s = np.asarray(
             code_quantity_to_cgs(
-                fluid.vel[interior], par.CodeUnits, "velocity_cm_s"
+                fluid.vel_code[interior], par.CodeUnits, "velocity_cm_s"
             ),
             dtype=float,
         )

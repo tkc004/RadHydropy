@@ -832,6 +832,6 @@ def apply_fast(dt, mesh, fluid, par):
 def _ensure_fluid_photon_shape(fluid, photon_density):
     """Resize the runtime photon field when a spectrum changes group count."""
     target = np.shape(photon_density)
-    if np.shape(getattr(fluid, "ngamma", None)) == target:
+    if np.shape(getattr(fluid, "ngamma_code", None)) == target:
         return
-    fluid.ngamma = np.zeros((target[0], len(fluid.rho)), dtype=float) if len(target) == 2 else np.zeros(len(fluid.rho), dtype=float)
+    fluid.ngamma_code = np.zeros((target[0], len(fluid.rho_code)), dtype=float) if len(target) == 2 else np.zeros(len(fluid.rho_code), dtype=float)

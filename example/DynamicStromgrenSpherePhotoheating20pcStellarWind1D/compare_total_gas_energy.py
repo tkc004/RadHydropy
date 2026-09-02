@@ -60,13 +60,13 @@ def _snapshot_energy(snapshot, config, tools):
     volume_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
-    pressure_erg_cm3 = np.asarray(fluid.pre[interior], dtype=float) * float(
+    pressure_erg_cm3 = np.asarray(fluid.pre_code[interior], dtype=float) * float(
         (1.0 * code.pressure_unit).to_value(unyt.erg / unyt.cm**3)
     )
-    density_g_cm3 = np.asarray(fluid.rho[interior], dtype=float) * float(
+    density_g_cm3 = np.asarray(fluid.rho_code[interior], dtype=float) * float(
         (1.0 * code.density_unit).to_value(unyt.g / unyt.cm**3)
     )
-    velocity_cm_s = np.asarray(fluid.vel[interior], dtype=float) * float(
+    velocity_cm_s = np.asarray(fluid.vel_code[interior], dtype=float) * float(
         (1.0 * code.velocity_unit).to_value(unyt.cm / unyt.s)
     )
     thermal = float(np.sum(pressure_erg_cm3 / (par.gamma - 1.0) * volume_cm3))

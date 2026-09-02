@@ -76,7 +76,7 @@ def run(config_filename=DEFAULT_CONFIG):
     # check is intentionally printed for this experiment because using the
     # full matter density in both components would double-count gravity.
     baryon_fraction = float(icparams["baryon_fraction"])
-    gas_mass = float(np.sum(initial.fluid.rho * initial.mesh.vol))
+    gas_mass = float(np.sum(initial.fluid.rho_code * initial.mesh.vol))
     dm_mass = float(np.sum(dm.mass))
     measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
     print("initial gas mass = %.8g code masses" % gas_mass)
@@ -86,7 +86,7 @@ def run(config_filename=DEFAULT_CONFIG):
     ))
     if hasattr(initial.fluid, "xHI"):
         print("initial CMB temperature = %.8g K" % float(np.median(
-            np.asarray(initial.fluid.temp) /
+            np.asarray(initial.fluid.temp_code) /
             float(cosmology.scale_factor(float(icparams["initial_cosmic_time"])))**2
         )))
         print("initial electron fraction = %.8g" % float(np.median(

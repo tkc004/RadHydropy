@@ -79,7 +79,7 @@ def run(config_filename=DEFAULT_CONFIG):
     first = int(sim.par.noghost)
     last = first + int(sim.par.nogrid)
     radius = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    density = np.asarray(sim.fluid.rho[first:last], dtype=float)
+    density = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
     analytic = et.analytic_density_code(radius, icparams, units)
     core_radius = float(np.asarray(sim.par.gas_core_radius))
     halo = radius >= core_radius
@@ -87,9 +87,9 @@ def run(config_filename=DEFAULT_CONFIG):
     core_cells = radius < core_radius
     core_last = np.flatnonzero(core_cells)[-1]
     pressure_mismatch = abs(
-        float(sim.fluid.pre[first + core_last])
-        - float(sim.fluid.pre[first + core_last + 1])
-    ) / max(float(sim.fluid.pre[first + core_last + 1]), 1.0e-300)
+        float(sim.fluid.pre_code[first + core_last])
+        - float(sim.fluid.pre_code[first + core_last + 1])
+    ) / max(float(sim.fluid.pre_code[first + core_last + 1]), 1.0e-300)
     max_halo_error = float(np.max(relative_error[halo]))
     mean_step = float(np.mean([item[0] for item in step_times]))
     print("maximum halo density relative error: %.6e" % max_halo_error)

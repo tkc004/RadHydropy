@@ -43,8 +43,8 @@ def _pressure_diagnostic(snapshot, config):
     par, mesh, fluid = et.load_output_state(snapshot, config)
     interior = et.interior_slice(par)
     radius_pc = et._to_kpc(mesh.coordinate[interior], par) * 1000.0
-    density = et._to_number_density(fluid.rho[interior], par)
-    pressure = et._to_pressure(fluid.pre[interior], par)
+    density = et._to_number_density(fluid.rho_code[interior], par)
+    pressure = et._to_pressure(fluid.pre_code[interior], par)
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
 
     # The wind shell is the strongest density peak outside the injection cell.

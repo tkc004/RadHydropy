@@ -95,12 +95,12 @@ class Simwrap:
         cmb_temperature = icparams.get(
             'cmb_temperature_0', icparams['initial_temperature']
         )
-        self.fluid.temp = np.ones(self.par.nogrid) * cmb_temperature * (
+        self.fluid.temp_code = np.ones(self.par.nogrid) * cmb_temperature * (
             1.0 + float(icparams['initial_redshift'])
         )
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
-        self.fluid.vel = expansion_rate * self.mesh.coordinate
-        self.fluid.rho = np.ones(self.par.nogrid) * mean_density
+        self.fluid.vel_code = expansion_rate * self.mesh.coordinate
+        self.fluid.rho_code = np.ones(self.par.nogrid) * mean_density
 
 
 def _snapshot_profiles(filename, icparams, runparams):
@@ -114,13 +114,13 @@ def _snapshot_profiles(filename, icparams, runparams):
     nghost = int(runparams.get('noghost', 0))
     radius = radius[nghost:-nghost]
     density = code_quantity_to_cgs(
-        rout.fluid.rho[nghost:-nghost], code_units, 'density_g_cm3'
+        rout.fluid.rho_code[nghost:-nghost], code_units, 'density_g_cm3'
     )
     temperature = code_quantity_to_cgs(
-        rout.fluid.temp[nghost:-nghost], code_units, 'temperature_K'
+        rout.fluid.temp_code[nghost:-nghost], code_units, 'temperature_K'
     )
     velocity = code_quantity_to_cgs(
-        rout.fluid.vel[nghost:-nghost], code_units, 'velocity_cm_s'
+        rout.fluid.vel_code[nghost:-nghost], code_units, 'velocity_cm_s'
     ) / 1.0e5
     time_myr = time_seconds(rout.fluid.time, code_units) / (1.0e6 * 365.25 * 86400.0)
     return time_myr, radius.to_value(unyt.kpc), density, temperature, velocity

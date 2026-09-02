@@ -122,7 +122,7 @@ class Simwrap:
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = int(grid_cells)
+        self.par.nogrid = int(icparams.get('nogrid', grid_cells))
         self.par.coordsys = 'cartesian'
         box_size = _physical_value(
             icparams['box_size'], unyt.cm, 'box_size'
@@ -151,10 +151,10 @@ class Simwrap:
         self.mesh.area = np.ones(self.par.nogrid) * (1.0 * unyt.cm**2)
         self.mesh.vol = self.mesh.area * dx
 
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['initial_temperature']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['initial_temperature']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho = hydrostatic_density_profile(
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.rho_code = hydrostatic_density_profile(
             self.mesh.coordinate,
             icparams['reference_density'],
             icparams['initial_temperature'],
@@ -167,7 +167,17 @@ class Simwrap:
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = runparams.get('units', {}).get('CodeUnits')
-    code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
+    code_units_obj = (
+        CodeUnits.from_mapping(code_units_mapping)
+        if code_units_mapping is not None
+        else CodeUnits.from_mapping({
+            'UnitMass_in_cgs': 1.0,
+            'UnitLength_in_cgs': 1.0,
+            'UnitVelocity_in_cgs': 1.0,
+            'UnitCurrent_in_cgs': 1.0,
+            'UnitTemp_in_cgs': 1.0,
+        })
+    )
     rout = Simwrap(
         icparams,
         code_units=code_units_obj,
@@ -181,12 +191,12 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     xall = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
     if nghost > 0:
         xcoord = xall[nghost:-nghost]
-        rho_num = rout.fluid.rho[nghost:-nghost]
-        vel_num = rout.fluid.vel[nghost:-nghost]
+        rho_num = rout.fluid.rho_code[nghost:-nghost]
+        vel_code_num = rout.fluid.vel_code[nghost:-nghost]
     else:
         xcoord = xall
-        rho_num = rout.fluid.rho
-        vel_num = rout.fluid.vel
+        rho_num = rout.fluid.rho_code
+        vel_code_num = rout.fluid.vel_code
     rho_analytic = hydrostatic_density_profile(
         xcoord,
         icparams['reference_density'],
@@ -198,14 +208,14 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     if code_units_obj is not None:
         x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
         rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
-        vel_units = getattr(vel_num, 'units', code_units_obj.velocity_unit.units)
+        vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units)
         xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm') * unyt.cm
         rho_num_plot = (
             code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
             * (unyt.g / unyt.cm**3)
         )
         vel_num_plot = (
-            code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cm_s')
+            code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cm_s')
             * (unyt.cm / unyt.s)
         )
     else:

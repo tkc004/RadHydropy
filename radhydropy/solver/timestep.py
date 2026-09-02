@@ -8,9 +8,9 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     if CFL is None:
         CFL = par.hydrodynamics.CFL
     fluid.SetSoundSpeed()
-    vsignal = np.absolute(fluid.vel) + fluid.cs
+    vsignal = np.absolute(fluid.vel_code) + fluid.cs_code
     xdelta = mesh.xdelta
-    density = np.asarray(fluid.rho, dtype=float)
+    density = np.asarray(fluid.rho_code, dtype=float)
     if xdelta.shape != vsignal.shape:
         interior = solver._interior_slice(par)
         if xdelta[interior].shape == vsignal.shape:
@@ -62,22 +62,22 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     dtmax = float(np.asarray(dtmax_value, dtype=float))
     dt_array = np.where(active_vsignal != 0.0, dt_array, dtmax)
     dt = np.amin(dt_array)
-    fluid.vsignal = np.asarray(vsignal, dtype=float)
-    if len(fluid.vsignal) == len(active_vsignal):
-        fluid.vsignal[zero_density] = 0.0
+    fluid.vsignal_code = np.asarray(vsignal, dtype=float)
+    if len(fluid.vsignal_code) == len(active_vsignal):
+        fluid.vsignal_code[zero_density] = 0.0
     else:
-        fluid.vsignal[active_slice] = active_vsignal
+        fluid.vsignal_code[active_slice] = active_vsignal
     solver.dt = dt
     if np.isnan(np.asarray(dt)):
         print('vsignal', vsignal)
-        print('fluid.vel', fluid.vel)
-        print('fluid.cs', fluid.cs)
+        print('fluid.vel_code', fluid.vel_code)
+        print('fluid.cs_code', fluid.cs_code)
         raise Exception(" time step is nan")
     dtmin_value = par.timestep.dtmin
     if dt < float(np.asarray(dtmin_value, dtype=float)):
         active_index = int(np.argmin(dt_array))
         min_index = active_index + first
-        if len(np.asarray(fluid.vel)) == len(active_vsignal):
+        if len(np.asarray(fluid.vel_code)) == len(active_vsignal):
             diagnostic_index = active_index
         else:
             diagnostic_index = min_index
@@ -89,8 +89,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 dtmin_value,
                 min_index,
                 active_density[active_index],
-                fluid.vel[diagnostic_index],
-                fluid.cs[diagnostic_index],
+                fluid.vel_code[diagnostic_index],
+                fluid.cs_code[diagnostic_index],
                 active_xdelta[active_index],
             )
         )
@@ -103,7 +103,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         and dt <= 1.0e-4 * dtmax
     ):
         min_index = int(np.argmin(dt_array))
-        if len(np.asarray(fluid.vel)) == len(active_vsignal):
+        if len(np.asarray(fluid.vel_code)) == len(active_vsignal):
             diagnostic_index = min_index
         else:
             diagnostic_index = min_index + first
@@ -115,21 +115,21 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 dt,
                 diagnostic_index,
                 np.asarray(mesh.coordinate)[diagnostic_index],
-                np.asarray(fluid.rho)[diagnostic_index],
-                np.asarray(fluid.vel)[diagnostic_index],
-                np.asarray(fluid.cs)[diagnostic_index],
+                np.asarray(fluid.rho_code)[diagnostic_index],
+                np.asarray(fluid.vel_code)[diagnostic_index],
+                np.asarray(fluid.cs_code)[diagnostic_index],
                 np.asarray(vsignal)[diagnostic_index],
                 np.asarray(mesh.xdelta)[diagnostic_index],
-                np.asarray(fluid.pre)[diagnostic_index],
+                np.asarray(fluid.pre_code)[diagnostic_index],
                 dtmin_value,
                 dtmax_value,
             )
         )
         cell_volume = np.asarray(mesh.vol)[diagnostic_index]
-        cell_rho = np.asarray(fluid.rho)[diagnostic_index]
-        cell_vel = np.asarray(fluid.vel)[diagnostic_index]
+        cell_rho_code = np.asarray(fluid.rho_code)[diagnostic_index]
+        cell_vel_code = np.asarray(fluid.vel_code)[diagnostic_index]
         cell_energy_density = (
-            np.asarray(fluid.Energy)[diagnostic_index] / cell_volume
+            np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
         )
         cell_kinetic_density = 0.5 * cell_rho * cell_vel**2
         cell_thermal_density = cell_energy_density - cell_kinetic_density
@@ -167,10 +167,10 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 % (
                     neighbor,
                     np.asarray(mesh.coordinate)[neighbor],
-                    np.asarray(fluid.rho)[neighbor],
-                    np.asarray(fluid.vel)[neighbor],
-                    np.asarray(fluid.cs)[neighbor],
-                    np.asarray(fluid.pre)[neighbor],
+                    np.asarray(fluid.rho_code)[neighbor],
+                    np.asarray(fluid.vel_code)[neighbor],
+                    np.asarray(fluid.cs_code)[neighbor],
+                    np.asarray(fluid.pre_code)[neighbor],
                 )
             )
     return dt

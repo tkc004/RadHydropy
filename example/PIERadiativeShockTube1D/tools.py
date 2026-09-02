@@ -40,12 +40,12 @@ class Simwrap:
         )
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
         velocity = icparams['collision_velocity']
-        self.fluid.vel = np.where(
+        self.fluid.vel_code = np.where(
             coordinate < 0.5 * self.par.boxsize[0], velocity, -velocity
         )
         rho = icparams['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
-        self.fluid.rho = np.ones(self.par.nogrid) * rho
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
+        self.fluid.rho_code = np.ones(self.par.nogrid) * rho_code
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
 
 

@@ -39,15 +39,15 @@ class Simwrap:
             icparams['hydrogen_density'] * unyt.mp
             / hydrogen_mass_fraction
         )
-        self.fluid.rho = np.ones(self.par.nogrid) * rho
+        self.fluid.rho_code = np.ones(self.par.nogrid) * rho
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
         midpoint = 0.5 * (icparams['rmin'] + icparams['rmax'])
-        self.fluid.vel = np.where(
+        self.fluid.vel_code = np.where(
             coordinate < midpoint,
             icparams['outflow_velocity'],
             icparams['inflow_velocity'],
         )
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['inflow_temperature']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['inflow_temperature']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
 
 

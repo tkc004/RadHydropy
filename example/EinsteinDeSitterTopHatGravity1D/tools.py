@@ -92,16 +92,16 @@ class Simwrap:
         background = cosmology.background_density(cosmic_time)
         background_comoving = background * cosmology.scale_factor(cosmic_time)**3
         inside = self.mesh.coordinate < float(icparams['top_hat_radius'])
-        self.fluid.rho = background_comoving * (
+        self.fluid.rho_code = background_comoving * (
             1.0 + float(icparams['overdensity']) * inside
         ) * np.ones(self.par.nogrid)
         gamma = 5.0 / 3.0
         temperature = quantity_to_value(
             icparams['tempini'], code_units.temperature_unit
         )
-        self.fluid.temp = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(self.par.nogrid)
+        self.fluid.temp_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(self.par.nogrid)
         self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['muini'])
-        self.fluid.vel = np.zeros(self.par.nogrid)
+        self.fluid.vel_code = np.zeros(self.par.nogrid)
 
 
 def read_code_units(runparams):

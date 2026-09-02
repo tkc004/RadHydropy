@@ -32,10 +32,10 @@ class DummySphericalMesh:
 
 class DummyFluid:
     def __init__(self):
-        self.rho = np.ones(3, dtype=float)
-        self.vel = np.array([0.0, 1.0, -2.0], dtype=float)
-        self.Mom = self.rho * self.vel
-        self.Energy = np.zeros(3, dtype=float)
+        self.rho_code = np.ones(3, dtype=float)
+        self.vel_code = np.array([0.0, 1.0, -2.0], dtype=float)
+        self.Mom_code = self.rho_code * self.vel_code
+        self.Energy_code = np.zeros(3, dtype=float)
 
 
 class DummyPar:

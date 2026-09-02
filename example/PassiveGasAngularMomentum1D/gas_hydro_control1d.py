@@ -17,7 +17,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -28,26 +27,35 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('gas_hydro_control1d.yaml')
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.runtime_parameters(config)
+    icparams = config['initial_condition']
+    Path(runparams['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(runparams['output']['savedir']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(runparams)
-    initial = et.Simwrap(icparams, CodeUnits.from_mapping(runparams['CodeUnits']))
-    rio.writehdf5(initial, runparams['ICfilename'])
+    initial = et.Simwrap(
+        icparams,
+        CodeUnits.from_mapping(runparams['units']['CodeUnits']),
+        runparams['mesh']['grid_cells'],
+    )
+    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
     sim.RunAll(outputtime=0, mode='hydro')
-    if hasattr(sim.fluid, 'AngularMomentum'):
+    if hasattr(sim.fluid, 'AngularMomentum_code'):
         raise RuntimeError('control case unexpectedly created AngularMomentum')
 
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = slice(
+        runparams['mesh']['ghost_cells'],
+        runparams['mesh']['ghost_cells'] + runparams['mesh']['grid_cells'],
+    )
     radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
-    figure = Path(runparams['savedir']) / 'GasHydroControl1D.jpg'
+    figure = Path(runparams['output']['savedir']) / 'GasHydroControl1D.jpg'
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True)
     for axis, initial_values, final_values, ylabel in (
-        (axes[0], initial.fluid.rho, sim.fluid.rho[interior], 'density [code units]'),
-        (axes[1], initial.fluid.vel, sim.fluid.vel[interior], 'radial velocity [code units]'),
-        (axes[2], initial.fluid.temp, sim.fluid.temp[interior], 'temperature [code units]'),
+        (axes[0], initial.fluid.rho_code, sim.fluid.rho_code[interior], 'density [code units]'),
+        (axes[1], initial.fluid.vel_code, sim.fluid.vel_code[interior], 'radial velocity [code units]'),
+        (axes[2], initial.fluid.temp_code, sim.fluid.temp_code[interior], 'temperature [code units]'),
     ):
         axis.plot(radius, initial_values, '--', label='initial')
         axis.plot(radius, final_values, 'o', ms=3, label='final')

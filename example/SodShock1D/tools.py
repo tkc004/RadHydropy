@@ -56,16 +56,16 @@ class Simwrap:
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
 
         rho = np.ones(grid_cells) * icparams['initial_density']
-        self.fluid.vel = np.ones(grid_cells) * icparams['initial_velocity']
+        self.fluid.vel_code = np.ones(grid_cells) * icparams['initial_velocity']
         indexlow = np.logical_and(
             coordinate > 0.25 * box_size[0],
             coordinate < 0.75 * box_size[0],
         )
         rho[indexlow] *= icparams['density_ratio']
-        self.fluid.rho = rho
+        self.fluid.rho_code = rho
         temp = np.ones(grid_cells) * icparams['initial_temperature']
         temp[indexlow] *= icparams['temperature_ratio']
-        self.fluid.temp = temp
+        self.fluid.temp_code = temp
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
@@ -121,6 +121,6 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout, yquan='rho', showfig=0, showhalf=1, **kwargs)
+    rplot1d(rout, yquan='rho_code', showfig=0, showhalf=1, **kwargs)
     rho_ana, p_ana, v_ana = getAnalyticSolution(icparams, runparams, rout)
     plt.plot(rout.mesh.boundary, rho_ana)

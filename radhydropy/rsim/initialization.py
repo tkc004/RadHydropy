@@ -105,6 +105,7 @@ def ConvertParametersToCodeUnits(sim):
     unit_map = {
         **units,
         'length_inv': 1.0 / length_unit,
+        'time_inv': 1.0 / time_unit,
         'area': length_unit ** 2,
         'volume': length_unit ** 3,
         'number_density': 1.0 / (length_unit ** 3),
@@ -112,6 +113,7 @@ def ConvertParametersToCodeUnits(sim):
         'mass_flux': mass_unit / (length_unit ** 2 * time_unit),
         'photon_flux': 1.0 / (length_unit ** 2 * time_unit),
         'photon_rate': 1.0 / time_unit,
+        'luminosity': units['energy'] / time_unit,
         'alpha': length_unit ** 3 / time_unit,
         'acceleration': length_unit / time_unit ** 2,
         'potential': units['velocity'] ** 2,
@@ -122,13 +124,21 @@ def ConvertParametersToCodeUnits(sim):
         "simulation": (
             ("final_time", "time"),
             ("current_time", "time"),
+            ("initial_time", "time"),
             ("box_size", "length"),
         ),
-        "output": (("cadence", "time"),),
+        "hydrodynamics": (
+            ("hydro_temperature_floor", "temperature"),
+        ),
+        "output": (("cadence", "time"), ("time_interval", "time")),
         "timestep": (
             ("dtmin", "time"),
             ("dtmax", "time"),
             ("hydrogen_source_dtmin", "time"),
+            ("chemistry_timestep", "time"),
+            ("evolution_timestep", "time"),
+            ("output_interval", "time"),
+            ("supercomoving_timestep", "time"),
         ),
         "mesh": (("area", "area"),),
         "boundary": (
@@ -148,6 +158,7 @@ def ConvertParametersToCodeUnits(sim):
             ("hydrogen_ngamma_outflow", "number_density"),
             ("hydrogen_sigma_gamma", "area"),
             ("hydrogen_epsilon_gamma", "energy"),
+            ("radiation_pressure_source_luminosity", "luminosity"),
         ),
         "chemistry": (
             ("hydrogen_alpha_B", "alpha"),
@@ -175,6 +186,11 @@ def ConvertParametersToCodeUnits(sim):
         )
         if sync_simulation is not None:
             sync_simulation()
+        configure_cosmology = getattr(sim.par, "_configure_cosmology", None)
+        if configure_cosmology is not None and getattr(
+            sim.par, "cosmological_expansion", False
+        ):
+            configure_cosmology()
     else:
         for sync_name in (
             "_sync_simulation_parameters",

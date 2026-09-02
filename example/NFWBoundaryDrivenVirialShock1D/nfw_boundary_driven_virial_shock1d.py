@@ -49,7 +49,7 @@ class BoundaryAccretionSolver(Solver):
         left = self._boundary_state(fluid, first)
         # Negative velocity points through the inner boundary and out of the
         # domain. Suppress only a positive velocity that would inject gas.
-        left['vel'] = min(float(fluid.vel[first]), 0.0)
+        left['vel_code'] = min(float(fluid.vel_code[first]), 0.0)
         right = {
             'rho': par.boundary.inflow_density,
             'vel': par.boundary.inflow_velocity,
@@ -62,8 +62,8 @@ class BoundaryAccretionSolver(Solver):
         if hasattr(fluid, 'xHI'):
             left['xHI'] = float(fluid.xHI[first])
             right['xHI'] = getattr(par.chemistry, 'hydrogen_xHI_inflow', 1.0)
-        if hasattr(fluid, 'ngamma'):
-            left['ngamma'] = fluid.ngamma[..., first]
+        if hasattr(fluid, 'ngamma_code'):
+            left['ngamma_code'] = fluid.ngamma_code[..., first]
             right['ngamma'] = self._to_code_number_density(
                 getattr(par.radiation, 'hydrogen_ngamma_inflow', 0.0), scales
             )

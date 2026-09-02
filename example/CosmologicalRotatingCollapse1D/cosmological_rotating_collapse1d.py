@@ -43,10 +43,10 @@ def integrate_shell_reference(initial, cosmology, scale_factors):
     """Integrate pressureless physical shell orbits for comparison only."""
     radius = np.asarray(initial.mesh.coordinate, dtype=float)
     mass = np.cumsum(
-        np.asarray(initial.fluid.rho, dtype=float)
+        np.asarray(initial.fluid.rho_code, dtype=float)
         * np.asarray(initial.mesh.vol, dtype=float)
     )
-    j = np.asarray(initial.fluid.specific_angular_momentum, dtype=float)
+    j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
     cosmic_time_initial = float(
         cosmology.cosmic_time_from_supercomoving(initial.par.time)
     )
@@ -55,7 +55,7 @@ def integrate_shell_reference(initial, cosmology, scale_factors):
     initial_physical_radius = scale_initial * radius
     initial_physical_velocity = (
         hubble_initial * initial_physical_radius
-        + np.asarray(initial.fluid.vel, dtype=float) / scale_initial
+        + np.asarray(initial.fluid.vel_code, dtype=float) / scale_initial
     )
     requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float)**1.5
     cosmic_times = np.unique(requested_times)
@@ -98,9 +98,9 @@ def integrate_shell_density_reference(initial, cosmology, scale_factors):
     boundary = np.asarray(initial.mesh.boundary, dtype=float)
     radius = np.asarray(initial.mesh.coordinate, dtype=float)
     volume = np.asarray(initial.mesh.vol, dtype=float)
-    shell_mass = np.asarray(initial.fluid.rho, dtype=float) * volume
+    shell_mass = np.asarray(initial.fluid.rho_code, dtype=float) * volume
     edge_mass = np.concatenate(([0.0], np.cumsum(shell_mass)))
-    j = np.asarray(initial.fluid.specific_angular_momentum, dtype=float)
+    j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
     edge_j = np.interp(
         edge_mass,
         np.concatenate(([0.0], np.cumsum(shell_mass))),
@@ -113,8 +113,8 @@ def integrate_shell_density_reference(initial, cosmology, scale_factors):
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
     initial_physical_boundary = scale_initial * boundary
     initial_edge_velocity = np.interp(
-        boundary, radius, np.asarray(initial.fluid.vel, dtype=float),
-        left=0.0, right=float(np.asarray(initial.fluid.vel, dtype=float)[-1]),
+        boundary, radius, np.asarray(initial.fluid.vel_code, dtype=float),
+        left=0.0, right=float(np.asarray(initial.fluid.vel_code, dtype=float)[-1]),
     )
     initial_physical_velocity = (
         hubble_initial * initial_physical_boundary
@@ -263,11 +263,11 @@ class InitialCondition:
             vol=volume,
         )
         self.fluid = SimpleNamespace(
-            rho=rho_comoving,
-            vel=-(scale_factor**2 * hubble * overdensity / 3.0) * radius,
-            temp=np.full(count, temperature),
+            rho_code=rho_comoving,
+            vel_code=-(scale_factor**2 * hubble * overdensity / 3.0) * radius,
+            temp_code=np.full(count, temperature),
             mu=np.full(count, float(icparams["muini"])),
-            specific_angular_momentum=specific_j,
+            specific_angular_momentum_code=specific_j,
         )
 
 
@@ -299,7 +299,7 @@ def run_case(base_runparams, runtime, icparams, label, rotation_factor, units, c
     sim.par.cosmology = cosmology
     active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     target_mass = np.cumsum(
-        np.asarray(initial.fluid.rho, dtype=float)
+        np.asarray(initial.fluid.rho_code, dtype=float)
         * np.asarray(initial.mesh.vol, dtype=float)
     )
     history = {
@@ -312,9 +312,9 @@ def run_case(base_runparams, runtime, icparams, label, rotation_factor, units, c
         tau = float(np.asarray(state.fluid.time).flat[0])
         a = float(state.par.cosmology.scale_factor_from_supercomoving(tau))
         radius = np.abs(np.asarray(state.mesh.coordinate[active], dtype=float))
-        j = np.asarray(state.fluid.specific_angular_momentum[active], dtype=float)
+        j = np.asarray(state.fluid.specific_angular_momentum_code[active], dtype=float)
         enclosed = np.cumsum(
-            np.asarray(state.fluid.Mass[active], dtype=float)
+            np.asarray(state.fluid.Mass_code[active], dtype=float)
         )
         gravity = state.par.cosmology.gravitational_constant * enclosed
         valid = (radius > 0.0) & (gravity > 0.0)
@@ -322,19 +322,19 @@ def run_case(base_runparams, runtime, icparams, label, rotation_factor, units, c
         support[valid] = j[valid]**2 / (gravity[valid] * radius[valid])
         history["a"].append(a)
         history["maximum_density"].append(
-            float(np.max(np.asarray(state.fluid.rho[active], dtype=float)))
+            float(np.max(np.asarray(state.fluid.rho_code[active], dtype=float)))
         )
         history["support"].append(float(np.max(support)))
         history["density_profiles"].append(
-            np.asarray(state.fluid.rho[active], dtype=float).copy()
+            np.asarray(state.fluid.rho_code[active], dtype=float).copy()
         )
         history["j_profiles"].append(j.copy())
         history["total_j"].append(
-            float(np.sum(np.asarray(state.fluid.AngularMomentum[active], dtype=float)))
+            float(np.sum(np.asarray(state.fluid.AngularMomentum_code[active], dtype=float)))
         )
         history["shell_radius"].append(enclosed_radii(
             state.mesh.boundary[active.start:active.stop + 1],
-            state.fluid.rho[active], state.mesh.vol[active], target_mass,
+            state.fluid.rho_code[active], state.mesh.vol[active], target_mass,
         ))
 
     record(sim)

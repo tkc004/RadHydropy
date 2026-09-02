@@ -35,7 +35,7 @@ class Fluid:
 
 def sound_speed_squared(temp, mu, code_units=None):
     """Return the isothermal sound speed squared."""
-    if hasattr(temp, "to_value"):
+    if hasattr(temp_code, "to_value"):
         temp_value = float(temp.to_value(unyt.K))
     elif code_units is not None:
         temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_K"]
@@ -166,10 +166,10 @@ class Simwrap:
             / 3.0
         )
 
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho = point_mass_hydrostatic_density_profile(
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.rho_code = point_mass_hydrostatic_density_profile(
             self.mesh.coordinate,
             icparams['rho_ref'],
             icparams['tempini'],
@@ -193,12 +193,12 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     xall = spherical_cell_centers(rout.mesh.boundary)
     if nghost > 0:
         xcoord = xall[nghost:-nghost]
-        rho_num = rout.fluid.rho[nghost:-nghost]
-        vel_num = rout.fluid.vel[nghost:-nghost]
+        rho_num = rout.fluid.rho_code[nghost:-nghost]
+        vel_code_num = rout.fluid.vel_code[nghost:-nghost]
     else:
         xcoord = xall
-        rho_num = rout.fluid.rho
-        vel_num = rout.fluid.vel
+        rho_num = rout.fluid.rho_code
+        vel_code_num = rout.fluid.vel_code
     rho_analytic = point_mass_hydrostatic_density_profile(
         xcoord,
         icparams['rho_ref'],

@@ -79,9 +79,9 @@ def build_static_problem(config):
     mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
 
     fluid = SimpleNamespace()
-    fluid.rho = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
-    fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp = np.ones(par.nogrid) * unyt.K
+    fluid.rho_code = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
+    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
+    fluid.temp_code = np.ones(par.nogrid) * unyt.K
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
     fluid.time = 0.0 * unyt.s
@@ -147,7 +147,7 @@ def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=
             code_quantity_to_cgs(radius_values, code_units_obj, 'length_cm')
             / PC_IN_CM
         ) * unyt.pc
-    simulated_values = fluid.ngamma[interior]
+    simulated_values = fluid.ngamma_code[interior]
     if hasattr(simulated_values, 'to_value'):
         simulated = simulated_values.to_value(1.0 / unyt.cm**3) * (1.0 / unyt.cm**3)
     else:

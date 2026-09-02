@@ -185,13 +185,13 @@ def build_static_problem(config):
 
     fluid = Fluid()
     fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
-    fluid.rho = (
+    fluid.rho_code = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
-    fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp = np.ones(par.nogrid) * config['initial_temperature']
+    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
+    fluid.temp_code = np.ones(par.nogrid) * config['initial_temperature']
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
     fluid.SetFluidTime(0.0 * unyt.Myr)
@@ -264,7 +264,7 @@ def ionization_front_position(
 def mean_ionized_temperature(fluid, par):
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
-    temperature = _to_temperature(fluid.temp[interior], par)
+    temperature = _to_temperature(fluid.temp_code[interior], par)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
@@ -446,11 +446,11 @@ def save_front_plot(history, config, figure_filename):
 def save_plot(mesh, fluid, par, config, figure_filename):
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.coordinate[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho[interior], par)
-    velocity = _to_km_s(fluid.vel[interior], par)
+    number_density = _to_number_density(fluid.rho_code[interior], par)
+    velocity = _to_km_s(fluid.vel_code[interior], par)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure = _to_pressure(fluid.pre[interior], par)
-    temperature = _to_temperature(fluid.temp[interior], par)
+    pressure = _to_pressure(fluid.pre_code[interior], par)
+    temperature = _to_temperature(fluid.temp_code[interior], par)
     plot_radius_max = config['plot_radius_max'].to_value(unyt.pc)
     radius_unit = config.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

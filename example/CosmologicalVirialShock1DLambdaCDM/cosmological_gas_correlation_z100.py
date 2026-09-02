@@ -554,11 +554,11 @@ def _energy_audit_state(sim):
     """Return conserved gas-energy diagnostics for the physical cells."""
     first = int(sim.par.noghost)
     last = first + int(sim.par.nogrid)
-    rho = np.asarray(sim.fluid.rho[first:last], dtype=float)
-    vel = np.asarray(sim.fluid.vel[first:last], dtype=float)
+    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
+    vel_code = np.asarray(sim.fluid.vel_code[first:last], dtype=float)
     volume = np.asarray(sim.mesh.vol[first:last], dtype=float)
-    mass = np.asarray(sim.fluid.Mass[first:last], dtype=float)
-    total_energy = np.asarray(sim.fluid.Energy[first:last], dtype=float)
+    mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+    total_energy = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
     kinetic_density = 0.5 * rho * vel**2
     kinetic_energy = float(np.sum(kinetic_density * volume))
     total_energy_value = float(np.sum(total_energy))
@@ -617,14 +617,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
 
     baryon_fraction = float(icparams["baryon_fraction"])
-    gas_mass = float(np.sum(initial.fluid.rho * initial.mesh.vol))
+    gas_mass = float(np.sum(initial.fluid.rho_code * initial.mesh.vol))
     dm_mass = float(np.sum(dm.mass))
     measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
     if not np.isclose(measured_fraction, baryon_fraction, rtol=0.02):
         raise RuntimeError(
             "initial gas/total mass fraction does not match baryon_fraction"
         )
-    initial_temperature = float(np.median(initial.fluid.temp)) / float(
+    initial_temperature = float(np.median(initial.fluid.temp_code)) / float(
         cosmology.scale_factor(float(icparams["initial_cosmic_time"]))
     ) ** 2
     expected_temperature = float(icparams["cmb_temperature_0"]) * (
@@ -742,40 +742,40 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         """Reset the outer active cell to the analytic EdS reservoir state."""
         first = int(sim.par.noghost)
         index = first + int(sim.par.nogrid) - 1
-        old_mass = float(np.asarray(sim.fluid.Mass, dtype=float)[index])
-        old_energy = float(np.asarray(sim.fluid.Energy, dtype=float)[index])
+        old_mass = float(np.asarray(sim.fluid.Mass_code, dtype=float)[index])
+        old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
         rho = float(np.asarray(sim.par.rho_inflow, dtype=float))
         velocity = float(np.asarray(sim.par.vel_inflow, dtype=float))
         temperature = float(np.asarray(sim.par.temp_inflow, dtype=float))
         mu = float(np.asarray(sim.par.mu_inflow, dtype=float))
         volume = float(np.asarray(sim.mesh.vol, dtype=float)[index])
         pressure = float(np.asarray(
-            sim.fluid.eos.pressure(rho, temperature, mu), dtype=float
+            sim.fluid.eos.pressure(rho_code, temperature, mu), dtype=float
         ))
-        sim.fluid.rho[index] = rho
-        sim.fluid.vel[index] = velocity
-        sim.fluid.temp[index] = temperature
+        sim.fluid.rho_code[index] = rho_code
+        sim.fluid.vel_code[index] = velocity
+        sim.fluid.temp_code[index] = temperature
         sim.fluid.mu[index] = mu
-        sim.fluid.pre[index] = pressure
-        sim.fluid.Mass[index] = rho * volume
-        sim.fluid.Mom[index] = rho * velocity * volume
-        sim.fluid.Energy[index] = float(np.asarray(
-            sim.fluid.eos.total_energy_density(rho, velocity, pressure),
+        sim.fluid.pre_code[index] = pressure
+        sim.fluid.Mass_code[index] = rho_code * volume
+        sim.fluid.Mom_code[index] = rho_code * velocity * volume
+        sim.fluid.Energy_code[index] = float(np.asarray(
+            sim.fluid.eos.total_energy_density(rho_code, velocity, pressure),
             dtype=float,
         )) * volume
         thermal_energy_density = float(np.asarray(
             sim.fluid.eos.thermal_energy_density(pressure), dtype=float,
         ))
         if hasattr(sim.fluid, "eth"):
-            sim.fluid.eth[index] = thermal_energy_density
-        if hasattr(sim.fluid, "InternalEnergy"):
+            sim.fluid.eth_code[index] = thermal_energy_density
+        if hasattr(sim.fluid, "InternalEnergy_code"):
             # SetConserved intentionally preserves the active-cell dual-energy
             # field.  The explicitly reset EdS reservoir must therefore
             # synchronize its conserved thermal energy here as well.
-            sim.fluid.InternalEnergy[index] = thermal_energy_density * volume
+            sim.fluid.InternalEnergy_code[index] = thermal_energy_density * volume
         return (
-            float(np.asarray(sim.fluid.Mass, dtype=float)[index]) - old_mass,
-            float(np.asarray(sim.fluid.Energy, dtype=float)[index]) - old_energy,
+            float(np.asarray(sim.fluid.Mass_code, dtype=float)[index]) - old_mass,
+            float(np.asarray(sim.fluid.Energy_code, dtype=float)[index]) - old_energy,
         )
 
     configure_thermochemistry(initial_time)
@@ -805,11 +805,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         last = first + int(sim.par.nogrid)
         scale_factor = float(cosmology.scale_factor(cosmic_time))
         gas_profile["temperature_physical_K"] = (
-            np.asarray(sim.fluid.temp[first:last], dtype=float) / scale_factor**2
+            np.asarray(sim.fluid.temp_code[first:last], dtype=float) / scale_factor**2
         )
         physical_velocity = cosmology.physical_velocity(
             np.asarray(sim.mesh.coordinate[first:last], dtype=float),
-            np.asarray(sim.fluid.vel[first:last], dtype=float),
+            np.asarray(sim.fluid.vel_code[first:last], dtype=float),
             float(sim.fluid.time),
         )
         signed_velocity_km_s = (
@@ -864,10 +864,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             order=int(sim.par.order),
         )
         wall_momentum_flux = float(
-            np.asarray(sim.fluid.Mom.flux, dtype=float)[wall_face]
+            np.asarray(sim.fluid.Mom_code.flux, dtype=float)[wall_face]
         )
         wall_energy_flux = float(
-            np.asarray(sim.fluid.Energy.flux, dtype=float)[wall_face]
+            np.asarray(sim.fluid.Energy_code.flux, dtype=float)[wall_face]
         )
         # This run has active Compton/atomic or PIE thermal sources.  Using
         # hydro-only mode would select the networks but never apply their
@@ -932,9 +932,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 "Tmax_inner=%.6g vmax_inner=%.6g csmax_inner=%.6g"
                 % (
                     steps, cosmic_time, dt, dm.crossing_timestep(),
-                    np.nanmax(np.asarray(sim.fluid.temp[inner], dtype=float)),
-                    np.nanmax(np.abs(np.asarray(sim.fluid.vel[inner], dtype=float))),
-                    np.nanmax(np.asarray(sim.fluid.cs[inner], dtype=float)),
+                    np.nanmax(np.asarray(sim.fluid.temp_code[inner], dtype=float)),
+                    np.nanmax(np.abs(np.asarray(sim.fluid.vel_code[inner], dtype=float))),
+                    np.nanmax(np.asarray(sim.fluid.cs_code[inner], dtype=float)),
                 ),
                 flush=True,
             )

@@ -50,10 +50,10 @@ def main(config_filename=DEFAULT_CONFIG):
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
     )
 
-    initial_j = np.asarray(initial.fluid.specific_angular_momentum, dtype=float)
-    final_j = np.asarray(sim.fluid.specific_angular_momentum[interior], dtype=float)
+    initial_j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
+    final_j = np.asarray(sim.fluid.specific_angular_momentum_code[interior], dtype=float)
     final_j_from_conserved = np.asarray(
-        sim.fluid.AngularMomentum[interior] / sim.fluid.Mass[interior],
+        sim.fluid.AngularMomentum_code[interior] / sim.fluid.Mass_code[interior],
         dtype=float,
     )
     if not np.allclose(
@@ -62,9 +62,9 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('AngularMomentum/Mass does not reconstruct final j')
     dx = float(np.asarray(initial.mesh.boundary[1] - initial.mesh.boundary[0]))
     initial_total_j = np.sum(
-        np.asarray(initial.fluid.rho, dtype=float) * initial_j * dx
+        np.asarray(initial.fluid.rho_code, dtype=float) * initial_j * dx
     )
-    final_total_j = np.sum(np.asarray(sim.fluid.AngularMomentum[interior], dtype=float))
+    final_total_j = np.sum(np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float))
     if not np.isclose(final_total_j, initial_total_j, rtol=1.0e-12, atol=1.0e-14):
         raise RuntimeError('periodic angular-momentum transport failed conservation')
 
@@ -82,14 +82,14 @@ def main(config_filename=DEFAULT_CONFIG):
     restart_mesh = type('RestartMesh', (), {})()
     restart_fluid = type('RestartFluid', (), {})()
     rio.readhdf5(restart_par, restart_mesh, restart_fluid, str(outputs[-1]))
-    if not hasattr(restart_fluid, 'AngularMomentum'):
+    if not hasattr(restart_fluid, 'AngularMomentum_code'):
         raise RuntimeError('restart snapshot is missing AngularMomentum')
     restarted_j = np.asarray(
-        (restart_fluid.AngularMomentum / restart_fluid.Mass)[interior],
+        (restart_fluid.AngularMomentum_code / restart_fluid.Mass_code)[interior],
         dtype=float,
     )
     restarted_specific_j = np.asarray(
-        restart_fluid.specific_angular_momentum[interior], dtype=float
+        restart_fluid.specific_angular_momentum_code[interior], dtype=float
     )
     if not np.allclose(
         restarted_j, restarted_specific_j, rtol=1.0e-12, atol=1.0e-14
@@ -99,13 +99,13 @@ def main(config_filename=DEFAULT_CONFIG):
     radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
     figure = Path(runparams['output']['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
-    initial_rho = np.asarray(initial.fluid.rho, dtype=float)
-    initial_vel = np.asarray(initial.fluid.vel, dtype=float)
-    initial_temp = np.asarray(initial.fluid.temp, dtype=float)
-    final_rho = np.asarray(sim.fluid.rho[interior], dtype=float)
-    final_vel = np.asarray(sim.fluid.vel[interior], dtype=float)
-    final_temp = np.asarray(sim.fluid.temp[interior], dtype=float)
-    conserved_j = np.asarray(sim.fluid.AngularMomentum[interior], dtype=float)
+    initial_rho_code = np.asarray(initial.fluid.rho_code, dtype=float)
+    initial_vel_code = np.asarray(initial.fluid.vel_code, dtype=float)
+    initial_temp_code = np.asarray(initial.fluid.temp_code, dtype=float)
+    final_rho_code = np.asarray(sim.fluid.rho_code[interior], dtype=float)
+    final_vel_code = np.asarray(sim.fluid.vel_code[interior], dtype=float)
+    final_temp_code = np.asarray(sim.fluid.temp_code[interior], dtype=float)
+    conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     hydro_plots = (
@@ -160,7 +160,7 @@ def main(config_filename=DEFAULT_CONFIG):
         snapshot_times.append(float(np.asarray(snapshot_par.time)))
         snapshot_total_j.append(
             np.sum(
-                np.asarray(snapshot_fluid.AngularMomentum[interior], dtype=float)
+                np.asarray(snapshot_fluid.AngularMomentum_code[interior], dtype=float)
             )
         )
     snapshot_times = np.asarray(snapshot_times)

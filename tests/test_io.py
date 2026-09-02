@@ -45,9 +45,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
@@ -77,12 +77,12 @@ class Testing(unittest.TestCase):
         specific = np.array([1.0, 2.0, 3.0]) * unyt.cm**2 / unyt.s
         angular = np.array([4.0, 5.0, 6.0]) * unyt.g * unyt.cm**2 / unyt.s
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
-            specific_angular_momentum=specific,
-            AngularMomentum=angular,
+            specific_angular_momentum_code=specific,
+            AngularMomentum_code=angular,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
@@ -94,9 +94,9 @@ class Testing(unittest.TestCase):
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
         np.testing.assert_allclose(
-            loaded_fluid.specific_angular_momentum, np.asarray(specific)
+            loaded_fluid.specific_angular_momentum_code, np.asarray(specific)
         )
-        np.testing.assert_allclose(loaded_fluid.AngularMomentum, np.asarray(angular))
+        np.testing.assert_allclose(loaded_fluid.AngularMomentum_code, np.asarray(angular))
 
     def test_writehdf5_writes_all_par_values_into_header_attributes(self):
         par = parameter_namespace(
@@ -113,9 +113,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
@@ -163,9 +163,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
@@ -198,9 +198,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
             time=2.5 * unyt.s,
         )
@@ -223,9 +223,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g/unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm/unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g/unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm/unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
             xHI=np.array([1.0, 0.5, 0.0]),
         )
@@ -253,11 +253,11 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g/unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm/unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g/unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm/unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
-            ngamma=np.array([0.0, 1.0, 2.0]) / unyt.cm**3,
+            ngamma_code=np.array([0.0, 1.0, 2.0]) / unyt.cm**3,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
@@ -269,8 +269,8 @@ class Testing(unittest.TestCase):
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
         self.assertEqual(self._scalar_value(loaded_fluid.time), self._scalar_value(loaded_par.time))
-        self.assertFalse(hasattr(loaded_fluid.ngamma, "units"))
-        np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma), fluid.ngamma.value)
+        self.assertFalse(hasattr(loaded_fluid.ngamma_code, "units"))
+        np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma_code), fluid.ngamma_code.value)
 
     def test_hdf5_roundtrip_preserves_internal_energy_when_present(self):
         par = parameter_namespace(
@@ -284,11 +284,11 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
-            InternalEnergy=np.array([1.0, 2.0, 3.0]) * unyt.erg,
+            InternalEnergy_code=np.array([1.0, 2.0, 3.0]) * unyt.erg,
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
@@ -299,11 +299,11 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertTrue(hasattr(loaded_fluid, "InternalEnergy"))
-        self.assertFalse(hasattr(loaded_fluid.InternalEnergy, "units"))
+        self.assertTrue(hasattr(loaded_fluid, "InternalEnergy_code"))
+        self.assertFalse(hasattr(loaded_fluid.InternalEnergy_code, "units"))
         np.testing.assert_array_equal(
-            np.asarray(loaded_fluid.InternalEnergy),
-            np.asarray(fluid.InternalEnergy.value),
+            np.asarray(loaded_fluid.InternalEnergy_code),
+            np.asarray(fluid.InternalEnergy_code.value),
         )
 
     def test_readhdf5_errors_when_header_missing_code_units(self):
@@ -318,9 +318,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho=np.ones(3) * unyt.g / unyt.cm**3,
-            vel=np.zeros(3) * unyt.cm / unyt.s,
-            temp=np.ones(3) * unyt.K,
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
@@ -365,9 +365,9 @@ class Testing(unittest.TestCase):
                     boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
                 )
                 fluid = SimpleNamespace(
-                    rho=np.ones(3) * unyt.g / unyt.cm**3,
-                    vel=np.zeros(3) * unyt.cm / unyt.s,
-                    temp=np.ones(3) * unyt.K,
+                    rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+                    vel_code=np.zeros(3) * unyt.cm / unyt.s,
+                    temp_code=np.ones(3) * unyt.K,
                     mu=np.ones(3),
                 )
                 sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
@@ -402,9 +402,9 @@ class Testing(unittest.TestCase):
                     boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
                 )
                 fluid = SimpleNamespace(
-                    rho=np.ones(3) * unyt.g / unyt.cm**3,
-                    vel=np.zeros(3) * unyt.cm / unyt.s,
-                    temp=np.ones(3) * unyt.K,
+                    rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+                    vel_code=np.zeros(3) * unyt.cm / unyt.s,
+                    temp_code=np.ones(3) * unyt.K,
                     mu=np.ones(3),
                 )
                 sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)

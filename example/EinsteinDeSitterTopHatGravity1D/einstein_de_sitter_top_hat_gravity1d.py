@@ -61,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
         selfgravity=True, externalgravity=False, cosmological=True,
         cosmology=sim.par.cosmology, code_units=sim.par.CodeUnits,
     )
-    numerical = sim.par.gravity.acceleration_on_mesh(sim.mesh, sim.fluid.rho, sim.par)
+    numerical = sim.par.gravity.acceleration_on_mesh(sim.mesh, sim.fluid.rho_code, sim.par)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = np.asarray(sim.mesh.coordinate[physical], dtype=float)
     tau = float(np.asarray(sim.par.time).flat[0])

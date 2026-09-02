@@ -201,8 +201,8 @@ class Testing(unittest.TestCase):
 
         def fake_readhdf5(par, mesh, fluid, outfilename):
             mesh.boundary = np.linspace(0.0, 7.0, 8) * unyt.pc
-            fluid.rho = np.linspace(1.0, 7.0, 7) * (unyt.g / unyt.cm**3)
-            fluid.vel = np.linspace(-3.0, 3.0, 7) * (unyt.cm / unyt.s)
+            fluid.rho_code = np.linspace(1.0, 7.0, 7) * (unyt.g / unyt.cm**3)
+            fluid.vel_code = np.linspace(-3.0, 3.0, 7) * (unyt.cm / unyt.s)
 
         with mock.patch.object(module.rio, 'readhdf5', fake_readhdf5), \
             mock.patch.object(module.plt, 'plot', side_effect=fake_plot), \
@@ -213,14 +213,14 @@ class Testing(unittest.TestCase):
                 {
                     'nogrid': 5,
                     'coordsys': 'cartesian',
-                    'boxsize': 1.0 * unyt.pc,
-                    'time': 0.0 * unyt.s,
-                    'rho_ref': 1.0 * (unyt.g / unyt.cm**3),
-                    'tempini': 1.0 * unyt.K,
-                    'muini': 1.0,
+                    'box_size': 1.0 * unyt.pc,
+                    'current_time': 0.0 * unyt.s,
+                    'reference_density': 1.0 * (unyt.g / unyt.cm**3),
+                    'initial_temperature': 1.0 * unyt.K,
+                    'mean_molecular_weight': 1.0,
                     'gravity_strength': 1.0 * (unyt.cm / unyt.s**2),
                 },
-                {'noghost': 2},
+                {'noghost': 2, 'mesh': {'grid_cells': 5, 'ghost_cells': 2}},
             )
 
         self.assertEqual(len(captured_plots), 4)

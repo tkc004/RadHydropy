@@ -69,9 +69,9 @@ def make_initial_condition(ic, units):
     state.mesh.vol = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3) * units.volume_unit
     radius = np.asarray(state.mesh.coordinate.to_value(units.length_unit))
     shell = (radius >= float(ic["shell_inner"].to_value(units.length_unit))) & (radius <= float(ic["shell_outer"].to_value(units.length_unit)))
-    state.fluid.rho = np.where(shell, float(ic["rho_shell"]), 0.0)
-    state.fluid.temp = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
-    state.fluid.vel = np.where(shell, float(ic["velocity"].to_value(units.velocity_unit)), 0.0)
+    state.fluid.rho_code = np.where(shell, float(ic["rho_shell"]), 0.0)
+    state.fluid.temp_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
+    state.fluid.vel_code = np.where(shell, float(ic["velocity"].to_value(units.velocity_unit)), 0.0)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mu"]))
     return state
 
@@ -80,10 +80,10 @@ def _profile(sim):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     r = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    rho = np.asarray(sim.fluid.rho[first:last], dtype=float)
-    vel = np.asarray(sim.fluid.vel[first:last], dtype=float)
-    pre = np.asarray(sim.fluid.pre[first:last], dtype=float)
-    temp = np.asarray(sim.fluid.temp[first:last], dtype=float)
+    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
+    vel_code = np.asarray(sim.fluid.vel_code[first:last], dtype=float)
+    pre = np.asarray(sim.fluid.pre_code[first:last], dtype=float)
+    temp_code = np.asarray(sim.fluid.temp_code[first:last], dtype=float)
     entropy = np.full_like(pre, np.nan)
     active = rho > 0.0
     entropy[active] = pre[active] / rho[active] ** float(sim.par.hydrodynamics.gamma)
@@ -127,7 +127,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
             sim.mesh, sim.fluid, sim.par.boundary.condition,
             method=runparams["hydrodynamics"]["riemann_solver"], order=0,
         )
-        fluxes.append([float(sim.fluid.time), float(sim.fluid.Mass.flux[wall_face]), float(sim.fluid.Mom.flux[wall_face]), float(sim.fluid.Energy.flux[wall_face])])
+        fluxes.append([float(sim.fluid.time), float(sim.fluid.Mass_code.flux[wall_face]), float(sim.fluid.Mom_code.flux[wall_face]), float(sim.fluid.Energy_code.flux[wall_face])])
         sim.Step(dt=dt, mode="hydro")
         time_code = float(sim.fluid.time)
         if time_code >= next_output - 1.0e-12:

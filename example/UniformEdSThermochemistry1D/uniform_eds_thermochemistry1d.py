@@ -97,17 +97,17 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
         )
         history["scale_factor"].append(scale_factor)
         history["temperature_K"].append(
-            float(np.mean(sim.fluid.temp[physical]))
+            float(np.mean(sim.fluid.temp_code[physical]))
         )
         history["source_solver"].append(result.get("source_solver", "explicit"))
         history["relative_change"].append(
             float(result.get("relative_change", 0.0))
         )
-        if not np.all(np.isfinite(sim.fluid.temp[physical])):
+        if not np.all(np.isfinite(sim.fluid.temp_code[physical])):
             raise RuntimeError(
                 f"non-finite temperature at cosmic time {cosmic_time:.8g}, "
                 f"redshift {sim.par.compton_cmb_redshift:.8g}; "
-                f"temperature={sim.fluid.temp[physical]}"
+                f"temperature={sim.fluid.temp_code[physical]}"
             )
         return result
 

@@ -70,10 +70,10 @@ class Simwrap:
             self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
         )
 
-        self.fluid.rho = np.ones(self.par.nogrid) * icparams['rho0']
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['tempini']
+        self.fluid.rho_code = np.ones(self.par.nogrid) * icparams['rho0']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
 
 
 def read_code_units(runparams):

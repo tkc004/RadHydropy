@@ -59,14 +59,19 @@ def _normalize_attr_name(name):
 def _dataset_aliases(name):
     alias_map = {
         "Boundary": ("boundary",),
-        "Density": ("rho",),
-        "Velocity": ("vel",),
-        "Temperature": ("temp",),
+        "Density": ("rho_code",),
+        "Velocity": ("vel_code",),
+        "Temperature": ("temp_code",),
         "Mol_weight": ("mu",),
         "NeutralFraction": ("xHI",),
-        "PhotonNumberDensity": ("ngamma",),
-        "SpecificAngularMomentum": ("specific_angular_momentum",),
-        "AngularMomentum": ("AngularMomentum",),
+        "PhotonNumberDensity": ("ngamma_code",),
+        "InternalEnergy": ("InternalEnergy_code",),
+        "Energy": ("Energy_code",),
+        "Mass": ("Mass_code",),
+        "AngularMomentum": ("AngularMomentum_code",),
+        "GravitationalPotentialEnergy": ("GravitationalPotentialEnergy_code",),
+        "SpecificAngularMomentum": ("specific_angular_momentum_code",),
+        "AngularMomentum": ("AngularMomentum_code",),
         "HeINeutralFraction": ("xHeI",),
         "HeIIFraction": ("xHeII",),
         "HeIIIFraction": ("xHeIII",),
@@ -550,7 +555,7 @@ def writehdf5(ric,ICfilename):
         _write_quantity(
             gdata,
             "Density",
-            ric.fluid.rho,
+            ric.fluid.rho_code,
             code_units=code_units,
             scale_key="density_g_cm3",
             default_unit=unyt.g / unyt.cm**3,
@@ -568,7 +573,7 @@ def writehdf5(ric,ICfilename):
         _write_quantity(
             gdata,
             "Velocity",
-            ric.fluid.vel,
+            ric.fluid.vel_code,
             code_units=code_units,
             scale_key="velocity_cm_s",
             default_unit=unyt.cm / unyt.s,
@@ -585,7 +590,7 @@ def writehdf5(ric,ICfilename):
         _write_quantity(
             gdata,
             "Temperature",
-            ric.fluid.temp,
+            ric.fluid.temp_code,
             code_units=code_units,
             scale_key="temperature_K",
             default_unit=unyt.K,
@@ -603,26 +608,26 @@ def writehdf5(ric,ICfilename):
                 ),
             },
         )
-        if hasattr(ric.fluid, "specific_angular_momentum"):
+        if hasattr(ric.fluid, "specific_angular_momentum_code"):
             _write_quantity(
                 gdata,
                 "SpecificAngularMomentum",
-                ric.fluid.specific_angular_momentum,
+                ric.fluid.specific_angular_momentum_code,
                 code_units=code_units,
                 scale_key="specific_angular_momentum",
                 default_unit=unyt.cm**2 / unyt.s,
             )
         for attr, dataset_name in (
-            ("Mass", "Mass"),
-            ("Energy", "Energy"),
-            ("InternalEnergy", "InternalEnergy"),
-            ("AngularMomentum", "AngularMomentum"),
-            ("GravitationalPotentialEnergy", "GravitationalPotentialEnergy"),
+            ("Mass_code", "Mass"),
+            ("Energy_code", "Energy"),
+            ("InternalEnergy_code", "InternalEnergy"),
+            ("AngularMomentum_code", "AngularMomentum"),
+            ("GravitationalPotentialEnergy_code", "GravitationalPotentialEnergy"),
         ):
             if hasattr(ric.fluid, attr):
                 scale_key = (
-                    "mass_g" if attr == "Mass"
-                    else "angular_momentum" if attr == "AngularMomentum"
+                    "mass_g" if attr == "Mass_code"
+                    else "angular_momentum" if attr == "AngularMomentum_code"
                     else "energy_erg"
                 )
                 _write_quantity(
@@ -632,9 +637,9 @@ def writehdf5(ric,ICfilename):
                     code_units=code_units,
                     scale_key=scale_key,
                     default_unit=(
-                        unyt.g if attr == "Mass"
+                        unyt.g if attr == "Mass_code"
                         else unyt.g * unyt.cm**2 / unyt.s
-                        if attr == "AngularMomentum" else unyt.erg
+                        if attr == "AngularMomentum_code" else unyt.erg
                     ),
                 )
         gdata.create_dataset("Mol_weight", data=np.asarray(ric.fluid.mu))
@@ -643,8 +648,8 @@ def writehdf5(ric,ICfilename):
         for attr, dataset in (("xHeI", "HeINeutralFraction"), ("xHeII", "HeIIFraction"), ("xHeIII", "HeIIIFraction")):
             if hasattr(ric.fluid, attr):
                 gdata.create_dataset(dataset, data=np.asarray(getattr(ric.fluid, attr)))
-        if hasattr(ric.fluid, "ngamma"):
-            ngamma = ric.fluid.ngamma
+        if hasattr(ric.fluid, "ngamma_code"):
+            ngamma = ric.fluid.ngamma_code
             # Runtime fluid fields are stored as code-unit arrays.  Some
             # chemistry paths may temporarily attach units to ngamma; strip
             # those units in the configured code system before the generic
@@ -704,7 +709,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
 
     Datasets such as ``Density`` are restored into the runtime code-unit
     system when ``CodeUnits`` is available in the file header, so
-    ``fluid.rho`` comes back as a plain numeric array in code units.
+    ``fluid.rho_code`` comes back as a plain numeric array in code units.
     """
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
@@ -865,17 +870,17 @@ def readhdf5(par, mesh, fluid, ICfilename):
         if hasattr(mesh, "Boundary"):
             mesh.boundary = getattr(mesh, "Boundary")
         if hasattr(fluid, "Density"):
-            fluid.rho = getattr(fluid, "Density")
+            fluid.rho_code = getattr(fluid, "Density")
         if hasattr(fluid, "Velocity"):
-            fluid.vel = getattr(fluid, "Velocity")
+            fluid.vel_code = getattr(fluid, "Velocity")
         if hasattr(fluid, "Temperature"):
-            fluid.temp = getattr(fluid, "Temperature")
+            fluid.temp_code = getattr(fluid, "Temperature")
         if hasattr(fluid, "Mol_weight"):
             fluid.mu = getattr(fluid, "Mol_weight")
         if hasattr(fluid, "NeutralFraction"):
             fluid.xHI = getattr(fluid, "NeutralFraction")
         if hasattr(fluid, "PhotonNumberDensity"):
-            fluid.ngamma = getattr(fluid, "PhotonNumberDensity")
+            fluid.ngamma_code = getattr(fluid, "PhotonNumberDensity")
         for dataset, attr in (("HeINeutralFraction", "xHeI"), ("HeIIFraction", "xHeII"), ("HeIIIFraction", "xHeIII")):
             if hasattr(fluid, dataset):
                 setattr(fluid, attr, getattr(fluid, dataset))

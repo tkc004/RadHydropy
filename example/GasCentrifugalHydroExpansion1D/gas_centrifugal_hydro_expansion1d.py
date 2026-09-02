@@ -50,9 +50,9 @@ class InitialCondition:
             boundary=boundary, coordinate=radius,
         )
         self.fluid = SimpleNamespace(
-            rho=np.full(count, density), vel=np.zeros(count),
-            temp=np.full(count, temperature), mu=np.ones(count),
-            specific_angular_momentum=rotation_factor * np.sqrt(
+            rho_code=np.full(count, density), vel_code=np.zeros(count),
+            temp_code=np.full(count, temperature), mu=np.ones(count),
+            specific_angular_momentum_code=rotation_factor * np.sqrt(
                 central_mass * radius
             ),
         )
@@ -103,8 +103,8 @@ def run_simulation(runparams, icparams, runtime):
     sim.SetInitFluid()
     sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']))
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
-    initial_mass = np.asarray(sim.fluid.Mass[active], dtype=float).copy()
-    initial_energy = np.asarray(sim.fluid.Energy[active], dtype=float).copy()
+    initial_mass = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
+    initial_energy = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
     initial_radius = np.asarray(sim.mesh.coordinate[active], dtype=float).copy()
     sim.Run(outputtime=0, mode='hydro')
     final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
@@ -151,10 +151,10 @@ def main(config_filename=CONFIG):
     )
     ode_velocity = reference['velocity']
     ode_j = reference['specific_angular_momentum']
-    saved_velocity = np.asarray(saved.vel[active], dtype=float)
-    saved_j = np.asarray(saved.specific_angular_momentum[active], dtype=float)
-    saved_mass = np.asarray(saved.Mass[active], dtype=float)
-    saved_energy = np.asarray(saved.Energy[active], dtype=float)
+    saved_velocity = np.asarray(saved.vel_code[active], dtype=float)
+    saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
+    saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
+    saved_energy = np.asarray(saved.Energy_code[active], dtype=float)
     velocity_error = float(np.max(np.abs(saved_velocity - ode_velocity)))
     j_error = float(np.max(np.abs(saved_j - ode_j)))
     mass_error = float(
@@ -191,8 +191,8 @@ def main(config_filename=CONFIG):
             % (energy_error / energy_scale)
         )
 
-    density = np.asarray(saved.rho[active], dtype=float)
-    temperature = np.asarray(saved.temp[active], dtype=float)
+    density = np.asarray(saved.rho_code[active], dtype=float)
+    temperature = np.asarray(saved.temp_code[active], dtype=float)
     mu = np.asarray(saved.mu[active], dtype=float)
     pressure = np.asarray(sim.fluid.eos.pressure(density, temperature, mu), dtype=float)
     pressure_ratio = np.divide(

@@ -328,9 +328,9 @@ def test_dark_matter_snapshot_group_is_written():
         angular_momentum=[0.1, 0.2], code_units=units,
     )
     class Fluid:
-        rho = np.ones(2)
-        vel = np.zeros(2)
-        temp = np.ones(2)
+        rho_code = np.ones(2)
+        vel_code = np.zeros(2)
+        temp_code = np.ones(2)
         mu = np.ones(2)
     class MeshForIO:
         boundary = np.array([0.0, 1.0, 2.0])
@@ -365,9 +365,9 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
     )
 
     class Fluid:
-        rho = np.ones(2)
-        vel = np.zeros(2)
-        temp = np.ones(2)
+        rho_code = np.ones(2)
+        vel_code = np.zeros(2)
+        temp_code = np.ones(2)
         mu = np.ones(2)
 
     class MeshForIO:

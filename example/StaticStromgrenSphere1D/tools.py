@@ -93,16 +93,16 @@ def build_static_problem(config):
     ) * unyt.cm
 
     fluid = Fluid()
-    fluid.rho = (
+    fluid.rho_code = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
-    fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp = np.ones(par.nogrid) * 1.0e4 * unyt.K
+    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
+    fluid.temp_code = np.ones(par.nogrid) * 1.0e4 * unyt.K
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.ngamma = np.ones(par.nogrid) * config.get(
+    fluid.ngamma_code = np.ones(par.nogrid) * config.get(
         'hydrogen_ngamma_initial',
         0.0 / unyt.cm**3,
     )
@@ -156,13 +156,13 @@ def load_output_state(outputfilename, config):
     par.time = unyt.unyt_array(np.asarray(getattr(par, 'time', par.Time), dtype=float), code_units_obj.time_unit)
     par.boxsize = unyt.unyt_array(np.asarray(getattr(par, 'boxsize', par.BoxSize), dtype=float), code_units_obj.length_unit)
     mesh.boundary = unyt.unyt_array(np.asarray(mesh.boundary, dtype=float), code_units_obj.length_unit)
-    fluid.rho = unyt.unyt_array(np.asarray(fluid.rho, dtype=float), code_units_obj.density_unit)
-    fluid.vel = unyt.unyt_array(np.asarray(fluid.vel, dtype=float), code_units_obj.velocity_unit)
-    fluid.temp = unyt.unyt_array(np.asarray(fluid.temp, dtype=float), code_units_obj.temperature_unit)
+    fluid.rho_code = unyt.unyt_array(np.asarray(fluid.rho_code, dtype=float), code_units_obj.density_unit)
+    fluid.vel_code = unyt.unyt_array(np.asarray(fluid.vel_code, dtype=float), code_units_obj.velocity_unit)
+    fluid.temp_code = unyt.unyt_array(np.asarray(fluid.temp_code, dtype=float), code_units_obj.temperature_unit)
     fluid.time = par.time.copy()
-    if hasattr(fluid, 'ngamma'):
-        fluid.ngamma = unyt.unyt_array(
-            np.asarray(fluid.ngamma, dtype=float),
+    if hasattr(fluid, 'ngamma_code'):
+        fluid.ngamma_code = unyt.unyt_array(
+            np.asarray(fluid.ngamma_code, dtype=float),
             code_units_obj.number_density_unit,
         )
     _refresh_mesh_geometry(mesh, par)
@@ -200,7 +200,7 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
 def ionized_hydrogen_atoms(mesh, fluid, par):
     interior = interior_slice(par)
     nH = rth._cgs_hydrogen_number_density(
-        fluid.rho[interior].to_value(unyt.g / unyt.cm**3),
+        fluid.rho_code[interior].to_value(unyt.g / unyt.cm**3),
         par.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
@@ -210,14 +210,14 @@ def ionized_hydrogen_atoms(mesh, fluid, par):
 
 def photons_in_volume(mesh, fluid, par):
     interior = interior_slice(par)
-    photon_count = np.sum(fluid.ngamma[interior] * mesh.vol[interior])
+    photon_count = np.sum(fluid.ngamma_code[interior] * mesh.vol[interior])
     return photon_count.to_value('')
 
 
 def total_recombination_rate(mesh, fluid, par):
     interior = interior_slice(par)
     nH = rth._cgs_hydrogen_number_density(
-        fluid.rho[interior].to_value(unyt.g / unyt.cm**3),
+        fluid.rho_code[interior].to_value(unyt.g / unyt.cm**3),
         par.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])

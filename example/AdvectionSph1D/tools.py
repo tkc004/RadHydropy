@@ -50,8 +50,8 @@ class Simwrap:
         )
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
 
-        self.fluid.vel = icparams['initial_velocity'] * np.ones(grid_cells)
-        self.fluid.temp = icparams['initial_temperature'] * np.ones(grid_cells)
+        self.fluid.vel_code = icparams['initial_velocity'] * np.ones(grid_cells)
+        self.fluid.temp_code = icparams['initial_temperature'] * np.ones(grid_cells)
         rho = icparams['initial_density'] * np.ones(grid_cells)
         rho[
             np.logical_or(
@@ -59,7 +59,7 @@ class Simwrap:
                 coordinate > 0.75 * box_size[0],
             )
         ] *= 0.01
-        self.fluid.rho = rho
+        self.fluid.rho_code = rho_code
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
@@ -71,11 +71,11 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     time = rout.par.simulation.current_time * code_units_obj.time_unit
     radius = rout.mesh.boundary[:-1] * code_units_obj.length_unit
-    rplot1d(rout, yquan='rho', showfig=0, **kwargs)
+    rplot1d(rout, yquan='rho_code', showfig=0, **kwargs)
     rout.mesh.vol = np.absolute(
         rout.mesh.boundary[1:]**3 - rout.mesh.boundary[:-1]**3
     ) * 4.0 * np.pi / 3.0
-    mtot = np.sum(rout.fluid.rho * rout.mesh.vol)
+    mtot = np.sum(rout.fluid.rho_code * rout.mesh.vol)
     print('mtot', mtot)
     x = rout.mesh.boundary[:-1] * code_units_obj.length_unit
     rho = asa.top_hat_density_profile(

@@ -56,7 +56,7 @@ def _total_radial_momentum(sim):
     interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     code = CodeUnits.from_mapping(sim.par.CodeUnits)
     momentum_cgs = float((1.0 * code.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s))
-    return float(np.sum(np.asarray(sim.fluid.Mom[interior], dtype=float)) * momentum_cgs)
+    return float(np.sum(np.asarray(sim.fluid.Mom_code[interior], dtype=float)) * momentum_cgs)
 
 
 def _pressure_diagnostics(sim, source_result):
@@ -71,7 +71,7 @@ def _pressure_diagnostics(sim, source_result):
     volume_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
-    pressure_cgs = et._to_pressure(sim.fluid.pre[interior], sim.par)
+    pressure_cgs = et._to_pressure(sim.fluid.pre_code[interior], sim.par)
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
     weighted_volume = float(np.sum(volume_cm3 * ionized_weight))
     gas_pressure = (

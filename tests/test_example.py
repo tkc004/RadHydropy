@@ -260,7 +260,7 @@ class Testing(unittest.TestCase):
                 'hydrostatic_equilibrium1d_output_times.txt'
             )
         )
-        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 0.0001)
+        self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 1.0e-6)
         self.assertEqual(runparams['EOStype'], 'isothermal')
         self.assertEqual(runparams['boundcond'], 'Reflecting')
         self.assertEqual(icparams['nogrid'], 256)
@@ -465,7 +465,7 @@ class Testing(unittest.TestCase):
         ) * 1.0e-24
         rout = SimpleNamespace(
             mesh=SimpleNamespace(boundary=boundary),
-            fluid=SimpleNamespace(rho=density),
+            fluid=SimpleNamespace(rho_code=density),
         )
 
         radius = stellar_wind_tools.shell_inner_edge_radius(
@@ -493,8 +493,8 @@ class Testing(unittest.TestCase):
                 par = parameter_namespace(time=unyt.unyt_quantity(time_myr, unyt.Myr)),
                 mesh=SimpleNamespace(boundary=boundary),
                 fluid=SimpleNamespace(
-                    rho=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
-                    temp=unyt.unyt_array(temp, unyt.K),
+                    rho_code=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
+                    temp_code=unyt.unyt_array(temp, unyt.K),
                     mu=unyt.unyt_array([0.62] * (len(boundary) - 1)),
                 ),
             )

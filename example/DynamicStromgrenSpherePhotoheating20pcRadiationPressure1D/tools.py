@@ -28,11 +28,11 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     """Save the inherited profile plot with a linear velocity axis."""
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.coordinate[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho[interior], par)
-    velocity = _to_km_s(fluid.vel[interior], par)
+    number_density = _to_number_density(fluid.rho_code[interior], par)
+    velocity = _to_km_s(fluid.vel_code[interior], par)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure = _to_pressure(fluid.pre[interior], par)
-    temperature = _to_temperature(fluid.temp[interior], par)
+    pressure = _to_pressure(fluid.pre_code[interior], par)
+    temperature = _to_temperature(fluid.temp_code[interior], par)
     plot_radius_max = config['plot_radius_max'].to_value(unyt.pc)
     radius_unit = config.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

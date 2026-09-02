@@ -56,16 +56,16 @@ def run(config_filename=DEFAULT_CONFIG):
         par.mesh = SimpleNamespace(ghost_cells=first, grid_cells=active_count)
         par.simulation = SimpleNamespace(coordinate_system='spherical')
         rio.readhdf5(par, mesh, fluid, filename)
-        rho = np.asarray(fluid.rho, dtype=float)
-        temp = np.asarray(getattr(fluid, 'temp', np.zeros_like(rho)), dtype=float)
+        rho_code = np.asarray(fluid.rho_code, dtype=float)
+        temp_code = np.asarray(getattr(fluid, 'temp_code', np.zeros_like(rho_code)), dtype=float)
         energy = np.asarray(
-            getattr(fluid, 'Energy', np.zeros_like(rho)), dtype=float
+            getattr(fluid, 'Energy_code', np.zeros_like(rho_code)), dtype=float
         )
-        if not (np.all(np.isfinite(rho)) and np.all(rho >= 0.0)):
+        if not (np.all(np.isfinite(rho_code)) and np.all(rho_code >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid density')
         if not (np.all(np.isfinite(energy)) and np.all(energy >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid energy')
-        profiles.append((float(fluid.time), rho, temp, np.asarray(mesh.boundary)))
+        profiles.append((float(fluid.time), rho_code, temp_code, np.asarray(mesh.boundary)))
 
     if not profiles:
         raise RuntimeError('vacuum outflow produced no output snapshots')

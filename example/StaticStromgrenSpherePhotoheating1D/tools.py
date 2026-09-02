@@ -127,14 +127,14 @@ def build_static_problem(config):
     ) * unyt.cm
 
     fluid = Fluid()
-    fluid.rho = (
+    fluid.rho_code = (
         np.ones(par.nogrid)
         * config['hydrogen_number_density']
         * unyt.mp
         / par.hydrogen_mass_fraction
     ).to(unyt.g / unyt.cm**3)
-    fluid.vel = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp = np.ones(par.nogrid) * config.get('initial_temperature', 1.0e4 * unyt.K)
+    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
+    fluid.temp_code = np.ones(par.nogrid) * config.get('initial_temperature', 1.0e4 * unyt.K)
     fluid.mu = np.ones(par.nogrid)
     if config.get('hydrogen_initial_collisional_equilibrium', False):
         fluid.xHI = np.ones(par.nogrid) * collisional_equilibrium_neutral_fraction(
@@ -161,9 +161,9 @@ def build_static_problem(config):
     group_edges = config.get('radiation_group_edges_eV')
     if group_edges is not None:
         ngroup = len(group_edges) - 1
-        fluid.ngamma = np.zeros((ngroup, par.nogrid)) / unyt.cm**3
+        fluid.ngamma_code = np.zeros((ngroup, par.nogrid)) / unyt.cm**3
     else:
-        fluid.ngamma = np.ones(par.nogrid) * config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
+        fluid.ngamma_code = np.ones(par.nogrid) * config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
     fluid.SetFluidTime(0.0 * unyt.Myr)
     solver = Solver()
     return par, mesh, fluid, solver
@@ -244,7 +244,7 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
 def mean_ionized_temperature(fluid, par):
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior])
-    temperature = fluid.temp[interior].to_value(unyt.K)
+    temperature = fluid.temp_code[interior].to_value(unyt.K)
     ionized = 1.0 - xHI
     if np.sum(ionized) <= 0.0:
         return 0.0
@@ -282,10 +282,10 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     snapshot = history.get('reference_snapshot', None)
     if snapshot is None:
         xHI = np.asarray(fluid.xHI[interior], dtype=float)
-        if hasattr(fluid.temp[interior], 'to_value'):
-            temperature_K = fluid.temp[interior].to_value(unyt.K)
+        if hasattr(fluid.temp_code[interior], 'to_value'):
+            temperature_K = fluid.temp_code[interior].to_value(unyt.K)
         else:
-            temperature_K = np.asarray(fluid.temp[interior], dtype=float)
+            temperature_K = np.asarray(fluid.temp_code[interior], dtype=float)
         if hasattr(fluid.time, 'to_value'):
             profile_time_Myr = float(fluid.time.to_value(unyt.Myr))
         else:

@@ -60,17 +60,17 @@ def _state(mesh, fluid, par):
     interior = slice(ghost_cells, ghost_cells + grid_cells)
     gamma = getattr(getattr(fluid, "eos", None), "gamma", 5.0 / 3.0)
     scaling = _fast_source_scaling(fluid, par, gamma)
-    rho_super = to_unit_value(fluid.rho[interior], code.density_unit)
+    rho_super = to_unit_value(fluid.rho_code[interior], code.density_unit)
     rho = rho_super / scaling["density_factor"]
-    velocity_super = to_unit_value(fluid.vel[interior], code.velocity_unit)
+    velocity_super = to_unit_value(fluid.vel_code[interior], code.velocity_unit)
     velocity = velocity_super / scaling["velocity_factor"]
     volume_code = np.asarray(mesh.vol[interior], dtype=float)
     volume = to_unit_value(volume_code, code.volume_unit) * scaling["density_factor"]
-    if hasattr(fluid, "Mass"):
-        mass = to_unit_value(fluid.Mass[interior], code.mass_unit)
+    if hasattr(fluid, "Mass_code"):
+        mass = to_unit_value(fluid.Mass_code[interior], code.mass_unit)
     else:
         mass = rho_super * volume_code * code.mass_in_cgs
-    total_energy_super = to_unit_value(fluid.Energy[interior], code.energy_unit)
+    total_energy_super = to_unit_value(fluid.Energy_code[interior], code.energy_unit)
     specific_total_super = total_energy_super / np.maximum(mass, 1.0e-99)
     rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
     rotational_specific_super = (
@@ -96,7 +96,7 @@ def _state(mesh, fluid, par):
         "specific_rotational_energy_erg_g": (
             rotational_specific_super / scaling["temperature_factor"]
         ),
-        "temperature_K": to_unit_value(fluid.temp[interior], code.temperature_unit) / scaling["temperature_factor"],
+        "temperature_K": to_unit_value(fluid.temp_code[interior], code.temperature_unit) / scaling["temperature_factor"],
         "gamma": gamma,
         "mu": mu,
         "code": code,
@@ -258,9 +258,9 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         )
         rotational_code = _rotational_specific_energy_code(mesh, fluid, par)
         mass_code = (
-            np.asarray(fluid.Mass[interior], dtype=float)
-            if hasattr(fluid, "Mass") else
-            np.asarray(fluid.rho[interior], dtype=float)
+            np.asarray(fluid.Mass_code[interior], dtype=float)
+            if hasattr(fluid, "Mass_code") else
+            np.asarray(fluid.rho_code[interior], dtype=float)
             * np.asarray(mesh.vol[interior], dtype=float)
         )
         updated_energy = updated_energy + from_unit_value(
@@ -271,24 +271,24 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             state["temperature_K"] * state["source_temperature_factor"],
             code.temperature_unit,
         )
-        energy_target = fluid.Energy[interior].copy()
-        temperature_target = fluid.temp[interior].copy()
+        energy_target = fluid.Energy_code[interior].copy()
+        temperature_target = fluid.temp_code[interior].copy()
         energy_target[active] = updated_energy[active]
         temperature_target[active] = updated_temperature[active]
-        fluid.Energy[interior] = energy_target
-        fluid.temp[interior] = temperature_target
+        fluid.Energy_code[interior] = energy_target
+        fluid.temp_code[interior] = temperature_target
         if hasattr(fluid.eos, "pressure"):
-            fluid.pre[interior] = fluid.eos.pressure(
-                fluid.rho[interior],
-                fluid.temp[interior],
+            fluid.pre_code[interior] = fluid.eos.pressure(
+                fluid.rho_code[interior],
+                fluid.temp_code[interior],
                 fluid.mu[interior],
             )
         else:
             # Lightweight test doubles may only expose gamma.
             internal_code = internal_super / code.velocity_in_cgs**2
-            fluid.pre[interior] = (
+            fluid.pre_code[interior] = (
                 (state["gamma"] - 1.0)
-                * np.asarray(fluid.rho[interior], dtype=float)
+                * np.asarray(fluid.rho_code[interior], dtype=float)
                 * internal_code
             )
         return source_steps

@@ -20,19 +20,19 @@ from radhydropy.arrays import as_named_array
 
 
 def _boundary_field_names(solver, fluid):
-    fields = ['rho', 'vel', 'pre']
-    if hasattr(fluid, 'specific_angular_momentum'):
-        fields.append('specific_angular_momentum')
+    fields = ['rho_code', 'vel_code', 'pre_code']
+    if hasattr(fluid, 'specific_angular_momentum_code'):
+        fields.append('specific_angular_momentum_code')
     if hasattr(fluid, 'xHI'):
         fields.append('xHI')
-    if hasattr(fluid, 'ngamma'):
-        fields.append('ngamma')
+    if hasattr(fluid, 'ngamma_code'):
+        fields.append('ngamma_code')
     return fields
 
 def _copy_boundary_state(solver, fluid, target_slice, values):
     for attr, value in values.items():
         target = getattr(fluid, attr)
-        if attr == 'ngamma' and np.ndim(target) == 2:
+        if attr == 'ngamma_code' and np.ndim(target) == 2:
             value_array = np.asarray(value)
             if value_array.ndim == 1:
                 value_array = value_array[:, None]
@@ -49,21 +49,21 @@ def _boundary_state(
     reverse=False,
 ):
     state = {
-        'rho': fluid.rho[source],
-        'pre': fluid.pre[source],
+        'rho_code': fluid.rho_code[source],
+        'pre_code': fluid.pre_code[source],
     }
     if include_velocity:
-        velocity = fluid.vel[source]
-        state['vel'] = -velocity if negate_velocity else velocity
-    if hasattr(fluid, 'specific_angular_momentum'):
-        state['specific_angular_momentum'] = fluid.specific_angular_momentum[source]
+        velocity = fluid.vel_code[source]
+        state['vel_code'] = -velocity if negate_velocity else velocity
+    if hasattr(fluid, 'specific_angular_momentum_code'):
+        state['specific_angular_momentum_code'] = fluid.specific_angular_momentum_code[source]
     if hasattr(fluid, 'xHI'):
         state['xHI'] = fluid.xHI[source]
-    if hasattr(fluid, 'ngamma'):
-        if np.ndim(fluid.ngamma) == 2:
-            state['ngamma'] = fluid.ngamma[:, source]
+    if hasattr(fluid, 'ngamma_code'):
+        if np.ndim(fluid.ngamma_code) == 2:
+            state['ngamma_code'] = fluid.ngamma_code[:, source]
         else:
-            state['ngamma'] = fluid.ngamma[source]
+            state['ngamma_code'] = fluid.ngamma_code[source]
     if reverse:
         for key, value in list(state.items()):
             state[key] = value[::-1]
@@ -79,7 +79,7 @@ def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, n
     fields = solver._boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
-        if attr == 'ngamma' and np.ndim(quan) == 2:
+        if attr == 'ngamma_code' and np.ndim(quan) == 2:
             quan[:, left_ghost] = quan[:, interior][:, -noghost:]
             quan[:, right_ghost] = quan[:, interior][:, :noghost]
         else:
@@ -90,7 +90,7 @@ def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
     fields = solver._boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
-        if attr == 'ngamma' and np.ndim(quan) == 2:
+        if attr == 'ngamma_code' and np.ndim(quan) == 2:
             quan[:, left_ghost] = quan[:, first]
             quan[:, right_ghost] = quan[:, nolast]
         else:
@@ -98,14 +98,14 @@ def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
             quan[right_ghost] = quan[nolast]
 
 def _apply_reflecting_boundary(solver, fluid, interior, left_ghost, right_ghost, noghost):
-    for attr in ('rho', 'pre', 'specific_angular_momentum'):
+    for attr in ('rho_code', 'pre_code', 'specific_angular_momentum_code'):
         if not hasattr(fluid, attr):
             continue
         quan = getattr(fluid, attr)
         quan[left_ghost] = quan[interior][:noghost][::-1]
         quan[right_ghost] = quan[interior][-noghost:][::-1]
-    fluid.vel[left_ghost] = -fluid.vel[interior][:noghost][::-1]
-    fluid.vel[right_ghost] = -fluid.vel[interior][-noghost:][::-1]
+    fluid.vel_code[left_ghost] = -fluid.vel_code[interior][:noghost][::-1]
+    fluid.vel_code[right_ghost] = -fluid.vel_code[interior][-noghost:][::-1]
 
 def _apply_spherical_inner_boundary(solver, mesh, fluid, first, noghost):
     mirror_start = first
@@ -152,22 +152,22 @@ def _apply_inflow_spherical_boundary(
 ):
     solver._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
     right_state = {
-        'rho': par.boundary.inflow_density,
-        'vel': par.boundary.inflow_velocity,
-        'pre': fluid.eos.pressure(
+        'rho_code': par.boundary.inflow_density,
+        'vel_code': par.boundary.inflow_velocity,
+        'pre_code': fluid.eos.pressure(
             par.boundary.inflow_density,
             par.boundary.inflow_temperature,
             par.boundary.inflow_mu,
         ),
     }
-    if hasattr(fluid, 'specific_angular_momentum'):
-        right_state['specific_angular_momentum'] = getattr(
+    if hasattr(fluid, 'specific_angular_momentum_code'):
+        right_state['specific_angular_momentum_code'] = getattr(
             par, 'specific_angular_momentum_inflow', 0.0
         )
     if hasattr(fluid, 'xHI'):
         right_state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
-    if hasattr(fluid, 'ngamma'):
-        right_state['ngamma'] = solver._to_code_number_density(
+    if hasattr(fluid, 'ngamma_code'):
+        right_state['ngamma_code'] = solver._to_code_number_density(
             getattr(par, 'hydrogen_ngamma_inflow', 0.0),
             scales,
         )
@@ -186,22 +186,22 @@ def _apply_outflow_spherical_boundary(
     noghost,
 ):
     left_state = {
-        'rho': par.boundary.outflow_density,
-        'vel': par.boundary.outflow_velocity,
-        'pre': fluid.eos.pressure(
+        'rho_code': par.boundary.outflow_density,
+        'vel_code': par.boundary.outflow_velocity,
+        'pre_code': fluid.eos.pressure(
             par.boundary.outflow_density,
             par.boundary.outflow_temperature,
             par.boundary.outflow_mu,
         ),
     }
-    if hasattr(fluid, 'specific_angular_momentum'):
-        left_state['specific_angular_momentum'] = getattr(
+    if hasattr(fluid, 'specific_angular_momentum_code'):
+        left_state['specific_angular_momentum_code'] = getattr(
             par, 'specific_angular_momentum_outflow', 0.0
         )
     if hasattr(fluid, 'xHI'):
         left_state['xHI'] = getattr(par, 'hydrogen_xHI_outflow', 1.0)
-    if hasattr(fluid, 'ngamma'):
-        left_state['ngamma'] = solver._to_code_number_density(
+    if hasattr(fluid, 'ngamma_code'):
+        left_state['ngamma_code'] = solver._to_code_number_density(
             getattr(par, 'hydrogen_ngamma_outflow', 0.0),
             scales,
         )

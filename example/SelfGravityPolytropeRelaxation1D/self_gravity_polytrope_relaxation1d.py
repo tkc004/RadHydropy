@@ -92,7 +92,7 @@ def main(config_filename=DEFAULT_CONFIG):
         result = sim.Step(**kwargs)
         dt = float(np.asarray(result['dt'], dtype=float))
         damping_time = float(np.asarray(sim.par.relaxation_damping_time, dtype=float))
-        sim.fluid.Mom *= np.exp(-dt / damping_time)
+        sim.fluid.Mom_code *= np.exp(-dt / damping_time)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, verbose=0)
         sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
         return result
@@ -107,12 +107,12 @@ def main(config_filename=DEFAULT_CONFIG):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     k_poly = et.polytropic_constant(icparams['polytropic_radius'])
     radius = np.asarray(final.mesh.coordinate[interior], dtype=float) * sim.par.CodeUnits.length_unit
-    rho_final = np.asarray(final.fluid.rho[interior], dtype=float) * sim.par.CodeUnits.density_unit
-    pressure_final = np.asarray(final.fluid.pre[interior], dtype=float) * sim.par.CodeUnits.pressure_unit
+    rho_final = np.asarray(final.fluid.rho_code[interior], dtype=float) * sim.par.CodeUnits.density_unit
+    pressure_final = np.asarray(final.fluid.pre_code[interior], dtype=float) * sim.par.CodeUnits.pressure_unit
     rho_expected = et.equilibrium_density(
         radius, icparams['central_density'], icparams['polytropic_radius']
     )
-    radius_q, gravity_cgs, residual = _profile(sim, final.fluid.rho, pressure_final)
+    radius_q, gravity_cgs, residual = _profile(sim, final.fluid.rho_code, pressure_final)
     rho_error = np.max(np.abs((rho_final - rho_expected) / rho_expected))
     residual_scale = np.max(np.abs(rho_final * gravity_cgs))
     residual_norm = np.max(np.abs(residual)) / max(residual_scale, np.finfo(float).tiny)
@@ -123,7 +123,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rho_final_cgs = quantity_to_value(rho_final, 'g/cm**3')
     rho_expected_cgs = quantity_to_value(rho_expected, 'g/cm**3')
     velocity_cgs = quantity_to_value(
-        np.asarray(final.fluid.vel[interior], dtype=float) * sim.par.CodeUnits.velocity_unit,
+        np.asarray(final.fluid.vel_code[interior], dtype=float) * sim.par.CodeUnits.velocity_unit,
         'cm/s',
     )
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))

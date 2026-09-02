@@ -5,7 +5,7 @@ import numpy as np
 import unyt
 from radhydropy.units import code_unit_scales
 
-def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
+def rplot1d(rsim, yquan='rho_code',showfig=1,showhalf=0,**kwargs):
     """Plot a one-dimensional fluid quantity against cell-center position.
 
     Parameters
@@ -33,13 +33,13 @@ def rplot1d(rsim, yquan='rho',showfig=1,showhalf=0,**kwargs):
         xb = np.asarray(rsim.mesh.boundary, dtype=float) * scales["length_cm"] * unyt.cm
         xq = 0.5 * (xb[1:] + xb[:-1])
         yraw = np.asarray(getattr(rsim.fluid, yquan), dtype=float)
-        if yquan == 'rho':
+        if yquan == 'rho_code':
             yq = yraw * scales["density_g_cm3"] * (unyt.g / unyt.cm**3)
             ylabel = r'$\\rho$'
-        elif yquan == 'vel':
+        elif yquan == 'vel_code':
             yq = yraw * scales["velocity_cm_s"] * (unyt.cm / unyt.s)
             ylabel = r'$v$'
-        elif yquan == 'pre':
+        elif yquan == 'pre_code':
             yq = yraw * scales["pressure_erg_cm3"] * (unyt.erg / unyt.cm**3)
             ylabel = r'$P$'
         else:

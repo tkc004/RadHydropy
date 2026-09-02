@@ -41,10 +41,10 @@ def total_energy_error(runparams, icparams, runtime):
         rotation_factor,
         samples_per_cell=int(icparams.get('reference_samples_per_cell', 32)),
     )
-    saved_mass = np.asarray(saved.Mass[active], dtype=float)
+    saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_total = np.sum(
-        np.asarray(saved.Energy[active], dtype=float)
-        + np.asarray(saved.GravitationalPotentialEnergy[active], dtype=float)
+        np.asarray(saved.Energy_code[active], dtype=float)
+        + np.asarray(saved.GravitationalPotentialEnergy_code[active], dtype=float)
     )
     ode_total = np.sum(reference['energy'])
     return abs(saved_total - ode_total) / max(abs(ode_total), 1.0e-12)

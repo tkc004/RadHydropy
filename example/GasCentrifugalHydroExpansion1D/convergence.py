@@ -45,10 +45,10 @@ def measure(runparams, icparams, runtime):
     )
     ode_velocity = reference['velocity']
     ode_j = reference['specific_angular_momentum']
-    saved_velocity = np.asarray(saved.vel[active], dtype=float)
-    saved_j = np.asarray(saved.specific_angular_momentum[active], dtype=float)
-    saved_mass = np.asarray(saved.Mass[active], dtype=float)
-    saved_energy = np.asarray(saved.Energy[active], dtype=float)
+    saved_velocity = np.asarray(saved.vel_code[active], dtype=float)
+    saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
+    saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
+    saved_energy = np.asarray(saved.Energy_code[active], dtype=float)
     velocity_error = np.max(np.abs(saved_velocity - ode_velocity))
     j_error = np.max(np.abs(saved_j - ode_j))
     simulated_energy = np.sum(saved_energy - central_mass * saved_mass / saved_radius)

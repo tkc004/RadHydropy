@@ -77,7 +77,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     initial_time = float(icparams["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(initial_time))
-    peculiar_velocity = np.asarray(initial.fluid.vel, dtype=float)
+    peculiar_velocity = np.asarray(initial.fluid.vel_code, dtype=float)
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius
 
     figure = output.with_name("CosmologicalCorrelationInitialCondition.jpg")

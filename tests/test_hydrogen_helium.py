@@ -124,12 +124,12 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         )
         velocity_super = 2.0
         fluid = SimpleNamespace(
-            rho=np.array([8.0]),
-            vel=np.array([velocity_super]),
-            temp=np.array([temperature * scale_factor**2]),
+            rho_code=np.array([8.0]),
+            vel_code=np.array([velocity_super]),
+            temp_code=np.array([temperature * scale_factor**2]),
             mu=np.array([mu]),
-            Mass=np.array([8.0]),
-            Energy=np.array([
+            Mass_code=np.array([8.0]),
+            Energy_code=np.array([
                 8.0 * (specific_internal * scale_factor**2
                         + 0.5 * velocity_super**2)
             ]),

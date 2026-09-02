@@ -139,7 +139,7 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     j = physical_radius * physical_tangential_velocity
 
     mesh = SimpleNamespace(coordsys='spherical', coordinate=x)
-    fluid = SimpleNamespace(rho=rho_sc, specific_angular_momentum=j)
+    fluid = SimpleNamespace(rho_code=rho_sc, specific_angular_momentum_code=j)
     options = SimpleNamespace(gas_rotational_energy=True, gas_angular_momentum=True)
     energy_sc = Solver()._rotational_energy_density(mesh, fluid, options)
     energy_phys = 0.5 * physical_density_value * physical_tangential_velocity**2
@@ -174,8 +174,8 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
         coordsys='spherical', coordinate=np.array([x]), vol=np.array([1.0]),
     )
     fluid = SimpleNamespace(
-        rho=np.array([mass]), Mass=np.array([mass]), Mom=np.array([0.0]),
-        Energy=np.array([7.0]), AngularMomentum=np.array([mass * j]),
+        rho_code=np.array([mass]), Mass_code=np.array([mass]), Mom_code=np.array([0.0]),
+        Energy_code=np.array([7.0]), AngularMomentum_code=np.array([mass * j]),
     )
 
     solver = Solver()
@@ -183,11 +183,11 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     supercomoving_acceleration = j**2 / x**3
     physical_acceleration = j**2 / physical_radius**3
 
-    assert fluid.Mom[0] == pytest.approx(mass * supercomoving_acceleration * dt)
+    assert fluid.Mom_code[0] == pytest.approx(mass * supercomoving_acceleration * dt)
     assert supercomoving_acceleration == pytest.approx(a**3 * physical_acceleration)
     # Rotational energy is already in total energy, so source work is a
     # diagnostic rather than a second direct energy update.
-    assert fluid.Energy[0] == pytest.approx(7.0)
+    assert fluid.Energy_code[0] == pytest.approx(7.0)
     assert solver.last_centrifugal_work_by_cell[0] != 0.0
 
 
@@ -266,14 +266,14 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         boundary=np.array([0.5, 1.5, 2.5]) * units.length_unit,
     )
     fluid = SimpleNamespace(
-        rho=rho_quantity,
-        vel=np.zeros(2) * units.velocity_unit,
-        temp=np.ones(2) * units.temperature_unit,
+        rho_code=rho_quantity,
+        vel_code=np.zeros(2) * units.velocity_unit,
+        temp_code=np.ones(2) * units.temperature_unit,
         mu=np.ones(2),
-        specific_angular_momentum=specific_quantity,
-        Mass=rho_quantity * volume,
-        AngularMomentum=angular_quantity,
-        Energy=rho_quantity * rotational_specific_energy * volume,
+        specific_angular_momentum_code=specific_quantity,
+        Mass_code=rho_quantity * volume,
+        AngularMomentum_code=angular_quantity,
+        Energy_code=rho_quantity * rotational_specific_energy * volume,
     )
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
@@ -286,10 +286,10 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, filename)
 
         np.testing.assert_allclose(
-            loaded_fluid.specific_angular_momentum, j
+            loaded_fluid.specific_angular_momentum_code, j
         )
         np.testing.assert_allclose(
-            loaded_fluid.AngularMomentum,
+            loaded_fluid.AngularMomentum_code,
             np.asarray(angular_quantity.to_value(
                 units.mass_unit * units.length_unit**2 / units.time_unit
             )),
@@ -300,9 +300,9 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         loaded_par.time = tau_restart
         loaded_fluid.time = tau_restart
         restart_scale = cosmology.scale_factor(cosmic_times[1])
-        restart_rho = np.asarray(loaded_fluid.rho, dtype=float)
-        restart_j = np.asarray(loaded_fluid.specific_angular_momentum, dtype=float)
-        restart_energy = 0.5 * restart_rho * (restart_j / x)**2
+        restart_rho_code = np.asarray(loaded_fluid.rho_code, dtype=float)
+        restart_j = np.asarray(loaded_fluid.specific_angular_momentum_code, dtype=float)
+        restart_energy = 0.5 * restart_rho_code * (restart_j / x)**2
         physical_restart_energy = (
             0.5 * (physical_density_at_a1 / restart_scale**3)
             * (j / (restart_scale * x))**2
@@ -333,8 +333,8 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     )
     mesh = SimpleNamespace(boundary=np.array([0.0, 1.0, 2.0]))
     fluid = SimpleNamespace(
-        rho=np.ones(2) * 4.0, vel=np.ones(2) * 2.0,
-        temp=np.ones(2) * 3.0, mu=np.ones(2), time=tau,
+        rho_code=np.ones(2) * 4.0, vel_code=np.ones(2) * 2.0,
+        temp_code=np.ones(2) * 3.0, mu=np.ones(2), time=tau,
     )
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
     with tempfile.TemporaryDirectory() as directory:
@@ -371,7 +371,7 @@ def test_lambda_cdm_header_round_trip():
         temperature_representation='supercomoving', gamma=5.0 / 3.0,
     )
     mesh = SimpleNamespace(boundary=np.array([0.0, 1.0]))
-    fluid = SimpleNamespace(rho=np.ones(1), vel=np.zeros(1), temp=np.ones(1), mu=np.ones(1), time=tau)
+    fluid = SimpleNamespace(rho_code=np.ones(1), vel_code=np.zeros(1), temp_code=np.ones(1), mu=np.ones(1), time=tau)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
     with tempfile.TemporaryDirectory() as directory:
         filename = Path(directory) / 'lambda_cdm.hdf5'

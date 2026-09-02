@@ -58,19 +58,19 @@ _CODE_UNIT_GROUPS = (
     _CodeUnitGroup(
         'fluid',
         (
-            ('rho', 'density'),
-            ('vel', 'velocity'),
-            ('pre', 'pressure'),
-            ('temp', 'temperature'),
-            ('Mass', 'mass'),
-            ('Mom', 'momentum'),
-            ('Energy', 'energy'),
-            ('AngularMomentum', 'angular_momentum'),
-            ('specific_angular_momentum', 'specific_angular_momentum'),
-            ('ngamma', 'number_density'),
-            ('cs', 'velocity'),
-            ('vsignal', 'velocity'),
-            ('flux', 'mass_flux'),
+            ('rho_code', 'density'),
+            ('vel_code', 'velocity'),
+            ('pre_code', 'pressure'),
+            ('temp_code', 'temperature'),
+            ('Mass_code', 'mass'),
+            ('Mom_code', 'momentum'),
+            ('Energy_code', 'energy'),
+            ('AngularMomentum_code', 'angular_momentum'),
+            ('specific_angular_momentum_code', 'specific_angular_momentum'),
+            ('ngamma_code', 'number_density'),
+            ('cs_code', 'velocity'),
+            ('vsignal_code', 'velocity'),
+            ('flux_code', 'mass_flux'),
         ),
     ),
     _CodeUnitGroup(
@@ -78,8 +78,14 @@ _CODE_UNIT_GROUPS = (
         (
             ('time', 'time'),
             ('timesim', 'time'),
+            ('initial_time', 'time'),
+            ('time_interval', 'time'),
             ('dtmin', 'time'),
             ('dtmax', 'time'),
+            ('chemistry_timestep', 'time'),
+            ('evolution_timestep', 'time'),
+            ('output_interval', 'time'),
+            ('supercomoving_timestep', 'time'),
             ('relaxation_damping_time', 'time'),
             ('outdeltatime', 'time'),
             ('hydrogen_source_dtmin', 'time'),
@@ -97,6 +103,9 @@ _CODE_UNIT_GROUPS = (
             ('temp_inflow', 'temperature'),
             ('temp_outflow', 'temperature'),
             ('cooling_temperature_floor', 'temperature'),
+            ('hydro_temperature_floor', 'temperature'),
+            ('cosmology_t_ref', 'time'),
+            ('cosmology_hubble_ref', 'time_inv'),
             ('hydrogen_implicit_absolute_temperature_tolerance', 'temperature'),
             ('cmb_temperature_0', 'temperature'),
             ('hydrogen_photon_energy', 'energy'),
@@ -105,6 +114,7 @@ _CODE_UNIT_GROUPS = (
             ('hydrogen_ngamma_outflow', 'number_density'),
             ('radiative_transfer_boundary_flux', 'photon_flux'),
             ('radiative_transfer_source_photon_rate', 'photon_rate'),
+            ('radiation_pressure_source_luminosity', 'luminosity'),
             ('radiative_transfer_boundary_flux_groups', 'photon_flux'),
             ('radiative_transfer_source_photon_rate_groups', 'photon_rate'),
             ('radiation_spectrum_total_photon_rate', 'photon_rate'),
@@ -211,7 +221,14 @@ def apply_code_unit_specs(obj, specs, units):
             source = parameter_values[attr]
         else:
             continue
-        value = quantity_to_value(source, units[unit_key])
+        # An explicitly dimensionless YAML quantity denotes a code value for
+        # a quantity whose runtime representation is dimensionless (for
+        # example supercomoving time). Preserve its numeric value rather than
+        # attempting an invalid dimensional conversion to seconds.
+        if hasattr(source, "units") and source.units.is_dimensionless:
+            value = np.asarray(source.value, dtype=float)
+        else:
+            value = quantity_to_value(source, units[unit_key])
         if hasattr(obj, attr):
             setattr(obj, attr, value)
         # ``Par`` uses this mapping as the source of truth when rebuilding its

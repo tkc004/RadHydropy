@@ -73,7 +73,7 @@ def test_cie_table_electron_fraction_scales_metals(tmp_path):
     assert np.all(np.isfinite(table.electron_fraction([1.0e4, 1.0e6], 1.0)))
 
 
-def make_network_state(paths, temperature=1.0e5, rho=1.0e-20, metallicity=1.0):
+def make_network_state(paths, temperature=1.0e5, rho_code=1.0e-20, metallicity=1.0):
     par = parameter_namespace(
         cie_ion_fraction_table=str(paths[0]),
         cie_cooling_table=str(paths[1]),
@@ -82,12 +82,12 @@ def make_network_state(paths, temperature=1.0e5, rho=1.0e-20, metallicity=1.0):
         hydrogen_mass_fraction=1.0,
         cooling_safety_factor=0.1,
     )
-    nH = rho / PROTON_MASS_CGS
+    nH = rho_code / PROTON_MASS_CGS
     return {
         "par": par,
         "metallicity": metallicity,
         "hydrogen_mass_fraction": 1.0,
-        "rho_g_cm3": np.array([rho]),
+        "rho_g_cm3": np.array([rho_code]),
         "temperature_K": np.array([temperature]),
         "specific_energy_erg_g": np.array([BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)]),
         "gamma": 5.0 / 3.0,
@@ -108,7 +108,7 @@ def test_cie_thermal_rate_has_expected_sign_and_density_scaling(tmp_path):
     assert rate[0] < 0.0
     assert np.all(np.isfinite(rate))
 
-    denser_state = make_network_state(paths, rho=2.0e-20)
+    denser_state = make_network_state(paths, rho_code=2.0e-20)
     denser_rate = network.thermal_rate(denser_state, None)
     assert abs(denser_rate[0]) > abs(rate[0])
 
@@ -138,12 +138,12 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
         (gamma - 1.0) * PROTON_MASS_CGS
     )
     fluid = SimpleNamespace(
-        rho=np.array([rho, rho]),
-        vel=np.zeros(2),
-        temp=np.array([temperature, temperature]),
+        rho_code=np.array([rho, rho]),
+        vel_code=np.zeros(2),
+        temp_code=np.array([temperature, temperature]),
         mu=np.ones(2),
-        Energy=np.array([specific_energy * rho, specific_energy * rho]),
-        pre=np.ones(2),
+        Energy_code=np.array([specific_energy * rho, specific_energy * rho]),
+            pre_code=np.ones(2),
         eos=SimpleNamespace(gamma=gamma),
     )
     mesh = SimpleNamespace(vol=np.ones(2))
@@ -164,14 +164,14 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
     # indexes [noghost:noghost+nogrid].
     par.nogrid = 1
     par.mesh.grid_cells = 1
-    initial_energy = fluid.Energy[1]
+    initial_energy = fluid.Energy_code[1]
     steps = network.apply_fast(1.0e8, mesh, fluid, par)
 
     assert steps > 1
-    assert fluid.Energy[1] < initial_energy
-    assert fluid.temp[1] >= par.cooling_temperature_floor * (1.0 - 1.0e-12)
-    assert np.isfinite(fluid.Energy[1])
-    assert np.isfinite(fluid.temp[1])
+    assert fluid.Energy_code[1] < initial_energy
+    assert fluid.temp_code[1] >= par.cooling_temperature_floor * (1.0 - 1.0e-12)
+    assert np.isfinite(fluid.Energy_code[1])
+    assert np.isfinite(fluid.temp_code[1])
 
 
 def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
@@ -195,12 +195,12 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
     )
     velocity_supercomoving = 3.0
     fluid = SimpleNamespace(
-        rho=np.array([8.0]),
-        vel=np.array([velocity_supercomoving]),
-        temp=np.array([physical_temperature * scale_factor**2]),
+        rho_code=np.array([8.0]),
+        vel_code=np.array([velocity_supercomoving]),
+        temp_code=np.array([physical_temperature * scale_factor**2]),
         mu=np.ones(1),
-        Mass=np.array([8.0]),
-        Energy=np.array([
+        Mass_code=np.array([8.0]),
+        Energy_code=np.array([
             8.0 * (specific_internal * scale_factor**2
                    + 0.5 * velocity_supercomoving**2)
         ]),

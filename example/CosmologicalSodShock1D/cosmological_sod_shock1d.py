@@ -83,13 +83,13 @@ def make_initial_condition(ic, units, runparams):
     state.mesh.area = np.ones(state.par.nogrid + 0) * units.area_unit
     state.mesh.vol = np.full(state.par.nogrid, dx) * units.volume_unit
     left = coordinate < 0.5 * boxsize
-    state.fluid.rho = np.where(left, float(ic["rho_left"]), float(ic["rho_right"]))
-    state.fluid.temp = np.where(
+    state.fluid.rho_code = np.where(left, float(ic["rho_left"]), float(ic["rho_right"]))
+    state.fluid.temp_code = np.where(
         left,
         float(ic["temp_left"].to_value("K")),
         float(ic["temp_right"].to_value("K")),
     )
-    state.fluid.vel = np.zeros(state.par.nogrid)
+    state.fluid.vel_code = np.zeros(state.par.nogrid)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mu"]))
     return state
 
@@ -113,10 +113,10 @@ def _read_profile(filename, units):
         )[:-1] + 0.5 * np.asarray(
             mesh.boundary[first:first + count + 1], dtype=float
         )[1:],
-        np.asarray(fluid.rho[first:first + count], dtype=float),
-        np.asarray(fluid.temp[first:first + count], dtype=float),
-        float(np.sum(np.asarray(fluid.Mass[first:first + count], dtype=float))),
-        float(np.sum(np.asarray(fluid.Energy[first:first + count], dtype=float))),
+        np.asarray(fluid.rho_code[first:first + count], dtype=float),
+        np.asarray(fluid.temp_code[first:first + count], dtype=float),
+        float(np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))),
+        float(np.sum(np.asarray(fluid.Energy_code[first:first + count], dtype=float))),
     )
 
 

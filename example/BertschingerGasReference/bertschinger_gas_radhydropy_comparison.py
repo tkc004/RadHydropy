@@ -76,15 +76,15 @@ class BertschingerBoundarySolver(Solver):
         radius = np.asarray(mesh.coordinate[right], dtype=float)
         amplitude = float(par.perturbation_amplitude)
         delta = amplitude / np.maximum(radius, 1.0e-30)**3
-        fluid.rho[right] = (
+        fluid.rho_code[right] = (
             float(cosmology.background_density(cosmic_time)) * scale_factor**3
         )
-        fluid.vel[right] = -scale_factor**2 * hubble * delta * radius / 3.0
+        fluid.vel_code[right] = -scale_factor**2 * hubble * delta * radius / 3.0
         # The Bertschinger exterior is pressureless.  Do not use the finite
         # cold-temperature floor from the active IC in the outer ghosts.
-        fluid.temp[right] = 0.0
+        fluid.temp_code[right] = 0.0
         fluid.mu[right] = float(par.mu_outflow)
-        fluid.pre[right] = 0.0
+        fluid.pre_code[right] = 0.0
 
 
 def _spherical_centers(boundary):
@@ -191,9 +191,9 @@ class Simwrap:
         )
         self.par.initial_temperature_code = float(temperature_code[0])
         self.par.mu_outflow = float(icparams['mean_molecular_weight'])
-        self.fluid.rho = density * code_units.density_unit
-        self.fluid.vel = velocity * code_units.velocity_unit
-        self.fluid.temp = temperature_code * code_units.temperature_unit
+        self.fluid.rho_code = density * code_units.density_unit
+        self.fluid.vel_code = velocity * code_units.velocity_unit
+        self.fluid.temp_code = temperature_code * code_units.temperature_unit
         self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['mean_molecular_weight'])
 
         delta_mass = 4.0 * np.pi / 3.0 * rho_background * amplitude
@@ -214,14 +214,14 @@ def _similarity_profiles(sim, solution):
     cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
     radius = scale_factor * np.asarray(sim.mesh.coordinate[interior], dtype=float)
     density = cosmology.physical_density(
-        np.asarray(sim.fluid.rho[interior], dtype=float), tau
+        np.asarray(sim.fluid.rho_code[interior], dtype=float), tau
     )
     velocity = cosmology.physical_velocity(
         np.asarray(sim.mesh.coordinate[interior], dtype=float),
-        np.asarray(sim.fluid.vel[interior], dtype=float), tau,
+        np.asarray(sim.fluid.vel_code[interior], dtype=float), tau,
     )
     pressure = cosmology.physical_pressure(
-        np.asarray(sim.fluid.pre[interior], dtype=float), tau, sim.par.hydrodynamics.gamma
+        np.asarray(sim.fluid.pre_code[interior], dtype=float), tau, sim.par.hydrodynamics.gamma
     )
     boundaries = np.asarray(
         sim.mesh.boundary[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1],

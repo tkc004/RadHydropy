@@ -287,30 +287,30 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             * state["source_temperature_factor"]
         )
         total_super = internal_super + 0.5 * state["velocity_supercomoving_cm_s"]**2
-        fluid.Energy[interior] = from_unit_value(
+        fluid.Energy_code[interior] = from_unit_value(
             state["mass_g"] * total_super,
             code.energy_unit,
         )
         rotational_code = _rotational_specific_energy_code(mesh, fluid, par)
-        fluid.Energy[interior] += from_unit_value(
-            np.asarray(fluid.Mass[interior], dtype=float) * rotational_code,
+        fluid.Energy_code[interior] += from_unit_value(
+            np.asarray(fluid.Mass_code[interior], dtype=float) * rotational_code,
             code.energy_unit,
         )
-        fluid.temp[interior] = from_unit_value(
+        fluid.temp_code[interior] = from_unit_value(
             state["temperature_K"] * state["source_temperature_factor"],
             code.temperature_unit,
         )
         if hasattr(fluid.eos, "pressure"):
-            fluid.pre[interior] = fluid.eos.pressure(
-                fluid.rho[interior],
-                fluid.temp[interior],
+            fluid.pre_code[interior] = fluid.eos.pressure(
+                fluid.rho_code[interior],
+                fluid.temp_code[interior],
                 fluid.mu[interior],
             )
         else:
             internal_code = internal_super / code.velocity_in_cgs**2
-            fluid.pre[interior] = (
+            fluid.pre_code[interior] = (
                 (state["gamma"] - 1.0)
-                * np.asarray(fluid.rho[interior], dtype=float)
+                * np.asarray(fluid.rho_code[interior], dtype=float)
                 * internal_code
             )
         return source_steps

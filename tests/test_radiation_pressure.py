@@ -34,10 +34,10 @@ def make_state(rho):
         coordinate=np.arange(ncell, dtype=float) + 0.5,
     )
     fluid = SimpleNamespace(
-        rho=rho.copy(),
-        vel=np.zeros(ncell, dtype=float),
-        Mom=np.zeros(ncell, dtype=float),
-        Energy=np.zeros(ncell, dtype=float),
+        rho_code=rho.copy(),
+        vel_code=np.zeros(ncell, dtype=float),
+        Mom_code=np.zeros(ncell, dtype=float),
+        Energy_code=np.zeros(ncell, dtype=float),
     )
     par = parameter_namespace(
         CodeUnits=CODE_UNITS,
@@ -73,16 +73,16 @@ def test_one_cell_radiation_pressure_matches_absorbed_momentum():
     )
 
     expected_force = absorbed * energy / SPEED_OF_LIGHT_CGS
-    np.testing.assert_allclose(fluid.Mom, [expected_force * dt])
-    np.testing.assert_allclose(fluid.Energy, [0.0])
+    np.testing.assert_allclose(fluid.Mom_code, [expected_force * dt])
+    np.testing.assert_allclose(fluid.Energy_code, [0.0])
 
 
 def test_zero_density_cell_is_skipped():
     mesh, fluid, par = make_state([2.0, 0.0])
-    fluid.Mom[:] = [1.0, 2.0]
-    fluid.Energy[:] = [3.0, 4.0]
-    before_mom = fluid.Mom.copy()
-    before_energy = fluid.Energy.copy()
+    fluid.Mom_code[:] = [1.0, 2.0]
+    fluid.Energy_code[:] = [3.0, 4.0]
+    before_mom = fluid.Mom_code.copy()
+    before_energy = fluid.Energy_code.copy()
 
     Solver().ApplyRadiationPressure(
         1.0,
@@ -92,8 +92,8 @@ def test_zero_density_cell_is_skipped():
         source_result([1.0, 100.0], [5.0]),
     )
 
-    np.testing.assert_allclose(fluid.Mom[1], before_mom[1])
-    np.testing.assert_allclose(fluid.Energy[1], before_energy[1])
+    np.testing.assert_allclose(fluid.Mom_code[1], before_mom[1])
+    np.testing.assert_allclose(fluid.Energy_code[1], before_energy[1])
 
 
 def test_radiation_pressure_direction_reverses_momentum():
@@ -110,7 +110,7 @@ def test_radiation_pressure_direction_reverses_momentum():
         source_result([2.0], [4.0], direction=-1),
     )
 
-    np.testing.assert_allclose(negative.Mom, -positive.Mom)
+    np.testing.assert_allclose(negative.Mom_code, -positive.Mom_code)
 
 
 def test_multigroup_pressure_is_energy_weighted():
@@ -127,14 +127,14 @@ def test_multigroup_pressure_is_energy_weighted():
     )
 
     expected = (2.0 * 5.0 + 3.0 * 7.0) / SPEED_OF_LIGHT_CGS
-    np.testing.assert_allclose(fluid.Mom, [expected])
+    np.testing.assert_allclose(fluid.Mom_code, [expected])
 
 
 def test_radiation_pressure_can_be_disabled():
     mesh, fluid, par = make_state([1.0])
     par.radiation_pressure = False
-    fluid.Mom[:] = 2.0
-    fluid.Energy[:] = 3.0
+    fluid.Mom_code[:] = 2.0
+    fluid.Energy_code[:] = 3.0
 
     Solver().ApplyRadiationPressure(
         1.0,
@@ -144,5 +144,5 @@ def test_radiation_pressure_can_be_disabled():
         source_result([10.0], [20.0]),
     )
 
-    np.testing.assert_allclose(fluid.Mom, [2.0])
-    np.testing.assert_allclose(fluid.Energy, [3.0])
+    np.testing.assert_allclose(fluid.Mom_code, [2.0])
+    np.testing.assert_allclose(fluid.Energy_code, [3.0])

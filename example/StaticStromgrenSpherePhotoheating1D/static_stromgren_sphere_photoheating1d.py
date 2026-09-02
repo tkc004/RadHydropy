@@ -50,7 +50,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
     runparams = eu.legacy_example_parameters(nested)
-    icparams = runparams
+    icparams = {**runparams, **nested['initial_condition']}
     eu.clean_previous_outputs(runtime['output'])
     config_dir = Path(config_filename).resolve().parent
     for key in (
@@ -61,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
             value = Path(runparams[key])
             if not value.is_absolute():
                 runparams[key] = str(config_dir / value)
-    config = runparams
+    config = icparams
     print('config', config)
     for alias, source in (
         ('hydrogen_alpha_B', 'alpha_B_coefficient'),

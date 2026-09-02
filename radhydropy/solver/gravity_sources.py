@@ -74,19 +74,19 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         gravity.advance_dark_matter(
             dt,
             mesh,
-            fluid.rho,
+            fluid.rho_code,
             par,
             crossing_safety_factor=crossing_safety_factor,
         )
     # ApplyGravity follows the conservative hydro flux update and precedes
-    # the primitive-state refresh.  Therefore fluid.rho and fluid.vel can
+    # the primitive-state refresh.  Therefore fluid.rho_code and fluid.vel_code can
     # still describe the pre-hydro state, while Mass and Mom already
     # describe the post-hydro state.  Derive both quantities from the
     # current conserved fields so the gravity momentum and work updates
     # use the same state.
     volume = np.asarray(mesh.vol, dtype=float)
-    mass = np.asarray(fluid.Mass, dtype=float)
-    momentum = np.asarray(fluid.Mom, dtype=float)
+    mass = np.asarray(fluid.Mass_code, dtype=float)
+    momentum = np.asarray(fluid.Mom_code, dtype=float)
     current_rho = np.zeros_like(mass)
     np.divide(mass, volume, out=current_rho, where=volume > 0.0)
     current_vel = np.zeros_like(momentum)
@@ -95,7 +95,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         acceleration = np.zeros_like(current_rho)
     else:
         acceleration = gravity.acceleration_on_mesh(
-            mesh, rho=current_rho, par=par
+                mesh, rho=current_rho, par=par
         )
     code_units = getattr(par, "CodeUnits", None)
     if code_units is not None:
@@ -104,15 +104,15 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             acceleration = np.asarray(acceleration.to_value(target_unit), dtype=float)
         else:
             acceleration = np.asarray(acceleration, dtype=float)
-    if np.shape(acceleration) != np.shape(fluid.rho):
+    if np.shape(acceleration) != np.shape(fluid.rho_code):
         raise ValueError(
             "Gravity acceleration shape %s does not match fluid state shape %s"
-            % (np.shape(acceleration), np.shape(fluid.rho))
+            % (np.shape(acceleration), np.shape(fluid.rho_code))
         )
     gravity_acceleration = acceleration.copy()
     rotational_acceleration = np.zeros_like(current_rho)
     if rotational_support:
-        angular_momentum = np.asarray(fluid.AngularMomentum, dtype=float)
+        angular_momentum = np.asarray(fluid.AngularMomentum_code, dtype=float)
         specific = np.zeros_like(current_rho)
         np.divide(
             angular_momentum, mass, out=specific, where=mass > 0.0
@@ -139,14 +139,14 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         momentum + gravity_momentum
     ) * gravity_acceleration * dt_value
     new_energy = (
-        np.asarray(fluid.Energy, dtype=float)
+        np.asarray(fluid.Energy_code, dtype=float)
         + gravity_work
     )
 
     source_increment = mass * rotational_acceleration * dt_value
     source_factors = np.ones_like(source_increment)
     if rotational_support:
-        angular = np.asarray(fluid.AngularMomentum, dtype=float)
+        angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
         radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
         rotational_energy = np.zeros_like(mass)
         valid_rotational = (
@@ -197,16 +197,16 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     centrifugal_work = 0.5 * (
         gravity_momentum + new_momentum
     ) * rotational_acceleration * dt_value
-    fluid.Mom[...] = new_momentum
-    fluid.Energy[...] = new_energy
+    fluid.Mom_code[...] = new_momentum
+    fluid.Energy_code[...] = new_energy
     if (
         gravity is not None
-        and hasattr(fluid, 'GravitationalPotentialEnergy')
+        and hasattr(fluid, 'GravitationalPotentialEnergy_code')
     ):
         # The explicit potential-energy reservoir receives the opposite
         # of the gravity work. Centrifugal work is retained as a diagnostic
         # only because E_rot is already part of total Energy.
-        fluid.GravitationalPotentialEnergy[...] -= gravity_work
+        fluid.GravitationalPotentialEnergy_code[...] -= gravity_work
     solver.last_gravity_work = float(
         np.sum(gravity_work[interior])
     )

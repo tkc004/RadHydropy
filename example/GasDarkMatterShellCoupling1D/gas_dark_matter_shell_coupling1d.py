@@ -41,11 +41,11 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.Simwrap(icparams, code_units, runparams['mesh']['grid_cells'])
     rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
     initial_density = quantity_to_value(
-        initial.fluid.rho,
+        initial.fluid.rho_code,
         'g/cm**3',
     )
     initial_gas_mass = np.sum(
-        initial.fluid.rho
+        initial.fluid.rho_code
         * (4.0 * np.pi / 3.0)
         * (initial.mesh.boundary[1:]**3 - initial.mesh.boundary[:-1]**3)
     ).to_value('g')
@@ -74,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'pc',
     )
     density = quantity_to_value(
-        np.asarray(sim.fluid.rho[interior]) * sim.par.CodeUnits.density_unit,
+        np.asarray(sim.fluid.rho_code[interior]) * sim.par.CodeUnits.density_unit,
         'g/cm**3',
     )
     physical_boundaries = np.asarray(
@@ -85,7 +85,7 @@ def main(config_filename=DEFAULT_CONFIG):
         dtype=float,
     )
     gas_mass = np.sum(
-        np.asarray(sim.fluid.rho[interior], dtype=float)
+        np.asarray(sim.fluid.rho_code[interior], dtype=float)
         * (4.0 * np.pi / 3.0)
         * (physical_boundaries[1:]**3 - physical_boundaries[:-1]**3)
     ) * sim.par.CodeUnits.mass_unit

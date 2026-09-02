@@ -78,7 +78,7 @@ class InitialCondition:
             (self.mesh.boundary[1:] ** 3 - self.mesh.boundary[:-1] ** 3)
             * 4.0 * np.pi / 3.0
         )
-        self.fluid.rho = point_mass_density(
+        self.fluid.rho_code = point_mass_density(
             self.mesh.coordinate * code_units.length_unit,
             icparams["reference_density"],
             icparams["initial_temperature"],
@@ -87,16 +87,16 @@ class InitialCondition:
             self.mesh.coordinate[0] * code_units.length_unit,
         )
         scales = code_unit_scales(code_units)
-        self.fluid.rho = quantity_to_value(
-            self.fluid.rho, code_units.density_unit
+        self.fluid.rho_code = quantity_to_value(
+            self.fluid.rho_code, code_units.density_unit
         )
-        self.fluid.temp = np.full(
+        self.fluid.temp_code = np.full(
             self.par.nogrid,
             float(icparams["initial_temperature"].to_value(unyt.K))
             / scales["temperature_K"],
         )
         self.fluid.mu = np.full(self.par.nogrid, float(icparams["mean_molecular_weight"]))
-        self.fluid.vel = np.zeros(self.par.nogrid)
+        self.fluid.vel_code = np.zeros(self.par.nogrid)
 
 
 def analytic_density_code(radius_code, icparams, code_units):

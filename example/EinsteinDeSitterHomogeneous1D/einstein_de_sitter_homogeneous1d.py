@@ -33,17 +33,17 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
 
     class Fluid:
         time = tau0
-        rho = np.array([config['example']['density']])
-        vel = np.array([config['example']['velocity']])
-        pre = np.array([config['example']['pressure']])
+        rho_code = np.array([config['example']['density']])
+        vel_code = np.array([config['example']['velocity']])
+        pre_code = np.array([config['example']['pressure']])
         eos = EOS()
 
     fluid = Fluid()
-    initial = (fluid.rho.copy(), fluid.vel.copy(), fluid.pre.copy())
+    initial = (fluid.rho_code.copy(), fluid.vel_code.copy(), fluid.pre_code.copy())
     # Supercomoving homogeneous Euler evolution has no expansion source.
-    assert np.allclose(fluid.rho, initial[0])
-    assert np.allclose(fluid.vel, initial[1])
-    assert np.allclose(fluid.pre, initial[2])
+    assert np.allclose(fluid.rho_code, initial[0])
+    assert np.allclose(fluid.vel_code, initial[1])
+    assert np.allclose(fluid.pre_code, initial[2])
     a_ratio = cosmology.scale_factor(t1) / cosmology.scale_factor(t0)
     assert np.isclose(a_ratio, 2.0**(2.0 / 3.0))
     print("Einstein-De Sitter homogeneous expansion passed")

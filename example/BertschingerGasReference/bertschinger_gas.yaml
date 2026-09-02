@@ -3,6 +3,15 @@ par:
     name: BertschingerGasReference
   hydrodynamics:
     gamma: 1.6666666666666667
+  units:
+    CodeUnits:
+      name: bertschinger_gas_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 4.42e44
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 9.77792221e7
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 
 initial_condition: {}
 

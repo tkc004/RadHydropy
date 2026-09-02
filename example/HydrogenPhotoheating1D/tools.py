@@ -51,15 +51,15 @@ class Simwrap:
             0.0 * box_size[0], box_size[0], grid_cells + 1,
         )
 
-        self.fluid.rho = (
+        self.fluid.rho_code = (
             np.ones(grid_cells)
             * icparams['hydrogen_number_density']
             * unyt.mp
         ).to(unyt.g / unyt.cm**3)
-        self.fluid.vel = np.zeros(grid_cells) * unyt.cm / unyt.s
-        self.fluid.temp = np.ones(grid_cells) * icparams['temperature']
+        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+        self.fluid.temp_code = np.ones(grid_cells) * icparams['temperature']
         self.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
-        self.fluid.ngamma = np.ones(grid_cells) * icparams['photon_number_density']
+        self.fluid.ngamma_code = np.ones(grid_cells) * icparams['photon_number_density']
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
@@ -110,7 +110,7 @@ def mean_temperature(sim):
     return (
         np.mean(
             code_quantity_to_cgs(
-                sim.fluid.temp[interior],
+                sim.fluid.temp_code[interior],
                 code_units_obj,
                 'temperature_K',
             )
@@ -129,7 +129,7 @@ def mean_photon_number_density(sim):
     return (
         np.mean(
             code_quantity_to_cgs(
-                sim.fluid.ngamma[interior],
+                sim.fluid.ngamma_code[interior],
                 getattr(sim.par.units, 'CodeUnits', None),
                 'number_density_cm3',
             )
@@ -160,7 +160,7 @@ def load_history_from_outputs(outputfiles, config):
         history['temperature_K'].append(
             np.mean(
                 code_quantity_to_cgs(
-                    rout.fluid.temp[interior],
+                    rout.fluid.temp_code[interior],
                     code_units_obj,
                     'temperature_K',
                 )
@@ -170,7 +170,7 @@ def load_history_from_outputs(outputfiles, config):
         history['ngamma'].append(
             np.mean(
                 code_quantity_to_cgs(
-                    rout.fluid.ngamma[interior],
+                    rout.fluid.ngamma_code[interior],
                     code_units_obj,
                     'number_density_cm3',
                 )
@@ -250,7 +250,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
             )
         else:
             ngamma = 0.0
-        sim.fluid.ngamma[:] = ngamma
+        sim.fluid.ngamma_code[:] = ngamma_code
 
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
         sim.fluid.time += dt

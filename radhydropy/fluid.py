@@ -31,18 +31,18 @@ class Fluid():
 
     def SetPressure(self):
         """Set gas pressure from density, temperature, and mean molecular weight."""
-        self.pre = self.eos.pressure(self.rho, self.temp, self.mu)
+        self.pre_code = self.eos.pressure(self.rho_code, self.temp_code, self.mu)
         
     def SetEnergyDensity(self):
         """Set thermal energy density from pressure and the fluid EOS."""
-        self.eth = self.eos.thermal_energy_density(self.pre)
+        self.eth_code = self.eos.thermal_energy_density(self.pre_code)
         
     def SetSoundSpeed(self):
         """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
-        self.cs = self.eos.sound_speed(
-            self.rho,
-            self.pre,
-            temp=self.temp,
+        self.cs_code = self.eos.sound_speed(
+            self.rho_code,
+            self.pre_code,
+            temp=self.temp_code,
             mu=self.mu,
         )
 
@@ -58,11 +58,11 @@ class Fluid():
         xHeI = np.asarray(self.xHeI, dtype=float)
         xHeII = np.asarray(self.xHeII, dtype=float)
         xHeIII = np.asarray(self.xHeIII, dtype=float)
-        nH = hydrogen_mass_fraction * np.asarray(self.rho, dtype=float) / unyt.mp.to_value(unyt.g)
-        nHe = helium_mass_fraction * np.asarray(self.rho, dtype=float) / (4.0 * unyt.mp.to_value(unyt.g))
+        nH = hydrogen_mass_fraction * np.asarray(self.rho_code, dtype=float) / unyt.mp.to_value(unyt.g)
+        nHe = helium_mass_fraction * np.asarray(self.rho_code, dtype=float) / (4.0 * unyt.mp.to_value(unyt.g))
         ne = nH * (1.0 - xHI) + nHe * (xHeII + 2.0 * xHeIII)
         nt = nH + nHe + ne
-        self.mu = as_named_array(np.asarray(self.rho, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)))
+        self.mu = as_named_array(np.asarray(self.rho_code, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)))
         
     def SetUpFluid(self, par, mesh=None):
         """Normalize primitive quantities into code units, append ghost cells, and
@@ -86,29 +86,29 @@ class Fluid():
         self.time = 0.0
 
         # check if the required attributes exist
-        attrlist = ['rho','temp','mu','vel'] 
+        attrlist = ['rho_code','temp_code','mu','vel_code']
         valuelist = [1.0, 0.0, 1.0, 0.0]
         for attr in attrlist:
             if not hasattr(self, attr):
                 raise Exception("%s does not exist in fluid; quitting."%attr)
 
-        self.rho = as_named_array(quantity_to_value(self.rho, code_units.density_unit))
-        self.temp = as_named_array(quantity_to_value(self.temp, code_units.temperature_unit))
-        self.vel = as_named_array(quantity_to_value(self.vel, code_units.velocity_unit))
+        self.rho_code = as_named_array(quantity_to_value(self.rho_code, code_units.density_unit))
+        self.temp_code = as_named_array(quantity_to_value(self.temp_code, code_units.temperature_unit))
+        self.vel_code = as_named_array(quantity_to_value(self.vel_code, code_units.velocity_unit))
         if getattr(par, 'gas_angular_momentum', False) or hasattr(
-            self, 'specific_angular_momentum'
+            self, 'specific_angular_momentum_code'
         ):
-            if not hasattr(self, 'specific_angular_momentum'):
-                self.specific_angular_momentum = as_named_array(
+            if not hasattr(self, 'specific_angular_momentum_code'):
+                self.specific_angular_momentum_code = as_named_array(
                     np.full(
-                        np.shape(self.rho),
+                        np.shape(self.rho_code),
                         float(getattr(par, 'gas_specific_angular_momentum', 0.0)),
                     )
                 )
             else:
-                self.specific_angular_momentum = as_named_array(
+                self.specific_angular_momentum_code = as_named_array(
                     quantity_to_value(
-                        self.specific_angular_momentum,
+                        self.specific_angular_momentum_code,
                         code_units.length_unit * code_units.velocity_unit,
                     )
                 )
@@ -119,9 +119,9 @@ class Fluid():
             a, hubble = supercomoving_scale(par, time=self.time)
             gamma = float(self.eos.gamma)
             if getattr(par, 'density_representation', 'physical') == 'physical':
-                self.rho = as_named_array(to_supercomoving_density(self.rho, a))
+                self.rho_code = as_named_array(to_supercomoving_density(self.rho_code, a))
             if getattr(par, 'temperature_representation', 'physical') == 'physical':
-                self.temp = as_named_array(to_supercomoving_temperature(self.temp, a, gamma))
+                self.temp_code = as_named_array(to_supercomoving_temperature(self.temp_code, a, gamma))
             if getattr(par, 'velocity_representation', 'physical') == 'physical':
                 if mesh is None:
                     raise ValueError(
@@ -130,13 +130,13 @@ class Fluid():
                 first = int(par.mesh.ghost_cells)
                 last = first + int(par.mesh.grid_cells)
                 radius = np.asarray(mesh.coordinate[first:last], dtype=float)
-                self.vel = as_named_array(
-                    to_supercomoving_velocity(self.vel, radius, a, hubble)
+                self.vel_code = as_named_array(
+                    to_supercomoving_velocity(self.vel_code, radius, a, hubble)
                 )
 
         if getattr(par, 'hydrogen_chemistry', False) and not hasattr(self, 'xHI'):
             self.xHI = (
-                as_named_array(np.ones(np.shape(self.rho), dtype=float))
+                as_named_array(np.ones(np.shape(self.rho_code), dtype=float))
                 * getattr(par, 'hydrogen_xHI_initial', 1.0)
             )
         if hasattr(self, 'xHI'):
@@ -149,7 +149,7 @@ class Fluid():
                 ('xHeIII', getattr(par, 'hydrogen_helium_xHeIII_initial', 0.0)),
             ):
                 if not hasattr(self, attr):
-                    setattr(self, attr, as_named_array(np.ones(np.shape(self.rho)) * default))
+                    setattr(self, attr, as_named_array(np.ones(np.shape(self.rho_code)) * default))
                 attrlist.append(attr)
                 valuelist.append(default)
 
@@ -158,35 +158,35 @@ class Fluid():
                 getattr(par, 'hydrogen_radiation_field', False)
                 or getattr(par, 'radiative_transfer', False)
             )
-            and not hasattr(self, 'ngamma')
+            and not hasattr(self, 'ngamma_code')
         ):
             ngamma_unit = code_units.number_density_unit
-            self.ngamma = (
-                as_named_array(np.ones(np.shape(self.rho), dtype=float))
+            self.ngamma_code = (
+                as_named_array(np.ones(np.shape(self.rho_code), dtype=float))
                 * quantity_to_value(
                     photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                     ngamma_unit,
                 )
             )
-        if hasattr(self, 'ngamma'):
-            attrlist.append('ngamma')
+        if hasattr(self, 'ngamma_code'):
+            attrlist.append('ngamma_code')
             ngamma_initial = quantity_to_value(
                 photon_number_density(getattr(par, 'hydrogen_ngamma_initial', 0.0)),
                 code_units.number_density_unit,
             )
             valuelist.append(float(np.asarray(ngamma_initial, dtype=float)))
 
-        if hasattr(self, 'specific_angular_momentum'):
-            attrlist.append('specific_angular_momentum')
+        if hasattr(self, 'specific_angular_momentum_code'):
+            attrlist.append('specific_angular_momentum_code')
             valuelist.append(0.0)
         if getattr(par, 'gravity_potential_energy', False) and not hasattr(
-            self, 'GravitationalPotentialEnergy'
+            self, 'GravitationalPotentialEnergy_code'
         ):
-            self.GravitationalPotentialEnergy = as_named_array(
-                np.zeros(np.shape(self.rho), dtype=float)
+            self.GravitationalPotentialEnergy_code = as_named_array(
+                np.zeros(np.shape(self.rho_code), dtype=float)
             )
-        if hasattr(self, 'GravitationalPotentialEnergy'):
-            attrlist.append('GravitationalPotentialEnergy')
+        if hasattr(self, 'GravitationalPotentialEnergy_code'):
+            attrlist.append('GravitationalPotentialEnergy_code')
             valuelist.append(0.0)
             
 
@@ -196,7 +196,7 @@ class Fluid():
             quan = getattr(self, attr)
             #print('attr,qaun',attr,quan)
             units = getattr(quan, 'units', None)
-            if attr == 'ngamma' and np.ndim(quan) == 2:
+            if attr == 'ngamma_code' and np.ndim(quan) == 2:
                 values = np.asarray(quan, dtype=float)
                 ghost = np.full(
                     (values.shape[0], noghost),
@@ -240,7 +240,7 @@ class Fluid():
 
     def SetTemperature(self):
         """Set gas temperature from density, pressure, and mean molecular weight."""
-        self.temp = self.eos.temperature(self.rho, self.pre, self.mu)
+        self.temp_code = self.eos.temperature(self.rho_code, self.pre_code, self.mu)
 
     def SetFluidTime(self, time): 
         """Set the current fluid time."""

@@ -74,13 +74,13 @@ class Simwrap:
         self.mesh.coordinate = 0.5 * (faces[1:] + faces[:-1])
         self.mesh.area = 4.0 * np.pi * faces[:-1] ** 2
         self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(faces ** 3)
-        self.fluid.rho = np.full(
+        self.fluid.rho_code = np.full(
             self.par.nogrid,
             quantity_to_value(
                 icparams['initial_density'], code_units.density_unit
             ),
         )
-        self.fluid.temp = np.full(
+        self.fluid.temp_code = np.full(
             self.par.nogrid,
             quantity_to_value(
                 icparams['temperature'], code_units.temperature_unit
@@ -89,7 +89,7 @@ class Simwrap:
         self.fluid.mu = np.full(
             self.par.nogrid, float(icparams['mean_molecular_weight'])
         )
-        self.fluid.vel = np.full(
+        self.fluid.vel_code = np.full(
             self.par.nogrid,
             quantity_to_value(
                 icparams['velocity'], code_units.velocity_unit

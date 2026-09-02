@@ -107,16 +107,16 @@ def _synchronize_thermochemistry_internal_energy(sim):
     """
     if not (
         sim.solver._dual_energy_enabled(sim.par)
-        and hasattr(sim.fluid, 'InternalEnergy')
+        and hasattr(sim.fluid, 'InternalEnergy_code')
         and rtc.thermochemistry_enabled(sim.fluid, sim.par)
     ):
         return
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
     stop = first + count
-    mass = np.asarray(sim.fluid.Mass, dtype=float)
-    momentum = np.asarray(sim.fluid.Mom, dtype=float)
-    total_energy = np.asarray(sim.fluid.Energy, dtype=float)
+    mass = np.asarray(sim.fluid.Mass_code, dtype=float)
+    momentum = np.asarray(sim.fluid.Mom_code, dtype=float)
+    total_energy = np.asarray(sim.fluid.Energy_code, dtype=float)
     kinetic = np.zeros_like(total_energy)
     np.divide(
         0.5 * momentum**2,
@@ -134,10 +134,10 @@ def _synchronize_thermochemistry_internal_energy(sim):
         np.isfinite(thermal[first:stop])
         & (thermal[first:stop] > 0.0)
     )
-    internal = np.asarray(sim.fluid.InternalEnergy, dtype=float).copy()
+    internal = np.asarray(sim.fluid.InternalEnergy_code, dtype=float).copy()
     internal_slice = internal[first:stop]
     internal_slice[valid] = thermal[first:stop][valid]
-    sim.fluid.InternalEnergy = internal
+    sim.fluid.InternalEnergy_code = internal
 
 def _accumulate_gravity_work(sim):
     """Accumulate work from one completed gravity/source substep."""

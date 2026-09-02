@@ -61,10 +61,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetInitFluid()
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    initial_mass = float(np.sum(sim.fluid.rho[physical] * sim.mesh.vol[physical]))
+    initial_mass = float(np.sum(sim.fluid.rho_code[physical] * sim.mesh.vol[physical]))
     top_hat_radius = float(icparams['top_hat_radius'])
     initial_inside = sim.mesh.coordinate[physical] < top_hat_radius
-    target_mass = float(np.sum(sim.fluid.rho[physical][initial_inside] * sim.mesh.vol[physical][initial_inside]))
+    target_mass = float(np.sum(sim.fluid.rho_code[physical][initial_inside] * sim.mesh.vol[physical][initial_inside]))
     initial_tau = float(np.asarray(sim.fluid.time).flat[0])
     initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)
     initial_delta = float(icparams['overdensity'])
@@ -75,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG):
         a = state.par.cosmology.scale_factor_from_supercomoving(tau)
         radius = et.enclosed_mass_radius(
             state.mesh.boundary[physical.start:physical.stop + 1],
-            state.fluid.rho[physical], state.mesh.vol[physical], target_mass,
+            state.fluid.rho_code[physical], state.mesh.vol[physical], target_mass,
         )
         cosmic_time = state.par.cosmology.cosmic_time_from_supercomoving(tau)
         rho_background = state.par.cosmology.background_density(cosmic_time) * a**3
@@ -98,7 +98,7 @@ def main(config_filename=DEFAULT_CONFIG):
     final_background = final.par.cosmology.background_density(final_cosmic_time) * final_a**3
     final_radius = et.enclosed_mass_radius(
         final.mesh.boundary[final_physical.start:final_physical.stop + 1],
-        final.fluid.rho[final_physical], final.mesh.vol[final_physical], target_mass,
+        final.fluid.rho_code[final_physical], final.mesh.vol[final_physical], target_mass,
     )
     measured_delta = 3.0 * target_mass / (4.0 * np.pi * final_radius**3) / final_background - 1.0
     expected_delta = et.linear_overdensity(initial_delta, final_a, initial_a)

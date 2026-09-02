@@ -258,7 +258,7 @@ class Simwrap:
                 * float(ic.get("correlation_h", 0.674))
             ),
         )
-        self.fluid.rho = rho_comoving * fb * (1.0 + delta) * np.ones(self.par.nogrid)
+        self.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(self.par.nogrid)
         rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
         rho_g_cgs = rho_total_cgs * fb * (1.0 + delta)
         n_h = (
@@ -292,12 +292,12 @@ class Simwrap:
                 pie_temperature(pie_table, float(np.median(n_h)), redshift)
                 if pie_table else 1.0e4
             )
-        self.fluid.temp = temp_phys * a**2 * np.ones(self.par.nogrid)
+        self.fluid.temp_code = temp_code_phys * a**2 * np.ones(self.par.nogrid)
         if not bool(ic.get("cmb_equilibrium_initial", False)):
             self.fluid.mu = np.full(self.par.nogrid, float(ic["mu"]))
-        self.fluid.vel = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
+        self.fluid.vel_code = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
         if "gas_specific_angular_momentum" in ic:
-            self.fluid.specific_angular_momentum = np.full(
+            self.fluid.specific_angular_momentum_code = np.full(
                 self.par.nogrid,
                 float(ic["gas_specific_angular_momentum"]),
             )
@@ -450,7 +450,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     last = first + int(sim.par.nogrid)
     x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
     edges = np.asarray(sim.mesh.boundary[first:last + 1], dtype=float)
-    rho = np.asarray(sim.fluid.rho[first:last], dtype=float)
+    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
     gas_mass = rho * 4.0 * np.pi / 3.0 * np.diff(edges**3)
     gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass)))
     dm_order = np.argsort(dm.radius)
@@ -510,11 +510,11 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     else:
         tvir = float("nan")
 
-    temp_phys = np.asarray(sim.fluid.temp[first:last], dtype=float) / a**2
+    temp_code_phys = np.asarray(sim.fluid.temp_code[first:last], dtype=float) / a**2
     velocity_phys = np.asarray(
         cosmology.physical_velocity(
             x,
-            np.asarray(sim.fluid.vel[first:last], dtype=float),
+            np.asarray(sim.fluid.vel_code[first:last], dtype=float),
             float(sim.fluid.time),
         ),
         dtype=float,
@@ -674,7 +674,7 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
 def gas_density_profile(sim, cosmic_time, cosmology):
     """Return one snapshot of the physical gas density profile.
 
-    The mesh coordinate is comoving, while ``fluid.rho`` is the
+    The mesh coordinate is comoving, while ``fluid.rho_code`` is the
     supercomoving/comoving density used by the solver.  The returned density
     is physical (divide by ``a**3``), and both radius representations are
     stored so an evolution plot can use a fixed comoving x-axis while
@@ -687,7 +687,7 @@ def gas_density_profile(sim, cosmic_time, cosmology):
         sim.mesh.coordinate[first:last], dtype=float
     )
     density_comoving = np.asarray(
-        sim.fluid.rho[first:last], dtype=float
+        sim.fluid.rho_code[first:last], dtype=float
     )
     return {
         "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),

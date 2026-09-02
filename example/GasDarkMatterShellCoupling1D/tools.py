@@ -48,10 +48,10 @@ class Simwrap:
         self.mesh.vol = 4.0 * np.pi / 3.0 * (
             self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
         )
-        self.fluid.rho = np.ones(self.par.nogrid) * icparams['gas_density']
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['gas_temperature']
+        self.fluid.rho_code = np.ones(self.par.nogrid) * icparams['gas_density']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['gas_temperature']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
-        self.fluid.vel = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
 
 
 def make_dark_matter(icparams, code_units):

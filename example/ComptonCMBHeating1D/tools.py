@@ -58,12 +58,12 @@ class Simwrap:
             1.0,
             self.par.mesh.grid_cells + 1,
         ) * icparams['box_size']
-        self.fluid.rho = (
+        self.fluid.rho_code = (
             np.ones(self.par.mesh.grid_cells)
             * icparams['hydrogen_density']
             * unyt.mp
         ).to(unyt.g / unyt.cm**3)
-        self.fluid.vel = np.zeros(self.par.mesh.grid_cells) * unyt.cm / unyt.s
-        self.fluid.temp = np.ones(self.par.mesh.grid_cells) * icparams['initial_temperature']
+        self.fluid.vel_code = np.zeros(self.par.mesh.grid_cells) * unyt.cm / unyt.s
+        self.fluid.temp_code = np.ones(self.par.mesh.grid_cells) * icparams['initial_temperature']
         self.fluid.xHI = np.ones(self.par.mesh.grid_cells) * icparams['xHI']
         self.fluid.mu = np.ones(self.par.mesh.grid_cells) * icparams['mean_molecular_weight']

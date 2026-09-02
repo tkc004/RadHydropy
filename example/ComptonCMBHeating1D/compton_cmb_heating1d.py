@@ -112,7 +112,7 @@ def _run_case(
     time_s = 0.0
     times_s = [time_s]
     temperatures = [
-        float(np.mean(sim.fluid.temp[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]))
+        float(np.mean(sim.fluid.temp_code[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]))
     ]
     source_steps = 0
     while time_s < final_time_s - 1.0e-12:
@@ -126,7 +126,7 @@ def _run_case(
         times_s.append(time_s)
         temperatures.append(
             float(np.mean(
-                sim.fluid.temp[
+                sim.fluid.temp_code[
                     sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells
                 ]
             ))

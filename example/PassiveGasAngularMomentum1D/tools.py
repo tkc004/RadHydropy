@@ -45,12 +45,12 @@ class Simwrap:
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
         phase = 2.0 * np.pi * coordinate / self.par.boxsize[0]
 
-        self.fluid.rho = np.ones(self.par.nogrid) * icparams['initial_density']
-        self.fluid.vel = np.ones(self.par.nogrid) * icparams['velocity']
-        self.fluid.temp = np.ones(self.par.nogrid) * icparams['temperature']
+        self.fluid.rho_code = np.ones(self.par.nogrid) * icparams['initial_density']
+        self.fluid.vel_code = np.ones(self.par.nogrid) * icparams['velocity']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['temperature']
         self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
         if icparams.get('include_angular_momentum', True):
-            self.fluid.specific_angular_momentum = (
+            self.fluid.specific_angular_momentum_code = (
                 icparams['angular_momentum_offset']
                 + icparams['angular_momentum_amplitude'] * np.sin(phase)
             )
