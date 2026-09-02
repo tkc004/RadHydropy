@@ -1079,12 +1079,13 @@ class Solver():
                     | ~np.isfinite(state_pressure)
                     | (state_pressure <= 0.0)
                 )
-            # The update of the gas cell immediately upstream of a vacuum
-            # uses both bounding faces.  Limit that complete two-face
-            # stencil, otherwise a high-order gas-gas flux can combine with
-            # the gas-vacuum flux to leave a pressureless state outside the
-            # invariant domain.
+            # A reconstructed face depends on neighboring cell gradients,
+            # and each cell update depends on its two bounding faces.  Once
+            # one reconstructed state is invalid, retain the complete local
+            # stencil at first order; reverting only that face still allows
+            # an adjacent high-order flux to combine with it and overshoot.
             vacuum_face |= np.roll(vacuum_face, -1)
+            vacuum_face |= np.roll(vacuum_face, 1)
             fluid.Mass_code.flux[vacuum_face] = Mass_flux_0[vacuum_face]
             fluid.Mom_code.flux[vacuum_face] = Mom_flux_0[vacuum_face]
             fluid.Energy_code.flux[vacuum_face] = Energy_flux_0[vacuum_face]
