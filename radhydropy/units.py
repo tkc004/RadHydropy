@@ -95,6 +95,8 @@ _CODE_UNIT_GROUPS = (
             ('selfgravity_boundary_acceleration', 'acceleration'),
             ('rho_inflow', 'density'),
             ('rho_outflow', 'density'),
+            ('cfl_density_floor', 'density'),
+            ('positivity_density_floor', 'density'),
             ('vel_inflow', 'velocity'),
             ('vel_outflow', 'velocity'),
             ('specific_angular_momentum_inflow', 'specific_angular_momentum'),

@@ -342,6 +342,11 @@ class Solver():
 
         return _apply_outflow_spherical_boundary(self, *args, **kwargs)
 
+    def _apply_wind_spherical_boundary(self, *args, **kwargs):
+        from .boundary_conditions import _apply_wind_spherical_boundary
+
+        return _apply_wind_spherical_boundary(self, *args, **kwargs)
+
     def SetPrimitive(self, mesh, fluid, par=None, verbose=None):
         """Update primitive variables from conserved quantities."""
         if verbose is None:
@@ -1049,11 +1054,31 @@ class Solver():
             # preserves injection into vacuum while retaining order one away
             # from the front.
             floor = self._cfl_density_floor(par)
-            vacuum_face = (
-                np.asarray(fluid.rho_code.L, dtype=float) <= floor
-            ) | (
-                np.asarray(fluid.rho_code.R, dtype=float) <= floor
+            # Check the reconstructed states themselves.  A centered
+            # reconstruction can overshoot across the imposed spherical wind
+            # jump even when both cell-centered states are positive.  Testing
+            # only ``rho_code.L/R`` therefore lets an inadmissible high-order
+            # flux through when the positivity limiter is disabled.
+            reconstructed_density = (
+                np.asarray(fluid.rho_code.L.first, dtype=float),
+                np.asarray(fluid.rho_code.R.first, dtype=float),
             )
+            reconstructed_pressure = (
+                np.asarray(fluid.pre_code.L.first, dtype=float),
+                np.asarray(fluid.pre_code.R.first, dtype=float),
+            )
+            vacuum_face = np.zeros_like(
+                reconstructed_density[0], dtype=bool
+            )
+            for state_density, state_pressure in zip(
+                reconstructed_density, reconstructed_pressure
+            ):
+                vacuum_face |= (
+                    ~np.isfinite(state_density)
+                    | (state_density <= floor)
+                    | ~np.isfinite(state_pressure)
+                    | (state_pressure <= 0.0)
+                )
             # The update of the gas cell immediately upstream of a vacuum
             # uses both bounding faces.  Limit that complete two-face
             # stencil, otherwise a high-order gas-gas flux can combine with
@@ -1475,6 +1500,95 @@ class Solver():
                     break
             mass, momentum, energy = total_mass, total_mom, total_energy
 
+        # A WindSph density floor is a wind reservoir, not an independent
+        # thermal-energy repair.  If a limited update leaves a physical cell
+        # below the requested floor, replenish the missing mass with the
+        # same specific momentum and total energy as the imposed wind.
+        # Applying all three increments together preserves the meaning of the
+        # floor and keeps the conservative state check below authoritative.
+        boundary = getattr(par, 'boundary', None)
+        if boundary is not None and getattr(boundary, 'condition', None) == 'WindSph':
+            wind_density = float(np.asarray(boundary.outflow_density))
+            wind_velocity = float(np.asarray(boundary.outflow_velocity))
+            wind_pressure = float(np.asarray(fluid.eos.pressure(
+                boundary.outflow_density,
+                boundary.outflow_temperature,
+                boundary.outflow_mu,
+            )))
+            wind_internal = (
+                wind_pressure / wind_density / (fluid.eos.gamma - 1.0)
+                if wind_density > 0.0 and not fluid.eos.is_isothermal
+                else 0.0
+            )
+            wind_specific_energy = 0.5 * wind_velocity**2 + wind_internal
+
+            missing_mass = np.maximum(mass_floor - mass, 0.0)
+            reservoir_cells = physical & (missing_mass > 0.0)
+            if np.any(reservoir_cells):
+                momentum[reservoir_cells] += (
+                    missing_mass[reservoir_cells] * wind_velocity
+                )
+                energy[reservoir_cells] += (
+                    missing_mass[reservoir_cells] * wind_specific_energy
+                )
+                mass[reservoir_cells] += missing_mass[reservoir_cells]
+                self._last_wind_reservoir_mass = float(
+                    np.sum(missing_mass[reservoir_cells])
+                )
+            else:
+                self._last_wind_reservoir_mass = 0.0
+
+            # A spherical pressure update can leave a cell exactly on the
+            # density floor with a small kinetic-energy deficit.  In that
+            # case add the smallest further parcel of the same wind state
+            # that restores the conservative invariant.  This is still a
+            # coupled reservoir operation; it is not a thermal-energy patch.
+            kinetic = np.divide(
+                0.5 * momentum**2,
+                mass,
+                out=np.zeros_like(mass),
+                where=mass > 0.0,
+            )
+            floor_edge = physical & (mass <= mass_floor * (1.0 + 1.0e-12))
+            energy_deficit = floor_edge & (
+                energy < kinetic + energy_floor
+            )
+            for index in np.flatnonzero(energy_deficit):
+                base_mass = mass[index]
+                base_momentum = momentum[index]
+                base_energy = energy[index]
+                required_energy = energy_floor[index]
+
+                def reservoir_valid(delta_mass):
+                    trial_mass = base_mass + delta_mass
+                    trial_momentum = base_momentum + delta_mass * wind_velocity
+                    trial_energy = base_energy + delta_mass * wind_specific_energy
+                    return trial_energy - (
+                        0.5 * trial_momentum**2 / trial_mass
+                    ) >= required_energy
+
+                low = 0.0
+                high = max(base_mass, mass_floor[index], 1.0) * 1.0e-12
+                for _ in range(96):
+                    if reservoir_valid(high):
+                        break
+                    high *= 2.0
+                if not reservoir_valid(high):
+                    raise ValueError(
+                        'wind reservoir could not restore conservative '
+                        'energy admissibility at cell %d' % index
+                    )
+                for _ in range(64):
+                    middle = 0.5 * (low + high)
+                    if reservoir_valid(middle):
+                        high = middle
+                    else:
+                        low = middle
+                mass[index] += high
+                momentum[index] += high * wind_velocity
+                energy[index] += high * wind_specific_energy
+                self._last_wind_reservoir_mass += high
+
         if not np.all(valid(mass, momentum, energy, total_angular)):
             invalid = ~valid(mass, momentum, energy, total_angular)
             index = int(np.flatnonzero(invalid)[0])
@@ -1491,6 +1605,124 @@ class Solver():
             fluid.AngularMomentum_code[...] = total_angular
         self._last_face_limiter_factors = factors
         return float(np.min(factors)) if factors.size else 1.0
+
+    def _apply_wind_reservoir_flux(self, dt, mesh, fluid, par):
+        """Restore rejected WindSph boundary flux as one coupled parcel."""
+        if (
+            par is None
+            or getattr(getattr(par, 'boundary', None), 'condition', None)
+            != 'WindSph'
+        ):
+            return 0.0
+        factors = np.asarray(
+            getattr(self, '_last_face_limiter_factors', np.ones(0)),
+            dtype=float,
+        )
+        first = int(par.mesh.ghost_cells)
+        if first >= len(factors) or first >= len(mesh.area):
+            return 0.0
+        rejected_fraction = max(0.0, 1.0 - float(factors[first]))
+        if rejected_fraction <= 0.0:
+            return 0.0
+
+        boundary = par.boundary
+        rho_wind = float(np.asarray(boundary.outflow_density))
+        velocity_wind = float(np.asarray(boundary.outflow_velocity))
+        pressure_wind = float(np.asarray(fluid.eos.pressure(
+            boundary.outflow_density,
+            boundary.outflow_temperature,
+            boundary.outflow_mu,
+        )))
+        wind_internal = (
+            pressure_wind / rho_wind / (fluid.eos.gamma - 1.0)
+            if rho_wind > 0.0 and not fluid.eos.is_isothermal
+            else 0.0
+        )
+        wind_specific_energy = 0.5 * velocity_wind**2 + wind_internal
+        area = float(np.asarray(mesh.area[first]))
+        dt_value = float(np.asarray(dt))
+        mass_rate = rho_wind * velocity_wind * area
+        momentum_rate = (rho_wind * velocity_wind**2 + pressure_wind) * area
+        energy_rate = velocity_wind * (
+            0.5 * rho_wind * velocity_wind**2
+            + fluid.eos.gamma * pressure_wind / (fluid.eos.gamma - 1.0)
+        ) * area
+        correction_mass = rejected_fraction * dt_value * mass_rate
+        correction_momentum = rejected_fraction * dt_value * momentum_rate
+        correction_energy = rejected_fraction * dt_value * energy_rate
+        fluid.Mass_code[first] += correction_mass
+        fluid.Mom_code[first] += correction_momentum
+        fluid.Energy_code[first] += correction_energy
+        if hasattr(fluid, 'InternalEnergy_code'):
+            correction_internal = correction_energy - (
+                velocity_wind * correction_momentum
+                - 0.5 * velocity_wind**2 * correction_mass
+            )
+            fluid.InternalEnergy_code[first] += correction_internal
+        mass = np.asarray(fluid.Mass_code, dtype=float)
+        momentum = np.asarray(fluid.Mom_code, dtype=float)
+        energy = np.asarray(fluid.Energy_code, dtype=float)
+        kinetic = 0.5 * momentum[first]**2 / mass[first]
+        if energy[first] < kinetic:
+            # A rejected parcel can still be too fast for the receiving cell
+            # when its velocity differs substantially from the wind.  Add
+            # only the minimum further parcel of the same wind state needed
+            # to make the combined conservative state admissible.
+            base_mass = mass[first]
+            base_momentum = momentum[first]
+            base_energy = energy[first]
+
+            def reservoir_valid(delta_mass):
+                trial_mass = base_mass + delta_mass
+                trial_momentum = base_momentum + delta_mass * velocity_wind
+                trial_energy = base_energy + delta_mass * wind_specific_energy
+                return trial_energy >= (
+                    0.5 * trial_momentum**2 / trial_mass
+                )
+
+            low = 0.0
+            high = max(base_mass, correction_mass, 1.0) * 1.0e-12
+            for _ in range(96):
+                if reservoir_valid(high):
+                    break
+                high *= 2.0
+            if not reservoir_valid(high):
+                raise ValueError(
+                    'WindSph reservoir correction could not restore '
+                    'conservative energy at cell %d' % first
+                )
+            for _ in range(64):
+                middle = 0.5 * (low + high)
+                if reservoir_valid(middle):
+                    high = middle
+                else:
+                    low = middle
+            mass[first] += high
+            momentum[first] += high * velocity_wind
+            energy[first] += high * wind_specific_energy
+            if hasattr(fluid, 'InternalEnergy_code'):
+                fluid.InternalEnergy_code[first] += high * (
+                    wind_specific_energy
+                    - velocity_wind**2
+                    + 0.5 * velocity_wind**2
+                )
+            self._last_wind_reservoir_mass += high
+        kinetic = 0.5 * momentum[first]**2 / mass[first]
+        if not (
+            np.isfinite(mass[first])
+            and np.isfinite(momentum[first])
+            and np.isfinite(energy[first])
+            and mass[first] > 0.0
+            and energy[first] >= kinetic
+        ):
+            raise ValueError(
+                'WindSph reservoir correction produced an inadmissible '
+                'conserved state at cell %d' % first
+            )
+        self._last_wind_reservoir_mass = (
+            getattr(self, '_last_wind_reservoir_mass', 0.0) + correction_mass
+        )
+        return correction_mass
         
     def SetInterFaceFlux(self,mesh,fluid,boundcond, method='Rusanov',verbose=None, order=0):
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
@@ -1633,6 +1865,13 @@ class Solver():
             geometric_mom=geometric_mom,
             angular_face=(fluid.AngularMomentum_code.flux
                           if df_AngularMomentum is not None else None),
+        )
+        # A positivity reduction at the prescribed wind face is a numerical
+        # rejection of reservoir material, not a physical reduction of the
+        # stellar-wind luminosity.  Reinsert the rejected parcel with its
+        # matching mass, momentum, and energy before synchronizing primitives.
+        self._apply_wind_reservoir_flux(
+            dt, mesh, fluid, getattr(mesh, '_par', None)
         )
         if df_InternalEnergy is not None:
             # Couple the dual-energy advection to the same face coefficients
@@ -1980,6 +2219,18 @@ class Solver():
             )
         elif btype == 'OutflowSph':
             self._apply_outflow_spherical_boundary(
+                mesh,
+                fluid,
+                par,
+                scales,
+                first,
+                nolast,
+                left_ghost,
+                right_ghost,
+                noghost,
+            )
+        elif btype == 'WindSph':
+            self._apply_wind_spherical_boundary(
                 mesh,
                 fluid,
                 par,

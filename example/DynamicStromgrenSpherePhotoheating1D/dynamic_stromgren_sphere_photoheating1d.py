@@ -26,6 +26,7 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 from radhydropy.rsim import Rsim
+import example_utils as eu
 import tools as et
 
 
@@ -39,13 +40,15 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     runparams, icparams = et.load_parameters(config_filename, rundir)
     config = {**runparams, **icparams}
+    nested_config = eu.load_nested_example_config(config_filename)
+    runtime_params = eu.runtime_parameters(nested_config)
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config, runparams)
 
-    sim = Rsim(runparams)
+    sim = Rsim(runtime_params)
     sim.RunAll(outputtime=0)
 
     outputfilenames = et.output_files(runparams['outdir'], runparams['outfileprefix'])

@@ -22,6 +22,7 @@ def Evolve(
     if step_backend_kwargs is None:
         step_backend_kwargs = {}
     counters = {"hydro_steps": 0, "source_steps": 0}
+    progress_steps = 0
     if history_callback is not None:
         history_callback(sim)
     while sim.fluid.time < final_time:
@@ -36,6 +37,18 @@ def Evolve(
         )
         counters["hydro_steps"] += step["hydro_steps"]
         counters["source_steps"] += step["source_steps"]
+        progress_steps += step["hydro_steps"]
+        if progress_steps % 1000 == 0:
+            print(
+                "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
+                % (
+                    progress_steps,
+                    float(sim.fluid.time),
+                    float(dt),
+                    100.0 * float(sim.fluid.time) / float(final_time),
+                ),
+                flush=True,
+            )
         if history_callback is not None:
             history_callback(sim)
         if output_callback is not None:

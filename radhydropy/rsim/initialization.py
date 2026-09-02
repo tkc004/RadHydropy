@@ -129,6 +129,7 @@ def ConvertParametersToCodeUnits(sim):
         ),
         "hydrodynamics": (
             ("hydro_temperature_floor", "temperature"),
+            ("positivity_density_floor", "density"),
         ),
         "output": (("cadence", "time"), ("time_interval", "time")),
         "timestep": (

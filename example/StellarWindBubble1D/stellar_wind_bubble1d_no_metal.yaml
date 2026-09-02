@@ -5,17 +5,29 @@ par:
     coordinate_system: spherical
     final_time: {value: 0.1, unit: Myr}
   mesh:
-    ghost_cells: 100
+    grid_cells: 128
+    ghost_cells: 16
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666666667
     CFL: 0.1
     order: 1
+    riemann_solver: Rusanov
+    dual_energy: true
+    dual_energy_eta1: 1.0e-3
+    dual_energy_eta2: 1.0e-1
+    dual_energy_consistency_factor: 1.0e-1
+    dual_energy_entropy_limiter: false
+    dual_energy_pressure_floor: 1.0e-20
+    positivity_preserving: true
+    hydro_temperature_floor: {value: 100.0, unit: K}
+    positivity_density_floor: {value: 1.0e-30, unit: g/cm**3}
+    boundary_mass_loading_timestep: false
   boundary:
     condition: OutflowSph
     outflow_velocity: {value: 1000.0, unit: km/s}
     outflow_density: {value: 1.0e-22, unit: g/cm**3}
-    outflow_temperature: {value: 0.0, unit: K}
+    outflow_temperature: {value: 100.0, unit: K}
     outflow_mu: 0.62
   timestep:
     dtmin: {value: 1.0e-10, unit: Myr}
@@ -23,12 +35,14 @@ par:
   output:
     directory: .
     savedir: .
-    filename_prefix: Output
+    filename_prefix: Output_no_metal
     time_list_filename: stellar_wind_bubble1d_no_metal_output_times.txt
   diagnostics:
     verbose: 0
   thermochemistry:
     network: hydrogen
+    hydrogen_atomic_cooling: false
+    hydrogen_thermal_coupling: false
   chemistry:
     hydrogen_mass_fraction: 1.0
   units:
@@ -41,7 +55,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  grid_cells: 1024
+  grid_cells: 128
   coordinate_system: spherical
   box_size: {value: 25.0, unit: pc}
   injection_radius: {value: 0.05, unit: pc}

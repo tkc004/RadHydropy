@@ -1,116 +1,21 @@
-runparams:
-  simname: DynamicStromgrenSpherePhotoheating20pcStellarWind1D
-  ICfilename: InitialCondition.hdf5
-  outdir: .
-  outfileprefix: Output
-  outputtimefilename: output_times.txt
-  savedir: .
-  CodeUnits:
-    name: galactic_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 4.92e31
-      UnitLength_in_cgs: 3.08567758e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  timesim:
-    value: 1.0
-    unit: Myr
-  area:
-    value: 1.0
-    unit: cm**2
-  CFL: 0.5
-  boundcond: OutflowSph
-  noghost: 2
-  verbose: 0
-  order: 0
-  dtmin:
-    value: 1.0e-10
-    unit: Myr
-  dtmax:
-    value: 0.01
-    unit: Myr
-  hydro_cfl: 0.5
-  source_cfl: 1.0
-  hydro_timestep_max:
-    value: 0.01
-    unit: Myr
-  source_timestep_min:
-    value: 0.0
-    unit: Myr
-  hydrogen_chemistry: true
-  hydrogen_mass_fraction: 1.0
-  hydrogen_xHI_initial: 1.0
-  hydrogen_xHI_inflow: 1.0
-  hydrogen_xHI_outflow: 1.0
-  hydrogen_source_CFL: 10000.0
-  hydrogen_source_dtmin:
-    value: 1.0e-3
-    unit: Myr
-  hydrogen_update_mu: true
-  hydrogen_thermal_coupling: true
-  hydrogen_recombination: true
-  hydrogen_collisional_ionization: false
-  hydrogen_alpha_B:
-    value: 2.59e-13
-    unit: cm**3/s
-  hydrogen_beta:
-    value: 0.0
-    unit: cm**3/s
-  hydrogen_radiation_field: false
-  hydrogen_radiation_evolution: false
-  hydrogen_ngamma_initial:
-    value: 0.0
-    unit: 1/cm**3
-  hydrogen_sigma_gamma:
-    value: 1.62e-18
-    unit: cm**2
-  hydrogen_epsilon_gamma:
-    value: 6.33
-    unit: eV
-  radiative_transfer: true
-  radiative_transfer_method: long_characteristics
-  radiative_transfer_boundary_flux:
-    value: 0.0
-    unit: 1/(cm**2*s)
-  radiative_transfer_source_photon_rate:
-    value: 1.0e49
-    unit: 1/s
-  radiative_transfer_direction: 1
-  wind_mass_loss_rate:
-    value: 1.0e-6
-    unit: Msun/yr
-  wind_velocity:
-    value: 1000.0
-    unit: km/s
-  wind_temperature:
-    value: 100.0
-    unit: K
-  wind_mu: 0.62
-
-ICparams:
-  number_of_cells: 512
-  boxsize:
-    value: 20.0
-    unit: pc
-  rinj:
-    value: 0.05
-    unit: pc
-  time:
-    value: 0.0
-    unit: Myr
-  hydrogen_number_density:
-    value: 100.0
-    unit: 1/cm**3
-  initial_temperature:
-    value: 100.0
-    unit: K
-  plot_radius_max:
-    value: 20.0
-    unit: pc
-  reference_radius_unit:
-    value: 20.0
-    unit: pc
+par:
+  simulation: {name: DynamicStromgrenSpherePhotoheating20pcStellarWind1D, initial_condition_filename: InitialCondition.hdf5, coordinate_system: spherical, final_time: {value: 1.0, unit: Myr}}
+  mesh: {grid_cells: 512, ghost_cells: 2, area: {value: 1.0, unit: cm**2}}
+  boundary:
+    condition: OutflowSph
+    outflow_density: {value: 2.1064555e-24, unit: g/cm**3}
+    outflow_velocity: {value: 1000.0, unit: km/s}
+    outflow_temperature: {value: 100.0, unit: K}
+    outflow_mu: 0.62
+  hydrodynamics: {eos_type: polytropic, gamma: 1.6666666666666667, CFL: 0.5, order: 0}
+  timestep: {dtmin: {value: 1.0e-10, unit: Myr}, dtmax: {value: 0.01, unit: Myr}, hydrogen_source_CFL: 1.0, hydrogen_source_dtmin: {value: 1.0e-3, unit: Myr}}
+  output: {directory: ., savedir: ., filename_prefix: Output, time_list_filename: output_times.txt}
+  chemistry: {hydrogen_chemistry: true, hydrogen_mass_fraction: 1.0, hydrogen_xHI_initial: 1.0, hydrogen_xHI_inflow: 1.0, hydrogen_xHI_outflow: 1.0, hydrogen_update_mu: true, hydrogen_recombination: true, hydrogen_collisional_ionization: false, hydrogen_alpha_B: {value: 2.59e-13, unit: cm**3/s}, hydrogen_beta: {value: 0.0, unit: cm**3/s}}
+  thermochemistry: {hydrogen_thermal_coupling: true, hydrogen_source_solver: split_implicit, hydrogen_split_implicit_max_subcycles: 128}
+  radiation: {radiative_transfer: true, radiative_transfer_method: long_characteristics, radiative_transfer_temporal_scheme: instantaneous, hydrogen_radiation_field: false, hydrogen_radiation_evolution: false, hydrogen_ngamma_initial: {value: 0.0, unit: 1/cm**3}, hydrogen_sigma_gamma: {value: 1.62e-18, unit: cm**2}, hydrogen_epsilon_gamma: {value: 6.33, unit: eV}, radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}, radiative_transfer_source_photon_rate: {value: 1.0e49, unit: 1/s}, radiative_transfer_direction: 1}
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem: {UnitMass_in_cgs: 4.92e31, UnitLength_in_cgs: 3.08567758e21, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition: {box_size: {value: 20.0, unit: pc}, initial_radius: {value: 0.05, unit: pc}, current_time: {value: 0.0, unit: Myr}, hydrogen_number_density: {value: 100.0, unit: 1/cm**3}, initial_temperature: {value: 100.0, unit: K}}
+example: {plot_radius_max: {value: 20.0, unit: pc}, reference_radius_unit: {value: 20.0, unit: pc}, wind_mass_loss_rate: {value: 1.0e-6, unit: Msun/yr}, wind_velocity: {value: 1000.0, unit: km/s}, wind_temperature: {value: 100.0, unit: K}, wind_mu: 0.62, rinj: {value: 0.05, unit: pc}}

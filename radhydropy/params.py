@@ -75,6 +75,7 @@ refparams = {
     # resolution in smooth rarefaction/contact regions while remaining TVD.
     'flux_limiter': 'minmod',
     'dual_energy': False,
+    'boundary_mass_loading_timestep': False,
     # First-stage optional passive gas angular-momentum storage.
     'gas_angular_momentum': False,
     'gas_rotational_energy': False,
@@ -289,6 +290,7 @@ class HydrodynamicsParameters:
     riemann_solver: str = 'Rusanov'
     flux_limiter: str = 'minmod'
     dual_energy: bool = False
+    boundary_mass_loading_timestep: bool = False
     dual_energy_pressure_selection: str = 'switch'
     dual_energy_entropy_limiter: bool = True
     positivity_preserving: bool = True
@@ -619,7 +621,9 @@ class Par:
                 'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
                 'flux_limiter': 'flux_limiter',
                 'positivity_preserving': 'positivity_preserving',
+                'positivity_density_floor': 'positivity_density_floor',
                 'dual_energy': 'dual_energy',
+                'boundary_mass_loading_timestep': 'boundary_mass_loading_timestep',
                 'dual_energy_eta1': 'dual_energy_eta1',
                 'dual_energy_eta2': 'dual_energy_eta2',
                 'dual_energy_consistency_factor': 'dual_energy_consistency_factor',
@@ -881,6 +885,7 @@ class Par:
             riemann_solver=self.riemann_solver,
             flux_limiter=self.flux_limiter,
             dual_energy=self.dual_energy,
+            boundary_mass_loading_timestep=self.boundary_mass_loading_timestep,
             dual_energy_pressure_selection=self.dual_energy_pressure_selection,
             dual_energy_entropy_limiter=self.dual_energy_entropy_limiter,
             positivity_preserving=self.positivity_preserving,

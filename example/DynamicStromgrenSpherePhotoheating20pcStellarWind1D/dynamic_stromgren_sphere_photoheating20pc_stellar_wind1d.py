@@ -10,7 +10,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = REPO_ROOT / 'example'
@@ -21,7 +20,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.units import CodeUnits
-from radhydropy.example_config import load_example_parameters
 import tools as et
 
 
@@ -145,20 +143,20 @@ def main(config_filename=None):
         )
     template.main(config_filename)
 
-    with Path(config_filename).open(encoding='utf-8') as handle:
-        runparams = yaml.safe_load(handle)['runparams']
-    output_dir = (Path(config_filename).parent / runparams.get('outdir', '.')).resolve()
+    nested_config = et.eu.load_nested_example_config(config_filename)
+    runparams = et.eu.runtime_parameters(nested_config)
+    output_dir = Path(runparams['output']['directory'])
     old_csv = output_dir / 'radial_profile_rhd.csv'
     wind_csv = output_dir / 'radial_profile_rhd_wind.csv'
     if old_csv.exists():
         old_csv.replace(wind_csv)
     print('RHD wind profile CSV = %s' % wind_csv)
 
-    output_files = sorted(output_dir.glob(f"{runparams.get('outfileprefix', 'Output')}_*.hdf5"))
+    output_files = sorted(output_dir.glob(f"{runparams['output'].get('filename_prefix', 'Output')}_*.hdf5"))
     # Do not use et.load_parameters here: it intentionally removes stale
     # snapshots for a new run. This is postprocessing, so preserve the files
     # just written by the simulation.
-    run_parameters, ic_parameters = load_example_parameters(config_filename)
+    run_parameters, ic_parameters = et.load_parameters(config_filename)
     config = {**run_parameters, **ic_parameters}
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)

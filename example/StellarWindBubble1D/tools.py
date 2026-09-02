@@ -64,7 +64,7 @@ def set_plot_style():
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, icparams, code_units=None, boundary_params=None):
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
@@ -91,6 +91,27 @@ class Simwrap:
         self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
         self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
+        # Match the WindSph ghost profile in a resolved active launch region.
+        wind_cells = int(icparams.get('wind_injection_cells', 0))
+        if (
+            boundary_params is not None
+            and boundary_params.get('condition') == 'WindSph'
+            and wind_cells > 0
+        ):
+            centers = 0.5 * (
+                self.mesh.boundary[:-1] + self.mesh.boundary[1:]
+            )
+            launch = np.arange(grid_cells) < wind_cells
+            radius = centers[launch]
+            reference_radius = icparams['injection_radius']
+            wind_density = boundary_params['outflow_density'] * (
+                reference_radius / radius
+            ) ** 2
+            self.fluid.rho_code[launch] = wind_density
+            self.fluid.vel_code[launch] = boundary_params['outflow_velocity']
+            self.fluid.temp_code[launch] = boundary_params['outflow_temperature']
+            self.fluid.mu[launch] = boundary_params['outflow_mu']
+
 
 def load_snapshot(outfilename, icparams, runparams):
     """Load an output snapshot into a lightweight simulation wrapper."""
@@ -98,6 +119,29 @@ def load_snapshot(outfilename, icparams, runparams):
     rout = Simwrap(icparams)
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    # Solver outputs retain ghost zones, whereas the example diagnostics are
+    # defined on the physical domain.  Trim every cell-centered fluid field
+    # and the corresponding faces before calculating profiles or shell
+    # diagnostics; otherwise ghost states can be mistaken for the swept-up
+    # shell and produce discontinuous pressure histories.
+    first = int(runparams.get('mesh', {}).get('ghost_cells', 0))
+    configured_count = int(runparams.get('mesh', {}).get(
+        'grid_cells', icparams['grid_cells']
+    ))
+    boundary_count = len(rout.mesh.boundary) - 1
+    # Permit reduced-resolution diagnostic runs whose output count is lower
+    # than the production value still present in the YAML configuration.
+    count = min(configured_count, boundary_count - 2 * first)
+    if boundary_count >= first + count and boundary_count != count:
+        stop = first + count
+        rout.mesh.boundary = rout.mesh.boundary[first:stop + 1]
+        for name, value in vars(rout.fluid).items():
+            try:
+                value_length = len(value)
+            except TypeError:
+                continue
+            if value_length == boundary_count:
+                setattr(rout.fluid, name, value[first:stop])
     rout.par.simulation.current_time = unyt.unyt_array(np.asarray(rout.par.simulation.current_time, dtype=float), code_units_obj.time_unit)
     rout.par.simulation.box_size = unyt.unyt_array(np.asarray(rout.par.simulation.box_size, dtype=float), code_units_obj.length_unit)
     rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit)
@@ -163,8 +207,15 @@ def shell_inner_edge_radius(
     rout,
     ambient_density,
     threshold_factor=1.0,
+    minimum_radius=None,
 ):
-    """Estimate the cavity-side shell edge from the innermost density crossing."""
+    """Estimate the cavity-side edge of the outer swept-up shell.
+
+    The resolved wind launch region and contact discontinuity can create
+    several separate density excursions above the ambient threshold.  The
+    forward swept-up shell is the outermost such excursion, not necessarily
+    the first one encountered after the launch region.
+    """
 
     coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
     density = rout.fluid.rho_code
@@ -176,6 +227,13 @@ def shell_inner_edge_radius(
     density_values = density_values[mask]
     coordinate = coordinate[mask]
 
+    if minimum_radius is not None:
+        minimum_radius_value = minimum_radius.to_value(coordinate.units)
+        keep = coordinate_values >= minimum_radius_value
+        coordinate_values = coordinate_values[keep]
+        density_values = density_values[keep]
+        coordinate = coordinate[keep]
+
     if density_values.size < 2:
         return None
 
@@ -183,7 +241,10 @@ def shell_inner_edge_radius(
         ambient_density.to_value(density.units)
         * float(np.asarray(threshold_factor).reshape(-1)[0])
     )
-    above = density_values >= threshold
+    # Equality is the ambient state itself, not shell compression.  Using
+    # ``>=`` makes an unperturbed ambient profile look like a shell beginning
+    # at the first active cell when the threshold factor is 1.
+    above = density_values > threshold
     if not np.any(above):
         return None
 
@@ -192,6 +253,9 @@ def shell_inner_edge_radius(
         return None
 
     if above[0]:
+        # The inner wind can itself be above the ambient threshold.  Skip
+        # that initial region and use the first subsequent crossing, which is
+        # the cavity-side edge of the swept-up shell.
         below = np.flatnonzero(~above)
         if below.size == 0:
             return None
@@ -217,6 +281,17 @@ def shell_inner_edge_radius(
     fraction = np.clip(fraction, 0.0, 1.0)
     radius = x0 + fraction * (x1 - x0)
     return radius * coordinate.units
+
+
+def shell_search_minimum_radius(rout, icparams):
+    """Return the outer edge of a resolved wind launch region."""
+
+    wind_cells = int(icparams.get('wind_injection_cells', 0))
+    if wind_cells <= 0:
+        return None
+    first = int(getattr(rout.par.mesh, 'ghost_cells', 0))
+    dx = abs(rout.mesh.boundary[first + 1] - rout.mesh.boundary[first])
+    return icparams['injection_radius'] + wind_cells * dx
 
 
 def weaver_forward_shock_radius(rout, icparams, runparams):
@@ -289,7 +364,7 @@ def make_profile_figure(snapshots, icparams, runparams):
         plot_profile_snapshot(
             ax_density,
             rout,
-            'rho',
+            'rho_code',
             ls='none',
             marker='o',
             mfc='none',
@@ -299,7 +374,7 @@ def make_profile_figure(snapshots, icparams, runparams):
         plot_profile_snapshot(
             ax_temperature,
             rout,
-            'temp',
+            'temp_code',
             ls='none',
             marker='o',
             mfc='none',
@@ -344,6 +419,7 @@ def make_radius_figure(snapshots, icparams, runparams):
             rout,
             icparams.get('initial_density', icparams.get('rhoini')),
             shell_threshold_factor,
+            minimum_radius=shell_search_minimum_radius(rout, icparams),
         )
         if numerical_radius is None:
             continue
@@ -428,6 +504,7 @@ def collect_shell_diagnostics(snapshots, icparams, runparams):
             rout,
             icparams.get('initial_density', icparams.get('rhoini')),
             shell_threshold_factor,
+            minimum_radius=shell_search_minimum_radius(rout, icparams),
         )
         if shell_radius is None:
             continue

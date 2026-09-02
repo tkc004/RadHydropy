@@ -75,10 +75,14 @@ def load_example_parameters(config_filename, rundir=None):
             'EOStype': hydro.get('eos_type', 'polytropic'),
             'gamma': hydro.get('gamma', 5.0 / 3.0),
             'CFL': hydro.get('CFL', 0.1),
+            'hydro_cfl': hydro.get('CFL', 0.1),
             'order': hydro.get('order', 0),
             'boundcond': boundary.get('condition', 'OpenSph'),
             'dtmin': timestep.get('dtmin'),
             'dtmax': timestep.get('dtmax'),
+            'source_cfl': timestep.get('hydrogen_source_CFL'),
+            'hydrogen_source_CFL': timestep.get('hydrogen_source_CFL'),
+            'hydrogen_source_dtmin': timestep.get('hydrogen_source_dtmin'),
             'chemistry_timestep': timestep.get('chemistry_timestep'),
             'evolution_timestep': timestep.get('evolution_timestep'),
             'outdir': output.get('directory', '.'),
@@ -86,6 +90,7 @@ def load_example_parameters(config_filename, rundir=None):
             'outfileprefix': output.get('filename_prefix', 'Output'),
             'outputtimefilename': output.get('time_list_filename'),
             'CodeUnits': nested_par.get('units', {}).get('CodeUnits'),
+            'area': mesh.get('area'),
         })
         icparams.setdefault(
             'number_of_cells', mesh.get('grid_cells', icparams.get('grid_cells'))

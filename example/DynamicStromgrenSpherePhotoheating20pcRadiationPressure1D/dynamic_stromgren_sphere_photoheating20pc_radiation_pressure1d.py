@@ -105,11 +105,13 @@ def main(config_filename=DEFAULT_CONFIG):
     runparams, icparams = et.load_parameters(config_filename, rundir)
     eu.clean_previous_outputs(runparams)
     config = {**runparams, **icparams}
+    nested_config = eu.load_nested_example_config(config_filename)
+    runtime_params = eu.runtime_parameters(nested_config)
     Path(runparams["outdir"]).mkdir(parents=True, exist_ok=True)
     Path(runparams["savedir"]).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config, runparams)
 
-    sim = Rsim(runparams)
+    sim = Rsim(runtime_params)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()

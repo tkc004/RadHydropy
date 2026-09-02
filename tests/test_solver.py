@@ -934,6 +934,21 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.rho_code[-2:].value, [5.0, 5.0])
         np.testing.assert_array_equal(fluid.vel_code[-2:].value, [15.0, 15.0])
 
+    def test_wind_spherical_boundary_sets_inverse_square_inner_profile(self):
+        fluid = Fluid()
+        par = Par('WindSph')
+        par.CodeUnits = CODE_UNITS
+
+        Solver().SetBoundary(Mesh(), fluid, par)
+
+        # Ghost-cell centres are 0.5 and 1.5; the launch radius is 2.
+        np.testing.assert_allclose(
+            fluid.rho_code[:2].value,
+            [7.0 * (2.0 / 0.5) ** 2, 7.0 * (2.0 / 1.5) ** 2],
+        )
+        np.testing.assert_array_equal(fluid.vel_code[:2].value, [6.0, 6.0])
+        np.testing.assert_array_equal(fluid.rho_code[-2:].value, [5.0, 5.0])
+
     def test_set_primitive_handles_zero_mass(self):
         fluid = Fluid()
         fluid.Mass_code = np.array([1.0, 0.0, 2.0]) * unyt.g

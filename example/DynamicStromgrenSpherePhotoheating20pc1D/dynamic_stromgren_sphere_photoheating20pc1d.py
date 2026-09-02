@@ -19,7 +19,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import example_utils as eu
-import yaml
 
 
 def _load_template_runner():
@@ -44,10 +43,10 @@ def main(config_filename=None):
     template.main(config_filename)
 
     config_filename = Path(config_filename).resolve()
-    with config_filename.open(encoding='utf-8') as handle:
-        runparams = yaml.safe_load(handle)['runparams']
-    output_dir = (config_filename.parent / runparams.get('outdir', '.')).resolve()
-    output_files = sorted(output_dir.glob(f"{runparams.get('outfileprefix', 'Output')}_*.hdf5"))
+    config = eu.load_nested_example_config(config_filename)
+    runparams = eu.runtime_parameters(config)
+    output_dir = Path(runparams['output']['directory'])
+    output_files = sorted(output_dir.glob(f"{runparams['output'].get('filename_prefix', 'Output')}_*.hdf5"))
     if not output_files:
         raise FileNotFoundError(f'No output HDF5 files found in {output_dir}')
     rhd_csv_filename = output_dir / 'radial_profile_rhd.csv'

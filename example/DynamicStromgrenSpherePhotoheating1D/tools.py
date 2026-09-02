@@ -130,7 +130,7 @@ def build_static_problem(config):
         area=config['area'],
         EOStype='polytropic',
         gamma=5.0 / 3.0,
-        CFL=config['hydro_cfl'],
+        CFL=config.get('hydro_cfl', config['CFL']),
         order=0,
         dtmin=config['dtmin'],
         dtmax=config['dtmax'],
@@ -139,7 +139,9 @@ def build_static_problem(config):
         hydrogen_xHI_initial=1.0,
         hydrogen_xHI_inflow=1.0,
         hydrogen_xHI_outflow=1.0,
-        hydrogen_source_CFL=config['source_cfl'],
+        hydrogen_source_CFL=config.get(
+            'source_cfl', config.get('hydrogen_source_CFL', 0.1)
+        ),
         hydrogen_source_dtmin=config['hydrogen_source_dtmin'],
         hydrogen_update_mu=True,
         hydrogen_thermal_coupling=True,
@@ -173,7 +175,17 @@ def build_static_problem(config):
         radiative_transfer_source_photon_rate=config['radiative_transfer_source_photon_rate'],
         radiative_transfer_direction=1,
         CodeUnits=code_units_obj,
+        units=SimpleNamespace(CodeUnits=code_units_obj),
         unit_system=code_units_obj.unit_system,
+    )
+    par.simulation = SimpleNamespace(
+        current_time=0.0 * unyt.Myr,
+        box_size=config['boxsize'],
+        coordinate_system=par.coordsys,
+    )
+    par.mesh = SimpleNamespace(
+        grid_cells=par.nogrid,
+        ghost_cells=par.noghost,
     )
 
     mesh = Mesh()

@@ -116,6 +116,9 @@ def test_nested_unitful_settings_are_converted_to_code_units():
             "box_size": 3.0e18 * unyt.cm,
         },
         "mesh": {"grid_cells": 4, "ghost_cells": 2, "area": 2.0e36 * unyt.cm**2},
+        "hydrodynamics": {
+            "positivity_density_floor": 4.0e-21 * unyt.g / unyt.cm**3,
+        },
         "boundary": {
             "inflow_density": 3.0e-21 * unyt.g / unyt.cm**3,
             "inflow_velocity": 2.0e5 * unyt.cm / unyt.s,
@@ -185,6 +188,7 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     assert sim.par.boundary.outflow_density == pytest.approx(4.0)
     assert sim.par.boundary.outflow_velocity == pytest.approx(3.0)
     assert sim.par.boundary.outflow_temperature == pytest.approx(500.0)
+    assert sim.par.positivity_density_floor == pytest.approx(4.0)
     assert sim.par.timestep.dtmin == pytest.approx(1.0)
     assert sim.par.timestep.dtmax == pytest.approx(2.0)
     assert sim.par.timestep.hydrogen_source_dtmin == pytest.approx(3.0)

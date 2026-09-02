@@ -82,6 +82,23 @@ def run_with_output_times(
     print("--- %s seconds ---" % (time.time() - start))
     output_writer(sim, 0)
     last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))
+    progress_steps = 0
+
+    def report_progress(step, dt):
+        nonlocal progress_steps
+        progress_steps += int(step.get('hydro_steps', 1))
+        if progress_steps % 1000 == 0:
+            print(
+                "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
+                % (
+                    progress_steps,
+                    float(np.asarray(sim.fluid.time, dtype=float)),
+                    float(np.asarray(dt, dtype=float)),
+                    100.0 * float(np.asarray(sim.fluid.time, dtype=float))
+                    / float(np.asarray(final_time, dtype=float)),
+                ),
+                flush=True,
+            )
 
     current_time = sim.fluid.time
     final_time = sim.par.simulation.final_time
@@ -128,12 +145,13 @@ def run_with_output_times(
             dt = sim.GetStepTime(final_time=target_time)
             if getattr(sim.par, 'verbose', 0) >= 1:
                 print("time, dt", sim.fluid.time, dt)
-            step_backend(
+            step = step_backend(
                 dt=dt,
                 mode=mode,
                 advect_chemistry=advect_chemistry,
                 **step_backend_kwargs,
             )
+            report_progress(step, dt)
         if stop_condition is not None and stop_condition(sim):
             break
         # Euler/source steps can cross a target by a roundoff- or CFL-sized
@@ -152,12 +170,13 @@ def run_with_output_times(
         dt = sim.GetStepTime(final_time=final_time)
         if getattr(sim.par, 'verbose', 0) >= 1:
             print("time, dt", sim.fluid.time, dt)
-        step_backend(
+        step = step_backend(
             dt=dt,
             mode=mode,
             advect_chemistry=advect_chemistry,
             **step_backend_kwargs,
         )
+        report_progress(step, dt)
 
     if stop_condition is not None and abs(float(np.asarray(sim.fluid.time, dtype=float)) - last_output_time_s) > time_tol:
         sim.fluid.SetTemperature()

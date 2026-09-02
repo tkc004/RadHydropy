@@ -167,7 +167,7 @@ Common Runtime Keys
      - dimensionless
    * - ``boundcond``
      - Boundary condition, such as ``Periodic``, ``Open``, ``Reflecting``,
-       ``OpenSph``, ``InflowSph``, or ``OutflowSph``.
+       ``OpenSph``, ``InflowSph``, ``OutflowSph``, or ``WindSph``.
      - string
    * - ``order``
      - Reconstruction order. ``0`` uses piecewise constant fluxes; ``1`` uses

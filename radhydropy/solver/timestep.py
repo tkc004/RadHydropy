@@ -40,6 +40,40 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         active_density = density[active_slice]
         active_vsignal = vsignal[active_slice]
 
+    # A prescribed boundary state participates in the Riemann problem at the
+    # active-domain edge.  Its signal speed must therefore constrain the CFL
+    # step even though the rest of the ghost zone is excluded.  This matters
+    # for imposed spherical winds, where the first ghost cell can be much
+    # faster than every active cell.  Include only the two interface-adjacent
+    # ghost cells; farther ghost cells cannot directly affect this update.
+    cfl_xdelta = active_xdelta
+    cfl_density = active_density
+    cfl_vsignal = active_vsignal
+    cfl_indices = np.arange(first, first + active_count)
+    if (
+        xdelta.ndim == 1
+        and vsignal.ndim == 1
+        and len(xdelta) == len(vsignal)
+        and first > 0
+        and first + active_count < len(vsignal)
+        and getattr(getattr(par, 'boundary', None), 'condition', None)
+        in ('InflowSph', 'OutflowSph', 'WindSph')
+    ):
+        interface_indices = np.array([first - 1, first + active_count])
+        cfl_xdelta = np.concatenate((
+            np.asarray(active_xdelta, dtype=float),
+            np.asarray(xdelta[interface_indices], dtype=float),
+        ))
+        cfl_density = np.concatenate((
+            np.asarray(active_density, dtype=float),
+            np.asarray(density[interface_indices], dtype=float),
+        ))
+        cfl_vsignal = np.concatenate((
+            np.asarray(active_vsignal, dtype=float),
+            np.asarray(vsignal[interface_indices], dtype=float),
+        ))
+        cfl_indices = np.concatenate((cfl_indices, interface_indices))
+
     core_mask = getattr(par, '_hydrostatic_core_mask', None)
     if core_mask is not None:
         core_active = np.asarray(core_mask[active_slice], dtype=bool)
@@ -57,10 +91,59 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     if np.any(zero_density):
         active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
         active_vsignal[zero_density] = 0.0
-    dt_array = solver._safe_divide(CFL * active_xdelta, active_vsignal)
+    cfl_density_zero = cfl_density <= density_floor
+    if np.any(cfl_density_zero):
+        cfl_vsignal = np.asarray(cfl_vsignal, dtype=float).copy()
+        cfl_vsignal[cfl_density_zero] = 0.0
+    dt_array = solver._safe_divide(CFL * cfl_xdelta, cfl_vsignal)
+
+    # A prescribed spherical wind/inflow can have a density very different
+    # from the first active cell.  The wave-speed CFL condition alone then
+    # permits a single update to replace many cell masses at once; the
+    # positivity limiter would consequently suppress most of the boundary
+    # flux.  Bound the step by the mass-loading time of the boundary-adjacent
+    # active cell so the imposed flux is evolved conservatively.
+    boundary = getattr(par, 'boundary', None)
+    boundary_condition = getattr(boundary, 'condition', None)
+    if (
+        getattr(getattr(par, 'hydrodynamics', None),
+                'boundary_mass_loading_timestep', False)
+        and
+        boundary_condition in ('InflowSph', 'OutflowSph')
+        and hasattr(fluid, 'Mass_code')
+        and first + 1 < len(fluid.Mass_code)
+        and first < len(mesh.area)
+    ):
+        if boundary_condition == 'InflowSph':
+            boundary_density = getattr(boundary, 'inflow_density', 0.0)
+            boundary_velocity = getattr(boundary, 'inflow_velocity', 0.0)
+        else:
+            boundary_density = getattr(boundary, 'outflow_density', 0.0)
+            boundary_velocity = getattr(boundary, 'outflow_velocity', 0.0)
+        mass_flux = abs(float(np.asarray(boundary_density))) * abs(
+            float(np.asarray(boundary_velocity))
+        ) * abs(float(np.asarray(mesh.area[first])))
+        # The reconstructed boundary/front stencil can deliver the imposed
+        # flux into the next active cell as the wind front advances.  Use the
+        # lower mass of the two receiving cells so the constraint follows a
+        # newly formed low-density cavity instead of assuming that the first
+        # cell remains the receiver.
+        receiving_mass = np.asarray(fluid.Mass_code[first:first + 2], dtype=float)
+        cell_mass = float(np.min(receiving_mass[receiving_mass > 0.0])) if np.any(
+            receiving_mass > 0.0
+        ) else 0.0
+        if mass_flux > 0.0 and cell_mass > 0.0:
+            # Keep the injected mass below the receiving-cell mass.  Using
+            # the same safety fraction as the wave-speed CFL preserves the
+            # normal solver accuracy while the two-cell receiving stencil
+            # accounts for cold, low-density cells entering the front.
+            mass_loading_fraction = float(CFL)
+            dt_mass_loading = mass_loading_fraction * cell_mass / mass_flux
+            dt_array = np.minimum(dt_array, dt_mass_loading)
+
     dtmax_value = par.timestep.dtmax
     dtmax = float(np.asarray(dtmax_value, dtype=float))
-    dt_array = np.where(active_vsignal != 0.0, dt_array, dtmax)
+    dt_array = np.where(cfl_vsignal != 0.0, dt_array, dtmax)
     dt = np.amin(dt_array)
     fluid.vsignal_code = np.asarray(vsignal, dtype=float)
     if len(fluid.vsignal_code) == len(active_vsignal):
@@ -76,11 +159,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     dtmin_value = par.timestep.dtmin
     if dt < float(np.asarray(dtmin_value, dtype=float)):
         active_index = int(np.argmin(dt_array))
-        min_index = active_index + first
-        if len(np.asarray(fluid.vel_code)) == len(active_vsignal):
-            diagnostic_index = active_index
-        else:
-            diagnostic_index = min_index
+        min_index = int(cfl_indices[active_index])
+        diagnostic_index = min_index
         raise ValueError(
             " time step %.2e smaller than the minimum time step %.2e "
             "at cell %d (rho=%.2e, vel=%.2e, cs=%.2e, dx=%.2e)"
@@ -88,10 +168,10 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 dt,
                 dtmin_value,
                 min_index,
-                active_density[active_index],
+                cfl_density[active_index],
                 fluid.vel_code[diagnostic_index],
                 fluid.cs_code[diagnostic_index],
-                active_xdelta[active_index],
+                cfl_xdelta[active_index],
             )
         )
     if dt > dtmax:

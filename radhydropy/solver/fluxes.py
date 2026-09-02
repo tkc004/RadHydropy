@@ -119,7 +119,7 @@ def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
             )
         )
     hllc, valid = hllc_flux(
-        rho_L, vel_code_L, pre_L, rho_R, vel_code_R, pre_R, fluid.eos.gamma
+        rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, fluid.eos.gamma
     )
     rusanov = np.stack(tuple(
         ru.CalInterFaceFluxGLF(left, right, qleft, qright, fluid.cmax)

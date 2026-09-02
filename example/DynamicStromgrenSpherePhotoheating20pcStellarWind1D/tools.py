@@ -45,9 +45,6 @@ def build_static_problem(config):
     """Build the photoheated ambient cloud with a stellar-wind inner boundary."""
     par, mesh, fluid, solver = _BASE_BUILD_STATIC_PROBLEM(config)
     par.boundcond = 'OutflowSph'
-    par.rinj = config['rinj']
-    par.wind_mass_loss_rate = config['wind_mass_loss_rate']
-    par.wind_velocity = config['wind_velocity']
     par.rho_outflow = _wind_density(config)
     par.vel_outflow = config['wind_velocity']
     par.temp_outflow = config['wind_temperature']

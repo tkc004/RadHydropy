@@ -208,3 +208,64 @@ def _apply_outflow_spherical_boundary(
     solver._copy_boundary_state(fluid, left_ghost, left_state)
     right_state = solver._boundary_state(fluid, nolast)
     solver._copy_boundary_state(fluid, right_ghost, right_state)
+
+
+def _apply_wind_spherical_boundary(
+    solver,
+    mesh,
+    fluid,
+    par,
+    scales,
+    first,
+    nolast,
+    left_ghost,
+    right_ghost,
+    noghost,
+):
+    """Inject a resolved, steady spherical wind at the inner boundary.
+
+    The density in the ghost cells follows ``rho r**2 = constant``.  This
+    supplies the finite-volume Riemann problem with the same radial profile
+    as a freely expanding wind instead of presenting a constant, dense
+    reservoir to the first active cell.  The active launch cells are
+    initialized by the example/IC builder with the matching profile.
+    """
+    boundary_position = np.asarray(mesh.boundary, dtype=float)
+    radius = np.abs(
+        0.5 * (boundary_position[:noghost] + boundary_position[1:noghost + 1])
+    )
+    boundary_radius = np.abs(boundary_position)
+    reference_radius = boundary_radius[first]
+    if reference_radius <= 0.0 or np.any(radius <= 0.0):
+        raise ValueError('WindSph requires a positive inner radius')
+
+    density = par.boundary.outflow_density * (
+        reference_radius / radius
+    ) ** 2
+    velocity = par.boundary.outflow_velocity * np.ones(noghost)
+    mu = float(par.boundary.outflow_mu)
+    pressure = fluid.eos.pressure(
+        density,
+        par.boundary.outflow_temperature * np.ones(noghost),
+        mu,
+    )
+    left_state = {
+        'rho_code': density,
+        'vel_code': velocity,
+        'pre_code': pressure,
+    }
+    if hasattr(fluid, 'specific_angular_momentum_code'):
+        left_state['specific_angular_momentum_code'] = np.full(
+            noghost, getattr(par, 'specific_angular_momentum_outflow', 0.0)
+        )
+    if hasattr(fluid, 'xHI'):
+        left_state['xHI'] = np.full(
+            noghost, getattr(par, 'hydrogen_xHI_outflow', 1.0)
+        )
+    if hasattr(fluid, 'ngamma_code'):
+        left_state['ngamma_code'] = solver._to_code_number_density(
+            getattr(par, 'hydrogen_ngamma_outflow', 0.0), scales
+        )
+    solver._copy_boundary_state(fluid, left_ghost, left_state)
+    right_state = solver._boundary_state(fluid, nolast)
+    solver._copy_boundary_state(fluid, right_ghost, right_state)

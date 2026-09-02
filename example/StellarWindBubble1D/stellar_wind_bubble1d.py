@@ -57,7 +57,11 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
     if not plot_only:
         code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-        ric = et.Simwrap(ICparams, code_units=code_units_obj)
+        ric = et.Simwrap(
+            ICparams,
+            code_units=code_units_obj,
+            boundary_params=runparams['boundary'],
+        )
         rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
         mainrun = Rsim(runparams)
         mainrun.RunAll(outputtime=0)
