@@ -1,6 +1,7 @@
 """HM12 PIE radiative colliding-flow shock-tube benchmark."""
 
 import argparse
+import copy
 import os
 import sys
 from pathlib import Path
@@ -40,37 +41,35 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
 
 def _run_case(
-    runparams, icparams, label, metallicity, hydrogen_density, table,
+    par_config, runparams, icparams, label, metallicity, hydrogen_density, table,
     adiabatic=False,
 ):
-    case = dict(runparams)
+    case = copy.deepcopy(par_config)
     output_dir = EXAMPLE_DIR / 'outputs' / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case.update({
-        'outdir': str(output_dir),
+    case['simulation']['name'] = label
+    case['simulation']['initial_condition_filename'] = str(
+        output_dir / f'InitialCondition_{label}.hdf5'
+    )
+    case['output'].update({
+        'directory': str(output_dir),
         'savedir': str(output_dir),
-        'outfileprefix': f'Output_{label}',
-        'ICfilename': str(output_dir / f'InitialCondition_{label}.hdf5'),
-        'metallicity': metallicity,
+        'filename_prefix': f'Output_{label}',
     })
+    output_prefix = case['output']['filename_prefix']
+    case['thermochemistry']['metallicity'] = metallicity
     case_icparams = dict(icparams)
     case_icparams['hydrogen_density'] = hydrogen_density * unyt.cm**-3
     eu.clean_previous_outputs(case)
-    code_units = CodeUnits.from_mapping(case['CodeUnits'])
+    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
     initial = Simwrap(
-        case_icparams, code_units, case['hydrogen_mass_fraction']
+        case_icparams, code_units,
+        case['thermochemistry']['hydrogen_mass_fraction'],
     )
-    rio.writehdf5(initial, case['ICfilename'])
-    runtime_only = {
-        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
-        'number_of_cells', 'hydrogen_density', 'collision_velocity',
-        'initial_temperature', 'mean_molecular_weight', 'final_time',
-        'evolution_timestep', 'chemistry_timestep',
-    }
-    sim = Rsim({key: value for key, value in case.items()
-                if key not in runtime_only})
+    rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
+    sim = Rsim(case)
     sim.RunAll(outputtime=0, mode='hydro' if adiabatic else 'hydro_sources')
-    snapshots = sorted(output_dir.glob(f'{case["outfileprefix"]}_*.hdf5'))
+    snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
     return {
@@ -80,7 +79,7 @@ def _run_case(
         'snapshots': snapshots,
         'initial_density_g_cm3': (
             case_icparams['hydrogen_density'].to_value('cm**-3')
-            * PROTON_MASS_G / case['hydrogen_mass_fraction']
+            * PROTON_MASS_G / case['thermochemistry']['hydrogen_mass_fraction']
         ),
         'upstream_velocity_cm_s': case_icparams['collision_velocity'],
         'mu': case_icparams['muini'],
@@ -215,9 +214,13 @@ def _plot(results, filename):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    nested = eu.load_nested_example_config(config_filename)
+    par_config = nested['par']
+    runparams = eu.legacy_example_parameters(nested)
+    _, icparams = load_example_parameters(config_filename)
     table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     runparams['metal_pie_table_filename'] = str(table_path)
+    nested['par']['thermochemistry']['metal_pie_table_filename'] = str(table_path)
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:
         raise ValueError('the example requires an HM12 UV-background table')
@@ -230,7 +233,7 @@ def main(config_filename=DEFAULT_CONFIG):
     results = []
     for label, metallicity, hydrogen_density, adiabatic in cases:
         result = _run_case(
-            runparams, icparams, label, metallicity, hydrogen_density,
+            par_config, runparams, icparams, label, metallicity, hydrogen_density,
             table, adiabatic
         )
         if adiabatic:

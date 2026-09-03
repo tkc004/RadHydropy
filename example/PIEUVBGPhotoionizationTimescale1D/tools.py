@@ -12,36 +12,29 @@ class Simwrap:
     def __init__(self, icparams, code_units):
         from types import SimpleNamespace
 
-        self.par = SimpleNamespace(
-            CodeUnits=code_units,
-            unit_system=code_units.unit_system,
-            nogrid=int(icparams["nogrid"]),
-            coordsys=icparams["coordsys"],
-            boxsize=np.ones(1) * icparams["boxsize"],
-            time=np.ones(1) * icparams["time"],
-        )
+        grid_cells = int(icparams["nogrid"])
+        boxsize = np.ones(1) * icparams["boxsize"]
+        self.par = SimpleNamespace(time=np.ones(1) * icparams["time"])
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.simulation = SimpleNamespace(
             current_time=icparams["time"], box_size=icparams["boxsize"],
             coordinate_system=icparams["coordsys"],
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.mesh.boundary = np.linspace(
-            0.0 * self.par.boxsize[0],
-            self.par.boxsize[0],
-            self.par.nogrid + 1,
+            0.0 * boxsize[0], boxsize[0], grid_cells + 1,
         )
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * icparams["vini"]
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams["tempini"]
+        self.fluid.vel_code = np.zeros(grid_cells) * icparams["vini"]
+        self.fluid.temp_code = np.ones(grid_cells) * icparams["tempini"]
         rho = (
             float(icparams["nHini"])
             * float(icparams["proton_mass_g"])
             / float(icparams["hydrogen_mass_fraction"])
         )
-        self.fluid.rho_code = np.ones(self.par.nogrid) * rho_code
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams["muini"]
+        self.fluid.rho_code = np.ones(grid_cells) * rho
+        self.fluid.mu = np.ones(grid_cells) * icparams["muini"]
 
 
 def clean_outputs(output_dir):
@@ -59,8 +52,8 @@ def load_history(output_dir):
         with h5py.File(filename, "r") as handle:
             header = handle["Header"]
             data = handle["Data"]
-            noghost = int(header.attrs.get("noghost", 0))
-            nogrid = int(header.attrs["nogrid"])
+            noghost = int(header.attrs.get("GhostCells", 0))
+            nogrid = int(header.attrs["GridCells"])
             interior = slice(noghost, noghost + nogrid)
             history.append(
                 {

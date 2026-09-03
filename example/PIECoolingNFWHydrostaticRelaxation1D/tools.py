@@ -31,7 +31,7 @@ def load_snapshot(filename, runparams):
         data = handle['Data']
         header = handle['Header']
         noghost = int(runparams.get('noghost', 0))
-        nogrid = int(header.attrs['nogrid'])
+        nogrid = int(header.attrs['GridCells'])
         boundary = np.asarray(data['Boundary'][()])
         boundary = boundary[noghost:noghost + nogrid + 1]
         # Raw output datasets are written in their physical units (cm, g cm^-3,

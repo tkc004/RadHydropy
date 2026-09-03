@@ -37,8 +37,8 @@ def _snapshot(filename):
     with h5py.File(filename, "r") as handle:
         data = handle["Data"]
         header = handle["Header"]
-        noghost = int(header.attrs.get("noghost", 0))
-        nogrid = int(header.attrs["nogrid"])
+        noghost = int(header.attrs.get("GhostCells", 0))
+        nogrid = int(header.attrs["GridCells"])
         first = noghost
         last = first + nogrid
         boundary = np.asarray(data["Boundary"][()])[first : last + 1]

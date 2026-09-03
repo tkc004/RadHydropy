@@ -19,39 +19,33 @@ class Simwrap:
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
-        self.par.CodeUnits = code_units
-        self.par.unit_system = code_units.unit_system
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.simulation = SimpleNamespace(
             coordinate_system=icparams['coordsys'],
             current_time=icparams['time'],
             box_size=icparams['boxsize'],
         )
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=2)
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
+        grid_cells = int(icparams['nogrid'])
+        boxsize = icparams['boxsize'] * np.ones(1)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
         self.par.time = icparams['time'] * np.ones(1)
-        dx = self.par.boxsize[0] / self.par.nogrid
         self.mesh.boundary = np.linspace(
-            0.0 * self.par.boxsize[0],
-            self.par.boxsize[0],
-            self.par.nogrid + 1,
+            0.0 * boxsize[0], boxsize[0], grid_cells + 1,
         )
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
         velocity = icparams['collision_velocity']
         self.fluid.vel_code = np.where(
-            coordinate < 0.5 * self.par.boxsize[0], velocity, -velocity
+            coordinate < 0.5 * boxsize[0], velocity, -velocity
         )
         rho = icparams['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
-        self.fluid.rho_code = np.ones(self.par.nogrid) * rho_code
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.rho_code = np.ones(grid_cells) * rho
+        self.fluid.temp_code = np.ones(grid_cells) * icparams['tempini']
+        self.fluid.mu = np.ones(grid_cells) * icparams['muini']
 
 
 def _physical_cells(data, header):
-    noghost = int(header.attrs.get('noghost', 0))
-    nogrid = int(header.attrs['nogrid'])
+    noghost = int(header.attrs.get('GhostCells', 0))
+    nogrid = int(header.attrs['GridCells'])
     return slice(noghost, noghost + nogrid)
 
 
@@ -62,8 +56,8 @@ def load_snapshot(filename):
         data = handle['Data']
         header = handle['Header']
         physical = _physical_cells(data, header)
-        noghost = int(header.attrs.get('noghost', 0))
-        nogrid = int(header.attrs['nogrid'])
+        noghost = int(header.attrs.get('GhostCells', 0))
+        nogrid = int(header.attrs['GridCells'])
         boundary = np.asarray(data['Boundary'][()])[noghost:noghost + nogrid + 1]
         return {
             'time_Myr': float(header.attrs['Time']) / SECONDS_PER_MYR,

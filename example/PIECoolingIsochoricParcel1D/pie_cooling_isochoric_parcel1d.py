@@ -1,6 +1,7 @@
 """Isochoric HM12 PIE heating/cooling parcel benchmark."""
 
 import argparse
+import copy
 import os
 import sys
 from pathlib import Path
@@ -66,8 +67,8 @@ def _snapshot(filename, time_Myr=None):
     with h5py.File(filename, 'r') as handle:
         data = handle['Data']
         header = handle['Header']
-        noghost = int(header.attrs.get('noghost', 0))
-        nogrid = int(header.attrs['nogrid'])
+        noghost = int(header.attrs.get('GhostCells', 0))
+        nogrid = int(header.attrs['GridCells'])
         first = noghost
         last = first + nogrid
         return {
@@ -80,47 +81,48 @@ def _snapshot(filename, time_Myr=None):
         }
 
 
-def _run_case(runparams, icparams, label, density, temperature, table):
-    case = dict(runparams)
+def _run_case(par_config, runparams, icparams, label, density, temperature, table):
+    case = copy.deepcopy(par_config)
     output_dir = EXAMPLE_DIR / 'outputs' / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case['outdir'] = str(output_dir)
-    case['savedir'] = str(output_dir)
-    case['outfileprefix'] = f'Output_{label}'
-    case['ICfilename'] = str(output_dir / f'InitialCondition_{label}.hdf5')
+    case['simulation']['name'] = label
+    case['simulation']['initial_condition_filename'] = str(
+        output_dir / f'InitialCondition_{label}.hdf5'
+    )
+    case['output'].update({
+        'directory': str(output_dir),
+        'savedir': str(output_dir),
+        'filename_prefix': f'Output_{label}',
+    })
+    output_prefix = case['output']['filename_prefix']
     case_icparams = dict(icparams)
-    case_icparams['tempini'] = temperature * unyt.K
-    case_icparams['vini'] = 0.0 * unyt.cm / unyt.s
-    case_icparams['hydrogen_mass_fraction'] = case['hydrogen_mass_fraction']
-    case_icparams['proton_mass_g'] = PROTON_MASS_G
+    case['thermochemistry']['metallicity'] = runparams['metallicity']
     eu.clean_previous_outputs(case)
     output_dir.mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(case['CodeUnits'])
-    initial = Simwrap(case_icparams, code_units, density)
-    rio.writehdf5(initial, case['ICfilename'])
-    runtime_only = {
-        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
-        'number_of_cells', 'initial_temperature', 'mean_molecular_weight',
-        'final_time', 'evolution_timestep', 'chemistry_timestep',
-    }
-    sim = Rsim({key: value for key, value in case.items()
-                if key not in runtime_only})
+    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
+    initial = Simwrap(
+        case_icparams, code_units, density,
+        case['thermochemistry']['hydrogen_mass_fraction'], temperature * unyt.K,
+    )
+    rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
+    sim = Rsim(case)
     # This is a one-cell isochoric parcel.  Use the dedicated source-only
     # mode so no hydro flux gradient is evaluated on the single active cell.
     sim.RunAll(outputtime=0, mode='sources')
-    snapshots = sorted(output_dir.glob(f'{case["outfileprefix"]}_*.hdf5'))
+    snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
     initial_rate = float(_net_rate(
-        table, temperature, density, case['metallicity'], case['metal_pie_redshift']
+        table, temperature, density, runparams['metallicity'], runparams['metal_pie_redshift']
     ))
-    rho = density * PROTON_MASS_G / case['hydrogen_mass_fraction']
+    rho = density * PROTON_MASS_G / runparams['hydrogen_mass_fraction']
     thermal_energy = rho * BOLTZMANN_ERG_K * temperature / (
-        (case['gamma'] - 1.0) * case_icparams['muini'] * PROTON_MASS_G
+        (runparams['gamma'] - 1.0) * icparams['mean_molecular_weight'] * PROTON_MASS_G
     )
     thermal_time = thermal_energy / max(abs(initial_rate), 1.0e-99) / SECONDS_PER_MYR
     equilibrium = _equilibrium_temperature(
-        table, density, case['metallicity'], case['metal_pie_redshift'], case_icparams['muini']
+        table, density, runparams['metallicity'], runparams['metal_pie_redshift'],
+        icparams['mean_molecular_weight']
     )
     return {
         'label': label,
@@ -245,10 +247,12 @@ def main(config_filename=DEFAULT_CONFIG):
     global TABLE, METALLICITY, REDSHIFT
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
+    par_config = nested['par']
     runparams = eu.legacy_example_parameters(nested)
     icparams = nested['initial_condition']
     table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     runparams['metal_pie_table_filename'] = str(table_path)
+    par_config['thermochemistry']['metal_pie_table_filename'] = str(table_path)
     TABLE = MetalPIETable(table_path)
     if not TABLE.is_hm12_uv_background:
         raise ValueError('the example requires an HM12 UV-background table')
@@ -256,7 +260,9 @@ def main(config_filename=DEFAULT_CONFIG):
     REDSHIFT = float(runparams['metal_pie_redshift'])
     results = []
     for label, density, temperature in CASES:
-        results.append(_run_case(runparams, icparams, label, density, temperature, TABLE))
+        results.append(_run_case(
+            par_config, runparams, icparams, label, density, temperature, TABLE
+        ))
     figure = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D.jpg'
     report = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D_ThermalReport.txt'
     _plot(results, figure)

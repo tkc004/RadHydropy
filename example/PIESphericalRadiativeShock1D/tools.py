@@ -19,27 +19,23 @@ class Simwrap:
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
-        self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.coordsys = 'spherical'
-        self.par.boxsize = icparams['boxsize'] * np.ones(1)
+        grid_cells = int(icparams['nogrid'])
         self.par.time = icparams['time'] * np.ones(1)
         self.par.simulation = SimpleNamespace(
             current_time=icparams['time'], box_size=icparams['boxsize'],
             coordinate_system='spherical',
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
 
         self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
+            icparams['rmin'], icparams['rmax'], grid_cells + 1
         )
         rho = (
             icparams['hydrogen_density'] * unyt.mp
             / hydrogen_mass_fraction
         )
-        self.fluid.rho_code = np.ones(self.par.nogrid) * rho
+        self.fluid.rho_code = np.ones(grid_cells) * rho
         coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
         midpoint = 0.5 * (icparams['rmin'] + icparams['rmax'])
         self.fluid.vel_code = np.where(
@@ -47,13 +43,13 @@ class Simwrap:
             icparams['outflow_velocity'],
             icparams['inflow_velocity'],
         )
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['inflow_temperature']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.temp_code = np.ones(grid_cells) * icparams['inflow_temperature']
+        self.fluid.mu = np.ones(grid_cells) * icparams['muini']
 
 
 def physical_cells(header):
-    noghost = int(header.attrs.get('noghost', 0))
-    nogrid = int(header.attrs['nogrid'])
+    noghost = int(header.attrs.get('GhostCells', 0))
+    nogrid = int(header.attrs['GridCells'])
     return slice(noghost, noghost + nogrid)
 
 
@@ -62,8 +58,8 @@ def load_snapshot(filename):
         data = handle['Data']
         header = handle['Header']
         physical = physical_cells(header)
-        noghost = int(header.attrs.get('noghost', 0))
-        nogrid = int(header.attrs['nogrid'])
+        noghost = int(header.attrs.get('GhostCells', 0))
+        nogrid = int(header.attrs['GridCells'])
         boundary = np.asarray(
             data['Boundary'][()]
         )[noghost:noghost + nogrid + 1]

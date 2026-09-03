@@ -12,27 +12,24 @@ class Simwrap:
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
-        self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams["nogrid"])
-        self.par.coordsys = icparams["coordsys"]
-        self.par.boxsize = icparams["boxsize"] * np.ones(1)
+        grid_cells = int(icparams["nogrid"])
+        boxsize = icparams["boxsize"] * np.ones(1)
         self.par.time = icparams["time"] * np.ones(1)
         self.par.simulation = SimpleNamespace(
             current_time=icparams["time"], box_size=icparams["boxsize"],
             coordinate_system=icparams["coordsys"],
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
 
-        dx = self.par.boxsize[0] / self.par.nogrid
+        dx = boxsize[0] / grid_cells
         self.mesh.boundary = np.linspace(
-            dx, self.par.boxsize[0] + dx, self.par.nogrid + 1
+            dx, boxsize[0] + dx, grid_cells + 1
         )
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * icparams["vini"]
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams["tempini"]
+        self.fluid.vel_code = np.zeros(grid_cells) * icparams["vini"]
+        self.fluid.temp_code = np.ones(grid_cells) * icparams["tempini"]
         hydrogen_mass_fraction = float(icparams["hydrogen_mass_fraction"])
         proton_mass_g = float(icparams["proton_mass_g"])
         rho = hydrogen_density_cm3 * proton_mass_g / hydrogen_mass_fraction
-        self.fluid.rho_code = np.ones(self.par.nogrid) * rho_code
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams["muini"]
+        self.fluid.rho_code = np.ones(grid_cells) * rho
+        self.fluid.mu = np.ones(grid_cells) * icparams["muini"]

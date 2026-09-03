@@ -59,7 +59,6 @@ def main(config_filename=DEFAULT_CONFIG):
     runtime = {key: value for key, value in runparams.items()
                if key not in runtime_only}
     sim = Rsim(runtime)
-    sim.par.CodeUnits = code_units
     sim.Callreadhdf5(); sim.SetMesh(); sim.SetFluid(); sim.SetInitFluid()
     nghost = int(runparams.get('noghost', 0))
     interior = slice(nghost, -nghost if nghost else None)
@@ -85,10 +84,10 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         potential=nfw_potential(
             sim.mesh.coordinate, halo['scale_density'], halo['scale_radius'],
-            code_units=sim.par.CodeUnits,
+            code_units=sim.par.units.CodeUnits,
         ),
         coordinate=sim.mesh.coordinate.copy(),
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode='hydro_sources', stop_condition=stop_on_runaway)
     outputs = sorted(
