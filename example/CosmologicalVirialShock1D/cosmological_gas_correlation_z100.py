@@ -958,7 +958,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if bool(hydro.get("gas_angular_momentum", False)):
         initial.par.gas_angular_momentum = True
         initial.fluid.specific_angular_momentum_code = np.full(
-            initial.par.nogrid,
+            initial.par.mesh.grid_cells,
             float(hydro.get("gas_specific_angular_momentum", 0.0)),
         )
     rio.writehdf5(initial, ic_filename)

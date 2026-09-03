@@ -35,7 +35,6 @@ class Simwrap:
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
         self.par.simulation = SimpleNamespace(
             current_time=icparams['current_time'],
             box_size=icparams['box_size'],

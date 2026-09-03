@@ -1,88 +1,53 @@
-runparams:
-  simname: CosmologicalGasCorrelationZ100_LambdaCDM
-  # The directory identifies the LCDM variant; retain the reference filenames.
-  figure_prefix: CosmologicalGasCorrelationZ100
-  ICfilename: outputs_correlation_gas_lcdm/InitialCondition.hdf5
-  outdir: outputs_correlation_gas_lcdm
-  savedir: outputs_correlation_gas_lcdm
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  selfgravity: true
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: true
-  cosmology_type: lambda_cdm
-  cosmology_t_ref: 14.4
-  cosmology_a_ref: 1.0
-  cosmology_omega_m: 0.3
-  cosmology_omega_lambda: 0.7
-  cosmology_hubble_ref: 0.07
-  boundcond: InflowSph
-  cosmological_background_boundary_reconstruction: true
-  noghost: 2
-  # order=1 is the limited MUSCL (second-order spatial) reconstruction.
-  order: 1
-  # Preserve thermal pressure when total energy is kinetic-energy dominated.
-  dual_energy: true
-  CFL: 0.10
-  #verbose: 1
-  dark_matter_crossing_safety_factor: 0.5
-  dark_matter_crossing_batch_fraction: 0.1
-  dark_matter_global_timestep_limit: false
-  # Smooth the live-shell force sampled by gas cells in enclosed volume.
-  # Shell trajectories and saved DM profiles remain based on the raw shells.
-  smooth_dm_force_for_gas: true
-  # Match the live-shell density diagnostic in the dark-matter-only example.
-  dm_density_bins: 128
-  # The cold adiabatic collapse develops a narrow central feature; allow the
-  # CFL limiter to follow it below the standard example floor.
-  # The central adiabatic feature is unresolved at late times.  Keep a very
-  # small diagnostic floor so the run can continue without accepting a
-  # negative/zero CFL step; this is not a physical resolution guarantee.
-  dtmin: {value: 1.0e-12, unit: Myr}
-  # Code-density threshold for numerically evacuated cells.  Such cells can
-  # retain roundoff momentum and otherwise create enormous v = Mom/rho.
-  # Runtime density is comoving in this supercomoving run.
-  # About 1e10 below the mean comoving gas density (~9.34e-10 code units).
-  cfl_density_floor: 9.3e-20
-  temperature_jump_error_threshold: 1.0e8
-  # The adiabatic CMB reservoir falls below 2 K by the end of the run.  A
-  # hydro floor here would inject energy into the expanding background and
-  # invalidate the conservation audit.  Keep 1 K only as a plot limit.
-  minimum_temperature: null
-  temperature_plot_ymin: {value: 1.0, unit: K}
-  dtmax: {value: 200.0, unit: Myr}
-  # Match the original EdS run's final scale factor, a=(1/14.4)^(2/3).
-  # In this LCDM normalization that scale factor is reached at t=1.8323997.
-  final_cosmic_time: 1.832399728
-  gas_profile_cadence: 0.10
-  linear_correlation_table_filename: ../CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5
-  thermochemistry_network: hydrogen
-  hydrogen_chemistry: false
-  hydrogen_atomic_cooling: false
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  hydrogen_thermal_coupling: false
-  cie_cooling: false
-  metal_pie_enabled: false
-  compton_cmb_enabled: false
-  cmb_temperature_0: {value: 2.7255, unit: K}
-  hydrogen_mass_fraction: 0.76
-  CodeUnits:
-    name: cosmological_gas_correlation_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.98847e43
-      UnitLength_in_cgs: 3.085677581e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
+par:
+  simulation:
+    name: CosmologicalGasCorrelationZ100_LambdaCDM
+    initial_condition_filename: outputs_correlation_gas_lcdm/InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: 1.832399728
+  mesh: {grid_cells: 128, ghost_cells: 2}
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    order: 1
+    dual_energy: true
+    CFL: 0.10
+    cfl_density_floor: 9.3e-20
+    temperature_jump_error_threshold: 1.0e8
+  boundary: {condition: InflowSph, cosmological_background_boundary_reconstruction: true}
+  timestep:
+    dtmin: {value: 1.0e-12, unit: Myr}
+    dtmax: {value: 200.0, unit: Myr}
+  gravity:
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: lambda_cdm
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
+    cosmology_omega_m: 0.3
+    cosmology_omega_lambda: 0.7
+    cosmology_hubble_ref: 0.07
+  dark_matter: {crossing_safety_factor: 0.5, crossing_batch_fraction: 0.1, global_timestep_limit: false, smooth_force_for_gas: true}
+  thermochemistry:
+    network: hydrogen
+    hydrogen_chemistry: false
+    hydrogen_atomic_cooling: false
+    hydrogen_recombination: false
+    hydrogen_collisional_ionization: false
+    hydrogen_thermal_coupling: false
+    cie_cooling: false
+    metal_pie_enabled: false
+    compton_cmb_enabled: false
+    cmb_temperature_0: {value: 2.7255, unit: K}
+    hydrogen_mass_fraction: 0.76
+  output: {directory: outputs_correlation_gas_lcdm, savedir: outputs_correlation_gas_lcdm, filename_prefix: Output}
+  units:
+    CodeUnits:
+      name: cosmological_gas_correlation_unit_system
+      InternalUnitSystem: {UnitMass_in_cgs: 1.98847e43, UnitLength_in_cgs: 3.085677581e21, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+initial_condition:
   nogrid: 128
-  # Finite reflecting wall in comoving coordinates; 5 kpc is only ~0.05 kpc
-  # proper at the z=100 start and remains small compared with the halo.
   rmin: 3.0
   rmax: 4000.0
   verbal: 1
@@ -100,7 +65,18 @@ ICparams:
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.02
   softening: 0.2
-  # Simwrap converts this to T_code = T_CMB * a^2 at the z=100 start.
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 2.0e-4
+example:
+  figure_prefix: CosmologicalGasCorrelationZ100
+  cosmological_background_boundary_reconstruction: true
+  dark_matter_crossing_safety_factor: 0.5
+  dark_matter_crossing_batch_fraction: 0.1
+  dark_matter_global_timestep_limit: false
+  smooth_dm_force_for_gas: true
+  dm_density_bins: 128
+  gas_profile_cadence: 0.10
+  linear_correlation_table_filename: ../CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5
+  minimum_temperature: null
+  temperature_plot_ymin: {value: 1.0, unit: K}

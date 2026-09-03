@@ -1,8 +1,8 @@
 final_similarity_time 4452.39477253
 standalone_shock_lambda 0.338976941232
-density_rms_error 204.339669357
-velocity_rms_error 0.0403535068587
-pressure_rms_error 7497.35594948
-outer_density_mean 1.00133890906
-outer_density_min 0.990234341519
-outer_density_max 1.2538840674
+density_rms_error 209.482101198
+velocity_rms_error 0.0691047490352
+pressure_rms_error 7563.31730457
+outer_density_mean 1.00063794696
+outer_density_min 0.994890368362
+outer_density_max 1.14091311838

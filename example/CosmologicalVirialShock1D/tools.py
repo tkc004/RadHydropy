@@ -208,21 +208,15 @@ class Simwrap:
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
-        self.par.CodeUnits = units
-        self.par.unit_system = units.unit_system
-        self.par.nogrid = int(ic["nogrid"])
-        self.par.coordsys = "spherical"
-        self.par.boxsize = np.array([float(ic["rmax"])])
+        grid_cells = int(ic["nogrid"])
         cosmic_time = float(ic["initial_cosmic_time"])
         self.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
-        self.par.mesh = SimpleNamespace()
         self.par.simulation = SimpleNamespace(
             current_time=self.par.time,
             box_size=np.array([float(ic["rmax"])]),
             coordinate_system="spherical",
         )
-        self.par.mesh.grid_cells = self.par.nogrid
-        self.par.mesh.ghost_cells = 2
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
         self.par.units = SimpleNamespace(CodeUnits=units)
         self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
         self.par.cosmological_expansion = True
@@ -241,7 +235,7 @@ class Simwrap:
         self.par.pressure_representation = "supercomoving"
         self.par.temperature_representation = "supercomoving"
 
-        self.mesh.boundary = np.geomspace(float(ic["rmin"]), float(ic["rmax"]), self.par.nogrid + 1)
+        self.mesh.boundary = np.geomspace(float(ic["rmin"]), float(ic["rmax"]), grid_cells + 1)
         # Keep a small, finite comoving inner wall when requested.  Setting
         # this face to zero would turn the test back into the singular
         # spherical-origin problem, whose origin flux is intentionally zero.
@@ -270,7 +264,7 @@ class Simwrap:
                 * float(ic.get("correlation_h", 0.674))
             ),
         )
-        self.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(self.par.nogrid)
+        self.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
         rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
         rho_g_cgs = rho_total_cgs * fb * (1.0 + delta)
         n_h = (
@@ -280,14 +274,14 @@ class Simwrap:
         redshift = 1.0 / a - 1.0
         if bool(ic.get("cmb_equilibrium_initial", False)):
             temp_phys = np.full(
-                self.par.nogrid,
+                grid_cells,
                 cmb_temperature(
                     redshift,
                     ic.get("cmb_temperature_0", 2.7255),
                 ),
             )
             electron_fraction = np.full(
-                self.par.nogrid,
+                grid_cells,
                 cmb_equilibrium_electron_fraction(ic),
             )
             self.fluid.xHI = 1.0 - electron_fraction
@@ -304,13 +298,13 @@ class Simwrap:
                 pie_temperature(pie_table, float(np.median(n_h)), redshift)
                 if pie_table else 1.0e4
             )
-        self.fluid.temp_code = temp_phys * a**2 * np.ones(self.par.nogrid)
+        self.fluid.temp_code = temp_phys * a**2 * np.ones(grid_cells)
         if not bool(ic.get("cmb_equilibrium_initial", False)):
-            self.fluid.mu = np.full(self.par.nogrid, float(ic["mu"]))
+            self.fluid.mu = np.full(grid_cells, float(ic["mu"]))
         self.fluid.vel_code = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
         if "gas_specific_angular_momentum" in ic:
             self.fluid.specific_angular_momentum_code = np.full(
-                self.par.nogrid,
+                grid_cells,
                 float(ic["gas_specific_angular_momentum"]),
             )
 

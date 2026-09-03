@@ -131,12 +131,9 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(mesh['grid_cells'])
-        self.par.coordsys = simulation['coordinate_system']
         self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+        grid_cells = int(mesh['grid_cells'])
         initial_time = float(icparams['initial_cosmic_time'])
         self.par.cosmological_expansion = True
         self.par.supercomoving_coordinates = True
@@ -155,13 +152,14 @@ class Simwrap:
         self.par.pressure_representation = 'physical'
         self.par.temperature_representation = 'physical'
         self.par.perturbation_amplitude = float(icparams['perturbation_amplitude'])
-        self.par.boxsize = np.ones(1) * icparams['box_size']
         self.par.simulation = SimpleNamespace(
             current_time=icparams['initial_cosmic_time'],
-            box_size=icparams['box_size'], coordinate_system=simulation['coordinate_system'])
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+            box_size=icparams['box_size'],
+            coordinate_system=simulation['coordinate_system'],
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh.boundary = np.linspace(
-            icparams['inner_radius'], icparams['outer_radius'], self.par.nogrid + 1
+            icparams['inner_radius'], icparams['outer_radius'], grid_cells + 1
         )
         self.mesh.coordinate = _spherical_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -194,7 +192,7 @@ class Simwrap:
         self.fluid.rho_code = density * code_units.density_unit
         self.fluid.vel_code = velocity * code_units.velocity_unit
         self.fluid.temp_code = temperature_code * code_units.temperature_unit
-        self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['mean_molecular_weight'])
+        self.fluid.mu = np.ones(grid_cells) * float(icparams['mean_molecular_weight'])
 
         delta_mass = 4.0 * np.pi / 3.0 * rho_background * amplitude
         self.dark_matter = DarkMatterShells(
