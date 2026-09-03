@@ -54,14 +54,6 @@ ICparams:
   mu: 0.59
   dark_matter_shells: 256
   dm_inner_radius: 0.1
-  dm_central_core_model: true
-  # The innermost live shell begins at this radius; inward shells are
-  # absorbed into the softened core only when their radial velocity is <= 0.
-  dm_central_core_radius: 10.0
-  dm_core_absorption_velocity: 0.0
-  # Absorb only shells with total specific energy <= this threshold;
-  # zero means bound (negative-energy) shells only.
-  dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
   softening: 10.0

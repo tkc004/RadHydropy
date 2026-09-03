@@ -388,28 +388,56 @@ class Gravity:
         ) ** 2
         return acceleration
 
-    def advance_dark_matter(self, dt, mesh, rho, par, crossing_safety_factor=0.1):
-        """Advance live dark-matter shells using the current gas mass field."""
+    def advance_dark_matter(
+        self,
+        dt,
+        mesh,
+        rho,
+        par,
+        crossing_safety_factor=0.1,
+        current_time=None,
+    ):
+        """Advance live dark-matter shells using the current gas mass field.
+
+        ``current_time`` is the current supercomoving time. Fluid-coupled
+        runs pass it explicitly; direct dark-matter callers can do the same
+        without constructing a fluid object. Set ``rho=None`` for a
+        fluid-free run. The stored ``fluid_time`` and simulation parameter
+        remain compatibility fallbacks for older callers.
+        """
         if self.dark_matter is None:
             return 0.0
         # The gas state is fixed during this gravity/source update.  Build its
         # cumulative mass profile once; shell sub-cycling only evaluates the
         # cached piecewise-constant profile at the current shell radii.
-        gas_mass = prepare_enclosed_gas_mass(mesh, rho, par)
+        if rho is None:
+            gas_mass = lambda radius: np.zeros_like(np.asarray(radius), dtype=float)
+        else:
+            gas_mass = prepare_enclosed_gas_mass(mesh, rho, par)
         if self.cosmological:
             cosmology = self.cosmology or getattr(par, "cosmology", None)
             if cosmology is None or not getattr(par, "supercomoving_coordinates", False):
                 raise ValueError(
                     "cosmological dark-matter shells require supercomoving cosmology"
                 )
-            tau = float(np.asarray(
-                getattr(getattr(par, 'simulation', None), 'current_time', 0.0),
-                dtype=float,
-            ))
+            # ``par.simulation.current_time`` is generally only an
+            # initialization/restart value. Prefer an explicit live time,
+            # then the compatibility attribute set by ApplyGravity, and only
+            # finally use the parameter fallback for legacy callers.
+            if current_time is None:
+                current_time = getattr(self, "fluid_time", None)
+            if current_time is None:
+                current_time = getattr(
+                    getattr(par, "simulation", None), "current_time", None
+                )
+            if current_time is None:
+                raise ValueError(
+                    "cosmological dark-matter advance requires current_time "
+                    "when no fluid time is available"
+                )
+            tau = float(np.asarray(current_time, dtype=float))
             cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
             tau_start = tau - float(dt)
-            if tau_start < 0.0:
-                tau_start = tau
             _, scale_factor_start, _ = cosmology.background_state_from_supercomoving(tau_start)
             background_density = float(cosmology.background_density(cosmic_time)) * scale_factor**3
             # Re-evaluate the homogeneous mass at the shell radius used by

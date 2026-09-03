@@ -1,0 +1,42 @@
+par:
+  simulation:
+    name: DarkMatterOnlyCorrelationControl
+    final_time: 1.0
+  units:
+    CodeUnits:
+      name: cosmological_dark_matter_correlation_control_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.085677581e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  gravity:
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
+  dark_matter:
+    softening: 0.01
+    crossing_safety_factor: 0.5
+    timestep: 0.02
+  output:
+    directory: outputs
+    density_plot_bins: 48
+initial_condition:
+  rmin: 3.0
+  rmax: 4000.0
+  initial_cosmic_time: 0.01418666885
+  perturbation_radius: 250.0
+  target_halo_mass: 100.0
+  initial_overdensity: 0.0166930693
+  initial_density_profile: linear_correlation
+  correlation_h: 0.674
+  baryon_fraction: 0.0
+  hydrogen_mass_fraction: 0.76
+  mu: 0.59
+  dark_matter_shells: 256
+  dm_inner_radius: 0.01
+  dm_specific_angular_momentum: 0.0
+  specific_angular_momentum: 1500.0
+  softening: 0.01
+example:
+  correlation_table_filename: ../outputs_correlation/lcdm_linear_correlation.h5

@@ -1,67 +1,84 @@
-runparams:
-  simname: CosmologicalGasCorrelationZ100PIEZ10M1e11Z0Z03
-  figure_prefix: CosmologicalGasCorrelationZ100_PIE_Z10_M1e11_Z0_Z03
-  ICfilename: outputs_correlation_gas_pie_z10_m1e11_z0_z03/InitialCondition.hdf5
-  outdir: outputs_correlation_gas_pie_z10_m1e11_z0_z03
-  savedir: outputs_correlation_gas_pie_z10_m1e11_z0_z03
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  selfgravity: true
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: true
-  cosmology_type: einstein_de_sitter
-  cosmology_t_ref: 14.4
-  cosmology_a_ref: 1.0
-  boundcond: InflowSph
-  noghost: 2
-  order: 1
-  dual_energy: true
-  CFL: 0.10
+par:
+  dark_matter:
+    softening: 0.1
+  simulation:
+    name: CosmologicalGasCorrelationZ100PIEZ10M1e11Z0Z03
+    initial_condition_filename: outputs_correlation_gas_pie_z10_m1e11_z0_z03/InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: 14.4
+  mesh:
+    ghost_cells: 2
+    grid_cells: 128
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.1
+    order: 1
+    dual_energy: true
+    smooth_dm_force_for_gas: true
+    cfl_density_floor: 1.0e-09
+  boundary:
+    condition: InflowSph
+  timestep:
+    dtmin:
+      value: 1.0e-12
+      unit: Myr
+    dtmax:
+      value: 200.0
+      unit: Myr
   dark_matter_crossing_safety_factor: 0.5
+  output:
+    directory: outputs_correlation_gas_pie_z10_m1e11_z0_z03
+    savedir: outputs_correlation_gas_pie_z10_m1e11_z0_z03
+    filename_prefix: Output
+  units:
+    CodeUnits:
+      name: cosmological_gas_correlation_pie_z10_m1e11_z0_z03_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.085677581e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  gravity:
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
+  thermochemistry:
+    metal_pie_table_filename: ../../../../metal_pie_table/metal_pie_hm12_total.h5
+    hydrogen_update_mu: true
+    hydrogen_collisional_ionization: true
+    hydrogen_xHI_initial: 0.9998
+    compton_cmb_enabled: true
+    cmb_temperature_0:
+      value: 2.7255
+      unit: K
+    metallicity: 0.3
+    hydrogen_recombination: true
+    metal_pie_redshift: 10.0
+    metal_pie_enabled: true
+    hydrogen_mass_fraction: 0.76
+    compton_cmb_redshift: 100.0
+    pie_uvbg_implicit_step_doubling: false
+    thermochemistry_network: pie_uvbg_cooling
+    cie_cooling: false
+    hydrogen_atomic_cooling: true
+    hydrogen_thermal_coupling: true
+    hydrogen_chemistry: true
+  figure_prefix: CosmologicalGasCorrelationZ100_PIE_Z10_M1e11_Z0_Z03
   dark_matter_crossing_batch_fraction: 0.0
   dark_matter_global_timestep_limit: false
-  smooth_dm_force_for_gas: true
   dm_density_bins: 128
-  dtmin: {value: 1.0e-12, unit: Myr}
-  cfl_density_floor: 1.0e-9
-  minimum_temperature: {value: 2.0, unit: K}
-  dtmax: {value: 200.0, unit: Myr}
-  final_cosmic_time: 14.4
-  gas_profile_cadence: 0.10
+  gas_profile_cadence: 0.1
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  thermochemistry_transition_redshift: 10.0
-  thermochemistry_network: pie_uvbg_cooling
-  metal_pie_enabled: true
-  metal_pie_table_filename: ../../../../metal_pie_table/metal_pie_hm12_total.h5
-  metal_pie_redshift: 10.0
-  metallicity: 0.3
-  pie_uvbg_implicit_step_doubling: false
-  hydrogen_chemistry: true
-  hydrogen_xHI_initial: 0.9998
-  hydrogen_recombination: true
-  hydrogen_collisional_ionization: true
-  hydrogen_atomic_cooling: true
-  hydrogen_update_mu: true
-  hydrogen_thermal_coupling: true
-  cie_cooling: false
-  compton_cmb_enabled: true
-  compton_cmb_redshift: 100.0
-  cmb_temperature_0: {value: 2.7255, unit: K}
-  hydrogen_mass_fraction: 0.76
-  CodeUnits:
-    name: cosmological_gas_correlation_pie_z10_m1e11_z0_z03_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.98847e43
-      UnitLength_in_cgs: 3.085677581e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 128
+  minimum_temperature:
+    value: 2.0
+    unit: K
+initial_condition:
   rmin: 5.0
   rmax: 4000.0
   initial_cosmic_time: 0.01418666885
@@ -74,14 +91,11 @@ ICparams:
   hydrogen_mass_fraction: 0.76
   mu: 0.59
   dark_matter_shells: 1024
-  # Resolve the live DM core only down to the softened scale.  The original
-  # 0.01/0.05 pair creates unresolved inner shell crossings for this halo.
   dm_inner_radius: 0.1
-  dm_central_core_model: true
-  dm_central_core_radius: 0.1
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
-  softening: 0.1
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
-  cmb_residual_electron_fraction: 2.0e-4
+  cmb_residual_electron_fraction: 0.0002
+example:
+  thermochemistry_transition_redshift: 10.0

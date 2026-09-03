@@ -88,7 +88,6 @@ class Simwrap:
             self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
         ) * 4.0 * np.pi / 3.0
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-        self.fluid.mass = self.fluid.rho_code * self.mesh.vol
         self.fluid.temp_code = np.ones(grid_cells) * 0.0 * unyt.K
         icut = np.logical_and(
             self.mesh.coordinate < icparams['explosion_radius'],

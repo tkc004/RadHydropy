@@ -77,6 +77,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             fluid.rho_code,
             par,
             crossing_safety_factor=crossing_safety_factor,
+            current_time=fluid.time,
         )
     # ApplyGravity follows the conservative hydro flux update and precedes
     # the primitive-state refresh.  Therefore fluid.rho_code and fluid.vel_code can

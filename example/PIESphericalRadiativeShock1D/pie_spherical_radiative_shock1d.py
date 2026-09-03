@@ -47,18 +47,18 @@ class CollidingStreamsSolver(Solver):
         scales = code_unit_scales(getattr(par, 'CodeUnits', None))
 
         left_state = {
-            'rho': par.boundary.outflow_density,
-            'vel': par.boundary.outflow_velocity,
-            'pre': fluid.eos.pressure(
+            'rho_code': par.boundary.outflow_density,
+            'vel_code': par.boundary.outflow_velocity,
+            'pre_code': fluid.eos.pressure(
                 par.boundary.outflow_density,
                 par.boundary.outflow_temperature,
                 par.boundary.outflow_mu,
             ),
         }
         right_state = {
-            'rho': par.boundary.inflow_density,
-            'vel': par.boundary.inflow_velocity,
-            'pre': fluid.eos.pressure(
+            'rho_code': par.boundary.inflow_density,
+            'vel_code': par.boundary.inflow_velocity,
+            'pre_code': fluid.eos.pressure(
                 par.boundary.inflow_density,
                 par.boundary.inflow_temperature,
                 par.boundary.inflow_mu,
@@ -68,7 +68,7 @@ class CollidingStreamsSolver(Solver):
             if hasattr(fluid, 'xHI'):
                 state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
             if hasattr(fluid, 'ngamma_code'):
-                state['ngamma'] = self._to_code_number_density(
+                state['ngamma_code'] = self._to_code_number_density(
                     getattr(par, 'hydrogen_ngamma_inflow', 0.0), scales
                 )
             self._copy_boundary_state(fluid, side, state)

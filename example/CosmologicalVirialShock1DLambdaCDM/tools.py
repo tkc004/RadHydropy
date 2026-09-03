@@ -14,6 +14,8 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import quantity_to_value
 
+DEFAULT_CENTRAL_CORE_MODEL = False
+
 _CANONICAL_TOOLS = Path(__file__).resolve().parents[2] / "tools" / "lcdm_correlation.py"
 _TOOLS_SPEC = importlib.util.spec_from_file_location(
     "radhydropy_lcdm_correlation", _CANONICAL_TOOLS
@@ -301,7 +303,7 @@ class Simwrap:
 def make_dark_matter(ic, units, cosmology, correlation_table=None):
     count = int(ic["dark_matter_shells"])
     dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
-    central_core_model = bool(ic.get("dm_central_core_model", False))
+    central_core_model = DEFAULT_CENTRAL_CORE_MODEL
     central_core_radius = float(
         ic.get("dm_central_core_radius", dm_inner)
     ) if central_core_model else dm_inner

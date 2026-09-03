@@ -20,12 +20,12 @@ import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.constants import PROTON_MASS_CGS
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 import tools as et
+from example_utils import load_nested_example_config
 import plot_entropy_evolution as entropy_plotter
 import plot_halo_energy_accounting as energy_plotter
 
@@ -518,29 +518,28 @@ def plot_baryon_fraction_evolution(
     plt.close(fig)
 
 
-def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
-    """Plot smoothed mass-binned physical DM profiles versus radius.
-
-    The saved NPZ retains every live shell.  This figure intentionally uses
-    fewer radial bins so that one-shell Poisson structure does not look like
-    physical density oscillations.
-    """
-    fig, axis = plt.subplots(figsize=(7.0, 5.0))
+def plot_dark_matter_density_evolution(
+    dm_profiles, gas_radius, filename, density_bin_count=None,
+):
+    """Plot enclosed DM mass and density contrast relative to the background."""
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 5.0))
+    density_axis, mass_axis = axes
     selected = np.unique(
         np.linspace(0, len(dm_profiles) - 1, min(9, len(dm_profiles))).astype(int)
     )
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, selected.size))
-    all_comoving = np.concatenate([
-        np.asarray(profile["dm_radius_kpc"], dtype=float)
-        / float(profile["scale_factor"])
-        for profile in dm_profiles
-    ])
-    plot_bin_count = min(int(bin_count), 48)
-    bin_edges = np.geomspace(
-        max(1.0e-8, np.nanmin(all_comoving) * 0.9),
-        np.nanmax(all_comoving) * 1.1,
-        plot_bin_count + 1,
+    gas_radius = np.asarray(gas_radius, dtype=float)
+    valid_radius = np.isfinite(gas_radius) & (gas_radius > 0.0)
+    gas_radius = gas_radius[valid_radius]
+    if gas_radius.size < 1:
+        plt.close(fig)
+        return
+    # Aggregate the shell profile into fewer logarithmic diagnostic bins.
+    # The underlying shell data and enclosed-mass panel remain full resolution.
+    bin_count = gas_radius.size if density_bin_count is None else max(
+        1, min(int(density_bin_count), gas_radius.size)
     )
+    bin_edges = np.geomspace(gas_radius[0], gas_radius[-1], bin_count + 1)
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     for index, color in zip(selected, colors):
         profile = dm_profiles[index]
@@ -572,15 +571,31 @@ def plot_dark_matter_density_evolution(dm_profiles, filename, bin_count=128):
         )
         binned_density = mass_in_bin / np.maximum(bin_volume, 1.0e-30)
         valid_bins = binned_density > 0.0
-        axis.loglog(
-            bin_radii[valid_bins], binned_density[valid_bins],
+        background_density = float(profile.get("dm_mean_density_code", np.nan))
+        density_contrast = binned_density / max(background_density, 1.0e-300)
+        density_axis.loglog(
+            bin_radii[valid_bins], density_contrast[valid_bins],
             color=color, lw=1.6, label="t = %.2f" % profile["time_Gyr"],
         )
-    axis.set_xlabel("comoving radius [kpc]")
-    axis.set_ylabel(r"dark-matter density [code mass / kpc$^3$]")
-    axis.set_title("Live dark-matter density evolution")
-    axis.grid(alpha=0.25, which="both")
-    axis.legend(title="cosmic time [Gyr]", fontsize=8)
+        cumulative_mass = np.cumsum(shell_mass)
+        if core_mass > 0.0:
+            cumulative_mass = cumulative_mass + core_mass
+        mass_axis.step(
+            shell_radius, cumulative_mass, where="post",
+            color=color, lw=1.6, label="t = %.2f" % profile["time_Gyr"],
+        )
+    density_axis.axhline(1.0, color="black", lw=0.8, ls="--")
+    density_axis.set_xlabel("comoving radius [kpc]")
+    density_axis.set_ylabel(r"DM density / background density")
+    density_axis.set_title("Live dark-matter density contrast")
+    mass_axis.set_xlabel("comoving radius [kpc]")
+    mass_axis.set_ylabel("enclosed dark-matter mass [code mass]")
+    mass_axis.set_title("Live dark-matter enclosed mass")
+    for axis in axes:
+        axis.set_xscale("log")
+        axis.set_yscale("log")
+        axis.grid(alpha=0.25, which="both")
+        axis.legend(title="cosmic time [Gyr]", fontsize=8)
     fig.tight_layout()
     fig.savefig(filename, dpi=220)
     plt.close(fig)
@@ -672,14 +687,14 @@ def _pad_profile_history(profiles, key):
 
 def _energy_audit_state(sim):
     """Return conserved gas-energy diagnostics for the physical cells."""
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
     vel_code = np.asarray(sim.fluid.vel_code[first:last], dtype=float)
     volume = np.asarray(sim.mesh.vol[first:last], dtype=float)
     mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
     total_energy = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-    kinetic_density = 0.5 * rho * vel**2
+    kinetic_density = 0.5 * rho_code * vel_code**2
     kinetic_energy = float(np.sum(kinetic_density * volume))
     total_energy_value = float(np.sum(total_energy))
     return {
@@ -707,13 +722,13 @@ def _energy_audit_state(sim):
 
 def _energy_cell_state(sim):
     """Return per-cell gas energy components for physical cells."""
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
     velocity = np.asarray(sim.fluid.vel_code[first:last], dtype=float)
     volume = np.asarray(sim.mesh.vol[first:last], dtype=float)
     total = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-    kinetic = 0.5 * rho * velocity**2 * volume
+    kinetic = 0.5 * rho_code * velocity**2 * volume
     return {
         "mass": np.asarray(sim.fluid.Mass_code[first:last], dtype=float).copy(),
         "total": total.copy(),
@@ -781,7 +796,7 @@ def _solver_cell_array(sim, name, size, dtype=float):
     if value is None:
         return np.full(size, np.nan, dtype=dtype)
     array = np.asarray(value, dtype=dtype).ravel()
-    first = int(sim.par.noghost)
+    first = int(sim.par.mesh.ghost_cells)
     if array.size < first + size:
         return np.full(size, np.nan, dtype=dtype)
     return array[first:first + size].copy()
@@ -797,7 +812,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     specific_energy = np.asarray(state["specific_energy_erg_g"], dtype=float)
     temperature = np.asarray(state["temperature_K"], dtype=float)
     mu = np.asarray(
-        state.get("mu", sim.fluid.mu[int(sim.par.noghost):int(sim.par.noghost) + int(sim.par.nogrid)]),
+        state.get("mu", sim.fluid.mu[int(sim.par.mesh.ghost_cells):int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells)]),
         dtype=float,
     )
     radius_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
@@ -807,7 +822,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     divergence = np.gradient(radius_cm**2 * velocity_cm_s, radius_cm) / np.maximum(radius_cm, 1.0e-30)**2
     rho_dot = -rho * divergence
     sound_speed = np.sqrt(
-        float(sim.par.gamma) * 1.380649e-16 * np.maximum(temperature, 0.0)
+        float(sim.par.hydrodynamics.gamma) * 1.380649e-16 * np.maximum(temperature, 0.0)
         / (np.maximum(mu, 1.0e-30) * 1.67262192369e-24)
     )
     mach = np.divide(
@@ -821,7 +836,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     gamma_eff = np.full_like(rho, np.nan)
     valid = (rho_dot > 0.0) & (specific_energy > 0.0)
     gamma_eff[valid] = (
-        float(sim.par.gamma) - q[valid] / (rho_dot[valid] * specific_energy[valid])
+        float(sim.par.hydrodynamics.gamma) - q[valid] / (rho_dot[valid] * specific_energy[valid])
     )
     return {
         "q_erg_cm3_s": q,
@@ -876,45 +891,56 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         output_suffix=None, riemann_solver=None,
         dual_energy_entropy_limiter=None, dual_energy=None, cfl=None):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    config = load_nested_example_config(config_filename)
+    runparams = config["par"]
+    icparams = config["initial_condition"]
+    simulation = runparams["simulation"]
+    hydro = runparams.setdefault("hydrodynamics", {})
+    gravity = runparams["gravity"]
+    output = runparams["output"]
+    thermo = runparams.setdefault("thermochemistry", {})
+    # These are plot/source-driver settings consumed by this workflow, not
+    # Rsim runtime parameters.  Keep them out of the object passed to Rsim.
+    configured_minimum_temperature = runparams.pop("minimum_temperature", None)
+    configured_temperature_plot_ymin = runparams.pop("temperature_plot_ymin", None)
     # This workflow always produces energy-balance plots and per-cell energy
     # histories, so make the required diagnostics the example default.
     runparams.setdefault("energy_diagnostics", True)
     if riemann_solver is not None:
-        runparams["riemann_solver"] = riemann_solver
+        hydro["riemann_solver"] = riemann_solver
     if dual_energy_entropy_limiter is not None:
-        runparams["dual_energy_entropy_limiter"] = bool(
+        hydro["dual_energy_entropy_limiter"] = bool(
             dual_energy_entropy_limiter
         )
     if dual_energy is not None:
-        runparams["dual_energy"] = bool(dual_energy)
+        hydro["dual_energy"] = bool(dual_energy)
     if cfl is not None:
-        runparams["CFL"] = float(cfl)
-    if runparams.get("compton_only", False):
-        runparams.update({
+        hydro["CFL"] = float(cfl)
+    if thermo.get("compton_only", False):
+        thermo.update({
             "hydrogen_recombination": False,
             "hydrogen_collisional_ionization": False,
             "hydrogen_atomic_cooling": False,
             "compton_cmb_enabled": True,
         })
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
-    if runparams.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
+    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=float(runparams["cosmology_t_ref"]),
-            a_ref=float(runparams["cosmology_a_ref"]),
-            omega_m=float(runparams["cosmology_omega_m"]),
-            omega_lambda=float(runparams["cosmology_omega_lambda"]),
-            hubble_ref=float(runparams["cosmology_hubble_ref"]),
+            t_ref=float(gravity["cosmology_t_ref"]),
+            a_ref=float(gravity["cosmology_a_ref"]),
+            omega_m=float(gravity["cosmology_omega_m"]),
+            omega_lambda=float(gravity["cosmology_omega_lambda"]),
+            hubble_ref=float(gravity["cosmology_hubble_ref"]),
         )
     else:
         cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=float(runparams["cosmology_t_ref"]),
-            a_ref=float(runparams["cosmology_a_ref"]),
+            t_ref=float(gravity["cosmology_t_ref"]),
+            a_ref=float(gravity["cosmology_a_ref"]),
         )
     correlation_table = load_correlation_table(config_filename, runparams)
-    output_dir = Path(runparams["savedir"])
+    output_dir = Path(output["savedir"])
     figure_prefix = str(
         runparams.get("figure_prefix", "CosmologicalGasCorrelationZ100")
     )
@@ -924,18 +950,21 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
+    ic_for_sim = dict(icparams)
+    ic_for_sim["nogrid"] = int(runparams["mesh"]["grid_cells"])
     initial = et.Simwrap(
-        icparams, units, cosmology, correlation_table=correlation_table
+        ic_for_sim, units, cosmology, correlation_table=correlation_table
     )
-    if bool(runparams.get("gas_angular_momentum", False)):
+    if bool(hydro.get("gas_angular_momentum", False)):
         initial.par.gas_angular_momentum = True
         initial.fluid.specific_angular_momentum_code = np.full(
             initial.par.nogrid,
-            float(runparams.get("gas_specific_angular_momentum", 0.0)),
+            float(hydro.get("gas_specific_angular_momentum", 0.0)),
         )
     rio.writehdf5(initial, ic_filename)
     dm = et.make_dark_matter(
-        icparams, units, cosmology, correlation_table=correlation_table
+        icparams, units, cosmology, correlation_table=correlation_table,
+        softening=runparams["dark_matter"]["softening"],
     )
 
     baryon_fraction = float(icparams["baryon_fraction"])
@@ -956,8 +985,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
 
     local = dict(runparams)
-    local.update({"ICfilename": str(ic_filename), "outdir": str(output_dir),
-                  "savedir": str(output_dir)})
+    local["simulation"] = dict(runparams["simulation"])
+    local["output"] = dict(runparams["output"])
+    local["simulation"]["initial_condition_filename"] = str(ic_filename)
+    local["output"]["directory"] = str(output_dir)
+    local["output"]["savedir"] = str(output_dir)
     sim = Rsim(local)
     sim.Callreadhdf5()
     sim.SetMesh()
@@ -966,7 +998,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.fluid.time = float(np.asarray(sim.par.time).flat[0])
     dm_for_gas = (
         et.VolumeSmoothedDarkMatter(dm)
-        if bool(runparams.get("smooth_dm_force_for_gas", False))
+        if bool(hydro.get("smooth_dm_force_for_gas", False))
         else dm
     )
     sim.par.gravity = Gravity(
@@ -980,14 +1012,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     initial_time = float(icparams["initial_cosmic_time"])
     initial_a = float(cosmology.scale_factor(initial_time))
     sim.par.mu_inflow = float(icparams.get("mu", 0.59))
-    minimum_temperature = runparams.get("minimum_temperature", None)
+    minimum_temperature = configured_minimum_temperature
     if minimum_temperature is not None:
         if hasattr(minimum_temperature, "to_value"):
             minimum_temperature = float(minimum_temperature.to_value("K"))
         else:
             minimum_temperature = float(minimum_temperature)
 
-    transition_redshift = runparams.get("thermochemistry_transition_redshift")
+    transition_redshift = thermo.get("thermochemistry_transition_redshift")
     transition_tau = None
     if transition_redshift is not None:
         transition_redshift = float(transition_redshift)
@@ -1062,8 +1094,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     def preserve_outer_background_cell():
         """Reset the outer active cell to the analytic EdS reservoir state."""
-        first = int(sim.par.noghost)
-        index = first + int(sim.par.nogrid) - 1
+        first = int(sim.par.mesh.ghost_cells)
+        index = first + int(sim.par.mesh.grid_cells) - 1
         old_mass = float(np.asarray(sim.fluid.Mass_code, dtype=float)[index])
         old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
         rho = float(np.asarray(sim.par.rho_inflow, dtype=float))
@@ -1072,17 +1104,17 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         mu = float(np.asarray(sim.par.mu_inflow, dtype=float))
         volume = float(np.asarray(sim.mesh.vol, dtype=float)[index])
         pressure = float(np.asarray(
-            sim.fluid.eos.pressure(rho_code, temperature, mu), dtype=float
+            sim.fluid.eos.pressure(rho, temperature, mu), dtype=float
         ))
-        sim.fluid.rho_code[index] = rho_code
+        sim.fluid.rho_code[index] = rho
         sim.fluid.vel_code[index] = velocity
         sim.fluid.temp_code[index] = temperature
         sim.fluid.mu[index] = mu
         sim.fluid.pre_code[index] = pressure
-        sim.fluid.Mass_code[index] = rho_code * volume
-        sim.fluid.Mom_code[index] = rho_code * velocity * volume
+        sim.fluid.Mass_code[index] = rho * volume
+        sim.fluid.Mom_code[index] = rho * velocity * volume
         sim.fluid.Energy_code[index] = float(np.asarray(
-            sim.fluid.eos.total_energy_density(rho_code, velocity, pressure),
+            sim.fluid.eos.total_energy_density(rho, velocity, pressure),
             dtype=float,
         )) * volume
         thermal_energy_density = float(np.asarray(
@@ -1111,7 +1143,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     final_time = (
         float(final_time_override)
         if final_time_override is not None
-        else float(runparams["final_cosmic_time"])
+        else float(simulation["final_time"])
     )
     target_tau = float(cosmology.supercomoving_time(final_time))
     cadence = float(runparams.get("gas_profile_cadence", 0.10))
@@ -1128,8 +1160,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     def save_snapshot(cosmic_time):
         nonlocal previous_halo_mask
         gas_profile = et.gas_density_profile(sim, cosmic_time, cosmology)
-        first = int(sim.par.noghost)
-        last = first + int(sim.par.nogrid)
+        first = int(sim.par.mesh.ghost_cells)
+        last = first + int(sim.par.mesh.grid_cells)
         scale_factor = float(cosmology.scale_factor(cosmic_time))
         gas_profile["temperature_physical_K"] = (
             np.asarray(sim.fluid.temp_code[first:last], dtype=float) / scale_factor**2
@@ -1170,7 +1202,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             radius_record["gas_mass_rvir"] = np.nan
             radius_record["normalized_baryon_fraction"] = np.nan
         shock_index = int(radius_record.get("shock_cell_index", -1))
-        if 0 <= shock_index < int(sim.par.nogrid):
+        if 0 <= shock_index < int(sim.par.mesh.grid_cells):
             # These scalar values are deliberately extracted after shock
             # selection from the same snapshot and cell.  They are the only
             # quantities intended for a local gamma_eff comparison.
@@ -1227,8 +1259,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     save_snapshot(initial_time)
     audit_initial = _energy_audit_state(sim)
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     angular_initial = float(np.sum(np.asarray(
         sim.fluid.AngularMomentum_code[first:last], dtype=float
     ))) if hasattr(sim.fluid, "AngularMomentum_code") else 0.0
@@ -1267,11 +1299,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             dt = min(dt, transition_tau - float(sim.fluid.time))
         # Capture the finite inner-wall Riemann flux before Step refreshes the
         # temporary face arrays.
-        wall_face = int(sim.par.noghost)
+        wall_face = int(sim.par.mesh.ghost_cells)
         sim.solver.SetInterFaceFlux(
-            sim.mesh, sim.fluid, sim.par.boundcond,
+            sim.mesh, sim.fluid, sim.par.boundary.condition,
             method=getattr(sim.par, "riemann_solver", "Rusanov"),
-            order=int(sim.par.order),
+            order=int(sim.par.hydrodynamics.order),
         )
         wall_momentum_flux = float(
             np.asarray(sim.fluid.Mom_code.flux, dtype=float)[wall_face]
@@ -1313,8 +1345,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         if bool(getattr(sim.par, "gas_angular_momentum", False)) and (
             steps % 100 == 0
         ):
-            first = int(sim.par.noghost)
-            last = first + int(sim.par.nogrid)
+            first = int(sim.par.mesh.ghost_cells)
+            last = first + int(sim.par.mesh.grid_cells)
             mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
             angular = np.asarray(
                 sim.fluid.AngularMomentum_code[first:last], dtype=float
@@ -1394,8 +1426,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             - floor_injection
         )
         if steps == 1 or steps % 100 == 0:
-            first = int(sim.par.noghost)
-            last = first + int(sim.par.nogrid)
+            first = int(sim.par.mesh.ghost_cells)
+            last = first + int(sim.par.mesh.grid_cells)
             inner = slice(first, min(last, first + 16))
             print(
                 "step=%d cosmic_time=%.6g dt=%.6g crossing_dt=%.6g "
@@ -1492,7 +1524,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     entropy_plotter.main(
         output_dir,
         figure_prefix,
-        gamma=float(runparams["gamma"]),
+        gamma=float(hydro["gamma"]),
         exclude_outer_cells=plot_exclude_outer_cells,
     )
     energy_audit_file = output_dir / (figure_prefix + "_EnergyAudit.npz")
@@ -1600,7 +1632,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         **{f"dm_{key}": value for key, value in per_shell.items()},
     )
     energy_balance_figure = None
-    if bool(runparams.get("energy_diagnostics", True)):
+    if bool(hydro.get("energy_diagnostics", True)):
         try:
             energy_plotter.main(output_dir, figure_prefix, radius_factor=2.0)
             energy_balance_figure = output_dir / (
@@ -1616,8 +1648,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     plot_mass_history(history, figure)
     plot_radius_history(history, radius_figure)
     temperature_figure = output_dir / (figure_prefix + "_Temperatures.jpg")
-    temperature_plot_ymin = runparams.get(
-        "temperature_plot_ymin", minimum_temperature
+    temperature_plot_ymin = (
+        configured_temperature_plot_ymin
+        if configured_temperature_plot_ymin is not None
+        else minimum_temperature
     )
     if hasattr(temperature_plot_ymin, "to_value"):
         temperature_plot_ymin = float(temperature_plot_ymin.to_value("K"))
@@ -1668,8 +1702,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
     dm_figure = output_dir / (figure_prefix + "_DarkMatterDensities.jpg")
     plot_dark_matter_density_evolution(
-        dm_profiles, dm_figure,
-        bin_count=int(runparams.get("dm_density_bins", 128)),
+        dm_profiles, plot_radius, dm_figure,
+        density_bin_count=runparams.get("dm_density_bins"),
     )
     density_comparison_figure = output_dir / (
         figure_prefix + "_GasDarkMatterBaryonNormalized.jpg"
@@ -1684,9 +1718,21 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         dm_data_file,
         time_Gyr=np.asarray([item["time_Gyr"] for item in dm_profiles]),
         scale_factor=np.asarray([item["scale_factor"] for item in dm_profiles]),
+        mean_density_code=np.asarray([
+            item.get("dm_mean_density_code", np.nan) for item in dm_profiles
+        ]),
         radius_kpc=_pad_profile_history(dm_profiles, "dm_radius_kpc"),
         density_code=_pad_profile_history(dm_profiles, "dm_density_code"),
         mass=_pad_profile_history(dm_profiles, "dm_mass"),
+        total_mass=np.asarray([
+            item.get("dm_total_mass", np.nan) for item in dm_profiles
+        ]),
+        crossing_events=np.asarray([
+            item.get("dm_crossing_events", 0) for item in dm_profiles
+        ], dtype=int),
+        origin_reflections=np.asarray([
+            item.get("dm_origin_reflections", 0) for item in dm_profiles
+        ], dtype=int),
         central_core_mass=np.asarray([
             item.get("dm_central_core_mass", 0.0) for item in dm_profiles
         ]),
@@ -1698,6 +1744,24 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("initial gas temperature = %.8g K" % initial_temperature)
     print("final cosmic time = %.8g Gyr" % times[-1])
     dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
+    dm_total_mass = np.asarray([
+        item.get("dm_total_mass", np.nan) for item in dm_profiles
+    ])
+    if dm_total_mass.size and np.isfinite(dm_total_mass[0]):
+        mass_error = np.max(np.abs(dm_total_mass - dm_total_mass[0]))
+        if mass_error > 1.0e-10 * max(abs(dm_total_mass[0]), 1.0):
+            raise RuntimeError(
+                "live dark-matter mass is not conserved: maximum error %.8g"
+                % mass_error
+            )
+        print("dark-matter total mass = %.8g code masses" % dm_total_mass[-1])
+        print(
+            "dark-matter shell crossings = %d, origin reflections = %d"
+            % (
+                sum(item.get("dm_crossing_events", 0) for item in dm_profiles),
+                sum(item.get("dm_origin_reflections", 0) for item in dm_profiles),
+            )
+        )
     if dm_substeps.size:
         print(
             "dark-matter substeps per hydro step = %.8g mean, %d max, %d total"

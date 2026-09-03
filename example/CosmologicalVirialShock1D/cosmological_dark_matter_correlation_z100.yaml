@@ -1,43 +1,52 @@
-runparams:
-  simname: CosmologicalDarkMatterCorrelationZ100
-  ICfilename: outputs_correlation/InitialCondition.hdf5
-  outdir: outputs_correlation
-  savedir: outputs_correlation
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  selfgravity: true
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: true
-  cosmology_type: einstein_de_sitter
-  cosmology_t_ref: 14.4
-  cosmology_a_ref: 1.0
-  boundcond: Reflecting
-  noghost: 2
-  CFL: 0.25
+par:
+  dark_matter:
+    softening: 10.0
+  simulation:
+    name: CosmologicalDarkMatterCorrelationZ100
+    initial_condition_filename: outputs_correlation/InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: 14.4
+  mesh:
+    ghost_cells: 2
+    grid_cells: 128
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.25
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: 1.0e-12
+    dtmax: 1.0
+  output:
+    directory: outputs_correlation
+    savedir: outputs_correlation
+    filename_prefix: Output
+  units:
+    CodeUnits:
+      name: cosmological_dark_matter_correlation_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.085677581e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  gravity:
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
   dark_matter_crossing_safety_factor: 0.5
   dm_only_shells: 1024
   dm_density_bins: 128
   dm_only_density_times: [0.0141867, 4.0, 8.0, 10.0, 12.0, 14.0, 16.0]
   dm_only_calibration_timestep: 0.0005
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  # The live density diagnostic spans the long tau interval from z=100;
-  # this remains small compared with the shell-crossing timescale.
   dm_only_supercomoving_timestep: 0.01
-  final_cosmic_time: 14.4
-  CodeUnits:
-    name: cosmological_dark_matter_correlation_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.98847e43
-      UnitLength_in_cgs: 3.085677581e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 128
+initial_condition:
   rmin: 5.0
   rmax: 4000.0
   initial_cosmic_time: 0.01418666885
@@ -51,16 +60,9 @@ ICparams:
   mu: 0.59
   dark_matter_shells: 256
   dm_inner_radius: 0.1
-  dm_central_core_model: true
-  # The innermost live shell begins at this radius; inward shells are
-  # absorbed into the softened core only when their radial velocity is <= 0.
-  dm_central_core_radius: 10.0
-  dm_core_absorption_velocity: 0.0
-  # Absorb only shells with total specific energy <= this threshold;
-  # zero means bound (negative-energy) shells only.
-  dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.01
-  softening: 10.0
   uv_background_on_redshift: 10.0
   cie_initial_temperature: 10.0
+example:
+  snapshot_count: 7

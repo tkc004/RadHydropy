@@ -69,7 +69,7 @@ def inflow_density(mass_accretion_rate, radius, velocity):
     return mdot / (4.0 * np.pi * radius_cm**2 * speed) * unyt.g / unyt.cm**3
 
 
-def boundary_inflow_state(icparams, halo, table, runparams):
+def boundary_inflow_state(icparams, halo, table, par_config):
     """Return the maintained outer-boundary state in physical units."""
     radius = float(icparams['outer_radius_over_R200']) * halo['virial_radius']
     velocity = (
@@ -78,15 +78,15 @@ def boundary_inflow_state(icparams, halo, table, runparams):
     density = inflow_density(icparams['baryon_accretion_rate'], radius, velocity)
     temperature = pie_equilibrium_temperature(
         [density.to_value(unyt.g / unyt.cm**3)], table,
-        float(runparams['hydrogen_mass_fraction']),
-        float(runparams['metallicity']),
-        float(runparams['metal_pie_redshift']),
+        float(par_config['chemistry']['hydrogen_mass_fraction']),
+        float(par_config['thermochemistry']['metallicity']),
+        float(par_config['thermochemistry']['metal_pie_redshift']),
     )[0] * unyt.K
     return {
-        'rho_inflow': density,
-        'vel_inflow': velocity,
-        'temp_inflow': temperature,
-        'mu_inflow': float(icparams['mu']),
+        'inflow_density': density,
+        'inflow_velocity': velocity,
+        'inflow_temperature': temperature,
+        'inflow_mu': float(icparams['mu']),
     }
 
 
@@ -100,9 +100,8 @@ class Simwrap:
         self.par.CodeUnits = code_units
         self.par.unit_system = code_units.unit_system
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.coordsys = 'spherical'
-        self.par.time = np.ones(1) * icparams['time']
+        grid_cells = int(runparams['mesh']['grid_cells'])
+        current_time = icparams['current_time']
 
         halo = nfw_halo_parameters(
             icparams['halo_mass'], icparams['concentration'],
@@ -111,16 +110,15 @@ class Simwrap:
         r200 = halo['virial_radius']
         inner = float(icparams['inner_radius_over_R200']) * r200
         outer = float(icparams['outer_radius_over_R200']) * r200
-        self.par.boxsize = np.ones(1) * outer
         self.par.simulation = SimpleNamespace(
             coordinate_system='spherical',
-            current_time=self.par.time,
-            box_size=self.par.boxsize,
+            current_time=current_time,
+            box_size=outer,
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh.boundary = np.geomspace(
             inner.to_value(unyt.kpc), outer.to_value(unyt.kpc),
-            self.par.nogrid + 1,
+            grid_cells + 1,
         ) * unyt.kpc
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
         radius = self.mesh.coordinate
@@ -132,9 +130,9 @@ class Simwrap:
         rho_cold = inflow_density(mdot, radius, inflow_velocity)
         temperature_cold = pie_equilibrium_temperature(
             rho_cold.to_value(unyt.g / unyt.cm**3), table,
-            float(runparams['hydrogen_mass_fraction']),
-            float(runparams['metallicity']),
-            float(runparams['metal_pie_redshift']),
+            float(runparams['chemistry']['hydrogen_mass_fraction']),
+            float(runparams['thermochemistry']['metallicity']),
+            float(runparams['thermochemistry']['metal_pie_redshift']),
         ) * unyt.K
 
         transition = float(icparams['atmosphere_radius_over_R200']) * r200
@@ -176,7 +174,7 @@ class Simwrap:
             + weight * temperature_cold.to_value(unyt.K)
         ) * unyt.K
         self.fluid.vel_code = weight * inflow_velocity
-        self.fluid.mu = np.ones(self.par.nogrid) * float(icparams['mu'])
+        self.fluid.mu = np.ones(grid_cells) * float(icparams['mu'])
 
 
 def load_snapshot(filename):
@@ -284,11 +282,11 @@ def _gas_pressure(density, temperature, mu):
 
 
 def _pie_net_rate(table, density, temperature, runparams):
-    n_h = float(runparams['hydrogen_mass_fraction']) * density / PROTON_MASS_CGS
+    n_h = float(runparams['chemistry']['hydrogen_mass_fraction']) * density / PROTON_MASS_CGS
     heating, cooling = table.rates(
         temperature, n_h,
-        metallicity=float(runparams['metallicity']),
-        redshift=float(runparams['metal_pie_redshift']),
+        metallicity=float(runparams['thermochemistry']['metallicity']),
+        redshift=float(runparams['thermochemistry']['metal_pie_redshift']),
     )
     return float(np.asarray(cooling)) - float(np.asarray(heating))
 
@@ -304,7 +302,7 @@ def pie_stability_diagnostics(
         None if index is None else profile['radius_kpc'][index]
         for profile, index in zip(profiles, indices)
     ]
-    gamma = float(runparams['gamma'])
+    gamma = float(runparams['hydrodynamics']['gamma'])
     downstream = []
     for profile, index in zip(profiles, indices):
         if index is None or index < 8 or index + 5 >= len(profile['radius_kpc']):

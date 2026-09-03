@@ -85,9 +85,12 @@ def _profile(sim):
     pre = np.asarray(sim.fluid.pre_code[first:last], dtype=float)
     temp_code = np.asarray(sim.fluid.temp_code[first:last], dtype=float)
     entropy = np.full_like(pre, np.nan)
-    active = rho > 0.0
-    entropy[active] = pre[active] / rho[active] ** float(sim.par.hydrodynamics.gamma)
-    return r, rho, vel, pre, temp, entropy
+    active = rho_code > 0.0
+    entropy[active] = (
+        pre[active]
+        / rho_code[active] ** float(sim.par.hydrodynamics.gamma)
+    )
+    return r, rho_code, vel_code, pre, temp_code, entropy
 
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):

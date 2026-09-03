@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
-from radhydropy.example_config import load_example_parameters
+import example_utils as eu
 from radhydropy.io import load_output_time_list
 from radhydropy.thermo_networks.pie import MetalPIETable
 from tools import (
@@ -45,17 +45,21 @@ CONFIGS = (
 
 
 def _case_diagnostics(config_filename):
-    runparams, icparams = load_example_parameters(config_filename)
-    for key in ('metal_pie_table_filename', 'pie_outdir'):
-        runparams[key] = str((config_filename.parent / runparams[key]).resolve())
+    config = eu.load_nested_example_config(config_filename)
+    par_config = config['par']
+    icparams = config['initial_condition']
+    exampleparams = config['example']
+    pie_table_filename = (
+        config_filename.parent
+        / par_config['thermochemistry']['metal_pie_table_filename']
+    ).resolve()
+    pie_outdir = (config_filename.parent / exampleparams['pie_outdir']).resolve()
     pie_schedule = (
-        config_filename.parent / runparams['pie_outputtimefilename']
-        if not Path(runparams['pie_outputtimefilename']).is_absolute()
-        else Path(runparams['pie_outputtimefilename'])
+        config_filename.parent / exampleparams['pie_outputtimefilename']
     )
-    files = sorted(Path(runparams['pie_outdir']).glob('Output_*.hdf5'))
+    files = sorted(pie_outdir.glob('Output_*.hdf5'))
     relative_times = load_output_time_list(pie_schedule).to_value(unyt.Myr)
-    offset = runparams['adiabatic_final_time'].to_value(unyt.Myr)
+    offset = exampleparams['adiabatic_final_time'].to_value(unyt.Myr)
     times = relative_times + offset
     if len(files) != len(times):
         raise RuntimeError(f'{config_filename.name}: output count does not match schedule')
@@ -63,9 +67,9 @@ def _case_diagnostics(config_filename):
         icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
         icparams['overdensity'], icparams['h0'],
     )
-    table = MetalPIETable(runparams['metal_pie_table_filename'])
+    table = MetalPIETable(pie_table_filename)
     stability = pie_stability_diagnostics(
-        files, times, halo, table, runparams, icparams['mu']
+        files, times, halo, table, par_config, icparams['mu']
     )
     stability_by_time = {row['time_Myr']: row for row in stability}
     shock_radius = []

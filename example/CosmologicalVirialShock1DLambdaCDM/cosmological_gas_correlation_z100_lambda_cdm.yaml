@@ -97,8 +97,6 @@ ICparams:
   mu: 0.59
   dark_matter_shells: 512
   dm_inner_radius: 0.01
-  dm_core_absorption_velocity: 0.0
-  dm_core_absorption_energy: 0.0
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.02
   softening: 0.2

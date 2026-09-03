@@ -133,6 +133,9 @@ class DarkMatterShells:
         self.last_substep_count = 0
         self.total_substep_count = 0
         self.last_crossing_event_count = 0
+        self.total_crossing_event_count = 0
+        self.last_origin_reflection_count = 0
+        self.total_origin_reflection_count = 0
         if not (
             self.radius.ndim == self.velocity.ndim == self.mass.ndim == self.angular_momentum.ndim == 1
         ):
@@ -401,6 +404,9 @@ class DarkMatterShells:
     def _reflect_at_origin(self):
         """Reflect shells that crossed the spherical coordinate origin."""
         crossed = self.radius < 0.0
+        reflection_count = int(np.count_nonzero(crossed))
+        self.last_origin_reflection_count += reflection_count
+        self.total_origin_reflection_count += reflection_count
         if np.any(crossed):
             self.radius[crossed] *= -1.0
             self.velocity[crossed] *= -1.0
@@ -532,6 +538,7 @@ class DarkMatterShells:
         crossing_event_count = 0
         minimum_step = 64.0 * np.finfo(float).eps * max(1.0, dt)
         self._resolve_coincident_crossings()
+        self.last_origin_reflection_count = 0
         while remaining > minimum_step:
             crossing_dt = self.crossing_timestep(safety_factor=1.0)
             substep = remaining
@@ -632,6 +639,7 @@ class DarkMatterShells:
         self.last_substep_count = substep_count
         self.total_substep_count += substep_count
         self.last_crossing_event_count = crossing_event_count
+        self.total_crossing_event_count += crossing_event_count
         return dt
 
     def specific_energy(self):

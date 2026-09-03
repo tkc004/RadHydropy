@@ -33,6 +33,7 @@ refparams = {
     'selfgravity': False,
     'externalgravity': False,
     'dark_matter_crossing_safety_factor': 0.1,
+    'dark_matter_softening': 0.0 * unyt.cm,
     # Optional approximate crossing batching.  Zero retains the exact
     # event-driven shell integrator; positive values batch crossings over this
     # fraction of each requested dark-matter interval.
@@ -484,6 +485,7 @@ class DarkMatterParameters:
     crossing_batch_fraction: float = 0.0
     global_timestep_limit: bool = True
     density_bins: object = None
+    softening: object = 0.0
 
 
 @dataclass
@@ -601,7 +603,7 @@ class Par:
         if not any(isinstance(params.get(group), dict) for group in (
             'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
             'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
-            'diagnostics', 'gravity',
+            'diagnostics', 'gravity', 'dark_matter',
         )):
             return params
         flattened = dict(params)
@@ -681,6 +683,13 @@ class Par:
                 'cosmology_omega_lambda': 'cosmology_omega_lambda',
                 'gas_core_model': 'gas_core_model',
                 'gas_core_radius': 'gas_core_radius',
+            },
+            'dark_matter': {
+                'softening': 'dark_matter_softening',
+                'crossing_safety_factor': 'dark_matter_crossing_safety_factor',
+                'crossing_batch_fraction': 'dark_matter_crossing_batch_fraction',
+                'global_timestep_limit': 'dark_matter_global_timestep_limit',
+                'density_bins': 'dm_density_bins',
             },
             'radiation': {
                 'direction': 'radiative_transfer_direction',
@@ -1064,6 +1073,7 @@ class Par:
             crossing_batch_fraction=self.dark_matter_crossing_batch_fraction,
             global_timestep_limit=self.dark_matter_global_timestep_limit,
             density_bins=getattr(self, 'dm_density_bins', None),
+            softening=self.dark_matter_softening,
         )
 
     def _sync_dual_energy_parameters(self):

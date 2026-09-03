@@ -1,6 +1,7 @@
 """Boundary-fed virial shock in a fixed NFW halo, with an HM12 PIE restart."""
 
 import argparse
+import copy
 import os
 import sys
 import tempfile
@@ -22,7 +23,6 @@ import numpy as np
 
 import example_utils as eu
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -51,9 +51,9 @@ class BoundaryAccretionSolver(Solver):
         # domain. Suppress only a positive velocity that would inject gas.
         left['vel_code'] = min(float(fluid.vel_code[first]), 0.0)
         right = {
-            'rho': par.boundary.inflow_density,
-            'vel': par.boundary.inflow_velocity,
-            'pre': fluid.eos.pressure(
+            'rho_code': par.boundary.inflow_density,
+            'vel_code': par.boundary.inflow_velocity,
+            'pre_code': fluid.eos.pressure(
                 par.boundary.inflow_density,
                 par.boundary.inflow_temperature,
                 par.boundary.inflow_mu,
@@ -64,29 +64,13 @@ class BoundaryAccretionSolver(Solver):
             right['xHI'] = getattr(par.chemistry, 'hydrogen_xHI_inflow', 1.0)
         if hasattr(fluid, 'ngamma_code'):
             left['ngamma_code'] = fluid.ngamma_code[..., first]
-            right['ngamma'] = self._to_code_number_density(
+            right['ngamma_code'] = self._to_code_number_density(
                 getattr(par.radiation, 'hydrogen_ngamma_inflow', 0.0), scales
             )
         self._copy_boundary_state(fluid, slice(0, first), left)
         self._copy_boundary_state(
             fluid, slice(right_start, right_start + par.mesh.ghost_cells), right
         )
-
-
-def _runtime_restart(sim, params, pie_table):
-    """Restore stage controls overwritten by snapshot header metadata."""
-    immutable = {
-        'CodeUnits', 'coordsys', 'nogrid', 'noghost', 'gamma', 'EOStype',
-        'adiabatic_final_time', 'pie_final_time', 'pie_outdir',
-        'pie_outputtimefilename',
-        'final_time', 'number_of_cells', 'chemistry_timestep',
-        'evolution_timestep',
-    }
-    for key, value in params.items():
-        if key not in immutable:
-            setattr(sim.par, key, value)
-    sim.par.runparams = dict(params)
-    sim.par.metal_pie_table = pie_table
 
 
 def _strip_snapshot_ghosts(sim):
@@ -107,23 +91,16 @@ def _strip_snapshot_ghosts(sim):
             setattr(sim.fluid, name, array[..., first:first + count].copy())
 
 
-def _run_stage(params, halo, mode, pie_table=None, restart=False):
-    outdir = Path(params['outdir'])
+def _run_stage(par_config, halo, mode, restart=False):
+    par_config = copy.deepcopy(par_config)
+    outdir = Path(par_config['output']['directory'])
     outdir.mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(params)
-    stage_only = {
-        'adiabatic_final_time', 'pie_final_time', 'pie_outdir',
-        'pie_outputtimefilename',
-        'final_time', 'number_of_cells', 'chemistry_timestep',
-        'evolution_timestep',
-    }
-    sim = Rsim({key: value for key, value in params.items()
-                if key not in stage_only})
+    eu.clean_previous_outputs(par_config['output'])
+    sim = Rsim(par_config)
     sim.solver = BoundaryAccretionSolver()
     sim.Callreadhdf5()
     if restart:
         _strip_snapshot_ghosts(sim)
-        _runtime_restart(sim, params, pie_table)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -137,7 +114,9 @@ def _run_stage(params, halo, mode, pie_table=None, restart=False):
         code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode=mode)
-    return sorted(outdir.glob(f"{params['outfileprefix']}_*.hdf5"))
+    return sorted(outdir.glob(
+        f"{par_config['output']['filename_prefix']}_*.hdf5"
+    ))
 
 
 def _write_adiabatic_energy_audit(files, code_units, filename):
@@ -149,8 +128,8 @@ def _write_adiabatic_energy_audit(files, code_units, filename):
         with h5py.File(path, 'r') as handle:
             header = handle['Header']
             data = handle['Data']
-            first = int(header.attrs.get('noghost', 2))
-            count = int(header.attrs['nogrid'])
+            first = int(header.attrs.get('GhostCells', 2))
+            count = int(header.attrs['GridCells'])
             energy = np.asarray(data['Energy'][first:first + count], dtype=float)
             energy_unit = unyt.Unit(data['Energy'].attrs['units'])
             energy_scale = (1.0 * energy_unit).to_value(unyt.erg)
@@ -196,55 +175,70 @@ def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
 
 def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
-    runparams['nogrid'] = icparams['nogrid']
-    for key in ('metal_pie_table_filename', 'pie_outputtimefilename', 'pie_outdir'):
-        runparams[key] = str((config_filename.parent / runparams[key]).resolve())
-
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    pie_table = MetalPIETable(runparams['metal_pie_table_filename'])
+    config = eu.load_nested_example_config(config_filename)
+    par_config = config['par']
+    icparams = config['initial_condition']
+    exampleparams = config['example']
+    par_config['simulation']['initial_condition_filename'] = str(
+        (config_filename.parent / par_config['simulation']['initial_condition_filename']).resolve()
+    )
+    par_config['output']['directory'] = str(
+        (config_filename.parent / par_config['output']['directory']).resolve()
+    )
+    par_config['output']['savedir'] = str(
+        (config_filename.parent / par_config['output']['savedir']).resolve()
+    )
+    par_config['output']['time_list_filename'] = str(
+        (config_filename.parent / par_config['output']['time_list_filename']).resolve()
+    )
+    par_config['thermochemistry']['metal_pie_table_filename'] = str(
+        (config_filename.parent / par_config['thermochemistry']['metal_pie_table_filename']).resolve()
+    )
+    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    pie_table = MetalPIETable(
+        par_config['thermochemistry']['metal_pie_table_filename']
+    )
     halo = nfw_halo_parameters(
         icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
         icparams['overdensity'], icparams['h0'],
     )
-    initial = Simwrap(icparams, runparams, code_units, pie_table)
-    inflow = boundary_inflow_state(icparams, halo, pie_table, runparams)
-    runparams.update(inflow)
-    Path(runparams['ICfilename']).parent.mkdir(parents=True, exist_ok=True)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    initial = Simwrap(icparams, par_config, code_units, pie_table)
+    inflow = boundary_inflow_state(icparams, halo, pie_table, par_config)
+    par_config['boundary'].update(inflow)
+    initial_filename = par_config['simulation']['initial_condition_filename']
+    Path(initial_filename).parent.mkdir(parents=True, exist_ok=True)
+    rio.writehdf5(initial, initial_filename)
 
-    adiabatic = dict(runparams)
-    adiabatic.update({
-        'thermochemistry_network': 'hydrogen',
-        'metal_pie_enabled': False,
-        'timesim': runparams['adiabatic_final_time'],
-    })
+    adiabatic = copy.deepcopy(par_config)
+    adiabatic['simulation']['final_time'] = exampleparams['adiabatic_final_time']
+    adiabatic['thermochemistry']['network'] = 'hydrogen'
+    adiabatic['thermochemistry']['metal_pie_enabled'] = False
     adiabatic_files = _run_stage(adiabatic, halo, 'hydro')
     if not adiabatic_files:
         raise RuntimeError('adiabatic stage produced no snapshots')
-    adiabatic_audit = Path(adiabatic['savedir']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
+    adiabatic_audit = Path(adiabatic['output']['savedir']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
     _write_adiabatic_energy_audit(adiabatic_files, code_units, adiabatic_audit)
     if adiabatic_only:
         return
 
-    pie = dict(runparams)
-    pie.update({
-        'simname': runparams['simname'] + '_PIE',
-        'ICfilename': str(adiabatic_files[-1]),
-        'outdir': runparams['pie_outdir'],
-        'savedir': runparams['pie_outdir'],
-        'outputtimefilename': runparams['pie_outputtimefilename'],
-        'timesim': runparams['pie_final_time'],
-        'thermochemistry_network': 'pie_uvbg_cooling',
-        'metal_pie_enabled': True,
-    })
-    pie_files = _run_stage(
-        pie, halo, 'hydro_sources', pie_table=pie_table, restart=True
+    pie = copy.deepcopy(par_config)
+    pie['simulation']['name'] = par_config['simulation']['name'] + '_PIE'
+    pie['simulation']['initial_condition_filename'] = str(adiabatic_files[-1])
+    pie['simulation']['final_time'] = exampleparams['pie_final_time']
+    pie['output']['directory'] = str(
+        (config_filename.parent / exampleparams['pie_outdir']).resolve()
     )
+    pie['output']['savedir'] = pie['output']['directory']
+    pie['output']['time_list_filename'] = str(
+        (config_filename.parent / exampleparams['pie_outputtimefilename']).resolve()
+    )
+    pie['thermochemistry']['network'] = 'pie_uvbg_cooling'
+    pie['thermochemistry']['metal_pie_enabled'] = True
+    pie_files = _run_stage(pie, halo, 'hydro_sources', restart=True)
     if not pie_files:
         raise RuntimeError('PIE stage produced no snapshots')
 
-    savedir = Path(runparams['savedir'])
+    savedir = Path(par_config['output']['savedir'])
     savedir.mkdir(parents=True, exist_ok=True)
     ad_report = savedir / 'NFWBoundaryDrivenVirialShock1D_AdiabaticShockHistory.txt'
     pie_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEShockHistory.txt'
@@ -252,11 +246,11 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     stability_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEStability.txt'
     stability_figure = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEStability.jpg'
     adiabatic_times = _scheduled_times_myr(
-        adiabatic['outputtimefilename'], len(adiabatic_files)
+        adiabatic['output']['time_list_filename'], len(adiabatic_files)
     )
     pie_times = _scheduled_times_myr(
-        pie['outputtimefilename'], len(pie_files),
-        offset_myr=runparams['adiabatic_final_time'].to_value(unyt.Myr),
+        pie['output']['time_list_filename'], len(pie_files),
+        offset_myr=exampleparams['adiabatic_final_time'].to_value(unyt.Myr),
     )
     write_report(
         shock_history(adiabatic_files, halo, times_myr=adiabatic_times), ad_report
@@ -275,7 +269,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
     print('Tvir = %.6g K' % virial_temperature(halo, icparams['mu']).to_value(unyt.K))
-    print('outer PIE temperature = %.6g K' % inflow['temp_inflow'].to_value(unyt.K))
+    print('outer PIE temperature = %.6g K' % inflow['inflow_temperature'].to_value(unyt.K))
     print('adiabatic snapshots = %d; PIE snapshots = %d' % (
         len(adiabatic_files), len(pie_files)))
     print('figure = %s' % figure)

@@ -92,6 +92,7 @@ _CODE_UNIT_GROUPS = (
             ('boxsize', 'length'),
             ('area', 'area'),
             ('selfgravity_softening', 'length'),
+            ('dark_matter_softening', 'length'),
             ('selfgravity_boundary_acceleration', 'acceleration'),
             ('rho_inflow', 'density'),
             ('rho_outflow', 'density'),

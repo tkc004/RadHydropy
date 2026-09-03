@@ -14,6 +14,8 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import quantity_to_value
 
+DEFAULT_CENTRAL_CORE_MODEL = False
+
 _CANONICAL_TOOLS = Path(__file__).resolve().parents[2] / "tools" / "lcdm_correlation.py"
 _TOOLS_SPEC = importlib.util.spec_from_file_location(
     "radhydropy_lcdm_correlation", _CANONICAL_TOOLS
@@ -213,6 +215,16 @@ class Simwrap:
         self.par.boxsize = np.array([float(ic["rmax"])])
         cosmic_time = float(ic["initial_cosmic_time"])
         self.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
+        self.par.mesh = SimpleNamespace()
+        self.par.simulation = SimpleNamespace(
+            current_time=self.par.time,
+            box_size=np.array([float(ic["rmax"])]),
+            coordinate_system="spherical",
+        )
+        self.par.mesh.grid_cells = self.par.nogrid
+        self.par.mesh.ghost_cells = 2
+        self.par.units = SimpleNamespace(CodeUnits=units)
+        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
         self.par.cosmological_expansion = True
         self.par.supercomoving_coordinates = True
         self.par.cosmological_gravity = True
@@ -292,7 +304,7 @@ class Simwrap:
                 pie_temperature(pie_table, float(np.median(n_h)), redshift)
                 if pie_table else 1.0e4
             )
-        self.fluid.temp_code = temp_code_phys * a**2 * np.ones(self.par.nogrid)
+        self.fluid.temp_code = temp_phys * a**2 * np.ones(self.par.nogrid)
         if not bool(ic.get("cmb_equilibrium_initial", False)):
             self.fluid.mu = np.full(self.par.nogrid, float(ic["mu"]))
         self.fluid.vel_code = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
@@ -303,10 +315,12 @@ class Simwrap:
             )
 
 
-def make_dark_matter(ic, units, cosmology, correlation_table=None):
+def make_dark_matter(
+    ic, units, cosmology, correlation_table=None, softening=None
+):
     count = int(ic["dark_matter_shells"])
     dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
-    central_core_model = bool(ic.get("dm_central_core_model", False))
+    central_core_model = DEFAULT_CENTRAL_CORE_MODEL
     central_core_radius = float(
         ic.get("dm_central_core_radius", dm_inner)
     ) if central_core_model else dm_inner
@@ -359,12 +373,15 @@ def make_dark_matter(ic, units, cosmology, correlation_table=None):
             rho * dm_fraction * float(core_mean_delta[0])
             * 4.0 * np.pi / 3.0 * core_radius**3,
         )
+    shell_softening = (
+        float(ic["softening"]) if softening is None else float(softening)
+    )
     shells = DarkMatterShells(
         radius=radius, velocity=velocity, mass=mass,
         angular_momentum=np.full(
             count, float(ic.get("dm_specific_angular_momentum", 0.0))
         ),
-        softening=float(ic["softening"]), code_units=units,
+        softening=shell_softening, code_units=units,
         fixed_enclosed_mass=central_core_mass,
         central_core_radius=(
             float(ic.get("dm_central_core_radius", dm_inner))
@@ -446,12 +463,12 @@ def splashback_radius(
 
 def profiles(sim, dm, cosmic_time, cosmology, ic):
     """Measure virial, shock, disc radii and enclosed total masses."""
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
     edges = np.asarray(sim.mesh.boundary[first:last + 1], dtype=float)
     rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
-    gas_mass = rho * 4.0 * np.pi / 3.0 * np.diff(edges**3)
+    gas_mass = rho_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
     gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass)))
     dm_order = np.argsort(dm.radius)
     dm_r = dm.radius[dm_order]
@@ -519,14 +536,14 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         ),
         dtype=float,
     )
-    gamma = float(sim.par.gamma)
-    entropy_proxy = temp_phys / np.maximum(rho, 1.0e-300) ** (gamma - 1.0)
+    gamma = float(sim.par.hydrodynamics.gamma)
+    entropy_proxy = temp_code_phys / np.maximum(rho_code, 1.0e-300) ** (gamma - 1.0)
     # Temperatures at or below 1 K are numerical-floor/invalid states in this
     # run; allowing them would create enormous artificial entropy jumps.
     finite_entropy = (
         np.isfinite(entropy_proxy) & (entropy_proxy > 0.0)
-        & np.isfinite(temp_phys) & (temp_phys > 1.0)
-        & np.isfinite(rho) & (rho > 0.0)
+        & np.isfinite(temp_code_phys) & (temp_code_phys > 1.0)
+        & np.isfinite(rho_code) & (rho_code > 0.0)
     )
     shock_cell_index = -1
     if np.count_nonzero(finite_entropy) >= 7:
@@ -563,7 +580,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
             for local in shock_candidates:
                 inner = max(0, int(local) - 2)
                 outer = min(proper.size - 1, int(local) + 2)
-                compression = rho[inner] / max(rho[outer], 1.0e-300)
+                compression = rho_code[inner] / max(rho_code[outer], 1.0e-300)
                 entropy_jump = entropy_proxy[inner] - entropy_proxy[outer]
                 upstream_velocity = velocity_phys[outer]
                 downstream_velocity = velocity_phys[inner]
@@ -637,8 +654,8 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
 
 def density_profiles(sim, dm, cosmic_time, cosmology):
     """Return physical gas and shell-based DM density profiles."""
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     a = float(cosmology.scale_factor(cosmic_time))
     gas = gas_density_profile(sim, cosmic_time, cosmology)
 
@@ -657,11 +674,15 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
     dm_density = dm_mass / np.maximum(dm_volume, 1.0e-30)
     return {
         "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "dm_mean_density_code": float(cosmology.background_density(cosmic_time)),
         "gas_radius_kpc": gas["radius_proper_kpc"],
         "gas_density_code": gas["density_proper_code"],
         "dm_radius_kpc": dm_radius,
         "dm_density_code": dm_density,
         "dm_mass": dm_mass,
+        "dm_total_mass": float(np.sum(dm_mass) + getattr(dm, "central_core_mass", 0.0)),
+        "dm_crossing_events": int(getattr(dm, "last_crossing_event_count", 0)),
+        "dm_origin_reflections": int(getattr(dm, "last_origin_reflection_count", 0)),
         # The softened unresolved core is part of the gravitating DM profile
         # even though it is not represented by a live shell.
         "dm_central_core_mass": float(getattr(dm, "central_core_mass", 0.0)),
@@ -680,8 +701,8 @@ def gas_density_profile(sim, cosmic_time, cosmology):
     stored so an evolution plot can use a fixed comoving x-axis while
     marking the proper virial radius consistently.
     """
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     radius_comoving = np.asarray(
         sim.mesh.coordinate[first:last], dtype=float

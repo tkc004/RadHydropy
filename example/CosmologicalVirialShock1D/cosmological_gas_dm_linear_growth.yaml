@@ -1,67 +1,68 @@
-runparams:
-  simname: CosmologicalGasDMLinearGrowth
-  ICfilename: outputs_linear_growth/InitialCondition.hdf5
-  outdir: outputs_linear_growth
-  savedir: outputs_linear_growth
-  outfileprefix: Output
-  coordsys: spherical
-  EOStype: polytropic
-  gamma: 1.6666666666666667
-  selfgravity: true
-  cosmological_expansion: true
-  supercomoving_coordinates: true
-  cosmological_gravity: true
-  cosmology_type: einstein_de_sitter
-  cosmology_t_ref: 14.4
-  cosmology_a_ref: 1.0
-  boundcond: InflowSph
+par:
+  dark_matter:
+    softening: 0.0
+  simulation:
+    name: CosmologicalGasDMLinearGrowth
+    initial_condition_filename: outputs_linear_growth/InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: 0.05
+  mesh:
+    ghost_cells: 2
+    grid_cells: 64
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.2
+    order: 1
+    riemann_solver: Rusanov
+    dual_energy: true
+    smooth_dm_force_for_gas: true
+    cfl_density_floor: 0.0
+    temperature_jump_error_threshold: null
+  boundary:
+    condition: InflowSph
+  timestep:
+    dtmin: 1.0e-12
+    dtmax: 1.0
+  output:
+    directory: outputs_linear_growth
+    savedir: outputs_linear_growth
+    filename_prefix: Output
+  units:
+    CodeUnits:
+      name: cosmological_linear_growth_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.085677581e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  gravity:
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
+  thermochemistry:
+    hydrogen_collisional_ionization: false
+    compton_cmb_enabled: false
+    hydrogen_recombination: false
+    thermochemistry_network: hydrogen
+    hydrogen_atomic_cooling: false
+    hydrogen_thermal_coupling: false
+    hydrogen_chemistry: false
   cosmological_background_boundary_reconstruction: true
-  noghost: 2
-  order: 1
-  riemann_solver: Rusanov
-  CFL: 0.2
   dark_matter_crossing_batch_fraction: 0.0
-  # The integration coordinate is supercomoving tau, so use code-time values
-  # here rather than a physical Myr quantity.
-  dtmax: 1.0
-  dtmin: 1.0e-12
-  cfl_density_floor: 0.0
-  temperature_jump_error_threshold: null
-  dual_energy: true
-  # Interpolate cumulative shell mass linearly in enclosed volume when gas
-  # samples the live-DM field. Use --raw-shell-force for the production
-  # step-function control.
-  smooth_dm_force_for_gas: true
-  final_cosmic_time: 0.05
-  snapshot_count: 7
-  diagnostic_radius_min_comoving_kpc: 20.0
-  diagnostic_radius_max_comoving_kpc: 200.0
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  thermochemistry_network: hydrogen
-  hydrogen_chemistry: false
-  hydrogen_atomic_cooling: false
-  hydrogen_recombination: false
-  hydrogen_collisional_ionization: false
-  hydrogen_thermal_coupling: false
-  compton_cmb_enabled: false
-  CodeUnits:
-    name: cosmological_linear_growth_unit_system
-    InternalUnitSystem:
-      UnitMass_in_cgs: 1.98847e43
-      UnitLength_in_cgs: 3.085677581e21
-      UnitVelocity_in_cgs: 1.0e5
-      UnitCurrent_in_cgs: 1.0
-      UnitTemp_in_cgs: 1.0
-
-ICparams:
-  nogrid: 64
+initial_condition:
   rmin: 1.0
   rmax: 500.0
   inner_wall_radius_comoving: 0.0
   initial_cosmic_time: 0.01418666885
   perturbation_radius: 250.0
   target_halo_mass: 100.0
-  # Keep every measured radius safely in the linear regime through t=0.2.
   initial_overdensity: 0.001
   initial_density_profile: linear_correlation
   correlation_h: 0.674
@@ -71,8 +72,10 @@ ICparams:
   dark_matter_shells: 64
   dm_specific_angular_momentum: 0.0
   specific_angular_momentum: 0.0
-  softening: 0.0
   cmb_equilibrium_initial: false
   uv_background_on_redshift: 10.0
-  # Dynamically negligible, but positive, gas pressure.
-  cie_initial_temperature: 1.0e-4
+  cie_initial_temperature: 0.0001
+example:
+  snapshot_count: 7
+  diagnostic_radius_min_comoving_kpc: 20.0
+  diagnostic_radius_max_comoving_kpc: 200.0

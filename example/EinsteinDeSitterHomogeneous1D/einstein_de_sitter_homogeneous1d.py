@@ -23,6 +23,7 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     cosmology = EinsteinDeSitter.from_code_units(units)
     t0 = float(config['par']['simulation']['initial_time'])
     t1 = float(config['par']['simulation']['final_time'])
+    initial_condition = config['initial_condition']
     tau0 = cosmology.supercomoving_time(t0)
     class EOS:
         gamma = 5.0 / 3.0
@@ -33,9 +34,9 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
 
     class Fluid:
         time = tau0
-        rho_code = np.array([config['example']['density']])
-        vel_code = np.array([config['example']['velocity']])
-        pre_code = np.array([config['example']['pressure']])
+        rho_code = np.array([initial_condition['density']])
+        vel_code = np.array([initial_condition['velocity']])
+        pre_code = np.array([initial_condition['pressure']])
         eos = EOS()
 
     fluid = Fluid()

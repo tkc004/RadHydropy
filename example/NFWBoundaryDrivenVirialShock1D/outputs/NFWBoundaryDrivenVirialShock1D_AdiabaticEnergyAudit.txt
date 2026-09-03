@@ -1,8 +1,8 @@
 quantity value_erg
 initial_gas_energy 7.439104283802e+58
-final_gas_energy 9.794004567525e+58
-delta_gas_energy 2.354900283723e+58
-boundary_energy -1.427887051962e+57
-gravity_work 2.497688988917e+58
-budget_residual 1.520074544595e+46
-residual_fraction_of_delta 6.454942296715e-13
+final_gas_energy 9.794185002378e+58
+delta_gas_energy 2.355080718576e+58
+boundary_energy -1.425427423263e+57
+gravity_work 2.497623460900e+58
+budget_residual 1.852355648053e+46
+residual_fraction_of_delta 7.865359490408e-13

@@ -243,3 +243,48 @@ def test_cosmological_gravity_scales_excess_mass_with_scale_factor(cosmology_typ
     expected = np.zeros(3)
     expected[1:] = -g_code * scale_factor * (4.0 * np.pi / 3.0) / mesh.coordinate[1:]**2
     assert np.allclose(acceleration, expected)
+
+
+def test_cosmological_dark_matter_accepts_explicit_time_without_fluid():
+    units = _code_units()
+    cosmology = EinsteinDeSitter.from_code_units(units)
+    mesh = DummySphericalMesh()
+
+    class DarkMatter:
+        def __init__(self):
+            self.softening = 0.01
+            self.calls = []
+
+        def step(self, *args, **kwargs):
+            self.calls.append(kwargs)
+            return 1.0
+
+    dark_matter = DarkMatter()
+    par = SimpleNamespace(
+        CodeUnits=units,
+        cosmology=cosmology,
+        supercomoving_coordinates=True,
+        mesh=SimpleNamespace(ghost_cells=0, grid_cells=3),
+        dark_matter_crossing_batch_fraction=0.01,
+        simulation=SimpleNamespace(current_time=None),
+    )
+    gravity = Gravity(
+        dark_matter=dark_matter,
+        cosmological=True,
+        cosmology=cosmology,
+        code_units=units,
+    )
+    tau = cosmology.supercomoving_time(2.0)
+    result = gravity.advance_dark_matter(
+        0.01,
+        mesh,
+        None,
+        par,
+        current_time=tau,
+    )
+
+    assert result == 1.0
+    assert len(dark_matter.calls) == 1
+    assert dark_matter.calls[0]["scale_factor_end"] == pytest.approx(
+        cosmology.scale_factor(2.0), rel=1.0e-12
+    )

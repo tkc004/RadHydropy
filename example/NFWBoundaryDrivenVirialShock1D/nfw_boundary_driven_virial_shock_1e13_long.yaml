@@ -40,7 +40,7 @@ par:
   chemistry:
     hydrogen_mass_fraction: 0.76
   thermochemistry:
-    thermochemistry_network: hydrogen
+    network: hydrogen
     metallicity: 0.1
     pie_uvbg_implicit_step_doubling: false
     cooling_safety_factor: 0.05
@@ -59,7 +59,7 @@ par:
   diagnostics:
     verbose: 0
 initial_condition:
-  time:
+  current_time:
     value: 0.0
     unit: Myr
   halo_mass:
