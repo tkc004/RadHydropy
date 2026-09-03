@@ -13,6 +13,7 @@ par:
     CFL: 0.5
     order: 1
     positivity_preserving: false
+    dual_energy: true
   boundary:
     condition: OpenSph
   timestep:
