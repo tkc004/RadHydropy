@@ -11,7 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import unyt

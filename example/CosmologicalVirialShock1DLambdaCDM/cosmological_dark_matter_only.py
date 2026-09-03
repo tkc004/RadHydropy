@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.units import CodeUnits
 from radhydropy.units import _gravitational_constant_code
 import tools as et
@@ -354,7 +354,7 @@ def run_live_shell_density_profiles(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     if runparams.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(

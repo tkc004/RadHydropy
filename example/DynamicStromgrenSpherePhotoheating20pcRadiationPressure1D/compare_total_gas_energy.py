@@ -19,7 +19,7 @@ if str(EXAMPLE_DIR) not in sys.path:
 if str(PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(PACKAGE_DIR))
 
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.units import CodeUnits
 
 
@@ -38,7 +38,7 @@ def _load_tools(example_dir):
 
 
 def _load_config(config_filename):
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     return {**runparams, **icparams}
 
 

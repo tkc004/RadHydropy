@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.units import CodeUnits
 import tools as et
 
@@ -29,7 +29,7 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,

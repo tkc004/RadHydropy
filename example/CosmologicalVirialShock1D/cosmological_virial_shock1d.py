@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
@@ -191,7 +191,7 @@ def plot_density_profiles(profiles, filename):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     cosmology = __import__("radhydropy.cosmology", fromlist=["EinsteinDeSitter"]).EinsteinDeSitter.from_code_units(
         units, t_ref=float(runparams["cosmology_t_ref"]), a_ref=float(runparams["cosmology_a_ref"])

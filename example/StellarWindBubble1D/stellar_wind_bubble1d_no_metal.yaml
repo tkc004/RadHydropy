@@ -5,7 +5,7 @@ par:
     coordinate_system: spherical
     final_time: {value: 0.1, unit: Myr}
   mesh:
-    grid_cells: 128
+    grid_cells: 1024
     ghost_cells: 16
   hydrodynamics:
     eos_type: polytropic
@@ -54,7 +54,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  grid_cells: 128
+  grid_cells: 1024
   coordinate_system: spherical
   box_size: {value: 25.0, unit: pc}
   injection_radius: {value: 0.05, unit: pc}

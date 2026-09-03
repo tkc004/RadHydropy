@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -27,7 +27,7 @@ DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 
 
 def run(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     runparams["nogrid"] = icparams["nogrid"]
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     initial = et.InitialCondition(icparams, units)

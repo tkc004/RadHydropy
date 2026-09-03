@@ -90,10 +90,10 @@ def _to_temperature(values, par):
 
 
 def load_parameters(config_filename, rundir=None, clean_previous_outputs=True):
-    from radhydropy.example_config import load_example_parameters
+    from example_utils import load_nested_example_parameters
 
     config_filename = Path(config_filename)
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    runparams, icparams = load_nested_example_parameters(config_filename, rundir)
     aliases = {
         'alpha_B_coefficient': 'hydrogen_alpha_B',
         'sigma_gamma': 'hydrogen_sigma_gamma',

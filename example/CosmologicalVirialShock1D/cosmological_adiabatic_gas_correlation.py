@@ -22,7 +22,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -49,7 +49,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams):
 
 def run(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,

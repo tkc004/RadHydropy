@@ -16,6 +16,9 @@ import unyt
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
+example_root = Path(__file__).resolve().parents[1]
+if str(example_root) not in sys.path:
+    sys.path.insert(0, str(example_root))
 static_dir = Path(__file__).resolve().parents[1] / "StaticStromgrenSpherePhotoheating1D"
 if str(static_dir) not in sys.path:
     sys.path.insert(0, str(static_dir))
@@ -27,7 +30,7 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
@@ -68,7 +71,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     temperature_K = (
         np.asarray(fluid.temp_code[interior], dtype=float) * code.temperature_unit
     ).to_value(unyt.K)
-    ngamma_code_values = np.asarray(fluid.ngamma_code, dtype=float)
+    ngamma_values = np.asarray(fluid.ngamma_code, dtype=float)
     if ngamma_values.ndim == 1:
         ngamma_values = ngamma_values[None, :]
     ngamma = (
@@ -155,7 +158,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename, Path.cwd())
+    runparams, icparams = load_nested_example_parameters(config_filename, Path.cwd())
     config = {**runparams, **icparams}
     output_dir = Path.cwd()
     ic_filename = Path(runparams.get("ICfilename", "InitialCondition.hdf5"))

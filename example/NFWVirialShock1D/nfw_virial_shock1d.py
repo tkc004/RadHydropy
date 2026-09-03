@@ -25,7 +25,7 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 import unyt
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -37,7 +37,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('nfw_virial_shock1d.yaml')
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     runparams['nogrid'] = icparams['nogrid']
     for key in (
         'final_time', 'number_of_cells', 'chemistry_timestep',

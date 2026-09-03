@@ -10,6 +10,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+import example_utils as eu
 
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
@@ -30,6 +31,8 @@ import stromgren_analytic as sa
 
 
 def build_static_problem(config):
+    if 'par' in config:
+        config = {**eu.legacy_example_parameters(config), **config.get('initial_condition', {})}
     code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     par = SimpleNamespace(
         coordsys=config.get('coordsys', 'spherical'),

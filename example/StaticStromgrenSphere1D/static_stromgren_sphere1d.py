@@ -45,8 +45,9 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
     runparams = eu.legacy_example_parameters(nested)
-    icparams = runparams
-    config = runparams
+    plot_runparams, icparams = eu.load_nested_example_parameters(config_filename)
+    config = nested
+    plot_config = {**plot_runparams, **icparams}
     eu.clean_previous_outputs(runtime['output'])
     for alias, source in (
         ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
@@ -55,7 +56,6 @@ def main(config_filename=DEFAULT_CONFIG):
     ):
         if source in runparams and alias not in runparams:
             runparams[alias] = runparams[source]
-    config = {**runparams, **icparams}
 
     Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
     Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
@@ -81,8 +81,8 @@ def main(config_filename=DEFAULT_CONFIG):
     front_figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D_IFront.jpg'
     budget_figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
 
-    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
-    et.save_front_history_plot(front_history, config, front_figure_filename)
+    et.save_plot(out_mesh, out_fluid, out_par, plot_config, figure_filename)
+    et.save_front_history_plot(front_history, plot_config, front_figure_filename)
     photon_budget = et.save_photon_budget_plot(
         front_history,
         budget_figure_filename,

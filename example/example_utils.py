@@ -75,6 +75,55 @@ def runtime_parameters(config):
     return copy.deepcopy(config['par'])
 
 
+def load_nested_example_parameters(config_filename, rundir=None):
+    """Load a nested example config for legacy IC and plotting helpers.
+
+    The source of truth is ``load_nested_example_config``.  The returned
+    projection exists only at example-helper boundaries that have not yet
+    migrated their internal field names.
+    """
+    config = load_nested_example_config(config_filename)
+    runparams = legacy_example_parameters(config)
+    par = config['par']
+    timestep = par.get('timestep', {})
+    output = par.get('output', {})
+    runparams.update(timestep)
+    if 'time_list_filename' in output:
+        runparams['outputtimefilename'] = output['time_list_filename']
+    runparams.setdefault(
+        'radiative_transfer_temporal_scheme',
+        par.get('radiation', {}).get(
+            'radiative_transfer_temporal_scheme', 'instantaneous'
+        ),
+    )
+    for alias, source in (
+        ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
+        ('alpha_B_coefficient', 'hydrogen_alpha_B'),
+        ('sigma_gamma', 'hydrogen_sigma_gamma'),
+        ('epsilon_gamma', 'hydrogen_epsilon_gamma'),
+    ):
+        if alias not in runparams and source in runparams:
+            runparams[alias] = runparams[source]
+
+    initial = dict(config.get('initial_condition', {}))
+    mesh = par.get('mesh', {})
+    initial.setdefault('number_of_cells', mesh.get('grid_cells', initial.get('grid_cells')))
+    initial.setdefault('nogrid', initial['number_of_cells'])
+    initial.setdefault('coordsys', par.get('simulation', {}).get('coordinate_system'))
+    initial.setdefault('boxsize', initial.get('box_size'))
+    for alias, source in (
+        ('rmin', 'inner_radius'),
+        ('rmax', 'outer_radius'),
+        ('tempini', 'initial_temperature'),
+        ('time', 'current_time'),
+    ):
+        if alias not in initial and source in initial:
+            initial[alias] = initial[source]
+    if 'analytic_inner_radius' in config.get('example', {}):
+        initial['analytic_inner_radius'] = config['example']['analytic_inner_radius']
+    return runparams, initial
+
+
 def legacy_example_parameters(config):
     """Project a nested example config for legacy IC/plot helper APIs.
 

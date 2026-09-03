@@ -17,7 +17,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.thermo_networks.pie import MetalPIETable
 from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate
 
@@ -105,7 +105,7 @@ def _plot_rate(results, table, metallicity, redshift, filename):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, _ = load_example_parameters(config_filename)
+    runparams, _ = load_nested_example_parameters(config_filename)
     table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:

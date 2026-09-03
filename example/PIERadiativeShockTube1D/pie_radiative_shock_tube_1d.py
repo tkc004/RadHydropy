@@ -21,7 +21,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 
 import radhydropy.io as rio
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
@@ -217,7 +217,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     par_config = nested['par']
     runparams = eu.legacy_example_parameters(nested)
-    _, icparams = load_example_parameters(config_filename)
+    _, icparams = load_nested_example_parameters(config_filename)
     table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     runparams['metal_pie_table_filename'] = str(table_path)
     nested['par']['thermochemistry']['metal_pie_table_filename'] = str(table_path)

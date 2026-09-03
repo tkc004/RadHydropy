@@ -18,7 +18,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.constants import PROTON_MASS_CGS
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -573,7 +573,7 @@ def _energy_audit_state(sim):
 def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         output_suffix=None):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     if runparams.get("compton_only", False):
         runparams.update({
             "hydrogen_recombination": False,

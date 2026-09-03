@@ -11,7 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -36,7 +36,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, ICparams = load_example_parameters(config_filename, rundir)
+    runparams, ICparams = load_nested_example_parameters(config_filename, rundir)
     runparams['nogrid'] = ICparams['nogrid']
     eu.clean_previous_outputs(runparams)
     code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))

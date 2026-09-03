@@ -108,6 +108,8 @@ def _runtime_values(runparams):
 
 
 def build_problem(config, runparams=None):
+    if 'par' in config and 'initial_condition' in config:
+        config = {**config['initial_condition'], **config}
     if runparams is None:
         runparams = config.get('par', config)
     config = {**config, **_runtime_values(runparams)}
@@ -317,10 +319,10 @@ def load_output_state(outputfilename, config):
 
 
 def load_parameters(config_filename, rundir=None):
-    from radhydropy.example_config import load_example_parameters
+    from example_utils import load_nested_example_parameters
 
     config_filename = Path(config_filename)
-    runparams, icparams = load_example_parameters(config_filename, rundir)
+    runparams, icparams = load_nested_example_parameters(config_filename, rundir)
     eu.clean_previous_outputs(runparams)
     return runparams, icparams
 
@@ -382,6 +384,11 @@ def print_startup_diagnostics(sim, config, icparams):
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma_code = np.asarray(sim.fluid.ngamma_code[interior], dtype=float) if hasattr(sim.fluid, 'ngamma_code') else None
     code_units_obj = sim.par.units.CodeUnits
+    rho_cgs = code_quantity_to_cgs(
+        rho_code,
+        code_units_obj,
+        'density_g_cm3',
+    )
     ngamma_cgs = None
     if ngamma_code is not None:
         ngamma_cgs = code_quantity_to_cgs(ngamma_code, code_units_obj, 'number_density_cm3')
@@ -389,7 +396,7 @@ def print_startup_diagnostics(sim, config, icparams):
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.mesh.grid_cells)
     print('time = %.6e Myr' % time_myr(sim.fluid.time, code_units_obj))
-    print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_code), np.max(rho_code)))
+    print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_cgs), np.max(rho_cgs)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel_code)) / 1.0e5))
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp_code), np.max(temp_code)))
     print('neutral fraction range = [%.3e, %.3e]' % (np.min(xHI), np.max(xHI)))

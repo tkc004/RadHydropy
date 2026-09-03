@@ -28,7 +28,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
-from radhydropy.example_config import load_example_parameters
+from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -464,7 +464,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         smooth_force_override=None, resolution_override=None,
         output_suffix=None):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_example_parameters(config_filename)
+    runparams, icparams = load_nested_example_parameters(config_filename)
     if resolution_override is not None:
         resolution = int(resolution_override)
         if resolution < 8 or resolution > 1024:

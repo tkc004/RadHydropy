@@ -722,8 +722,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSpherePhotoheating1D'
             / 'static_stromgren_sphere_photoheating1d.yaml'
         )
-        runparams, icparams = load_nested_test_parameters(config_filename)
-        config = {**runparams, **icparams}
+        config = example_utils.load_nested_example_config(config_filename)
 
         par, mesh, fluid, solver = static_stromgren_photoheating_tools.build_static_problem(
             config
@@ -778,8 +777,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSphere1D'
             / 'static_stromgren_sphere1d.yaml'
         )
-        runparams, icparams = load_nested_test_parameters(config_filename)
-        config = {**runparams, **icparams}
+        config = example_utils.load_nested_example_config(config_filename)
 
         par, mesh, fluid, solver = static_stromgren_tools.build_static_problem(config)
         par = parameter_namespace(**vars(par))
@@ -1139,8 +1137,7 @@ class Testing(unittest.TestCase):
         )
         loaded_config = example_utils.load_nested_example_config(config_filename)
         runparams = loaded_config['par']
-        icparams = loaded_config['initial_condition']
-        config = {**icparams, **loaded_config}
+        config = loaded_config
 
         par, mesh, fluid, _ = hii_tools.build_problem(config)
         par = parameter_namespace(**vars(par))

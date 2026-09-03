@@ -61,7 +61,8 @@ def main(config_filename=DEFAULT_CONFIG):
             value = Path(runparams[key])
             if not value.is_absolute():
                 runparams[key] = str(config_dir / value)
-    config = icparams
+    config = nested
+    plot_config = {**runparams, **icparams}
     print('config', config)
     for alias, source in (
         ('hydrogen_alpha_B', 'alpha_B_coefficient'),
@@ -98,7 +99,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
     figure_filename = Path(runparams['savedir']) / figure_name
-    et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
+    et.save_plot(out_mesh, out_fluid, out_par, history, plot_config, figure_filename)
 
     print('time = %s' % out_fluid.time)
     if runparams.get('alpha_B_coefficient') is None:
