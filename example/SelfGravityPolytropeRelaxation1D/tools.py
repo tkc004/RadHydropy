@@ -83,20 +83,20 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.noghost = 2
-        self.par.coordsys = 'spherical'
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
+        grid_cells = int(icparams['nogrid'])
+        box_size = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
-        self.par.simulation = SimpleNamespace(current_time=self.par.time, box_size=self.par.boxsize, coordinate_system='spherical')
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.simulation = SimpleNamespace(
+            current_time=self.par.time,
+            box_size=box_size,
+            coordinate_system='spherical',
+        )
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.par.hydrodynamics = SimpleNamespace(gamma=2.0)
 
         self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
+            icparams['rmin'], icparams['rmax'], grid_cells + 1
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -113,7 +113,7 @@ class Simwrap:
         k_poly = polytropic_constant(icparams['polytropic_radius'])
         self.fluid.rho_code = density
         self.fluid.temp_code = equilibrium_temperature(density, k_poly, icparams['mu'])
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mu']
         radius_fraction = radius / icparams['polytropic_radius']
         self.fluid.vel_code = (
             icparams['velocity_perturbation']
@@ -132,15 +132,20 @@ def read_output(filename, runparams):
     result.par = Par()
     result.mesh = Mesh()
     result.fluid = Fluid()
-    result.par.CodeUnits = code_units
     result.par.units = SimpleNamespace(CodeUnits=code_units)
     result.par.simulation = SimpleNamespace(coordinate_system='spherical')
     result.par.mesh = SimpleNamespace(grid_cells=int(runparams['nogrid']), ghost_cells=int(runparams.get('noghost', 2)))
-    result.par.EOStype = runparams.get('EOStype', 'polytropic')
-    result.par.gamma = float(runparams.get('gamma', 2.0))
+    result.par.hydrodynamics = SimpleNamespace(
+        eos_type=runparams.get('EOStype', 'polytropic'),
+        gamma=float(runparams.get('gamma', 2.0)),
+    )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.mesh.coordinate = spherical_cell_centers(result.mesh.boundary)
-    result.fluid.eos = EOS(result.par.EOStype, result.par.gamma, code_units)
+    result.fluid.eos = EOS(
+        result.par.hydrodynamics.eos_type,
+        result.par.hydrodynamics.gamma,
+        code_units,
+    )
     result.fluid.pre_code = result.fluid.eos.pressure(
         result.fluid.rho_code,
         result.fluid.temp_code,

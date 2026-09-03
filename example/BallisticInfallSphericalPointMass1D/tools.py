@@ -121,25 +121,24 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
         from types import SimpleNamespace
         self.par.units = SimpleNamespace(CodeUnits=code_units)
 
-        self.par.nogrid = icparams['grid_cells']
-        self.par.coordsys = icparams['coordinate_system']
-        self.par.boxsize = np.ones(1) * icparams['box_size']
+        grid_cells = int(icparams['grid_cells'])
+        coordinate_system = icparams['coordinate_system']
+        box_size = np.ones(1) * icparams['box_size']
         self.par.time = np.ones(1) * icparams['current_time']
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.par.simulation = SimpleNamespace(
-            coordinate_system=self.par.coordsys,
+            coordinate_system=coordinate_system,
             current_time=self.par.time,
-            box_size=self.par.boxsize,
+            box_size=box_size,
         )
 
         self.mesh.boundary = np.linspace(
             icparams['inner_radius'],
             icparams['outer_radius'],
-            self.par.nogrid + 1,
+            grid_cells + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -150,9 +149,9 @@ class Simwrap:
             / 3.0
         )
 
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['initial_temperature']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
         self.fluid.rho_code = ballistic_density_profile(
             self.mesh.coordinate,
             icparams['reference_density'],
@@ -163,7 +162,6 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the ballistic short-time profile."""
     code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
     rout = Simwrap(icparams, code_units=code_units_obj)
-    rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('noghost', 0))
@@ -186,11 +184,11 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
     x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
     rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
-    vel_units = getattr(vel_num, 'units', code_units_obj.velocity_unit.units)
+    vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units)
     xcoord_cgs = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm')
     rho_num_cgs = code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
     rho_analytic_cgs = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_cgs = code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cm_s')
+    vel_num_cgs = code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cm_s')
     vel_analytic_cgs = quantity_to_value(vel_analytic, unyt.cm / unyt.s)
     zero_velocity_cgs = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 

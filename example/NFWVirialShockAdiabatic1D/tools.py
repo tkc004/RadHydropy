@@ -64,21 +64,18 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
+        grid_cells = int(icparams['nogrid'])
+        box_size = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
         self.par.simulation = SimpleNamespace(
             coordinate_system='spherical',
             current_time=self.par.time,
-            box_size=self.par.boxsize,
+            box_size=box_size,
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
+            icparams['rmin'], icparams['rmax'], grid_cells + 1
         )
         self.mesh.coordinate = NFW.spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -95,12 +92,12 @@ class Simwrap:
         cmb_temperature = icparams.get(
             'cmb_temperature_0', icparams['initial_temperature']
         )
-        self.fluid.temp_code = np.ones(self.par.nogrid) * cmb_temperature * (
+        self.fluid.temp_code = np.ones(grid_cells) * cmb_temperature * (
             1.0 + float(icparams['initial_redshift'])
         )
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mu']
         self.fluid.vel_code = expansion_rate * self.mesh.coordinate
-        self.fluid.rho_code = np.ones(self.par.nogrid) * mean_density
+        self.fluid.rho_code = np.ones(grid_cells) * mean_density
 
 
 def _snapshot_profiles(filename, icparams, runparams):

@@ -128,23 +128,20 @@ class Simwrap:
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
-        self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
+        grid_cells = int(icparams['nogrid'])
+        box_size = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
         self.par.simulation = SimpleNamespace(
             coordinate_system='spherical',
             current_time=self.par.time,
-            box_size=self.par.boxsize,
+            box_size=box_size,
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh.boundary = np.linspace(
             icparams['rmin'],
             icparams['rmax'],
-            self.par.nogrid + 1,
+            grid_cells + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -159,9 +156,9 @@ class Simwrap:
             icparams['h0'],
         )
         temperature = virial_temperature(halo, icparams['mu'])
-        self.fluid.temp_code = np.ones(self.par.nogrid) * temperature
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+        self.fluid.temp_code = np.ones(grid_cells) * temperature
+        self.fluid.mu = np.ones(grid_cells) * icparams['mu']
+        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
         self.fluid.rho_code = hydrostatic_density_profile(
             self.mesh.coordinate,
             self.mesh.boundary,
@@ -196,7 +193,7 @@ def read_and_plot(outfilename, icparams, runparams, halo, temperature, figure_fi
         icparams['gas_fraction'],
     )[nghost:-nghost]
     radius_kpc = quantity_to_value(radius, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
-    rho_cgs = code_quantity_to_cgs(rho, code_units, 'density_g_cm3')
+    rho_cgs = code_quantity_to_cgs(rho_code, code_units, 'density_g_cm3')
     rho_expected_cgs = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
     velocity_km_s = code_quantity_to_cgs(velocity, code_units, 'velocity_cm_s') / 1.0e5
 

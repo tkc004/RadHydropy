@@ -39,7 +39,10 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('nfw_virial_shock1d.yaml')
 def main(config_filename=DEFAULT_CONFIG):
     runparams, icparams = load_example_parameters(config_filename)
     runparams['nogrid'] = icparams['nogrid']
-    for key in ('final_time', 'number_of_cells', 'chemistry_timestep', 'evolution_timestep'):
+    for key in (
+        'final_time', 'number_of_cells', 'chemistry_timestep',
+        'evolution_timestep', 'hydro_cfl', 'source_cfl',
+    ):
         runparams.pop(key, None)
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams['CodeUnits'])

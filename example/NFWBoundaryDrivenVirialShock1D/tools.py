@@ -97,8 +97,6 @@ class Simwrap:
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
-        self.par.CodeUnits = code_units
-        self.par.unit_system = code_units.unit_system
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         grid_cells = int(runparams['mesh']['grid_cells'])
         current_time = icparams['current_time']
@@ -182,8 +180,8 @@ def load_snapshot(filename):
     with h5py.File(filename, 'r') as handle:
         header = handle['Header'].attrs
         data = handle['Data']
-        nogrid = int(header['nogrid'])
-        noghost = (len(data['Density']) - nogrid) // 2
+        nogrid = int(header['GridCells'])
+        noghost = int(header.get('GhostCells', (len(data['Density']) - nogrid) // 2))
         physical = slice(noghost, noghost + nogrid)
         boundary = np.asarray(data['Boundary'])[noghost:noghost + nogrid + 1]
         centers = 0.75 * (
