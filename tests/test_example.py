@@ -11,7 +11,6 @@ import h5py
 import numpy as np
 import unyt
 
-from radhydropy.example_config import load_example_parameters
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 import radhydropy.radiative_transfer as rrt
@@ -21,6 +20,53 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / 'example'
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 import example_utils as example_utils
+
+
+def load_nested_test_parameters(config_filename):
+    """Load a nested example config for tests still exercising flat helpers."""
+    config = example_utils.load_nested_example_config(config_filename)
+    runparams = example_utils.legacy_example_parameters(config)
+    timestep = config['par'].get('timestep', {})
+    runparams.update(timestep)
+    output = config['par'].get('output', {})
+    if 'time_list_filename' in output:
+        runparams['outputtimefilename'] = output['time_list_filename']
+    runparams.setdefault(
+        'radiative_transfer_temporal_scheme',
+        config['par'].get('radiation', {}).get(
+            'radiative_transfer_temporal_scheme', 'instantaneous'
+        ),
+    )
+    for alias, source in (
+        ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
+        ('alpha_B_coefficient', 'hydrogen_alpha_B'),
+        ('sigma_gamma', 'hydrogen_sigma_gamma'),
+        ('epsilon_gamma', 'hydrogen_epsilon_gamma'),
+    ):
+        if alias not in runparams and source in runparams:
+            runparams[alias] = runparams[source]
+
+    initial_condition = dict(config['initial_condition'])
+    mesh = config['par'].get('mesh', {})
+    initial_condition.setdefault(
+        'number_of_cells', mesh.get('grid_cells', initial_condition.get('grid_cells'))
+    )
+    initial_condition.setdefault('nogrid', initial_condition['number_of_cells'])
+    initial_condition.setdefault('coordsys', config['par']['simulation'].get('coordinate_system'))
+    initial_condition.setdefault('boxsize', initial_condition.get('box_size'))
+    for alias, source in (
+        ('rmin', 'inner_radius'),
+        ('rmax', 'outer_radius'),
+        ('tempini', 'initial_temperature'),
+        ('time', 'current_time'),
+    ):
+        if alias not in initial_condition and source in initial_condition:
+            initial_condition[alias] = initial_condition[source]
+    if 'analytic_inner_radius' in config['example']:
+        initial_condition['analytic_inner_radius'] = config['example']['analytic_inner_radius']
+    return runparams, initial_condition
+
+
 HII_EXAMPLE_ROOT = EXAMPLE_ROOT / 'HIIRegionExpansion1D'
 if str(HII_EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(HII_EXAMPLE_ROOT))
@@ -148,7 +194,7 @@ class Testing(unittest.TestCase):
             / 'Inflow1D'
             / 'Inflow1d.yaml'
         )
-        runparams, _ = load_example_parameters(config_filename)
+        runparams, _ = load_nested_test_parameters(config_filename)
 
         self.assertNotIn('outdeltatime', runparams)
         self.assertIn('outputtimefilename', runparams)
@@ -252,7 +298,7 @@ class Testing(unittest.TestCase):
             / 'HydrostaticEquilibrium1D'
             / 'hydrostatic_equilibrium1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertTrue(
@@ -277,7 +323,7 @@ class Testing(unittest.TestCase):
             / 'HydrostaticEquilibriumSphericalPointMass1D'
             / 'hydrostatic_equilibrium_spherical_point_mass1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(runparams['coordsys'], 'spherical')
@@ -304,7 +350,7 @@ class Testing(unittest.TestCase):
             / 'BallisticInfallSphericalPointMass1D'
             / 'ballistic_infall_spherical_point_mass1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(runparams['coordsys'], 'spherical')
@@ -331,7 +377,7 @@ class Testing(unittest.TestCase):
             / 'RadiativeTransferSph1D'
             / 'radiative_transfer_sph1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(runparams['coordsys'], 'spherical')
@@ -354,7 +400,7 @@ class Testing(unittest.TestCase):
             / 'RadiativeTransferSph1D'
             / 'radiative_transfer_sph1d_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertTrue(runparams['hydrogen_chemistry'])
@@ -372,7 +418,7 @@ class Testing(unittest.TestCase):
             / 'MultiFrequencyRadiativeTransferSph1D'
             / 'multifrequency_radiative_transfer_sph1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer'], True)
         self.assertFalse(runparams['hydrogen_initial_collisional_equilibrium'])
@@ -407,7 +453,7 @@ class Testing(unittest.TestCase):
             / 'MultiFrequencyRadiativeTransferSph1D'
             / 'multifrequency_radiative_transfer_sph1d_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
@@ -563,7 +609,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSphere1D'
             / 'static_stromgren_sphere1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(runparams['coordsys'], 'spherical')
@@ -602,7 +648,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenC2RayComparison'
             / 'static_stromgren_c2ray_comparison.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(icparams['number_of_cells'], 256)
         self.assertEqual(runparams['comparison_c2ray_steps'], 100)
@@ -619,7 +665,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSpherePhotoheating1D'
             / 'static_stromgren_sphere_photoheating1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['outfileprefix'], 'Output')
         self.assertEqual(runparams['coordsys'], 'spherical')
@@ -661,7 +707,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSpherePhotoheating1D'
             / 'static_stromgren_sphere_photoheating1d_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertEqual(runparams['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
@@ -676,7 +722,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSpherePhotoheating1D'
             / 'static_stromgren_sphere_photoheating1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
         config = {**runparams, **icparams}
 
         par, mesh, fluid, solver = static_stromgren_photoheating_tools.build_static_problem(
@@ -732,7 +778,7 @@ class Testing(unittest.TestCase):
             / 'StaticStromgrenSphere1D'
             / 'static_stromgren_sphere1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
         config = {**runparams, **icparams}
 
         par, mesh, fluid, solver = static_stromgren_tools.build_static_problem(config)
@@ -771,24 +817,29 @@ class Testing(unittest.TestCase):
             / 'DynamicStromgrenSpherePhotoheating1D'
             / 'dynamic_stromgren_sphere_photoheating1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        config = example_utils.load_nested_example_config(config_filename)
+        par = config['par']
+        initial_condition = config['initial_condition']
+        example = config['example']
 
-        self.assertEqual(runparams['outfileprefix'], 'Output')
-        self.assertEqual(runparams['coordsys'], 'spherical')
-        self.assertTrue(Path(runparams['outputtimefilename']).exists())
-        self.assertEqual(icparams['number_of_cells'], 1024)
-        self.assertEqual(icparams['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(par['output']['filename_prefix'], 'Output')
+        self.assertEqual(par['simulation']['coordinate_system'], 'spherical')
+        self.assertTrue(Path(par['output']['time_list_filename']).exists())
+        self.assertEqual(par['mesh']['grid_cells'], 1024)
+        self.assertEqual(initial_condition['box_size'].to_value(unyt.kpc), 20.0)
         self.assertEqual(
-            runparams['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par['radiation']['radiative_transfer_source_photon_rate'].to_value(
+                1.0 / unyt.s
+            ),
             5.0e48,
         )
         self.assertTrue(
-            icparams['density_reference_filename'].endswith(
+            example['density_reference_filename'].endswith(
                 'Stromgren3D_rhd_n_r_zeusmp_t200.csv'
             )
         )
         self.assertEqual(
-            runparams['hydrogen_source_dtmin'].to_value(unyt.Myr),
+            par['timestep']['hydrogen_source_dtmin'].to_value(unyt.Myr),
             0.0,
         )
 
@@ -799,7 +850,7 @@ class Testing(unittest.TestCase):
             / 'DynamicStromgrenSpherePhotoheating1D'
             / 'dynamic_stromgren_sphere_photoheating1d_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertEqual(runparams['outfileprefix'], 'Output_C2Ray')
@@ -814,7 +865,7 @@ class Testing(unittest.TestCase):
             / 'DynamicStromgrenSpherePhotoheating20pc1D'
             / 'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['timesim'].to_value(unyt.Myr), 1.0)
         self.assertEqual(
@@ -835,7 +886,7 @@ class Testing(unittest.TestCase):
             / 'PowerLawHIIRegion1D'
             / 'power_law_hii_region_radhydropy_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertEqual(runparams['outfileprefix'], 'Output_PowerLawHIIRegion1D_C2Ray')
@@ -854,7 +905,7 @@ class Testing(unittest.TestCase):
             / 'PowerLawHIIRegion1D'
             / 'power_law_hii_region_w1p4_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertEqual(runparams['outfileprefix'], 'Output_PowerLawHIIRegion1D_w1p4_C2Ray')
@@ -868,7 +919,7 @@ class Testing(unittest.TestCase):
             / 'PowerLawHIIRegion1D'
             / 'power_law_hii_region_w1p5_c2ray.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(runparams['radiative_transfer_temporal_scheme'], 'c2ray')
         self.assertEqual(runparams['outfileprefix'], 'Output_PowerLawHIIRegion1D_w1p5_C2Ray')
@@ -882,7 +933,7 @@ class Testing(unittest.TestCase):
             / 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
             / 'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
         )
-        runparams, icparams = load_example_parameters(config_filename)
+        runparams, icparams = load_nested_test_parameters(config_filename)
 
         self.assertEqual(icparams['number_of_cells'], 512)
         self.assertEqual(icparams['boxsize'].to_value(unyt.pc), 20.0)

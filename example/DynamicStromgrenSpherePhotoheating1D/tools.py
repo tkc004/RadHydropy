@@ -89,7 +89,7 @@ def _to_temperature(values, par):
     return np.asarray(code_quantity_to_cgs(values, code, 'temperature_K'), dtype=float)
 
 
-def load_parameters(config_filename, rundir=None):
+def load_parameters(config_filename, rundir=None, clean_previous_outputs=True):
     from radhydropy.example_config import load_example_parameters
 
     config_filename = Path(config_filename)
@@ -114,7 +114,8 @@ def load_parameters(config_filename, rundir=None):
             value = Path(icparams[key])
             if not value.is_absolute():
                 icparams[key] = str(config_dir / value)
-    eu.clean_previous_outputs(runparams)
+    if clean_previous_outputs:
+        eu.clean_previous_outputs(runparams)
     return runparams, icparams
 
 

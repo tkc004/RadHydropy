@@ -2015,7 +2015,7 @@ class Solver():
             # expansion, and near-vacuum cells are left to the conservative
             # consistency/fallback logic above.
             if (
-                getattr(par, 'dual_energy_entropy_limiter', True)
+                getattr(par, 'dual_energy_entropy_limiter', False)
                 and not self._thermochemistry_enabled(fluid, par)
             ):
                 volume = np.asarray(mesh.vol, dtype=float)

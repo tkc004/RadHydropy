@@ -17,7 +17,6 @@ par:
     dual_energy_eta1: 1.0e-3
     dual_energy_eta2: 1.0e-1
     dual_energy_consistency_factor: 1.0e-1
-    dual_energy_entropy_limiter: false
     dual_energy_pressure_floor: 1.0e-20
     positivity_preserving: true
     hydro_temperature_floor: {value: 0.0, unit: K}

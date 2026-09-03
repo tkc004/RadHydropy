@@ -19,7 +19,6 @@ par:
     dual_energy_eta1: 0.001
     dual_energy_eta2: 0.1
     dual_energy_consistency_factor: 0.1
-    dual_energy_entropy_limiter: false
     dual_energy_pressure_floor: 1.0e-20
     gas_angular_momentum: true
     gas_rotational_energy: true

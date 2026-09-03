@@ -22,7 +22,6 @@ par:
     dual_energy_consistency_factor: 1.0e-1
     # This benchmark relies on the dual-energy switch and consistency
     # recovery; the experimental entropy limiter is intentionally disabled.
-    dual_energy_entropy_limiter: false
     dual_energy_pressure_selection: switch
     # Code-unit pressure used only when both thermal-energy estimates fail.
     dual_energy_pressure_floor: 1.0e-20

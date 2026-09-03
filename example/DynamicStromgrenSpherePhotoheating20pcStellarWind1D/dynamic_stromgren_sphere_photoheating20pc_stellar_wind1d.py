@@ -156,7 +156,10 @@ def main(config_filename=None):
     # Do not use et.load_parameters here: it intentionally removes stale
     # snapshots for a new run. This is postprocessing, so preserve the files
     # just written by the simulation.
-    run_parameters, ic_parameters = et.load_parameters(config_filename)
+    run_parameters, ic_parameters = et.load_parameters(
+        config_filename,
+        clean_previous_outputs=False,
+    )
     config = {**run_parameters, **ic_parameters}
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)

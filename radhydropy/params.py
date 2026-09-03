@@ -97,7 +97,7 @@ refparams = {
     # where the dual flux update loses thermal energy at an under-resolved
     # shock.
     'dual_energy_consistency_factor': 1.0e-1,
-    'dual_energy_entropy_limiter': True,
+    'dual_energy_entropy_limiter': False,
     # Pressure source in dual-energy mode: 'switch' selects between E-K and
     # InternalEnergy; 'internal' always selects the evolved InternalEnergy;
     # 'conservative' always selects admissible E-K.
@@ -293,7 +293,7 @@ class HydrodynamicsParameters:
     dual_energy: bool = False
     boundary_mass_loading_timestep: bool = False
     dual_energy_pressure_selection: str = 'switch'
-    dual_energy_entropy_limiter: bool = True
+    dual_energy_entropy_limiter: bool = False
     positivity_preserving: bool = True
     positivity_density_floor: float = 0.0
     positivity_energy_floor: float = 0.0
@@ -496,7 +496,7 @@ class DualEnergyParameters:
     eta1: float = 1.0e-3
     eta2: float = 1.0e-1
     consistency_factor: float = 1.0e-1
-    entropy_limiter: bool = True
+    entropy_limiter: bool = False
     pressure_selection: str = 'switch'
     pressure_floor: float = 1.0e-20
     switch: float = 1.0e-3
