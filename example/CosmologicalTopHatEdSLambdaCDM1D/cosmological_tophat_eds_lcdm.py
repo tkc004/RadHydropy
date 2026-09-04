@@ -1,6 +1,7 @@
 """Compare cosmological dark-matter top-hat trajectories: EdS versus LCDM."""
 
 from pathlib import Path
+import copy
 import sys
 
 import matplotlib
@@ -50,21 +51,19 @@ def reproduce_reference():
     """Run the established EdS calibration unchanged before the comparison."""
     config = EXAMPLE_ROOT / "cosmological_dark_matter_correlation_z100.yaml"
     config = eu.load_nested_example_config(config)
-    nested = config["par"]
-    runparams = eu.legacy_example_parameters(config)
+    nested = copy.deepcopy(config["par"])
+    nested["output"] = dict(nested["output"])
+    nested["output"]["savedir"] = str(OUTPUT_ROOT / "reference")
+    example = config.get("example", {})
     icparams = config["initial_condition"]
-    runparams["savedir"] = str(OUTPUT_ROOT / "reference")
-    runparams["final_cosmic_time"] = nested["simulation"]["final_time"]
-    runparams["cosmology_t_ref"] = nested["gravity"]["cosmology_t_ref"]
-    runparams["cosmology_a_ref"] = nested["gravity"]["cosmology_a_ref"]
     reference_units = CodeUnits.from_mapping(nested["units"]["CodeUnits"])
     cosmology = CodeEdS.from_code_units(
         reference_units,
-        t_ref=float(runparams["cosmology_t_ref"]),
-        a_ref=float(runparams["cosmology_a_ref"]),
+        t_ref=float(nested["gravity"]["cosmology_t_ref"]),
+        a_ref=float(nested["gravity"]["cosmology_a_ref"]),
     )
     reference_example.run_lagrangian_top_hat(
-        runparams, icparams, reference_units, cosmology,
+        nested, icparams, reference_units, cosmology,
     )
 
 

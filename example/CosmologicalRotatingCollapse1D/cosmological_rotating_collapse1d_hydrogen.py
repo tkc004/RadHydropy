@@ -6,6 +6,7 @@ thermal chemistry source is applied.
 """
 
 from pathlib import Path
+import copy
 from types import SimpleNamespace
 import sys
 
@@ -28,61 +29,39 @@ from cosmological_rotating_collapse1d import InitialCondition, DEFAULT_CONFIG
 def main(output_root=None):
     config = eu.load_nested_example_config(DEFAULT_CONFIG)
     runtime = config["par"]
-    icparams = {**config["initial_condition"], "nogrid": runtime["mesh"]["grid_cells"]}
-    runparams = eu.legacy_example_parameters(config)
-    runparams.update(runtime.get("gravity", {}))
-    runparams["output_root"] = runtime["output"]["directory"]
-    runparams = dict(runparams)
-    runparams.update({
-        'hydrogen_chemistry': True,
-        'hydrogen_thermal_coupling': True,
-        'hydrogen_update_mu': False,
-        'hydrogen_recombination': True,
-        'hydrogen_collisional_ionization': True,
-        'hydrogen_atomic_cooling': True,
+    icparams = config["initial_condition"]
+    runtime = copy.deepcopy(runtime)
+    runtime["thermochemistry"] = {
+        **runtime.get("thermochemistry", {}),
+        'hydrogen_chemistry': True, 'hydrogen_thermal_coupling': True,
+        'hydrogen_update_mu': False, 'hydrogen_recombination': True,
+        'hydrogen_collisional_ionization': True, 'hydrogen_atomic_cooling': True,
         'hydrogen_radiation_field': False,
         'hydrogen_source_solver': 'coupled_implicit',
         'hydrogen_implicit_fallback': 'error',
         'cooling_temperature_floor': {'value': 1.0e-3, 'unit': 'K'},
-        'final_cosmic_time': 1.0,
-    })
-    runtime = {key: (dict(value) if isinstance(value, dict) else value)
-               for key, value in runtime.items()}
-    runtime["thermochemistry"] = {
-        **runtime.get("thermochemistry", {}),
-        **{key: value for key, value in runparams.items()
-           if key.startswith("hydrogen_") or key in ("cooling_temperature_floor",)},
     }
-    runtime["simulation"] = {**runtime["simulation"], "final_time": runparams["final_cosmic_time"]}
+    runtime["simulation"] = {**runtime["simulation"], "final_time": 1.0}
     if output_root is not None:
-        runparams['output_root'] = str(output_root)
-        runparams['savedir'] = str(output_root)
         runtime["output"] = {**runtime["output"], "directory": str(output_root), "savedir": str(output_root)}
 
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
     runtime["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams['cosmology_t_ref']),
-        a_ref=float(runparams['cosmology_a_ref']),
+        t_ref=float(runtime['gravity']['cosmology_t_ref']),
+        a_ref=float(runtime['gravity']['cosmology_a_ref']),
     )
-    output_dir = ROOT / runparams['output_root'] / 'hydrogen_source_rotation'
+    output_dir = ROOT / runtime['output']['directory'] / 'hydrogen_source_rotation'
     output_dir.mkdir(parents=True, exist_ok=True)
-    runparams.update({
-        'ICfilename': str(output_dir / 'InitialCondition.hdf5'),
-        'outdir': str(output_dir),
-        'savedir': str(output_dir),
-        'outfileprefix': 'Output',
-        'nogrid': int(icparams['nogrid']),
-    })
+    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': str(output_dir / 'InitialCondition.hdf5')}
+    runtime['output'] = {**runtime['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': 'Output'}
 
     initial = InitialCondition(
-        icparams, runparams, float(icparams['high_rotation_factor']),
+        icparams, runtime, float(icparams['high_rotation_factor']),
         units, cosmology,
     )
-    rio.writehdf5(initial, runparams['ICfilename'])
-    runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": runparams["ICfilename"]}
-    runtime["output"] = {**runtime["output"], "directory": str(output_dir), "savedir": str(output_dir), "filename_prefix": "Output"}
+    rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
     sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()

@@ -32,25 +32,20 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells']}
-    runparams = eu.legacy_example_parameters(config)
-    runparams.update(runtime.get('gravity', {}))
-    runparams.update(config.get('example', {}))
-    runparams['ICfilename'] = runtime['simulation']['initial_condition_filename']
-    runparams['savedir'] = runtime['output']['savedir']
-    runparams['CodeUnits'] = runtime['units']['CodeUnits']
-    eu.clean_previous_outputs(runparams)
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    icparams = config['initial_condition']
+    example = config.get('example', {})
+    eu.clean_previous_outputs(runtime['output'])
+    units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
     cosmology = et.EinsteinDeSitter.from_code_units(
-        units, t_ref=float(runparams['cosmology_t_ref']),
-        a_ref=float(runparams['cosmology_a_ref']),
+        units, t_ref=float(runtime['gravity']['cosmology_t_ref']),
+        a_ref=float(runtime['gravity']['cosmology_a_ref']),
     )
-    initial = et.Simwrap(icparams, units, cosmology)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    initial = et.Simwrap(config, units, cosmology)
+    rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
 
     runtime = {key: (dict(value) if isinstance(value, dict) else value)
                for key, value in runtime.items()}
-    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}
+    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runtime['simulation']['initial_condition_filename']}
     sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
@@ -79,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.isfinite(max_error) or max_error > 5.0e-3:
         raise RuntimeError('top-hat gravity error %.6g exceeds tolerance' % max_error)
 
-    filename = os.path.join(runparams['savedir'], 'EinsteinDeSitterTopHatGravity1D.jpg')
+    filename = os.path.join(runtime['output']['savedir'], 'EinsteinDeSitterTopHatGravity1D.jpg')
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(radius, numerical[physical], label='numerical')
     axes[0].plot(radius, analytic, '--', label='analytic')

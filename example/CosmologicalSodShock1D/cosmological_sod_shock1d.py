@@ -31,7 +31,7 @@ class State:
     pass
 
 
-def make_initial_condition(ic, units, runparams):
+def make_initial_condition(ic, units, par):
     state = State()
     state.par = State()
     state.mesh = State()
@@ -40,12 +40,12 @@ def make_initial_condition(ic, units, runparams):
     state.par.units = State()
     state.par.units.CodeUnits = units
     state.par.unit_system = units.unit_system
-    state.par.nogrid = int(ic["nogrid"])
+    state.par.nogrid = int(par["mesh"]["grid_cells"])
     state.par.mesh = State()
-    state.par.mesh.grid_cells = int(ic["nogrid"])
+    state.par.mesh.grid_cells = int(par["mesh"]["grid_cells"])
     state.par.mesh.ghost_cells = 0
     state.par.hydrodynamics = State()
-    state.par.hydrodynamics.gamma = float(runparams["gamma"])
+    state.par.hydrodynamics.gamma = float(par["hydrodynamics"]["gamma"])
     state.par.simulation = State()
     state.par.simulation.current_time = np.asarray([0.0]) * units.time_unit
     state.par.simulation.box_size = np.asarray([float(ic["boxsize"].to_value(units.length_unit))]) * units.length_unit
@@ -61,14 +61,15 @@ def make_initial_condition(ic, units, runparams):
     state.par.density_representation = "comoving"
     state.par.temperature_representation = "supercomoving"
     state.par.velocity_representation = "supercomoving_peculiar"
-    if runparams.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    gravity = par.get("gravity", {})
+    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         state.par.cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=float(runparams["cosmology_t_ref"]),
-            a_ref=float(runparams["cosmology_a_ref"]),
-            omega_m=float(runparams["cosmology_omega_m"]),
-            omega_lambda=float(runparams["cosmology_omega_lambda"]),
-            hubble_ref=runparams.get("cosmology_hubble_ref"),
+            t_ref=float(gravity["cosmology_t_ref"]),
+            a_ref=float(gravity["cosmology_a_ref"]),
+            omega_m=float(gravity["cosmology_omega_m"]),
+            omega_lambda=float(gravity["cosmology_omega_lambda"]),
+            hubble_ref=gravity.get("cosmology_hubble_ref"),
         )
     else:
         state.par.cosmology = EinsteinDeSitter.from_code_units(
@@ -123,31 +124,22 @@ def _read_profile(filename, units):
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
     runtime = config["par"]
-    runparams = eu.legacy_example_parameters(config)
     icparams = config["initial_condition"]
-    icparams = {**icparams, "nogrid": runtime["mesh"]["grid_cells"]}
-    runparams["outdir"] = runtime["output"]["directory"]
-    runparams["savedir"] = runtime["output"]["savedir"]
-    runparams["CodeUnits"] = runtime["units"]["CodeUnits"]
-    runparams["ICfilename"] = str(Path(runparams["outdir"]) / "InitialCondition.hdf5")
-    runparams["nogrid"] = runtime["mesh"]["grid_cells"]
-    runparams["boxsize"] = icparams["boxsize"]
-    runparams["gamma"] = runtime["hydrodynamics"]["gamma"]
-    runparams.update(runtime.get("gravity", {}))
     if riemann_solver is not None:
-        runparams["riemann_solver"] = riemann_solver
         runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "riemann_solver": riemann_solver}}
     if dual_energy is not None:
-        runparams["dual_energy"] = dual_energy
         runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "dual_energy": dual_energy}}
-    Path(runparams["outdir"]).mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(runparams)
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
-    initial = make_initial_condition(icparams, units, runparams)
-    rio.writehdf5(initial, runparams["ICfilename"])
+    output = runtime["output"]
+    output_dir = Path(output["directory"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    eu.clean_previous_outputs(output)
+    units = CodeUnits.from_mapping(runtime["units"]["CodeUnits"])
+    initial = make_initial_condition(icparams, units, runtime)
+    ic_filename = output_dir / "InitialCondition.hdf5"
+    rio.writehdf5(initial, ic_filename)
     runtime = {key: (dict(value) if isinstance(value, dict) else value)
                for key, value in runtime.items()}
-    runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": runparams["ICfilename"]}
+    runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": str(ic_filename)}
     sim = Rsim(runtime)
     sim.par.set_cosmology_model(initial.par.cosmology)
     sim.Callreadhdf5()
@@ -156,13 +148,13 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     sim.SetInitFluid()
     sim.par.set_cosmology_model(initial.par.cosmology)
     sim.Run(outputtime=0)
-    outputs = sorted(Path(runparams["outdir"]).glob("Output_*.hdf5"))
+    outputs = sorted(output_dir.glob("Output_*.hdf5"))
     # The fixed-cadence callback can stop just before the final target time;
     # write the exact final state so the analytic comparison uses the same
     # time as the simulation.
     sim.fluid.SetTemperature()
     rio.write_numbered_hdf5(sim, len(outputs))
-    outputs = sorted(Path(runparams["outdir"]).glob("Output_*.hdf5"))
+    outputs = sorted(output_dir.glob("Output_*.hdf5"))
     profiles = [_read_profile(filename, units) for filename in outputs]
     initial_mass, initial_energy = profiles[0][3:5]
     final_mass, final_energy = profiles[-1][3:5]
@@ -174,7 +166,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         raise RuntimeError("cosmological Sod shock did not heat the gas")
 
     radius, density, temperature, _, _ = profiles[-1]
-    gamma = float(runparams["gamma"])
+    gamma = float(runtime["hydrodynamics"]["gamma"])
     pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
     pressure_left = float(icparams["rho_left"]) * float(
         icparams["temp_left"].to_value("K")
@@ -232,7 +224,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     axes[0].set_xlim(interface - 2.0, interface + 2.0)
     fig.suptitle("Cosmological Sod shock tube")
     fig.tight_layout()
-    figure = Path(runparams["savedir"]) / "CosmologicalSodShock1D.jpg"
+    figure = Path(output["savedir"]) / "CosmologicalSodShock1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")

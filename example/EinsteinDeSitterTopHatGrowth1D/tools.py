@@ -38,14 +38,16 @@ def linear_overdensity(delta_initial, scale_factor, initial_scale_factor):
 class Simwrap:
     """Build a supercomoving spherical top-hat IC."""
 
-    def __init__(self, icparams, code_units, cosmology):
+    def __init__(self, config, code_units, cosmology):
+        icparams = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
         self.par, self.mesh, self.fluid = Par(), Mesh(), Fluid()
         self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
+        self.par.nogrid = grid_cells
         self.par.coordsys = 'spherical'
-        self.par.mesh = SimpleNamespace(grid_cells=int(icparams['nogrid']), ghost_cells=0)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         cosmic_time = float(icparams['cosmic_time'])

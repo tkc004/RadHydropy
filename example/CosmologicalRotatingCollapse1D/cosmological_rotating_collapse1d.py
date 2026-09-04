@@ -6,6 +6,7 @@ conserved signed specific angular momentum.
 """
 
 import argparse
+import copy
 from pathlib import Path
 from types import SimpleNamespace
 import os
@@ -195,8 +196,9 @@ def enclosed_radii(boundary, mass_density, volume, target_mass):
 
 
 class InitialCondition:
-    def __init__(self, icparams, runparams, rotation_factor, units, cosmology):
-        count = int(icparams["nogrid"])
+    def __init__(self, initial_condition, par, rotation_factor, units, cosmology):
+        count = int(par["mesh"]["grid_cells"])
+        icparams = initial_condition
         cosmic_time = float(icparams["cosmic_time"])
         scale_factor = float(cosmology.scale_factor(cosmic_time))
         hubble = float(cosmology.hubble(cosmic_time))
@@ -227,7 +229,7 @@ class InitialCondition:
             CodeUnits=units,
             unit_system=units.unit_system,
             nogrid=count,
-            noghost=int(runparams["noghost"]),
+            noghost=int(par["mesh"]["ghost_cells"]),
             coordsys="spherical",
             time=np.array(tau),
             boxsize=np.array([float(icparams["rmax"])]),
@@ -255,7 +257,7 @@ class InitialCondition:
             coordinate_system="spherical",
         )
         self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
-        self.par.hydrodynamics = SimpleNamespace(gamma=float(runparams["gamma"]))
+        self.par.hydrodynamics = SimpleNamespace(gamma=float(par["hydrodynamics"]["gamma"]))
         self.mesh = SimpleNamespace(
             boundary=boundary,
             coordinate=radius,
@@ -271,26 +273,19 @@ class InitialCondition:
         )
 
 
-def run_case(base_runparams, runtime, icparams, label, rotation_factor, units, cosmology):
-    output_dir = ROOT / base_runparams["output_root"] / label
+def run_case(base_par, initial_condition, label, rotation_factor, units, cosmology):
+    output_dir = ROOT / base_par["output"]["directory"] / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    runparams = dict(base_runparams)
-    runparams.update(
-        ICfilename=str(output_dir / "InitialCondition.hdf5"),
-        outdir=str(output_dir), savedir=str(output_dir),
-        outfileprefix="Output", rotation_factor=rotation_factor,
-    )
+    par = copy.deepcopy(base_par)
+    par["simulation"] = dict(par["simulation"])
+    par["simulation"]["initial_condition_filename"] = str(output_dir / "InitialCondition.hdf5")
+    par["output"] = dict(par["output"])
+    par["output"].update(directory=str(output_dir), savedir=str(output_dir), filename_prefix="Output")
     initial = InitialCondition(
-        icparams, runparams, rotation_factor, units, cosmology
+        initial_condition, par, rotation_factor, units, cosmology
     )
-    rio.writehdf5(initial, runparams["ICfilename"])
-    nested_runtime = {key: (dict(value) if isinstance(value, dict) else value)
-                      for key, value in runtime.items()}
-    nested_runtime.setdefault("simulation", {})["initial_condition_filename"] = runparams["ICfilename"]
-    nested_runtime.setdefault("output", {}).update(
-        directory=str(output_dir), savedir=str(output_dir), filename_prefix="Output"
-    )
-    sim = Rsim(nested_runtime)
+    rio.writehdf5(initial, par["simulation"]["initial_condition_filename"])
+    sim = Rsim(par)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -338,7 +333,7 @@ def run_case(base_runparams, runtime, icparams, label, rotation_factor, units, c
         ))
 
     record(sim)
-    final_tau = float(cosmology.supercomoving_time(float(base_runparams["final_cosmic_time"])))
+    final_tau = float(cosmology.supercomoving_time(float(base_par["simulation"]["final_time"])))
     sim.Evolve(final_time=final_tau, mode="hydro", history_callback=record)
     scale_factors = np.asarray(history["a"], dtype=float)
     reference_shell_radius = integrate_shell_reference(
@@ -371,37 +366,21 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
          positivity_override=None):
     config = eu.load_nested_example_config(config_filename)
     runtime = config["par"]
-    runparams = eu.legacy_example_parameters(config)
+    par = copy.deepcopy(config["par"])
     icparams = config["initial_condition"]
-    runparams["output_root"] = runtime["output"]["directory"]
-    runparams["savedir"] = runtime["output"]["savedir"]
-    runparams["CodeUnits"] = runtime["units"]["CodeUnits"]
-    runparams["final_cosmic_time"] = runtime["simulation"]["final_time"]
-    icparams = {**icparams, "nogrid": runtime["mesh"]["grid_cells"]}
-    runparams["cosmology_t_ref"] = runtime["gravity"]["cosmology_t_ref"]
-    runparams["cosmology_a_ref"] = runtime["gravity"]["cosmology_a_ref"]
     if nogrid_override is not None:
-        runtime = {**runtime, "mesh": {**runtime["mesh"], "grid_cells": int(nogrid_override)}}
-        icparams = dict(icparams)
-        runparams["nogrid"] = int(nogrid_override)
+        par["mesh"] = {**par["mesh"], "grid_cells": int(nogrid_override)}
     if output_root_override is not None:
-        runparams = dict(runparams)
-        runparams["output_root"] = str(output_root_override)
-        runparams["savedir"] = str(output_root_override)
-        runtime = {**runtime, "output": {**runtime["output"], "directory": str(output_root_override), "savedir": str(output_root_override)}}
+        par["output"] = {**par["output"], "directory": str(output_root_override), "savedir": str(output_root_override)}
     if cfl_override is not None:
-        runparams = dict(runparams)
-        runparams["CFL"] = float(cfl_override)
-        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "CFL": float(cfl_override)}}
+        par["hydrodynamics"] = {**par["hydrodynamics"], "CFL": float(cfl_override)}
     if positivity_override is not None:
-        runparams = dict(runparams)
-        runparams["positivity_preserving"] = bool(positivity_override)
-        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "positivity_preserving": bool(positivity_override)}}
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+        par["hydrodynamics"] = {**par["hydrodynamics"], "positivity_preserving": bool(positivity_override)}
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["cosmology_t_ref"]),
-        a_ref=float(runparams["cosmology_a_ref"]),
+        t_ref=float(par["gravity"]["cosmology_t_ref"]),
+        a_ref=float(par["gravity"]["cosmology_a_ref"]),
     )
     cases = [
         ("nonrotating", 0.0),
@@ -409,7 +388,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         ("high", float(icparams["high_rotation_factor"])),
     ]
     results = [
-        run_case(runparams, runtime, icparams, label, factor, units, cosmology)
+        run_case(par, icparams, label, factor, units, cosmology)
         for label, factor in cases
     ]
     by_label = {label: (sim, history, directory) for label, sim, history, directory in results}
@@ -444,7 +423,8 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         label: np.load(directory / "history.npz")
         for label, (_, _, directory) in by_label.items()
     }
-    figure = ROOT / runparams["savedir"] / "CosmologicalRotatingCollapse1D.jpg"
+    output_root = ROOT / par["output"]["savedir"]
+    figure = output_root / "CosmologicalRotatingCollapse1D.jpg"
     plt.figure(figsize=(7, 4))
     for label in ("nonrotating", "moderate", "high"):
         data = saved_histories[label]
@@ -463,7 +443,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     plt.close()
 
     density_comparison_figure = (
-        ROOT / runparams["savedir"]
+        output_root
         / "CosmologicalRotatingCollapse1D_density_comparison.jpg"
     )
     fig, axes = plt.subplots(
@@ -506,7 +486,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     plt.close(fig)
 
     total_angular_figure = (
-        ROOT / runparams["savedir"]
+        output_root
         / "CosmologicalRotatingCollapse1D_total_angular_momentum.jpg"
     )
     plt.figure(figsize=(7, 4))
@@ -522,7 +502,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     plt.close()
 
     shell_figure = (
-        ROOT / runparams["savedir"]
+        output_root
         / "CosmologicalRotatingCollapse1D_shell_ode.jpg"
     )
     shell_count = len(saved_histories["high"]["radius"])
@@ -551,8 +531,8 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     fig.savefig(shell_figure, dpi=200)
     plt.close(fig)
 
-    density_figure = ROOT / runparams["savedir"] / "CosmologicalRotatingCollapse1D_density.jpg"
-    angular_figure = ROOT / runparams["savedir"] / "CosmologicalRotatingCollapse1D_angular_momentum.jpg"
+    density_figure = output_root / "CosmologicalRotatingCollapse1D_density.jpg"
+    angular_figure = output_root / "CosmologicalRotatingCollapse1D_angular_momentum.jpg"
     fig = plt.figure(figsize=(13, 3.5), constrained_layout=True)
     grid = fig.add_gridspec(1, 4, width_ratios=(1, 1, 1, 0.08))
     plot_axes = [fig.add_subplot(grid[0, 0])]
