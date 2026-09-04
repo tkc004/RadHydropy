@@ -56,12 +56,13 @@ def hubble_rate(h0, omega_m, omega_lambda, redshift):
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, config, code_units=None):
+        icparams = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(icparams['nogrid'])
         box_size = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']
         self.par.simulation = SimpleNamespace(
@@ -100,9 +101,9 @@ class Simwrap:
         self.fluid.rho_code = np.ones(grid_cells) * mean_density
 
 
-def _snapshot_profiles(filename, icparams, runparams):
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    rout = Simwrap(icparams, code_units=code_units)
+def _snapshot_profiles(filename, config):
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    rout = Simwrap(config, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, filename)
     boundary_cgs_cm = code_quantity_to_cgs(
         rout.mesh.boundary,
@@ -110,7 +111,7 @@ def _snapshot_profiles(filename, icparams, runparams):
         'length_cgs_cm',
     ) * unyt.cm
     radius = NFW.spherical_cell_centers(boundary_cgs_cm)
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(config['par']['mesh']['ghost_cells'])
     radius = radius[nghost:-nghost]
     density = code_quantity_to_cgs(
         rout.fluid.rho_code[nghost:-nghost],
@@ -147,13 +148,13 @@ def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
     return density_ratio, pressure_ratio / density_ratio
 
 
-def rankine_hugoniot_diagnostics(filenames, icparams, runparams):
+def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
     """Compare detected shock jumps with Rankine--Hugoniot predictions."""
-    profiles = [_snapshot_profiles(filename, icparams, runparams) for filename in filenames]
+    profiles = [_snapshot_profiles(filename, config) for filename in filenames]
     if len(profiles) < 3:
         return []
-    gamma = float(runparams['gamma'])
-    mu = float(icparams['mu'])
+    gamma = float(config['par']['hydrodynamics']['gamma'])
+    mu = float(config['initial_condition']['mu'])
     shock_positions = []
     shock_indices = []
     for _, radius, _, temperature, _ in profiles:
@@ -236,10 +237,11 @@ def write_rankine_hugoniot_report(rows, filename):
             )
 
 
-def plot_snapshots(filenames, icparams, runparams, figure_filename):
+def plot_snapshots(filenames, config, _unused, figure_filename):
     """Plot density and temperature profiles from all saved snapshots."""
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(filenames)))
+    icparams = config['initial_condition']
     halo = NFW.nfw_halo_parameters(
         icparams['halo_mass'],
         icparams['concentration'],
@@ -251,8 +253,7 @@ def plot_snapshots(filenames, icparams, runparams, figure_filename):
     for color, filename in zip(colors, filenames):
         time_myr, radius_kpc, density, temperature, _ = _snapshot_profiles(
             filename,
-            icparams,
-            runparams,
+            config,
         )
         label = f'{time_myr:.0f} Myr'
         axes[0].plot(radius_kpc, density, color=color, label=label)

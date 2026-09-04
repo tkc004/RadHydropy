@@ -60,14 +60,19 @@ def hubble_rate(h0, omega_m, omega_lambda, redshift):
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, config, code_units=None):
+        icparams = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
+        box_size = icparams['boxsize']
+        time_value = icparams['time']
+        radius_min = icparams['rmin']
+        radius_max = icparams['rmax']
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(icparams['nogrid'])
-        box_size = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        box_size = np.ones(1) * box_size
+        self.par.time = np.ones(1) * time_value
         self.par.simulation = SimpleNamespace(
             coordinate_system='spherical',
             current_time=self.par.time,
@@ -75,7 +80,7 @@ class Simwrap:
         )
         self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], grid_cells + 1
+            radius_min, radius_max, grid_cells + 1
         )
         self.mesh.coordinate = NFW.spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -100,15 +105,15 @@ class Simwrap:
         self.fluid.rho_code = np.ones(grid_cells) * mean_density
 
 
-def _snapshot_profiles(filename, icparams, runparams):
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    rout = Simwrap(icparams, code_units=code_units)
+def _snapshot_profiles(filename, config):
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    rout = Simwrap(config, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, filename)
     boundary_cgs_cm = code_quantity_to_cgs(
         rout.mesh.boundary, code_units, 'length_cgs_cm'
     ) * unyt.cm
     radius = NFW.spherical_cell_centers(boundary_cgs_cm)
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(config['par']['mesh']['ghost_cells'])
     radius = radius[nghost:-nghost]
     density = code_quantity_to_cgs(
         rout.fluid.rho_code[nghost:-nghost], code_units, 'density_cgs_g_cm3'
@@ -149,15 +154,15 @@ def _locate_shock(radius, temperature, virial_radius_kpc):
     return int(index), float(radius[index])
 
 
-def rankine_hugoniot_diagnostics(filenames, icparams, runparams, halo):
+def rankine_hugoniot_diagnostics(filenames, config, _unused, halo):
     profiles = [
-        _snapshot_profiles(filename, icparams, runparams)
+        _snapshot_profiles(filename, config)
         for filename in filenames
     ]
     if len(profiles) < 3:
         return []
-    gamma = float(runparams['gamma'])
-    mu = float(icparams['mu'])
+    gamma = float(config['par']['hydrodynamics']['gamma'])
+    mu = float(config['initial_condition']['mu'])
     virial_radius_kpc = halo['virial_radius'].to_value(unyt.kpc)
     shock_positions = []
     shock_indices = []
@@ -227,7 +232,8 @@ def write_rankine_hugoniot_report(rows, filename):
             )
 
 
-def plot_snapshots(filenames, icparams, runparams, halo, figure_filename):
+def plot_snapshots(filenames, config, _unused, halo, figure_filename):
+    icparams = config['initial_condition']
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(filenames)))
     virial_radius = halo['virial_radius'].to_value(unyt.kpc)
@@ -236,7 +242,7 @@ def plot_snapshots(filenames, icparams, runparams, halo, figure_filename):
     ).to_value(unyt.K)
     for color, filename in zip(colors, filenames):
         time_myr, radius, density, temperature, _ = _snapshot_profiles(
-            filename, icparams, runparams
+            filename, config
         )
         label = f'{time_myr:.0f} Myr'
         axes[0].plot(radius, density, color=color, label=label)

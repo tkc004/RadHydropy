@@ -15,6 +15,7 @@ EXAMPLE_ROOT = EXAMPLE_DIR.parents[1]
 for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
+sys.path.insert(0, str(EXAMPLE_DIR.parent))
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
 matplotlib.use("Agg")
@@ -24,6 +25,7 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
+import example_utils as eu
 
 from tools import clean_outputs, load_history
 
@@ -54,35 +56,41 @@ def _equilibrium_temperature(table, density, redshift, metallicity):
     return 10.0**log_temperature
 
 
-def _write_initial_condition(config, runparams, icparams, output_dir):
+def _write_initial_condition(config, output_dir):
     from tools import Simwrap
 
-    code_units = CodeUnits.from_mapping(runparams["CodeUnits"])
-    ric = Simwrap(icparams, code_units)
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    ric = Simwrap(config, code_units)
     rio.writehdf5(ric, output_dir / "InitialCondition.hdf5")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    nested = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = eu.legacy_initial_condition_parameters(nested)
+    config = eu.load_nested_example_config(config_filename)
+    par = config['par']
+    initial_condition = config['initial_condition']
+    thermochemistry = par['thermochemistry']
     output_dir = EXAMPLE_DIR / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
-    legacy_figure = output_dir / "PIEUVBGPhotoionizationTimescale1D.jpg"
-    if legacy_figure.exists():
-        legacy_figure.unlink()
-    table_filename = str(
-        (config_filename.parent / runparams["metal_pie_table_filename"]).resolve()
+    output_figure = output_dir / "PIEUVBGPhotoionizationTimescale1D.jpg"
+    if output_figure.exists():
+        output_figure.unlink()
+    table_filename = str((config_filename.parent / thermochemistry['metal_pie_table_filename']).resolve())
+    thermochemistry['metal_pie_table_filename'] = table_filename
+    photoionization_timescale = thermochemistry['pie_uvbg_photoionization_timescale']
+    thermochemistry['pie_uvbg_photoionization_timescale'] = float(
+        photoionization_timescale.to_value(unyt.s)
+        if hasattr(photoionization_timescale, 'to_value')
+        else photoionization_timescale
     )
 
     table = MetalPIETable(table_filename)
-    redshift = float(runparams["metal_pie_redshift"])
-    metallicity = float(runparams["metallicity"])
+    redshift = float(thermochemistry["metal_pie_redshift"])
+    metallicity = float(thermochemistry["metallicity"])
     photoionization_timescale_yr = float(
-        runparams["pie_uvbg_photoionization_timescale"].to_value(unyt.yr)
+        photoionization_timescale.to_value(unyt.yr)
     )
-    timesim_yr = float(runparams["timesim"].to_value(unyt.yr))
+    timesim_yr = float(par['simulation']['final_time'].to_value(unyt.yr))
     output_times_yr = np.array(
         [1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1000.0, 3000.0,
          10000.0, 20000.0, 30000.0, 50000.0, 70000.0, 100000.0]
@@ -102,26 +110,14 @@ def main(config_filename=DEFAULT_CONFIG):
             case_name = f"nH_{density:g}_T_{initial_temperature:g}"
             case_dir = output_dir / case_name
             clean_outputs(case_dir)
-            case_runparams = dict(runparams)
-            case_runparams["outdir"] = str(case_dir)
-            case_runparams["savedir"] = str(case_dir)
-            case_runparams["ICfilename"] = str(case_dir / "InitialCondition.hdf5")
-            case_runparams["metal_pie_table_filename"] = table_filename
-            case_runparams["outputtimefilename"] = str(output_time_file)
-            case_icparams = dict(icparams)
-            case_icparams["nHini"] = density
-            case_icparams["tempini"] = initial_temperature * unyt.K
-            _write_initial_condition(
-                config_filename, case_runparams, case_icparams, case_dir
-            )
-            runtime_only = {
-                'final_time', 'number_of_cells', 'evolution_timestep',
-                'chemistry_timestep', 'pie_uvbg_photoionization_timescale',
-                'box_size', 'coordinate_system', 'current_time',
-                'grid_cells', 'initial_temperature', 'mean_molecular_weight',
-            }
-            sim = Rsim({key: value for key, value in case_runparams.items()
-                        if key not in runtime_only})
+            case_config = {'par': {**par,
+                'simulation': {**par['simulation'], 'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5')},
+                'output': {**par['output'], 'directory': str(case_dir), 'savedir': str(case_dir), 'filename_prefix': 'Output'}},
+                'initial_condition': {**initial_condition, 'nHini': density,
+                                      'tempini': initial_temperature * unyt.K},
+                'example': config['example']}
+            _write_initial_condition(case_config, case_dir)
+            sim = Rsim(case_config['par'])
             # This is a one-cell source-only parcel; a hydro gradient cannot
             # be evaluated on its single active cell.
             sim.RunAll(outputtime=0, mode="sources")

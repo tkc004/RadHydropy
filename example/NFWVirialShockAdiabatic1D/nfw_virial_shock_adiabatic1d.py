@@ -25,7 +25,6 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 import unyt
 
 import radhydropy.io as rio
-from example_utils import load_nested_example_parameters
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -39,15 +38,10 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_nested_example_parameters(config_filename)
-    runparams['nogrid'] = icparams['nogrid']
-    for key in (
-        'final_time', 'number_of_cells', 'chemistry_timestep',
-        'evolution_timestep', 'hydro_cfl', 'source_cfl',
-    ):
-        runparams.pop(key, None)
-    eu.clean_previous_outputs(runparams)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    config = eu.load_nested_example_config(config_filename)
+    par = config['par']; icparams = config['initial_condition']
+    eu.clean_previous_outputs(par['output'])
+    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     halo = et.nfw_halo_parameters(
         icparams['halo_mass'],
         icparams['concentration'],
@@ -56,10 +50,10 @@ def main(config_filename=DEFAULT_CONFIG):
         icparams['h0'],
     )
 
-    initial_condition = et.Simwrap(icparams, code_units=code_units)
-    rio.writehdf5(initial_condition, runparams['ICfilename'])
+    initial_condition = et.Simwrap(config, code_units=code_units)
+    rio.writehdf5(initial_condition, par['simulation']['initial_condition_filename'])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -78,26 +72,26 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Run(mode='hydro')
 
     output_files = [
-        os.path.join(runparams['outdir'], name)
-        for name in sorted(os.listdir(runparams['outdir']))
-        if name.startswith(runparams['outfileprefix'] + '_')
+        os.path.join(par['output']['directory'], name)
+        for name in sorted(os.listdir(par['output']['directory']))
+        if name.startswith(par['output']['filename_prefix'] + '_')
         and name.endswith('.hdf5')
     ]
     figure_filename = os.path.join(
-        runparams['savedir'],
+        par['output']['savedir'],
         'NFWVirialShockAdiabatic1D.jpg',
     )
     rows = et.rankine_hugoniot_diagnostics(
         output_files,
-        icparams,
-        runparams,
+        config,
+        config,
         halo,
     )
     report_filename = os.path.join(
-        runparams['savedir'],
+        par['output']['savedir'],
         'NFWVirialShockAdiabatic1D_RankineHugoniot.txt',
     )
-    et.plot_snapshots(output_files, icparams, runparams, halo, figure_filename)
+    et.plot_snapshots(output_files, config, config, halo, figure_filename)
     et.write_rankine_hugoniot_report(rows, report_filename)
 
     virial_radius = halo['virial_radius'].to_value(unyt.kpc)

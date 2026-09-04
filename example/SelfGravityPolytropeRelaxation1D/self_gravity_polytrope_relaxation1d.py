@@ -66,17 +66,16 @@ def _profile(sim, rho, pressure):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runtime = dict(config['par'])
-    runtime['relaxation_damping_time'] = config['example']['relaxation_damping_time']
-    runparams = eu.legacy_example_parameters(config)
-    runparams['relaxation_damping_time'] = config['example']['relaxation_damping_time']
-    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells'], 'coordsys': 'spherical'}
-    eu.clean_previous_outputs(runparams)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    initial_condition = et.Simwrap(icparams, code_units)
-    rio.writehdf5(initial_condition, runparams['ICfilename'])
+    par = config['par']
+    initial_mapping = config['initial_condition']
+    eu.clean_previous_outputs(par['output'])
+    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    initial_condition = et.Simwrap(config, code_units)
+    initial_filename = Path(par['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial_condition, initial_filename)
 
-    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}
+    runtime = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(initial_filename)}}
+    runtime['relaxation_damping_time'] = config['example']['relaxation_damping_time']
     sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
@@ -99,18 +98,18 @@ def main(config_filename=DEFAULT_CONFIG):
 
     sim.Run(mode='hydro', step_backend=damped_step)
 
-    outputs = sorted(Path(runparams['outdir']).glob(runparams['outfileprefix'] + '_*.hdf5'))
+    outputs = sorted(Path(par['output']['directory']).glob(par['output']['filename_prefix'] + '_*.hdf5'))
     output = outputs[-1] if outputs else None
     if output is None:
         raise FileNotFoundError('no output snapshots were written')
-    final = et.read_output(output, runparams)
+    final = et.read_output(output, config)
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    k_poly = et.polytropic_constant(icparams['polytropic_radius'])
+    k_poly = et.polytropic_constant(initial_mapping['polytropic_radius'])
     radius = np.asarray(final.mesh.coordinate[interior], dtype=float) * sim.par.CodeUnits.length_unit
     rho_final = np.asarray(final.fluid.rho_code[interior], dtype=float) * sim.par.CodeUnits.density_unit
     pressure_final = np.asarray(final.fluid.pre_code[interior], dtype=float) * sim.par.CodeUnits.pressure_unit
     rho_expected = et.equilibrium_density(
-        radius, icparams['central_density'], icparams['polytropic_radius']
+        radius, initial_mapping['central_density'], initial_mapping['polytropic_radius']
     )
     radius_q, gravity_cgs, residual = _profile(sim, final.fluid.rho_code, pressure_final)
     rho_error = np.max(np.abs((rho_final - rho_expected) / rho_expected))
@@ -141,7 +140,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['savedir']) / 'SelfGravityPolytropeRelaxation1D.jpg'
+    figure = Path(par['output']['savedir']) / 'SelfGravityPolytropeRelaxation1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

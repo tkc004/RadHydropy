@@ -48,18 +48,18 @@ class InitialCondition:
         )
 
 
-def run_simulation(runparams, icparams, runtime):
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    radius = float(icparams['radius'])
+def run_simulation(par, initial_condition, example_config):
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    radius = float(initial_condition['radius'])
     initial = InitialCondition(
-        radius, float(icparams['density']), float(icparams['radial_velocity']),
-        float(runparams['temperature']),
-        float(icparams['specific_angular_momentum']), units,
+        radius, float(initial_condition['density']), float(initial_condition['radial_velocity']),
+        float(example_config['temperature']),
+        float(initial_condition['specific_angular_momentum']), units,
     )
-    ic_filename = ROOT / runparams['ICfilename']
+    ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
-    sim = Rsim(runtime)
+    sim = Rsim(par)
 
     def source_backend(dt, mode='sources', **kwargs):
         sim.solver.ApplyGravity(dt, sim.mesh, sim.fluid, sim.par)
@@ -91,7 +91,7 @@ def run_simulation(runparams, icparams, runtime):
     sim.Run(
         outputtime=0, mode='sources', step_backend=source_backend,
     )
-    final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
+    final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
     final_par = sim.par
@@ -107,17 +107,14 @@ def run_simulation(runparams, icparams, runtime):
 
 def main(config_filename=CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(config)
-    runparams.update(config.get('example', {}))
-    icparams = config['initial_condition']
-    icparams['nogrid'] = runparams['nogrid']
-    runparams['temperature'] = config['example']['temperature']
-    icparams['timestep'] = config['example']['timestep']
+    par = config['par']
+    initial_condition = config['initial_condition']
+    example_config = config['example']
     (sim, saved, mass, initial_momentum, initial_energy,
      initial_internal, source_times, source_momenta, source_energies,
-     source_works) = run_simulation(runparams, icparams, config['par'])
+     source_works) = run_simulation(par, initial_condition, example_config)
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
-    j = float(icparams['specific_angular_momentum'])
+    j = float(initial_condition['specific_angular_momentum'])
     radius = float(sim.mesh.coordinate[sim.par.noghost])
     acceleration = j**2 / radius**3
     # The generic HDF5 header stores the initial IC time for this non-cosmology
@@ -152,7 +149,7 @@ def main(config_filename=CONFIG):
     if abs(final_internal - initial_internal) > 1.0e-11:
         raise RuntimeError('centrifugal work changed cold internal energy')
 
-    figure = ROOT / runparams['savedir'] / 'GasCentrifugalWorkSource1D.jpg'
+    figure = ROOT / par['output']['savedir'] / 'GasCentrifugalWorkSource1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
     # Keep the full history for validation, but sparsify plotted Rsim points

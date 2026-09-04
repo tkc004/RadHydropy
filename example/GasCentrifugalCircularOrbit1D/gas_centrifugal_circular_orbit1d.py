@@ -73,60 +73,57 @@ class CircularInitialCondition:
         )
 
 
-def run_rsim(runparams, icparams, runtime):
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
+def run_rsim(par, initial_condition, runtime):
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial = CircularInitialCondition(
-        int(runparams.get('nogrid', icparams['nogrid'])),
-        float(icparams['radius_min']), float(icparams['radius_max']),
-        float(icparams['density']), float(icparams['pressure']),
-        float(icparams['central_mass']), units,
+        int(par['mesh']['grid_cells']), float(initial_condition['radius_min']), float(initial_condition['radius_max']),
+        float(initial_condition['density']), float(initial_condition['pressure']),
+        float(initial_condition['central_mass']), units,
     )
-    ic_filename = ROOT / runparams['ICfilename']
+    ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
     sim = Rsim(runtime)
     sim.Callreadhdf5()
-    sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']), 0.0)
+    sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']), 0.0)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     initial_mass = np.asarray(sim.fluid.Mass_code, dtype=float).copy()
     initial_energy = np.asarray(sim.fluid.Energy_code, dtype=float).copy()
-    sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']), 0.0)
+    sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']), 0.0)
     sim.Run(outputtime=0, mode='sources')
-    output_files = sorted((ROOT / runparams['outdir']).glob('Output_*.hdf5'))
+    output_files = sorted((ROOT / par['output']['directory']).glob('Output_*.hdf5'))
     if not output_files:
         raise RuntimeError('Rsim produced no circular-orbit output')
     final_par = sim.par
     final_mesh = SimpleNamespace()
     final_fluid = SimpleNamespace()
     rio.readhdf5(final_par, final_mesh, final_fluid, output_files[-1])
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     return initial, sim, final_mesh, final_fluid, active, initial_mass, initial_energy
 
 
 def main(config_filename=CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(config)
-    icparams = config['initial_condition']
-    icparams['nogrid'] = runparams['nogrid']
-    runparams['output_interval'] = config['par']['output']['cadence']
-    savedir = ROOT / runparams['savedir']
+    par = config['par']
+    initial_condition = config['initial_condition']
+    savedir = ROOT / par['output']['savedir']
     savedir.mkdir(parents=True, exist_ok=True)
     (initial_sim, simulation, saved_mesh, saved_fluid, active,
      simulation_initial_mass, simulation_initial_energy) = run_rsim(
-         runparams, icparams, config['par']
+         par, initial_condition, par
      )
 
-    count = int(icparams['nogrid'])
-    radius = float(icparams['radius'])
-    central_mass = float(icparams['central_mass'])
+    count = int(par['mesh']['grid_cells'])
+    radius = float(initial_condition['radius'])
+    central_mass = float(initial_condition['central_mass'])
     specific_j = np.sqrt(central_mass * radius)
     volume = np.ones(count)
-    mass = np.full(count, float(icparams['density'])) * volume
-    momentum = np.full(count, float(icparams['radial_velocity'])) * mass
+    mass = np.full(count, float(initial_condition['density'])) * volume
+    momentum = np.full(count, float(initial_condition['radial_velocity'])) * mass
     rotational_energy = 0.5 * mass * specific_j**2 / radius**2
-    thermal_energy = np.full(count, float(icparams['pressure']) / 0.4)
+    thermal_energy = np.full(count, float(initial_condition['pressure']) / 0.4)
 
     mesh = SimpleNamespace(
         coordsys='spherical',
@@ -145,7 +142,7 @@ def main(config_filename=CONFIG):
     par = mesh._par
     par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=count)
     fluid = SimpleNamespace(
-        rho_code=np.ones(count) * float(icparams['density']),
+        rho_code=np.ones(count) * float(initial_condition['density']),
         Mass_code=mass.copy(),
         Mom_code=momentum.copy(),
         Energy_code=thermal_energy + rotational_energy,
@@ -157,8 +154,8 @@ def main(config_filename=CONFIG):
     times = [0.0]
     velocity_history = [fluid.Mom_code[0] / fluid.Mass_code[0]]
     energy_error = [0.0]
-    dt = float(icparams['timestep'])
-    for step in range(int(icparams['nsteps'])):
+    dt = float(initial_condition['timestep'])
+    for step in range(int(initial_condition['nsteps'])):
         solver.ApplyGravity(dt, mesh, fluid, par)
         times.append((step + 1) * dt)
         velocity_history.append(fluid.Mom_code[0] / fluid.Mass_code[0])
@@ -206,7 +203,7 @@ def main(config_filename=CONFIG):
     # moving-shell stage.  Choose j below the circular value to obtain an
     # eccentric radial orbit.
     eccentric_j = 0.7 * specific_j
-    eccentric_time = float(icparams['timestep']) * int(icparams['nsteps'])
+    eccentric_time = float(initial_condition['timestep']) * int(initial_condition['nsteps'])
 
     def orbit_rhs(time, state):
         orbit_radius, orbit_velocity = state
@@ -225,7 +222,7 @@ def main(config_filename=CONFIG):
         atol=1.0e-13,
         dense_output=True,
     )
-    eccentric_dt = float(icparams['timestep'])
+    eccentric_dt = float(initial_condition['timestep'])
     eccentric_times = np.arange(
         0.0, eccentric_time + 0.5 * eccentric_dt, eccentric_dt
     )

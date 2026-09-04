@@ -19,27 +19,27 @@ import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
-def total_energy_error(runparams, icparams, runtime):
+def total_energy_error(par, initial_condition, example_config):
     (sim, saved_mesh, saved, _initial_mass, _initial_energy,
      _initial_radius, _gravity_work, _potential_change,
-     _potential_flux) = run_simulation(runparams, icparams, runtime)
+     _potential_flux) = run_simulation(par, initial_condition, example_config)
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
     source_boundary = saved_boundary[
         sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1
     ]
     saved_radius = spherical_centers(saved_boundary)[active]
-    central_mass = float(icparams['central_mass'])
-    rotation_factor = float(icparams['rotation_factor'])
+    central_mass = float(initial_condition['central_mass'])
+    rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,
         final_time,
-        float(icparams['density']),
+        float(initial_condition['density']),
         central_mass,
         rotation_factor,
-        samples_per_cell=int(icparams.get('reference_samples_per_cell', 32)),
+        samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_total = np.sum(
@@ -52,18 +52,14 @@ def total_energy_error(runparams, icparams, runtime):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    runparams = eu.legacy_example_parameters(config)
-    icparams = {**config['initial_condition'], 'nogrid': 128}
+    initial_condition = config['initial_condition']
     # Keep the mesh fixed so this isolates source time integration rather than
     # mixing temporal and spatial convergence errors.
-    runparams['nogrid'] = 128
     dtmax_values = np.asarray((1.0e-3, 5.0e-4, 2.5e-4, 1.25e-4), dtype=float)
     errors = []
     for dtmax in dtmax_values:
-        case = dict(runparams)
-        case['dtmax'] = float(dtmax)
-        runtime = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': 128, 'ghost_cells': 2}, 'timestep': {**config['par']['timestep'], 'dtmax': float(dtmax)}}
-        error = total_energy_error(case, icparams, runtime)
+        par = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': 128, 'ghost_cells': 2}, 'timestep': {**config['par']['timestep'], 'dtmax': float(dtmax)}}
+        error = total_energy_error(par, initial_condition, config['example'])
         errors.append(error)
         print('dtmax %.6g: total-energy error %.8g' % (dtmax, error))
 

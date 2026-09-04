@@ -47,20 +47,22 @@ def point_mass_density(
 class InitialCondition:
     """Minimal HDF5-compatible analytic initial-condition container."""
 
-    def __init__(self, icparams, code_units):
+    def __init__(self, config, code_units):
+        initial_condition = config["initial_condition"]
+        grid_cells = int(config["par"]["mesh"]["grid_cells"])
         self.par = type("Par", (), {})()
         self.mesh = type("Mesh", (), {})()
         self.fluid = type("Fluid", (), {})()
         self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.nogrid = int(icparams["nogrid"])
+        self.par.nogrid = grid_cells
         self.par.noghost = 2
         self.par.coordsys = "spherical"
         self.par.time = 0.0
         self.par.boxsize = np.asarray(
-            [float(icparams["rmax"].to_value(code_units.length_unit))]
+            [float(initial_condition["outer_radius"].to_value(code_units.length_unit))]
         )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=2)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
         self.par.simulation = SimpleNamespace(
             coordinate_system="spherical",
             current_time=self.par.time,
@@ -68,8 +70,8 @@ class InitialCondition:
         )
 
         self.mesh.boundary = np.linspace(
-            float(icparams["rmin"].to_value(code_units.length_unit)),
-            float(icparams["rmax"].to_value(code_units.length_unit)),
+            float(initial_condition["inner_radius"].to_value(code_units.length_unit)),
+            float(initial_condition["outer_radius"].to_value(code_units.length_unit)),
             self.par.nogrid + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
@@ -80,10 +82,10 @@ class InitialCondition:
         )
         self.fluid.rho_code = point_mass_density(
             self.mesh.coordinate * code_units.length_unit,
-            icparams["reference_density"],
-            icparams["initial_temperature"],
-            icparams["mean_molecular_weight"],
-            icparams["point_mass"],
+            initial_condition["reference_density"],
+            initial_condition["initial_temperature"],
+            initial_condition["mean_molecular_weight"],
+            initial_condition["point_mass"],
             self.mesh.coordinate[0] * code_units.length_unit,
         )
         scales = code_unit_scales(code_units)
@@ -92,20 +94,21 @@ class InitialCondition:
         )
         self.fluid.temp_code = np.full(
             self.par.nogrid,
-            float(icparams["initial_temperature"].to_value(unyt.K))
+            float(initial_condition["initial_temperature"].to_value(unyt.K))
             / scales["temperature_cgs_K"],
         )
-        self.fluid.mu = np.full(self.par.nogrid, float(icparams["mean_molecular_weight"]))
+        self.fluid.mu = np.full(self.par.nogrid, float(initial_condition["mean_molecular_weight"]))
         self.fluid.vel_code = np.zeros(self.par.nogrid)
 
 
-def analytic_density_code(radius_code, icparams, code_units):
+def analytic_density_code(radius_code, config, code_units):
+    initial_condition = config["initial_condition"]
     density = point_mass_density(
         np.asarray(radius_code) * code_units.length_unit,
-        icparams["reference_density"],
-        icparams["initial_temperature"],
-        icparams["mean_molecular_weight"],
-        icparams["point_mass"],
+        initial_condition["reference_density"],
+        initial_condition["initial_temperature"],
+        initial_condition["mean_molecular_weight"],
+        initial_condition["point_mass"],
         float(radius_code[0]) * code_units.length_unit,
     )
     return quantity_to_value(density, code_units.density_unit)

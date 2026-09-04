@@ -83,31 +83,31 @@ class FixedCentralGravity:
         return self.potential_on(mesh.coordinate)
 
 
-def run_simulation(runparams, icparams, runtime):
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    count = int(runparams['nogrid'])
+def run_simulation(par, initial_condition, example_config):
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    count = int(par['mesh']['grid_cells'])
     initial = InitialCondition(
-        count, float(icparams['radius_min']), float(icparams['radius_max']),
-        float(icparams['density']), float(runparams['temperature']),
-        float(icparams['central_mass']), float(icparams['rotation_factor']),
+        count, float(initial_condition['radius_min']), float(initial_condition['radius_max']),
+        float(initial_condition['density']), float(example_config['temperature']),
+        float(initial_condition['central_mass']), float(initial_condition['rotation_factor']),
         units,
     )
-    filename = ROOT / runparams['ICfilename']
+    filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(runtime)
+    sim = Rsim(par)
     sim.Callreadhdf5()
-    sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']))
+    sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.par.gravity = FixedCentralGravity(float(icparams['central_mass']))
+    sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     initial_mass = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
     initial_energy = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
     initial_radius = np.asarray(sim.mesh.coordinate[active], dtype=float).copy()
     sim.Run(outputtime=0, mode='hydro')
-    final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
+    final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
     final_par = sim.par
@@ -124,18 +124,16 @@ def run_simulation(runparams, icparams, runtime):
 
 def main(config_filename=CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(config)
-    runparams.update(config.get('example', {}))
-    icparams = config['initial_condition']
-    icparams['nogrid'] = runparams['nogrid']
-    runparams['temperature'] = config['example']['temperature']
+    par = config['par']
+    initial_condition = config['initial_condition']
+    example_config = config['example']
     (sim, saved_mesh, saved, initial_mass, initial_energy,
      initial_radius, cumulative_gravity_work, cumulative_potential_change,
-     cumulative_potential_flux) = run_simulation(runparams, icparams, config['par'])
+     cumulative_potential_flux) = run_simulation(par, initial_condition, example_config)
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     radius = np.asarray(sim.mesh.coordinate[active], dtype=float)
-    central_mass = float(icparams['central_mass'])
-    rotation_factor = float(icparams['rotation_factor'])
+    central_mass = float(initial_condition['central_mass'])
+    rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time)
     saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
     source_boundary = saved_boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1]
@@ -144,10 +142,10 @@ def main(config_filename=CONFIG):
         source_boundary,
         source_boundary,
         final_time,
-        float(icparams['density']),
+        float(initial_condition['density']),
         central_mass,
         rotation_factor,
-        samples_per_cell=int(icparams.get('reference_samples_per_cell', 32)),
+        samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
     ode_velocity = reference['velocity']
     ode_j = reference['specific_angular_momentum']
@@ -199,7 +197,7 @@ def main(config_filename=CONFIG):
         pressure / np.maximum(density, np.finfo(float).tiny),
         central_mass / np.maximum(saved_radius, np.finfo(float).tiny),
     )
-    figure = ROOT / runparams['savedir'] / 'GasCentrifugalHydroExpansion1D.jpg'
+    figure = ROOT / par['output']['savedir'] / 'GasCentrifugalHydroExpansion1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(2, 3, figsize=(15, 7))
     axes = axes.flat

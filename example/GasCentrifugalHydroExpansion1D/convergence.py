@@ -19,11 +19,11 @@ import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
-def measure(runparams, icparams, runtime):
+def measure(par, initial_condition, example_config):
     (sim, saved_mesh, saved, initial_mass, initial_energy, initial_radius,
      cumulative_gravity_work, cumulative_potential_change,
      cumulative_potential_flux) = (
-        run_simulation(runparams, icparams, runtime)
+        run_simulation(par, initial_condition, example_config)
     )
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     source_boundary = np.asarray(
@@ -31,17 +31,17 @@ def measure(runparams, icparams, runtime):
         dtype=float,
     )
     saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
-    central_mass = float(icparams['central_mass'])
-    rotation_factor = float(icparams['rotation_factor'])
+    central_mass = float(initial_condition['central_mass'])
+    rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,
         final_time,
-        float(icparams['density']),
+        float(initial_condition['density']),
         central_mass,
         rotation_factor,
-        samples_per_cell=int(icparams.get('reference_samples_per_cell', 32)),
+        samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
     ode_velocity = reference['velocity']
     ode_j = reference['specific_angular_momentum']
@@ -68,15 +68,12 @@ def measure(runparams, icparams, runtime):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    runparams = eu.legacy_example_parameters(config)
-    icparams = {**config['initial_condition'], 'nogrid': config['par']['mesh']['grid_cells']}
+    initial_condition = config['initial_condition']
     resolutions = (32, 64, 128)
     results = []
     for resolution in resolutions:
-        case = dict(runparams)
-        case['nogrid'] = resolution
-        runtime = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': resolution}}
-        results.append(measure(case, icparams, runtime))
+        par = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': resolution}}
+        results.append(measure(par, initial_condition, config['example']))
         print('resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g' % (
             resolution, *results[-1]
         ))

@@ -49,22 +49,16 @@ def _snapshot(filename):
         }
 
 
-def _run_case(runparams, icparams, label, hydrogen_density_cgs_cm3, table):
-    case = dict(runparams)
+def _run_case(config, label, hydrogen_density_cgs_cm3, table):
+    par = config['par']; initial_mapping = config['initial_condition']
     output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case["outdir"] = str(output_dir)
-    case["savedir"] = str(output_dir)
-    case["outfileprefix"] = f"Output_{label}"
-    case["ICfilename"] = str(output_dir / f"InitialCondition_{label}.hdf5")
+    case = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(output_dir / f'InitialCondition_{label}.hdf5')}, 'output': {**par['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': f'Output_{label}'}}
 
-    case_icparams = dict(icparams)
-    case_icparams["hydrogen_mass_fraction"] = case["hydrogen_mass_fraction"]
-    case_icparams["proton_mass_g"] = float(unyt.mp.to_value(unyt.g))
-    case_icparams["vini"] = 0.0 * unyt.cm / unyt.s
-    code_units = CodeUnits.from_mapping(case["CodeUnits"])
-    ric = Simwrap(case_icparams, code_units, hydrogen_density_cgs_cm3)
-    rio.writehdf5(ric, case["ICfilename"])
+    case_config = {'par': case, 'initial_condition': {**initial_mapping, 'hydrogen_mass_fraction': case['thermochemistry']['hydrogen_mass_fraction'], 'proton_mass_g': float(unyt.mp.to_value(unyt.g)), 'vini': 0.0 * unyt.cm / unyt.s}, 'example': config['example']}
+    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
+    ric = Simwrap(case_config, code_units, hydrogen_density_cgs_cm3)
+    rio.writehdf5(ric, case['simulation']['initial_condition_filename'])
 
     runtime_only = {
         'final_time', 'number_of_cells', 'evolution_timestep',
@@ -72,21 +66,20 @@ def _run_case(runparams, icparams, label, hydrogen_density_cgs_cm3, table):
         'current_time', 'grid_cells', 'initial_temperature',
         'mean_molecular_weight',
     }
-    sim = Rsim({key: value for key, value in case.items()
-                if key not in runtime_only})
+    sim = Rsim(case)
     sim.RunAll(outputtime=0, mode="hydro")
-    snapshots = sorted(output_dir.glob(f"{case['outfileprefix']}_*.hdf5"))
+    snapshots = sorted(output_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"))
     if len(snapshots) < 2:
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
-    temperature = float(case_icparams["tempini"].to_value(unyt.K))
+    temperature = float(case_config['initial_condition']["tempini"].to_value(unyt.K))
     heating, cooling = table.rates(
         temperature,
         hydrogen_density_cgs_cm3,
-        metallicity=case["metallicity"],
-        redshift=case["metal_pie_redshift"],
+        metallicity=case['thermochemistry']["metallicity"],
+        redshift=case['thermochemistry']["metal_pie_redshift"],
     )
-    if hydrogen_density_cgs_cm3 > case["metal_pie_photoheating_max_density_cgs_cm3"]:
+    if hydrogen_density_cgs_cm3 > case['thermochemistry']["metal_pie_photoheating_max_density_cgs_cm3"]:
         heating_used = 0.0
     else:
         heating_used = heating
@@ -101,20 +94,19 @@ def _run_case(runparams, icparams, label, hydrogen_density_cgs_cm3, table):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    nested = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = eu.legacy_initial_condition_parameters(nested)
-    table_path = (config_filename.parent / runparams["metal_pie_table_filename"]).resolve()
-    runparams["metal_pie_table_filename"] = str(table_path)
+    config = eu.load_nested_example_config(config_filename)
+    par = config['par']
+    table_path = (config_filename.parent / par['thermochemistry']["metal_pie_table_filename"]).resolve()
+    par['thermochemistry']['metal_pie_table_filename'] = str(table_path)
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:
         raise ValueError("the example requires an HM12 UV-background table")
-    if runparams.get("radiative_transfer", False):
+    if par['radiation'].get("radiative_transfer", False):
         raise ValueError("the example requires radiative_transfer: false")
 
     results = {}
     for label, density in CASES.items():
-        results[label] = _run_case(runparams, icparams, label, density, table)
+        results[label] = _run_case(config, label, density, table)
 
     figure = EXAMPLE_DIR / "PIEUVBGCoolingUniformSph1D.jpg"
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex="col")

@@ -124,14 +124,19 @@ class Fluid:
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, config, code_units=None):
+        icparams = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
+        box_size = icparams['boxsize'] if 'boxsize' in icparams else icparams['box_size']
+        time_value = icparams['time'] if 'time' in icparams else icparams['current_time']
+        radius_min = icparams['rmin'] if 'rmin' in icparams else icparams['inner_radius']
+        radius_max = icparams['rmax'] if 'rmax' in icparams else icparams['outer_radius']
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(icparams['nogrid'])
-        box_size = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        box_size = np.ones(1) * box_size
+        self.par.time = np.ones(1) * time_value
         self.par.simulation = SimpleNamespace(
             coordinate_system='spherical',
             current_time=self.par.time,
@@ -139,8 +144,8 @@ class Simwrap:
         )
         self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh.boundary = np.linspace(
-            icparams['rmin'],
-            icparams['rmax'],
+            radius_min,
+            radius_max,
             grid_cells + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
@@ -169,12 +174,14 @@ class Simwrap:
         )
 
 
-def read_and_plot(outfilename, icparams, runparams, halo, temperature, figure_filename):
+def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     """Read the evolved snapshot and plot its NFW hydrostatic residuals."""
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    rout = Simwrap(icparams, code_units=code_units)
+    icparams = config['initial_condition']
+    par = config['par']
+    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    rout = Simwrap(config, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(par['mesh']['ghost_cells'])
     boundary_cgs = code_quantity_to_cgs(
         rout.mesh.boundary,
         code_units,

@@ -9,16 +9,17 @@ import numpy as np
 class Simwrap:
     """Build the uniform IC object consumed by ``radhydropy.io``."""
 
-    def __init__(self, icparams, code_units):
+    def __init__(self, config, code_units):
         from types import SimpleNamespace
+        initial_mapping = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
 
-        grid_cells = int(icparams["nogrid"])
-        boxsize = np.ones(1) * icparams["boxsize"]
-        self.par = SimpleNamespace(time=np.ones(1) * icparams["time"])
+        boxsize = np.ones(1) * initial_mapping["boxsize"]
+        self.par = SimpleNamespace(time=np.ones(1) * initial_mapping["time"])
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.simulation = SimpleNamespace(
-            current_time=icparams["time"], box_size=icparams["boxsize"],
-            coordinate_system=icparams["coordsys"],
+            current_time=initial_mapping["time"], box_size=initial_mapping["boxsize"],
+            coordinate_system=initial_mapping["coordsys"],
         )
         self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
         self.mesh = SimpleNamespace()
@@ -26,15 +27,15 @@ class Simwrap:
         self.mesh.boundary = np.linspace(
             0.0 * boxsize[0], boxsize[0], grid_cells + 1,
         )
-        self.fluid.vel_code = np.zeros(grid_cells) * icparams["vini"]
-        self.fluid.temp_code = np.ones(grid_cells) * icparams["tempini"]
+        self.fluid.vel_code = np.zeros(grid_cells) * initial_mapping["vini"]
+        self.fluid.temp_code = np.ones(grid_cells) * initial_mapping["tempini"]
         rho = (
-            float(icparams["nHini"])
-            * float(icparams["proton_mass_g"])
-            / float(icparams["hydrogen_mass_fraction"])
+            float(initial_mapping["nHini"])
+            * float(initial_mapping["proton_mass_g"])
+            / float(initial_mapping["hydrogen_mass_fraction"])
         )
         self.fluid.rho_code = np.ones(grid_cells) * rho
-        self.fluid.mu = np.ones(grid_cells) * icparams["muini"]
+        self.fluid.mu = np.ones(grid_cells) * initial_mapping["muini"]
 
 
 def clean_outputs(output_dir):

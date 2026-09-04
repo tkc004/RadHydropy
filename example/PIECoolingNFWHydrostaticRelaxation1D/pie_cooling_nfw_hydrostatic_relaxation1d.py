@@ -32,22 +32,22 @@ DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_cooling_nfw_hydrostatic_relaxation1d.yaml'
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    nested = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = eu.legacy_initial_condition_parameters(nested)
-    runparams['metal_pie_table_filename'] = str(
-        (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
-    )
-    eu.clean_previous_outputs(runparams)
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    config = eu.load_nested_example_config(config_filename)
+    par = config['par']
+    initial_mapping = config['initial_condition']
+    thermochemistry = par['thermochemistry']
+    table_filename = str((config_filename.parent / thermochemistry['metal_pie_table_filename']).resolve())
+    thermochemistry['metal_pie_table_filename'] = table_filename
+    eu.clean_previous_outputs(par['output'])
+    Path(par['output']['directory']).mkdir(parents=True, exist_ok=True)
+    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     halo = et.nfw_halo_parameters(
-        icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
-        icparams['overdensity'], icparams['h0'],
+        initial_mapping['halo_mass'], initial_mapping['concentration'], initial_mapping['redshift'],
+        initial_mapping['overdensity'], initial_mapping['h0'],
     )
-    temperature = et.virial_temperature(halo, icparams['mu'])
-    initial = et.Simwrap(icparams, code_units=code_units)
-    rio.writehdf5(initial, runparams['ICfilename'])
+    temperature = et.virial_temperature(halo, initial_mapping['mu'])
+    initial = et.Simwrap(config, code_units=code_units)
+    rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
     runtime_only = {
         'box_size', 'coordinate_system', 'current_time', 'grid_cells',
         'number_of_cells', 'inner_radius', 'outer_radius', 'halo_mass',
@@ -56,15 +56,13 @@ def main(config_filename=DEFAULT_CONFIG):
         'initial_temperature', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
-    runtime = {key: value for key, value in runparams.items()
-               if key not in runtime_only}
-    sim = Rsim(runtime)
+    sim = Rsim(par)
     sim.Callreadhdf5(); sim.SetMesh(); sim.SetFluid(); sim.SetInitFluid()
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(par['mesh']['ghost_cells'])
     interior = slice(nghost, -nghost if nghost else None)
     initial_density_max = float(np.max(np.asarray(sim.fluid.rho_code[interior])))
-    floor = runparams['cooling_temperature_floor'].to_value(unyt.K)
-    runaway_factor = float(runparams.get('runaway_density_factor', 100.0))
+    floor = thermochemistry['cooling_temperature_floor'].to_value(unyt.K)
+    runaway_factor = float(thermochemistry.get('runaway_density_factor', 100.0))
 
     def stop_on_runaway(runner):
         density = np.asarray(runner.fluid.rho_code[interior])
@@ -90,19 +88,20 @@ def main(config_filename=DEFAULT_CONFIG):
         code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode='hydro_sources', stop_condition=stop_on_runaway)
-    outputs = sorted(
-        Path(runparams['outdir']).glob(f"{runparams['outfileprefix']}_*.hdf5")
+    all_outputs = sorted(
+        Path(par['output']['directory']).glob(f"{par['output']['filename_prefix']}_*.hdf5")
     )
+    scheduled_times = [
+        float(value) for value in Path(par['output']['time_list_filename']).read_text().splitlines()[1:]
+    ]
+    outputs = all_outputs[:len(scheduled_times)]
     if len(outputs) < 2:
         raise RuntimeError('expected at least two saved snapshots')
-    results = [et.analyze_snapshot(name, runparams, icparams, halo, temperature)
+    results = [et.analyze_snapshot(name, config, halo, temperature)
                for name in outputs]
-    scheduled_times = [
-        float(value) for value in Path(runparams['outputtimefilename']).read_text().splitlines()[1:]
-    ]
     for result, scheduled_time in zip(results, scheduled_times):
         result['time_Myr'] = scheduled_time
-    result_stem = runparams['simname']
+    result_stem = par['simulation']['name']
     report = EXAMPLE_DIR / f'{result_stem}_Report.txt'
     figure = EXAMPLE_DIR / f'{result_stem}.jpg'
     et.write_report(results, report, floor)

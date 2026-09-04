@@ -77,24 +77,24 @@ class CosmologicalCentralGravity:
         return -scale_factor * self.mass / radius**2
 
 
-def run_rsim(runparams, icparams, runtime, cosmology, j):
-    units = CodeUnits.from_mapping(runparams['CodeUnits'])
-    count = int(runparams['nogrid'])
+def run_rsim(par, initial_condition, example_config, cosmology, j):
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    count = int(par['mesh']['grid_cells'])
     initial_boundary = np.linspace(0.5, 1.5, count + 1)
     initial_radius = 0.75 * (
         initial_boundary[1:]**4 - initial_boundary[:-1]**4
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
     circular_j_profile = np.full(count, float(j))
     initial = CosmologicalInitialCondition(
-        count, 0.5, 1.5, 1.0, float(runparams['temperature']),
+        count, 0.5, 1.5, 1.0, float(example_config['temperature']),
         circular_j_profile, units
     )
-    filename = ROOT / runparams['ICfilename']
+    filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(runtime)
+    sim = Rsim(par)
     sim.Callreadhdf5()
-    gravity = CosmologicalCentralGravity(float(icparams['central_excess_mass']), cosmology)
+    gravity = CosmologicalCentralGravity(float(initial_condition['central_excess_mass']), cosmology)
     sim.par.gravity = gravity
     sim.SetMesh()
     sim.SetFluid()
@@ -105,7 +105,7 @@ def run_rsim(runparams, icparams, runtime, cosmology, j):
     # Fixed-cadence output is intentionally independent of the requested
     # final time.  Persist the actual terminal state so the analytic
     # comparison is made at the same supercomoving time as the simulation.
-    final_filename = ROOT / runparams['outdir'] / 'Output_final.hdf5'
+    final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
     final_par = sim.par
@@ -117,25 +117,21 @@ def run_rsim(runparams, icparams, runtime, cosmology, j):
 
 def main(config_filename=CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(config)
-    runparams.update(config['par'].get('gravity', {}))
-    runparams.update(config.get('example', {}))
-    icparams = config['initial_condition']
-    icparams['nogrid'] = runparams['nogrid']
-    runparams['temperature'] = config['example']['temperature']
-    runparams['timestep'] = config['example']['timestep']
-    savedir = ROOT / runparams['savedir']
+    par = config['par']
+    initial_condition = config['initial_condition']
+    example_config = config['example']
+    savedir = ROOT / par['output']['savedir']
     savedir.mkdir(parents=True, exist_ok=True)
     cosmology = EinsteinDeSitter()
-    x0 = float(icparams['initial_comoving_radius'])
-    v0 = float(icparams['initial_supercomoving_velocity'])
-    central_mass = float(icparams['central_excess_mass'])
-    j = float(icparams['angular_momentum_fraction_of_circular']) * np.sqrt(
+    x0 = float(initial_condition['initial_comoving_radius'])
+    v0 = float(initial_condition['initial_supercomoving_velocity'])
+    central_mass = float(initial_condition['central_excess_mass'])
+    j = float(initial_condition['angular_momentum_fraction_of_circular']) * np.sqrt(
         central_mass * x0
     )
-    final_tau = float(runparams['timesim'])
+    final_tau = float(par['simulation']['final_time'])
     initial_sim, simulation, saved_fluid = run_rsim(
-        runparams, icparams, config['par'], cosmology, j
+        par, initial_condition, example_config, cosmology, j
     )
     simulation_radius = np.asarray(simulation.mesh.coordinate, dtype=float)
     circular_j_profile = np.sqrt(central_mass * simulation_radius)
@@ -161,7 +157,7 @@ def main(config_filename=CONFIG):
         atol=1.0e-13,
         dense_output=True,
     )
-    dt = float(runparams['timestep'])
+    dt = float(example_config['timestep'])
     times = np.arange(0.0, final_tau + 0.5 * dt, dt)
     numerical = np.empty((2, len(times)))
     numerical[:, 0] = (x0, v0)

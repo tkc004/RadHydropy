@@ -26,11 +26,11 @@ hydrostatic_density_profile = BASE.hydrostatic_density_profile
 nfw_enclosed_mass = BASE.nfw_enclosed_mass
 
 
-def load_snapshot(filename, runparams):
+def load_snapshot(filename, config):
     with h5py.File(filename, 'r') as handle:
         data = handle['Data']
         header = handle['Header']
-        noghost = int(runparams.get('noghost', 0))
+        noghost = int(config['par']['mesh']['ghost_cells'])
         nogrid = int(header.attrs['GridCells'])
         boundary = np.asarray(data['Boundary'][()])
         boundary = boundary[noghost:noghost + nogrid + 1]
@@ -48,10 +48,10 @@ def load_snapshot(filename, runparams):
         return time, radius, density, temperature, velocity
 
 
-def analyze_snapshot(filename, runparams, icparams, halo, temperature):
-    time, radius, density, temp, velocity = load_snapshot(filename, runparams)
+def analyze_snapshot(filename, config, halo, temperature):
+    time, radius, density, temp, velocity = load_snapshot(filename, config)
     radius_cgs_cm = radius * (1.0 * unyt.kpc).to_value(unyt.cm)
-    mu = float(icparams['mu'])
+    mu = float(config['initial_condition']['mu'])
     pressure = density * BOLTZMANN_CONSTANT_CGS * temp / (mu * PROTON_MASS_CGS)
     mass = nfw_enclosed_mass(radius_cgs_cm * unyt.cm, halo).to_value(unyt.g)
     gravity = unyt.physical_constants.gravitational_constant.to_value(

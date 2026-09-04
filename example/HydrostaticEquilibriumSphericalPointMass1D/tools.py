@@ -35,7 +35,7 @@ class Fluid:
 
 def sound_speed_squared(temp, mu, code_units=None):
     """Return the isothermal sound speed squared."""
-    if hasattr(temp_code, "to_value"):
+    if hasattr(temp, "to_value"):
         temp_value = float(temp.to_value(unyt.K))
     elif code_units is not None:
         temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_cgs_K"]
@@ -133,17 +133,19 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units=None):
+    def __init__(self, config, code_units=None):
+        initial_condition = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
 
-        self.par.nogrid = icparams['nogrid']
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        self.par.nogrid = grid_cells
+        self.par.coordsys = initial_condition['coordinate_system']
+        self.par.boxsize = np.ones(1) * initial_condition['box_size']
+        self.par.time = np.ones(1) * initial_condition['current_time']
         self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=2)
         self.par.simulation = SimpleNamespace(
             coordinate_system='spherical',
@@ -152,8 +154,8 @@ class Simwrap:
         )
 
         self.mesh.boundary = np.linspace(
-            icparams['rmin'],
-            icparams['rmax'],
+            initial_condition['inner_radius'],
+            initial_condition['outer_radius'],
             self.par.nogrid + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
@@ -166,30 +168,30 @@ class Simwrap:
             / 3.0
         )
 
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
+        self.fluid.temp_code = np.ones(self.par.nogrid) * initial_condition['initial_temperature']
+        self.fluid.mu = np.ones(self.par.nogrid) * initial_condition['mean_molecular_weight']
         self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
         self.fluid.rho_code = point_mass_hydrostatic_density_profile(
             self.mesh.coordinate,
-            icparams['rho_ref'],
-            icparams['tempini'],
-            icparams['muini'],
-            icparams['point_mass'],
+            initial_condition['reference_density'],
+            initial_condition['initial_temperature'],
+            initial_condition['mean_molecular_weight'],
+            initial_condition['point_mass'],
             reference_radius=self.mesh.coordinate[0],
             code_units=code_units,
         )
 
 
-def ReadandPlot(outfilename, icparams, runparams, **kwargs):
+def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
-    code_units_mapping = runparams.get('CodeUnits')
+    code_units_mapping = config['par']['units']['CodeUnits']
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = Simwrap(icparams, code_units=code_units_obj)
+    rout = Simwrap(config, code_units=code_units_obj)
     if code_units_obj is not None:
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(config['par']['mesh']['ghost_cells'])
     xall = spherical_cell_centers(rout.mesh.boundary)
     if nghost > 0:
         xcoord = xall[nghost:-nghost]
@@ -201,21 +203,21 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         vel_code_num = rout.fluid.vel_code
     rho_analytic = point_mass_hydrostatic_density_profile(
         xcoord,
-        icparams['rho_ref'],
-        icparams['tempini'],
-        icparams['muini'],
-        icparams['point_mass'],
+        config['initial_condition']['reference_density'],
+        config['initial_condition']['initial_temperature'],
+        config['initial_condition']['mean_molecular_weight'],
+        config['initial_condition']['point_mass'],
         reference_radius=xcoord[0],
         code_units=code_units_obj,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
     x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units if code_units_obj is not None else unyt.cm)
     rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units if code_units_obj is not None else unyt.g / unyt.cm**3)
-    vel_units = getattr(vel_num, 'units', code_units_obj.velocity_unit.units if code_units_obj is not None else unyt.cm / unyt.s)
+    vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units if code_units_obj is not None else unyt.cm / unyt.s)
     xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm')
     rho_num_plot = code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
     rho_analytic_plot = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_plot = code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cgs_cm_s')
+    vel_num_plot = code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cgs_cm_s')
     zero_velocity_plot = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 
     plt.subplot(1, 2, 1)

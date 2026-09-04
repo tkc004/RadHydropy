@@ -79,14 +79,15 @@ def hydrostatic_residual(radius, density, pressure, acceleration):
 
 
 class Simwrap:
-    def __init__(self, icparams, code_units):
+    def __init__(self, config, code_units):
+        initial_condition = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(icparams['nogrid'])
-        box_size = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
+        box_size = np.ones(1) * initial_condition['boxsize']
+        self.par.time = np.ones(1) * initial_condition['time']
         self.par.simulation = SimpleNamespace(
             current_time=self.par.time,
             box_size=box_size,
@@ -96,7 +97,7 @@ class Simwrap:
         self.par.hydrodynamics = SimpleNamespace(gamma=2.0)
 
         self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], grid_cells + 1
+            initial_condition['rmin'], initial_condition['rmax'], grid_cells + 1
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
@@ -107,37 +108,34 @@ class Simwrap:
         radius = np.asarray(self.mesh.coordinate, dtype=float) * code_units.length_unit
         density = equilibrium_density(
             radius,
-            icparams['central_density'],
-            icparams['polytropic_radius'],
+            initial_condition['central_density'],
+            initial_condition['polytropic_radius'],
         )
-        k_poly = polytropic_constant(icparams['polytropic_radius'])
+        k_poly = polytropic_constant(initial_condition['polytropic_radius'])
         self.fluid.rho_code = density
-        self.fluid.temp_code = equilibrium_temperature(density, k_poly, icparams['mu'])
-        self.fluid.mu = np.ones(grid_cells) * icparams['mu']
-        radius_fraction = radius / icparams['polytropic_radius']
+        self.fluid.temp_code = equilibrium_temperature(density, k_poly, initial_condition['mu'])
+        self.fluid.mu = np.ones(grid_cells) * initial_condition['mu']
+        radius_fraction = radius / initial_condition['polytropic_radius']
         self.fluid.vel_code = (
-            icparams['velocity_perturbation']
+            initial_condition['velocity_perturbation']
             * np.asarray(radius_fraction, dtype=float)
             * code_units.velocity_unit
         )
 
 
-def write_used_parameters(*args, **kwargs):
-    return None
-
-
-def read_output(filename, runparams):
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+def read_output(filename, config):
+    par = config['par']
+    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     result = Simwrap.__new__(Simwrap)
     result.par = Par()
     result.mesh = Mesh()
     result.fluid = Fluid()
     result.par.units = SimpleNamespace(CodeUnits=code_units)
     result.par.simulation = SimpleNamespace(coordinate_system='spherical')
-    result.par.mesh = SimpleNamespace(grid_cells=int(runparams['nogrid']), ghost_cells=int(runparams.get('noghost', 2)))
+    result.par.mesh = SimpleNamespace(grid_cells=int(par['mesh']['grid_cells']), ghost_cells=int(par['mesh']['ghost_cells']))
     result.par.hydrodynamics = SimpleNamespace(
-        eos_type=runparams.get('EOStype', 'polytropic'),
-        gamma=float(runparams.get('gamma', 2.0)),
+        eos_type=par['hydrodynamics'].get('eos_type', 'polytropic'),
+        gamma=float(par['hydrodynamics'].get('gamma', 2.0)),
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.mesh.coordinate = spherical_cell_centers(result.mesh.boundary)

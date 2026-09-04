@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -27,29 +27,20 @@ DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 
 
 def run(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_nested_example_parameters(config_filename)
-    runparams["nogrid"] = icparams["nogrid"]
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
-    initial = et.InitialCondition(icparams, units)
-    output_dir = Path(runparams["savedir"])
+    config = load_nested_example_config(config_filename)
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    initial = et.InitialCondition(config, units)
+    output_dir = Path(par["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, output_dir / "InitialCondition.hdf5")
 
-    runtime_only = {
-        "box_size", "coordinate_system", "current_time", "grid_cells",
-        "number_of_cells",
-        "inner_radius", "outer_radius", "reference_density",
-        "initial_temperature", "mean_molecular_weight", "point_mass",
-        "final_time", "evolution_timestep", "chemistry_timestep",
-    }
-    local = {
-        key: value for key, value in runparams.items()
-        if key not in runtime_only
-    }
-    local["ICfilename"] = str(output_dir / "InitialCondition.hdf5")
-    local["outdir"] = str(output_dir)
-    local["savedir"] = str(output_dir)
-    sim = Rsim(local)
+    runtime = {**par, "simulation": {**par["simulation"],
+        "initial_condition_filename": str(output_dir / "InitialCondition.hdf5")},
+        "output": {**par["output"], "directory": str(output_dir),
+                   "savedir": str(output_dir)}}
+    sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -58,7 +49,7 @@ def run(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         potential=point_mass_potential(
             sim.mesh.coordinate,
-            icparams["point_mass"],
+            initial_condition["point_mass"],
             code_units=units,
         ),
         coordinate=sim.mesh.coordinate.copy(),
@@ -80,7 +71,7 @@ def run(config_filename=DEFAULT_CONFIG):
     last = first + int(sim.par.nogrid)
     radius = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
     density = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
-    analytic = et.analytic_density_code(radius, icparams, units)
+    analytic = et.analytic_density_code(radius, config, units)
     core_radius = float(np.asarray(sim.par.gas_core_radius))
     halo = radius >= core_radius
     relative_error = np.abs(density - analytic) / np.maximum(analytic, 1.0e-300)

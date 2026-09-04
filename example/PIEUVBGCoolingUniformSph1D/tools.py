@@ -8,12 +8,14 @@ import numpy as np
 class Simwrap:
     """Build a uniform spherical IC object for ``writehdf5``."""
 
-    def __init__(self, icparams, code_units, hydrogen_density_cgs_cm3):
+    def __init__(self, config, code_units, hydrogen_density_cgs_cm3):
+        icparams = config['initial_condition']
+        thermochemistry = config['par']['thermochemistry']
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(icparams["nogrid"])
+        grid_cells = int(config['par']['mesh']['grid_cells'])
         boxsize = icparams["boxsize"] * np.ones(1)
         self.par.time = icparams["time"] * np.ones(1)
         self.par.simulation = SimpleNamespace(
