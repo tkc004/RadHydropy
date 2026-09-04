@@ -194,8 +194,8 @@ The halo free-fall estimate is
    t_{\rm ff}=\left(\frac{3\pi}{32G\bar\rho(<r)}\right)^{1/2}.
 
 The runner now evaluates the source state and shock locator in the same
-snapshot callback.  It saves per-cell ``q_erg_cm3_s``,
-``rho_dot_g_cm3_s``, ``specific_energy_erg_g``, ``local_mach``, and
+snapshot callback.  It saves per-cell ``q_cgs_erg_cm3_s``,
+``rho_dot_cgs_g_cm3_s``, ``specific_energy_cgs_erg_g``, ``local_mach``, and
 ``gamma_eff``.  It also saves the corresponding scalar quantities prefixed
 with ``shock_`` at the selected ``shock_cell_index``.  A value of ``-1`` and
 ``NaN`` shock scalars indicate that no valid shock was found.

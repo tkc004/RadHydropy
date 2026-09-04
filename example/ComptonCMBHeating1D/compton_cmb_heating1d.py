@@ -49,21 +49,21 @@ def _analytic_temperature(
     time_s,
     initial_temperature,
     redshift,
-    nH_cm3,
+    nH_cgs_cm3,
     neutral_fraction,
 ):
     """Return the fixed-density analytic CMB-coupling temperature."""
     cmb_temperature = 2.7255 * (1.0 + redshift)
     proton_mass_g = float(unyt.mp.to_value(unyt.g))
-    rho_g_cm3 = nH_cm3 * proton_mass_g
+    rho_cgs_g_cm3 = nH_cgs_cm3 * proton_mass_g
     electron_fraction = 1.0 - neutral_fraction
-    electron_density_cm3 = nH_cm3 * electron_fraction
+    electron_density_cgs_cm3 = nH_cgs_cm3 * electron_fraction
     mu = 1.0 / (1.0 + electron_fraction)
     gamma = 5.0 / 3.0
     slope = float(
         cmb_compton_rate(
             np.array([0.0]),
-            np.array([electron_density_cm3]),
+            np.array([electron_density_cgs_cm3]),
             enabled=True,
             redshift=redshift,
         )[0]
@@ -71,7 +71,7 @@ def _analytic_temperature(
     temperature_rate_coefficient = slope * (
         (gamma - 1.0) * mu * proton_mass_g
         / float(unyt.kb.to_value(unyt.erg / unyt.K))
-        / rho_g_cm3
+        / rho_cgs_g_cm3
     )
     return cmb_temperature + (
         initial_temperature - cmb_temperature
@@ -133,7 +133,7 @@ def _run_case(
         )
     history = {
         'time_Myr': np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
-        'mean_ionized_temp_K': np.asarray(temperatures),
+        'mean_ionized_temp_cgs_K': np.asarray(temperatures),
     }
     print(
         '%s: outer steps=%d, source steps=%d' %
@@ -141,7 +141,7 @@ def _run_case(
     )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history['time_Myr']) * myr_seconds
-    temperature = np.asarray(history['mean_ionized_temp_K'])
+    temperature = np.asarray(history['mean_ionized_temp_cgs_K'])
     if example.get('compare_compton_analytic', True):
         analytic = _analytic_temperature(
             time_s,

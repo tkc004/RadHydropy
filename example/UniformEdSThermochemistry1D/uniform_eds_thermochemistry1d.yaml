@@ -43,9 +43,9 @@ initial_condition:
   inner_radius: {value: 0.0, unit: pc}
   outer_radius: {value: 1.0, unit: pc}
   initial_cosmic_time: 49.25926684207865
-  hydrogen_density_cm3: 1.0e-3
+  hydrogen_density_cgs_cm3: 1.0e-3
   hydrogen_mass_fraction: 1.0
-  temperature_K: 275.2755
+  temperature_cgs_K: 275.2755
   xHI: 0.9998
 example:
   source_timestep: 1.0

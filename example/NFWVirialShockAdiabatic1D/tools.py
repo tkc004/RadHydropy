@@ -104,20 +104,20 @@ def _snapshot_profiles(filename, icparams, runparams):
     code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
     rout = Simwrap(icparams, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, filename)
-    boundary_cm = code_quantity_to_cgs(
-        rout.mesh.boundary, code_units, 'length_cm'
+    boundary_cgs_cm = code_quantity_to_cgs(
+        rout.mesh.boundary, code_units, 'length_cgs_cm'
     ) * unyt.cm
-    radius = NFW.spherical_cell_centers(boundary_cm)
+    radius = NFW.spherical_cell_centers(boundary_cgs_cm)
     nghost = int(runparams.get('noghost', 0))
     radius = radius[nghost:-nghost]
     density = code_quantity_to_cgs(
-        rout.fluid.rho_code[nghost:-nghost], code_units, 'density_g_cm3'
+        rout.fluid.rho_code[nghost:-nghost], code_units, 'density_cgs_g_cm3'
     )
     temperature = code_quantity_to_cgs(
-        rout.fluid.temp_code[nghost:-nghost], code_units, 'temperature_K'
+        rout.fluid.temp_code[nghost:-nghost], code_units, 'temperature_cgs_K'
     )
     velocity = code_quantity_to_cgs(
-        rout.fluid.vel_code[nghost:-nghost], code_units, 'velocity_cm_s'
+        rout.fluid.vel_code[nghost:-nghost], code_units, 'velocity_cgs_cm_s'
     ) / 1.0e5
     time_myr = time_seconds(rout.fluid.time, code_units) / (1.0e6 * 365.25 * 86400.0)
     return time_myr, radius.to_value(unyt.kpc), density, temperature, velocity

@@ -419,7 +419,7 @@ are not advected as independent fluid fields.
      - HDF5 metal PIE table containing volumetric photoheating and cooling
        rates on ``(T, nH, U)`` axes. Loaded once during startup.
      - path
-   * - ``metal_pie_photoheating_max_density_cm3``
+   * - ``metal_pie_photoheating_max_density_cgs_cm3``
      - For HM12 UV-background PIE tables, disable metal photoheating above
        this hydrogen density while retaining metal PIE cooling. Other PIE
        tables are unaffected. Set to ``null`` to disable this cutoff.
@@ -548,7 +548,7 @@ the dedicated dynamic example.
      - dimensionless
 
 For photon group ``g``, the momentum-rate density is proportional to
-``absorbed_photon_rate[g] * photon_energy_erg[g] / c``. The transport result
+``absorbed_photon_rate[g] * photon_energy_cgs_erg[g] / c``. The transport result
 must provide physical-cell-only absorbed rates and photon energies. The ray
 direction is taken from ``radiative_transfer_direction``. Cells with zero
 density are skipped safely.

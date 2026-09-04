@@ -59,8 +59,8 @@ def load_history(output_dir):
                 {
                     "filename": Path(filename),
                     "time_s": float(header.attrs.get("Time", 0.0)),
-                    "temperature_K": float(np.mean(data["Temperature"][interior])),
-                    "density_g_cm3": float(np.mean(data["Density"][interior])),
+                    "temperature_cgs_K": float(np.mean(data["Temperature"][interior])),
+                    "density_cgs_g_cm3": float(np.mean(data["Density"][interior])),
                 }
             )
     return history

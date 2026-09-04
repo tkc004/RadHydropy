@@ -67,9 +67,9 @@ class MetalPIETable:
         weight = (value - grid[index]) / (grid[index + 1] - grid[index])
         return index, weight
 
-    def _coordinates(self, temperature_K, hydrogen_density_cm3, third_axis):
-        log_t = np.log10(np.maximum(np.asarray(temperature_K, dtype=float), 1.0))
-        log_n = np.log10(np.maximum(np.asarray(hydrogen_density_cm3, dtype=float), 1.0e-99))
+    def _coordinates(self, temperature_cgs_K, hydrogen_density_cgs_cm3, third_axis):
+        log_t = np.log10(np.maximum(np.asarray(temperature_cgs_K, dtype=float), 1.0))
+        log_n = np.log10(np.maximum(np.asarray(hydrogen_density_cgs_cm3, dtype=float), 1.0e-99))
         third = np.asarray(third_axis, dtype=float)
         if not self.is_hm12_uv_background:
             third = np.log10(np.maximum(third, 1.0e-99))
@@ -99,8 +99,8 @@ class MetalPIETable:
 
     def rates(
         self,
-        temperature_K,
-        hydrogen_density_cm3,
+        temperature_cgs_K,
+        hydrogen_density_cgs_cm3,
         ionization_parameter=None,
         metallicity=1.0,
         redshift=None,
@@ -114,7 +114,7 @@ class MetalPIETable:
                 raise ValueError("PIE tables require an ionization parameter")
             third_axis = ionization_parameter
         coordinates = self._coordinates(
-            temperature_K, hydrogen_density_cm3, third_axis
+            temperature_cgs_K, hydrogen_density_cgs_cm3, third_axis
         )
         metallicity_index = int(np.argmin(np.abs(self.metallicity - float(metallicity))))
         return (

@@ -261,39 +261,39 @@ def code_unit_scales(code):
     """Return cgs scale factors for the supplied code-unit system."""
     if code is None:
         return None
-    length_cm = float(code.length_in_cgs)
+    length_cgs_cm = float(code.length_in_cgs)
     mass_g = float(code.mass_in_cgs)
-    velocity_cm_s = float(code.velocity_in_cgs)
-    time_s = length_cm / velocity_cm_s
-    area_cm2 = length_cm**2
-    volume_cm3 = length_cm**3
-    density_g_cm3 = mass_g / volume_cm3
-    pressure_erg_cm3 = mass_g / (length_cm * time_s**2)
-    energy_erg = mass_g * velocity_cm_s**2
+    velocity_cgs_cm_s = float(code.velocity_in_cgs)
+    time_s = length_cgs_cm / velocity_cgs_cm_s
+    area_cgs_cm2 = length_cgs_cm**2
+    volume_cgs_cm3 = length_cgs_cm**3
+    density_cgs_g_cm3 = mass_g / volume_cgs_cm3
+    pressure_cgs_erg_cm3 = mass_g / (length_cgs_cm * time_s**2)
+    energy_cgs_erg = mass_g * velocity_cgs_cm_s**2
     return {
-        "length_cm": length_cm,
+        "length_cgs_cm": length_cgs_cm,
         "mass_g": mass_g,
-        "velocity_cm_s": velocity_cm_s,
+        "velocity_cgs_cm_s": velocity_cgs_cm_s,
         "time_s": time_s,
-        "temperature_K": float(code.temperature_in_cgs),
-        "area_cm2": area_cm2,
-        "volume_cm3": volume_cm3,
-        "density_g_cm3": density_g_cm3,
-        "pressure_erg_cm3": pressure_erg_cm3,
-        "energy_erg": energy_erg,
-        "specific_energy_erg_g": velocity_cm_s**2,
-        "momentum_g_cm_s": mass_g * velocity_cm_s,
-        "mass_flux_g_cm2_s": mass_g / (area_cm2 * time_s),
-        "energy_flux_erg_cm2_s": energy_erg / (area_cm2 * time_s),
-        "number_density_cm3": 1.0 / volume_cm3,
-        "photon_flux_per_cm2_s": 1.0 / (area_cm2 * time_s),
+        "temperature_cgs_K": float(code.temperature_in_cgs),
+        "area_cgs_cm2": area_cgs_cm2,
+        "volume_cgs_cm3": volume_cgs_cm3,
+        "density_cgs_g_cm3": density_cgs_g_cm3,
+        "pressure_cgs_erg_cm3": pressure_cgs_erg_cm3,
+        "energy_cgs_erg": energy_cgs_erg,
+        "specific_energy_cgs_erg_g": velocity_cgs_cm_s**2,
+        "momentum_g_cgs_cm_s": mass_g * velocity_cgs_cm_s,
+        "mass_flux_g_cgs_cm2_s": mass_g / (area_cgs_cm2 * time_s),
+        "energy_flux_cgs_erg_cm2_s": energy_cgs_erg / (area_cgs_cm2 * time_s),
+        "number_density_cgs_cm3": 1.0 / volume_cgs_cm3,
+        "photon_flux_per_cgs_cm2_s": 1.0 / (area_cgs_cm2 * time_s),
         "photon_rate_per_s": 1.0 / time_s,
-        "alpha_cm3_s": volume_cm3 / time_s,
-        "acceleration_cm_s2": length_cm / time_s**2,
-        "specific_angular_momentum": length_cm * velocity_cm_s,
-        "angular_momentum": mass_g * length_cm * velocity_cm_s,
+        "alpha_cgs_cm3_s": volume_cgs_cm3 / time_s,
+        "acceleration_cgs_cm_s2": length_cgs_cm / time_s**2,
+        "specific_angular_momentum": length_cgs_cm * velocity_cgs_cm_s,
+        "angular_momentum": mass_g * length_cgs_cm * velocity_cgs_cm_s,
         "proton_mass_code": PROTON_MASS_CGS / mass_g,
-        "boltzmann_code": BOLTZMANN_CONSTANT_CGS / (energy_erg / float(code.temperature_in_cgs)),
+        "boltzmann_code": BOLTZMANN_CONSTANT_CGS / (energy_cgs_erg / float(code.temperature_in_cgs)),
     }
 
 
@@ -351,12 +351,12 @@ def _acceleration_unit(code_units):
     return code_units.length_unit / code_units.time_unit**2
 
 
-def photon_number_density(ngamma):
-    if ngamma is None:
+def photon_number_density(ngamma_cgs_cm3):
+    if ngamma_cgs_cm3 is None:
         return 0.0 * PHOTON_DENSITY_UNIT
-    if hasattr(ngamma, "to"):
-        return ngamma.to(PHOTON_DENSITY_UNIT)
-    return np.asarray(ngamma, dtype=float) * PHOTON_DENSITY_UNIT
+    if hasattr(ngamma_cgs_cm3, "to"):
+        return ngamma_cgs_cm3.to(PHOTON_DENSITY_UNIT)
+    return np.asarray(ngamma_cgs_cm3, dtype=float) * PHOTON_DENSITY_UNIT
 
 
 def _as_photon_flux(value):

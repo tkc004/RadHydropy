@@ -27,7 +27,7 @@ def point_mass_density(
     radius, rho_ref, temperature, mu, point_mass, reference_radius,
 ):
     """Exact isothermal hydrostatic density around a point mass."""
-    radius_cm = np.asarray(radius.to_value(unyt.cm), dtype=float)
+    radius_cgs_cm = np.asarray(radius.to_value(unyt.cm), dtype=float)
     ref_cm = float(reference_radius.to_value(unyt.cm))
     rho_ref_cgs = float(rho_ref.to_value(unyt.g / unyt.cm**3))
     mass_g = float(point_mass.to_value(unyt.g))
@@ -36,7 +36,7 @@ def point_mass_density(
         / (float(mu) * PROTON_MASS_CGS)
     )
     potential_difference = (
-        -GRAVITATIONAL_CONSTANT_CGS * mass_g / radius_cm
+        -GRAVITATIONAL_CONSTANT_CGS * mass_g / radius_cgs_cm
         + GRAVITATIONAL_CONSTANT_CGS * mass_g / ref_cm
     )
     return rho_ref_cgs * np.exp(-potential_difference / sound_speed_squared) * (
@@ -93,7 +93,7 @@ class InitialCondition:
         self.fluid.temp_code = np.full(
             self.par.nogrid,
             float(icparams["initial_temperature"].to_value(unyt.K))
-            / scales["temperature_K"],
+            / scales["temperature_cgs_K"],
         )
         self.fluid.mu = np.full(self.par.nogrid, float(icparams["mean_molecular_weight"]))
         self.fluid.vel_code = np.zeros(self.par.nogrid)

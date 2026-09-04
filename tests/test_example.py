@@ -436,14 +436,14 @@ class Testing(unittest.TestCase):
             self.assertEqual(group.attrs['number_of_group_edges'], 6)
             self.assertEqual(group.attrs['stellar_spectrum_type'], 1)
             self.assertEqual(
-                group.attrs['stellar_spectrum_blackbody_temperature_K'],
+                group.attrs['stellar_spectrum_blackbody_temperature_cgs_K'],
                 1.0e5,
             )
             self.assertEqual(
                 list(group['group_edges_eV']),
                 [13.6, 24.6, 35.5, 54.4, 75.0, 50000.0],
             )
-            self.assertEqual(len(group['ionizing_photon_energy_erg']), 5)
+            self.assertEqual(len(group['ionizing_photon_energy_cgs_erg']), 5)
         self.assertEqual(icparams['number_of_cells'], 512)
 
     def test_multifrequency_radiative_transfer_sph1d_c2ray_uses_distinct_outputs(self):
@@ -732,9 +732,9 @@ class Testing(unittest.TestCase):
 
         state = {
             'xHI': np.array([1.0, 0.0, 1.0], dtype=float),
-            'nH_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
-            'volume_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
-            'temperature_K': np.array([100.0, 200.0, 150.0], dtype=float),
+            'nH_cgs_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
+            'volume_cgs_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
+            'temperature_cgs_K': np.array([100.0, 200.0, 150.0], dtype=float),
             'radius_kpc': np.array([0.1, 0.2, 0.3], dtype=float),
         }
         refresh_calls = []
@@ -754,14 +754,14 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(refresh_calls, [1])
         self.assertEqual(history['evolution_steps'], 1)
-        self.assertIn('mean_ionized_temp_K', history)
+        self.assertIn('mean_ionized_temp_cgs_K', history)
 
     def test_static_reference_snapshot_stores_myr_not_seconds(self):
         sim = Rsim.__new__(Rsim)
         state = {
             'radius_kpc': np.array([1.0]),
             'xHI': np.array([0.5]),
-            'temperature_K': np.array([1.0e4]),
+            'temperature_cgs_K': np.array([1.0e4]),
         }
         snapshot = sim._snapshot_static_state(
             state,
@@ -786,9 +786,9 @@ class Testing(unittest.TestCase):
 
         state = {
             'xHI': np.array([1.0], dtype=float),
-            'nH_cm3': np.array([1.0], dtype=float),
-            'volume_cm3': np.array([1.0], dtype=float),
-            'temperature_K': np.array([1.0], dtype=float),
+            'nH_cgs_cm3': np.array([1.0], dtype=float),
+            'volume_cgs_cm3': np.array([1.0], dtype=float),
+            'temperature_cgs_K': np.array([1.0], dtype=float),
             'radius_kpc': np.array([1.0], dtype=float),
         }
 
@@ -1012,7 +1012,7 @@ class Testing(unittest.TestCase):
             lines = written.read_text().splitlines()
             self.assertEqual(
                 lines[0],
-                'RADIUS_PC,VELOCITY_KMS,DENSITY_CM3,TEMP_K',
+                'RADIUS_PC,VELOCITY_cgs_KMS,DENSITY_CM3,TEMP_cgs_K',
             )
             self.assertEqual(len(lines), 4)
             self.assertEqual(lines[1].split(',')[0], '0.16203896')

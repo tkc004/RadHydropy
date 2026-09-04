@@ -26,33 +26,33 @@ CI = 1.285e6  # cm s**-1, sound speed for T=1e4 K and mu=0.5
 SECONDS_PER_YEAR = 365.25 * 24.0 * 3600.0
 
 
-def density(radius_cm, nc, rc, w):
+def density(radius_cgs_cm, nc, rc, w):
     """Return the neutral hydrogen number density in cm**-3."""
-    radius_cm = np.asarray(radius_cm, dtype=float)
-    return nc * np.where(radius_cm < rc, 1.0, (radius_cm / rc) ** (-w))
+    radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
+    return nc * np.where(radius_cgs_cm < rc, 1.0, (radius_cgs_cm / rc) ** (-w))
 
 
-def recombination_integral(radius_cm, nc, rc, w):
+def recombination_integral(radius_cgs_cm, nc, rc, w):
     """Return integral_0^R n_H(r)^2 r^2 dr in cm**-3."""
-    radius_cm = np.asarray(radius_cm, dtype=float)
+    radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
     core = rc**3 / 3.0
     if np.isclose(w, 1.5):
-        envelope = core + rc**3 * np.log(radius_cm / rc)
+        envelope = core + rc**3 * np.log(radius_cgs_cm / rc)
     else:
         envelope = core + rc ** (2.0 * w) * (
-            radius_cm ** (3.0 - 2.0 * w) - rc ** (3.0 - 2.0 * w)
+            radius_cgs_cm ** (3.0 - 2.0 * w) - rc ** (3.0 - 2.0 * w)
         ) / (3.0 - 2.0 * w)
-    result = np.where(radius_cm <= rc, radius_cm**3 / 3.0, envelope)
+    result = np.where(radius_cgs_cm <= rc, radius_cgs_cm**3 / 3.0, envelope)
     return nc**2 * result
 
 
-def front_speed(radius_cm, q_star, nc, rc, w):
+def front_speed(radius_cgs_cm, q_star, nc, rc, w):
     """Static-cloud R-type front speed from photon conservation."""
-    radius_cm = np.asarray(radius_cm, dtype=float)
+    radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
     available = q_star - 4.0 * np.pi * ALPHA_B * recombination_integral(
-        radius_cm, nc, rc, w
+        radius_cgs_cm, nc, rc, w
     )
-    return available / (4.0 * np.pi * radius_cm**2 * density(radius_cm, nc, rc, w))
+    return available / (4.0 * np.pi * radius_cgs_cm**2 * density(radius_cgs_cm, nc, rc, w))
 
 
 def formation_front(q_star, nc, rc, w, radius_max, samples=20000):

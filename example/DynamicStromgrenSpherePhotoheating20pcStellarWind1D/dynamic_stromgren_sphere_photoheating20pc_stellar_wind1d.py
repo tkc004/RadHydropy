@@ -53,13 +53,13 @@ def _pressure_diagnostic(snapshot, config):
     else:
         mdot = config['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
         wind_velocity = config['wind_velocity'].to_value(unyt.cm / unyt.s)
-        shell_radius_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
+        shell_radius_cgs_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
         wind_pressure = mdot * wind_velocity / (
-            4.0 * np.pi * shell_radius_cm**2
+            4.0 * np.pi * shell_radius_cgs_cm**2
         )
 
     code = CodeUnits.from_mapping(par.CodeUnits)
-    volume_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
@@ -67,9 +67,9 @@ def _pressure_diagnostic(snapshot, config):
     ambient_ionized = (xhi < 0.5) & (radius_pc < shell_radius_pc)
     if not np.any(ambient_ionized):
         ambient_ionized = xhi < 0.5
-    weighted_volume = float(np.sum(volume_cm3[ambient_ionized]))
+    weighted_volume = float(np.sum(volume_cgs_cm3[ambient_ionized]))
     gas_pressure = (
-        float(np.sum(pressure[ambient_ionized] * volume_cm3[ambient_ionized]) / weighted_volume)
+        float(np.sum(pressure[ambient_ionized] * volume_cgs_cm3[ambient_ionized]) / weighted_volume)
         if weighted_volume > 0.0
         else 0.0
     )
@@ -82,13 +82,13 @@ def pressure_diagnostic_from_profile(profile, config):
     fields = np.genfromtxt(profile, delimiter=',', names=True)
     radius_pc = np.asarray(fields['RADIUS_PC'], dtype=float)
     density = np.asarray(fields['DENSITY_CM3'], dtype=float)
-    temperature = np.asarray(fields['TEMP_K'], dtype=float)
+    temperature = np.asarray(fields['TEMP_cgs_K'], dtype=float)
     shell_index = 2 + int(np.argmax(density[2:]))
     shell_radius_pc = float(radius_pc[shell_index])
     mdot = config['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
     wind_velocity = config['wind_velocity'].to_value(unyt.cm / unyt.s)
-    shell_radius_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
-    wind_pressure = mdot * wind_velocity / (4.0 * np.pi * shell_radius_cm**2)
+    shell_radius_cgs_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
+    wind_pressure = mdot * wind_velocity / (4.0 * np.pi * shell_radius_cgs_cm**2)
     photoheated = (np.arange(radius_pc.size) >= 2) & (
         np.arange(radius_pc.size) < shell_index
     ) & (temperature > 500.0)
@@ -129,7 +129,7 @@ def save_pressure_ratio_plot(diagnostics, output_dir):
         pressure_csv,
         np.column_stack((times, shell_radius, wind_pressure, gas_pressure, pressure_ratio)),
         delimiter=',',
-        header='time_Myr,shell_radius_pc,wind_pressure_dyn_cm2,gas_pressure_dyn_cm2,pressure_ratio',
+        header='time_Myr,shell_radius_pc,wind_pressure_dyn_cgs_cm2,gas_pressure_dyn_cgs_cm2,pressure_ratio',
         comments='',
     )
     return pressure_figure, pressure_csv, pressure_ratio
@@ -194,7 +194,7 @@ def main(config_filename=None):
         pressure_csv,
         np.column_stack((times, shell_radius, wind_pressure, gas_pressure, pressure_ratio)),
         delimiter=',',
-        header='time_Myr,shell_radius_pc,wind_pressure_dyn_cm2,gas_pressure_dyn_cm2,pressure_ratio',
+        header='time_Myr,shell_radius_pc,wind_pressure_dyn_cgs_cm2,gas_pressure_dyn_cgs_cm2,pressure_ratio',
         comments='',
     )
     print('final wind/gas pressure ratio = %.6e' % pressure_ratio[-1])

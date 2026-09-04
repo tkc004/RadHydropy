@@ -105,6 +105,15 @@ def load_nested_example_parameters(config_filename, rundir=None):
         if alias not in runparams and source in runparams:
             runparams[alias] = runparams[source]
 
+    initial = legacy_initial_condition_parameters(config)
+    return runparams, initial
+
+
+def legacy_initial_condition_parameters(config):
+    """Project nested initial-condition settings for legacy example helpers."""
+    if not isinstance(config, dict) or 'par' not in config:
+        raise ValueError("nested example configuration requires a 'par' section")
+    par = config['par']
     initial = dict(config.get('initial_condition', {}))
     mesh = par.get('mesh', {})
     initial.setdefault('number_of_cells', mesh.get('grid_cells', initial.get('grid_cells')))
@@ -121,7 +130,7 @@ def load_nested_example_parameters(config_filename, rundir=None):
             initial[alias] = initial[source]
     if 'analytic_inner_radius' in config.get('example', {}):
         initial['analytic_inner_radius'] = config['example']['analytic_inner_radius']
-    return runparams, initial
+    return initial
 
 
 def legacy_example_parameters(config):
@@ -149,6 +158,7 @@ def legacy_example_parameters(config):
         'nogrid': mesh.get('grid_cells', initial.get('grid_cells')),
         'number_of_cells': mesh.get('grid_cells', initial.get('grid_cells')),
         'noghost': mesh.get('ghost_cells', 2),
+        'area': mesh.get('area'),
         'EOStype': hydro.get('eos_type', 'polytropic'),
         'gamma': hydro.get('gamma', 5.0 / 3.0),
         'CFL': hydro.get('CFL', 0.1),
@@ -332,7 +342,7 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
     csv_filename.parent.mkdir(parents=True, exist_ok=True)
     with csv_filename.open('w', newline='', encoding='utf-8') as handle:
         writer = csv.writer(handle, lineterminator='\n')
-        writer.writerow(('RADIUS_PC', 'VELOCITY_KMS', 'DENSITY_CM3', 'TEMP_K'))
+        writer.writerow(('RADIUS_PC', 'VELOCITY_cgs_KMS', 'DENSITY_CM3', 'TEMP_cgs_K'))
         writer.writerows(
             zip(
                 (f'{value:.8g}' for value in radius),

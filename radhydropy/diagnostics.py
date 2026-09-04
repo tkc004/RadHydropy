@@ -7,7 +7,7 @@ import numpy as np
 from radhydropy.cosmological_variables import physical_temperature, supercomoving_scale
 
 
-def temperature_physical_K(sim):
+def temperature_physical_cgs_K(sim):
     """Return the simulation gas temperature in physical kelvin."""
     if not hasattr(sim.fluid, 'temp_code'):
         return None
@@ -23,10 +23,10 @@ def temperature_physical_K(sim):
     return np.asarray(temperature, dtype=float)
 
 
-def thermochemistry_active_mask(rho_physical_g_cm3, par, density_factor=1.0):
+def thermochemistry_active_mask(rho_physical_cgs_g_cm3, par, density_factor=1.0):
     """Return the source-update mask using the hydro CFL density floor.
 
-    ``rho_physical_g_cm3`` is physical density, while ``cfl_density_floor``
+    ``rho_physical_cgs_g_cm3`` is physical density, while ``cfl_density_floor``
     is expressed in the runtime code-density units.  ``density_factor`` is
     the supercomoving conversion factor (normally ``a**3``).
     """
@@ -34,16 +34,16 @@ def thermochemistry_active_mask(rho_physical_g_cm3, par, density_factor=1.0):
         0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
     )
     if density_floor <= 0.0:
-        return np.asarray(rho_physical_g_cm3, dtype=float) > 0.0
+        return np.asarray(rho_physical_cgs_g_cm3, dtype=float) > 0.0
     code = getattr(par, 'CodeUnits', None)
     if code is None:
-        return np.asarray(rho_physical_g_cm3, dtype=float) > 0.0
+        return np.asarray(rho_physical_cgs_g_cm3, dtype=float) > 0.0
     physical_floor = (
         density_floor
-        * float(code.unit_conversion['density_g_cm3'])
+        * float(code.unit_conversion['density_cgs_g_cm3'])
         / float(density_factor)
     )
-    return np.asarray(rho_physical_g_cm3, dtype=float) > physical_floor
+    return np.asarray(rho_physical_cgs_g_cm3, dtype=float) > physical_floor
 
 
 def check_conserved_energy_admissibility(
@@ -133,7 +133,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     threshold = float(threshold)
     if not np.isfinite(threshold) or threshold <= 0.0:
         return
-    temperature_after = temperature_physical_K(sim)
+    temperature_after = temperature_physical_cgs_K(sim)
     if temperature_after is None or temperature_before is None:
         return
     before = np.asarray(temperature_before, dtype=float)
@@ -207,7 +207,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
 def check_source_temperature(state, par, temperature_before, stage, source_step):
     """Reject a source substep that crosses the configured temperature guard.
 
-    ``state['temperature_K']`` is already in physical kelvin and contains
+    ``state['temperature_cgs_K']`` is already in physical kelvin and contains
     only the active mesh cells, unlike the full fluid state checked by
     :func:`check_temperature_jump`.
     """
@@ -217,7 +217,7 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
     threshold = float(threshold)
     if not np.isfinite(threshold) or threshold <= 0.0:
         return
-    temperature_after = np.asarray(state.get('temperature_K'), dtype=float)
+    temperature_after = np.asarray(state.get('temperature_cgs_K'), dtype=float)
     if temperature_after.ndim == 0:
         return
     before = np.asarray(temperature_before, dtype=float)
@@ -235,10 +235,10 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
     index = int(np.flatnonzero(crossing)[0])
     interior = state.get('interior', slice(0, len(temperature_after)))
     mesh_index = int(interior.start or 0) + index
-    rho = np.asarray(state.get('rho_g_cm3', np.nan), dtype=float)
+    rho = np.asarray(state.get('rho_cgs_g_cm3', np.nan), dtype=float)
     xhi = np.asarray(state.get('xHI', np.nan), dtype=float)
     energy = np.asarray(
-        state.get('specific_energy_erg_g', np.nan), dtype=float
+        state.get('specific_energy_cgs_erg_g', np.nan), dtype=float
     )
     diagnostic = (
         'temperature jump error: physical gas temperature exceeded '

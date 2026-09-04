@@ -52,7 +52,7 @@ par:
     metal_pie_enabled: false
     metal_pie_redshift: 0.0
     metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
-    metal_pie_photoheating_max_density_cm3: 50.0
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0
     pie_uvbg_implicit_max_retries: 4
   radiation:
     radiative_transfer: false

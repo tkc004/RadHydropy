@@ -37,7 +37,7 @@ CASES = (
 )
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
-BOLTZMANN_ERG_K = unyt.kb.to_value(unyt.erg / unyt.K)
+BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 
 def _net_rate(table, temperature, density, metallicity, redshift):
@@ -116,7 +116,7 @@ def _run_case(par_config, runparams, icparams, label, density, temperature, tabl
         table, temperature, density, runparams['metallicity'], runparams['metal_pie_redshift']
     ))
     rho = density * PROTON_MASS_G / runparams['hydrogen_mass_fraction']
-    thermal_energy = rho * BOLTZMANN_ERG_K * temperature / (
+    thermal_energy = rho * BOLTZMANN_ERG_cgs_K * temperature / (
         (runparams['gamma'] - 1.0) * icparams['mean_molecular_weight'] * PROTON_MASS_G
     )
     thermal_time = thermal_energy / max(abs(initial_rate), 1.0e-99) / SECONDS_PER_MYR
@@ -138,8 +138,8 @@ def _run_case(par_config, runparams, icparams, label, density, temperature, tabl
 def _write_report(results, filename):
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(
-            'case nH_cm3 T_initial_K T_final_K T_equilibrium_K '
-            'initial_net_rate_erg_cm3_s initial_thermal_time_Myr '
+            'case nH_cgs_cm3 T_initial_cgs_K T_final_cgs_K T_equilibrium_cgs_K '
+            'initial_net_rate_cgs_erg_cm3_s initial_thermal_time_Myr '
             'density_relative_change\n'
         )
         for result in results:
@@ -249,7 +249,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     par_config = nested['par']
     runparams = eu.legacy_example_parameters(nested)
-    icparams = nested['initial_condition']
+    icparams = eu.legacy_initial_condition_parameters(nested)
     table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     runparams['metal_pie_table_filename'] = str(table_path)
     par_config['thermochemistry']['metal_pie_table_filename'] = str(table_path)

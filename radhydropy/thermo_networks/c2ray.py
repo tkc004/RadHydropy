@@ -17,8 +17,8 @@ import numpy as np
 import unyt
 
 from radhydropy.constants import (
-    DEFAULT_EPSILON_GAMMA,
-    DEFAULT_SIGMA_GAMMA,
+    DEFAULT_EPSILON_GAMMA_CGS_ERG,
+    DEFAULT_SIGMA_GAMMA_CGS_CM2,
     PROTON_MASS_CGS,
     SPEED_OF_LIGHT_CGS,
 )
@@ -51,25 +51,25 @@ def _group_parameters(par):
     edges = getattr(par, "radiation_group_edges_eV", None)
     if edges is None:
         ngroup = 1
-        sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA)
-        epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA)
+        sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
+        epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
     else:
         edges = np.asarray(edges, dtype=float)
         ngroup = edges.size - 1
         sigma_value = getattr(par, "radiation_group_sigma_gamma", None)
         if sigma_value is None:
-            sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA)
+            sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
         epsilon_value = getattr(par, "radiation_group_epsilon_gamma", None)
         if epsilon_value is None:
-            epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA)
+            epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
 
     code = _code_units(par)
-    sigma = quantity_or_code_to_cgs(sigma_value, code, CGS_AREA_UNIT, "area_cm2")
+    sigma = quantity_or_code_to_cgs(sigma_value, code, CGS_AREA_UNIT, "area_cgs_cm2")
     epsilon = quantity_or_code_to_cgs(
         epsilon_value,
         code,
         "erg",
-        "energy_erg",
+        "energy_cgs_erg",
     )
     sigma = np.full(ngroup, float(sigma), dtype=float) if sigma.ndim == 0 else sigma
     epsilon = (
@@ -98,7 +98,7 @@ def _group_parameters(par):
         boundary_flux,
         code,
         PHOTON_FLUX_UNIT,
-        "photon_flux_per_cm2_s",
+        "photon_flux_per_cgs_cm2_s",
     )
     source_rate = quantity_or_code_to_cgs(
         source_rate,
@@ -125,11 +125,11 @@ def _state_geometry(state, par):
     """Build shared RT geometry from a C²-Ray source state."""
     mesh = SimpleNamespace(
         coordsys=getattr(par, "coordsys", "spherical"),
-        boundary=np.asarray(state["boundary_cm"], dtype=float),
-        vol=np.asarray(state["volume_cm3"], dtype=float),
+        boundary=np.asarray(state["boundary_cgs_cm"], dtype=float),
+        vol=np.asarray(state["volume_cgs_cm3"], dtype=float),
     )
-    if "area_cm2" in state:
-        mesh.area = np.asarray(state["area_cm2"], dtype=float)
+    if "area_cgs_cm2" in state:
+        mesh.area = np.asarray(state["area_cgs_cm2"], dtype=float)
     return rrt.build_transport_geometry(mesh, mesh.coordsys)
 
 
@@ -188,9 +188,9 @@ def _front_radius_kpc(state, neutral_fraction=0.5):
 
 
 def _recombination_rate(state, par):
-    alpha = state.get("alpha_B_cm3_s", getattr(par, "hydrogen_alpha_B", None))
+    alpha = state.get("alpha_B_cgs_cm3_s", getattr(par, "hydrogen_alpha_B", None))
     if alpha is None:
-        alpha = hydrogen._cgs_alpha_B(state["temperature_K"])
+        alpha = hydrogen._cgs_alpha_B(state["temperature_cgs_K"])
     elif hasattr(alpha, "to_value"):
         alpha = alpha.to_value(unyt.cm**3 / unyt.s)
     ionized = 1.0 - state["xHI"]
@@ -198,16 +198,16 @@ def _recombination_rate(state, par):
         np.sum(
             np.asarray(alpha)
             * ionized**2
-            * state["nH_cm3"]**2
-            * state["volume_cm3"]
+            * state["nH_cgs_cm3"]**2
+            * state["volume_cgs_cm3"]
         )
     )
 
 
-def _append_history(history, state, ngamma, time_s, recombined, source_rate_s):
+def _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_rate_s):
     ionized = 1.0 - state["xHI"]
-    ionized_atoms = np.sum(ionized * state["nH_cm3"] * state["volume_cm3"])
-    volume_photons = np.sum(ngamma * state["volume_cm3"])
+    ionized_atoms = np.sum(ionized * state["nH_cgs_cm3"] * state["volume_cgs_cm3"])
+    volume_photons = np.sum(ngamma_cgs_cm3 * state["volume_cgs_cm3"])
     history["time_Myr"].append(time_s / (1.0 * unyt.Myr).to_value(unyt.s))
     history["front_radius_kpc"].append(_front_radius_kpc(state))
     history["injected_photons"].append(source_rate_s * time_s)
@@ -217,10 +217,10 @@ def _append_history(history, state, ngamma, time_s, recombined, source_rate_s):
     history["accounted_photons"].append(
         ionized_atoms + recombined + volume_photons
     )
-    if "mean_ionized_temp_K" in history:
+    if "mean_ionized_temp_cgs_K" in history:
         weight = 1.0 - state["xHI"]
-        history["mean_ionized_temp_K"].append(
-            float(np.sum(weight * state["temperature_K"]) / np.sum(weight))
+        history["mean_ionized_temp_cgs_K"].append(
+            float(np.sum(weight * state["temperature_cgs_K"]) / np.sum(weight))
             if np.sum(weight) > 0.0
             else 0.0
         )
@@ -237,8 +237,8 @@ def evolve_static_state(
 ):
     """Evolve a fixed-density hydrogen state with causal C²-Ray transport."""
     initial = trace_initial_state(state, par)
-    ngamma = initial.photon_density[0] if initial.photon_density.shape[0] == 1 else initial.photon_density
-    state["ngamma_cm3"] = ngamma
+    ngamma_cgs_cm3 = initial.photon_density[0] if initial.photon_density.shape[0] == 1 else initial.photon_density
+    state["ngamma_cgs_cm3"] = ngamma_cgs_cm3
     history = {
         "time_Myr": [],
         "front_radius_kpc": [],
@@ -249,10 +249,10 @@ def evolve_static_state(
         "accounted_photons": [],
     }
     if include_thermal_history:
-        history["mean_ionized_temp_K"] = []
+        history["mean_ionized_temp_cgs_K"] = []
     recombined = 0.0
     time_s = 0.0
-    _append_history(history, state, ngamma, time_s, recombined, source_rate_s)
+    _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_rate_s)
 
     while time_s < final_time_s:
         remaining = final_time_s - time_s
@@ -268,15 +268,15 @@ def evolve_static_state(
         recombined += 0.5 * (start_recombination + end_recombination) * dt_s
         time_s += dt_s
         state["time_s"] = time_s
-        ngamma = result.photon_density[0] if result.photon_density.shape[0] == 1 else result.photon_density
-        state["ngamma_cm3"] = ngamma
-        _append_history(history, state, ngamma, time_s, recombined, source_rate_s)
+        ngamma_cgs_cm3 = result.photon_density[0] if result.photon_density.shape[0] == 1 else result.photon_density
+        state["ngamma_cgs_cm3"] = ngamma_cgs_cm3
+        _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_rate_s)
         if reference_time_s is not None and "reference_snapshot" not in history and time_s >= reference_time_s:
             history["reference_snapshot"] = {
                 "time_Myr": time_s / (1.0 * unyt.Myr).to_value(unyt.s),
                 "radius_kpc": np.asarray(state["radius_kpc"]).copy(),
                 "xHI": np.asarray(state["xHI"]).copy(),
-                "temperature_K": np.asarray(state["temperature_K"]).copy(),
+                "temperature_cgs_K": np.asarray(state["temperature_cgs_K"]).copy(),
             }
     history["chemistry_steps"] = len(history["time_Myr"]) - 1
     history["evolution_steps"] = history["chemistry_steps"]
@@ -297,17 +297,17 @@ def _advance(state, par, dt_s, update_chemistry):
     geometry = _state_geometry(state, par)
     sigma, epsilon, incoming, direction = _source_rates(
         par,
-        geometry.face_area_cm2,
+        geometry.face_area_cgs_cm2,
     )
-    width = geometry.width_cm
-    volume = geometry.volume_cm3
+    width = geometry.width_cgs_cm
+    volume = geometry.volume_cgs_cm3
     ncell = width.size
     ngroup = sigma.size
-    nH = np.asarray(state["rho_g_cm3"], dtype=float) * float(
+    nH = np.asarray(state["rho_cgs_g_cm3"], dtype=float) * float(
         state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 1.0))
     ) / PROTON_MASS_CGS
     x_initial = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
-    temperature = np.asarray(state["temperature_K"], dtype=float).copy()
+    temperature = np.asarray(state["temperature_cgs_K"], dtype=float).copy()
     photon_density = np.zeros((ngroup, ncell), dtype=float)
     absorbed = np.zeros((ngroup, ncell), dtype=float)
     mean_fraction = x_initial.copy()
@@ -320,8 +320,8 @@ def _advance(state, par, dt_s, update_chemistry):
     relaxation = np.clip(relaxation, 0.0, 1.0)
     recombination = bool(state.get("recombination", True))
     collisional = bool(state.get("collisional_ionization", True))
-    alpha_parameter = state.get("alpha_B_cm3_s")
-    beta_parameter = state.get("beta_cm3_s")
+    alpha_parameter = state.get("alpha_B_cgs_cm3_s")
+    beta_parameter = state.get("beta_cgs_cm3_s")
     alpha_values = (
         hydrogen._cgs_alpha_B(temperature)
         if alpha_parameter is None
@@ -406,10 +406,10 @@ def _advance(state, par, dt_s, update_chemistry):
 
     if update_chemistry:
         state["xHI"] = final_fraction
-    state["ngamma_cm3"] = photon_density[0] if ngroup == 1 else photon_density
+    state["ngamma_cgs_cm3"] = photon_density[0] if ngroup == 1 else photon_density
     if update_chemistry and dt_s > 0.0:
         thermal_rate = hydrogen._cgs_source_thermal_rate(
-            state["rho_g_cm3"],
+            state["rho_cgs_g_cm3"],
             temperature,
             mean_fraction,
             hydrogen_mass_fraction=state.get(
@@ -418,30 +418,30 @@ def _advance(state, par, dt_s, update_chemistry):
             ),
             recombination=recombination,
             collisional_ionization=collisional,
-            ngamma_cm3=photon_density,
-            sigma_gamma_cm2=sigma,
-            epsilon_gamma_erg=epsilon,
+            ngamma_cgs_cm3=photon_density,
+            sigma_gamma_cgs_cm2=sigma,
+            epsilon_gamma_cgs_erg=epsilon,
             compton_cmb_enabled=state.get("compton_cmb_enabled", False),
             compton_cmb_redshift=state.get("compton_cmb_redshift", 0.0),
-            cmb_temperature_0_K=state.get("cmb_temperature_0_K", 2.7255),
+            cmb_temperature_0_cgs_K=state.get("cmb_temperature_0_cgs_K", 2.7255),
         )
         if state.get("thermal_coupling", False):
-            rho = np.asarray(state["rho_g_cm3"], dtype=float)
+            rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
             active = np.asarray(state.get("active", rho > 0.0), dtype=bool)
             rho_safe = np.where(active, rho, 1.0)
             energy_update = np.zeros_like(rho, dtype=float)
             energy_update[active] = (
                 np.asarray(thermal_rate)[active] / rho_safe[active] * dt_s
             )
-            if "specific_total_energy_erg_g" in state:
-                state["specific_total_energy_erg_g"] = np.maximum(
-                    state["specific_total_energy_erg_g"] + energy_update,
-                    state.get("specific_kinetic_energy_erg_g", 0.0),
+            if "specific_total_energy_cgs_erg_g" in state:
+                state["specific_total_energy_cgs_erg_g"] = np.maximum(
+                    state["specific_total_energy_cgs_erg_g"] + energy_update,
+                    state.get("specific_kinetic_energy_cgs_erg_g", 0.0),
                 )
                 hydrogen._fast_update_temperature_from_energy(state)
             else:
-                state["specific_energy_erg_g"] = np.maximum(
-                    state["specific_energy_erg_g"] + energy_update,
+                state["specific_energy_cgs_erg_g"] = np.maximum(
+                    state["specific_energy_cgs_erg_g"] + energy_update,
                     1.0e6,
                 )
                 hydrogen.update_temperature_from_energy(state)
@@ -460,9 +460,9 @@ def _hhe_cell_state(state, cell):
     """Extract a one-cell H/He source state for the local implicit solve."""
     local = dict(state)
     for key in (
-        "rho_g_cm3",
-        "temperature_K",
-        "specific_energy_erg_g",
+        "rho_cgs_g_cm3",
+        "temperature_cgs_K",
+        "specific_energy_cgs_erg_g",
         "xHI",
         "xHeI",
         "xHeIII",
@@ -489,7 +489,7 @@ def _hhe_set_trial(local, values):
     local["xHI"][:] = xhi
     local["xHeI"][:] = xhei
     local["xHeIII"][:] = xheiii
-    local["specific_energy_erg_g"][:] = max(float(energy), 1.0e6)
+    local["specific_energy_cgs_erg_g"][:] = max(float(energy), 1.0e6)
     hydrogen_helium.update_temperature_from_energy(local)
 
 
@@ -518,7 +518,7 @@ def _hhe_derivative(local, photon_density):
             float(np.asarray(d_hei).flat[0]),
             float(np.asarray(d_heiii).flat[0]),
             float(np.asarray(thermal).flat[0])
-            / max(float(np.asarray(local["rho_g_cm3"]).flat[0]), 1.0e-99),
+            / max(float(np.asarray(local["rho_cgs_g_cm3"]).flat[0]), 1.0e-99),
         ],
         dtype=float,
     )
@@ -531,7 +531,7 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
             float(local["xHI"][0]),
             float(local["xHeI"][0]),
             float(local["xHeIII"][0]),
-            float(local["specific_energy_erg_g"][0]),
+            float(local["specific_energy_cgs_erg_g"][0]),
         ],
         dtype=float,
     )
@@ -628,7 +628,7 @@ def _hhe_backward_euler(local, photon_density, dt_s, par):
             float(local["xHI"][0]),
             float(local["xHeI"][0]),
             float(local["xHeIII"][0]),
-            float(local["specific_energy_erg_g"][0]),
+            float(local["specific_energy_cgs_erg_g"][0]),
         ],
         dtype=float,
     )
@@ -651,11 +651,11 @@ def _hhe_backward_euler(local, photon_density, dt_s, par):
 def _hhe_group_parameters(state, par):
     sigma = {
         species: np.asarray(values, dtype=float)
-        for species, values in state["sigma_gamma_cm2"].items()
+        for species, values in state["sigma_gamma_cgs_cm2"].items()
     }
     epsilon = {
         species: np.asarray(values, dtype=float)
-        for species, values in state["epsilon_gamma_erg"].items()
+        for species, values in state["epsilon_gamma_cgs_erg"].items()
     }
     _, _, boundary_flux, source_rate = _group_parameters(par)
     return sigma, epsilon, boundary_flux, source_rate
@@ -674,15 +674,15 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
     incoming = np.where(
         source_rate != 0.0,
         source_rate,
-        boundary_flux * geometry.face_area_cm2[source_face],
+        boundary_flux * geometry.face_area_cgs_cm2[source_face],
     )
-    width = geometry.width_cm
-    volume = geometry.volume_cm3
+    width = geometry.width_cgs_cm
+    volume = geometry.volume_cgs_cm3
     ncell = width.size
-    n_h = np.asarray(state["rho_g_cm3"], dtype=float) * float(
+    n_h = np.asarray(state["rho_cgs_g_cm3"], dtype=float) * float(
         state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 0.7))
     ) / PROTON_MASS_CGS
-    n_he = np.asarray(state["rho_g_cm3"], dtype=float) * float(
+    n_he = np.asarray(state["rho_cgs_g_cm3"], dtype=float) * float(
         state.get("helium_mass_fraction", getattr(par, "helium_mass_fraction", 0.28))
     ) / (4.0 * PROTON_MASS_CGS)
     xhi_initial = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
@@ -732,8 +732,8 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
             # Each opacity iteration solves the same physical time interval
             # from the cell's beginning-of-step state.  Do not carry thermal
             # energy from a rejected opacity iterate into the next trial.
-            local["specific_energy_erg_g"][:] = state["specific_energy_erg_g"][cell]
-            local["temperature_K"][:] = state["temperature_K"][cell]
+            local["specific_energy_cgs_erg_g"][:] = state["specific_energy_cgs_erg_g"][cell]
+            local["temperature_cgs_K"][:] = state["temperature_cgs_K"][cell]
             values, ode_converged = _hhe_backward_euler(
                 local, cell_transport.photon_density, dt_s, par
             )
@@ -774,8 +774,8 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
             xheiii_final, 0.0, 1.0 - state["xHeI"][cell] - 1.0e-12
         )
         if update_chemistry:
-            state["specific_energy_erg_g"][cell] = max(float(local["specific_energy_erg_g"][0]), 1.0e6)
-            state["temperature_K"][cell] = float(local["temperature_K"][0])
+            state["specific_energy_cgs_erg_g"][cell] = max(float(local["specific_energy_cgs_erg_g"][0]), 1.0e6)
+            state["temperature_cgs_K"][cell] = float(local["temperature_cgs_K"][0])
             state["mu"][cell] = float(local["mu"][0])
 
         absorbed[:, cell] = cell_transport.absorbed_rate / volume[cell]
@@ -783,7 +783,7 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
         incoming = cell_transport.outgoing_rate
 
     hydrogen_helium._closure(state)
-    state["ngamma_cm3"] = photon_density[0] if ngroup == 1 else photon_density
+    state["ngamma_cgs_cm3"] = photon_density[0] if ngroup == 1 else photon_density
     return C2RayResult(
         photon_density=photon_density,
         absorbed_photon_rate=absorbed,
@@ -811,12 +811,12 @@ def apply_fast(dt, mesh, fluid, par):
     # physical source interval with dt_phys = a^2 d tau.
     dt_s = time_seconds(dt, code) * state.get("source_scale_factor", 1.0) ** 2
     result = advance_state(state, par, dt_s)
-    _ensure_fluid_photon_shape(fluid, state["ngamma_cm3"])
+    _ensure_fluid_photon_shape(fluid, state["ngamma_cgs_cm3"])
     if network == "hydrogen_helium":
         hydrogen_helium.apply_state(state, fluid, par)
     else:
         hydrogen.sync_c2ray_state(state, fluid, par)
-    energy = getattr(par, "ionizing_photon_energy_erg", None)
+    energy = getattr(par, "ionizing_photon_energy_cgs_erg", None)
     if energy is None:
         energy = getattr(par, "hydrogen_photon_energy", 0.0)
     if hasattr(energy, "to_value"):
@@ -824,7 +824,7 @@ def apply_fast(dt, mesh, fluid, par):
     return {
         "source_steps": 1,
         "absorbed_photon_rate": result.absorbed_photon_rate,
-        "photon_energy_erg": np.atleast_1d(energy),
+        "photon_energy_cgs_erg": np.atleast_1d(energy),
         "direction": int(getattr(par, "radiative_transfer_direction", 1)),
     }
 

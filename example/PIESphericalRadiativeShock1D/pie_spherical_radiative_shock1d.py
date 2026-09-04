@@ -168,7 +168,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     runparams = eu.legacy_example_parameters(nested)
-    icparams = nested['initial_condition']
+    icparams = eu.legacy_initial_condition_parameters(nested)
     if runparams.get('metal_pie_table_filename'):
         runparams['metal_pie_table_filename'] = str(
             (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
@@ -190,15 +190,15 @@ def main(config_filename=DEFAULT_CONFIG):
         for index, time_myr in zip(sample_indices, sample_times):
             snapshot = load_snapshot(result['snapshots'][index])
             radius = (
-                0.5 * (snapshot['boundary_cm'][1:] + snapshot['boundary_cm'][:-1])
+                0.5 * (snapshot['boundary_cgs_cm'][1:] + snapshot['boundary_cgs_cm'][:-1])
                 / 3.0856775814913673e21
             )
             label = f'{time_myr:.2g} Myr'
             axes[row, 0].plot(
-                radius, snapshot['density_g_cm3'], label=label,
+                radius, snapshot['density_cgs_g_cm3'], label=label,
             )
             axes[row, 1].plot(
-                radius, snapshot['temperature_K'], label=label,
+                radius, snapshot['temperature_cgs_K'], label=label,
             )
         axes[row, 2].plot(
             result['history'][:, 0], result['history'][:, 1],

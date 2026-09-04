@@ -66,15 +66,15 @@ HDF5 schema
 The file contains a ``RadiationSpectrum`` group with the datasets:
 
 * ``group_edges_eV``;
-* ``ionizing_photon_energy_erg``;
+* ``ionizing_photon_energy_cgs_erg``;
 * ``star_emission_rates``;
-* ``group_sigma_gamma_cm2``; and
-* ``group_epsilon_gamma_erg``.
+* ``group_sigma_gamma_cgs_cm2``; and
+* ``group_epsilon_gamma_cgs_erg``.
 
 The group attributes include ``number_of_radiation_groups``,
 ``number_of_group_edges``, ``stellar_spectrum_type``,
 ``stellar_spectrum_type_name``,
-``stellar_spectrum_blackbody_temperature_K``, and ``absorber``.
+``stellar_spectrum_blackbody_temperature_cgs_K``, and ``absorber``.
 
 The generated file can be consumed by the runtime using
 ``radiation_spectrum_filename``. To override the total rate without
@@ -139,19 +139,19 @@ cross-section and zero excess-energy values for that species.
 The current runtime network is pure hydrogen, so the standard output writes
 the H I datasets:
 
-``group_sigma_gamma_cm2`` and ``group_epsilon_gamma_erg``.
+``group_sigma_gamma_cgs_cm2`` and ``group_epsilon_gamma_cgs_erg``.
 
 For a future hydrogen-plus-helium network, the HDF5 schema should use explicit
 species names, for example:
 
 .. code-block:: text
 
-   group_sigma_gamma_HI_cm2
-   group_epsilon_gamma_HI_erg
-   group_sigma_gamma_HeI_cm2
-   group_epsilon_gamma_HeI_erg
-   group_sigma_gamma_HeII_cm2
-   group_epsilon_gamma_HeII_erg
+   group_sigma_gamma_HI_cgs_cm2
+   group_epsilon_gamma_HI_cgs_erg
+   group_sigma_gamma_HeI_cgs_cm2
+   group_epsilon_gamma_HeI_cgs_erg
+   group_sigma_gamma_HeII_cgs_cm2
+   group_epsilon_gamma_HeII_cgs_erg
 
 This keeps the cross-section and heating data unambiguous when multiple
 absorbers are coupled to the same radiation groups.

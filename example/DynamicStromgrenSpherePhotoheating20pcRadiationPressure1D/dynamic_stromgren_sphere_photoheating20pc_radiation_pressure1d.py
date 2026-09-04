@@ -31,7 +31,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def _radiation_impulse(sim, source_result, dt):
     absorbed = source_result.get("absorbed_photon_rate")
-    energies = source_result.get("photon_energy_erg")
+    energies = source_result.get("photon_energy_cgs_erg")
     if absorbed is None or energies is None:
         return 0.0
     absorbed = np.asarray(absorbed, dtype=float)
@@ -40,14 +40,14 @@ def _radiation_impulse(sim, source_result, dt):
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
     interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     code = CodeUnits.from_mapping(sim.par.CodeUnits)
-    volume_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
     dt_s = float(np.asarray(dt)) * float((1.0 * code.time_unit).to_value(unyt.s))
     absorbed_energy_rate = np.sum(absorbed * energies[:, None], axis=0)
     return float(
         source_result.get("direction", 1)
-        * np.sum(absorbed_energy_rate * volume_cm3 * dt_s)
+        * np.sum(absorbed_energy_rate * volume_cgs_cm3 * dt_s)
         / unyt.c.to_value(unyt.cm / unyt.s)
     )
 
@@ -68,20 +68,20 @@ def _pressure_diagnostics(sim, source_result):
     """
     interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     code = CodeUnits.from_mapping(sim.par.CodeUnits)
-    volume_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
     pressure_cgs = et._to_pressure(sim.fluid.pre_code[interior], sim.par)
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
-    weighted_volume = float(np.sum(volume_cm3 * ionized_weight))
+    weighted_volume = float(np.sum(volume_cgs_cm3 * ionized_weight))
     gas_pressure = (
-        float(np.sum(pressure_cgs * volume_cm3 * ionized_weight) / weighted_volume)
+        float(np.sum(pressure_cgs * volume_cgs_cm3 * ionized_weight) / weighted_volume)
         if weighted_volume > 0.0
         else 0.0
     )
 
     absorbed = source_result.get("absorbed_photon_rate") if source_result else None
-    energies = source_result.get("photon_energy_erg") if source_result else None
+    energies = source_result.get("photon_energy_cgs_erg") if source_result else None
     radiation_pressure = 0.0
     if absorbed is not None and energies is not None:
         absorbed = np.asarray(absorbed, dtype=float)
@@ -89,7 +89,7 @@ def _pressure_diagnostics(sim, source_result):
             absorbed = absorbed[None, :]
         energies = np.atleast_1d(np.asarray(energies, dtype=float))
         absorbed_luminosity = float(
-            np.sum(np.sum(absorbed * energies[:, None], axis=0) * volume_cm3)
+            np.sum(np.sum(absorbed * energies[:, None], axis=0) * volume_cgs_cm3)
         )
         front_kpc = et.ionization_front_position(sim.mesh, sim.fluid, sim.par)
         front_cm = front_kpc * float((1.0 * unyt.kpc).to_value(unyt.cm))
@@ -231,7 +231,7 @@ def main(config_filename=DEFAULT_CONFIG):
             pressure_ratio,
         )),
         delimiter=",",
-        header="time_Myr,radiation_pressure_dyn_cm2,gas_pressure_dyn_cm2,pressure_ratio",
+        header="time_Myr,radiation_pressure_dyn_cgs_cm2,gas_pressure_dyn_cgs_cm2,pressure_ratio",
         comments="",
     )
 

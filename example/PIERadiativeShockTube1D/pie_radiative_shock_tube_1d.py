@@ -77,11 +77,11 @@ def _run_case(
         'metallicity': metallicity,
         'adiabatic': adiabatic,
         'snapshots': snapshots,
-        'initial_density_g_cm3': (
+        'initial_density_cgs_g_cm3': (
             case_icparams['hydrogen_density'].to_value('cm**-3')
             * PROTON_MASS_G / case['thermochemistry']['hydrogen_mass_fraction']
         ),
-        'upstream_velocity_cm_s': case_icparams['collision_velocity'],
+        'upstream_velocity_cgs_cm_s': case_icparams['collision_velocity'],
         'mu': case_icparams['muini'],
     }
 
@@ -89,10 +89,10 @@ def _run_case(
 def _shock_diagnostics(result, table, runparams, icparams):
     snapshot = load_snapshot(result['snapshots'][-1])
     shock_snapshot = load_snapshot(result['snapshots'][1])
-    density = shock_snapshot['density_g_cm3']
-    temperature = shock_snapshot['temperature_K']
-    velocity = shock_snapshot['velocity_cm_s']
-    boundary = shock_snapshot['boundary_cm']
+    density = shock_snapshot['density_cgs_g_cm3']
+    temperature = shock_snapshot['temperature_cgs_K']
+    velocity = shock_snapshot['velocity_cgs_cm_s']
+    boundary = shock_snapshot['boundary_cgs_cm']
     centers = 0.5 * (boundary[1:] + boundary[:-1])
     center = 0.5 * np.max(boundary)
     right = (centers > center) & (centers < center + 0.45 * np.max(boundary))
@@ -128,13 +128,13 @@ def _shock_diagnostics(result, table, runparams, icparams):
             gamma, result['metallicity'], float(runparams['metal_pie_redshift']),
             post_velocity,
         )
-    final_boundary = snapshot['boundary_cm']
+    final_boundary = snapshot['boundary_cgs_cm']
     final_centers = 0.5 * (final_boundary[1:] + final_boundary[:-1])
     final_centers -= center
     hot_layer = (
         (final_centers > 0.0)
         & (final_centers < centers[shock_index] - center)
-        & (snapshot['temperature_K'] > 0.9 * post_temperature)
+        & (snapshot['temperature_cgs_K'] > 0.9 * post_temperature)
     )
     measured_length = (
         centers[shock_index] - np.min(final_centers[hot_layer])
@@ -142,14 +142,14 @@ def _shock_diagnostics(result, table, runparams, icparams):
     )
     result.update({
         'snapshot': snapshot,
-        'shock_radius_cm': centers[shock_index] - 0.5 * np.max(boundary),
-        'upstream_density_g_cm3': upstream_density,
-        'upstream_velocity_cm_s': upstream_velocity,
-        'post_density_g_cm3': post_density,
-        'post_temperature_K': post_temperature,
+        'shock_radius_cgs_cm': centers[shock_index] - 0.5 * np.max(boundary),
+        'upstream_density_cgs_g_cm3': upstream_density,
+        'upstream_velocity_cgs_cm_s': upstream_velocity,
+        'post_density_cgs_g_cm3': post_density,
+        'post_temperature_cgs_K': post_temperature,
         'compression': compression,
         'expected_compression': expected_compression,
-        'expected_post_temperature_K': expected_temperature,
+        'expected_post_temperature_cgs_K': expected_temperature,
         'cooling_length_expected_cm': cooling_length,
         'cooling_length_measured_cm': measured_length,
     })
@@ -162,7 +162,7 @@ def _plot(results, filename):
     for index, result in enumerate(results):
         data = result['snapshot']
         x_kpc = (
-            0.5 * (data['boundary_cm'][1:] + data['boundary_cm'][:-1])
+            0.5 * (data['boundary_cgs_cm'][1:] + data['boundary_cgs_cm'][:-1])
             / KPC_CM
         )
         x_kpc -= 0.5 * np.max(x_kpc)
@@ -170,17 +170,17 @@ def _plot(results, filename):
         label = result['label']
         color = colors[index % len(colors)]
         result['_plot_color'] = color
-        axes[0, 0].plot(x_kpc, data['density_g_cm3'], style, color=color, label=label)
-        axes[0, 1].plot(x_kpc, data['temperature_K'], style, color=color, label=label)
-        axes[1, 0].plot(x_kpc, data['velocity_cm_s'] / 1.0e5, style, color=color, label=label)
+        axes[0, 0].plot(x_kpc, data['density_cgs_g_cm3'], style, color=color, label=label)
+        axes[0, 1].plot(x_kpc, data['temperature_cgs_K'], style, color=color, label=label)
+        axes[1, 0].plot(x_kpc, data['velocity_cgs_cm_s'] / 1.0e5, style, color=color, label=label)
         axes[1, 1].plot(
-            x_kpc, data['temperature_K'] / result['post_temperature_K'],
+            x_kpc, data['temperature_cgs_K'] / result['post_temperature_cgs_K'],
             style, color=color, label=label,
         )
     for result in results:
         if result['adiabatic']:
             continue
-        shock_kpc = result['shock_radius_cm'] / KPC_CM
+        shock_kpc = result['shock_radius_cgs_cm'] / KPC_CM
         expected_kpc = result['cooling_length_expected_cm'] / KPC_CM
         measured_kpc = result['cooling_length_measured_cm'] / KPC_CM
         color = result['_plot_color']
@@ -243,19 +243,19 @@ def main(config_filename=DEFAULT_CONFIG):
     with open(report, 'w', encoding='utf-8') as handle:
         handle.write(
             'case metallicity shock_position_kpc upstream_velocity_km_s '
-            'compression expected_compression post_temperature_K '
-            'expected_post_temperature_K cooling_length_kpc '
+            'compression expected_compression post_temperature_cgs_K '
+            'expected_post_temperature_cgs_K cooling_length_kpc '
             'measured_hot_layer_kpc\n'
         )
         for result in results:
             handle.write(
                 '%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n' % (
                     result['label'], result['metallicity'],
-                    result['shock_radius_cm'] / KPC_CM,
-                    result['upstream_velocity_cm_s'] / 1.0e5,
+                    result['shock_radius_cgs_cm'] / KPC_CM,
+                    result['upstream_velocity_cgs_cm_s'] / 1.0e5,
                     result['compression'], result['expected_compression'],
-                    result['post_temperature_K'],
-                    result['expected_post_temperature_K'],
+                    result['post_temperature_cgs_K'],
+                    result['expected_post_temperature_cgs_K'],
                     result['cooling_length_expected_cm'] / KPC_CM,
                     result['cooling_length_measured_cm'] / KPC_CM,
                 )

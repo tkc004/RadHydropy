@@ -20,25 +20,25 @@ RADIATION_DENSITY_CONSTANT_CGS = float(
 
 
 def cmb_compton_rate(
-    temperature_K,
-    electron_density_cm3,
+    temperature_cgs_K,
+    electron_density_cgs_cm3,
     enabled=False,
     redshift=0.0,
-    cmb_temperature_0_K=2.7255,
+    cmb_temperature_0_cgs_K=2.7255,
 ):
     """Return CMB Compton heating/cooling in ``erg cm^-3 s^-1``.
 
     A positive result heats the gas.  The source is disabled unless
     ``enabled`` is true, so existing runs are unchanged by the new option.
     """
-    temperature_K = np.asarray(temperature_K, dtype=float)
-    electron_density_cm3 = np.asarray(electron_density_cm3, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    electron_density_cgs_cm3 = np.asarray(electron_density_cgs_cm3, dtype=float)
     if not enabled:
-        return np.zeros_like(temperature_K)
+        return np.zeros_like(temperature_cgs_K)
     redshift = float(redshift)
     if redshift < -1.0:
         raise ValueError("compton_cmb_redshift must be greater than or equal to -1")
-    cmb_temperature = float(cmb_temperature_0_K) * (1.0 + redshift)
+    cmb_temperature = float(cmb_temperature_0_cgs_K) * (1.0 + redshift)
     coefficient = (
         4.0
         * THOMSON_CROSS_SECTION_CGS
@@ -47,6 +47,6 @@ def cmb_compton_rate(
         * BOLTZMANN_CONSTANT_CGS
         / (ELECTRON_MASS_CGS * SPEED_OF_LIGHT_CGS**2)
     )
-    return coefficient * electron_density_cm3 * cmb_temperature**4 * (
-        cmb_temperature - temperature_K
+    return coefficient * electron_density_cgs_cm3 * cmb_temperature**4 * (
+        cmb_temperature - temperature_cgs_K
     )

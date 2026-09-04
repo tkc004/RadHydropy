@@ -356,12 +356,12 @@ def plot_specific_angular_momentum_evolution(
 
 def plot_temperature_density_evolution(
     times, density, temperature, filename, bin_count=48, ymin=0.1,
-    density_to_nH_cm3=1.0,
+    density_to_nH_cgs_cm3=1.0,
 ):
     """Plot cell temperature against physical hydrogen number density."""
     rho_values = (
         np.asarray(density, dtype=float).ravel()
-        * float(density_to_nH_cm3)
+        * float(density_to_nH_cgs_cm3)
     )
     temp_values = np.asarray(temperature, dtype=float).ravel()
     valid = (
@@ -808,25 +808,25 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     thermal_rate = np.asarray(rtc.thermal_rate(
         state, rrt.trace_photon_density(state, sim.par), sim.par
     ), dtype=float)
-    rho = np.asarray(state["rho_g_cm3"], dtype=float)
-    specific_energy = np.asarray(state["specific_energy_erg_g"], dtype=float)
-    temperature = np.asarray(state["temperature_K"], dtype=float)
+    rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+    specific_energy = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float)
+    temperature = np.asarray(state["temperature_cgs_K"], dtype=float)
     mu = np.asarray(
         state.get("mu", sim.fluid.mu[int(sim.par.mesh.ghost_cells):int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells)]),
         dtype=float,
     )
-    radius_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
-    velocity_cm_s = np.asarray(
+    radius_cgs_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
+    velocity_cgs_cm_s = np.asarray(
         gas_profile["radial_velocity_physical_km_s"], dtype=float
     ) * 1.0e5
-    divergence = np.gradient(radius_cm**2 * velocity_cm_s, radius_cm) / np.maximum(radius_cm, 1.0e-30)**2
+    divergence = np.gradient(radius_cgs_cm**2 * velocity_cgs_cm_s, radius_cgs_cm) / np.maximum(radius_cgs_cm, 1.0e-30)**2
     rho_dot = -rho * divergence
     sound_speed = np.sqrt(
         float(sim.par.hydrodynamics.gamma) * 1.380649e-16 * np.maximum(temperature, 0.0)
         / (np.maximum(mu, 1.0e-30) * 1.67262192369e-24)
     )
     mach = np.divide(
-        np.abs(velocity_cm_s), sound_speed,
+        np.abs(velocity_cgs_cm_s), sound_speed,
         out=np.full_like(sound_speed, np.nan), where=sound_speed > 0.0,
     )
     # thermal_rate is heating minus cooling; q is defined positive for cooling.
@@ -839,9 +839,9 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
         float(sim.par.hydrodynamics.gamma) - q[valid] / (rho_dot[valid] * specific_energy[valid])
     )
     return {
-        "q_erg_cm3_s": q,
-        "rho_dot_g_cm3_s": rho_dot,
-        "specific_energy_erg_g": specific_energy,
+        "q_cgs_erg_cm3_s": q,
+        "rho_dot_cgs_g_cm3_s": rho_dot,
+        "specific_energy_cgs_erg_g": specific_energy,
         "local_mach": mach,
         "gamma_eff": gamma_eff,
     }
@@ -1163,7 +1163,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
         scale_factor = float(cosmology.scale_factor(cosmic_time))
-        gas_profile["temperature_physical_K"] = (
+        gas_profile["temperature_physical_cgs_K"] = (
             np.asarray(sim.fluid.temp_code[first:last], dtype=float) / scale_factor**2
         )
         if hasattr(sim.fluid, "specific_angular_momentum_code"):
@@ -1207,9 +1207,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             # selection from the same snapshot and cell.  They are the only
             # quantities intended for a local gamma_eff comparison.
             for source_key, report_key in (
-                ("q_erg_cm3_s", "shock_q_erg_cm3_s"),
-                ("rho_dot_g_cm3_s", "shock_rho_dot_g_cm3_s"),
-                ("specific_energy_erg_g", "shock_specific_energy_erg_g"),
+                ("q_cgs_erg_cm3_s", "shock_q_cgs_erg_cm3_s"),
+                ("rho_dot_cgs_g_cm3_s", "shock_rho_dot_cgs_g_cm3_s"),
+                ("specific_energy_cgs_erg_g", "shock_specific_energy_cgs_erg_g"),
                 ("local_mach", "shock_local_mach"),
                 ("gamma_eff", "shock_gamma_eff"),
             ):
@@ -1218,8 +1218,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 )
         else:
             for report_key in (
-                "shock_q_erg_cm3_s", "shock_rho_dot_g_cm3_s",
-                "shock_specific_energy_erg_g", "shock_local_mach",
+                "shock_q_cgs_erg_cm3_s", "shock_rho_dot_cgs_g_cm3_s",
+                "shock_specific_energy_cgs_erg_g", "shock_local_mach",
                 "shock_gamma_eff",
             ):
                 radius_record[report_key] = np.nan
@@ -1449,7 +1449,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     radius = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
     density = np.asarray([item["density_proper_code"] for item in gas_profiles])
     temperature = np.asarray(
-        [item["temperature_physical_K"] for item in gas_profiles]
+        [item["temperature_physical_cgs_K"] for item in gas_profiles]
     )
     velocity = np.asarray(
         [item["velocity_physical_km_s"] for item in gas_profiles]
@@ -1475,7 +1475,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         trimmed = dict(profile)
         for key in (
             "radius_proper_kpc", "density_proper_code",
-            "temperature_physical_K", "velocity_physical_km_s",
+            "temperature_physical_cgs_K", "velocity_physical_km_s",
             "radial_velocity_physical_km_s",
             "specific_angular_momentum",
         ):
@@ -1486,7 +1486,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     splashback_radius = np.asarray(
         [item["rsplashback_kpc"] for item in radius_history]
     )
-    virial_temperature = np.asarray([item["tvir_K"] for item in radius_history])
+    virial_temperature = np.asarray([item["tvir_cgs_K"] for item in radius_history])
     history = {
         key: np.asarray([item[key] for item in radius_history])
         for key in radius_history[0]
@@ -1495,17 +1495,17 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     data_file = output_dir / (figure_prefix + ".npz")
     np.savez(data_file, **history,
              radius_comoving_kpc=radius, density_proper_code=density,
-             temperature_physical_K=temperature,
+             temperature_physical_cgs_K=temperature,
              velocity_physical_km_s=velocity,
              radial_velocity_physical_km_s=radial_velocity,
              specific_angular_momentum=specific_angular_momentum,
-             q_erg_cm3_s=np.asarray([item["q_erg_cm3_s"] for item in gas_profiles]),
-             rho_dot_g_cm3_s=np.asarray([item["rho_dot_g_cm3_s"] for item in gas_profiles]),
-             specific_energy_erg_g=np.asarray([item["specific_energy_erg_g"] for item in gas_profiles]),
+             q_cgs_erg_cm3_s=np.asarray([item["q_cgs_erg_cm3_s"] for item in gas_profiles]),
+             rho_dot_cgs_g_cm3_s=np.asarray([item["rho_dot_cgs_g_cm3_s"] for item in gas_profiles]),
+             specific_energy_cgs_erg_g=np.asarray([item["specific_energy_cgs_erg_g"] for item in gas_profiles]),
              local_mach=np.asarray([item["local_mach"] for item in gas_profiles]),
              gamma_eff=np.asarray([item["gamma_eff"] for item in gas_profiles]),
              rvir_proper_kpc=virial_radius,
-             virial_temperature_K=virial_temperature)
+             virial_temperature_cgs_K=virial_temperature)
     baryon_fraction_figure = output_dir / (
         figure_prefix + "_BaryonMassFraction_TimeEvolution.jpg"
     )
@@ -1688,7 +1688,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
     plot_temperature_density_evolution(
         times, plot_density, plot_temperature, temperature_density_figure, ymin=0.1,
-        density_to_nH_cm3=(
+        density_to_nH_cgs_cm3=(
             float(sim.par.CodeUnits.mass_in_cgs)
             / float(sim.par.CodeUnits.length_in_cgs) ** 3
             * float(icparams["hydrogen_mass_fraction"])

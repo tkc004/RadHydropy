@@ -95,13 +95,13 @@ def hydrostatic_density_profile(
     """
     radius = radius.to(unyt.cm)
     boundaries = boundaries.to(unyt.cm)
-    temperature_K = temperature.to_value(unyt.K)
+    temperature_cgs_K = temperature.to_value(unyt.K)
     potential = nfw_potential(
         radius,
         halo['scale_density'],
         halo['scale_radius'],
     ).to_value(unyt.cm**2 / unyt.s**2)
-    beta = float(mu) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * temperature_K)
+    beta = float(mu) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * temperature_cgs_K)
     shape = np.exp(-beta * (potential - potential[0]))
     shell_volume = 4.0 * np.pi / 3.0 * (
         boundaries[1:].value**3 - boundaries[:-1].value**3
@@ -178,7 +178,7 @@ def read_and_plot(outfilename, icparams, runparams, halo, temperature, figure_fi
     boundary_cgs = code_quantity_to_cgs(
         rout.mesh.boundary,
         code_units,
-        'length_cm',
+        'length_cgs_cm',
     ) * unyt.cm
     radius_all = spherical_cell_centers(boundary_cgs)
     radius = radius_all[nghost:-nghost]
@@ -193,9 +193,9 @@ def read_and_plot(outfilename, icparams, runparams, halo, temperature, figure_fi
         icparams['gas_fraction'],
     )[nghost:-nghost]
     radius_kpc = quantity_to_value(radius, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
-    rho_cgs = code_quantity_to_cgs(rho_code, code_units, 'density_g_cm3')
+    rho_cgs = code_quantity_to_cgs(rho_code, code_units, 'density_cgs_g_cm3')
     rho_expected_cgs = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
-    velocity_km_s = code_quantity_to_cgs(velocity, code_units, 'velocity_cm_s') / 1.0e5
+    velocity_km_s = code_quantity_to_cgs(velocity, code_units, 'velocity_cgs_cm_s') / 1.0e5
 
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.5))
     axes[0].plot(radius_kpc, rho_expected_cgs, color='black', lw=2.0, label='analytic HSE')

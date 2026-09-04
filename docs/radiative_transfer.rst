@@ -237,10 +237,10 @@ containing a ``RadiationSpectrum`` group. RadHydropy reads the group during
 standard datasets are:
 
 * ``group_edges_eV``;
-* ``ionizing_photon_energy_erg``;
+* ``ionizing_photon_energy_cgs_erg``;
 * ``star_emission_rates``;
-* ``group_sigma_gamma_cm2``; and
-* ``group_epsilon_gamma_erg``.
+* ``group_sigma_gamma_cgs_cm2``; and
+* ``group_epsilon_gamma_cgs_erg``.
 
 The group metadata must include ``number_of_radiation_groups`` and
 ``number_of_group_edges``. The optional

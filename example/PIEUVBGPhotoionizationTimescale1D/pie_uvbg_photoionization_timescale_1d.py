@@ -66,7 +66,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     runparams = eu.legacy_example_parameters(nested)
-    icparams = nested['initial_condition']
+    icparams = eu.legacy_initial_condition_parameters(nested)
     output_dir = EXAMPLE_DIR / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     legacy_figure = output_dir / "PIEUVBGPhotoionizationTimescale1D.jpg"
@@ -133,7 +133,7 @@ def main(config_filename=DEFAULT_CONFIG):
             # the saved snapshots from that list.
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[:len(history)]
-            temperature = np.array([item["temperature_K"] for item in history])
+            temperature = np.array([item["temperature_cgs_K"] for item in history])
             timescale_ratio = time_yr / photoionization_timescale_yr
             error = np.abs(temperature - equilibrium_temperature) / equilibrium_temperature
             results.append(

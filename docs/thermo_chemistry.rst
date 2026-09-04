@@ -194,7 +194,7 @@ multigroup retrace. The metal rates are added as
 For HM12 UV-background PIE tables, metal PIE photoheating is disabled by
 default for ``nH > 50 cm^-3`` to represent self-shielded gas, while metal PIE
 cooling remains active. This cutoff is not applied to other PIE tables.
-Configure it with ``metal_pie_photoheating_max_density_cm3`` or set it to
+Configure it with ``metal_pie_photoheating_max_density_cgs_cm3`` or set it to
 ``null`` to disable the HM12 cutoff.
 
 The current table loader supports a singleton metallicity plane. The supplied

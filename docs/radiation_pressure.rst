@@ -54,7 +54,7 @@ Radiation pressure is applied after the thermo-chemistry source step:
 
 Thermo-chemistry calculates the absorbed photon rate and does not update gas
 momentum. ``ApplyRadiationPressure`` consumes the returned
-``absorbed_photon_rate`` and ``photon_energy_erg`` fields. The existing
+``absorbed_photon_rate`` and ``photon_energy_cgs_erg`` fields. The existing
 radiative-transfer update remains before thermo-chemistry for the ordinary
 instantaneous scheme, and the C\ :sup:`2`-Ray temporal scheme remains selected
 and handled by its normal source path.

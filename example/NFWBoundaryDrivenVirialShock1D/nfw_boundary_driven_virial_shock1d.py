@@ -150,7 +150,7 @@ def _write_adiabatic_energy_audit(files, code_units, filename):
     gravity_work = (final[3] - initial[3]) * energy_scale
     residual = delta_energy - boundary_work - gravity_work
     with Path(filename).open('w', encoding='utf-8') as stream:
-        stream.write('quantity value_erg\n')
+        stream.write('quantity value_cgs_erg\n')
         stream.write(f'initial_gas_energy {initial[1]:.12e}\n')
         stream.write(f'final_gas_energy {final[1]:.12e}\n')
         stream.write(f'delta_gas_energy {delta_energy:.12e}\n')

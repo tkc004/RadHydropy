@@ -3,22 +3,22 @@
 import numpy as np
 
 from radhydropy.constants import (
-    DEFAULT_EPSILON_GAMMA,
-    DEFAULT_SIGMA_GAMMA,
+    DEFAULT_EPSILON_GAMMA_CGS_ERG,
+    DEFAULT_SIGMA_GAMMA_CGS_CM2,
 )
 
 
-def photon_cross_section(sigma_gamma=DEFAULT_SIGMA_GAMMA):
+def photon_cross_section(sigma_gamma=DEFAULT_SIGMA_GAMMA_CGS_CM2):
     """Return the photon absorption cross-section in cgs ``cm**2`` units."""
     if sigma_gamma is None:
-        return DEFAULT_SIGMA_GAMMA
+        return DEFAULT_SIGMA_GAMMA_CGS_CM2
     return np.asarray(sigma_gamma, dtype=float)
 
 
-def photon_excess_energy(epsilon_gamma=DEFAULT_EPSILON_GAMMA):
+def photon_excess_energy(epsilon_gamma=DEFAULT_EPSILON_GAMMA_CGS_ERG):
     """Return photoheating energy per ionization in cgs ``erg`` units."""
     if epsilon_gamma is None:
-        return DEFAULT_EPSILON_GAMMA
+        return DEFAULT_EPSILON_GAMMA_CGS_ERG
     return np.asarray(epsilon_gamma, dtype=float)
 
 

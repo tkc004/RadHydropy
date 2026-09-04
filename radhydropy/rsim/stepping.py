@@ -266,7 +266,7 @@ def Step(
     if source_integrator == 'strang' and mode != 'hydro':
         raise ValueError("source_integrator='strang' requires mode='hydro'")
     dt = sim.GetStepTime(dt=dt)
-    temperature_before = diagnostics.temperature_physical_K(sim)
+    temperature_before = diagnostics.temperature_physical_cgs_K(sim)
     if temperature_before is not None:
         temperature_before = temperature_before.copy()
     sim.last_hydro_boundary_energy_flux = 0.0

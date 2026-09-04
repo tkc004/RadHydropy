@@ -49,7 +49,7 @@ def _snapshot(filename):
         }
 
 
-def _run_case(runparams, icparams, label, hydrogen_density_cm3, table):
+def _run_case(runparams, icparams, label, hydrogen_density_cgs_cm3, table):
     case = dict(runparams)
     output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -63,7 +63,7 @@ def _run_case(runparams, icparams, label, hydrogen_density_cm3, table):
     case_icparams["proton_mass_g"] = float(unyt.mp.to_value(unyt.g))
     case_icparams["vini"] = 0.0 * unyt.cm / unyt.s
     code_units = CodeUnits.from_mapping(case["CodeUnits"])
-    ric = Simwrap(case_icparams, code_units, hydrogen_density_cm3)
+    ric = Simwrap(case_icparams, code_units, hydrogen_density_cgs_cm3)
     rio.writehdf5(ric, case["ICfilename"])
 
     runtime_only = {
@@ -82,16 +82,16 @@ def _run_case(runparams, icparams, label, hydrogen_density_cm3, table):
     temperature = float(case_icparams["tempini"].to_value(unyt.K))
     heating, cooling = table.rates(
         temperature,
-        hydrogen_density_cm3,
+        hydrogen_density_cgs_cm3,
         metallicity=case["metallicity"],
         redshift=case["metal_pie_redshift"],
     )
-    if hydrogen_density_cm3 > case["metal_pie_photoheating_max_density_cm3"]:
+    if hydrogen_density_cgs_cm3 > case["metal_pie_photoheating_max_density_cgs_cm3"]:
         heating_used = 0.0
     else:
         heating_used = heating
     print(
-        f"{label}: nH={hydrogen_density_cm3:g} cm^-3, "
+        f"{label}: nH={hydrogen_density_cgs_cm3:g} cm^-3, "
         f"table heating={heating:.6e}, used heating={heating_used:.6e}, "
         f"cooling={cooling:.6e}, net={heating_used - cooling:.6e} "
         "erg cm^-3 s^-1"
@@ -103,7 +103,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     runparams = eu.legacy_example_parameters(nested)
-    icparams = nested['initial_condition']
+    icparams = eu.legacy_initial_condition_parameters(nested)
     table_path = (config_filename.parent / runparams["metal_pie_table_filename"]).resolve()
     runparams["metal_pie_table_filename"] = str(table_path)
     table = MetalPIETable(table_path)

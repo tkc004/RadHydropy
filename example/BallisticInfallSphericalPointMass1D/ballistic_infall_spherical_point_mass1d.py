@@ -37,7 +37,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    ICparams = nested['initial_condition']
+    ICparams = eu.legacy_initial_condition_parameters(nested)
     runparams = eu.legacy_example_parameters(nested)
     eu.clean_previous_outputs(runtime['output'])
     code_units_obj = CodeUnits.from_mapping(runtime['units']['CodeUnits'])

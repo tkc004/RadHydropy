@@ -44,10 +44,10 @@ physical units of the spectrum data.
 The file contains a ``RadiationSpectrum`` group with:
 
 * ``group_edges_eV``;
-* ``ionizing_photon_energy_erg``;
+* ``ionizing_photon_energy_cgs_erg``;
 * ``star_emission_rates``;
-* ``group_sigma_gamma_cm2``;
-* ``group_epsilon_gamma_erg``.
+* ``group_sigma_gamma_cgs_cm2``;
+* ``group_epsilon_gamma_cgs_erg``.
 
 The group attributes include the number of radiation groups and group edges,
 spectrum type, blackbody temperature, and absorber. A matching file can be

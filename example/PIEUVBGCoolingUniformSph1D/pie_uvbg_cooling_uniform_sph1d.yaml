@@ -38,7 +38,7 @@ par:
     metal_pie_enabled: true
     metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
     metal_pie_redshift: 4.0
-    metal_pie_photoheating_max_density_cm3: 50.0
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0
     metallicity: 1.0
     hydrogen_mass_fraction: 0.7
     cooling_safety_factor: 0.1

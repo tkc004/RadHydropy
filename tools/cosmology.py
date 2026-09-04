@@ -10,9 +10,9 @@ from dataclasses import dataclass
 import numpy as np
 
 
-_KM_PER_MPC = 3.0856775814913673e19
+_cgs_KM_PER_MPC = 3.0856775814913673e19
 _SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
-_G_MPC_KMS_MSUN = 4.300917270e-9
+_G_MPC_cgs_KMS_MSUN = 4.300917270e-9
 
 
 def _validate_flat_parameters(omega_m, omega_lambda):
@@ -45,7 +45,7 @@ class EinsteinDeSitter:
 
     @property
     def hubble_0_gyr(self):
-        return self.hubble_0 / _KM_PER_MPC * _SECONDS_PER_GYR
+        return self.hubble_0 / _cgs_KM_PER_MPC * _SECONDS_PER_GYR
 
     def scale_factor(self, cosmic_time):
         time = np.asarray(cosmic_time, dtype=float)
@@ -64,7 +64,7 @@ class EinsteinDeSitter:
 
     def critical_density(self, cosmic_time):
         h = self.hubble(cosmic_time)
-        return 3.0 * h**2 / (8.0 * np.pi * _G_MPC_KMS_MSUN)
+        return 3.0 * h**2 / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN)
 
     def matter_density(self, cosmic_time):
         return self.critical_density(cosmic_time)
@@ -102,7 +102,7 @@ class LambdaCDM:
 
     @property
     def hubble_0_gyr(self):
-        return self.hubble_0 / _KM_PER_MPC * _SECONDS_PER_GYR
+        return self.hubble_0 / _cgs_KM_PER_MPC * _SECONDS_PER_GYR
 
     @property
     def age_0(self):
@@ -137,12 +137,12 @@ class LambdaCDM:
 
     def critical_density(self, cosmic_time):
         h = self.hubble(cosmic_time)
-        return 3.0 * h**2 / (8.0 * np.pi * _G_MPC_KMS_MSUN)
+        return 3.0 * h**2 / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN)
 
     def matter_density(self, cosmic_time):
         return (
             3.0 * self.hubble_0**2 * self.omega_m
-            / (8.0 * np.pi * _G_MPC_KMS_MSUN)
+            / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN)
             / self.scale_factor(cosmic_time) ** 3
         )
 
@@ -150,7 +150,7 @@ class LambdaCDM:
         return np.full_like(
             np.asarray(cosmic_time, dtype=float),
             3.0 * self.hubble_0**2 * self.omega_lambda
-            / (8.0 * np.pi * _G_MPC_KMS_MSUN),
+            / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN),
         )
 
     def background_density(self, cosmic_time):

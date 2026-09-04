@@ -55,7 +55,7 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
         softening = (
             softening.to_value(unyt.cm)
             if hasattr(softening, "to_value")
-            else float(softening) * scales["length_cm"]
+            else float(softening) * scales["length_cgs_cm"]
         )
         coord_unit = code_units.length_unit
         accel_unit = ACCELERATION_UNIT
@@ -80,7 +80,7 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
             else np.asarray(coordinate, dtype=float)
         )
         if code_units is not None:
-            radius = radius * scales["length_cm"]
+            radius = radius * scales["length_cgs_cm"]
         radius = np.maximum(radius, softening)
         return (
             -GRAVITATIONAL_CONSTANT_CGS * point_mass / radius**2
@@ -185,10 +185,10 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
     rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
     vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units)
-    xcoord_cgs = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm')
-    rho_num_cgs = code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
+    xcoord_cgs = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm')
+    rho_num_cgs = code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
     rho_analytic_cgs = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_cgs = code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cm_s')
+    vel_num_cgs = code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cgs_cm_s')
     vel_analytic_cgs = quantity_to_value(vel_analytic, unyt.cm / unyt.s)
     zero_velocity_cgs = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 

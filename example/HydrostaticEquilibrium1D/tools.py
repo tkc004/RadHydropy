@@ -51,7 +51,7 @@ def sound_speed_squared(temp, mu, code_units=None):
     if hasattr(temp, "to_value"):
         temp_value = float(temp.to_value(unyt.K))
     elif code_units is not None:
-        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_K"]
+        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_cgs_K"]
     else:
         temp_value = float(temp)
     mu_value = float(np.asarray(mu, dtype=float))
@@ -76,19 +76,19 @@ def hydrostatic_density_profile(
     if hasattr(coordinate, "to_value"):
         coord_value = coordinate.to_value(unyt.cm)
     elif code_units is not None:
-        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cm"]
+        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
     else:
         coord_value = np.asarray(coordinate, dtype=float)
     if hasattr(rho_ref, "to_value"):
         rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
     elif code_units is not None:
-        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_g_cm3"]
+        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_cgs_g_cm3"]
     else:
         rho_value = float(rho_ref)
     if hasattr(gravity_strength, "to_value"):
         gravity_value = gravity_strength.to_value(unyt.cm / unyt.s**2)
     elif code_units is not None:
-        gravity_value = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cm_s2"]
+        gravity_value = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cgs_cm_s2"]
     else:
         gravity_value = float(gravity_strength)
     scale_height = c_s2_value / gravity_value
@@ -101,7 +101,7 @@ def constant_gravity_acceleration(gravity_strength, code_units=None):
     if hasattr(gravity_strength, "to_value"):
         gravity_strength = gravity_strength.to_value(unyt.cm / unyt.s**2)
     elif code_units is not None:
-        gravity_strength = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cm_s2"]
+        gravity_strength = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cgs_cm_s2"]
     else:
         gravity_strength = float(gravity_strength)
     gravity_strength = float(np.asarray(gravity_strength, dtype=float))
@@ -209,13 +209,13 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
         x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
         rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
         vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units)
-        xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm') * unyt.cm
+        xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm') * unyt.cm
         rho_num_plot = (
-            code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
+            code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
             * (unyt.g / unyt.cm**3)
         )
         vel_num_plot = (
-            code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cm_s')
+            code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cgs_cm_s')
             * (unyt.cm / unyt.s)
         )
     else:

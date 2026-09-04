@@ -30,10 +30,10 @@ RadHydropy reads ``radiation_spectrum_filename`` during startup. The HDF5
 group ``RadiationSpectrum`` contains:
 
 * ``group_edges_eV``;
-* ``ionizing_photon_energy_erg``;
+* ``ionizing_photon_energy_cgs_erg``;
 * ``star_emission_rates``;
-* ``group_sigma_gamma_cm2``;
-* ``group_epsilon_gamma_erg``.
+* ``group_sigma_gamma_cgs_cm2``;
+* ``group_epsilon_gamma_cgs_erg``.
 
 Its attributes include ``number_of_radiation_groups``,
 ``number_of_group_edges``, spectrum type, blackbody temperature, and absorber.

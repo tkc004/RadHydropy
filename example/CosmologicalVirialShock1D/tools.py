@@ -165,12 +165,12 @@ def density_contrast_profile(
     return amplitude * xi, amplitude * mean_xi
 
 
-def pie_temperature(table, hydrogen_density_cm3, redshift, fallback=1.0e4):
+def pie_temperature(table, hydrogen_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
     temperature = 10.0**logt
     heating, cooling = table.rates(
-        temperature, hydrogen_density_cm3, metallicity=1.0, redshift=redshift
+        temperature, hydrogen_density_cgs_cm3, metallicity=1.0, redshift=redshift
     )
     net = np.asarray(heating) - np.asarray(cooling)
     crossings = np.flatnonzero(net[:-1] * net[1:] <= 0.0)
@@ -640,7 +640,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         "rsplashback_kpc": rsplashback,
         "rdisc_kpc": rdisc,
         "mvir": mvir,
-        "tvir_K": tvir,
+        "tvir_cgs_K": tvir,
         "mshock": float(total_mass_at(rshock)) if np.isfinite(rshock) else np.nan,
         "mdisc": float(total_mass_at(rdisc)),
     }

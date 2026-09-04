@@ -29,7 +29,7 @@ def _to_kpc(values, par):
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
-        code_quantity_to_cgs(values, code, 'length_cm') / (1.0 * unyt.kpc).to_value(unyt.cm),
+        code_quantity_to_cgs(values, code, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm),
         dtype=float,
     )
 
@@ -53,7 +53,7 @@ def _to_km_s(values, par):
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
-        code_quantity_to_cgs(values, code, 'velocity_cm_s') / (1.0 * unyt.km).to_value(unyt.cm),
+        code_quantity_to_cgs(values, code, 'velocity_cgs_cm_s') / (1.0 * unyt.km).to_value(unyt.cm),
         dtype=float,
     )
 
@@ -66,7 +66,7 @@ def _to_number_density(values, par):
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
-        code_quantity_to_cgs(values, code, 'density_g_cm3') / (1.0 * unyt.mp).to_value(unyt.g),
+        code_quantity_to_cgs(values, code, 'density_cgs_g_cm3') / (1.0 * unyt.mp).to_value(unyt.g),
         dtype=float,
     )
 
@@ -77,7 +77,7 @@ def _to_pressure(values, par):
     code = getattr(par, 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(code_quantity_to_cgs(values, code, 'pressure_erg_cm3'), dtype=float)
+    return np.asarray(code_quantity_to_cgs(values, code, 'pressure_cgs_erg_cm3'), dtype=float)
 
 
 def _to_temperature(values, par):
@@ -86,7 +86,7 @@ def _to_temperature(values, par):
     code = getattr(par, 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
-    return np.asarray(code_quantity_to_cgs(values, code, 'temperature_K'), dtype=float)
+    return np.asarray(code_quantity_to_cgs(values, code, 'temperature_cgs_K'), dtype=float)
 
 
 def load_parameters(config_filename, rundir=None, clean_previous_outputs=True):
@@ -294,14 +294,14 @@ def append_history(history, mesh, fluid, par):
             neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
         )
     )
-    history['mean_ionized_temperature_K'].append(mean_ionized_temperature(fluid, par))
+    history['mean_ionized_temperature_cgs_K'].append(mean_ionized_temperature(fluid, par))
 
 
 def load_history_from_outputs(outputfilenames, config):
     history = {
         'time_Myr': [],
         'front_radius_kpc': [],
-        'mean_ionized_temperature_K': [],
+        'mean_ionized_temperature_cgs_K': [],
     }
     for outputfilename in outputfilenames:
         par, mesh, fluid = load_output_state(outputfilename, config)

@@ -60,7 +60,7 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     boundary = np.asarray(rout.mesh.boundary, dtype=float)
     x_center = 0.5 * (boundary[1:] + boundary[:-1]) * code_units_obj.length_unit
-    rho_num = code_quantity_to_cgs(rout.fluid.rho_code, code_units_obj, 'density_g_cm3')
+    rho_num = code_quantity_to_cgs(rout.fluid.rho_code, code_units_obj, 'density_cgs_g_cm3')
     rho_num = rho_num * (1.0 * runparams['boundary']['outflow_density'].units)
     rho_ana = oa.density_profile(
         x_center,

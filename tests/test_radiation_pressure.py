@@ -53,7 +53,7 @@ def source_result(absorbed, energies, direction=1):
     return {
         "source_steps": 1,
         "absorbed_photon_rate": np.asarray(absorbed, dtype=float),
-        "photon_energy_erg": np.asarray(energies, dtype=float),
+        "photon_energy_cgs_erg": np.asarray(energies, dtype=float),
         "direction": direction,
     }
 

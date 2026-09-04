@@ -38,7 +38,7 @@ def sound_speed_squared(temp, mu, code_units=None):
     if hasattr(temp_code, "to_value"):
         temp_value = float(temp.to_value(unyt.K))
     elif code_units is not None:
-        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_K"]
+        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_cgs_K"]
     else:
         temp_value = float(temp)
     mu_value = float(np.asarray(mu, dtype=float))
@@ -75,13 +75,13 @@ def point_mass_hydrostatic_density_profile(
     if hasattr(coordinate, "to_value"):
         coord_value = coordinate.to_value(unyt.cm)
     elif code_units is not None:
-        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cm"]
+        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
     else:
         coord_value = np.asarray(coordinate, dtype=float)
     if hasattr(reference_radius, "to_value"):
         reference_radius_value = reference_radius.to_value(unyt.cm)
     elif code_units is not None:
-        reference_radius_value = np.asarray(reference_radius, dtype=float) * code_unit_scales(code_units)["length_cm"]
+        reference_radius_value = np.asarray(reference_radius, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
     else:
         reference_radius_value = float(reference_radius)
     if hasattr(point_mass, "to_value"):
@@ -93,7 +93,7 @@ def point_mass_hydrostatic_density_profile(
     if hasattr(rho_ref, "to_value"):
         rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
     elif code_units is not None:
-        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_g_cm3"]
+        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_cgs_g_cm3"]
     else:
         rho_value = float(rho_ref)
     phi_ref = -GRAVITATIONAL_CONSTANT_CGS * point_mass_value / reference_radius_value
@@ -113,7 +113,7 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
     if hasattr(softening, "to_value"):
         softening = softening.to_value(unyt.cm)
     elif code_units is not None:
-        softening = np.asarray(softening, dtype=float) * code_unit_scales(code_units)["length_cm"]
+        softening = np.asarray(softening, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
     else:
         softening = float(softening)
 
@@ -121,7 +121,7 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
         if hasattr(coordinate, "to_value"):
             radius = coordinate.to_value(unyt.cm)
         elif code_units is not None:
-            radius = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cm"]
+            radius = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
         else:
             radius = np.asarray(coordinate, dtype=float)
         radius = np.maximum(radius, softening)
@@ -212,10 +212,10 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units if code_units_obj is not None else unyt.cm)
     rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units if code_units_obj is not None else unyt.g / unyt.cm**3)
     vel_units = getattr(vel_num, 'units', code_units_obj.velocity_unit.units if code_units_obj is not None else unyt.cm / unyt.s)
-    xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cm')
-    rho_num_plot = code_quantity_to_cgs(rho_num, code_units_obj, 'density_g_cm3')
+    xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm')
+    rho_num_plot = code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
     rho_analytic_plot = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_plot = code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cm_s')
+    vel_num_plot = code_quantity_to_cgs(vel_num, code_units_obj, 'velocity_cgs_cm_s')
     zero_velocity_plot = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
 
     plt.subplot(1, 2, 1)

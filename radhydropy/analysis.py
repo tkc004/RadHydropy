@@ -30,17 +30,17 @@ def rplot1d(rsim, yquan='rho_code',showfig=1,showhalf=0,**kwargs):
         xlabel = r'$' + xq.in_cgs().units.latex_repr + '$'
         ylabel = r'$' + yq.in_cgs().units.latex_repr + '$'
     else:
-        xb = np.asarray(rsim.mesh.boundary, dtype=float) * scales["length_cm"] * unyt.cm
+        xb = np.asarray(rsim.mesh.boundary, dtype=float) * scales["length_cgs_cm"] * unyt.cm
         xq = 0.5 * (xb[1:] + xb[:-1])
         yraw = np.asarray(getattr(rsim.fluid, yquan), dtype=float)
         if yquan == 'rho_code':
-            yq = yraw * scales["density_g_cm3"] * (unyt.g / unyt.cm**3)
+            yq = yraw * scales["density_cgs_g_cm3"] * (unyt.g / unyt.cm**3)
             ylabel = r'$\\rho$'
         elif yquan == 'vel_code':
-            yq = yraw * scales["velocity_cm_s"] * (unyt.cm / unyt.s)
+            yq = yraw * scales["velocity_cgs_cm_s"] * (unyt.cm / unyt.s)
             ylabel = r'$v$'
         elif yquan == 'pre_code':
-            yq = yraw * scales["pressure_erg_cm3"] * (unyt.erg / unyt.cm**3)
+            yq = yraw * scales["pressure_cgs_erg_cm3"] * (unyt.erg / unyt.cm**3)
             ylabel = r'$P$'
         else:
             yq = yraw

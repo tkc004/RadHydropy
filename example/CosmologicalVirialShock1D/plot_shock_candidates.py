@@ -80,7 +80,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     comoving_radius = np.asarray(data["radius_comoving_kpc"], dtype=float)
     proper_radius = comoving_radius[None, :] * scale[:, None]
     density = np.asarray(data["density_proper_code"], dtype=float)
-    temperature = np.asarray(data["temperature_physical_K"], dtype=float)
+    temperature = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
     velocity = np.asarray(data["radial_velocity_physical_km_s"], dtype=float)
     count = max(3, comoving_radius.size - max(0, int(exclude_outer_cells)))
     comoving_radius, proper_radius, density, temperature, velocity = (

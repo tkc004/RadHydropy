@@ -123,7 +123,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 runparams['alpha_B_coefficient'],
             ).to(unyt.kpc)
         )
-    print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_K'][-1])
+    print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_cgs_K'][-1])
     print('front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('evolution steps = %d' % history['evolution_steps'])
     print('IC file = %s' % runparams['ICfilename'])

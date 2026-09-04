@@ -56,19 +56,19 @@ def _write_power_law_table(filename):
 
 def _state():
     state = {
-        "rho_g_cm3": np.array([PROTON_MASS_CGS]),
+        "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS]),
         "hydrogen_mass_fraction": 0.75,
         "helium_mass_fraction": 0.25,
-        "temperature_K": np.array([1.0e4]),
+        "temperature_cgs_K": np.array([1.0e4]),
         "xHI": np.array([0.8]),
         "xHeI": np.array([0.7]),
         "xHeIII": np.array([0.0]),
-        "sigma_gamma_cm2": {
+        "sigma_gamma_cgs_cm2": {
             "HI": np.array([1.0e-18, 2.0e-19]),
             "HeI": np.array([3.0e-18, 4.0e-19]),
             "HeII": np.array([0.0, 5.0e-19]),
         },
-        "epsilon_gamma_erg": {
+        "epsilon_gamma_cgs_erg": {
             "HI": np.array([1.0e-12, 2.0e-12]),
             "HeI": np.array([3.0e-12, 4.0e-12]),
             "HeII": np.array([0.0, 5.0e-12]),
@@ -81,8 +81,8 @@ def _state():
 def test_supplied_metal_pie_table_interpolates_finite_rates():
     table = MetalPIETable(TABLE_FILENAME)
     heating, cooling = table.rates(
-        temperature_K=np.array([1.0e4, 1.0e5]),
-        hydrogen_density_cm3=np.array([1.0e-3, 1.0e-3]),
+        temperature_cgs_K=np.array([1.0e4, 1.0e5]),
+        hydrogen_density_cgs_cm3=np.array([1.0e-3, 1.0e-3]),
         ionization_parameter=np.array([1.0e-3, 1.0e-3]),
         metallicity=1.0,
     )
@@ -140,10 +140,10 @@ def test_pie_rates_use_sum_of_multigroup_photon_density(tmp_path):
     state_with_pie = _state()
     state_with_pie["metal_pie_table"] = MetalPIETable(filename)
     state_with_pie["metallicity"] = 1.0
-    ngamma = np.array([[1.0e-4], [2.0e-4]])
-    no_pie_rate = _rates(state_without_pie, ngamma)[3]
-    pie_rate = _rates(state_with_pie, ngamma)[3]
-    n_h = state_with_pie["rho_g_cm3"] * 0.75 / PROTON_MASS_CGS
+    ngamma_cgs_cm3 = np.array([[1.0e-4], [2.0e-4]])
+    no_pie_rate = _rates(state_without_pie, ngamma_cgs_cm3)[3]
+    pie_rate = _rates(state_with_pie, ngamma_cgs_cm3)[3]
+    n_h = state_with_pie["rho_cgs_g_cm3"] * 0.75 / PROTON_MASS_CGS
     expected_metal_heating = (1.0e4 * n_h**2 * (3.0e-4 / n_h) ** 3)
     expected_metal_cooling = (1.0e8 * n_h * (3.0e-4 / n_h) ** 0.5)
     np.testing.assert_allclose(
@@ -158,9 +158,9 @@ def test_pie_heating_and_cooling_have_correct_energy_sign(tmp_path):
     state = _state()
     state["metal_pie_table"] = MetalPIETable(filename)
     state["metallicity"] = 1.0
-    ngamma = np.array([[1.0e-6], [2.0e-6]])
-    rate_with_pie = _rates(state, ngamma)[3]
-    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma)[3]
+    ngamma_cgs_cm3 = np.array([[1.0e-6], [2.0e-6]])
+    rate_with_pie = _rates(state, ngamma_cgs_cm3)[3]
+    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma_cgs_cm3)[3]
     # At this state the synthetic cooling dominates, so PIE must reduce the
     # thermal rate. Reversing the table rates should reverse the sign.
     assert np.all(rate_with_pie < rate_without_pie)
@@ -177,16 +177,16 @@ def test_pie_self_shielding_disables_heating_but_keeps_cooling(tmp_path):
         del axes["log10_ionization_parameter"]
         axes.create_dataset("redshift", data=[0.0, 1.0, 2.0])
     state = _state()
-    state["rho_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
+    state["rho_cgs_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
     state["metal_pie_table"] = MetalPIETable(filename)
     state["metallicity"] = 1.0
-    ngamma = np.array([[1.0e-6], [2.0e-6]])
+    ngamma_cgs_cm3 = np.array([[1.0e-6], [2.0e-6]])
 
-    rate_with_pie = _rates(state, ngamma)[3]
-    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma)[3]
-    n_h = state["rho_g_cm3"] * 0.75 / PROTON_MASS_CGS
+    rate_with_pie = _rates(state, ngamma_cgs_cm3)[3]
+    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma_cgs_cm3)[3]
+    n_h = state["rho_cgs_g_cm3"] * 0.75 / PROTON_MASS_CGS
     _, expected_metal_cooling = state["metal_pie_table"].rates(
-        state["temperature_K"], n_h, metallicity=1.0, redshift=0.0
+        state["temperature_cgs_K"], n_h, metallicity=1.0, redshift=0.0
     )
     np.testing.assert_allclose(
         rate_with_pie - rate_without_pie, -expected_metal_cooling
@@ -197,17 +197,17 @@ def test_non_hm12_pie_keeps_heating_above_density_cutoff(tmp_path):
     filename = tmp_path / "power_law.h5"
     _write_power_law_table(filename)
     state = _state()
-    state["rho_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
+    state["rho_cgs_g_cm3"] = np.array([100.0 * PROTON_MASS_CGS / 0.75])
     state["metal_pie_table"] = MetalPIETable(filename)
     state["metallicity"] = 1.0
-    ngamma = np.array([[1.0e-6], [2.0e-6]])
+    ngamma_cgs_cm3 = np.array([[1.0e-6], [2.0e-6]])
 
-    rate_with_pie = _rates(state, ngamma)[3]
-    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma)[3]
-    n_h = state["rho_g_cm3"] * 0.75 / PROTON_MASS_CGS
-    ionization_parameter = np.sum(ngamma, axis=0) / n_h
+    rate_with_pie = _rates(state, ngamma_cgs_cm3)[3]
+    rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma_cgs_cm3)[3]
+    n_h = state["rho_cgs_g_cm3"] * 0.75 / PROTON_MASS_CGS
+    ionization_parameter = np.sum(ngamma_cgs_cm3, axis=0) / n_h
     expected_heating, expected_cooling = state["metal_pie_table"].rates(
-        state["temperature_K"], n_h, ionization_parameter
+        state["temperature_cgs_K"], n_h, ionization_parameter
     )
     np.testing.assert_allclose(
         rate_with_pie - rate_without_pie,
@@ -239,7 +239,7 @@ def test_pie_uvbg_implicit_step_converges_against_half_steps():
             (),
             {
                 "metal_pie_table": table,
-                "metal_pie_photoheating_max_density_cm3": 50.0,
+                "metal_pie_photoheating_max_density_cgs_cm3": 50.0,
                 "pie_uvbg_implicit_tolerance": 1.0e-3,
                 "pie_uvbg_implicit_max_iterations": 64,
             },
@@ -247,15 +247,15 @@ def test_pie_uvbg_implicit_step_converges_against_half_steps():
         "metallicity": 1.0,
         "redshift": 4.0,
         "hydrogen_mass_fraction": 0.7,
-        "rho_g_cm3": np.array([PROTON_MASS_CGS / 0.7]),
-        "temperature_K": np.array([temperature]),
-        "specific_energy_erg_g": np.array(
+        "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS / 0.7]),
+        "temperature_cgs_K": np.array([temperature]),
+        "specific_energy_cgs_erg_g": np.array(
             [BOLTZMANN_CONSTANT_CGS * temperature / ((gamma - 1.0) * mu[0] * PROTON_MASS_CGS)]
         ),
         "gamma": gamma,
         "mu": mu,
     }
-    old_energy = state["specific_energy_erg_g"].copy()
+    old_energy = state["specific_energy_cgs_erg_g"].copy()
     new_energy, converged = network._implicit_converged_step(
         state, old_energy, 1.0e10, 100.0
     )

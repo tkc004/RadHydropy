@@ -20,8 +20,8 @@ def test_shock_radius_finds_density_jump():
     density = np.ones(11) * 1.0e-27
     density[5:] = 4.0e-27
     snapshot = {
-        'boundary_cm': radius,
-        'density_g_cm3': density,
+        'boundary_cgs_cm': radius,
+        'density_cgs_g_cm3': density,
     }
     assert np.isclose(TOOLS.shock_radius(snapshot), 4.68, atol=0.05)
 

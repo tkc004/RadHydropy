@@ -56,12 +56,12 @@ def _write_initial_condition(runparams, icparams):
         ghost_cells=runparams["mesh"]["ghost_cells"],
     )
     boxsize_cm = icparams["box_size"].to_value(unyt.cm)
-    volume_cm3 = boxsize_cm**3
+    volume_cgs_cm3 = boxsize_cm**3
     mesh = SimpleNamespace(
         boundary=np.array([0.0, boxsize_cm]) * unyt.cm,
     )
     fluid = SimpleNamespace(
-        rho_code=np.array([shell_mass / volume_cm3]) * unyt.g / unyt.cm**3,
+        rho_code=np.array([shell_mass / volume_cgs_cm3]) * unyt.g / unyt.cm**3,
         vel_code=np.array([0.0]) * unyt.cm / unyt.s,
         temp_code=np.array([icparams["temperature"].to_value(unyt.K)]) * unyt.K,
         mu=np.array([1.0]),
@@ -72,7 +72,7 @@ def _write_initial_condition(runparams, icparams):
     )
 
 
-def _source_step(sim, shell_state, luminosity, photon_energy_erg, dt, **kwargs):
+def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwargs):
     """Advance one source-only RadHydropy timestep.
 
     The shell has one fixed control volume.  We intentionally do not call a
@@ -82,11 +82,11 @@ def _source_step(sim, shell_state, luminosity, photon_energy_erg, dt, **kwargs):
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     volume = float(np.asarray(sim.mesh.vol[sim.par.noghost], dtype=float))
-    absorbed_rate = luminosity / photon_energy_erg / volume
+    absorbed_rate = luminosity / photon_energy_cgs_erg / volume
     source_result = {
         "source_steps": 1,
         "absorbed_photon_rate": np.array([absorbed_rate]),
-        "photon_energy_erg": np.array([photon_energy_erg]),
+        "photon_energy_cgs_erg": np.array([photon_energy_cgs_erg]),
         "direction": 1,
     }
     sim.solver.ApplyRadiationPressure(
@@ -118,7 +118,7 @@ def main(config_filename=DEFAULT_CONFIG):
     luminosity = runparams["radiation"]["radiation_pressure_source_luminosity"].to_value(
         unyt.erg / unyt.s
     )
-    photon_energy_erg = (20.0 * unyt.eV).to_value(unyt.erg)
+    photon_energy_cgs_erg = (20.0 * unyt.eV).to_value(unyt.erg)
     shell_mass = icparams["shell_mass"].to_value(unyt.g)
     shell_state = {
         "radius": icparams["initial_radius"].to_value(unyt.cm),
@@ -139,7 +139,7 @@ def main(config_filename=DEFAULT_CONFIG):
             sim,
             shell_state,
             luminosity,
-            photon_energy_erg,
+            photon_energy_cgs_erg,
             dt,
             **kwargs,
         )
@@ -155,14 +155,14 @@ def main(config_filename=DEFAULT_CONFIG):
     time_s = np.asarray(history["time"]) * float(
         (1.0 * sim.par.CodeUnits.time_unit).to_value(unyt.s)
     )
-    radius_cm = np.asarray(history["radius"])
+    radius_cgs_cm = np.asarray(history["radius"])
     momentum = np.asarray(history["momentum"]) * float(
         (1.0 * sim.par.CodeUnits.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s)
     )
     force = luminosity / SPEED_OF_LIGHT
     expected_momentum = force * time_s
     acceleration = force / shell_mass
-    expected_radius = radius_cm[0] + 0.5 * acceleration * time_s**2
+    expected_radius = radius_cgs_cm[0] + 0.5 * acceleration * time_s**2
     relative_error = np.divide(
         momentum - expected_momentum,
         expected_momentum,
@@ -174,7 +174,7 @@ def main(config_filename=DEFAULT_CONFIG):
     time_myr = time_s / (1.0 * unyt.Myr).to_value(unyt.s)
     pc_cm = (1.0 * unyt.pc).to_value(unyt.cm)
     fig, axes = plt.subplots(3, 1, figsize=(7.5, 9.0), sharex=True)
-    axes[0].plot(time_myr, radius_cm / pc_cm, label="RadHydropy")
+    axes[0].plot(time_myr, radius_cgs_cm / pc_cm, label="RadHydropy")
     axes[0].plot(time_myr, expected_radius / pc_cm, "--", label="exact thin-shell")
     axes[0].set_ylabel("shell radius [pc]")
     axes[1].plot(time_myr, momentum, label="RadHydropy shell momentum")

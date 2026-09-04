@@ -40,7 +40,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     times = np.asarray(data["time_Gyr"], dtype=float)
     radius = np.asarray(data["radius_comoving_kpc"], dtype=float)
     density = np.asarray(data["density_proper_code"], dtype=float)
-    temperature = np.asarray(data["temperature_physical_K"], dtype=float)
+    temperature = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
     scale = np.asarray(data["scale_factor"], dtype=float)
     rvir = np.asarray(data["rvir_proper_kpc"], dtype=float)
     rshock = np.asarray(data["rshock_kpc"], dtype=float)

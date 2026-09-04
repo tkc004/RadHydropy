@@ -22,19 +22,19 @@ class ThermochemistryNetwork:
     def source_state(self, mesh, fluid, par):
         raise NotImplementedError
 
-    def ionization_fraction_rate(self, state, ngamma):
+    def ionization_fraction_rate(self, state, ngamma_cgs_cm3):
         raise NotImplementedError
 
-    def thermal_rate(self, state, ngamma):
+    def thermal_rate(self, state, ngamma_cgs_cm3):
         raise NotImplementedError
 
-    def get_timestep(self, state, ngamma, remaining_s, dtmax_s):
+    def get_timestep(self, state, ngamma_cgs_cm3, remaining_s, dtmax_s):
         raise NotImplementedError
 
     def update_temperature_from_energy(self, state):
         raise NotImplementedError
 
-    def ionization_fraction_implicit_update(self, state, ngamma, dt_s):
+    def ionization_fraction_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
         raise NotImplementedError
 
     def apply_state(self, state, fluid, par):

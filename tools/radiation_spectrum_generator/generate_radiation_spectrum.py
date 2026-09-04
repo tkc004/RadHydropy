@@ -4,17 +4,30 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 
 import astropy.units as units
 import h5py
 import numpy as np
 from astropy.modeling.models import BlackBody
 
+package_root = Path(__file__).resolve().parents[2]
+if str(package_root) not in sys.path:
+    sys.path.insert(0, str(package_root))
 
-RADIATION_GROUP = "RadiationSpectrum"
+from radhydropy.radiation_spectrum import (
+    SPECTRUM_DATASET_EPSILON,
+    SPECTRUM_DATASET_GROUP_EDGES,
+    SPECTRUM_DATASET_IONIZING_ENERGY,
+    SPECTRUM_DATASET_SIGMA,
+    SPECTRUM_DATASET_STAR_RATES,
+    SPECTRUM_GROUP,
+)
+
+
 EV_TO_ERG = 1.602176634e-12
 DEFAULT_EDGES_EV = (13.6, 24.6, 54.4, 10_000.0)
-DEFAULT_TEMPERATURE_K = 1.0e5
+DEFAULT_TEMPERATURE_cgs_K = 1.0e5
 DEFAULT_INJECTED_PHOTONS_PER_SECOND = 5.0e48
 DEFAULT_OUTPUT_NAME = "radiation_spectrum_BB100000K_3groups_HI.h5"
 
@@ -80,9 +93,9 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
         np.asarray(norm_energies), norms, out=np.zeros_like(norms), where=norms > 0.0
     )
     return {
-        "ionizing_photon_energy_erg": ionizing_energy * EV_TO_ERG,
-        "group_sigma_gamma_cm2": np.asarray(sigmas),
-        "group_epsilon_gamma_erg": np.asarray(epsilons) * EV_TO_ERG,
+        "ionizing_photon_energy_cgs_erg": ionizing_energy * EV_TO_ERG,
+        "group_sigma_gamma_cgs_cm2": np.asarray(sigmas),
+        "group_epsilon_gamma_cgs_erg": np.asarray(epsilons) * EV_TO_ERG,
         "norm": norms,
     }
 
@@ -98,44 +111,44 @@ def write_spectrum(output, edges_ev, temperature_k, injected_photons,
         1.98841586e33 * units.g * (1.0e5 * units.cm / units.s) ** 3
         / (3.08567758e21 * units.cm)
     )
-    unit_erg_per_second = (unit_energy_per_time / (units.erg / units.s)).value
+    unit_cgs_erg_per_second = (unit_energy_per_time / (units.erg / units.s)).value
     rates = (
-        injected_photons * hydrogen["ionizing_photon_energy_erg"]
-        * hydrogen["norm"] / hydrogen["norm"].sum() / unit_erg_per_second
+        injected_photons * hydrogen["ionizing_photon_energy_cgs_erg"]
+        * hydrogen["norm"] / hydrogen["norm"].sum() / unit_cgs_erg_per_second
     )
     star_emission_rates = np.concatenate(([1.0e-32], rates))
 
     output.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(output, "w") as handle:
-        group = handle.create_group(RADIATION_GROUP)
-        group.create_dataset("group_edges_eV", data=edges_ev).attrs["units"] = "eV"
-        group.create_dataset("ionizing_photon_energy_erg", data=hydrogen[
-            "ionizing_photon_energy_erg"]
+        group = handle.create_group(SPECTRUM_GROUP)
+        group.create_dataset(SPECTRUM_DATASET_GROUP_EDGES, data=edges_ev).attrs["units"] = "eV"
+        group.create_dataset(SPECTRUM_DATASET_IONIZING_ENERGY, data=hydrogen[
+            "ionizing_photon_energy_cgs_erg"]
         ).attrs["units"] = "erg"
-        group.create_dataset("star_emission_rates", data=star_emission_rates).attrs[
+        group.create_dataset(SPECTRUM_DATASET_STAR_RATES, data=star_emission_rates).attrs[
             "units"
         ] = "internal_energy/time"
-        group.create_dataset("group_sigma_gamma_cm2", data=hydrogen[
-            "group_sigma_gamma_cm2"]
+        group.create_dataset(SPECTRUM_DATASET_SIGMA, data=hydrogen[
+            "group_sigma_gamma_cgs_cm2"]
         ).attrs["units"] = "cm**2"
-        group.create_dataset("group_epsilon_gamma_erg", data=hydrogen[
-            "group_epsilon_gamma_erg"]
+        group.create_dataset(SPECTRUM_DATASET_EPSILON, data=hydrogen[
+            "group_epsilon_gamma_cgs_erg"]
         ).attrs["units"] = "erg"
         if include_helium:
             for species in ("HeI", "HeII"):
                 group.create_dataset(
-                    f"group_sigma_gamma_{species}_cm2",
-                    data=values[species]["group_sigma_gamma_cm2"],
+                    f"group_sigma_gamma_{species}_cgs_cm2",
+                    data=values[species]["group_sigma_gamma_cgs_cm2"],
                 ).attrs["units"] = "cm**2"
                 group.create_dataset(
-                    f"group_epsilon_gamma_{species}_erg",
-                    data=values[species]["group_epsilon_gamma_erg"],
+                    f"group_epsilon_gamma_{species}_cgs_erg",
+                    data=values[species]["group_epsilon_gamma_cgs_erg"],
                 ).attrs["units"] = "erg"
         group.attrs["number_of_radiation_groups"] = len(edges_ev) - 1
         group.attrs["number_of_group_edges"] = len(edges_ev)
         group.attrs["stellar_spectrum_type"] = 1
         group.attrs["stellar_spectrum_type_name"] = "blackbody"
-        group.attrs["stellar_spectrum_blackbody_temperature_K"] = temperature_k
+        group.attrs["stellar_spectrum_blackbody_temperature_cgs_K"] = temperature_k
         group.attrs["absorber"] = "HHe" if include_helium else "HI"
         group.attrs["species"] = "HI,HeI,HeII" if include_helium else "HI"
         group.attrs["description"] = (
@@ -157,7 +170,7 @@ def main():
             "radiation_spectrum_BB100000K_3groups_HI.h5)"
         ),
     )
-    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE_K)
+    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE_cgs_K)
     parser.add_argument("--edges", type=float, nargs="+", default=DEFAULT_EDGES_EV)
     parser.add_argument("--injected-photons-per-second", type=float,
                         default=DEFAULT_INJECTED_PHOTONS_PER_SECOND)

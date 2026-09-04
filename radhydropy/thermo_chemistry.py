@@ -66,21 +66,21 @@ def source_state(mesh, fluid, par):
     return get_network(par).source_state(mesh, fluid, par)
 
 
-def ionization_fraction_rate(state, ngamma, par):
+def ionization_fraction_rate(state, ngamma_cgs_cm3, par):
     """Return the selected network's chemistry fraction rate."""
-    return get_network(par).ionization_fraction_rate(state, ngamma)
+    return get_network(par).ionization_fraction_rate(state, ngamma_cgs_cm3)
 
 
-def thermal_rate(state, ngamma, par):
+def thermal_rate(state, ngamma_cgs_cm3, par):
     """Return the selected network's thermal source rate."""
-    return get_network(par).thermal_rate(state, ngamma)
+    return get_network(par).thermal_rate(state, ngamma_cgs_cm3)
 
 
-def get_timestep(state, ngamma, par, remaining_s, dtmax_s):
+def get_timestep(state, ngamma_cgs_cm3, par, remaining_s, dtmax_s):
     """Return a source substep for the selected network."""
     return get_network(par).get_timestep(
         state,
-        ngamma,
+        ngamma_cgs_cm3,
         remaining_s,
         dtmax_s,
     )
@@ -93,20 +93,20 @@ def update_temperature_from_energy(state):
     return HydrogenNetwork().update_temperature_from_energy(state)
 
 
-def ionization_fraction_implicit_update(state, ngamma, dt_s, par):
+def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
     """Implicitly update chemistry fractions for the selected network."""
     return get_network(par).ionization_fraction_implicit_update(
         state,
-        ngamma,
+        ngamma_cgs_cm3,
         dt_s,
     )
 
 
-def coupled_implicit_update(state, ngamma, dt_s, par):
+def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
     network = get_network(par)
     if hasattr(network, 'coupled_implicit_update'):
-        return network.coupled_implicit_update(state, ngamma, dt_s)
-    network.ionization_fraction_implicit_update(state, ngamma, dt_s)
+        return network.coupled_implicit_update(state, ngamma_cgs_cm3, dt_s)
+    network.ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
 
 def apply_state(state, fluid, par):
@@ -145,7 +145,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     return {
         "source_steps": int(result or 0),
         "absorbed_photon_rate": None,
-        "photon_energy_erg": None,
+        "photon_energy_cgs_erg": None,
         "direction": int(getattr(par, "radiative_transfer_direction", 1)),
     }
 

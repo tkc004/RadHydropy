@@ -34,7 +34,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     runparams = eu.legacy_example_parameters(nested)
-    icparams = nested['initial_condition']
+    icparams = eu.legacy_initial_condition_parameters(nested)
     runparams['metal_pie_table_filename'] = str(
         (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
     )
@@ -110,9 +110,9 @@ def main(config_filename=DEFAULT_CONFIG):
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
     print('Tvir = %.6g K' % temperature.to_value(unyt.K))
-    print('central T final = %.6g K' % results[-1]['central_temperature_K'])
-    print('central density final = %.6g g/cm^3' % results[-1]['central_density_g_cm3'])
-    print('temperature floor reached = %s' % (results[-1]['minimum_temperature_K'] <= 1.01 * floor))
+    print('central T final = %.6g K' % results[-1]['central_temperature_cgs_K'])
+    print('central density final = %.6g g/cm^3' % results[-1]['central_density_cgs_g_cm3'])
+    print('temperature floor reached = %s' % (results[-1]['minimum_temperature_cgs_K'] <= 1.01 * floor))
     print('figure = %s' % figure)
     print('report = %s' % report)
 

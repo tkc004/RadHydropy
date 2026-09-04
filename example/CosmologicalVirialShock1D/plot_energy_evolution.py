@@ -20,8 +20,8 @@ PREFIX = "CosmologicalGasCorrelationZ100"
 
 # Code units are kpc, 1e10 Msun, and km/s for this example.
 G_CODE = 4.30091e-6 * 1.0e10
-KPC_PER_GYR_PER_KM_S = 1.022712165045695
-SOFTENING_KPC = 0.2
+KPC_PER_GYR_PER_cgs_KM_S = 1.022712165045695
+SOFTENING_cgs_KPC = 0.2
 
 
 def _shell_edges(radius):
@@ -69,7 +69,7 @@ def _dark_matter_proxy(gas, dark_matter):
         dm_inside = np.cumsum(mass)
         core_mass = float(np.asarray(dark_matter["central_core_mass"])[i])
         enclosed = gas_inside + dm_inside + core_mass
-        potential[i] = -G_CODE * np.sum(mass * enclosed / (radius + SOFTENING_KPC))
+        potential[i] = -G_CODE * np.sum(mass * enclosed / (radius + SOFTENING_cgs_KPC))
 
         # Shell velocities are absent from the saved file.  A rank-matched
         # finite difference gives a useful global kinetic-energy proxy, but
@@ -83,7 +83,7 @@ def _dark_matter_proxy(gas, dark_matter):
             if count:
                 dt = times[i + 1] - times[i - 1]
                 velocity_km_s = (following[:count] - previous[:count]) / dt * (
-                    1.0 / KPC_PER_GYR_PER_KM_S
+                    1.0 / KPC_PER_GYR_PER_cgs_KM_S
                 )
                 kinetic[i] = 0.5 * np.sum(mass[:count] * velocity_km_s**2)
         elif times.size > 1:
@@ -93,7 +93,7 @@ def _dark_matter_proxy(gas, dark_matter):
             dt = abs(times[i + (1 if i == 0 else -1)] - times[i])
             if count and dt > 0.0:
                 velocity_km_s = (radius[:count] - neighbor[:count]) / dt
-                velocity_km_s /= KPC_PER_GYR_PER_KM_S
+                velocity_km_s /= KPC_PER_GYR_PER_cgs_KM_S
                 kinetic[i] = 0.5 * np.sum(mass[:count] * velocity_km_s**2)
     return kinetic, potential
 

@@ -46,20 +46,20 @@ def _snapshot_energy(snapshot, config, tools):
     par, mesh, fluid = tools.load_output_state(snapshot, config)
     interior = tools.interior_slice(par)
     code = CodeUnits.from_mapping(par.CodeUnits)
-    volume_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
-    pressure_erg_cm3 = np.asarray(fluid.pre_code[interior], dtype=float) * float(
+    pressure_cgs_erg_cm3 = np.asarray(fluid.pre_code[interior], dtype=float) * float(
         (1.0 * code.pressure_unit).to_value(unyt.erg / unyt.cm**3)
     )
-    density_g_cm3 = np.asarray(fluid.rho_code[interior], dtype=float) * float(
+    density_cgs_g_cm3 = np.asarray(fluid.rho_code[interior], dtype=float) * float(
         (1.0 * code.density_unit).to_value(unyt.g / unyt.cm**3)
     )
-    velocity_cm_s = np.asarray(fluid.vel_code[interior], dtype=float) * float(
+    velocity_cgs_cm_s = np.asarray(fluid.vel_code[interior], dtype=float) * float(
         (1.0 * code.velocity_unit).to_value(unyt.cm / unyt.s)
     )
-    thermal = float(np.sum(pressure_erg_cm3 / (par.gamma - 1.0) * volume_cm3))
-    kinetic = float(np.sum(0.5 * density_g_cm3 * velocity_cm_s**2 * volume_cm3))
+    thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.gamma - 1.0) * volume_cgs_cm3))
+    kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
     time_myr = float(
         np.asarray(fluid.time) * (1.0 * code.time_unit).to_value(unyt.Myr)
     )
@@ -127,9 +127,9 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
         )),
         delimiter=',',
         header=(
-            'time_Myr,no_pressure_thermal_erg,no_pressure_kinetic_erg,no_pressure_total_erg,'
-            'radiation_pressure_thermal_erg,radiation_pressure_kinetic_erg,'
-            'radiation_pressure_total_erg,energy_difference_erg,relative_difference'
+            'time_Myr,no_pressure_thermal_cgs_erg,no_pressure_kinetic_cgs_erg,no_pressure_total_cgs_erg,'
+            'radiation_pressure_thermal_cgs_erg,radiation_pressure_kinetic_cgs_erg,'
+            'radiation_pressure_total_cgs_erg,energy_difference_cgs_erg,relative_difference'
         ),
         comments='',
     )

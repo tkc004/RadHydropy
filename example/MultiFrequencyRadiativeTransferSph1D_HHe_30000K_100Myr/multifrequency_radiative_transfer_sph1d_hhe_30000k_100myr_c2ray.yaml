@@ -64,7 +64,7 @@ example:
   outfileprefix: Output_C2Ray
   savedir: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray_PIE.jpg
-  stellar_spectrum_blackbody_temperature_K: 30000.0
+  stellar_spectrum_blackbody_temperature_cgs_K: 30000.0
   metal_pie_enabled: true
   metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
   metallicity: 1.0

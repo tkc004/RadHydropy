@@ -65,7 +65,7 @@ class Testing(unittest.TestCase):
             absorber_densities={
                 "HI": rho / unyt.mp.to_value(unyt.g) * xHI,
             },
-            cross_sections_cm2={"HI": [1.0 * unyt.cm**2]},
+            cross_sections_cgs_cm2={"HI": [1.0 * unyt.cm**2]},
             boundary_flux=[10.0 / (unyt.cm**2 * unyt.s)],
         )
 
@@ -92,7 +92,7 @@ class Testing(unittest.TestCase):
             mesh,
             group_edges_eV=[13.6, 24.6, 54.4],
             absorber_densities={"HI": n_h, "HeI": n_he},
-            cross_sections_cm2={
+            cross_sections_cgs_cm2={
                 "HI": np.array([1.0, 2.0]),
                 "HeI": np.array([0.0, 3.0]),
             },
@@ -114,7 +114,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(result.cell_photon_density.shape, (2, 2))
 
     def test_multigroup_photoionization_rates_are_summed_per_species(self):
-        ngamma = np.array(
+        ngamma_cgs_cm3 = np.array(
             [[2.0, 3.0], [5.0, 7.0]],
             dtype=float,
         )
@@ -123,27 +123,27 @@ class Testing(unittest.TestCase):
             "HeI": np.array([3.0, 4.0]),
         }
 
-        rates = rrt.species_photoionization_rates(ngamma, sigma)
+        rates = rrt.species_photoionization_rates(ngamma_cgs_cm3, sigma)
         c_light = rrt.SPEED_OF_LIGHT_CGS
 
-        np.testing.assert_allclose(rates["HI"], c_light * (1.0 * ngamma[0] + 2.0 * ngamma[1]))
-        np.testing.assert_allclose(rates["HeI"], c_light * (3.0 * ngamma[0] + 4.0 * ngamma[1]))
+        np.testing.assert_allclose(rates["HI"], c_light * (1.0 * ngamma_cgs_cm3[0] + 2.0 * ngamma_cgs_cm3[1]))
+        np.testing.assert_allclose(rates["HeI"], c_light * (3.0 * ngamma_cgs_cm3[0] + 4.0 * ngamma_cgs_cm3[1]))
 
     def test_multigroup_photoheating_uses_excess_energy_per_group(self):
-        ngamma = np.array([[2.0], [5.0]], dtype=float)
+        ngamma_cgs_cm3 = np.array([[2.0], [5.0]], dtype=float)
         sigma = {"HI": np.array([1.0, 2.0])}
         epsilon = {"HI": np.array([10.0, 20.0])}
 
-        heating = rrt.species_photoionization_heating(ngamma, sigma, epsilon)
+        heating = rrt.species_photoionization_heating(ngamma_cgs_cm3, sigma, epsilon)
         expected = rrt.SPEED_OF_LIGHT_CGS * (1.0 * 10.0 * 2.0 + 2.0 * 20.0 * 5.0)
 
         np.testing.assert_allclose(heating["HI"], [expected])
 
     def test_trace_photon_density_multigroup_includes_helium_absorbers(self):
         state = {
-            "boundary_cm": np.array([0.0, 1.0, 2.0]),
-            "volume_cm3": np.ones(2),
-            "rho_g_cm3": np.ones(2) * unyt.mp.to_value(unyt.g),
+            "boundary_cgs_cm": np.array([0.0, 1.0, 2.0]),
+            "volume_cgs_cm3": np.ones(2),
+            "rho_cgs_g_cm3": np.ones(2) * unyt.mp.to_value(unyt.g),
             "xHI": np.ones(2),
             "xHeI": np.ones(2),
             "xHeII": np.zeros(2),
@@ -207,10 +207,10 @@ class Testing(unittest.TestCase):
 
     def test_trace_photon_density_returns_cgs_number_density(self):
         state = {
-            "boundary_cm": np.array([0.0, 1.0], dtype=float),
-            "width_cm": np.array([1.0], dtype=float),
-            "volume_cm3": np.array([1.0], dtype=float),
-            "rho_g_cm3": np.array([unyt.mp.to_value(unyt.g)], dtype=float),
+            "boundary_cgs_cm": np.array([0.0, 1.0], dtype=float),
+            "width_cgs_cm": np.array([1.0], dtype=float),
+            "volume_cgs_cm3": np.array([1.0], dtype=float),
+            "rho_cgs_g_cm3": np.array([unyt.mp.to_value(unyt.g)], dtype=float),
             "xHI": np.array([1.0], dtype=float),
         }
         par = parameter_namespace(
@@ -226,11 +226,11 @@ class Testing(unittest.TestCase):
             radiative_transfer_direction=1,
         )
 
-        ngamma = rrt.trace_photon_density(state, par)
+        ngamma_cgs_cm3 = rrt.trace_photon_density(state, par)
 
-        self.assertIsInstance(ngamma, np.ndarray)
-        self.assertEqual(ngamma.shape, (1,))
-        self.assertGreater(ngamma[0], 0.0)
+        self.assertIsInstance(ngamma_cgs_cm3, np.ndarray)
+        self.assertEqual(ngamma_cgs_cm3.shape, (1,))
+        self.assertGreater(ngamma_cgs_cm3[0], 0.0)
 
     def test_trace_photon_density_converts_code_unit_parameters(self):
         code_units = CodeUnits.from_mapping(
@@ -247,10 +247,10 @@ class Testing(unittest.TestCase):
         )
         scales = code_unit_scales(code_units)
         state = {
-            "boundary_cm": np.array([0.0, 1.0, 2.0], dtype=float),
-            "width_cm": np.array([1.0, 1.0], dtype=float),
-            "volume_cm3": np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float),
-            "rho_g_cm3": np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g),
+            "boundary_cgs_cm": np.array([0.0, 1.0, 2.0], dtype=float),
+            "width_cgs_cm": np.array([1.0, 1.0], dtype=float),
+            "volume_cgs_cm3": np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float),
+            "rho_cgs_g_cm3": np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g),
             "xHI": np.ones(2, dtype=float),
         }
         par = parameter_namespace(
@@ -271,14 +271,14 @@ class Testing(unittest.TestCase):
         expected = rrt.trace_long_characteristics(
             SimpleNamespace(
                 coordsys="spherical",
-                boundary=state["boundary_cm"],
-                vol=state["volume_cm3"],
+                boundary=state["boundary_cgs_cm"],
+                vol=state["volume_cgs_cm3"],
             ),
-            state["rho_g_cm3"],
+            state["rho_cgs_g_cm3"],
             state["xHI"],
             hydrogen_mass_fraction=1.0,
-            sigma_gamma=0.5 * scales["area_cm2"] * unyt.cm**2,
-            boundary_flux=0.0 * scales["photon_flux_per_cm2_s"] / (
+            sigma_gamma=0.5 * scales["area_cgs_cm2"] * unyt.cm**2,
+            boundary_flux=0.0 * scales["photon_flux_per_cgs_cm2_s"] / (
                 unyt.cm**2 * unyt.s
             ),
             source_photon_rate=3.0 * scales["photon_rate_per_s"] / unyt.s,

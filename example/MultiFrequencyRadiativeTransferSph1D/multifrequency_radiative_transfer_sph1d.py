@@ -68,13 +68,13 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     ).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
-    temperature_K = (
+    temperature_cgs_K = (
         np.asarray(fluid.temp_code[interior], dtype=float) * code.temperature_unit
     ).to_value(unyt.K)
     ngamma_values = np.asarray(fluid.ngamma_code, dtype=float)
     if ngamma_values.ndim == 1:
         ngamma_values = ngamma_values[None, :]
-    ngamma = (
+    ngamma_cgs_cm3 = (
         ngamma_values[:, interior] * code.number_density_unit
     ).to_value(1.0 / unyt.cm**3)
 
@@ -120,7 +120,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         frameon=False,
         loc="best",
     )
-    axes[1].plot(radius_kpc, temperature_K, color="tab:red")
+    axes[1].plot(radius_kpc, temperature_cgs_K, color="tab:red")
     if temperature_reference is not None:
         axes[1].scatter(
             temperature_reference["radius_kpc"],
@@ -135,7 +135,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     axes[1].grid(True, which="both", alpha=0.25)
     axes[1].legend(frameon=False)
     photon_axis = axes[2]
-    for group, values in enumerate(ngamma):
+    for group, values in enumerate(ngamma_cgs_cm3):
         photon_axis.plot(radius_kpc, values, label=f"group {group + 1}")
     photon_axis.set_yscale("log")
     photon_axis.set_xlabel("Radius [kpc]")
@@ -147,7 +147,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     if config.get("metal_pie_enabled", False):
         title += " + metal PIE"
     radiation_temperature = float(
-        config.get("stellar_spectrum_blackbody_temperature_K", 1.0e5)
+        config.get("stellar_spectrum_blackbody_temperature_cgs_K", 1.0e5)
     )
     fig.suptitle(
         rf"{title} multifrequency radiation "

@@ -65,18 +65,18 @@ def load_snapshot(filename):
         )[noghost:noghost + nogrid + 1]
         return {
             'time_Myr': float(header.attrs['Time']) / SECONDS_PER_MYR,
-            'boundary_cm': boundary,
-            'density_g_cm3': np.asarray(data['Density'][()])[physical],
-            'velocity_cm_s': np.asarray(data['Velocity'][()])[physical],
-            'temperature_K': np.asarray(data['Temperature'][()])[physical],
+            'boundary_cgs_cm': boundary,
+            'density_cgs_g_cm3': np.asarray(data['Density'][()])[physical],
+            'velocity_cgs_cm_s': np.asarray(data['Velocity'][()])[physical],
+            'temperature_cgs_K': np.asarray(data['Temperature'][()])[physical],
         }
 
 
 def shock_radius(snapshot):
     """Locate the strongest compression near the colliding-stream interface."""
-    boundary = snapshot['boundary_cm']
+    boundary = snapshot['boundary_cgs_cm']
     centers = 0.5 * (boundary[1:] + boundary[:-1])
-    density = np.maximum(snapshot['density_g_cm3'], 1.0e-99)
+    density = np.maximum(snapshot['density_cgs_g_cm3'], 1.0e-99)
     gradient = np.abs(np.diff(np.log(density)))
     start = max(2, int(0.2 * len(gradient)))
     stop = min(len(gradient) - 1, int(0.9 * len(gradient)))
@@ -105,18 +105,18 @@ def shock_history(filenames, output_interval_myr=None):
 
 def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction, mu):
     """Estimate post-shock cooling length and cooling time from one snapshot."""
-    radius = snapshot['boundary_cm']
+    radius = snapshot['boundary_cgs_cm']
     centers = 0.5 * (radius[1:] + radius[:-1])
     shock_kpc = shock_radius(snapshot)
     shock_index = int(np.argmin(np.abs(centers / KPC_CM - shock_kpc)))
     left = slice(max(0, shock_index - 4), shock_index)
     right = slice(shock_index + 1, min(len(centers), shock_index + 5))
-    left_temperature = float(np.median(snapshot['temperature_K'][left]))
-    right_temperature = float(np.median(snapshot['temperature_K'][right]))
+    left_temperature = float(np.median(snapshot['temperature_cgs_K'][left]))
+    right_temperature = float(np.median(snapshot['temperature_cgs_K'][right]))
     post_slice = right if right_temperature >= left_temperature else left
-    density = float(np.median(snapshot['density_g_cm3'][post_slice]))
-    temperature = float(np.median(snapshot['temperature_K'][post_slice]))
-    velocity = float(np.median(np.abs(snapshot['velocity_cm_s'][post_slice])))
+    density = float(np.median(snapshot['density_cgs_g_cm3'][post_slice]))
+    temperature = float(np.median(snapshot['temperature_cgs_K'][post_slice]))
+    velocity = float(np.median(np.abs(snapshot['velocity_cgs_cm_s'][post_slice])))
     n_h = hydrogen_mass_fraction * density / PROTON_MASS_G
     heating, cooling = table.rates(
         temperature, n_h, metallicity=metallicity, redshift=0.0
@@ -126,13 +126,13 @@ def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction
         mu * PROTON_MASS_G
     )
     cooling_time_s = thermal_energy / net_rate
-    cooling_length_cm = abs(velocity) * cooling_time_s
-    cell_width_cm = float(np.median(np.diff(radius)))
+    cooling_length_cgs_cm = abs(velocity) * cooling_time_s
+    cell_width_cgs_cm = float(np.median(np.diff(radius)))
     return {
         'shock_radius_kpc': shock_kpc,
-        'post_density_g_cm3': density,
-        'post_temperature_K': temperature,
+        'post_density_cgs_g_cm3': density,
+        'post_temperature_cgs_K': temperature,
         'cooling_time_Myr': cooling_time_s / SECONDS_PER_MYR,
-        'cooling_length_kpc': cooling_length_cm / KPC_CM,
-        'cooling_cells': cooling_length_cm / cell_width_cm,
+        'cooling_length_kpc': cooling_length_cgs_cm / KPC_CM,
+        'cooling_cells': cooling_length_cgs_cm / cell_width_cgs_cm,
     }

@@ -74,7 +74,7 @@ def _state(mesh, fluid, par):
     specific_total_super = total_energy_super / np.maximum(mass, 1.0e-99)
     rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
     rotational_specific_super = (
-        rotational_specific_code * code.unit_conversion['velocity_cm_s']**2
+        rotational_specific_code * code.unit_conversion['velocity_cgs_cm_s']**2
     )
     specific_internal = np.maximum(
         specific_total_super - 0.5 * velocity_super**2
@@ -85,31 +85,31 @@ def _state(mesh, fluid, par):
     mu = np.asarray(fluid.mu[interior], dtype=float)
     return {
         "interior": interior,
-        "rho_g_cm3": rho,
+        "rho_cgs_g_cm3": rho,
         "active": thermochemistry_active_mask(
             rho, par, scaling["density_factor"]
         ),
-        "volume_cm3": volume,
-        "velocity_cm_s": velocity,
-        "thermal_energy_erg": thermal_energy,
-        "specific_energy_erg_g": specific_internal,
-        "specific_rotational_energy_erg_g": (
+        "volume_cgs_cm3": volume,
+        "velocity_cgs_cm_s": velocity,
+        "thermal_energy_cgs_erg": thermal_energy,
+        "specific_energy_cgs_erg_g": specific_internal,
+        "specific_rotational_energy_cgs_erg_g": (
             rotational_specific_super / scaling["temperature_factor"]
         ),
-        "temperature_K": to_unit_value(fluid.temp_code[interior], code.temperature_unit) / scaling["temperature_factor"],
+        "temperature_cgs_K": to_unit_value(fluid.temp_code[interior], code.temperature_unit) / scaling["temperature_factor"],
         "gamma": gamma,
         "mu": mu,
         "code": code,
         "mass_g": mass,
-        "velocity_supercomoving_cm_s": velocity_super,
+        "velocity_supercomoving_cgs_cm_s": velocity_super,
         "source_scale_factor": scaling["scale_factor"],
         "source_temperature_factor": scaling["temperature_factor"],
     }
 
 
 def _update_temperature(state):
-    state["temperature_K"] = np.maximum(
-        state["specific_energy_erg_g"]
+    state["temperature_cgs_K"] = np.maximum(
+        state["specific_energy_cgs_erg_g"]
         * (state["gamma"] - 1.0)
         * state["mu"]
         * PROTON_MASS_CGS
@@ -143,30 +143,30 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             cooling_safety_factor=float(getattr(par, "cooling_safety_factor", 0.1)),
             compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
             compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
-            cmb_temperature_0_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
+            cmb_temperature_0_cgs_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
         )
         return state
 
-    def ionization_fraction_rate(self, state, ngamma):
-        return np.zeros_like(state["temperature_K"])
+    def ionization_fraction_rate(self, state, ngamma_cgs_cm3):
+        return np.zeros_like(state["temperature_cgs_K"])
 
-    def thermal_rate(self, state, ngamma):
+    def thermal_rate(self, state, ngamma_cgs_cm3):
         table = _get_table(state["par"])
         metallicity = state["metallicity"]
-        nH = state["rho_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
-        ne = nH * table.electron_fraction(state["temperature_K"], metallicity)
-        Lambda = table.cooling_coefficient(state["temperature_K"], ne, metallicity)
+        nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
+        ne = nH * table.electron_fraction(state["temperature_cgs_K"], metallicity)
+        Lambda = table.cooling_coefficient(state["temperature_cgs_K"], ne, metallicity)
         return -ne * nH * Lambda + cmb_compton_rate(
-            state["temperature_K"],
+            state["temperature_cgs_K"],
             ne,
             enabled=state.get("compton_cmb_enabled", False),
             redshift=state.get("compton_cmb_redshift", 0.0),
-            cmb_temperature_0_K=state.get("cmb_temperature_0_K", 2.7255),
+            cmb_temperature_0_cgs_K=state.get("cmb_temperature_0_cgs_K", 2.7255),
         )
 
-    def get_timestep(self, state, ngamma, remaining_s, dtmax_s):
-        rate = self.thermal_rate(state, ngamma)
-        thermal_density = state["specific_energy_erg_g"] * state["rho_g_cm3"]
+    def get_timestep(self, state, ngamma_cgs_cm3, remaining_s, dtmax_s):
+        rate = self.thermal_rate(state, ngamma_cgs_cm3)
+        thermal_density = state["specific_energy_cgs_erg_g"] * state["rho_cgs_g_cm3"]
         cooling_time = np.divide(
             thermal_density,
             np.maximum(np.abs(rate), 1.0e-99),
@@ -179,7 +179,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
     def update_temperature_from_energy(self, state):
         _update_temperature(state)
 
-    def ionization_fraction_implicit_update(self, state, ngamma, dt_s):
+    def ionization_fraction_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
         return None
 
     def apply_state(self, state, fluid, par):
@@ -194,7 +194,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             cooling_safety_factor=float(getattr(par, "cooling_safety_factor", 0.1)),
             compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
             compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
-            cmb_temperature_0_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
+            cmb_temperature_0_cgs_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
         )
         code = state["code"]
         remaining_s = (
@@ -216,7 +216,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             cooling_safety_factor=float(getattr(par, "cooling_safety_factor", 0.1)),
             compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
             compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
-            cmb_temperature_0_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
+            cmb_temperature_0_cgs_K=float(to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)),
         )
         code = state["code"]
         remaining_s = (
@@ -226,33 +226,33 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         source_steps = 0
         active = np.asarray(state["active"], dtype=bool)
         floor = getattr(par, "cooling_temperature_floor", 1.0)
-        floor_K = float(to_unit_value(floor, unyt.K))
+        floor_cgs_K = float(to_unit_value(floor, unyt.K))
         while remaining_s > 0.0:
             _update_temperature(state)
             dt_s, rate = self.get_timestep(state, None, remaining_s, remaining_s)
             if not np.isfinite(dt_s) or dt_s <= 0.0:
                 dt_s = remaining_s
             dt_s = min(dt_s, remaining_s)
-            energy = np.asarray(state["specific_energy_erg_g"], dtype=float).copy()
+            energy = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float).copy()
             energy[active] += (
-                rate[active] / np.maximum(state["rho_g_cm3"][active], 1.0e-99)
+                rate[active] / np.maximum(state["rho_cgs_g_cm3"][active], 1.0e-99)
                 * dt_s
             )
-            state["specific_energy_erg_g"] = energy
+            state["specific_energy_cgs_erg_g"] = energy
             minimum_energy = (
-                BOLTZMANN_CONSTANT_CGS * floor_K
+                BOLTZMANN_CONSTANT_CGS * floor_cgs_K
                 / ((state["gamma"] - 1.0) * state["mu"] * PROTON_MASS_CGS)
             )
-            state["specific_energy_erg_g"][active] = np.maximum(
-                state["specific_energy_erg_g"][active], minimum_energy[active]
+            state["specific_energy_cgs_erg_g"][active] = np.maximum(
+                state["specific_energy_cgs_erg_g"][active], minimum_energy[active]
             )
             remaining_s -= dt_s
             source_steps += 1
 
         _update_temperature(state)
         interior = state["interior"]
-        internal_super = state["specific_energy_erg_g"] * state["source_temperature_factor"]
-        total_super = internal_super + 0.5 * state["velocity_supercomoving_cm_s"]**2
+        internal_super = state["specific_energy_cgs_erg_g"] * state["source_temperature_factor"]
+        total_super = internal_super + 0.5 * state["velocity_supercomoving_cgs_cm_s"]**2
         updated_energy = from_unit_value(
             state["mass_g"] * total_super, code.energy_unit
         )
@@ -268,7 +268,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             code.energy_unit,
         )
         updated_temperature = from_unit_value(
-            state["temperature_K"] * state["source_temperature_factor"],
+            state["temperature_cgs_K"] * state["source_temperature_factor"],
             code.temperature_unit,
         )
         energy_target = fluid.Energy_code[interior].copy()

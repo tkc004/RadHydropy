@@ -223,14 +223,14 @@ refparams = {
     'radiation_group_epsilon_gamma_HeII': None,
     'star_emission_rates': None,
     'stellar_spectrum_type': 1,
-    'stellar_spectrum_blackbody_temperature_K': 1.0e5,
-    'ionizing_photon_energy_erg': None,
+    'stellar_spectrum_blackbody_temperature_cgs_K': 1.0e5,
+    'ionizing_photon_energy_cgs_erg': None,
     'radiation_spectrum_filename': None,
     'radiation_spectrum_total_photon_rate': None,
     'metal_pie_enabled': False,
     'metal_pie_table_filename': None,
     'metal_pie_table': None,
-    'metal_pie_photoheating_max_density_cm3': 50.0,
+    'metal_pie_photoheating_max_density_cgs_cm3': 50.0,
     'metal_pie_redshift': 0.0,
     'number_of_radiation_groups': None,
     'radiative_transfer_direction': 1,
@@ -556,10 +556,10 @@ class RadiationParameters:
     hydrogen_epsilon_gamma: object = None
     hydrogen_photon_energy: object = None
     stellar_spectrum_type: int = 1
-    stellar_spectrum_blackbody_temperature_K: float = 1.0e5
+    stellar_spectrum_blackbody_temperature_cgs_K: float = 1.0e5
     star_emission_rates: object = None
-    ionizing_photon_energy_erg: object = None
-    metal_pie_photoheating_max_density_cm3: float = 50.0
+    ionizing_photon_energy_cgs_erg: object = None
+    metal_pie_photoheating_max_density_cgs_cm3: float = 50.0
     metal_pie_redshift: float = 0.0
 
 
@@ -734,7 +734,7 @@ class Par:
                 'radiation_group_sigma_gamma_HeII': 'radiation_group_sigma_gamma_HeII',
                 'radiation_group_epsilon_gamma_HeI': 'radiation_group_epsilon_gamma_HeI',
                 'radiation_group_epsilon_gamma_HeII': 'radiation_group_epsilon_gamma_HeII',
-                'stellar_spectrum_blackbody_temperature_K': 'stellar_spectrum_blackbody_temperature_K',
+                'stellar_spectrum_blackbody_temperature_cgs_K': 'stellar_spectrum_blackbody_temperature_cgs_K',
             },
             'chemistry': {
                 'hydrogen_mass_fraction': 'hydrogen_mass_fraction',
@@ -806,7 +806,7 @@ class Par:
                 'metal_pie_enabled': 'metal_pie_enabled',
                 'metal_pie_redshift': 'metal_pie_redshift',
                 'metal_pie_table_filename': 'metal_pie_table_filename',
-                'metal_pie_photoheating_max_density_cm3': 'metal_pie_photoheating_max_density_cm3',
+                'metal_pie_photoheating_max_density_cgs_cm3': 'metal_pie_photoheating_max_density_cgs_cm3',
                 'pie_uvbg_implicit_tolerance': 'pie_uvbg_implicit_tolerance',
                 'pie_uvbg_implicit_max_retries': 'pie_uvbg_implicit_max_retries',
                 'pie_uvbg_implicit_max_iterations': 'pie_uvbg_implicit_max_iterations',
@@ -1138,13 +1138,13 @@ class Par:
             hydrogen_epsilon_gamma=self.hydrogen_epsilon_gamma,
             hydrogen_photon_energy=self.hydrogen_photon_energy,
             stellar_spectrum_type=self.stellar_spectrum_type,
-            stellar_spectrum_blackbody_temperature_K=(
-                self.stellar_spectrum_blackbody_temperature_K
+            stellar_spectrum_blackbody_temperature_cgs_K=(
+                self.stellar_spectrum_blackbody_temperature_cgs_K
             ),
             star_emission_rates=self.star_emission_rates,
-            ionizing_photon_energy_erg=self.ionizing_photon_energy_erg,
-            metal_pie_photoheating_max_density_cm3=(
-                self.metal_pie_photoheating_max_density_cm3
+            ionizing_photon_energy_cgs_erg=self.ionizing_photon_energy_cgs_erg,
+            metal_pie_photoheating_max_density_cgs_cm3=(
+                self.metal_pie_photoheating_max_density_cgs_cm3
             ),
             metal_pie_redshift=self.metal_pie_redshift,
         )
@@ -1253,7 +1253,7 @@ class Par:
                     setattr(self, epsilon_name, getattr(self, epsilon_name) * unyt.erg)
             power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
             rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
-            energies = np.asarray(self.ionizing_photon_energy_erg, dtype=float) * unyt.erg
+            energies = np.asarray(self.ionizing_photon_energy_cgs_erg, dtype=float) * unyt.erg
             total_rate = getattr(self, 'radiation_spectrum_total_photon_rate', None)
             if total_rate is not None:
                 if hasattr(total_rate, 'to_value'):

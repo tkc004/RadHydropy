@@ -108,7 +108,7 @@ class Testing(unittest.TestCase):
     def test_hydrogen_radiation_attenuation_matches_analytic_solution(self):
         rho = np.ones(1) * unyt.mp / unyt.cm**3
         xHI = np.array([0.25])
-        ngamma = np.ones(1) * 12.0 / unyt.cm**3
+        ngamma_cgs_cm3 = np.ones(1) * 12.0 / unyt.cm**3
         sigma_gamma = 3.0e-18 * unyt.cm**2
         dt = 2.0e6 * unyt.s
 
@@ -119,13 +119,13 @@ class Testing(unittest.TestCase):
             )
             * xHI
             * rth._cgs_photoionization_frequency(
-                ngamma.to_value(1.0 / unyt.cm**3),
+                ngamma_cgs_cm3.to_value(1.0 / unyt.cm**3),
                 sigma_gamma.to_value(unyt.cm**2),
             )
         ) * (1.0 / unyt.s)
-        updated = ngamma * np.exp(-(absorption_frequency * dt).to_value(''))
+        updated = ngamma_cgs_cm3 * np.exp(-(absorption_frequency * dt).to_value(''))
         exponent = -(absorption_frequency * dt).to_value('')
-        expected = ngamma * np.exp(exponent)
+        expected = ngamma_cgs_cm3 * np.exp(exponent)
 
         self.assertEqual(updated.units, (1.0/unyt.cm**3).units)
         np.testing.assert_allclose(updated.value, expected.value)

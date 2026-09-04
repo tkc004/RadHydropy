@@ -35,7 +35,7 @@ def evolve(runparams, icparams):
     """Integrate xHI and temperature with the RadHydropy source equations."""
     gamma = float(runparams["hydrodynamics"]["gamma"])
     hydrogen_fraction = float(runparams["chemistry"]["hydrogen_mass_fraction"])
-    nH0 = float(icparams["present_hydrogen_density_cm3"])
+    nH0 = float(icparams["present_hydrogen_density_cgs_cm3"])
     t_ref_s = float(runparams["gravity"]["cosmology_t_ref"].to_value("s"))
     cmb0 = float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K"))
     z_initial = float(icparams["initial_redshift"])
@@ -53,20 +53,20 @@ def evolve(runparams, icparams):
         nH = nH0 * scale_factor ** -3
         rho = nH * PROTON_MASS_CGS / hydrogen_fraction
         state = {
-            "rho_g_cm3": np.asarray([rho]),
-            "temperature_K": np.asarray([temperature]),
+            "rho_cgs_g_cm3": np.asarray([rho]),
+            "temperature_cgs_K": np.asarray([temperature]),
             "xHI": np.asarray([xHI]),
             "hydrogen_mass_fraction": hydrogen_fraction,
             "recombination": True,
             "collisional_ionization": False,
             "atomic_cooling": True,
-            "sigma_gamma_cm2": 0.0,
-            "epsilon_gamma_erg": 0.0,
+            "sigma_gamma_cgs_cm2": 0.0,
+            "epsilon_gamma_cgs_erg": 0.0,
             "compton_cmb_enabled": True,
             "compton_cmb_redshift": redshift,
-            "cmb_temperature_0_K": cmb0,
-            "alpha_B_cm3_s": None,
-            "beta_cm3_s": None,
+            "cmb_temperature_0_cgs_K": cmb0,
+            "alpha_B_cgs_cm3_s": None,
+            "beta_cgs_cm3_s": None,
         }
         dxhi_dt = float(ionization_fraction_rate(state, None)[0])
         q = float(thermal_rate(state, None)[0])
@@ -107,7 +107,7 @@ def main():
     output = Path(runparams["output"]["savedir"])
     output.mkdir(parents=True, exist_ok=True)
     np.savez(output / "CosmologicalResidualIonization1D_History.npz",
-             redshift=redshift, xe=xe, temperature_K=temperature)
+             redshift=redshift, xe=xe, temperature_cgs_K=temperature)
 
     figure = output / "CosmologicalResidualIonization1D_xe_temperature.jpg"
     fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.2))

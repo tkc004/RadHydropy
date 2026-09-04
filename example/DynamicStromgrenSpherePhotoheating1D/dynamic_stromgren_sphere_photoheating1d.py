@@ -68,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('time = %s' % out_fluid.time)
     print('output files = %d' % len(outputfilenames))
     print('final front radius = %.3e kpc' % history['front_radius_kpc'][-1])
-    print('mean ionized temperature = %.3e K' % history['mean_ionized_temperature_K'][-1])
+    print('mean ionized temperature = %.3e K' % history['mean_ionized_temperature_cgs_K'][-1])
     print('IC file = %s' % runparams['ICfilename'])
     for outputfilename in outputfilenames:
         print('output file = %s' % outputfilename)

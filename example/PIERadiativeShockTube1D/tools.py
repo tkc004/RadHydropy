@@ -7,7 +7,7 @@ import unyt
 
 
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
-BOLTZMANN_ERG_K = unyt.kb.to_value(unyt.erg / unyt.K)
+BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
 KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
@@ -61,21 +61,21 @@ def load_snapshot(filename):
         boundary = np.asarray(data['Boundary'][()])[noghost:noghost + nogrid + 1]
         return {
             'time_Myr': float(header.attrs['Time']) / SECONDS_PER_MYR,
-            'boundary_cm': boundary,
-            'density_g_cm3': np.asarray(data['Density'][()])[physical],
-            'velocity_cm_s': np.asarray(data['Velocity'][()])[physical],
-            'temperature_K': np.asarray(data['Temperature'][()])[physical],
+            'boundary_cgs_cm': boundary,
+            'density_cgs_g_cm3': np.asarray(data['Density'][()])[physical],
+            'velocity_cgs_cm_s': np.asarray(data['Velocity'][()])[physical],
+            'temperature_cgs_K': np.asarray(data['Temperature'][()])[physical],
         }
 
 
-def strong_shock_expectation(gamma, upstream_velocity_cm_s, mu):
+def strong_shock_expectation(gamma, upstream_velocity_cgs_cm_s, mu):
     """Return strong-shock compression, postshock speed and temperature."""
     compression = (gamma + 1.0) / (gamma - 1.0)
-    post_velocity = upstream_velocity_cm_s / compression
+    post_velocity = upstream_velocity_cgs_cm_s / compression
     post_temperature = (
         2.0 * (gamma - 1.0) / (gamma + 1.0) ** 2
-        * mu * PROTON_MASS_G / BOLTZMANN_ERG_K
-        * upstream_velocity_cm_s ** 2
+        * mu * PROTON_MASS_G / BOLTZMANN_ERG_cgs_K
+        * upstream_velocity_cgs_cm_s ** 2
     )
     return compression, post_velocity, post_temperature
 
@@ -83,22 +83,22 @@ def strong_shock_expectation(gamma, upstream_velocity_cm_s, mu):
 def cooling_length_estimate(
     table,
     temperature,
-    density_g_cm3,
+    density_cgs_g_cm3,
     hydrogen_mass_fraction,
     mu,
     gamma,
     metallicity,
     redshift,
-    post_velocity_cm_s,
+    post_velocity_cgs_cm_s,
 ):
     """Estimate l_cool = u_post * t_cool using the net PIE rate."""
-    hydrogen_density = density_g_cm3 * hydrogen_mass_fraction / PROTON_MASS_G
+    hydrogen_density = density_cgs_g_cm3 * hydrogen_mass_fraction / PROTON_MASS_G
     heating, cooling = table.rates(
         temperature, hydrogen_density, metallicity=metallicity, redshift=redshift
     )
     net_cooling = max(float(np.asarray(cooling) - np.asarray(heating)), 1.0e-99)
-    thermal_energy = 1.5 * density_g_cm3 * BOLTZMANN_ERG_K * temperature / (
+    thermal_energy = 1.5 * density_cgs_g_cm3 * BOLTZMANN_ERG_cgs_K * temperature / (
         mu * PROTON_MASS_G
     )
     cooling_time_s = thermal_energy / net_cooling
-    return post_velocity_cm_s * cooling_time_s
+    return post_velocity_cgs_cm_s * cooling_time_s

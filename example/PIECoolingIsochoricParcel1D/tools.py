@@ -9,7 +9,7 @@ import unyt
 class Simwrap:
     """Build a uniform, zero-velocity spherical parcel IC."""
 
-    def __init__(self, icparams, code_units, hydrogen_density_cm3,
+    def __init__(self, icparams, code_units, hydrogen_density_cgs_cm3,
                  hydrogen_mass_fraction, temperature):
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
@@ -31,6 +31,6 @@ class Simwrap:
         self.fluid.vel_code = np.zeros(grid_cells) * (0.0 * unyt.cm / unyt.s)
         self.fluid.temp_code = np.ones(grid_cells) * temperature
         proton_mass_g = 1.67262192369e-24
-        rho = hydrogen_density_cm3 * proton_mass_g / hydrogen_mass_fraction
+        rho = hydrogen_density_cgs_cm3 * proton_mass_g / hydrogen_mass_fraction
         self.fluid.rho_code = np.ones(grid_cells) * rho
         self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']

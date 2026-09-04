@@ -59,10 +59,10 @@ class CIETable:
         self._electron_fraction_cache = {}
         self._cooling_log_cache = {}
 
-    def electron_fraction(self, temperature_K, metallicity):
+    def electron_fraction(self, temperature_cgs_K, metallicity):
         """Return ``ne / nH`` for temperature and metallicity arrays."""
-        temperature_K = np.asarray(temperature_K, dtype=float)
-        log_temperature = np.log10(np.maximum(temperature_K, 1.0))
+        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+        log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
         key = float(metallicity)
         if key not in self._electron_fraction_cache:
             scale = np.ones_like(self.abundance)
@@ -78,11 +78,11 @@ class CIETable:
             self._electron_fraction_cache[key],
         )
 
-    def cooling_coefficient(self, temperature_K, electron_density, metallicity):
+    def cooling_coefficient(self, temperature_cgs_K, electron_density, metallicity):
         """Return Lambda in erg cm^3 s^-1 using log-space interpolation."""
-        temperature_K = np.asarray(temperature_K, dtype=float)
+        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
         electron_density = np.asarray(electron_density, dtype=float)
-        log_temperature = np.log10(np.maximum(temperature_K, 1.0))
+        log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
         log_density = np.log10(np.maximum(electron_density, 1.0e-99))
 
         key = float(metallicity)

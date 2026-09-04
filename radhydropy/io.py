@@ -20,25 +20,25 @@ except Exception:  # pragma: no cover - optional dependency shape
 
 def _scale_unit_for_key(scale_key):
     return {
-        "length_cm": unyt.cm,
+        "length_cgs_cm": unyt.cm,
         "mass_g": unyt.g,
-        "velocity_cm_s": unyt.cm / unyt.s,
+        "velocity_cgs_cm_s": unyt.cm / unyt.s,
         "time_s": unyt.s,
-        "temperature_K": unyt.K,
-        "area_cm2": unyt.cm**2,
-        "volume_cm3": unyt.cm**3,
-        "density_g_cm3": unyt.g / unyt.cm**3,
-        "pressure_erg_cm3": unyt.erg / unyt.cm**3,
-        "energy_erg": unyt.erg,
-        "specific_energy_erg_g": unyt.erg / unyt.g,
-        "momentum_g_cm_s": unyt.g * unyt.cm / unyt.s,
-        "mass_flux_g_cm2_s": unyt.g / (unyt.cm**2 * unyt.s),
-        "energy_flux_erg_cm2_s": unyt.erg / (unyt.cm**2 * unyt.s),
-        "number_density_cm3": 1.0 / unyt.cm**3,
-        "photon_flux_per_cm2_s": 1.0 / (unyt.cm**2 * unyt.s),
+        "temperature_cgs_K": unyt.K,
+        "area_cgs_cm2": unyt.cm**2,
+        "volume_cgs_cm3": unyt.cm**3,
+        "density_cgs_g_cm3": unyt.g / unyt.cm**3,
+        "pressure_cgs_erg_cm3": unyt.erg / unyt.cm**3,
+        "energy_cgs_erg": unyt.erg,
+        "specific_energy_cgs_erg_g": unyt.erg / unyt.g,
+        "momentum_g_cgs_cm_s": unyt.g * unyt.cm / unyt.s,
+        "mass_flux_g_cgs_cm2_s": unyt.g / (unyt.cm**2 * unyt.s),
+        "energy_flux_cgs_erg_cm2_s": unyt.erg / (unyt.cm**2 * unyt.s),
+        "number_density_cgs_cm3": 1.0 / unyt.cm**3,
+        "photon_flux_per_cgs_cm2_s": 1.0 / (unyt.cm**2 * unyt.s),
         "photon_rate_per_s": 1.0 / unyt.s,
-        "alpha_cm3_s": unyt.cm**3 / unyt.s,
-        "acceleration_cm_s2": unyt.cm / unyt.s**2,
+        "alpha_cgs_cm3_s": unyt.cm**3 / unyt.s,
+        "acceleration_cgs_cm_s2": unyt.cm / unyt.s**2,
         "specific_angular_momentum": unyt.cm**2 / unyt.s,
         "angular_momentum": unyt.g * unyt.cm**2 / unyt.s,
     }.get(scale_key, None)
@@ -518,7 +518,7 @@ def writehdf5(ric,ICfilename):
             "BoxSize",
             ric.par.simulation.box_size,
             code_units=code_units,
-            scale_key="length_cm",
+            scale_key="length_cgs_cm",
             default_unit=unyt.cm,
             metadata={
                 "quantity": "radius",
@@ -539,7 +539,7 @@ def writehdf5(ric,ICfilename):
             "Boundary",
             ric.mesh.boundary,
             code_units=code_units,
-            scale_key="length_cm",
+            scale_key="length_cgs_cm",
             default_unit=unyt.cm,
             metadata={
                 "quantity": "radius",
@@ -557,7 +557,7 @@ def writehdf5(ric,ICfilename):
             "Density",
             ric.fluid.rho_code,
             code_units=code_units,
-            scale_key="density_g_cm3",
+            scale_key="density_cgs_g_cm3",
             default_unit=unyt.g / unyt.cm**3,
             metadata={
                 "quantity": "mass_density",
@@ -575,7 +575,7 @@ def writehdf5(ric,ICfilename):
             "Velocity",
             ric.fluid.vel_code,
             code_units=code_units,
-            scale_key="velocity_cm_s",
+            scale_key="velocity_cgs_cm_s",
             default_unit=unyt.cm / unyt.s,
             metadata={
                 "quantity": "velocity",
@@ -592,7 +592,7 @@ def writehdf5(ric,ICfilename):
             "Temperature",
             ric.fluid.temp_code,
             code_units=code_units,
-            scale_key="temperature_K",
+            scale_key="temperature_cgs_K",
             default_unit=unyt.K,
             metadata={
                 "quantity": "temperature",
@@ -628,7 +628,7 @@ def writehdf5(ric,ICfilename):
                 scale_key = (
                     "mass_g" if attr == "Mass_code"
                     else "angular_momentum" if attr == "AngularMomentum_code"
-                    else "energy_erg"
+                    else "energy_cgs_erg"
                 )
                 _write_quantity(
                     gdata,
@@ -649,19 +649,19 @@ def writehdf5(ric,ICfilename):
             if hasattr(ric.fluid, attr):
                 gdata.create_dataset(dataset, data=np.asarray(getattr(ric.fluid, attr)))
         if hasattr(ric.fluid, "ngamma_code"):
-            ngamma = ric.fluid.ngamma_code
+            ngamma_cgs_cm3 = ric.fluid.ngamma_code
             # Runtime fluid fields are stored as code-unit arrays.  Some
-            # chemistry paths may temporarily attach units to ngamma; strip
+            # chemistry paths may temporarily attach units to ngamma_cgs_cm3; strip
             # those units in the configured code system before the generic
             # serializer converts the field to cgs for HDF5.
-            if hasattr(ngamma, "to_value") and code_units is not None:
-                ngamma = np.asarray(ngamma.to_value(code_units.number_density_unit))
+            if hasattr(ngamma_cgs_cm3, "to_value") and code_units is not None:
+                ngamma_cgs_cm3 = np.asarray(ngamma_cgs_cm3.to_value(code_units.number_density_unit))
             _write_quantity(
                 gdata,
                 "PhotonNumberDensity",
-                ngamma,
+                ngamma_cgs_cm3,
                 code_units=code_units,
-                scale_key="number_density_cm3",
+                scale_key="number_density_cgs_cm3",
                 default_unit=1.0 / unyt.cm**3,
             )
         if getattr(ric.par, "cosmological_expansion", False):
@@ -678,10 +678,10 @@ def writehdf5(ric,ICfilename):
         if dark_matter is not None:
             dmdata = fic.create_group("DarkMatter")
             _write_quantity(dmdata, "Radius", dark_matter.radius,
-                            code_units=code_units, scale_key="length_cm",
+                            code_units=code_units, scale_key="length_cgs_cm",
                             default_unit=unyt.cm)
             _write_quantity(dmdata, "RadialVelocity", dark_matter.velocity,
-                            code_units=code_units, scale_key="velocity_cm_s",
+                            code_units=code_units, scale_key="velocity_cgs_cm_s",
                             default_unit=unyt.cm / unyt.s)
             _write_quantity(dmdata, "Mass", dark_matter.mass,
                             code_units=code_units, scale_key="mass_g",
@@ -765,7 +765,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
             )
         header_scale_map = {
             "Time": "time_s",
-            "BoxSize": "length_cm",
+            "BoxSize": "length_cgs_cm",
         }
         _populate_group_targets(
             header,
@@ -806,17 +806,17 @@ def readhdf5(par, mesh, fluid, ICfilename):
         #second, save mesh and fluid data:
         gdata = fic["Data"]
         data_scale_map = {
-            "Boundary": "length_cm",
-            "Density": "density_g_cm3",
-            "Velocity": "velocity_cm_s",
-            "Temperature": "temperature_K",
-            "PhotonNumberDensity": "number_density_cm3",
+            "Boundary": "length_cgs_cm",
+            "Density": "density_cgs_g_cm3",
+            "Velocity": "velocity_cgs_cm_s",
+            "Temperature": "temperature_cgs_K",
+            "PhotonNumberDensity": "number_density_cgs_cm3",
             "Mass": "mass_g",
-            "Energy": "energy_erg",
-            "InternalEnergy": "energy_erg",
+            "Energy": "energy_cgs_erg",
+            "InternalEnergy": "energy_cgs_erg",
             "SpecificAngularMomentum": "specific_angular_momentum",
             "AngularMomentum": "angular_momentum",
-            "GravitationalPotentialEnergy": "energy_erg",
+            "GravitationalPotentialEnergy": "energy_cgs_erg",
         }
         _populate_group_targets(
             gdata,
@@ -835,8 +835,8 @@ def readhdf5(par, mesh, fluid, ICfilename):
         if "DarkMatter" in fic:
             dmdata = fic["DarkMatter"]
             dm_scale_map = {
-                "Radius": "length_cm",
-                "RadialVelocity": "velocity_cm_s",
+                "Radius": "length_cgs_cm",
+                "RadialVelocity": "velocity_cgs_cm_s",
                 "Mass": "mass_g",
                 "SpecificAngularMomentum": "specific_angular_momentum",
             }

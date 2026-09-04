@@ -30,9 +30,9 @@ import power_law_hii_region_analytic as analytic
 DEFAULT_CONFIG = EXAMPLE_DIR / "power_law_hii_region_radhydropy.yaml"
 
 
-def density_profile(radius_cm, nc, rc, w):
-    radius_cm = np.asarray(radius_cm, dtype=float)
-    return nc * np.where(radius_cm < rc, 1.0, (radius_cm / rc) ** (-w))
+def density_profile(radius_cgs_cm, nc, rc, w):
+    radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
+    return nc * np.where(radius_cgs_cm < rc, 1.0, (radius_cgs_cm / rc) ** (-w))
 
 
 def build_initial_condition(config):
@@ -107,11 +107,11 @@ def load_snapshot(filename, runtime):
     return par, mesh, fluid
 
 
-def front_radius_cm(mesh, fluid, par, neutral_fraction=0.5):
+def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
     first = par.noghost
     interior = slice(first, first + par.nogrid)
     radius = np.asarray(
-        code_quantity_to_cgs(mesh.coordinate[interior], par.CodeUnits, "length_cm"),
+        code_quantity_to_cgs(mesh.coordinate[interior], par.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -124,12 +124,12 @@ def front_radius_cm(mesh, fluid, par, neutral_fraction=0.5):
     return radius[left] + weight * (radius[right] - radius[left])
 
 
-def shock_radius_cm(
+def shock_radius_cgs_cm(
     mesh,
     fluid,
     par,
     core_number_density=1.0e6,
-    core_radius_cm=2.1e16,
+    core_radius_cgs_cm=2.1e16,
     density_power_law_exponent=1.0,
 ):
     """Estimate the leading shock from the compressed neutral shell.
@@ -142,38 +142,38 @@ def shock_radius_cm(
     """
     first = par.noghost
     interior = slice(first, first + par.nogrid)
-    radius_cm = np.asarray(
-        code_quantity_to_cgs(mesh.coordinate[interior], par.CodeUnits, "length_cm"),
+    radius_cgs_cm = np.asarray(
+        code_quantity_to_cgs(mesh.coordinate[interior], par.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
     rho_cgs = np.asarray(
-        code_quantity_to_cgs(fluid.rho_code[interior], par.CodeUnits, "density_g_cm3"),
+        code_quantity_to_cgs(fluid.rho_code[interior], par.CodeUnits, "density_cgs_g_cm3"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
-    front = front_radius_cm(mesh, fluid, par)
+    front = front_radius_cgs_cm(mesh, fluid, par)
     if not np.isfinite(front):
         return np.nan
 
     initial_nh = density_profile(
-        radius_cm,
+        radius_cgs_cm,
         core_number_density,
-        core_radius_cm,
+        core_radius_cgs_cm,
         density_power_law_exponent,
     )
     compression = rho_cgs / (initial_nh * (1.0 * unyt.mp).to_value(unyt.g))
-    neutral = (radius_cm > front) & (xhi > 0.5)
+    neutral = (radius_cgs_cm > front) & (xhi > 0.5)
     candidates = np.where(neutral & (compression > 1.05))[0]
     if candidates.size == 0:
         return np.nan
 
     peak = candidates[np.argmax(compression[candidates])]
     shell = np.where(
-        neutral & (np.arange(radius_cm.size) >= peak) & (compression > 1.05)
+        neutral & (np.arange(radius_cgs_cm.size) >= peak) & (compression > 1.05)
     )[0]
     if shell.size == 0:
         return np.nan
-    return float(radius_cm[shell[-1]])
+    return float(radius_cgs_cm[shell[-1]])
 
 
 def output_files(outdir, prefix):
@@ -216,22 +216,22 @@ def save_profile_plot(snapshots, output, exponent):
     for index, (time_yr, par, mesh, fluid) in enumerate(snapshots):
         first = par.noghost
         interior = slice(first, first + par.nogrid)
-        radius_cm = np.asarray(
+        radius_cgs_cm = np.asarray(
             code_quantity_to_cgs(
-                mesh.coordinate[interior], par.CodeUnits, "length_cm"
+                mesh.coordinate[interior], par.CodeUnits, "length_cgs_cm"
             ),
             dtype=float,
         )
-        radius_pc = radius_cm / (1.0 * unyt.pc).to_value(unyt.cm)
+        radius_pc = radius_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
         rho_cgs = np.asarray(
             code_quantity_to_cgs(
-                fluid.rho_code[interior], par.CodeUnits, "density_g_cm3"
+                fluid.rho_code[interior], par.CodeUnits, "density_cgs_g_cm3"
             ),
             dtype=float,
         )
-        velocity_cm_s = np.asarray(
+        velocity_cgs_cm_s = np.asarray(
             code_quantity_to_cgs(
-                fluid.vel_code[interior], par.CodeUnits, "velocity_cm_s"
+                fluid.vel_code[interior], par.CodeUnits, "velocity_cgs_cm_s"
             ),
             dtype=float,
         )
@@ -247,7 +247,7 @@ def save_profile_plot(snapshots, output, exponent):
         )
         velocity_axis.plot(
             radius_pc,
-            velocity_cm_s / 1.0e5,
+            velocity_cgs_cm_s / 1.0e5,
             linestyle=style,
             color=color,
             label=label,
@@ -271,7 +271,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
     runparams = eu.legacy_example_parameters(nested)
-    icparams = nested['initial_condition']
+    icparams = eu.legacy_initial_condition_parameters(nested)
     config = {**runparams, **icparams}
     config['area'] = runtime['mesh'].get('area', 1.0 * unyt.cm**2)
     outdir = Path(runparams["outdir"])
@@ -305,14 +305,14 @@ def main(config_filename=DEFAULT_CONFIG):
         time_s = code_quantity_to_cgs(fluid.time, par.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
-        radii_cm.append(front_radius_cm(mesh, fluid, par))
+        radii_cm.append(front_radius_cgs_cm(mesh, fluid, par))
         shock_radii_cm.append(
-            shock_radius_cm(
+            shock_radius_cgs_cm(
                 mesh,
                 fluid,
                 par,
                 core_number_density=nc,
-                core_radius_cm=rc,
+                core_radius_cgs_cm=rc,
                 density_power_law_exponent=exponent,
             )
         )
@@ -323,7 +323,7 @@ def main(config_filename=DEFAULT_CONFIG):
     shock_radii_cm = np.asarray(shock_radii_cm)
     end_time_yr = float(runtime["simulation"]["final_time"].to_value(unyt.yr))
     source_rate_s = runparams["radiative_transfer_source_photon_rate"].to_value(1.0 / unyt.s)
-    analytic_time_s, analytic_radius_cm, _ = analytic.calculate_front(
+    analytic_time_s, analytic_radius_cgs_cm, _ = analytic.calculate_front(
         source_rate_s,
         nc,
         rc,
@@ -333,15 +333,15 @@ def main(config_filename=DEFAULT_CONFIG):
     analytic_time_yr = analytic_time_s / analytic.SECONDS_PER_YEAR
     analytic_valid = (
         np.isfinite(analytic_time_yr)
-        & np.isfinite(analytic_radius_cm)
+        & np.isfinite(analytic_radius_cgs_cm)
         & (analytic_time_yr > 0.0)
-        & (analytic_radius_cm > 0.0)
+        & (analytic_radius_cgs_cm > 0.0)
     )
     valid = np.isfinite(radii_cm) & (times_yr > 0.0)
     figure, axis = plt.subplots(figsize=(7.5, 5.5))
     axis.plot(
         analytic_time_yr[analytic_valid],
-        analytic_radius_cm[analytic_valid],
+        analytic_radius_cgs_cm[analytic_valid],
         color="black",
         linewidth=2.0,
         zorder=1,

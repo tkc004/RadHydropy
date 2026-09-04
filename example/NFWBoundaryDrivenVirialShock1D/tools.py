@@ -31,10 +31,10 @@ spherical_cell_centers = NFW.spherical_cell_centers
 
 
 def pie_equilibrium_temperature(
-    density_g_cm3, table, hydrogen_mass_fraction, metallicity, redshift
+    density_cgs_g_cm3, table, hydrogen_mass_fraction, metallicity, redshift
 ):
     """Return the lowest stable HM12 PIE equilibrium on the table grid."""
-    density = np.atleast_1d(np.asarray(density_g_cm3, dtype=float))
+    density = np.atleast_1d(np.asarray(density_cgs_g_cm3, dtype=float))
     n_h = hydrogen_mass_fraction * density / PROTON_MASS_CGS
     log_temperature = np.asarray(table.log_temperature, dtype=float)
     temperature = 10.0 ** log_temperature
@@ -64,9 +64,9 @@ def pie_equilibrium_temperature(
 def inflow_density(mass_accretion_rate, radius, velocity):
     """Return density from ``Mdot = 4 pi r^2 rho |v|``."""
     mdot = mass_accretion_rate.to_value(unyt.g / unyt.s)
-    radius_cm = radius.to_value(unyt.cm)
+    radius_cgs_cm = radius.to_value(unyt.cm)
     speed = abs(velocity.to_value(unyt.cm / unyt.s))
-    return mdot / (4.0 * np.pi * radius_cm**2 * speed) * unyt.g / unyt.cm**3
+    return mdot / (4.0 * np.pi * radius_cgs_cm**2 * speed) * unyt.g / unyt.cm**3
 
 
 def boundary_inflow_state(icparams, halo, table, par_config):
@@ -190,17 +190,17 @@ def load_snapshot(filename):
         return {
             'time_Myr': float(header['Time']) / SECONDS_PER_MYR,
             'radius_kpc': centers / KPC_CM,
-            'density_g_cm3': np.asarray(data['Density'])[physical],
+            'density_cgs_g_cm3': np.asarray(data['Density'])[physical],
             'velocity_km_s': np.asarray(data['Velocity'])[physical] / 1.0e5,
-            'temperature_K': np.asarray(data['Temperature'])[physical],
+            'temperature_cgs_K': np.asarray(data['Temperature'])[physical],
         }
 
 
 def locate_shock(snapshot, r200_kpc):
     """Locate the strongest entropy-producing compression near the halo."""
     radius = snapshot['radius_kpc']
-    density = np.maximum(snapshot['density_g_cm3'], 1.0e-99)
-    temperature = np.maximum(snapshot['temperature_K'], 1.0)
+    density = np.maximum(snapshot['density_cgs_g_cm3'], 1.0e-99)
+    temperature = np.maximum(snapshot['temperature_cgs_K'], 1.0)
     pressure = density * temperature
     entropy = pressure / density**(5.0 / 3.0)
     # Radius increases with array index, so a compressed downstream (inner)
@@ -244,10 +244,10 @@ def shock_history(filenames, halo, times_myr=None):
             continue
         inner = slice(index - 3, index)
         outer = slice(index + 1, index + 4)
-        rho_in = float(np.median(snapshot['density_g_cm3'][inner]))
-        rho_out = float(np.median(snapshot['density_g_cm3'][outer]))
-        temp_in = float(np.median(snapshot['temperature_K'][inner]))
-        temp_out = float(np.median(snapshot['temperature_K'][outer]))
+        rho_in = float(np.median(snapshot['density_cgs_g_cm3'][inner]))
+        rho_out = float(np.median(snapshot['density_cgs_g_cm3'][outer]))
+        temp_in = float(np.median(snapshot['temperature_cgs_K'][inner]))
+        temp_out = float(np.median(snapshot['temperature_cgs_K'][outer]))
         rows.append({
             'time_Myr': snapshot['time_Myr'],
             'shock_radius_kpc': float(snapshot['radius_kpc'][index]),
@@ -307,8 +307,8 @@ def pie_stability_diagnostics(
             downstream.append(None)
             continue
         band = slice(index - 8, index - 3)
-        rho = float(np.median(profile['density_g_cm3'][band]))
-        temperature = float(np.median(profile['temperature_K'][band]))
+        rho = float(np.median(profile['density_cgs_g_cm3'][band]))
+        temperature = float(np.median(profile['temperature_cgs_K'][band]))
         downstream.append((rho, temperature, _gas_pressure(rho, temperature, mu)))
 
     rows = []
@@ -331,8 +331,8 @@ def pie_stability_diagnostics(
         profile = profiles[i]
         index = indices[i]
         upstream = slice(index + 2, index + 5)
-        rho0 = float(np.median(profile['density_g_cm3'][upstream]))
-        temp0 = float(np.median(profile['temperature_K'][upstream]))
+        rho0 = float(np.median(profile['density_cgs_g_cm3'][upstream]))
+        temp0 = float(np.median(profile['temperature_cgs_K'][upstream]))
         velocity0 = float(np.median(profile['velocity_km_s'][upstream]))
         relative_speed = abs(velocity0 - shock_speed)
         sound_speed = np.sqrt(
@@ -370,11 +370,11 @@ def pie_stability_diagnostics(
         # Birnboim & Dekel's effective index follows a compressed fluid
         # element. Estimate dln(rho)/dt=-div(v) directly from the spherical
         # upstream flow, avoiding a fixed-Eulerian-band time derivative.
-        radius_cm = profile['radius_kpc'] * KPC_CM
-        velocity_cm_s = profile['velocity_km_s'] * KM_S_TO_CM_S
+        radius_cgs_cm = profile['radius_kpc'] * KPC_CM
+        velocity_cgs_cm_s = profile['velocity_km_s'] * KM_S_TO_CM_S
         divergence = np.gradient(
-            radius_cm**2 * velocity_cm_s, radius_cm
-        ) / radius_cm**2
+            radius_cgs_cm**2 * velocity_cgs_cm_s, radius_cgs_cm
+        ) / radius_cgs_cm**2
         compression_rate = -float(np.median(divergence[upstream]))
         # Birnboim & Dekel's local definition follows directly from
         # P=(gamma-1)*rho*e and de/dt=P/rho**2*d(rho)/dt-q:
@@ -400,15 +400,15 @@ def pie_stability_diagnostics(
             'shock_radius_over_R200': float(radii[i] / r200),
             'shock_speed_km_s': float(shock_speed),
             'mach_number': float(mach),
-            'postshock_pressure_erg_cm3': float(pressure1),
-            'analytic_postshock_pressure_erg_cm3': float(pressure_analytic),
-            'ram_pressure_erg_cm3': float(ram_pressure),
+            'postshock_pressure_cgs_erg_cm3': float(pressure1),
+            'analytic_postshock_pressure_cgs_erg_cm3': float(pressure_analytic),
+            'ram_pressure_cgs_erg_cm3': float(ram_pressure),
             'postshock_to_ram_pressure': float(pressure1 / max(ram_pressure, 1.0e-99)),
             'analytic_postshock_to_ram_pressure': float(
                 pressure_analytic / max(ram_pressure, 1.0e-99)
             ),
-            'postshock_temperature_K': float(temp1),
-            'analytic_postshock_temperature_K': float(temp_analytic),
+            'postshock_temperature_cgs_K': float(temp1),
+            'analytic_postshock_temperature_cgs_K': float(temp_analytic),
             'cooling_time_Myr': float(cooling_time),
             'analytic_cooling_time_Myr': float(analytic_cooling_time),
             'gamma_eff': float(gamma_eff),
@@ -421,10 +421,10 @@ def pie_stability_diagnostics(
 def write_stability_report(rows, filename):
     keys = (
         'time_Myr', 'shock_radius_over_R200', 'shock_speed_km_s', 'mach_number',
-        'postshock_pressure_erg_cm3', 'analytic_postshock_pressure_erg_cm3',
-        'ram_pressure_erg_cm3', 'postshock_to_ram_pressure',
+        'postshock_pressure_cgs_erg_cm3', 'analytic_postshock_pressure_cgs_erg_cm3',
+        'ram_pressure_cgs_erg_cm3', 'postshock_to_ram_pressure',
         'analytic_postshock_to_ram_pressure',
-        'postshock_temperature_K', 'analytic_postshock_temperature_K',
+        'postshock_temperature_cgs_K', 'analytic_postshock_temperature_cgs_K',
         'cooling_time_Myr', 'analytic_cooling_time_Myr', 'gamma_eff',
         'gamma_eff_analytic', 'gamma_critical',
     )
@@ -445,11 +445,11 @@ def plot_stability_diagnostics(rows, filename):
     else:
         time = np.asarray([row['time_Myr'] for row in rows])
         panels = (
-            ('postshock_pressure_erg_cm3', 'analytic_postshock_pressure_erg_cm3',
+            ('postshock_pressure_cgs_erg_cm3', 'analytic_postshock_pressure_cgs_erg_cm3',
              r'$P_1$ [erg cm$^{-3}$]', True),
             ('postshock_to_ram_pressure', 'analytic_postshock_to_ram_pressure',
              r'$P_1/P_{\rm ram}$', False),
-            ('postshock_temperature_K', 'analytic_postshock_temperature_K',
+            ('postshock_temperature_cgs_K', 'analytic_postshock_temperature_cgs_K',
              r'$T_1$ [K]', True),
             ('cooling_time_Myr', 'analytic_cooling_time_Myr',
              r'$t_{\rm cool}$ [Myr]', True),
@@ -496,9 +496,9 @@ def plot_comparison(
                 snapshot['time_Myr'] = float(times_myr[index])
             radius = snapshot['radius_kpc'] / r200
             plot_label = f"{snapshot['time_Myr']:.0f} Myr"
-            axes[row, 0].plot(radius, snapshot['density_g_cm3'], color=color,
+            axes[row, 0].plot(radius, snapshot['density_cgs_g_cm3'], color=color,
                               label=plot_label)
-            axes[row, 1].plot(radius, snapshot['temperature_K'], color=color)
+            axes[row, 1].plot(radius, snapshot['temperature_cgs_K'], color=color)
             axes[row, 2].plot(radius, snapshot['velocity_km_s'], color=color)
         history = shock_history(files, halo, times_myr=times_myr)
         if history:

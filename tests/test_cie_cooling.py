@@ -87,13 +87,13 @@ def make_network_state(paths, temperature=1.0e5, rho_code=1.0e-20, metallicity=1
         "par": par,
         "metallicity": metallicity,
         "hydrogen_mass_fraction": 1.0,
-        "rho_g_cm3": np.array([rho_code]),
-        "temperature_K": np.array([temperature]),
-        "specific_energy_erg_g": np.array([BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)]),
+        "rho_cgs_g_cm3": np.array([rho_code]),
+        "temperature_cgs_K": np.array([temperature]),
+        "specific_energy_cgs_erg_g": np.array([BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)]),
         "gamma": 5.0 / 3.0,
         "mu": np.array([1.0]),
-        "volume_cm3": np.array([1.0]),
-        "velocity_cm_s": np.array([0.0]),
+        "volume_cgs_cm3": np.array([1.0]),
+        "velocity_cgs_cm_s": np.array([0.0]),
         "nH": nH,
     }
 
@@ -220,8 +220,8 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
 
     state = _state(mesh, fluid, par)
 
-    np.testing.assert_allclose(state["rho_g_cm3"], [1.0])
-    np.testing.assert_allclose(state["volume_cm3"], [8.0])
-    np.testing.assert_allclose(state["velocity_cm_s"], [1.5])
-    np.testing.assert_allclose(state["temperature_K"], [physical_temperature])
-    np.testing.assert_allclose(state["specific_energy_erg_g"], [specific_internal])
+    np.testing.assert_allclose(state["rho_cgs_g_cm3"], [1.0])
+    np.testing.assert_allclose(state["volume_cgs_cm3"], [8.0])
+    np.testing.assert_allclose(state["velocity_cgs_cm_s"], [1.5])
+    np.testing.assert_allclose(state["temperature_cgs_K"], [physical_temperature])
+    np.testing.assert_allclose(state["specific_energy_cgs_erg_g"], [specific_internal])

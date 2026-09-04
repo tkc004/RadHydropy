@@ -45,7 +45,7 @@ par:
     radiative_transfer_direction: 1
     radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB30000K_5groups_HHe.h5
     radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
-    stellar_spectrum_blackbody_temperature_K: 30000.0
+    stellar_spectrum_blackbody_temperature_cgs_K: 30000.0
   output:
     directory: .
     savedir: .

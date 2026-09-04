@@ -9,7 +9,7 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-from radhydropy.constants import DEFAULT_SIGMA_GAMMA, SPEED_OF_LIGHT_CGS
+from radhydropy.constants import DEFAULT_SIGMA_GAMMA_CGS_CM2, SPEED_OF_LIGHT_CGS
 from radhydropy.units import (
     CGS_AREA_UNIT, CGS_MASS_DENSITY_UNIT, CGS_NUMBER_DENSITY_UNIT,
     CGS_PHOTON_FLUX_UNIT, CGS_RATE_UNIT, CGS_VOLUME_UNIT,
@@ -73,7 +73,7 @@ def _to_code_number_density(solver, value, scales):
     density = np.asarray(photon_number_density(value).to_value(unyt.cm**-3), dtype=float)
     if scales is None:
         return density
-    return density / scales['number_density_cm3']
+    return density / scales['number_density_cgs_cm3']
 
 def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, noghost):
     fields = solver._boundary_field_names(fluid)

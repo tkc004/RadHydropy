@@ -30,10 +30,10 @@ METAL_PIE_TABLE = (
 
 def make_state(ncell=4):
     return {
-        "boundary_cm": np.arange(ncell + 1, dtype=float),
-        "volume_cm3": np.ones(ncell, dtype=float),
-        "rho_g_cm3": np.ones(ncell, dtype=float) * 1.0e-24,
-        "temperature_K": np.ones(ncell, dtype=float) * 1.0e4,
+        "boundary_cgs_cm": np.arange(ncell + 1, dtype=float),
+        "volume_cgs_cm3": np.ones(ncell, dtype=float),
+        "rho_cgs_g_cm3": np.ones(ncell, dtype=float) * 1.0e-24,
+        "temperature_cgs_K": np.ones(ncell, dtype=float) * 1.0e4,
         "xHI": np.ones(ncell, dtype=float),
         "hydrogen_mass_fraction": 1.0,
         "recombination": False,
@@ -72,7 +72,7 @@ def test_c2ray_is_causal_and_photon_conserving():
     assert state["xHI"][0] <= state["xHI"][-1]
 
     source_rate = par.radiative_transfer_boundary_flux
-    absorbed_rate = np.sum(result.absorbed_photon_rate * state["volume_cm3"])
+    absorbed_rate = np.sum(result.absorbed_photon_rate * state["volume_cgs_cm3"])
     incoming_rate = source_rate
     outgoing_rate = np.sum(result.outgoing_photon_rate)
     assert absorbed_rate > 0.0
@@ -86,7 +86,7 @@ def test_c2ray_initial_trace_does_not_change_chemistry():
     result = c2ray.trace_initial_state(state, par)
 
     np.testing.assert_array_equal(state["xHI"], initial)
-    np.testing.assert_allclose(state["ngamma_cm3"], result.photon_density[0])
+    np.testing.assert_allclose(state["ngamma_cgs_cm3"], result.photon_density[0])
 
 
 def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
@@ -99,15 +99,15 @@ def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
             "xHI": np.ones(3),
             "xHeI": np.ones(3),
             "xHeIII": np.zeros(3),
-            "specific_energy_erg_g": np.ones(3) * 2.0e12,
+            "specific_energy_cgs_erg_g": np.ones(3) * 2.0e12,
             "gamma": 5.0 / 3.0,
             "mu": np.ones(3),
-            "sigma_gamma_cm2": {
+            "sigma_gamma_cgs_cm2": {
                 "HI": np.full(5, 1.0e-18),
                 "HeI": np.full(5, 2.0e-18),
                 "HeII": np.array([0.0, 0.0, 0.0, 1.0e-18, 1.0e-18]),
             },
-            "epsilon_gamma_erg": {
+            "epsilon_gamma_cgs_erg": {
                 "HI": np.full(5, 1.0e-11),
                 "HeI": np.full(5, 1.0e-11),
                 "HeII": np.array([0.0, 0.0, 0.0, 1.0e-11, 1.0e-11]),
@@ -131,12 +131,12 @@ def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
 
     assert np.all(np.isfinite(result.photon_density))
     assert np.all(result.iterations >= 1)
-    assert np.all(np.isfinite(state["temperature_K"]))
+    assert np.all(np.isfinite(state["temperature_cgs_K"]))
     assert np.any(state["xHI"] < 1.0)
     assert np.any(state["xHeI"] < 1.0)
     assert np.any(state["xHeIII"] > 0.0)
     incoming_rate = par.radiative_transfer_boundary_flux * 5
-    absorbed_rate = np.sum(result.absorbed_photon_rate * state["volume_cm3"])
+    absorbed_rate = np.sum(result.absorbed_photon_rate * state["volume_cgs_cm3"])
     outgoing_rate = np.sum(result.outgoing_photon_rate)
     np.testing.assert_allclose(incoming_rate, absorbed_rate + outgoing_rate)
 
@@ -151,15 +151,15 @@ def test_c2ray_hydrogen_helium_pie_enters_implicit_thermal_rate():
             "xHI": np.array([0.5]),
             "xHeI": np.array([0.25]),
             "xHeIII": np.array([0.25]),
-            "specific_energy_erg_g": np.array([2.0e12]),
+            "specific_energy_cgs_erg_g": np.array([2.0e12]),
             "gamma": 5.0 / 3.0,
             "mu": np.ones(1),
-            "sigma_gamma_cm2": {
+            "sigma_gamma_cgs_cm2": {
                 "HI": np.array([1.0e-18, 1.0e-18]),
                 "HeI": np.array([2.0e-18, 2.0e-18]),
                 "HeII": np.array([0.0, 1.0e-18]),
             },
-            "epsilon_gamma_erg": {
+            "epsilon_gamma_cgs_erg": {
                 "HI": np.array([1.0e-11, 1.0e-11]),
                 "HeI": np.array([1.0e-11, 1.0e-11]),
                 "HeII": np.array([0.0, 1.0e-11]),

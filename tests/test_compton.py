@@ -36,8 +36,8 @@ def _implicit_hydrogen_state(temperature, xhi, recombination, collisional,
         / (mu * PROTON_MASS_CGS)
     ])
     return {
-        'rho_g_cm3': np.array([PROTON_MASS_CGS * density_factor]),
-        'temperature_K': np.array([temperature]),
+        'rho_cgs_g_cm3': np.array([PROTON_MASS_CGS * density_factor]),
+        'temperature_cgs_K': np.array([temperature]),
         'xHI': np.array([xhi]),
         'hydrogen_mass_fraction': 1.0,
         'gamma': 5.0 / 3.0,
@@ -46,17 +46,17 @@ def _implicit_hydrogen_state(temperature, xhi, recombination, collisional,
         'recombination': recombination,
         'collisional_ionization': collisional,
         'atomic_cooling': atomic_cooling,
-        'sigma_gamma_cm2': 0.0,
-        'epsilon_gamma_erg': 0.0,
+        'sigma_gamma_cgs_cm2': 0.0,
+        'epsilon_gamma_cgs_erg': 0.0,
         'compton_cmb_enabled': False,
         'compton_cmb_redshift': 0.0,
-        'cmb_temperature_0_K': 2.7255,
-        'alpha_B_cm3_s': None,
-        'beta_cm3_s': None,
+        'cmb_temperature_0_cgs_K': 2.7255,
+        'alpha_B_cgs_cm3_s': None,
+        'beta_cgs_cm3_s': None,
         'thermal_coupling': True,
-        'specific_energy_erg_g': specific_energy.copy(),
-        'specific_total_energy_erg_g': specific_energy.copy(),
-        'specific_kinetic_energy_erg_g': np.zeros(1),
+        'specific_energy_cgs_erg_g': specific_energy.copy(),
+        'specific_total_energy_cgs_erg_g': specific_energy.copy(),
+        'specific_kinetic_energy_cgs_erg_g': np.zeros(1),
     }
 
 
@@ -70,9 +70,9 @@ def _explicit_reference_update(state, dt_s, steps):
     for _ in range(steps):
         thermal = thermal_rate(reference, None)
         chemistry = ionization_fraction_rate(reference, None)
-        reference['specific_energy_erg_g'] = np.maximum(
-            reference['specific_energy_erg_g']
-            + sub_dt * thermal / reference['rho_g_cm3'],
+        reference['specific_energy_cgs_erg_g'] = np.maximum(
+            reference['specific_energy_cgs_erg_g']
+            + sub_dt * thermal / reference['rho_cgs_g_cm3'],
             1.0e-30,
         )
         reference['xHI'] = np.clip(
@@ -80,9 +80,9 @@ def _explicit_reference_update(state, dt_s, steps):
             1.0e-12,
             1.0 - 1.0e-12,
         )
-        reference['specific_total_energy_erg_g'] = (
-            reference['specific_energy_erg_g']
-            + reference['specific_kinetic_energy_erg_g']
+        reference['specific_total_energy_cgs_erg_g'] = (
+            reference['specific_energy_cgs_erg_g']
+            + reference['specific_kinetic_energy_cgs_erg_g']
         )
         _fast_update_temperature_from_energy(reference)
     return reference
@@ -179,14 +179,14 @@ def test_coupled_implicit_source_evolves_recombination_and_energy_together():
         collisional=False,
         atomic_cooling=False,
     )
-    old_energy = state['specific_energy_erg_g'].copy()
+    old_energy = state['specific_energy_cgs_erg_g'].copy()
     assert _coupled_implicit_source_update(
         state, 1.0e11, tolerance=1.0e-8, max_iterations=32
     )
     assert state['xHI'][0] > 0.5
-    np.testing.assert_allclose(state['specific_energy_erg_g'], old_energy)
+    np.testing.assert_allclose(state['specific_energy_cgs_erg_g'], old_energy)
     assert 0.0 < state['xHI'][0] < 1.0
-    assert np.isfinite(state['temperature_K'][0])
+    assert np.isfinite(state['temperature_cgs_K'][0])
 
 
 def test_coupled_implicit_source_handles_collisional_ionization():
@@ -197,13 +197,13 @@ def test_coupled_implicit_source_handles_collisional_ionization():
         collisional=True,
         atomic_cooling=False,
     )
-    state['beta_cm3_s'] = np.array([1.0e-12])
+    state['beta_cgs_cm3_s'] = np.array([1.0e-12])
     assert _coupled_implicit_source_update(
         state, 1.0e9, tolerance=1.0e-8, max_iterations=32
     )
     assert state['xHI'][0] < 0.99
     assert 0.0 < state['xHI'][0] < 1.0
-    assert state['temperature_K'][0] > 0.0
+    assert state['temperature_cgs_K'][0] > 0.0
 
 
 def test_coupled_implicit_source_satisfies_both_backward_euler_residuals():
@@ -214,7 +214,7 @@ def test_coupled_implicit_source_satisfies_both_backward_euler_residuals():
         collisional=True,
         atomic_cooling=True,
     )
-    old_energy = state['specific_energy_erg_g'].copy()
+    old_energy = state['specific_energy_cgs_erg_g'].copy()
     old_xhi = state['xHI'].copy()
     dt = 1.0e9
     assert _coupled_implicit_source_update(
@@ -223,8 +223,8 @@ def test_coupled_implicit_source_satisfies_both_backward_euler_residuals():
     thermal = thermal_rate(state, None)
     chemistry = ionization_fraction_rate(state, None)
     energy_residual = (
-        state['specific_energy_erg_g'] - old_energy
-        - dt * thermal / state['rho_g_cm3']
+        state['specific_energy_cgs_erg_g'] - old_energy
+        - dt * thermal / state['rho_cgs_g_cm3']
     ) / old_energy
     xhi_residual = state['xHI'] - old_xhi - dt * chemistry
     assert np.max(np.abs(energy_residual)) < 1.0e-7
@@ -239,7 +239,7 @@ def test_coupled_implicit_chemistry_limits():
         collisional=False,
         atomic_cooling=False,
     )
-    recombination['alpha_B_cm3_s'] = np.array([1.0e-12])
+    recombination['alpha_B_cgs_cm3_s'] = np.array([1.0e-12])
     assert _coupled_implicit_source_update(
         recombination, 1.0e11, tolerance=1.0e-8, max_iterations=32
     )
@@ -252,7 +252,7 @@ def test_coupled_implicit_chemistry_limits():
         collisional=True,
         atomic_cooling=False,
     )
-    collisional['beta_cm3_s'] = np.array([1.0e-12])
+    collisional['beta_cgs_cm3_s'] = np.array([1.0e-12])
     assert _coupled_implicit_source_update(
         collisional, 1.0e11, tolerance=1.0e-8, max_iterations=32
     )
@@ -266,13 +266,13 @@ def test_coupled_implicit_chemistry_limits():
         atomic_cooling=False,
     )
     original_xhi = no_chemistry['xHI'].copy()
-    original_energy = no_chemistry['specific_energy_erg_g'].copy()
+    original_energy = no_chemistry['specific_energy_cgs_erg_g'].copy()
     assert _coupled_implicit_source_update(
         no_chemistry, 1.0e15, tolerance=1.0e-8, max_iterations=32
     )
     np.testing.assert_allclose(no_chemistry['xHI'], original_xhi)
     np.testing.assert_allclose(
-        no_chemistry['specific_energy_erg_g'],
+        no_chemistry['specific_energy_cgs_erg_g'],
         original_energy,
     )
 
@@ -290,7 +290,7 @@ def test_coupled_implicit_compton_thermal_limit_has_correct_direction():
     assert _coupled_implicit_source_update(
         cold, 1.0e13, tolerance=1.0e-8, max_iterations=32
     )
-    assert cold['temperature_K'][0] > 1.0
+    assert cold['temperature_cgs_K'][0] > 1.0
 
     hot = _implicit_hydrogen_state(
         temperature=1.0e5,
@@ -304,7 +304,7 @@ def test_coupled_implicit_compton_thermal_limit_has_correct_direction():
     assert _coupled_implicit_source_update(
         hot, 1.0e13, tolerance=1.0e-8, max_iterations=32
     )
-    assert hot['temperature_K'][0] < 1.0e5
+    assert hot['temperature_cgs_K'][0] < 1.0e5
 
     cooling = _implicit_hydrogen_state(
         temperature=1.0e5,
@@ -313,11 +313,11 @@ def test_coupled_implicit_compton_thermal_limit_has_correct_direction():
         collisional=True,
         atomic_cooling=True,
     )
-    old_energy = cooling['specific_energy_erg_g'].copy()
+    old_energy = cooling['specific_energy_cgs_erg_g'].copy()
     assert _coupled_implicit_source_update(
         cooling, 1.0e8, tolerance=1.0e-8, max_iterations=32
     )
-    assert cooling['specific_energy_erg_g'][0] < old_energy[0]
+    assert cooling['specific_energy_cgs_erg_g'][0] < old_energy[0]
 
 
 def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
@@ -334,15 +334,15 @@ def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
         atomic_cooling=True,
     )
     state.update({
-        'rho_g_cm3': np.array([
+        'rho_cgs_g_cm3': np.array([
             n_hydrogen * PROTON_MASS_CGS / 0.76
         ]),
         'hydrogen_mass_fraction': 0.76,
-        'specific_energy_erg_g': np.array([2682.3951472516123]),
-        'specific_total_energy_erg_g': np.array([2682.3951472516123]),
+        'specific_energy_cgs_erg_g': np.array([2682.3951472516123]),
+        'specific_total_energy_cgs_erg_g': np.array([2682.3951472516123]),
         'compton_cmb_enabled': True,
         'compton_cmb_redshift': 10.71686171470456,
-        'temperature_floor_K': temperature_floor,
+        'temperature_floor_cgs_K': temperature_floor,
         'temperature_floor_tolerance': 1.0e-2,
         'active': np.array([True]),
     })
@@ -350,7 +350,7 @@ def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
         state['xHI'], hydrogen_mass_fraction=0.76
     )
     _fast_update_temperature_from_energy(state)
-    old_energy = state['specific_energy_erg_g'].copy()
+    old_energy = state['specific_energy_cgs_erg_g'].copy()
     old_xhi = state['xHI'].copy()
 
     assert _coupled_implicit_source_update(
@@ -360,10 +360,10 @@ def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
         max_iterations=32,
         trust_region=True,
     )
-    assert state['temperature_K'][0] > temperature_floor
+    assert state['temperature_cgs_K'][0] > temperature_floor
     energy_residual = (
-        state['specific_energy_erg_g'] - old_energy
-        - dt_s * thermal_rate(state, None) / state['rho_g_cm3']
+        state['specific_energy_cgs_erg_g'] - old_energy
+        - dt_s * thermal_rate(state, None) / state['rho_cgs_g_cm3']
     ) / old_energy
     chemistry_residual = (
         state['xHI'] - old_xhi
@@ -385,7 +385,7 @@ def test_stiff_source_cell_isolated_from_quiet_cells():
         if isinstance(value, np.ndarray) and value.shape == (1,):
             state[key] = np.repeat(value, 8)
     state['active'] = np.ones(8, dtype=bool)
-    state['rho_g_cm3'][-1] *= 1.0e8
+    state['rho_cgs_g_cm3'][-1] *= 1.0e8
 
     groups = _source_stiffness_groups(state, 1.0e12)
 
@@ -407,7 +407,7 @@ def test_coupled_implicit_matches_small_step_reference():
     )
     np.testing.assert_allclose(implicit['xHI'], reference['xHI'], rtol=2.0e-4)
     np.testing.assert_allclose(
-        implicit['temperature_K'], reference['temperature_K'], rtol=2.0e-4
+        implicit['temperature_cgs_K'], reference['temperature_cgs_K'], rtol=2.0e-4
     )
 
 
@@ -423,15 +423,15 @@ def test_coupled_implicit_enforces_energy_and_fraction_bounds():
             collisional=collisional,
             atomic_cooling=False,
         )
-        state['alpha_B_cm3_s'] = np.array([1.0e-12])
-        state['beta_cm3_s'] = np.array([1.0e-12])
+        state['alpha_B_cgs_cm3_s'] = np.array([1.0e-12])
+        state['beta_cgs_cm3_s'] = np.array([1.0e-12])
         assert _coupled_implicit_source_update(
             state, 1.0e15, tolerance=1.0e-7, max_iterations=64
         )
-        assert np.all(np.isfinite(state['specific_energy_erg_g']))
-        assert np.all(state['specific_energy_erg_g'] > 0.0)
-        assert np.all(np.isfinite(state['temperature_K']))
-        assert np.all(state['temperature_K'] > 0.0)
+        assert np.all(np.isfinite(state['specific_energy_cgs_erg_g']))
+        assert np.all(state['specific_energy_cgs_erg_g'] > 0.0)
+        assert np.all(np.isfinite(state['temperature_cgs_K']))
+        assert np.all(state['temperature_cgs_K'] > 0.0)
         assert np.all(state['xHI'] >= 0.0)
         assert np.all(state['xHI'] <= 1.0)
 
@@ -444,19 +444,19 @@ def test_coupled_implicit_reaches_fixed_field_equilibrium():
         collisional=False,
         atomic_cooling=False,
     )
-    state['rho_g_cm3'][:] = PROTON_MASS_CGS
-    state['alpha_B_cm3_s'] = np.array([1.0e-12])
-    state['sigma_gamma_cm2'] = 1.0e-18
-    ngamma = np.array([1.0e-12 / (SPEED_OF_LIGHT_CGS * 1.0e-18)])
+    state['rho_cgs_g_cm3'][:] = PROTON_MASS_CGS
+    state['alpha_B_cgs_cm3_s'] = np.array([1.0e-12])
+    state['sigma_gamma_cgs_cm2'] = 1.0e-18
+    ngamma_cgs_cm3 = np.array([1.0e-12 / (SPEED_OF_LIGHT_CGS * 1.0e-18)])
     for _ in range(40):
         assert _coupled_implicit_source_update(
             state,
             1.0e12,
-            ngamma=ngamma,
+            ngamma_cgs_cm3=ngamma_cgs_cm3,
             tolerance=1.0e-8,
             max_iterations=32,
         )
-    chemistry = ionization_fraction_rate(state, ngamma)
+    chemistry = ionization_fraction_rate(state, ngamma_cgs_cm3)
     assert abs(chemistry[0]) < 1.0e-15
     assert 0.0 < state['xHI'][0] < 1.0
 
@@ -684,23 +684,23 @@ def test_cmb_compton_source_is_opt_in_and_has_expected_sign():
 
 def test_hydrogen_thermal_rate_includes_optional_compton_source():
     state = {
-        "rho_g_cm3": np.array([PROTON_MASS_CGS]),
-        "temperature_K": np.array([1.0]),
+        "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS]),
+        "temperature_cgs_K": np.array([1.0]),
         "xHI": np.array([0.0]),
         "hydrogen_mass_fraction": 1.0,
         "recombination": False,
         "collisional_ionization": False,
-        "sigma_gamma_cm2": 0.0,
-        "epsilon_gamma_erg": 0.0,
+        "sigma_gamma_cgs_cm2": 0.0,
+        "epsilon_gamma_cgs_erg": 0.0,
         "compton_cmb_enabled": True,
         "compton_cmb_redshift": 10.0,
-        "cmb_temperature_0_K": 2.7255,
+        "cmb_temperature_0_cgs_K": 2.7255,
     }
     rate = thermal_rate(state, None)
     state["compton_cmb_enabled"] = False
     background_rate = thermal_rate(state, None)
     expected = cmb_compton_rate(
-        state["temperature_K"],
+        state["temperature_cgs_K"],
         np.array([1.0]),
         enabled=True,
         redshift=10.0,
@@ -710,52 +710,52 @@ def test_hydrogen_thermal_rate_includes_optional_compton_source():
 
 def test_hydrogen_thermal_rate_can_disable_atomic_cooling():
     state = {
-        "rho_g_cm3": np.array([PROTON_MASS_CGS]),
-        "temperature_K": np.array([1.0e5]),
+        "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS]),
+        "temperature_cgs_K": np.array([1.0e5]),
         "xHI": np.array([0.5]),
         "hydrogen_mass_fraction": 1.0,
         "recombination": True,
         "collisional_ionization": True,
         "atomic_cooling": False,
-        "sigma_gamma_cm2": 0.0,
-        "epsilon_gamma_erg": 0.0,
+        "sigma_gamma_cgs_cm2": 0.0,
+        "epsilon_gamma_cgs_erg": 0.0,
         "compton_cmb_enabled": False,
         "compton_cmb_redshift": 0.0,
-        "cmb_temperature_0_K": 2.7255,
+        "cmb_temperature_0_cgs_K": 2.7255,
     }
     assert np.allclose(thermal_rate(state, None), 0.0)
 
 
 def test_hydrogen_helium_thermal_rate_uses_electron_density():
     state = {
-        "rho_g_cm3": np.array([PROTON_MASS_CGS]),
+        "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS]),
         "hydrogen_mass_fraction": 0.7,
         "helium_mass_fraction": 0.28,
-        "temperature_K": np.array([1.0]),
+        "temperature_cgs_K": np.array([1.0]),
         "xHI": np.array([0.0]),
         "xHeI": np.array([0.0]),
         "xHeIII": np.array([1.0]),
-        "sigma_gamma_cm2": {
+        "sigma_gamma_cgs_cm2": {
             "HI": np.zeros(1), "HeI": np.zeros(1), "HeII": np.zeros(1)
         },
-        "epsilon_gamma_erg": {
+        "epsilon_gamma_cgs_erg": {
             "HI": np.zeros(1), "HeI": np.zeros(1), "HeII": np.zeros(1)
         },
         "compton_cmb_enabled": True,
         "compton_cmb_redshift": 10.0,
-        "cmb_temperature_0_K": 2.7255,
+        "cmb_temperature_0_cgs_K": 2.7255,
     }
-    ngamma = np.zeros((1, 1))
-    _, _, _, rate = _rates(state, ngamma)
-    expected_ne = state["ne_cm3"].copy()
+    ngamma_cgs_cm3 = np.zeros((1, 1))
+    _, _, _, rate = _rates(state, ngamma_cgs_cm3)
+    expected_ne = state["ne_cgs_cm3"].copy()
     expected = cmb_compton_rate(
-        state["temperature_K"],
+        state["temperature_cgs_K"],
         expected_ne,
         enabled=True,
         redshift=10.0,
     )
     state["compton_cmb_enabled"] = False
-    _, _, _, background_rate = _rates(state, ngamma)
+    _, _, _, background_rate = _rates(state, ngamma_cgs_cm3)
     np.testing.assert_allclose(rate - background_rate, expected)
 
 
@@ -812,8 +812,8 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
     )
 
     state = _fast_source_state(mesh, fluid, par)
-    assert np.isclose(state["temperature_K"][0], physical_temperature)
+    assert np.isclose(state["temperature_cgs_K"][0], physical_temperature)
     density_unit_cgs = units.mass_in_cgs / units.length_in_cgs**3
-    assert np.isclose(state["rho_g_cm3"][0], density_unit_cgs)
+    assert np.isclose(state["rho_cgs_g_cm3"][0], density_unit_cgs)
     _fast_sync_state_to_fluid(state, fluid, par)
     assert np.isclose(fluid.temp_code[0], physical_temperature * scale_factor**2)

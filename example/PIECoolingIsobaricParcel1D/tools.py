@@ -7,7 +7,7 @@ import unyt
 
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
-BOLTZMANN_ERG_K = unyt.kb.to_value(unyt.erg / unyt.K)
+BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 
 def isobaric_density(temperature, density_initial, temperature_initial):
@@ -18,7 +18,7 @@ def isobaric_density(temperature, density_initial, temperature_initial):
 def pressure_from_nh(temperature, density, hydrogen_mass_fraction, mu):
     """Return ideal-gas pressure in erg cm^-3."""
     return (
-        density * BOLTZMANN_ERG_K * temperature
+        density * BOLTZMANN_ERG_cgs_K * temperature
         / (hydrogen_mass_fraction * mu)
     )
 
@@ -58,7 +58,7 @@ def integrate_isobaric_case(
             table, temperature, density, metallicity, redshift
         ))
         dtemperature_dt = (
-            (gamma - 1.0) / gamma * mu * PROTON_MASS_G / BOLTZMANN_ERG_K
+            (gamma - 1.0) / gamma * mu * PROTON_MASS_G / BOLTZMANN_ERG_cgs_K
             * rate / rho * SECONDS_PER_MYR
         )
         return [dtemperature_dt]
@@ -84,9 +84,9 @@ def integrate_isobaric_case(
     )
     return {
         'time_Myr': solution.t,
-        'temperature_K': temperature,
-        'density_nH_cm3': density,
-        'pressure_erg_cm3': pressure,
+        'temperature_cgs_K': temperature,
+        'density_nH_cgs_cm3': density,
+        'pressure_cgs_erg_cm3': pressure,
     }
 
 
@@ -112,7 +112,7 @@ def isobaric_growth_rate(
     rho = density * PROTON_MASS_G / hydrogen_mass_fraction
     rate = net_rate(table, grid, density, metallicity, redshift)
     dtemperature_dt = (
-        (gamma - 1.0) / gamma * mu * PROTON_MASS_G / BOLTZMANN_ERG_K
+        (gamma - 1.0) / gamma * mu * PROTON_MASS_G / BOLTZMANN_ERG_cgs_K
         * rate / rho * SECONDS_PER_MYR
     )
     growth_grid = np.gradient(dtemperature_dt, grid)

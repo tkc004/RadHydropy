@@ -70,7 +70,7 @@ def mean_temperature(sim):
     temp_values = code_quantity_to_cgs(
         sim.fluid.temp_code[interior],
         code_units_obj,
-        'temperature_K',
+        'temperature_cgs_K',
     )
     return np.mean(temp_values) * unyt.K
 
@@ -87,7 +87,7 @@ def mean_photon_number_density(sim):
             code_quantity_to_cgs(
                 sim.fluid.ngamma_code[interior],
                 getattr(sim.par.units, 'CodeUnits', None),
-                'number_density_cm3',
+                'number_density_cgs_cm3',
             )
         )
         / unyt.cm**3
@@ -102,7 +102,7 @@ def time_value(sim, units):
 
 
 def load_history_from_outputs(outputfiles, config):
-    history = {'time_yr': [], 'temperature_K': [], 'xHI': [], 'ngamma': []}
+    history = {'time_yr': [], 'temperature_cgs_K': [], 'xHI': [], 'ngamma_cgs_cm3': []}
     icparams = config['initial_condition']
     runparams = config['par']
     interior = slice(0, icparams['grid_cells'])
@@ -113,22 +113,22 @@ def load_history_from_outputs(outputfiles, config):
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
-        history['temperature_K'].append(
+        history['temperature_cgs_K'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.temp_code[interior],
                     code_units_obj,
-                    'temperature_K',
+                    'temperature_cgs_K',
                 )
             )
         )
         history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
-        history['ngamma'].append(
+        history['ngamma_cgs_cm3'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.ngamma_code[interior],
                     code_units_obj,
-                    'number_density_cm3',
+                    'number_density_cgs_cm3',
                 )
             )
         )

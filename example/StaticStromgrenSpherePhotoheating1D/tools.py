@@ -259,7 +259,7 @@ def append_history(history, mesh, fluid, par):
     history['front_radius_kpc'].append(
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
-    history['mean_ionized_temp_K'].append(mean_ionized_temperature(fluid, par))
+    history['mean_ionized_temp_cgs_K'].append(mean_ionized_temperature(fluid, par))
 
 
 def load_log_reference_profile(filename, radius_unit):
@@ -286,9 +286,9 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     if snapshot is None:
         xHI = np.asarray(fluid.xHI[interior], dtype=float)
         if hasattr(fluid.temp_code[interior], 'to_value'):
-            temperature_K = fluid.temp_code[interior].to_value(unyt.K)
+            temperature_cgs_K = fluid.temp_code[interior].to_value(unyt.K)
         else:
-            temperature_K = np.asarray(fluid.temp_code[interior], dtype=float)
+            temperature_cgs_K = np.asarray(fluid.temp_code[interior], dtype=float)
         if hasattr(fluid.time, 'to_value'):
             profile_time_Myr = float(fluid.time.to_value(unyt.Myr))
         else:
@@ -296,7 +296,7 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     else:
         radius_kpc = snapshot['radius_kpc']
         xHI = snapshot['xHI']
-        temperature_K = snapshot['temperature_K']
+        temperature_cgs_K = snapshot['temperature_cgs_K']
         profile_time_Myr = snapshot['time_Myr']
     xHII = 1.0 - xHI
     plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
@@ -375,7 +375,7 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     ax_frac.grid(True, which='both', alpha=0.25)
     ax_frac.legend(frameon=False, loc='center right')
 
-    ax_temp.plot(radius_kpc, temperature_K, color='tab:red', lw=1.8)
+    ax_temp.plot(radius_kpc, temperature_cgs_K, color='tab:red', lw=1.8)
     if temperature_reference is not None:
         ax_temp.scatter(
             temperature_reference['radius_kpc'],

@@ -387,11 +387,11 @@ def print_startup_diagnostics(sim, config, icparams):
     rho_cgs = code_quantity_to_cgs(
         rho_code,
         code_units_obj,
-        'density_g_cm3',
+        'density_cgs_g_cm3',
     )
     ngamma_cgs = None
     if ngamma_code is not None:
-        ngamma_cgs = code_quantity_to_cgs(ngamma_code, code_units_obj, 'number_density_cm3')
+        ngamma_cgs = code_quantity_to_cgs(ngamma_code, code_units_obj, 'number_density_cgs_cm3')
 
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.mesh.grid_cells)
@@ -401,19 +401,19 @@ def print_startup_diagnostics(sim, config, icparams):
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp_code), np.max(temp_code)))
     print('neutral fraction range = [%.3e, %.3e]' % (np.min(xHI), np.max(xHI)))
     if ngamma_code is not None:
-        print('ngamma range = [%.3e, %.3e] code units' % (np.min(ngamma_code), np.max(ngamma_code)))
+        print('ngamma_cgs_cm3 range = [%.3e, %.3e] code units' % (np.min(ngamma_code), np.max(ngamma_code)))
         if ngamma_cgs is not None:
-            print('ngamma range = [%.3e, %.3e] cm^-3' % (np.min(ngamma_cgs), np.max(ngamma_cgs)))
-            boundary_cm = code_quantity_to_cgs(
+            print('ngamma_cgs_cm3 range = [%.3e, %.3e] cm^-3' % (np.min(ngamma_cgs), np.max(ngamma_cgs)))
+            boundary_cgs_cm = code_quantity_to_cgs(
                 sim.mesh.boundary[interior.start : interior.start + 2],
                 code_units_obj,
-                'length_cm',
+                'length_cgs_cm',
             )
-            inner_radius_cm = 0.5 * (boundary_cm[0] + boundary_cm[1])
+            inner_radius_cgs_cm = 0.5 * (boundary_cgs_cm[0] + boundary_cgs_cm[1])
             thin_estimate = config['source_photon_rate'].to_value(1 / unyt.s) / (
-                4.0 * np.pi * inner_radius_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
+                4.0 * np.pi * inner_radius_cgs_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
             )
-            print('optically thin inner-cell ngamma estimate = %.3e cm^-3' % thin_estimate)
+            print('optically thin inner-cell ngamma_cgs_cm3 estimate = %.3e cm^-3' % thin_estimate)
     print('neutral sound speed = %.3e km/s' % neutral_sound_speed(config).to_value(unyt.km / unyt.s))
     print(
         'ionized sound speed (config) = %.3e km/s'
@@ -583,8 +583,8 @@ def density_snapshot(mesh, fluid, par):
     return {
         'time_Myr': _scalar_in_unit(fluid.time, unyt.Myr),
         'radius_pc': _value_in_unit(mesh.coordinate[interior], unyt.pc).copy(),
-        'density_g_cm3': _value_in_unit(fluid.rho_code[interior], unyt.g / unyt.cm**3).copy(),
-        'radiation_density_cm3': _value_in_unit(
+        'density_cgs_g_cm3': _value_in_unit(fluid.rho_code[interior], unyt.g / unyt.cm**3).copy(),
+        'radiation_density_cgs_cm3': _value_in_unit(
             ngamma_code[interior], 1.0 / unyt.cm**3
         ).copy(),
     }
@@ -736,8 +736,8 @@ def save_front_plot(history, config, figure_filename):
 def save_density_profile_plot(snapshot, config, figure_filename):
     time = snapshot['time_Myr'] * unyt.Myr
     radius_pc = np.asarray(snapshot['radius_pc'])
-    density_g_cm3 = np.asarray(snapshot['density_g_cm3'])
-    radiation_density_cm3 = np.asarray(snapshot['radiation_density_cm3'])
+    density_cgs_g_cm3 = np.asarray(snapshot['density_cgs_g_cm3'])
+    radiation_density_cgs_cm3 = np.asarray(snapshot['radiation_density_cgs_cm3'])
     spitzer_radius_pc = spitzer_radius(time, config).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = hosokawa_inutsuka_radius(
         time,
@@ -752,7 +752,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     )
     ax.plot(
         radius_pc,
-        density_g_cm3,
+        density_cgs_g_cm3,
         color='tab:blue',
         lw=2.0,
         label='RadHydropy',
@@ -784,7 +784,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.set_ylabel(r'Density [g cm$^{-3}$]')
     ax.set_title('Density profile at %.3f Myr' % snapshot['time_Myr'])
     ax.set_xlim(0.0, config['boxsize'].to_value(unyt.pc))
-    positive_density = density_g_cm3[density_g_cm3 > 0.0]
+    positive_density = density_cgs_g_cm3[density_cgs_g_cm3 > 0.0]
     if positive_density.size:
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_density)))
         ymax = 10.0 ** np.ceil(np.log10(1.2 * np.max(positive_density)))
@@ -793,7 +793,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.legend(frameon=False)
     radiation_ax.plot(
         radius_pc,
-        np.where(radiation_density_cm3 > 0.0, radiation_density_cm3, np.nan),
+        np.where(radiation_density_cgs_cm3 > 0.0, radiation_density_cgs_cm3, np.nan),
         color='tab:purple',
         lw=2.0,
         label='RadHydropy',
@@ -807,7 +807,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     radiation_ax.set_yscale('log')
     radiation_ax.set_xlabel('Radius [pc]')
     radiation_ax.set_ylabel(r'Photon density [cm$^{-3}$]')
-    positive_radiation = radiation_density_cm3[radiation_density_cm3 > 0.0]
+    positive_radiation = radiation_density_cgs_cm3[radiation_density_cgs_cm3 > 0.0]
     if positive_radiation.size:
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_radiation)))
         ymax = 10.0 ** np.ceil(np.log10(1.2 * np.max(positive_radiation)))

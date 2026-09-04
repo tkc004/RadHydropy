@@ -93,7 +93,7 @@ def _total_momentum(fluid, par):
 
 def _absorbed_momentum(source_result, mesh, par, dt):
     absorbed = source_result.get("absorbed_photon_rate")
-    energies = source_result.get("photon_energy_erg")
+    energies = source_result.get("photon_energy_cgs_erg")
     if absorbed is None or energies is None:
         return 0.0
     absorbed = np.asarray(absorbed, dtype=float)

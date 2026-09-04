@@ -50,33 +50,33 @@ def load_snapshot(filename, runparams):
 
 def analyze_snapshot(filename, runparams, icparams, halo, temperature):
     time, radius, density, temp, velocity = load_snapshot(filename, runparams)
-    radius_cm = radius * (1.0 * unyt.kpc).to_value(unyt.cm)
+    radius_cgs_cm = radius * (1.0 * unyt.kpc).to_value(unyt.cm)
     mu = float(icparams['mu'])
     pressure = density * BOLTZMANN_CONSTANT_CGS * temp / (mu * PROTON_MASS_CGS)
-    mass = nfw_enclosed_mass(radius_cm * unyt.cm, halo).to_value(unyt.g)
+    mass = nfw_enclosed_mass(radius_cgs_cm * unyt.cm, halo).to_value(unyt.g)
     gravity = unyt.physical_constants.gravitational_constant.to_value(
         unyt.cm**3 / unyt.g / unyt.s**2
-    ) * mass / np.maximum(radius_cm, 1.0) ** 2
-    dpdr = np.gradient(pressure, radius_cm)
+    ) * mass / np.maximum(radius_cgs_cm, 1.0) ** 2
+    dpdr = np.gradient(pressure, radius_cgs_cm)
     force_residual = (dpdr + density * gravity) / np.maximum(density * gravity, 1.0e-99)
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     inside = radius <= r200
-    shell_edges = np.gradient(radius_cm)
-    atmosphere_mass = float(np.sum(4.0 * np.pi * radius_cm[inside]**2
+    shell_edges = np.gradient(radius_cgs_cm)
+    atmosphere_mass = float(np.sum(4.0 * np.pi * radius_cgs_cm[inside]**2
                                    * shell_edges[inside] * density[inside]))
     central = radius < 0.1 * r200
     return {
         'time_Myr': time,
         'radius_kpc': radius,
-        'density_g_cm3': density,
-        'temperature_K': temp,
+        'density_cgs_g_cm3': density,
+        'temperature_cgs_K': temp,
         'velocity_km_s': velocity,
-        'pressure_erg_cm3': pressure,
+        'pressure_cgs_erg_cm3': pressure,
         'force_residual': force_residual,
         'atmosphere_mass_Msun': atmosphere_mass / unyt.Msun.to_value(unyt.g),
-        'central_density_g_cm3': float(np.median(density[central])),
-        'central_temperature_K': float(np.median(temp[central])),
-        'minimum_temperature_K': float(np.min(temp)),
+        'central_density_cgs_g_cm3': float(np.median(density[central])),
+        'central_temperature_cgs_K': float(np.median(temp[central])),
+        'minimum_temperature_cgs_K': float(np.min(temp)),
         'temperature': temperature.to_value(unyt.K),
     }
 
@@ -84,18 +84,18 @@ def analyze_snapshot(filename, runparams, icparams, halo, temperature):
 def write_report(results, filename, temperature_floor):
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(
-            'time_Myr central_density_g_cm3 central_temperature_K '
-            'minimum_temperature_K atmosphere_mass_Msun max_abs_force_residual '
-            'temperature_floor_K floor_reached\n'
+            'time_Myr central_density_cgs_g_cm3 central_temperature_cgs_K '
+            'minimum_temperature_cgs_K atmosphere_mass_Msun max_abs_force_residual '
+            'temperature_floor_cgs_K floor_reached\n'
         )
         for row in results:
             report.write(
                 '%.8g %.8g %.8g %.8g %.8g %.8g %.8g %s\n' % (
-                    row['time_Myr'], row['central_density_g_cm3'],
-                    row['central_temperature_K'], row['minimum_temperature_K'],
+                    row['time_Myr'], row['central_density_cgs_g_cm3'],
+                    row['central_temperature_cgs_K'], row['minimum_temperature_cgs_K'],
                     row['atmosphere_mass_Msun'],
                     np.nanmax(np.abs(row['force_residual'])),
-                    temperature_floor, row['minimum_temperature_K'] <= temperature_floor * 1.01,
+                    temperature_floor, row['minimum_temperature_cgs_K'] <= temperature_floor * 1.01,
                 )
             )
 
@@ -106,8 +106,8 @@ def plot_results(results, halo, filename):
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     for color, row in zip(colors, results):
         label = f"{row['time_Myr']:.0f} Myr"
-        axes[0, 0].plot(row['radius_kpc'], row['density_g_cm3'], color=color, label=label)
-        axes[0, 1].plot(row['radius_kpc'], row['temperature_K'], color=color, label=label)
+        axes[0, 0].plot(row['radius_kpc'], row['density_cgs_g_cm3'], color=color, label=label)
+        axes[0, 1].plot(row['radius_kpc'], row['temperature_cgs_K'], color=color, label=label)
         axes[1, 0].plot(row['radius_kpc'], row['velocity_km_s'], color=color, label=label)
         axes[1, 1].plot(row['radius_kpc'], row['force_residual'], color=color, label=label)
     axes[0, 0].set_ylabel(r'$\rho$ [g cm$^{-3}$]'); axes[0, 0].set_yscale('log')

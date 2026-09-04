@@ -70,7 +70,7 @@ def mean_temperature(sim):
             code_quantity_to_cgs(
                 sim.fluid.temp_code[interior],
                 getattr(sim.par.units, 'CodeUnits', None),
-                'temperature_K',
+                'temperature_cgs_K',
             )
         )
         * unyt.K
@@ -94,7 +94,7 @@ def time_value(sim, units):
 
 
 def load_history_from_outputs(outputfiles, config):
-    history = {'time_yr': [], 'temperature_K': [], 'ionized_fraction': []}
+    history = {'time_yr': [], 'temperature_cgs_K': [], 'ionized_fraction': []}
     icparams = config['initial_condition']
     runparams = config['par']
     interior = slice(0, icparams['grid_cells'])
@@ -105,12 +105,12 @@ def load_history_from_outputs(outputfiles, config):
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
-        history['temperature_K'].append(
+        history['temperature_cgs_K'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.temp_code[interior],
                     code_units_obj,
-                    'temperature_K',
+                    'temperature_cgs_K',
                 )
             )
         )

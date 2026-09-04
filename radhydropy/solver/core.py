@@ -5,7 +5,7 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-from radhydropy.constants import DEFAULT_SIGMA_GAMMA, SPEED_OF_LIGHT_CGS
+from radhydropy.constants import DEFAULT_SIGMA_GAMMA_CGS_CM2, SPEED_OF_LIGHT_CGS
 from radhydropy.units import (
     CGS_AREA_UNIT,
     CGS_MASS_DENSITY_UNIT,
@@ -85,16 +85,16 @@ class Solver():
         volume = np.asarray(mesh.vol[interior], dtype=float)
         submesh = SimpleNamespace(
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
-            boundary=boundary * scales['length_cm'],
-            vol=volume * scales['volume_cm3'],
+            boundary=boundary * scales['length_cgs_cm'],
+            vol=volume * scales['volume_cgs_cm3'],
         )
         if hasattr(mesh, 'area'):
-            submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cm2']
+            submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cgs_cm2']
         group_edges_eV = getattr(par, 'radiation_group_edges_eV', None)
         if group_edges_eV is not None:
             sigma_groups = getattr(par, 'radiation_group_sigma_gamma', None)
             if sigma_groups is None:
-                sigma_groups = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA)
+                sigma_groups = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA_CGS_CM2)
             boundary_groups = getattr(
                 par,
                 'radiative_transfer_boundary_flux_groups',
@@ -111,7 +111,7 @@ class Solver():
                 sigma_groups = code_quantity_to_cgs(
                     sigma_groups,
                     code_units,
-                    'area_cm2',
+                    'area_cgs_cm2',
                 )
             if hasattr(boundary_groups, 'to_value'):
                 boundary_groups = boundary_groups.to_value(CGS_PHOTON_FLUX_UNIT)
@@ -119,7 +119,7 @@ class Solver():
                 boundary_groups = code_quantity_to_cgs(
                     boundary_groups,
                     code_units,
-                    'photon_flux_per_cm2_s',
+                    'photon_flux_per_cgs_cm2_s',
                 )
             if hasattr(source_groups, 'to_value'):
                 source_groups = source_groups.to_value(CGS_RATE_UNIT)
@@ -131,7 +131,7 @@ class Solver():
                 )
             result = rrt.trace_long_characteristics(
                 submesh,
-                np.asarray(fluid.rho_code[interior], dtype=float) * scales['density_g_cm3'],
+                np.asarray(fluid.rho_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
                 np.asarray(fluid.xHI[interior], dtype=float),
                 hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
                 sigma_gamma=sigma_groups,
@@ -141,21 +141,28 @@ class Solver():
                 coordsys=getattr(mesh, 'coordsys', 'cartesian'),
                 group_edges_eV=group_edges_eV,
             )
-            fluid.ngamma_code[:, interior] = (
+            photon_density_code = (
                 np.asarray(result.cell_photon_density, dtype=float)
-                / scales['number_density_cm3']
+                / scales['number_density_cgs_cm3']
             )
+            if np.ndim(photon_density_code) == 2:
+                expected_shape = (photon_density_code.shape[0], len(fluid.rho_code))
+                if np.shape(fluid.ngamma_code) != expected_shape:
+                    fluid.ngamma_code = np.zeros(expected_shape, dtype=float)
+                fluid.ngamma_code[:, interior] = photon_density_code
+            else:
+                fluid.ngamma_code[interior] = photon_density_code
             return result
-        sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA)
+        sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA_CGS_CM2)
         boundary_value = rrt._parameter_value(par, 'radiative_transfer_boundary_flux', 0.0)
         source_value = rrt._parameter_value(par, 'radiative_transfer_source_photon_rate', 0.0)
         if hasattr(sigma_value, 'to_value'):
-            sigma_gamma_cm2 = _as_cgs_float(sigma_value, CGS_AREA_UNIT)
+            sigma_gamma_cgs_cm2 = _as_cgs_float(sigma_value, CGS_AREA_UNIT)
         else:
-            sigma_gamma_cm2 = code_quantity_to_cgs(
+            sigma_gamma_cgs_cm2 = code_quantity_to_cgs(
                 sigma_value,
                 code_units,
-                'area_cm2',
+                'area_cgs_cm2',
             )
         if hasattr(boundary_value, 'to_value'):
             boundary_flux = _as_cgs_float(boundary_value, CGS_PHOTON_FLUX_UNIT)
@@ -163,7 +170,7 @@ class Solver():
             boundary_flux = code_quantity_to_cgs(
                 boundary_value,
                 code_units,
-                'photon_flux_per_cm2_s',
+                'photon_flux_per_cgs_cm2_s',
             )
         if hasattr(source_value, 'to_value'):
             source_photon_rate = _as_cgs_float(source_value, CGS_RATE_UNIT)
@@ -175,10 +182,10 @@ class Solver():
             )
         result = rrt.trace_long_characteristics(
             submesh,
-            np.asarray(fluid.rho_code[interior], dtype=float) * scales['density_g_cm3'],
+            np.asarray(fluid.rho_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
             np.asarray(fluid.xHI[interior], dtype=float),
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-            sigma_gamma=sigma_gamma_cm2,
+            sigma_gamma=sigma_gamma_cgs_cm2,
             boundary_flux=boundary_flux,
             source_photon_rate=source_photon_rate,
             direction=rrt._parameter_value(par, 'radiative_transfer_direction', 1),
@@ -186,7 +193,7 @@ class Solver():
         )
         fluid.ngamma_code[interior] = (
             np.asarray(result.cell_photon_density, dtype=float)
-            / scales['number_density_cm3']
+            / scales['number_density_cgs_cm3']
         )
         return result
 
@@ -2127,7 +2134,7 @@ class Solver():
         scales = code_unit_scales(code_units)
         interior = self._interior_slice(par)
         absorbed = np.asarray(source_result["absorbed_photon_rate"], dtype=float)
-        energies = np.asarray(source_result["photon_energy_erg"], dtype=float)
+        energies = np.asarray(source_result["photon_energy_cgs_erg"], dtype=float)
         if absorbed.ndim == 1:
             absorbed = absorbed[None, :]
         if energies.ndim == 0:
@@ -2138,7 +2145,7 @@ class Solver():
         if absorbed.shape[1] != grid_cells:
             raise ValueError("absorbed photon rate must contain physical cells only")
 
-        rho_cgs = np.asarray(fluid.rho_code[interior], dtype=float) * scales["density_g_cm3"]
+        rho_cgs = np.asarray(fluid.rho_code[interior], dtype=float) * scales["density_cgs_g_cm3"]
         momentum_rate_density = (
             float(source_result.get("direction", 1))
             * np.sum(absorbed * energies[:, None], axis=0)
@@ -2152,7 +2159,7 @@ class Solver():
         acceleration_cgs[valid] = (
             efficiency * momentum_rate_density[valid] / rho_cgs[valid]
         )
-        acceleration = acceleration_cgs / scales["acceleration_cm_s2"]
+        acceleration = acceleration_cgs / scales["acceleration_cgs_cm_s2"]
         volume = np.asarray(mesh.vol[interior], dtype=float)
         momentum = fluid.Mom_code[interior]
         energy = fluid.Energy_code[interior]
