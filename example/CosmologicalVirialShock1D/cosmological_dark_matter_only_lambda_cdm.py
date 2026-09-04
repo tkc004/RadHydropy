@@ -16,10 +16,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config, load_nested_example_parameters
 from radhydropy.units import CodeUnits
 from radhydropy.units import _gravitational_constant_code
-import tools as et
+import tools_lambda_cdm as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_virial_shock1d.yaml")
@@ -40,7 +40,7 @@ def run_lagrangian_top_hat(runparams, icparams, units, cosmology):
     target_mass = float(icparams["target_halo_mass"])
     delta_i = float(icparams["initial_overdensity"])
     initial = float(icparams["initial_cosmic_time"])
-    final = float(runparams["final_cosmic_time"])
+    final = float(runparams["simulation"]["final_time"])
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
@@ -170,7 +170,7 @@ def run_live_shell_density_profiles(
         dtype=float,
     )
     initial = float(icparams["initial_cosmic_time"])
-    final = float(runparams["final_cosmic_time"])
+    final = float(runparams["simulation"]["final_time"])
     target_times = np.unique(np.clip(target_times, initial, final))
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
@@ -323,7 +323,7 @@ def run_live_shell_density_profiles(
     plt.ylabel(r"dark-matter density [code mass / kpc$^3$]")
     plt.title("Live dark-matter-only density evolution")
     plt.grid(alpha=0.25, which="both")
-    plt.plot([], [], color="0.25", ls="--", label=r"$r_{200}$")
+    plt.plot([], [], color="0.25", ls="--", label=r"$r_{\rm vir}$ (LCDM $\Delta_{\rm vir}$)")
     plt.legend(title="cosmic time [Gyr]", fontsize=8)
     plt.tight_layout()
     plt.savefig(figure, dpi=200)
@@ -336,7 +336,7 @@ def run_live_shell_density_profiles(
     finite = np.isfinite(virial_radii) & (virial_radii > 0.0)
     plt.plot(
         times[finite], virial_radii[finite], "o-", color="tab:blue",
-        label=r"simulation $r_{200}$",
+        label=r"simulation $r_{\rm vir}$ (LCDM $\Delta_{\rm vir}$)",
     )
     plt.plot(
         times[finite], analytic_rvir[finite], "--", color="tab:orange",
@@ -354,7 +354,9 @@ def run_live_shell_density_profiles(
 
 
 def main(config_filename=DEFAULT_CONFIG):
+    config = load_nested_example_config(config_filename)
     runparams, icparams = load_nested_example_parameters(config_filename)
+    runparams["simulation"] = config["par"]["simulation"]
     units = CodeUnits.from_mapping(runparams["CodeUnits"])
     if runparams.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
@@ -383,7 +385,7 @@ def main(config_filename=DEFAULT_CONFIG):
     shells = et.make_dark_matter(dm_ic, units, cosmology)
     dm_fraction = 1.0 - float(icparams["baryon_fraction"])
     initial = float(icparams["initial_cosmic_time"])
-    final = float(runparams["final_cosmic_time"])
+    final = float(runparams["simulation"]["final_time"])
     time = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(runparams.get("dm_only_supercomoving_timestep", 0.002))

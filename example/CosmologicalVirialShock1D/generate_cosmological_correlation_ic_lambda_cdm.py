@@ -23,7 +23,7 @@ import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(
-    "cosmological_dark_matter_correlation_z100.yaml"
+    "cosmological_dark_matter_correlation_z100_lambda_cdm.yaml"
 )
 
 

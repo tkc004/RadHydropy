@@ -4,7 +4,9 @@ par:
     initial_condition_filename: outputs_correlation_gas_lcdm/InitialCondition.hdf5
     coordinate_system: spherical
     final_time: 1.832399728
-  mesh: {grid_cells: 128, ghost_cells: 2}
+  mesh:
+    grid_cells: 128
+    ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666666667
@@ -13,10 +15,16 @@ par:
     CFL: 0.10
     cfl_density_floor: 9.3e-20
     temperature_jump_error_threshold: 1.0e8
-  boundary: {condition: InflowSph, cosmological_background_boundary_reconstruction: true}
+  boundary:
+    condition: InflowSph
+    cosmological_background_boundary_reconstruction: true
   timestep:
-    dtmin: {value: 1.0e-12, unit: Myr}
-    dtmax: {value: 200.0, unit: Myr}
+    dtmin:
+      value: 1.0e-12
+      unit: Myr
+    dtmax:
+      value: 200.0
+      unit: Myr
   gravity:
     selfgravity: true
     cosmological_expansion: true
@@ -28,7 +36,12 @@ par:
     cosmology_omega_m: 0.3
     cosmology_omega_lambda: 0.7
     cosmology_hubble_ref: 0.07
-  dark_matter: {crossing_safety_factor: 0.5, crossing_batch_fraction: 0.1, global_timestep_limit: false, smooth_force_for_gas: true}
+  dark_matter:
+    softening: 0.2
+    crossing_safety_factor: 0.5
+    crossing_batch_fraction: 0.1
+    global_timestep_limit: false
+    smooth_force_for_gas: true
   thermochemistry:
     network: hydrogen
     hydrogen_chemistry: false
@@ -39,13 +52,35 @@ par:
     cie_cooling: false
     metal_pie_enabled: false
     compton_cmb_enabled: false
-    cmb_temperature_0: {value: 2.7255, unit: K}
+    cmb_temperature_0:
+      value: 2.7255
+      unit: K
     hydrogen_mass_fraction: 0.76
-  output: {directory: outputs_correlation_gas_lcdm, savedir: outputs_correlation_gas_lcdm, filename_prefix: Output}
+  output:
+    directory: outputs_correlation_gas_lcdm
+    savedir: outputs_correlation_gas_lcdm
+    filename_prefix: Output
   units:
     CodeUnits:
       name: cosmological_gas_correlation_unit_system
-      InternalUnitSystem: {UnitMass_in_cgs: 1.98847e43, UnitLength_in_cgs: 3.085677581e21, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.085677581e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  figure_prefix: CosmologicalGasCorrelationZ100
+  cosmological_background_boundary_reconstruction: true
+  dark_matter_crossing_batch_fraction: 0.1
+  dark_matter_global_timestep_limit: false
+  smooth_dm_force_for_gas: true
+  dm_density_bins: 128
+  gas_profile_cadence: 0.10
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  minimum_temperature: null
+  temperature_plot_ymin:
+    value: 1.0
+    unit: K
 initial_condition:
   nogrid: 128
   rmin: 3.0
@@ -59,7 +94,6 @@ initial_condition:
   correlation_h: 0.674
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76
-  mu: 0.59
   dark_matter_shells: 512
   dm_inner_radius: 0.01
   specific_angular_momentum: 1500.0
@@ -77,6 +111,8 @@ example:
   smooth_dm_force_for_gas: true
   dm_density_bins: 128
   gas_profile_cadence: 0.10
-  linear_correlation_table_filename: ../CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   minimum_temperature: null
-  temperature_plot_ymin: {value: 1.0, unit: K}
+  temperature_plot_ymin:
+    value: 1.0
+    unit: K
