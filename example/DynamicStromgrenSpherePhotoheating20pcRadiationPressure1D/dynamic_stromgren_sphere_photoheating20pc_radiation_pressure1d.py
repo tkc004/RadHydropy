@@ -17,7 +17,6 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example_utils import load_nested_example_parameters
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -101,17 +100,15 @@ def _pressure_diagnostics(sim, source_result):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    runparams, icparams = et.load_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    config = {**runparams, **icparams}
-    nested_config = eu.load_nested_example_config(config_filename)
-    runtime_params = eu.runtime_parameters(nested_config)
-    Path(runparams["outdir"]).mkdir(parents=True, exist_ok=True)
-    Path(runparams["savedir"]).mkdir(parents=True, exist_ok=True)
-    et.write_initial_condition(config, runparams)
+    config = eu.load_nested_example_config(config_filename)
+    par = config['par']
+    output = par['output']
+    eu.clean_previous_outputs(output)
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
+    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
+    et.write_initial_condition(config)
 
-    sim = Rsim(runtime_params)
+    sim = Rsim(par)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -162,7 +159,7 @@ def main(config_filename=DEFAULT_CONFIG):
         step_backend=step_backend,
     )
 
-    outputfilenames = et.output_files(runparams["outdir"], runparams["outfileprefix"])
+    outputfilenames = et.output_files(output['directory'], output['filename_prefix'])
     history = et.load_history_from_outputs(outputfilenames, config)
     out_par, out_mesh, out_fluid = et.load_output_state(outputfilenames[-1], config)
     figure_stem = "DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D"
@@ -171,19 +168,19 @@ def main(config_filename=DEFAULT_CONFIG):
         out_fluid,
         out_par,
         config,
-        Path(runparams["savedir"]) / f"{figure_stem}.jpg",
+        Path(output['savedir']) / f"{figure_stem}.jpg",
     )
     et.save_front_plot(
         history,
         config,
-        Path(runparams["savedir"]) / f"{figure_stem}_IFront.jpg",
+        Path(output['savedir']) / f"{figure_stem}_IFront.jpg",
     )
 
     time_myr = np.asarray(momentum_history["time_s"]) / (1.0 * unyt.Myr).to_value(unyt.s)
     momentum_unit = unyt.g * unyt.cm / unyt.s
     gas = np.asarray(momentum_history["gas_momentum"])
     radiation = np.asarray(momentum_history["radiation_momentum"])
-    momentum_figure = Path(runparams["savedir"]) / f"{figure_stem}_Momentum.jpg"
+    momentum_figure = Path(output['savedir']) / f"{figure_stem}_Momentum.jpg"
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(time_myr, gas, label="total gas radial momentum")
     plt.plot(time_myr, radiation, "--", label="absorbed photon momentum")
@@ -205,7 +202,7 @@ def main(config_filename=DEFAULT_CONFIG):
         radiation_pressure[nonzero_gas_pressure]
         / gas_pressure[nonzero_gas_pressure]
     )
-    pressure_figure = Path(runparams["savedir"]) / f"{figure_stem}_PressureRatio.jpg"
+    pressure_figure = Path(output['savedir']) / f"{figure_stem}_PressureRatio.jpg"
     fig, axes = plt.subplots(2, 1, figsize=(7.0, 6.5), sharex=True)
     axes[0].plot(pressure_time_myr, radiation_pressure, label="effective radiation pressure")
     axes[0].plot(pressure_time_myr, gas_pressure, label="ionized-gas thermal pressure")
@@ -221,7 +218,7 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(pressure_figure, dpi=180)
     plt.close(fig)
-    pressure_csv = Path(runparams["savedir"]) / f"{figure_stem}_PressureRatio.csv"
+    pressure_csv = Path(output['savedir']) / f"{figure_stem}_PressureRatio.csv"
     np.savetxt(
         pressure_csv,
         np.column_stack((
@@ -235,7 +232,7 @@ def main(config_filename=DEFAULT_CONFIG):
         comments="",
     )
 
-    eu.write_radial_profile_csv(outputfilenames[-1], Path(runparams["outdir"]) / "radial_profile_rhd.csv")
+    eu.write_radial_profile_csv(outputfilenames[-1], Path(output['directory']) / "radial_profile_rhd.csv")
     print("final gas momentum = %.6e g cm/s" % gas[-1])
     print("absorbed photon momentum = %.6e g cm/s" % radiation[-1])
     print("momentum figure = %s" % momentum_figure)

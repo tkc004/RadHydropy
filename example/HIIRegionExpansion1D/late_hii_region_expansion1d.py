@@ -47,36 +47,29 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('late_hii_region_expansion1d.yaml')
 
 
-def write_initial_condition(sim, runparams):
-    """Replace the configured initial-condition file."""
-    icfilename = Path(runparams['ICfilename'])
-    icfilename.unlink(missing_ok=True)
-    et.rio.writehdf5(sim, str(icfilename))
-
-
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     loaded_config = eu.load_nested_example_config(config_filename)
-    runparams = loaded_config['par']
-    icparams = loaded_config['initial_condition']
+    par = loaded_config['par']
+    initial_condition = loaded_config['initial_condition']
     exampleparams = loaded_config['example']
-    config = {**icparams, **loaded_config}
-    output = runparams['output']
-    eu.clean_previous_outputs(runparams)
+    config = loaded_config
+    output = par['output']
+    eu.clean_previous_outputs(output)
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
 
-    et.write_initial_condition(config, runparams)
+    et.write_initial_condition(config)
 
-    sim = Rsim(runparams)
+    sim = Rsim(par)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
-    et.print_startup_diagnostics(sim, config, icparams)
+    et.print_startup_diagnostics(sim, config, initial_condition)
 
     output_specs = exampleparams['output_snapshots']
     step_backend = et.make_logging_step_backend(sim, config, max_logged_steps=5)
@@ -92,7 +85,7 @@ def main(config_filename=DEFAULT_CONFIG):
     history = et.load_history_from_outputs(outputfilenames, config)
 
     figure_stem = 'LateHIIRegionExpansion1D'
-    if runparams['radiation'].get('temporal_scheme') == 'c2ray':
+    if par['radiation'].get('temporal_scheme') == 'c2ray':
         figure_stem += '_C2Ray'
     figure_filename = Path(output['savedir']) / f'{figure_stem}_IFront.jpg'
     et.save_front_plot(history, config, figure_filename)
@@ -109,17 +102,17 @@ def main(config_filename=DEFAULT_CONFIG):
         et.save_density_profile_plot(snapshot, config, density_figure_filename)
         density_figure_filenames.append(density_figure_filename)
 
-    comparison_time_myr = icparams['comparison_time'].to_value(unyt.Myr)
+    comparison_time_myr = initial_condition['comparison_time'].to_value(unyt.Myr)
     simulation_radius_pc = et.front_radius_at_time(
         history,
-        icparams['comparison_time'],
+        initial_condition['comparison_time'],
     ).to_value(unyt.pc)
     spitzer_radius_pc = et.spitzer_radius(
-        icparams['comparison_time'],
+        initial_condition['comparison_time'],
         config,
     ).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = et.hosokawa_inutsuka_radius(
-        icparams['comparison_time'],
+        initial_condition['comparison_time'],
         config,
     ).to_value(unyt.pc)
     stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)

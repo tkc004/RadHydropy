@@ -39,19 +39,10 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_recombination1d.yaml')
 
 
-def load_parameters(config_filename=DEFAULT_CONFIG, rundir=None):
-    config_filename = Path(config_filename)
-    config = eu.load_nested_example_config(config_filename)
-    return config
-
-
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    config = load_parameters(
-        config_filename,
-        rundir,
-    )
+    config = eu.load_nested_example_config(config_filename)
     runparams = config['par']
     ICparams = config['initial_condition']
     exampleparams = config['example']
@@ -59,7 +50,7 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(output)
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
-    ric = et.Simwrap(ICparams, code_units=code_units_obj)
+    ric = et.build_initial_condition(config)
     rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)

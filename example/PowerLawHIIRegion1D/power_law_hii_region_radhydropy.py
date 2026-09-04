@@ -41,19 +41,30 @@ def build_initial_condition(config):
     from radhydropy.fluid import Fluid
     from radhydropy.mesh import Mesh
 
-    code = CodeUnits.from_mapping(config["CodeUnits"])
-    ncell = int(config["number_of_cells"])
-    boxsize = config["boxsize"]
+    par_config = config['par']
+    initial = config['initial_condition']
+    code = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    ncell = int(initial['number_of_cells'])
+    boxsize = initial['boxsize']
     boundary = np.linspace(0.0, boxsize.to_value(unyt.cm), ncell + 1) * unyt.cm
     radius = 0.5 * (boundary[1:] + boundary[:-1])
     n_h = density_profile(
         radius.to_value(unyt.cm),
-        config["core_number_density"].to_value(1.0 / unyt.cm**3),
-        config["core_radius"].to_value(unyt.cm),
-        config["density_power_law_exponent"],
+        initial['core_number_density'].to_value(1.0 / unyt.cm**3),
+        initial['core_radius'].to_value(unyt.cm),
+        initial['density_power_law_exponent'],
     ) / unyt.cm**3
 
     par = SimpleNamespace(
+        coordsys=par_config['simulation']['coordinate_system'],
+        boundcond=par_config['boundary']['condition'],
+        nogrid=ncell,
+        noghost=int(par_config['mesh']['ghost_cells']),
+        boxsize=boxsize,
+        area=par_config['mesh']['area'],
+        EOStype=par_config['hydrodynamics']['eos_type'],
+        gamma=par_config['hydrodynamics']['gamma'],
+        CodeUnits=code,
         simulation=SimpleNamespace(
             coordinate_system="spherical",
             current_time=0.0 * unyt.yr,
@@ -61,19 +72,19 @@ def build_initial_condition(config):
         ),
         mesh=SimpleNamespace(
             grid_cells=ncell,
-            ghost_cells=int(config["noghost"]),
-            area=config["area"],
+            ghost_cells=int(par_config['mesh']['ghost_cells']),
+            area=par_config['mesh']['area'],
         ),
-        hydrodynamics=SimpleNamespace(gamma=config["gamma"]),
+        hydrodynamics=SimpleNamespace(gamma=par_config['hydrodynamics']['gamma']),
         units=SimpleNamespace(CodeUnits=code),
     )
     mesh = Mesh()
     mesh.boundary = boundary
     fluid = Fluid()
-    fluid.eos = EOS(config["EOStype"], config["gamma"], code)
+    fluid.eos = EOS(par_config['hydrodynamics']['eos_type'], par_config['hydrodynamics']['gamma'], code)
     fluid.rho_code = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
     fluid.vel_code = np.zeros(ncell) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(ncell) * config["initial_temperature"]
+    fluid.temp_code = np.ones(ncell) * initial['initial_temperature']
     fluid.xHI = np.ones(ncell)
     fluid.mu = np.ones(ncell)
     fluid.ngamma_code = np.zeros(ncell) / unyt.cm**3
@@ -87,31 +98,29 @@ def write_initial_condition(config, filename):
     rio.writehdf5(build_initial_condition(config), filename)
 
 
-def load_snapshot(filename, runtime):
+def load_snapshot(filename, par_config):
     from radhydropy.fluid import Fluid
     from radhydropy.mesh import Mesh
     from radhydropy.params import Par
 
-    par = Par(runtime)
+    par = Par(par_config)
     mesh = Mesh()
     fluid = Fluid()
     rio.readhdf5(par, mesh, fluid, filename)
-    # The diagnostic helpers below use the historical short names; keep this
-    # compatibility projection local to reloaded snapshots.
-    par.noghost = par.mesh.ghost_cells
-    par.nogrid = par.mesh.grid_cells
-    par.CodeUnits = par.units.CodeUnits
-    if par.noghost > 0:
-        mesh.boundary = mesh.boundary[par.noghost:-par.noghost]
+    ghost_cells = par.mesh.ghost_cells
+    grid_cells = par.mesh.grid_cells
+    code_units = par.units.CodeUnits
+    if ghost_cells > 0:
+        mesh.boundary = mesh.boundary[ghost_cells:-ghost_cells]
     mesh.SetUpMesh(par)
     return par, mesh, fluid
 
 
 def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
-    first = par.noghost
-    interior = slice(first, first + par.nogrid)
+    first = par.mesh.ghost_cells
+    interior = slice(first, first + par.mesh.grid_cells)
     radius = np.asarray(
-        code_quantity_to_cgs(mesh.coordinate[interior], par.CodeUnits, "length_cgs_cm"),
+        code_quantity_to_cgs(mesh.coordinate[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -140,14 +149,14 @@ def shock_radius_cgs_cm(
     therefore not mistaken for a shock.  This is a profile diagnostic, not a
     replacement for a Riemann shock detector.
     """
-    first = par.noghost
-    interior = slice(first, first + par.nogrid)
+    first = par.mesh.ghost_cells
+    interior = slice(first, first + par.mesh.grid_cells)
     radius_cgs_cm = np.asarray(
-        code_quantity_to_cgs(mesh.coordinate[interior], par.CodeUnits, "length_cgs_cm"),
+        code_quantity_to_cgs(mesh.coordinate[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
     rho_cgs = np.asarray(
-        code_quantity_to_cgs(fluid.rho_code[interior], par.CodeUnits, "density_cgs_g_cm3"),
+        code_quantity_to_cgs(fluid.rho_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -185,9 +194,9 @@ def apply_piecewise_isothermal_state(sim, config):
     sim.fluid.eos.apply_piecewise_isothermal_state(
         sim.fluid,
         sim.par,
-        config["neutral_temperature"],
-        config["ionized_temperature"],
-        config.get("isothermal_ionized_fraction_threshold"),
+        config['initial_condition']["neutral_temperature"],
+        config['initial_condition']["ionized_temperature"],
+        config['initial_condition'].get("isothermal_ionized_fraction_threshold"),
     )
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
@@ -214,24 +223,24 @@ def save_profile_plot(snapshots, output, exponent):
     density_axis, velocity_axis = axes
 
     for index, (time_yr, par, mesh, fluid) in enumerate(snapshots):
-        first = par.noghost
-        interior = slice(first, first + par.nogrid)
+        first = par.mesh.ghost_cells
+        interior = slice(first, first + par.mesh.grid_cells)
         radius_cgs_cm = np.asarray(
             code_quantity_to_cgs(
-                mesh.coordinate[interior], par.CodeUnits, "length_cgs_cm"
+                mesh.coordinate[interior], par.units.CodeUnits, "length_cgs_cm"
             ),
             dtype=float,
         )
         radius_pc = radius_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
         rho_cgs = np.asarray(
             code_quantity_to_cgs(
-                fluid.rho_code[interior], par.CodeUnits, "density_cgs_g_cm3"
+                fluid.rho_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"
             ),
             dtype=float,
         )
         velocity_cgs_cm_s = np.asarray(
             code_quantity_to_cgs(
-                fluid.vel_code[interior], par.CodeUnits, "velocity_cgs_cm_s"
+                fluid.vel_code[interior], par.units.CodeUnits, "velocity_cgs_cm_s"
             ),
             dtype=float,
         )
@@ -268,18 +277,17 @@ def save_profile_plot(snapshots, output, exponent):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    nested = eu.load_nested_example_config(config_filename)
-    runtime = nested['par']
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = eu.legacy_initial_condition_parameters(nested)
-    config = {**runparams, **icparams}
-    config['area'] = runtime['mesh'].get('area', 1.0 * unyt.cm**2)
-    outdir = Path(runparams["outdir"])
+    config = eu.load_nested_example_config(config_filename)
+    runtime = config['par']
+    initial = config['initial_condition']
+    example = config['example']
+    output_config = runtime['output']
+    outdir = Path(output_config['directory'])
     outdir.mkdir(parents=True, exist_ok=True)
-    Path(runparams["savedir"]).mkdir(parents=True, exist_ok=True)
-    for filename in output_files(outdir, runparams["outfileprefix"]):
+    Path(output_config['savedir']).mkdir(parents=True, exist_ok=True)
+    for filename in output_files(outdir, output_config['filename_prefix']):
         filename.unlink()
-    write_initial_condition(config, runparams["ICfilename"])
+    write_initial_condition(config, runtime['simulation']['initial_condition_filename'])
 
     sim = Rsim(runtime)
     sim.Callreadhdf5()
@@ -297,12 +305,12 @@ def main(config_filename=DEFAULT_CONFIG):
     radii_cm = []
     shock_radii_cm = []
     snapshots = []
-    nc = config["core_number_density"].to_value(1.0 / unyt.cm**3)
-    rc = config["core_radius"].to_value(unyt.cm)
-    exponent = float(config["density_power_law_exponent"])
-    for filename in output_files(outdir, runparams["outfileprefix"]):
+    nc = initial['core_number_density'].to_value(1.0 / unyt.cm**3)
+    rc = initial['core_radius'].to_value(unyt.cm)
+    exponent = float(initial['density_power_law_exponent'])
+    for filename in output_files(outdir, output_config['filename_prefix']):
         par, mesh, fluid = load_snapshot(filename, runtime)
-        time_s = code_quantity_to_cgs(fluid.time, par.CodeUnits, "time_s")
+        time_s = code_quantity_to_cgs(fluid.time, par.units.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
         radii_cm.append(front_radius_cgs_cm(mesh, fluid, par))
@@ -322,7 +330,7 @@ def main(config_filename=DEFAULT_CONFIG):
     radii_cm = np.asarray(radii_cm)
     shock_radii_cm = np.asarray(shock_radii_cm)
     end_time_yr = float(runtime["simulation"]["final_time"].to_value(unyt.yr))
-    source_rate_s = runparams["radiative_transfer_source_photon_rate"].to_value(1.0 / unyt.s)
+    source_rate_s = runtime['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s)
     analytic_time_s, analytic_radius_cgs_cm, _ = analytic.calculate_front(
         source_rate_s,
         nc,
@@ -377,9 +385,9 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.grid(True, which="both", alpha=0.25)
     axis.legend()
     figure.tight_layout()
-    output = Path(runparams["savedir"]) / runparams["front_plot_filename"]
+    output = Path(output_config["savedir"]) / example["front_plot_filename"]
     figure.savefig(output, dpi=180)
-    profile_output = Path(runparams["savedir"]) / runparams["profile_plot_filename"]
+    profile_output = Path(output_config["savedir"]) / example["profile_plot_filename"]
     save_profile_plot(snapshots, profile_output, exponent)
     print(f"wrote {output}")
     print(f"wrote {profile_output}")

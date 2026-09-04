@@ -51,8 +51,9 @@ def _pressure_diagnostic(snapshot, config):
     if shell_radius_pc <= 0.0:
         wind_pressure = 0.0
     else:
-        mdot = config['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
-        wind_velocity = config['wind_velocity'].to_value(unyt.cm / unyt.s)
+        example = config['example']
+        mdot = example['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
+        wind_velocity = example['wind_velocity'].to_value(unyt.cm / unyt.s)
         shell_radius_cgs_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
         wind_pressure = mdot * wind_velocity / (
             4.0 * np.pi * shell_radius_cgs_cm**2
@@ -85,8 +86,9 @@ def pressure_diagnostic_from_profile(profile, config):
     temperature = np.asarray(fields['TEMP_cgs_K'], dtype=float)
     shell_index = 2 + int(np.argmax(density[2:]))
     shell_radius_pc = float(radius_pc[shell_index])
-    mdot = config['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
-    wind_velocity = config['wind_velocity'].to_value(unyt.cm / unyt.s)
+    example = config['example']
+    mdot = example['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
+    wind_velocity = example['wind_velocity'].to_value(unyt.cm / unyt.s)
     shell_radius_cgs_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
     wind_pressure = mdot * wind_velocity / (4.0 * np.pi * shell_radius_cgs_cm**2)
     photoheated = (np.arange(radius_pc.size) >= 2) & (
@@ -143,24 +145,16 @@ def main(config_filename=None):
         )
     template.main(config_filename)
 
-    nested_config = et.eu.load_nested_example_config(config_filename)
-    runparams = et.eu.runtime_parameters(nested_config)
-    output_dir = Path(runparams['output']['directory'])
+    config = et.eu.load_nested_example_config(config_filename)
+    output = config['par']['output']
+    output_dir = Path(output['directory'])
     old_csv = output_dir / 'radial_profile_rhd.csv'
     wind_csv = output_dir / 'radial_profile_rhd_wind.csv'
     if old_csv.exists():
         old_csv.replace(wind_csv)
     print('RHD wind profile CSV = %s' % wind_csv)
 
-    output_files = sorted(output_dir.glob(f"{runparams['output'].get('filename_prefix', 'Output')}_*.hdf5"))
-    # Do not use et.load_parameters here: it intentionally removes stale
-    # snapshots for a new run. This is postprocessing, so preserve the files
-    # just written by the simulation.
-    run_parameters, ic_parameters = et.load_parameters(
-        config_filename,
-        clean_previous_outputs=False,
-    )
-    config = {**run_parameters, **ic_parameters}
+    output_files = sorted(output_dir.glob(f"{output.get('filename_prefix', 'Output')}_*.hdf5"))
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)
     times = diagnostics[:, 0]

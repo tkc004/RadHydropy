@@ -33,8 +33,9 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
     pressure = _to_pressure(fluid.pre_code[interior], par)
     temperature = _to_temperature(fluid.temp_code[interior], par)
-    plot_radius_max = config['plot_radius_max'].to_value(unyt.pc)
-    radius_unit = config.get('reference_radius_unit', 15.0 * unyt.kpc)
+    example_config = config['example']
+    plot_radius_max = example_config['plot_radius_max'].to_value(unyt.pc)
+    radius_unit = example_config.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(
         config.get('density_reference_filename', None), radius_unit, log_value=True
     )
@@ -97,7 +98,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     for ax in axes:
         ax.set_xlim(0.0, plot_radius_max)
         ax.grid(True, which='both', alpha=0.25)
-    final_time_myr = config['timesim'].to_value(unyt.Myr)
+    final_time_myr = config['par']['simulation']['final_time'].to_value(unyt.Myr)
     fig.suptitle('Dynamic photoheated Stromgren sphere at %.3g Myr' % final_time_myr)
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches='tight')

@@ -3,7 +3,7 @@ par:
   mesh: {grid_cells: 512, ghost_cells: 2, area: {value: 1.0, unit: cm**2}}
   boundary: {condition: OpenSph}
   hydrodynamics: {eos_type: polytropic, gamma: 1.6666666666666667, CFL: 0.5, order: 0}
-  timestep: {dtmin: {value: 1.0e-10, unit: Myr}, dtmax: {value: 0.01, unit: Myr}, hydrogen_source_CFL: 10000.0, hydrogen_source_dtmin: {value: 1.0e-3, unit: Myr}}
+  timestep: {dtmin: {value: 1.0e-10, unit: Myr}, dtmax: {value: 0.01, unit: Myr}, hydrogen_source_CFL: 10000.0, hydrogen_source_dtmin: {value: 1.0e-20, unit: Myr}}
   output: {directory: ., savedir: ., filename_prefix: Output_RadiationPressure, time_list_filename: output_times_radiation_pressure.txt}
   chemistry: {hydrogen_chemistry: true, hydrogen_mass_fraction: 1.0, hydrogen_xHI_initial: 1.0, hydrogen_xHI_inflow: 1.0, hydrogen_xHI_outflow: 1.0, hydrogen_update_mu: true, hydrogen_recombination: true, hydrogen_collisional_ionization: false, hydrogen_alpha_B: {value: 2.59e-13, unit: cm**3/s}, hydrogen_beta: {value: 0.0, unit: cm**3/s}}
   thermochemistry: {hydrogen_thermal_coupling: true}

@@ -1,0 +1,1 @@
+temperature jump error: physical gas temperature exceeded 1.000000e+08 K during hydrogen source source substep 1 at cell 2 (T_before=99.99999999999997 K T_after=10534020178.351027 K rho=1.67262311e-22 g/cm^3 xHI=4.2242369664365055e-06 specific_energy=12381589059.833088 erg/g)

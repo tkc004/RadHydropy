@@ -23,208 +23,90 @@ from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 
 
-def _config_value(config, *keys, default=None):
-    for key in keys:
-        if key in config:
-            return config[key]
-    return default
-
-
-def _runtime_values(runparams):
-    """Expose nested runtime values to the IC fixture builder."""
-    if 'simulation' not in runparams:
-        return runparams
-    simulation = runparams['simulation']
-    mesh = runparams['mesh']
-    hydro = runparams['hydrodynamics']
-    boundary = runparams['boundary']
-    timestep = runparams['timestep']
-    output = runparams['output']
-    diagnostics = runparams.get('diagnostics', {})
-    radiation = runparams.get('radiation', {})
-    chemistry = runparams.get('chemistry', {})
-    thermochemistry = runparams.get('thermochemistry', {})
-    values = {
-        'CodeUnits': runparams['units']['CodeUnits'],
-        'coordsys': simulation['coordinate_system'],
-        'boundcond': boundary['condition'],
-        'noghost': mesh['ghost_cells'],
-        'outdir': output['directory'],
-        'outfileprefix': output['filename_prefix'],
-        'savedir': output.get('savedir', output['directory']),
-        'outputtimefilename': output.get('time_list_filename'),
-        'verbose': diagnostics.get('verbose', 0),
-        'timesim': simulation['final_time'],
-        'area': mesh.get('area', 1.0 * unyt.cm**2),
-        'EOStype': hydro['eos_type'],
-        'gamma': hydro['gamma'],
-        'CFL': hydro['CFL'],
-        'order': hydro['order'],
-        'dtmin': timestep['dtmin'],
-        'dtmax': timestep['dtmax'],
-        'hydrogen_source_CFL': timestep.get('hydrogen_source_CFL'),
-        'hydrogen_source_dtmin': timestep.get('hydrogen_source_dtmin'),
-        'radiative_transfer_direction': radiation.get('direction', 1),
-        'radiative_transfer_boundary_flux': radiation.get('boundary_flux'),
-        'radiative_transfer_source_photon_rate': radiation.get('source_photon_rate'),
-        'radiative_transfer_method': radiation.get('method', 'long_characteristics'),
-        'radiative_transfer_temporal_scheme': radiation.get('temporal_scheme', 'instantaneous'),
-    }
-    for nested, legacy in (
-        ('c2ray_max_iterations', 'radiative_transfer_c2ray_max_iterations'),
-        ('c2ray_tolerance', 'radiative_transfer_c2ray_tolerance'),
-        ('c2ray_relaxation', 'radiative_transfer_c2ray_relaxation'),
-        ('c2ray_nonconvergence', 'radiative_transfer_c2ray_nonconvergence'),
-    ):
-        if nested in radiation:
-            values[legacy] = radiation[nested]
-    for key in (
-        'hydrogen_source_CFL', 'hydrogen_source_dtmin',
-        'radiative_transfer',
-    ):
-        if key in runparams:
-            values[key] = runparams[key]
-    for key in (
-        'hydrogen_chemistry', 'hydrogen_mass_fraction', 'hydrogen_xHI_initial',
-        'hydrogen_xHI_inflow', 'hydrogen_xHI_outflow', 'hydrogen_update_mu',
-        'hydrogen_alpha_B', 'hydrogen_beta',
-    ):
-        if key in chemistry:
-            values[key] = chemistry[key]
-    for key in (
-        'hydrogen_chemistry', 'hydrogen_thermal_coupling',
-        'hydrogen_recombination', 'hydrogen_collisional_ionization',
-    ):
-        if key in thermochemistry:
-            values[key] = thermochemistry[key]
-    for key in (
-        'hydrogen_radiation_field', 'hydrogen_radiation_evolution',
-        'hydrogen_ngamma_initial', 'hydrogen_sigma_gamma',
-        'hydrogen_epsilon_gamma',
-    ):
-        if key in radiation:
-            values[key] = radiation[key]
-    return values
-
-
-def build_problem(config, runparams=None):
-    if 'par' in config and 'initial_condition' in config:
-        config = {**config['initial_condition'], **config}
-    if runparams is None:
-        runparams = config.get('par', config)
-    config = {**config, **_runtime_values(runparams)}
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+def build_problem(config):
+    """Build the H II initial state from direct nested configuration groups."""
+    par_config = config['par']
+    simulation = par_config['simulation']
+    mesh_config = par_config['mesh']
+    hydro = par_config['hydrodynamics']
+    boundary = par_config['boundary']
+    timestep = par_config['timestep']
+    output = par_config['output']
+    chemistry = par_config['chemistry']
+    thermochemistry = par_config['thermochemistry']
+    radiation = par_config['radiation']
+    initial = config['initial_condition']
+    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    grid_cells = initial['grid_cells']
+    box_size = initial['boxsize']
     par = SimpleNamespace(
-        coordsys='spherical',
-        boundcond='OpenSph',
-        nogrid=_config_value(config, 'number_of_cells', 'grid_cells'),
-        noghost=config.get('noghost', 2),
-        boxsize=config['boxsize'],
-        outdir=config.get('outdir', '.'),
-        outfileprefix=config.get('outfileprefix', 'Output'),
-        savedir=config.get('savedir', config.get('outdir', '.')),
-        outputtimefilename=config.get('outputtimefilename', None),
-        verbose=config.get('verbose', 0),
-        timesim=_config_value(config, 'timesim', 'final_time'),
-        area=config['area'],
-        EOStype='isothermal',
-        gamma=1.0,
-        CFL=_config_value(config, 'CFL', 'hydro_cfl'),
-        order=_config_value(config, 'order', 'hydro_order'),
-        dtmin=_config_value(config, 'dtmin', 'hydro_timestep_min'),
-        dtmax=_config_value(config, 'dtmax', 'hydro_timestep_max'),
-        hydrogen_chemistry=True,
-        hydrogen_mass_fraction=_config_value(config, 'hydrogen_mass_fraction', default=1.0),
-        hydrogen_xHI_initial=_config_value(config, 'hydrogen_xHI_initial', default=1.0),
-        hydrogen_xHI_inflow=_config_value(config, 'hydrogen_xHI_inflow', default=1.0),
-        hydrogen_xHI_outflow=_config_value(config, 'hydrogen_xHI_outflow', default=1.0),
-        hydrogen_source_CFL=_config_value(config, 'hydrogen_source_CFL', 'source_cfl'),
-        hydrogen_source_dtmin=_config_value(config, 'hydrogen_source_dtmin', 'source_timestep_min'),
-        hydrogen_update_mu=_config_value(config, 'hydrogen_update_mu', default=True),
-        hydrogen_thermal_coupling=_config_value(config, 'hydrogen_thermal_coupling', default=False),
-        hydrogen_recombination=_config_value(config, 'hydrogen_recombination', default=True),
-        hydrogen_collisional_ionization=_config_value(
-            config,
-            'hydrogen_collisional_ionization',
-            default=False,
-        ),
-        hydrogen_alpha_B=_config_value(config, 'hydrogen_alpha_B', 'alpha_B_coefficient'),
-        hydrogen_beta=_config_value(config, 'hydrogen_beta'),
-        hydrogen_radiation_field=_config_value(config, 'hydrogen_radiation_field', default=False),
-        hydrogen_radiation_evolution=_config_value(config, 'hydrogen_radiation_evolution', default=False),
-        hydrogen_ngamma_initial=_config_value(config, 'hydrogen_ngamma_initial', default=0.0 / unyt.cm**3),
-        hydrogen_sigma_gamma=_config_value(config, 'hydrogen_sigma_gamma', 'sigma_gamma'),
-        hydrogen_epsilon_gamma=_config_value(config, 'hydrogen_epsilon_gamma', default=0.0 * unyt.erg),
-        radiative_transfer=_config_value(config, 'radiative_transfer', default=True),
-        radiative_transfer_method=_config_value(
-            config,
-            'radiative_transfer_method',
-            default='long_characteristics',
-        ),
-        radiative_transfer_temporal_scheme=_config_value(
-            config,
-            'radiative_transfer_temporal_scheme',
-            default='instantaneous',
-        ),
-        radiative_transfer_c2ray_max_iterations=_config_value(
-            config,
-            'radiative_transfer_c2ray_max_iterations',
-            default=32,
-        ),
-        radiative_transfer_c2ray_tolerance=_config_value(
-            config,
-            'radiative_transfer_c2ray_tolerance',
-            default=1.0e-6,
-        ),
-        radiative_transfer_c2ray_relaxation=_config_value(
-            config,
-            'radiative_transfer_c2ray_relaxation',
-            default=1.0,
-        ),
-        radiative_transfer_c2ray_nonconvergence=_config_value(
-            config,
-            'radiative_transfer_c2ray_nonconvergence',
-            default='warn',
-        ),
-        radiative_transfer_boundary_flux=_config_value(
-            config,
-            'radiative_transfer_boundary_flux',
-        ),
-        radiative_transfer_source_photon_rate=_config_value(
-            config,
-            'radiative_transfer_source_photon_rate',
-            'source_photon_rate',
-        ),
-        radiative_transfer_direction=_config_value(config, 'radiative_transfer_direction', default=1),
-        CodeUnits=code_units_obj,
-        unit_system=code_units_obj.unit_system,
+        coordsys=simulation['coordinate_system'],
+        boundcond=boundary['condition'],
+        nogrid=grid_cells,
+        noghost=mesh_config.get('ghost_cells', 2),
+        boxsize=box_size,
+        outdir=output['directory'],
+        outfileprefix=output['filename_prefix'],
+        savedir=output.get('savedir', output['directory']),
+        outputtimefilename=output.get('time_list_filename'),
+        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        timesim=simulation['final_time'],
+        area=mesh_config.get('area', 1.0 * unyt.cm**2),
+        EOStype=hydro['eos_type'],
+        gamma=hydro['gamma'],
+        CFL=hydro['CFL'],
+        order=hydro['order'],
+        dtmin=timestep['dtmin'],
+        dtmax=timestep['dtmax'],
+        hydrogen_chemistry=thermochemistry.get('hydrogen_chemistry', True),
+        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
+        hydrogen_xHI_inflow=chemistry.get('hydrogen_xHI_inflow', 1.0),
+        hydrogen_xHI_outflow=chemistry.get('hydrogen_xHI_outflow', 1.0),
+        hydrogen_source_CFL=timestep.get('hydrogen_source_CFL'),
+        hydrogen_source_dtmin=timestep.get('hydrogen_source_dtmin'),
+        hydrogen_update_mu=chemistry.get('hydrogen_update_mu', True),
+        hydrogen_thermal_coupling=thermochemistry.get('hydrogen_thermal_coupling', False),
+        hydrogen_recombination=thermochemistry.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=thermochemistry.get('hydrogen_collisional_ionization', False),
+        hydrogen_alpha_B=chemistry['hydrogen_alpha_B'],
+        hydrogen_beta=chemistry['hydrogen_beta'],
+        hydrogen_radiation_field=radiation.get('hydrogen_radiation_field', False),
+        hydrogen_radiation_evolution=radiation.get('hydrogen_radiation_evolution', False),
+        hydrogen_ngamma_initial=radiation.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=radiation['hydrogen_sigma_gamma'],
+        hydrogen_epsilon_gamma=radiation['hydrogen_epsilon_gamma'],
+        radiative_transfer=radiation.get('radiative_transfer', True),
+        radiative_transfer_method=radiation.get('method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=radiation.get('temporal_scheme', 'instantaneous'),
+        radiative_transfer_c2ray_max_iterations=radiation.get('c2ray_max_iterations', 32),
+        radiative_transfer_c2ray_tolerance=radiation.get('c2ray_tolerance', 1.0e-6),
+        radiative_transfer_c2ray_relaxation=radiation.get('c2ray_relaxation', 1.0),
+        radiative_transfer_c2ray_nonconvergence=radiation.get('c2ray_nonconvergence', 'warn'),
+        radiative_transfer_boundary_flux=radiation['boundary_flux'],
+        radiative_transfer_source_photon_rate=radiation['source_photon_rate'],
+        radiative_transfer_direction=radiation.get('direction', 1),
+        CodeUnits=code_units,
+        unit_system=code_units.unit_system,
     )
-    # Runtime code consumes explicit nested parameter groups.  Keep the flat
-    # fields above as configuration metadata, but make the runtime groups
-    # authoritative for the returned fixture.
-    par.mesh = SimpleNamespace(ghost_cells=par.noghost, grid_cells=par.nogrid, area=par.area)
+    par.mesh = SimpleNamespace(ghost_cells=par.noghost, grid_cells=grid_cells, area=par.area)
     par.simulation = SimpleNamespace(
         coordinate_system=par.coordsys,
         final_time=par.timesim,
-        initial_condition_filename=_config_value(config, 'ICfilename'),
-        current_time=0.0 * unyt.Myr,
-        box_size=par.boxsize,
+        initial_condition_filename=simulation['initial_condition_filename'],
+        current_time=initial.get('current_time', 0.0 * unyt.Myr),
+        box_size=box_size,
     )
     par.hydrodynamics = SimpleNamespace(
-        eos_type=par.EOStype,
-        gamma=par.gamma,
-        CFL=par.CFL,
-        order=par.order,
-        riemann_solver=_config_value(config, 'riemann_solver', default='Rusanov'),
+        eos_type=par.EOStype, gamma=par.gamma, CFL=par.CFL, order=par.order,
+        riemann_solver=hydro.get('riemann_solver', 'Rusanov'),
     )
-    par.units = SimpleNamespace(CodeUnits=code_units_obj)
+    par.units = SimpleNamespace(CodeUnits=code_units)
     par.boundary = SimpleNamespace(condition=par.boundcond)
     par.timestep = SimpleNamespace(dtmin=par.dtmin, dtmax=par.dtmax)
     par.output = SimpleNamespace(
-        directory=par.outdir,
-        filename_prefix=par.outfileprefix,
-        cadence=None,
-        time_list_filename=par.outputtimefilename,
+        directory=par.outdir, filename_prefix=par.outfileprefix,
+        cadence=output.get('cadence'), time_list_filename=par.outputtimefilename,
     )
     par.radiation = SimpleNamespace(
         radiative_transfer=par.radiative_transfer,
@@ -234,41 +116,30 @@ def build_problem(config, runparams=None):
         boundary_flux=par.radiative_transfer_boundary_flux,
         source_photon_rate=par.radiative_transfer_source_photon_rate,
     )
-
     mesh = Mesh()
-    mesh.boundary = np.linspace(
-        0.0,
-        config['boxsize'].to_value(unyt.cm),
-        par.nogrid + 1,
-    ) * unyt.cm
-
+    mesh.boundary = np.linspace(0.0, box_size.to_value(unyt.cm), grid_cells + 1) * unyt.cm
     fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
-    fluid.rho_code = np.ones(par.nogrid) * config['rho_initial']
-    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(par.nogrid) * config['neutral_temperature']
-    fluid.mu = np.ones(par.nogrid)
-    fluid.xHI = np.ones(par.nogrid)
-    fluid.SetFluidTime(0.0 * unyt.Myr)
-
-    solver = Solver()
-    return par, mesh, fluid, solver
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
+    fluid.rho_code = np.ones(grid_cells) * initial['rho_initial']
+    fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    fluid.temp_code = np.ones(grid_cells) * initial['neutral_temperature']
+    fluid.mu = np.ones(grid_cells)
+    fluid.xHI = np.ones(grid_cells)
+    fluid.SetFluidTime(initial.get('current_time', 0.0 * unyt.Myr))
+    return par, mesh, fluid, Solver()
 
 
-def write_initial_condition(config, runparams):
+def write_initial_condition(config):
     """Build the raw IC state and write it to ``ICfilename``."""
-    par, mesh, fluid, _ = build_problem(config, runparams)
+    par, mesh, fluid, _ = build_problem(config)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    icfilename = runparams.get(
-        'ICfilename',
-        runparams['simulation']['initial_condition_filename'],
-    )
+    icfilename = config['par']['simulation']['initial_condition_filename']
     Path(icfilename).unlink(missing_ok=True)
     rio.writehdf5(sim, icfilename)
 
 
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_problem(config, config.get('par', config))
+    par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
     par.Time = np.asarray(par.Time, dtype=float) * code_units_obj.time_unit
@@ -318,15 +189,6 @@ def load_output_state(outputfilename, config):
     return par, mesh, fluid
 
 
-def load_parameters(config_filename, rundir=None):
-    from example_utils import load_nested_example_parameters
-
-    config_filename = Path(config_filename)
-    runparams, icparams = load_nested_example_parameters(config_filename, rundir)
-    eu.clean_previous_outputs(runparams)
-    return runparams, icparams
-
-
 def load_labeled_density_snapshots(outputfilenames, config, output_specs):
     snapshots = []
     for index, spec in enumerate(output_specs):
@@ -361,11 +223,12 @@ def refresh_state(mesh, fluid, par, solver):
 
 
 def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
+    initial_condition = config['initial_condition']
     fluid.eos.apply_piecewise_isothermal_state(
         fluid,
         par,
-        config['neutral_temperature'],
-        config['ionized_temperature'],
+        initial_condition['neutral_temperature'],
+        initial_condition['ionized_temperature'],
     )
     refresh_state(mesh, fluid, par, solver)
 
@@ -375,8 +238,9 @@ def time_myr(value, code_units):
     return float(code_quantity_to_cgs(value, code_units, 'time_s') / myr_in_s)
 
 
-def print_startup_diagnostics(sim, config, icparams):
+def print_startup_diagnostics(sim, config, initial_condition):
     """Print the main physical scales before the long run starts."""
+    initial_condition = config['initial_condition']
     interior = interior_slice(sim.par)
     rho_code = np.asarray(sim.fluid.rho_code[interior], dtype=float)
     vel_code = np.asarray(sim.fluid.vel_code[interior], dtype=float)
@@ -410,24 +274,24 @@ def print_startup_diagnostics(sim, config, icparams):
                 'length_cgs_cm',
             )
             inner_radius_cgs_cm = 0.5 * (boundary_cgs_cm[0] + boundary_cgs_cm[1])
-            thin_estimate = config['source_photon_rate'].to_value(1 / unyt.s) / (
+            thin_estimate = initial_condition['source_photon_rate'].to_value(1 / unyt.s) / (
                 4.0 * np.pi * inner_radius_cgs_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
             )
             print('optically thin inner-cell ngamma_cgs_cm3 estimate = %.3e cm^-3' % thin_estimate)
     print('neutral sound speed = %.3e km/s' % neutral_sound_speed(config).to_value(unyt.km / unyt.s))
     print(
         'ionized sound speed (config) = %.3e km/s'
-        % config['ionized_sound_speed'].to_value(unyt.km / unyt.s)
+        % initial_condition['ionized_sound_speed'].to_value(unyt.km / unyt.s)
     )
     print('stromgren radius = %.3e pc' % stromgren_radius(config).to_value(unyt.pc))
     print('stagnation radius = %.3e pc' % stagnation_radius(config).to_value(unyt.pc))
     print(
         'Spitzer radius at final time = %.3e pc'
-        % spitzer_radius(icparams['final_time'], config).to_value(unyt.pc)
+        % spitzer_radius(initial_condition['final_time'], config).to_value(unyt.pc)
     )
     print(
         'Hosokawa-Inutsuka radius at final time = %.3e pc'
-        % hosokawa_inutsuka_radius(icparams['final_time'], config).to_value(unyt.pc)
+        % hosokawa_inutsuka_radius(initial_condition['final_time'], config).to_value(unyt.pc)
     )
     try:
         hydro_dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
@@ -604,6 +468,7 @@ def front_radius_at_time(history, time):
 
 
 def stromgren_radius(config):
+    config = config['initial_condition']
     nH = rth._cgs_hydrogen_number_density(
         config['rho_initial'].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
@@ -617,14 +482,16 @@ def stromgren_radius(config):
 
 
 def neutral_sound_speed(config):
+    config = config['initial_condition']
     return np.sqrt(
         unyt.kb * config['neutral_temperature'] / unyt.mp
     ).to(unyt.cm / unyt.s)
 
 
 def stagnation_radius(config):
+    initial_condition = config['initial_condition']
     radius_stromgren = stromgren_radius(config)
-    ionized_sound_speed = config['ionized_sound_speed'].to(unyt.cm / unyt.s)
+    ionized_sound_speed = initial_condition['ionized_sound_speed'].to(unyt.cm / unyt.s)
     return (
         (ionized_sound_speed / neutral_sound_speed(config)) ** (4.0 / 3.0)
         * radius_stromgren
@@ -632,8 +499,9 @@ def stagnation_radius(config):
 
 
 def spitzer_radius(time, config):
+    initial_condition = config['initial_condition']
     radius_stromgren = stromgren_radius(config)
-    ionized_sound_speed = config['ionized_sound_speed'].to(unyt.cm / unyt.s)
+    ionized_sound_speed = initial_condition['ionized_sound_speed'].to(unyt.cm / unyt.s)
     factor = (
         1.0
         + 7.0
@@ -645,8 +513,9 @@ def spitzer_radius(time, config):
 
 
 def hosokawa_inutsuka_radius(time, config):
+    initial_condition = config['initial_condition']
     radius_stromgren = stromgren_radius(config)
-    ionized_sound_speed = config['ionized_sound_speed'].to(unyt.cm / unyt.s)
+    ionized_sound_speed = initial_condition['ionized_sound_speed'].to(unyt.cm / unyt.s)
     factor = (
         1.0
         + 7.0
@@ -659,6 +528,7 @@ def hosokawa_inutsuka_radius(time, config):
 
 
 def save_front_plot(history, config, figure_filename):
+    initial_condition = config['initial_condition']
     time = np.asarray(history['time_Myr']) * unyt.Myr
     time_myr = time.to_value(unyt.Myr)
     front_radius_pc = np.asarray(history['front_radius_pc'])
@@ -688,7 +558,7 @@ def save_front_plot(history, config, figure_filename):
         ls='--',
         label=(
             r'Spitzer, $c_i=%.2f$ km s$^{-1}$'
-            % config['ionized_sound_speed'].to_value(unyt.km / unyt.s)
+            % initial_condition['ionized_sound_speed'].to_value(unyt.km / unyt.s)
         ),
     )
     ax.plot(
@@ -716,7 +586,7 @@ def save_front_plot(history, config, figure_filename):
         )
     ax.set_xlabel('Time [Myr]')
     ax.set_ylabel('Ionization-front radius [pc]')
-    ax.set_xlim(0.0, config['final_time'].to_value(unyt.Myr))
+    ax.set_xlim(0.0, config['initial_condition']['final_time'].to_value(unyt.Myr))
     radius_limits = (
         1.05 * np.max(front_radius_pc),
         1.05 * np.max(radius_spitzer_pc),
@@ -783,7 +653,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.set_xlabel('Radius [pc]')
     ax.set_ylabel(r'Density [g cm$^{-3}$]')
     ax.set_title('Density profile at %.3f Myr' % snapshot['time_Myr'])
-    ax.set_xlim(0.0, config['boxsize'].to_value(unyt.pc))
+    ax.set_xlim(0.0, config['initial_condition']['boxsize'].to_value(unyt.pc))
     positive_density = density_cgs_g_cm3[density_cgs_g_cm3 > 0.0]
     if positive_density.size:
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_density)))

@@ -48,43 +48,33 @@ def _load_static_tools():
     return tools
 
 
-def _aliases(runparams):
-    for alias, source in (
-        ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
-        ('alpha_B_coefficient', 'hydrogen_alpha_B'),
-        ('sigma_gamma', 'hydrogen_sigma_gamma'),
-    ):
-        if source in runparams and alias not in runparams:
-            runparams[alias] = runparams[source]
-
-
-def _run_case(base_runtime, icparams, tools, label, scheme, steps, root):
-    runparams = deepcopy(base_runtime)
-    icparams_case = deepcopy(icparams)
+def _run_case(base_runtime, initial_condition, tools, label, scheme, steps, root):
+    par_case = deepcopy(base_runtime)
+    initial_condition_case = deepcopy(initial_condition)
     case_dir = root / label
     case_dir.mkdir(parents=True, exist_ok=True)
-    runparams['simulation']['name'] = f'StaticStromgren_{label}'
-    runparams['output']['directory'] = str(case_dir)
-    runparams['output']['savedir'] = str(case_dir)
-    runparams['output']['filename_prefix'] = 'Output'
-    runparams['simulation']['initial_condition_filename'] = str(case_dir / 'InitialCondition.hdf5')
-    runparams['radiation']['radiative_transfer_temporal_scheme'] = scheme
-    runparams['timestep']['chemistry_timestep'] = runparams['simulation']['final_time'] / steps
-    helper_config = eu.legacy_example_parameters({
-        'par': runparams,
-        'initial_condition': icparams_case,
+    par_case['simulation']['name'] = f'StaticStromgren_{label}'
+    par_case['output']['directory'] = str(case_dir)
+    par_case['output']['savedir'] = str(case_dir)
+    par_case['output']['filename_prefix'] = 'Output'
+    par_case['simulation']['initial_condition_filename'] = str(case_dir / 'InitialCondition.hdf5')
+    par_case['radiation']['radiative_transfer_temporal_scheme'] = scheme
+    par_case['timestep']['chemistry_timestep'] = par_case['simulation']['final_time'] / steps
+    case_config = {
+        'par': par_case,
+        'initial_condition': initial_condition_case,
         'example': {},
-    })
-    tools.write_initial_condition(helper_config, helper_config)
+    }
+    tools.write_initial_condition(case_config)
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_case)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     history = sim.EvolveStaticThermochemistry(
-        runparams['simulation']['final_time'],
-        runparams['timestep']['chemistry_timestep'],
+        par_case['simulation']['final_time'],
+        par_case['timestep']['chemistry_timestep'],
     )
     output_filename = case_dir / 'Output_000.hdf5'
     rio.writehdf5(sim, output_filename)
@@ -124,14 +114,16 @@ def _plot(histories, config, filename):
             time_samples, relative_difference, color=color,
             lw=1.5, ls=linestyle, label=styles[label][2],
         )
-    time = np.linspace(0.0, config['final_time'].to_value(unyt.Myr), 1200) * unyt.Myr
+    initial = config['initial_condition']
+    example = config['example']
+    time = np.linspace(0.0, config['par']['simulation']['final_time'].to_value(unyt.Myr), 1200) * unyt.Myr
     analytic = sa.ionization_front_radius(
-        time, config['source_photon_rate'], config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
+        time, example['source_photon_rate'], initial['hydrogen_number_density'],
+        example['alpha_B_coefficient'],
     ).to_value(unyt.kpc)
     radius_stromgren = sa.stromgren_radius(
-        config['source_photon_rate'], config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
+        example['source_photon_rate'], initial['hydrogen_number_density'],
+        example['alpha_B_coefficient'],
     ).to_value(unyt.kpc)
     ax.plot(time.to_value(unyt.Myr), analytic, 'k-', lw=2.0, label='Analytic $R_I(t)$')
     ax.axhline(radius_stromgren, color='0.3', lw=1.0, ls=':', label='$R_S$')
@@ -139,7 +131,7 @@ def _plot(histories, config, filename):
     ax.set_ylabel('Ionization-front radius [kpc]')
     ax_difference.set(xlabel='Time [Myr]', ylabel=r'$(R-R_{100000})/R_{100000}$')
     ax.set_xlim(0.0, time[-1].to_value(unyt.Myr))
-    ax.set_ylim(0.0, config['plot_radius_max'].to_value(unyt.kpc))
+    ax.set_ylim(0.0, example['plot_radius_max'].to_value(unyt.kpc))
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False, fontsize=8, loc='lower right')
     ax_difference.grid(True, alpha=0.25)
@@ -153,9 +145,11 @@ def _plot(histories, config, filename):
 
 
 def _write_summary(histories, config, filename):
+    initial = config['initial_condition']
+    example = config['example']
     analytic_final = sa.ionization_front_radius(
-        config['final_time'], config['source_photon_rate'],
-        config['hydrogen_number_density'], config['alpha_B_coefficient'],
+        config['par']['simulation']['final_time'], example['source_photon_rate'],
+        initial['hydrogen_number_density'], example['alpha_B_coefficient'],
     ).to_value(unyt.kpc)
     with open(filename, 'w', newline='') as stream:
         writer = csv.writer(stream)
@@ -163,8 +157,8 @@ def _write_summary(histories, config, filename):
         for label, history in histories.items():
             for time, radius in zip(history['time_Myr'], history['front_radius_kpc']):
                 analytic = sa.ionization_front_radius(
-                    time * unyt.Myr, config['source_photon_rate'],
-                    config['hydrogen_number_density'], config['alpha_B_coefficient'],
+                    time * unyt.Myr, example['source_photon_rate'],
+                    initial['hydrogen_number_density'], example['alpha_B_coefficient'],
                 ).to_value(unyt.kpc)
                 writer.writerow([label, time, radius, analytic, abs(radius - analytic)])
             final_error = abs(history['front_radius_kpc'][-1] - analytic_final)
@@ -175,26 +169,25 @@ def _write_summary(histories, config, filename):
 def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_comparison.yaml')):
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = runparams
-    _aliases(runparams)
-    root = Path(runparams['savedir']) / 'comparison_runs'
+    initial_condition = nested['initial_condition']
+    example = nested['example']
+    root = Path(runtime['output']['savedir']) / 'comparison_runs'
     root.mkdir(parents=True, exist_ok=True)
     tools = _load_static_tools()
-    config = {**runparams, **icparams}
+    config = nested
     histories = {}
-    c2ray_steps = int(runparams['comparison_c2ray_steps'])
+    c2ray_steps = int(example['comparison_c2ray_steps'])
     histories[f'c2ray_{c2ray_steps}'] = _run_case(
-        runtime, icparams, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
+        runtime, initial_condition, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
     )
-    for steps in runparams['comparison_instantaneous_steps']:
+    for steps in example['comparison_instantaneous_steps']:
         steps = int(steps)
         histories[f'instantaneous_{steps}'] = _run_case(
-            runtime, icparams, tools, f'instantaneous_{steps}',
+            runtime, initial_condition, tools, f'instantaneous_{steps}',
             'instantaneous', steps, root,
         )
-    figure = Path(runparams['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'
-    summary = Path(runparams['savedir']) / 'StaticStromgrenC2RayComparison_IFront.csv'
+    figure = Path(runtime['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'
+    summary = Path(runtime['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.csv'
     _plot(histories, config, figure)
     _write_summary(histories, config, summary)
     print(f'comparison figure = {figure}')

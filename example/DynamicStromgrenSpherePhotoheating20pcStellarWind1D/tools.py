@@ -33,9 +33,10 @@ _BASE_BUILD_STATIC_PROBLEM = _template.build_static_problem
 
 def _wind_density(config):
     """Return the inner-boundary density implied by the requested mass loss."""
-    mass_loss_rate = config['wind_mass_loss_rate'].to(unyt.g / unyt.s)
-    wind_velocity = config['wind_velocity'].to(unyt.cm / unyt.s)
-    injection_radius = config['rinj'].to(unyt.cm)
+    example = config['example']
+    mass_loss_rate = example['wind_mass_loss_rate'].to(unyt.g / unyt.s)
+    wind_velocity = example['wind_velocity'].to(unyt.cm / unyt.s)
+    injection_radius = example['rinj'].to(unyt.cm)
     return mass_loss_rate / (
         4.0 * np.pi * injection_radius**2 * wind_velocity
     )
@@ -44,28 +45,31 @@ def _wind_density(config):
 def build_static_problem(config):
     """Build the photoheated ambient cloud with a stellar-wind inner boundary."""
     par, mesh, fluid, solver = _BASE_BUILD_STATIC_PROBLEM(config)
+    initial = config['initial_condition']
+    example = config['example']
     par.boundcond = 'OutflowSph'
     par.rho_outflow = _wind_density(config)
-    par.vel_outflow = config['wind_velocity']
-    par.temp_outflow = config['wind_temperature']
-    par.mu_outflow = config['wind_mu']
+    par.vel_outflow = example['wind_velocity']
+    par.temp_outflow = example['wind_temperature']
+    par.mu_outflow = example['wind_mu']
 
-    boxsize_cm = config['boxsize'].to_value(unyt.cm)
-    rinj_cm = config['rinj'].to_value(unyt.cm)
+    boxsize_cm = initial['box_size'].to_value(unyt.cm)
+    rinj_cm = example['rinj'].to_value(unyt.cm)
     mesh.boundary = np.linspace(
         rinj_cm,
         rinj_cm + boxsize_cm,
-        config['number_of_cells'] + 1,
+        config['par']['mesh']['grid_cells'] + 1,
     ) * unyt.cm
     return par, mesh, fluid, solver
 
 
-def write_initial_condition(config, runparams):
+def write_initial_condition(config):
     """Write an IC file with the wind boundary parameters in its header."""
     par, mesh, fluid, _ = build_static_problem(config)
     sim = _template.SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    Path(runparams['ICfilename']).unlink(missing_ok=True)
-    rio.writehdf5(sim, runparams['ICfilename'])
+    filename = config['par']['simulation']['initial_condition_filename']
+    Path(filename).unlink(missing_ok=True)
+    rio.writehdf5(sim, filename)
 
 
 _template.build_static_problem = build_static_problem

@@ -46,7 +46,7 @@ par:
     radiative_transfer_method: long_characteristics
 initial_condition:
   number_of_cells: 512
-  boxsize:
+  box_size:
     value: 10.0
     unit: kpc
   hydrogen_number_density:
@@ -76,7 +76,7 @@ example:
   hydrogen_number_density:
     value: 0.001
     unit: 1/cm**3
-  boxsize:
+  box_size:
     value: 10.0
     unit: kpc
   figure_filename: MultiFrequencyRadiativeTransferSph1D_SingleFrequency.jpg

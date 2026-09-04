@@ -23,7 +23,7 @@ if str(_EXAMPLE_DIR) not in sys.path:
 if str(_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_DIR))
 
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits
 
 
@@ -49,8 +49,7 @@ def _load_tools(example_dir):
 
 
 def _load_config(config_filename):
-    runparams, icparams = load_nested_example_parameters(config_filename)
-    return {**runparams, **icparams}
+    return load_nested_example_config(config_filename)
 
 
 def _snapshot_energy(snapshot, config, tools):
@@ -80,7 +79,7 @@ def _snapshot_energy(snapshot, config, tools):
 def _history(example_dir, config_filename):
     config = _load_config(config_filename)
     tools = _load_tools(example_dir)
-    prefix = config.get('outfileprefix', 'Output')
+    prefix = config['par']['output'].get('filename_prefix', 'Output')
     snapshots = sorted(example_dir.glob(f'{prefix}_*.hdf5'))
     if not snapshots:
         raise FileNotFoundError(f'No {prefix}_*.hdf5 snapshots found in {example_dir}')

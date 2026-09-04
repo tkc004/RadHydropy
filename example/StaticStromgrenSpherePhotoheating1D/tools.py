@@ -48,7 +48,7 @@ def build_static_problem(config):
         boundcond=boundary.get('condition', 'OpenSph'),
         nogrid=mesh_config['grid_cells'],
         noghost=mesh_config.get('ghost_cells', 2),
-        boxsize=initial['boxsize'],
+        boxsize=initial['box_size'],
         verbose=par_config.get('diagnostics', {}).get('verbose', 0),
         outdir=output.get('directory', '.'),
         outfileprefix=output.get('filename_prefix', 'Output'),
@@ -102,7 +102,10 @@ def build_static_problem(config):
             'radiative_transfer_boundary_flux',
             0.0 / (unyt.cm**2 * unyt.s),
         ),
-        radiative_transfer_source_photon_rate=radiation.get('radiative_transfer_source_photon_rate'),
+        radiative_transfer_source_photon_rate=radiation.get(
+            'radiative_transfer_source_photon_rate',
+            radiation.get('radiation_spectrum_total_photon_rate'),
+        ),
         radiative_transfer_source_photon_rate_groups=radiation.get(
             'radiative_transfer_source_photon_rate_groups',
         ),
@@ -128,7 +131,7 @@ def build_static_problem(config):
     mesh = Mesh()
     mesh.boundary = np.linspace(
         0.0,
-        initial['boxsize'].to_value(unyt.cm),
+        initial['box_size'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
 
@@ -308,7 +311,7 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
         temperature_cgs_K = snapshot['temperature_cgs_K']
         profile_time_Myr = snapshot['time_Myr']
     xHII = 1.0 - xHI
-    plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['box_size']).to_value(unyt.kpc)
     reference_radius_unit = example.get('reference_radius_unit', 5.4 * unyt.kpc)
     temperature_reference = load_log_reference_profile(
         example.get('temperature_reference_filename', None),

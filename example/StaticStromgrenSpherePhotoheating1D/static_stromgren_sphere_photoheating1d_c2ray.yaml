@@ -64,7 +64,7 @@ par:
     verbose: 0
 initial_condition:
   hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
-  boxsize: {value: 20.0, unit: kpc}
+  box_size: {value: 20.0, unit: kpc}
   initial_temperature: {value: 100.0, unit: K}
   time: {value: 0.0, unit: Myr}
 example:

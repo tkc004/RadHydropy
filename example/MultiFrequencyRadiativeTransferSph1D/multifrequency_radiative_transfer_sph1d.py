@@ -30,7 +30,7 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
@@ -49,19 +49,20 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 )
 
 def _resolve_reference(config, config_filename, key):
-    filename = config.get(key)
+    example = config['example']
+    filename = example.get(key)
     if filename is None:
         return None
     path = Path(filename)
     if not path.is_absolute():
         path = Path(config_filename).resolve().parent / path
-    radius_unit = config.get("reference_radius_unit", 5.4 * unyt.kpc)
+    radius_unit = example.get("reference_radius_unit", 5.4 * unyt.kpc)
     return tools.load_log_reference_profile(path, radius_unit)
 
 
 def _save_plot(output_filename, config, figure_filename, config_filename):
     par, mesh, fluid = tools.load_output_state(output_filename, config)[:3]
-    code = CodeUnits.from_mapping(config["CodeUnits"])
+    code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     interior = slice(par.noghost, par.noghost + par.nogrid)
     radius_kpc = (
         np.asarray(mesh.coordinate[interior], dtype=float) * code.length_unit
@@ -142,12 +143,12 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.set_ylabel(r"$n_\gamma$ [cm$^{-3}$]")
     photon_axis.grid(True, which="both", alpha=0.25)
     photon_axis.legend(frameon=False)
-    network_name = config.get("thermochemistry_network", "hydrogen")
+    network_name = config["par"].get("thermochemistry", {}).get("thermochemistry_network", "hydrogen")
     title = "H/He" if network_name == "hydrogen_helium" else "Pure-H"
-    if config.get("metal_pie_enabled", False):
+    if config["par"].get("thermochemistry", {}).get("metal_pie_enabled", False):
         title += " + metal PIE"
     radiation_temperature = float(
-        config.get("stellar_spectrum_blackbody_temperature_cgs_K", 1.0e5)
+        config["example"].get("stellar_spectrum_blackbody_temperature_cgs_K", 1.0e5)
     )
     fig.suptitle(
         rf"{title} multifrequency radiation "
@@ -158,49 +159,32 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_nested_example_parameters(config_filename, Path.cwd())
-    config = {**runparams, **icparams}
-    output_dir = Path.cwd()
-    ic_filename = Path(runparams.get("ICfilename", "InitialCondition.hdf5"))
+    config = load_nested_example_config(config_filename)
+    par = config['par']
+    output = par['output']
+    output_dir = Path(output['directory'])
+    ic_filename = Path(par['simulation']['initial_condition_filename'])
     if not ic_filename.is_absolute():
         ic_filename = output_dir / ic_filename
-    runparams["ICfilename"] = str(ic_filename)
-    runparams["outdir"] = str(output_dir)
-    runparams["savedir"] = str(output_dir)
-    config.update(runparams)
-
-    tools.write_initial_condition(config, runparams)
-    runtime_only = {
-        "absolute_tolerance", "boxsize", "evolution_timestep",
-        "explicit_tolerance", "final_time",
-        "figure_filename",
-        "box_size", "chemistry_timestep", "coordinate_system",
-        "current_time", "grid_cells", "plot_filename",
-        "hydrogen_initial_collisional_equilibrium", "hydrogen_number_density",
-        "initial_temperature", "neutral_fraction_reference_filename",
-        "number_of_cells", "reference_radius_unit", "relative_tolerance",
-        "temperature_reference_filename", "sigma_gamma", "epsilon_gamma",
-        "source_photon_rate", "alpha_B_coefficient",
-    }
-    runtime = {
-        key: value for key, value in runparams.items()
-        if key not in runtime_only
-    }
-    runtime["nogrid"] = runparams["number_of_cells"]
-    sim = Rsim(runtime)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output['savedir'] = str(output_dir)
+    output['directory'] = str(output_dir)
+    par['simulation']['initial_condition_filename'] = str(ic_filename)
+    tools.write_initial_condition(config)
+    sim = Rsim(par)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     sim.EvolveStaticThermochemistry(
-        runparams["final_time"],
-        runparams["evolution_timestep"],
+        par['simulation']['final_time'],
+        par['timestep']['evolution_timestep'],
     )
     output_filename = output_dir / (
-        f"{runparams.get('outfileprefix', 'Output')}_000.hdf5"
+        f"{output.get('filename_prefix', 'Output')}_000.hdf5"
     )
     rio.writehdf5(sim, output_filename)
-    figure_filename = Path(runparams["savedir"]) / config.get(
+    figure_filename = Path(output["savedir"]) / config['example'].get(
         "figure_filename", "MultiFrequencyRadiativeTransferSph1D.jpg"
     )
     _save_plot(output_filename, config, figure_filename, config_filename)

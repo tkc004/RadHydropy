@@ -13,49 +13,35 @@ from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
 import hydrogen_recombination_analytic as hra
 
 
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
-
-
-class Simwrap:
-    def __init__(self, icparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        if code_units is not None:
-            self.par.unit_system = code_units.unit_system
-
-        grid_cells = icparams['grid_cells']
-        box_size = np.ones(1) * icparams['box_size']
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordinate_system'],
-            current_time=np.ones(1) * icparams['current_time'],
+def build_initial_condition(config):
+    """Build the initial state directly from the nested example mapping."""
+    initial = config['initial_condition']
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    grid_cells = initial['grid_cells']
+    box_size = np.ones(1) * initial['box_size']
+    par = SimpleNamespace(
+        units=SimpleNamespace(CodeUnits=units),
+        unit_system=units.unit_system,
+        mesh=SimpleNamespace(ghost_cells=0, grid_cells=grid_cells),
+        simulation=SimpleNamespace(
+            coordinate_system=initial['coordinate_system'],
+            current_time=np.ones(1) * initial['current_time'],
             box_size=box_size,
-        )
-
-        self.mesh.boundary = np.linspace(
-            0.0 * box_size[0], box_size[0], grid_cells + 1,
-        )
-
-        self.fluid.rho_code = (
-            np.ones(grid_cells)
-            * icparams['hydrogen_number_density']
-            * unyt.mp
-        ).to(unyt.g / unyt.cm**3)
-        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
-        self.fluid.temp_code = np.ones(grid_cells) * icparams['temperature']
-        self.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
-        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+        ),
+    )
+    mesh = SimpleNamespace(
+        boundary=np.linspace(0.0 * box_size[0], box_size[0], grid_cells + 1)
+    )
+    fluid = SimpleNamespace(
+        rho_code=(np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp).to(
+            unyt.g / unyt.cm**3
+        ),
+        vel_code=np.zeros(grid_cells) * unyt.cm / unyt.s,
+        temp_code=np.ones(grid_cells) * initial['temperature'],
+        xHI=np.ones(grid_cells) * initial['neutral_fraction'],
+        mu=np.ones(grid_cells) * initial['mean_molecular_weight'],
+    )
+    return SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
 
 def interior_slice(sim):
@@ -101,7 +87,7 @@ def load_history_from_outputs(outputfiles, config):
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(icparams, code_units=code_units_obj)
+        rout = build_initial_condition(config)
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
