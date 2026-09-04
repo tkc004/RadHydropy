@@ -28,4 +28,4 @@ def make_shells(icparams, code_units):
 
 
 def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['CodeUnits'])
+    return CodeUnits.from_mapping(runparams['units']['CodeUnits'])

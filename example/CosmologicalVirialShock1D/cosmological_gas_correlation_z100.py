@@ -950,10 +950,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    ic_for_sim = dict(icparams)
-    ic_for_sim["nogrid"] = int(runparams["mesh"]["grid_cells"])
     initial = et.Simwrap(
-        ic_for_sim, units, cosmology, correlation_table=correlation_table
+        {"par": runparams, "initial_condition": icparams},
+        units, cosmology, correlation_table=correlation_table
     )
     if bool(hydro.get("gas_angular_momentum", False)):
         initial.par.gas_angular_momentum = True

@@ -7,6 +7,7 @@ growing mode, while aborting before the first collisionless-shell crossing.
 """
 
 import argparse
+import copy
 import os
 from pathlib import Path
 import sys
@@ -28,7 +29,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -96,18 +97,18 @@ class LinearGrowthDiagnosticSolver(Solver):
 
     def _positivity_limited_face_fluxes(
         self, fluid, dt, mesh, par, mass_face, mom_face, energy_face,
-        geometric_mom=None,
+        geometric_mom=None, angular_face=None, **kwargs,
     ):
         factor = super()._positivity_limited_face_fluxes(
             fluid, dt, mesh, par, mass_face, mom_face, energy_face,
-            geometric_mom=geometric_mom,
+            geometric_mom=geometric_mom, angular_face=angular_face, **kwargs,
         )
         self.positivity_factors.append(float(factor))
         return factor
 
 
-def _load_correlation_table(config_filename, runparams):
-    filename = Path(runparams["linear_correlation_table_filename"])
+def _load_correlation_table(config_filename, par):
+    filename = Path(par["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
     return et.load_lcdm_correlation_table(filename)
@@ -125,24 +126,24 @@ def _set_background_state(sim, cosmology, cosmic_time, baryon_fraction,
     sim.par.temp_inflow = initial_temperature_code
     sim.par.mu_inflow = mu
 
-    first = int(sim.par.noghost)
-    index = first + int(sim.par.nogrid) - 1
+    first = int(sim.par.mesh.ghost_cells)
+    index = first + int(sim.par.mesh.grid_cells) - 1
     rho = float(sim.par.rho_inflow)
     velocity = 0.0
     pressure = float(np.asarray(
-        sim.fluid.eos.pressure(rho_code, initial_temperature_code, mu),
+        sim.fluid.eos.pressure(rho, initial_temperature_code, mu),
         dtype=float,
     ))
     volume = float(np.asarray(sim.mesh.vol[index], dtype=float))
-    sim.fluid.rho_code[index] = rho_code
+    sim.fluid.rho_code[index] = rho
     sim.fluid.vel_code[index] = velocity
     sim.fluid.temp_code[index] = initial_temperature_code
     sim.fluid.mu[index] = mu
     sim.fluid.pre_code[index] = pressure
-    sim.fluid.Mass_code[index] = rho_code * volume
+    sim.fluid.Mass_code[index] = rho * volume
     sim.fluid.Mom_code[index] = 0.0
     sim.fluid.Energy_code[index] = float(np.asarray(
-        sim.fluid.eos.total_energy_density(rho_code, velocity, pressure),
+        sim.fluid.eos.total_energy_density(rho, velocity, pressure),
         dtype=float,
     )) * volume
 
@@ -190,16 +191,18 @@ def _matched_shell_mass(target_enclosed_mass):
     return mass
 
 
-def _make_matched_initial_state(icparams, units, cosmology,
+def _make_matched_initial_state(config, units, cosmology,
                                 correlation_table):
     """Build gas cells and one volume-centred DM shell per identical cell."""
+    icparams = config["initial_condition"]
+    par = config["par"]
     initial = et.Simwrap(
-        icparams, units, cosmology, correlation_table=correlation_table
+        config, units, cosmology, correlation_table=correlation_table
     )
     # A uniform origin-centred mesh avoids allowing logarithmic innermost-cell
     # truncation error to dominate a deliberately tiny growing-mode signal.
     boundaries = np.linspace(
-        0.0, float(icparams["rmax"]), int(icparams["nogrid"]) + 1
+        0.0, float(icparams["rmax"]), int(par["mesh"]["grid_cells"]) + 1
     )
     coordinates = et.cell_centres(boundaries)
     initial.mesh.boundary = boundaries
@@ -233,7 +236,7 @@ def _make_matched_initial_state(icparams, units, cosmology,
         scale_factor**2 * hubble * mean_delta * coordinates / 3.0
     )
     initial.fluid.temp_code = np.full(
-        int(icparams["nogrid"]),
+        int(par["mesh"]["grid_cells"]),
         float(icparams["cie_initial_temperature"]) * scale_factor**2,
     )
 
@@ -245,7 +248,7 @@ def _make_matched_initial_state(icparams, units, cosmology,
             (1.0 - baryon_fraction) * target_total_mass
         ),
         angular_momentum=np.zeros_like(shell_radius),
-        softening=float(icparams.get("softening", 0.0)),
+        softening=float(par.get("dark_matter", {}).get("softening", 0.0)),
         code_units=units,
     )
     return initial, shells
@@ -253,8 +256,8 @@ def _make_matched_initial_state(icparams, units, cosmology,
 
 def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
               initial_scale_factor, diagnostic_min, diagnostic_max):
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
     rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
@@ -464,31 +467,36 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         smooth_force_override=None, resolution_override=None,
         output_suffix=None):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_nested_example_parameters(config_filename)
+    config = load_nested_example_config(config_filename)
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    example = config["example"]
     if resolution_override is not None:
         resolution = int(resolution_override)
         if resolution < 8 or resolution > 1024:
             raise ValueError("resolution must be between 8 and 1024")
-        icparams = dict(icparams)
-        icparams["nogrid"] = resolution
-        icparams["dark_matter_shells"] = resolution
-    if int(icparams["dark_matter_shells"]) > 1024 or int(icparams["nogrid"]) > 1024:
+        initial_condition = dict(initial_condition)
+        par = copy.deepcopy(par)
+        par["mesh"]["grid_cells"] = resolution
+        initial_condition["dark_matter_shells"] = resolution
+    if int(initial_condition["dark_matter_shells"]) > 1024 or int(par["mesh"]["grid_cells"]) > 1024:
         raise ValueError("linear-growth test is limited to at most 1024 gas cells and shells")
-    if int(icparams["dark_matter_shells"]) != int(icparams["nogrid"]):
+    if int(initial_condition["dark_matter_shells"]) != int(par["mesh"]["grid_cells"]):
         raise ValueError("linear-growth quadrature requires one DM shell per gas cell")
 
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    gravity = par["gravity"]
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["cosmology_t_ref"]),
-        a_ref=float(runparams["cosmology_a_ref"]),
+        t_ref=float(gravity["cosmology_t_ref"]),
+        a_ref=float(gravity["cosmology_a_ref"]),
     )
-    correlation_table = _load_correlation_table(config_filename, runparams)
+    correlation_table = _load_correlation_table(config_filename, par)
     smooth_force = (
-        bool(runparams.get("smooth_dm_force_for_gas", True))
+        bool(par["hydrodynamics"].get("smooth_dm_force_for_gas", True))
         if smooth_force_override is None else bool(smooth_force_override)
     )
-    output_dir = Path(runparams["savedir"])
+    output_dir = Path(par["output"]["savedir"])
     if not output_dir.is_absolute():
         output_dir = config_filename.parent / output_dir
     if output_suffix:
@@ -503,18 +511,18 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     ic_filename = output_dir / "InitialCondition.hdf5"
 
     initial, dm = _make_matched_initial_state(
-        icparams, units, cosmology, correlation_table
+        {"par": par, "initial_condition": initial_condition},
+        units, cosmology, correlation_table
     )
     rio.writehdf5(initial, ic_filename)
     initial_shell_mass_order = np.asarray(dm.mass, dtype=float).copy()
     if np.unique(initial_shell_mass_order).size != dm.number_of_shells:
         raise RuntimeError("shell masses must be unique for the crossing guard")
 
-    local = dict(runparams)
-    local.update({
-        "ICfilename": str(ic_filename),
-        "outdir": str(output_dir),
-        "savedir": str(output_dir),
+    local = copy.deepcopy(par)
+    local["simulation"]["initial_condition_filename"] = str(ic_filename)
+    local["output"].update({
+        "directory": str(output_dir), "savedir": str(output_dir),
     })
     sim = Rsim(local)
     diagnostic_solver = LinearGrowthDiagnosticSolver()
@@ -533,35 +541,35 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         code_units=sim.par.CodeUnits,
     )
     sim.par.dark_matter = dm
-    baryon_fraction = float(icparams["baryon_fraction"])
+    baryon_fraction = float(initial_condition["baryon_fraction"])
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(icparams["initial_cosmic_time"])
+    initial_time = float(initial_condition["initial_cosmic_time"])
     final_time = (
         float(final_time_override)
         if final_time_override is not None
-        else float(runparams["final_cosmic_time"])
+        else float(par["simulation"]["final_time"])
     )
     if final_time <= initial_time:
         raise ValueError("final cosmic time must exceed the initial time")
     initial_scale_factor = float(cosmology.scale_factor(initial_time))
-    initial_temperature_code = float(icparams["cie_initial_temperature"]) * initial_scale_factor**2
-    diagnostic_min = float(runparams["diagnostic_radius_min_comoving_kpc"])
-    diagnostic_max = float(runparams["diagnostic_radius_max_comoving_kpc"])
-    snapshot_count = int(runparams.get("snapshot_count", 9))
+    initial_temperature_code = float(initial_condition["cie_initial_temperature"]) * initial_scale_factor**2
+    diagnostic_min = float(example["diagnostic_radius_min_comoving_kpc"])
+    diagnostic_max = float(example["diagnostic_radius_max_comoving_kpc"])
+    snapshot_count = int(example.get("snapshot_count", 9))
     snapshot_times = np.geomspace(initial_time, final_time, snapshot_count)
     snapshot_taus = np.asarray(cosmology.supercomoving_time(snapshot_times), dtype=float)
 
     _set_background_state(
         sim, cosmology, initial_time, baryon_fraction,
-        initial_temperature_code, float(icparams["mu"]),
+            initial_temperature_code, float(initial_condition["mu"]),
     )
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid)
 
     history = [_snapshot(
-        sim, dm, initial_time, cosmology, icparams, correlation_table,
+        sim, dm, initial_time, cosmology, initial_condition, correlation_table,
         initial_scale_factor, diagnostic_min, diagnostic_max,
     )]
     steps = 0
@@ -572,7 +580,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             )
             _set_background_state(
                 sim, cosmology, cosmic_time, baryon_fraction,
-                initial_temperature_code, float(icparams["mu"]),
+                initial_temperature_code, float(initial_condition["mu"]),
             )
             sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
             sim.solver.SetConserved(sim.mesh, sim.fluid)
@@ -595,10 +603,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         _set_background_state(
             sim, cosmology, cosmic_time, baryon_fraction,
-            initial_temperature_code, float(icparams["mu"]),
+            initial_temperature_code, float(initial_condition["mu"]),
         )
         history.append(_snapshot(
-            sim, dm, cosmic_time, cosmology, icparams, correlation_table,
+            sim, dm, cosmic_time, cosmology, initial_condition, correlation_table,
             initial_scale_factor, diagnostic_min, diagnostic_max,
         ))
 

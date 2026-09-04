@@ -160,11 +160,11 @@ class Simwrap:
 
 def ReadandPlot(outfilename, icparams, runparams, **kwargs):
     """Read a snapshot and compare it with the ballistic short-time profile."""
-    code_units_obj = CodeUnits.from_mapping(runparams.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     rout = Simwrap(icparams, code_units=code_units_obj)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
-    nghost = int(runparams.get('noghost', 0))
+    nghost = int(runparams.get('mesh', {}).get('ghost_cells', 0))
     xall = spherical_cell_centers(rout.mesh.boundary)
     if nghost > 0:
         xcoord = xall[nghost:-nghost]

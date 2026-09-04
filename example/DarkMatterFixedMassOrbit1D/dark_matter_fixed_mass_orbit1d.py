@@ -41,12 +41,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
     icparams = config['initial_condition']
-    runparams = eu.legacy_example_parameters(config)
-    runparams['timesim'] = runtime['simulation']['final_time']
-    runparams['output_interval'] = runtime['timestep']['output_interval']
-    runparams['savedir'] = runtime['output']['savedir']
-    runparams['CodeUnits'] = runtime['units']['CodeUnits']
-    code_units = et.load_units(runparams)
+    code_units = et.load_units(runtime)
     shell = et.make_shell(icparams, code_units)
     g_code = (
         6.67430e-8 * code_units.mass_in_cgs
@@ -77,11 +72,11 @@ def main(config_filename=DEFAULT_CONFIG):
     event_radius_floor.direction = -1
     reference = solve_ivp(
         rhs,
-        (0.0, float(runparams['timesim'])),
+        (0.0, float(runtime['simulation']['final_time'])),
         [initial_radius, initial_velocity],
         rtol=1.0e-11,
         atol=1.0e-13,
-        max_step=float(runparams['output_interval']) / 4.0,
+        max_step=float(runtime['timestep']['output_interval']) / 4.0,
         events=event_radius_floor,
         dense_output=True,
     )

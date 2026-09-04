@@ -33,13 +33,9 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
     icparams = config['initial_condition']
-    runparams = eu.legacy_example_parameters(config)
-    runparams['timesim'] = runtime['simulation']['final_time']
-    runparams['output_interval'] = runtime['timestep']['output_interval']
-    runparams['crossing_safety_factor'] = runtime['timestep']['crossing_safety_factor']
-    runparams['savedir'] = runtime['output']['savedir']
-    runparams['CodeUnits'] = runtime['units']['CodeUnits']
-    code_units = et.load_units(runparams)
+    timestep = runtime['timestep']
+    output = runtime['output']
+    code_units = et.load_units(runtime)
     shells = et.make_shells(icparams, code_units)
     time = 0.0
     history_time = [time]
@@ -47,19 +43,19 @@ def main(config_filename=DEFAULT_CONFIG):
     history_energy = [np.sum(shells.mass * shells.specific_energy())]
     crossings = 0
 
-    while time < runparams['timesim']:
+    while time < runtime['simulation']['final_time']:
         dt = min(
-            float(runparams['output_interval']) / 4.0,
-            float(runparams['timesim']) - time,
+            float(timestep['output_interval']) / 4.0,
+            float(runtime['simulation']['final_time']) - time,
         )
         predicted = shells.crossing_timestep(
-            safety_factor=float(runparams['crossing_safety_factor'])
+            safety_factor=float(timestep['crossing_safety_factor'])
         )
         if predicted < dt:
             crossings += 1
         actual_dt = shells.step(
             dt,
-            crossing_safety_factor=float(runparams['crossing_safety_factor']),
+            crossing_safety_factor=float(timestep['crossing_safety_factor']),
         )
         time += actual_dt
         history_time.append(time)
@@ -91,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['savedir']) / 'DarkMatterShellCrossing1D.jpg'
+    figure = Path(output['savedir']) / 'DarkMatterShellCrossing1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('crossing-limited steps = %d' % crossings)

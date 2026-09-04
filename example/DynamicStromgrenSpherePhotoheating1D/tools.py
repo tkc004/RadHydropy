@@ -89,91 +89,70 @@ def _to_temperature(values, par):
     return np.asarray(code_quantity_to_cgs(values, code, 'temperature_cgs_K'), dtype=float)
 
 
-def load_parameters(config_filename, rundir=None, clean_previous_outputs=True):
-    from example_utils import load_nested_example_parameters
-
-    config_filename = Path(config_filename)
-    runparams, icparams = load_nested_example_parameters(config_filename, rundir)
-    aliases = {
-        'alpha_B_coefficient': 'hydrogen_alpha_B',
-        'sigma_gamma': 'hydrogen_sigma_gamma',
-        'epsilon_gamma': 'hydrogen_epsilon_gamma',
-        'source_photon_rate': 'radiative_transfer_source_photon_rate',
-    }
-    for alias, source in aliases.items():
-        if alias not in runparams and source in runparams:
-            runparams[alias] = runparams[source]
-    config_dir = config_filename.resolve().parent
-    for key in (
-        'density_reference_filename',
-        'velocity_reference_filename',
-        'pressure_reference_filename',
-        'neutral_fraction_reference_filename',
-    ):
-        if key in icparams:
-            value = Path(icparams[key])
-            if not value.is_absolute():
-                icparams[key] = str(config_dir / value)
-    if clean_previous_outputs:
-        eu.clean_previous_outputs(runparams)
-    return runparams, icparams
-
-
 def build_static_problem(config):
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par_config = config['par']
+    simulation = par_config['simulation']
+    mesh_config = par_config['mesh']
+    hydro = par_config['hydrodynamics']
+    boundary = par_config['boundary']
+    timestep = par_config['timestep']
+    output = par_config['output']
+    chemistry = par_config['chemistry']
+    thermo = par_config['thermochemistry']
+    radiation = par_config['radiation']
+    initial = config['initial_condition']
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     par = SimpleNamespace(
-        coordsys='spherical',
-        boundcond='OpenSph',
-        nogrid=config['number_of_cells'],
-        noghost=2,
-        boxsize=config['boxsize'],
-        verbose=config.get('verbose', 0),
-        area=config['area'],
-        EOStype='polytropic',
-        gamma=5.0 / 3.0,
-        CFL=config.get('hydro_cfl', config['CFL']),
+        coordsys=simulation.get('coordinate_system', 'spherical'),
+        boundcond=boundary.get('condition', 'OpenSph'),
+        nogrid=mesh_config['grid_cells'],
+        noghost=mesh_config.get('ghost_cells', 2),
+        boxsize=initial['box_size'],
+        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        area=mesh_config.get('area', 1.0 * unyt.cm**2),
+        EOStype=hydro.get('eos_type', 'polytropic'),
+        gamma=hydro.get('gamma', 5.0 / 3.0),
+        CFL=hydro.get('CFL', 0.1),
         order=0,
-        dtmin=config['dtmin'],
-        dtmax=config['dtmax'],
-        hydrogen_chemistry=True,
-        hydrogen_mass_fraction=1.0,
-        hydrogen_xHI_initial=1.0,
-        hydrogen_xHI_inflow=1.0,
-        hydrogen_xHI_outflow=1.0,
-        hydrogen_source_CFL=config.get(
-            'source_cfl', config.get('hydrogen_source_CFL', 0.1)
-        ),
-        hydrogen_source_dtmin=config['hydrogen_source_dtmin'],
-        hydrogen_update_mu=True,
-        hydrogen_thermal_coupling=True,
-        hydrogen_recombination=True,
-        hydrogen_collisional_ionization=False,
-        hydrogen_alpha_B=config['hydrogen_alpha_B'],
-        hydrogen_beta=config['hydrogen_beta'],
-        hydrogen_radiation_field=False,
-        hydrogen_radiation_evolution=False,
-        hydrogen_ngamma_initial=config['hydrogen_ngamma_initial'],
-        hydrogen_sigma_gamma=config['hydrogen_sigma_gamma'],
-        hydrogen_epsilon_gamma=config['hydrogen_epsilon_gamma'],
-        radiative_transfer=True,
-        radiative_transfer_method='long_characteristics',
-        radiative_transfer_temporal_scheme=config.get(
+        dtmin=timestep['dtmin'],
+        dtmax=timestep['dtmax'],
+        hydrogen_chemistry=chemistry.get('hydrogen_chemistry', True),
+        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
+        hydrogen_xHI_inflow=chemistry.get('hydrogen_xHI_inflow', 1.0),
+        hydrogen_xHI_outflow=chemistry.get('hydrogen_xHI_outflow', 1.0),
+        hydrogen_source_CFL=timestep.get('hydrogen_source_CFL', 0.1),
+        hydrogen_source_dtmin=timestep['hydrogen_source_dtmin'],
+        hydrogen_update_mu=chemistry.get('hydrogen_update_mu', True),
+        hydrogen_thermal_coupling=thermo.get('hydrogen_thermal_coupling', True),
+        hydrogen_recombination=chemistry.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=chemistry.get('hydrogen_collisional_ionization', False),
+        hydrogen_alpha_B=chemistry['hydrogen_alpha_B'],
+        hydrogen_beta=chemistry['hydrogen_beta'],
+        hydrogen_radiation_field=radiation.get('hydrogen_radiation_field', False),
+        hydrogen_radiation_evolution=radiation.get('hydrogen_radiation_evolution', False),
+        hydrogen_ngamma_initial=radiation['hydrogen_ngamma_initial'],
+        hydrogen_sigma_gamma=radiation['hydrogen_sigma_gamma'],
+        hydrogen_epsilon_gamma=radiation['hydrogen_epsilon_gamma'],
+        radiative_transfer=radiation.get('radiative_transfer', True),
+        radiative_transfer_method=radiation.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=radiation.get(
             'radiative_transfer_temporal_scheme', 'instantaneous'
         ),
-        radiative_transfer_c2ray_max_iterations=config.get(
+        radiative_transfer_c2ray_max_iterations=radiation.get(
             'radiative_transfer_c2ray_max_iterations', 32
         ),
-        radiative_transfer_c2ray_tolerance=config.get(
+        radiative_transfer_c2ray_tolerance=radiation.get(
             'radiative_transfer_c2ray_tolerance', 1.0e-6
         ),
-        radiative_transfer_c2ray_relaxation=config.get(
+        radiative_transfer_c2ray_relaxation=radiation.get(
             'radiative_transfer_c2ray_relaxation', 1.0
         ),
-        radiative_transfer_c2ray_nonconvergence=config.get(
+        radiative_transfer_c2ray_nonconvergence=radiation.get(
             'radiative_transfer_c2ray_nonconvergence', 'warn'
         ),
-        radiative_transfer_boundary_flux=config['radiative_transfer_boundary_flux'],
-        radiative_transfer_source_photon_rate=config['radiative_transfer_source_photon_rate'],
+        radiative_transfer_boundary_flux=radiation['radiative_transfer_boundary_flux'],
+        radiative_transfer_source_photon_rate=radiation['radiative_transfer_source_photon_rate'],
         radiative_transfer_direction=1,
         CodeUnits=code_units_obj,
         units=SimpleNamespace(CodeUnits=code_units_obj),
@@ -181,7 +160,7 @@ def build_static_problem(config):
     )
     par.simulation = SimpleNamespace(
         current_time=0.0 * unyt.Myr,
-        box_size=config['boxsize'],
+        box_size=initial['box_size'],
         coordinate_system=par.coordsys,
     )
     par.mesh = SimpleNamespace(
@@ -192,7 +171,7 @@ def build_static_problem(config):
     mesh = Mesh()
     mesh.boundary = np.linspace(
         0.0,
-        config['boxsize'].to_value(unyt.cm),
+        initial['box_size'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
 
@@ -200,11 +179,11 @@ def build_static_problem(config):
     fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
     fluid.rho_code = (
         np.ones(par.nogrid)
-        * config['hydrogen_number_density']
+        * initial['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
     fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(par.nogrid) * config['initial_temperature']
+    fluid.temp_code = np.ones(par.nogrid) * initial['initial_temperature']
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
     fluid.SetFluidTime(0.0 * unyt.Myr)
@@ -216,12 +195,13 @@ def build_static_problem(config):
 build_problem = build_static_problem
 
 
-def write_initial_condition(config, runparams):
+def write_initial_condition(config):
     """Build and write the initial-condition snapshot."""
     par, mesh, fluid, _ = build_static_problem(config)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    Path(runparams['ICfilename']).unlink(missing_ok=True)
-    rio.writehdf5(sim, runparams['ICfilename'])
+    filename = config['par']['simulation']['initial_condition_filename']
+    Path(filename).unlink(missing_ok=True)
+    rio.writehdf5(sim, filename)
 
 
 def load_output_state(outputfilename, config):
@@ -310,23 +290,27 @@ def load_history_from_outputs(outputfilenames, config):
 
 
 def stromgren_radius(config):
+    initial = config['initial_condition']
+    chemistry = config['par']['chemistry']
+    radiation = config['par']['radiation']
     radius = (
         3.0
-        * config['source_photon_rate']
+        * radiation['radiative_transfer_source_photon_rate']
         / (
             4.0
             * np.pi
-            * config['alpha_B_coefficient']
-            * config['hydrogen_number_density']**2
+            * chemistry['hydrogen_alpha_B']
+            * initial['hydrogen_number_density']**2
         )
     ) ** (1.0 / 3.0)
     return radius.to(unyt.kpc)
 
 
 def recombination_time(config):
+    initial = config['initial_condition']
+    alpha_B = config['par']['chemistry']['hydrogen_alpha_B']
     return (
-        1.0
-        / (config['hydrogen_number_density'] * config['alpha_B_coefficient'])
+        1.0 / (initial['hydrogen_number_density'] * alpha_B)
     ).to(unyt.Myr)
 
 
@@ -392,6 +376,7 @@ def scatter_reference(ax, reference, label='ZEUS-MP'):
 
 
 def save_front_plot(history, config, figure_filename):
+    example = config.get('example', {})
     time = np.asarray(history['time_Myr']) * unyt.Myr
     front_radius = np.asarray(history['front_radius_kpc'])
     radius_stromgren = stromgren_radius(config)
@@ -405,7 +390,7 @@ def save_front_plot(history, config, figure_filename):
             config,
             ci,
         ).to_value(unyt.kpc)
-    plot_radius_max = config['plot_radius_max'].to_value(unyt.kpc)
+    plot_radius_max = example['plot_radius_max'].to_value(unyt.kpc)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
@@ -457,6 +442,7 @@ def save_front_plot(history, config, figure_filename):
 
 
 def save_plot(mesh, fluid, par, config, figure_filename):
+    example = config.get('example', {})
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.coordinate[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
     number_density = _to_number_density(fluid.rho_code[interior], par)
@@ -464,25 +450,25 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
     pressure = _to_pressure(fluid.pre_code[interior], par)
     temperature = _to_temperature(fluid.temp_code[interior], par)
-    plot_radius_max = config['plot_radius_max'].to_value(unyt.pc)
-    radius_unit = config.get('reference_radius_unit', 15.0 * unyt.kpc)
+    plot_radius_max = example['plot_radius_max'].to_value(unyt.pc)
+    radius_unit = example.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(
-        config.get('density_reference_filename', None),
+        example.get('density_reference_filename', None),
         radius_unit,
         log_value=True,
     )
     velocity_reference = load_reference_profile(
-        config.get('velocity_reference_filename', None),
+        example.get('velocity_reference_filename', None),
         radius_unit,
         log_value=False,
     )
     pressure_reference = load_reference_profile(
-        config.get('pressure_reference_filename', None),
+        example.get('pressure_reference_filename', None),
         radius_unit,
         log_value=True,
     )
     neutral_fraction_reference = load_reference_profile(
-        config.get('neutral_fraction_reference_filename', None),
+        example.get('neutral_fraction_reference_filename', None),
         radius_unit,
         log_value=True,
     )
@@ -539,7 +525,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     for ax in axes:
         ax.set_xlim(0.0, plot_radius_max)
         ax.grid(True, which='both', alpha=0.25)
-    final_time_myr = config['timesim'].to_value(unyt.Myr)
+    final_time_myr = config['par']['simulation']['final_time'].to_value(unyt.Myr)
     fig.suptitle(
         'Dynamic photoheated Stromgren sphere at %.3g Myr' % final_time_myr
     )

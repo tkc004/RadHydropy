@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits
 import tools as et
 
@@ -29,19 +29,22 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_nested_example_parameters(config_filename)
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+    config = load_nested_example_config(config_filename)
+    par = config["par"]
+    icparams = config["initial_condition"]
+    gravity = par["gravity"]
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["cosmology_t_ref"]),
-        a_ref=float(runparams["cosmology_a_ref"]),
+        t_ref=float(gravity["cosmology_t_ref"]),
+        a_ref=float(gravity["cosmology_a_ref"]),
     )
-    table_filename = Path(runparams["linear_correlation_table_filename"])
+    table_filename = Path(par["linear_correlation_table_filename"])
     if not table_filename.is_absolute():
         table_filename = config_filename.parent / table_filename
     table = et.load_lcdm_correlation_table(table_filename)
 
-    filename = Path(runparams["ICfilename"])
+    filename = Path(par["simulation"]["initial_condition_filename"])
     with h5py.File(filename, "r") as handle:
         boundary = handle["Data/Boundary"][:] / float(units.length_in_cgs)
         density = handle["Data/Density"][:] / float(units.density_unit)

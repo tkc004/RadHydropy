@@ -46,15 +46,13 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    config = eu.legacy_example_parameters(nested)
-    runparams = config
-    ICparams = nested['initial_condition']
+    config = nested
     eu.clean_previous_outputs(runtime['output'])
 
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)
 
-    et.write_initial_condition(config, runparams)
+    et.write_initial_condition(config)
 
     mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
@@ -74,19 +72,15 @@ def main(config_filename=DEFAULT_CONFIG):
         out_mesh,
         out_fluid,
         out_par,
-        config.get(
-            'radiative_transfer_source_photon_rate',
-            runparams.get('source_photon_rate'),
-        ),
+        config,
         str(
-            Path(runparams['savedir'])
+            Path(runtime['output']['savedir'])
             / (
                 'RadiativeTransferSph1D_C2Ray.jpg'
                 if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
                 else 'RadiativeTransferSph1D.jpg'
             )
         ),
-        code_units=config.get('CodeUnits'),
     )
 
     print('max relative error = %.3e' % relative_error)
@@ -95,7 +89,7 @@ def main(config_filename=DEFAULT_CONFIG):
         if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
         else 'RadiativeTransferSph1D.jpg'
     )
-    print('figure = %s' % (Path(runparams['savedir']) / figure_name))
+    print('figure = %s' % (Path(runtime['output']['savedir']) / figure_name))
 
 
 def parse_args():

@@ -1,6 +1,7 @@
 """Gravity-free spherical radiative-shock overstability experiment."""
 
 import argparse
+import copy
 from pathlib import Path
 import sys
 
@@ -74,55 +75,38 @@ class CollidingStreamsSolver(Solver):
             self._copy_boundary_state(fluid, side, state)
 
 
-def _run_case(base_runparams, icparams, label, title, pie_enabled, metallicity, table):
-    case = dict(base_runparams)
-    case_dir = Path(base_runparams['outdir']).resolve() / label
+def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
+    case = copy.deepcopy(base_par)
+    case_dir = Path(base_par['output']['directory']).resolve() / label
     case_dir.mkdir(parents=True, exist_ok=True)
-    case.update({
-        'simname': f"PIESphericalRadiativeShock1D_{label}",
-        'ICfilename': str(case_dir / 'InitialCondition.hdf5'),
-        'outdir': str(case_dir),
-        'savedir': str(case_dir),
-        'outfileprefix': 'Output',
-        'metallicity': metallicity,
-        'metal_pie_enabled': pie_enabled,
+    case['simulation'].update({
+        'name': f"PIESphericalRadiativeShock1D_{label}",
+        'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5'),
     })
+    case['output'].update({'directory': str(case_dir), 'savedir': str(case_dir), 'filename_prefix': 'Output'})
+    case['thermochemistry']['metallicity'] = metallicity
+    case['thermochemistry']['metal_pie_enabled'] = pie_enabled
     if not pie_enabled:
-        case['thermochemistry_network'] = 'hydrogen'
+        case['thermochemistry']['thermochemistry_network'] = 'hydrogen'
 
     eu.clean_previous_outputs(case)
-    code_units = CodeUnits.from_mapping(case.get('CodeUnits'))
+    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
 
-    initial = Simwrap(
-        icparams, code_units, float(case['hydrogen_mass_fraction'])
+    initial_state = Simwrap(
+        {'par': case, 'initial_condition': initial}, code_units,
+        float(case['thermochemistry']['hydrogen_mass_fraction'])
     )
-    rio.writehdf5(initial, case['ICfilename'])
+    rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
 
-    runtime_only = {
-        'final_time', 'number_of_cells', 'evolution_timestep',
-        'chemistry_timestep', 'box_size', 'coordinate_system',
-        'current_time', 'grid_cells', 'initial_temperature',
-        'mean_molecular_weight',
-    }
-    sim = Rsim({key: value for key, value in case.items()
-                if key not in runtime_only})
-    sim.par.boundary = SimpleNamespace(
-        outflow_density=case['rho_outflow'],
-        outflow_velocity=case['vel_outflow'],
-        outflow_temperature=case['temp_outflow'],
-        outflow_mu=case['mu_outflow'],
-        inflow_density=case['rho_inflow'],
-        inflow_velocity=case['vel_inflow'],
-        inflow_temperature=case['temp_inflow'],
-        inflow_mu=case['mu_inflow'],
-    )
+    sim = Rsim(case)
+    sim.par.boundary = SimpleNamespace(**case['boundary'])
     sim.solver = CollidingStreamsSolver()
     # Maintain an outward inner stream and inward outer stream so the shock
     # forms near the initial midpoint instead of at a reflecting wall.
     sim.RunAll(outputtime=0, mode='hydro_sources' if pie_enabled else 'hydro')
 
     output_files = sorted(
-        case_dir.glob(f"{case['outfileprefix']}_*.hdf5")
+        case_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5")
     )
     if len(output_files) < 2:
         raise RuntimeError(f'expected snapshots for {label}')
@@ -130,13 +114,13 @@ def _run_case(base_runparams, icparams, label, title, pie_enabled, metallicity, 
     # Output headers currently do not retain the evolving hydro time.  The
     # numbered snapshots span the configured run, so use their normalized
     # positions for plot/report labels until that core I/O issue is fixed.
-    final_time_myr = float(case['timesim'].to_value('Myr'))
+    final_time_myr = float(case['simulation']['final_time'].to_value('Myr'))
     history = shock_history(output_files)
     history[:, 0] = np.linspace(0.0, final_time_myr, len(output_files))
     final_snapshot = load_snapshot(output_files[-1])
     cooling = None if not pie_enabled else estimate_cooling_length(
         final_snapshot, table, metallicity,
-        float(case['hydrogen_mass_fraction']), float(icparams['muini']),
+        float(case['thermochemistry']['hydrogen_mass_fraction']), float(initial['muini']),
     )
     report = case_dir / 'ShockHistory.txt'
     with report.open('w', encoding='utf-8') as stream:
@@ -167,20 +151,21 @@ def _run_case(base_runparams, icparams, label, title, pie_enabled, metallicity, 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = eu.legacy_initial_condition_parameters(nested)
-    if runparams.get('metal_pie_table_filename'):
-        runparams['metal_pie_table_filename'] = str(
-            (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
-        )
-    table = MetalPIETable(runparams['metal_pie_table_filename'])
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
+    config = nested
+    par = config['par']
+    initial = config['initial_condition']
+    thermo = par['thermochemistry']
+    thermo['metal_pie_table_filename'] = str(
+        (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
+    )
+    table = MetalPIETable(thermo['metal_pie_table_filename'])
+    Path(par['output']['directory']).mkdir(parents=True, exist_ok=True)
     results = [
-        _run_case(runparams, icparams, label, title, pie_enabled, metallicity, table)
+        _run_case(par, initial, label, title, pie_enabled, metallicity, table)
         for label, title, pie_enabled, metallicity in CASES
     ]
 
-    figure = Path(runparams['outdir']).resolve() / 'PIESphericalRadiativeShock1D.jpg'
+    figure = Path(par['output']['directory']).resolve() / 'PIESphericalRadiativeShock1D.jpg'
     fig, axes = plt.subplots(3, 3, figsize=(15, 11), squeeze=False)
     for row, result in enumerate(results):
         sample_indices = np.unique(np.linspace(
@@ -221,8 +206,8 @@ def main(config_filename=DEFAULT_CONFIG):
     for row in range(3):
         axes[row, 2].set_xlabel('time [Myr]')
         collision_radius = 0.5 * (
-            float(icparams['rmin'].to_value('kpc'))
-            + float(icparams['rmax'].to_value('kpc'))
+            float(initial['rmin'].to_value('kpc'))
+            + float(initial['rmax'].to_value('kpc'))
         )
         axes[row, 0].set_xlim(collision_radius - 3.0, collision_radius + 3.0)
         axes[row, 1].set_xlim(collision_radius - 3.0, collision_radius + 3.0)

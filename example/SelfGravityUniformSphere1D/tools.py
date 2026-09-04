@@ -44,14 +44,16 @@ def uniform_sphere_acceleration(radius, rho0):
 class Simwrap:
     """Build the uniform-density initial condition for ``writehdf5``."""
 
-    def __init__(self, icparams, code_units):
+    def __init__(self, config, code_units):
+        icparams = config['initial_condition']
+        grid_cells = int(config['par']['mesh']['grid_cells'])
         self.par = Par()
         self.mesh = Mesh()
         self.fluid = Fluid()
         self.par.CodeUnits = code_units
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['nogrid'])
+        self.par.nogrid = grid_cells
         self.par.coordsys = icparams['coordsys']
         self.par.boxsize = np.ones(1) * icparams['boxsize']
         self.par.time = np.ones(1) * icparams['time']

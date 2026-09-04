@@ -1,4 +1,4 @@
-case nH_initial_cm3 T_initial_K T_final_K nH_final_cm3 max_growth_Myr^-1 min_growth_Myr^-1 max_abs_gamma_eff max_pressure_fractional_error
+case nH_initial_cgs_cm3 T_initial_cgs_K T_final_cgs_K nH_final_cgs_cm3 max_growth_Myr^-1 min_growth_Myr^-1 max_abs_gamma_eff max_pressure_fractional_error
 diffuse_hot 0.0001 1000000 939666.66 0.00010642072 0.00018430027 0.00014426259 0 2.220446e-16
 diffuse_cold 0.001 100000 8960.4402 0.011160166 0.17449209 -1.5208847 0 2.220446e-16
 dense_hot 0.001 1000000 7096.066 0.14092315 0.43693047 -1.1589451 0 2.220446e-16

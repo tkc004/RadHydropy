@@ -38,15 +38,14 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    runparams = eu.legacy_example_parameters(config)
-    icparams = {**config['initial_condition'], 'nogrid': runtime['mesh']['grid_cells']}
-    eu.clean_previous_outputs(runparams)
-    code_units = CodeUnits.from_mapping(runparams['CodeUnits'])
+    icparams = config['initial_condition']
+    eu.clean_previous_outputs(runtime['output'])
+    code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
-    initial_condition = et.Simwrap(icparams, code_units=code_units)
-    rio.writehdf5(initial_condition, runparams['ICfilename'])
+    initial_condition = et.Simwrap(config, code_units=code_units)
+    rio.writehdf5(initial_condition, runtime['simulation']['initial_condition_filename'])
 
-    runtime = {**runtime, 'simulation': {**runtime['simulation'], 'initial_condition_filename': runparams['ICfilename']}}
+    runtime = {**runtime, 'simulation': {**runtime['simulation'], 'initial_condition_filename': runtime['simulation']['initial_condition_filename']}}
     sim = Rsim(runtime)
     sim.Callreadhdf5()
     sim.SetMesh()
@@ -94,7 +93,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
 
     figure_filename = os.path.join(
-        runparams['savedir'],
+        runtime['output']['savedir'],
         'SelfGravityUniformSphere1D.jpg',
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))

@@ -204,11 +204,13 @@ def cmb_equilibrium_electron_fraction(ic):
 class Simwrap:
     """Build a comoving/supercomoving IC accepted by ``writehdf5``."""
 
-    def __init__(self, ic, units, cosmology, pie_table=None, correlation_table=None):
+    def __init__(self, config, units, cosmology, pie_table=None, correlation_table=None):
+        ic = config["initial_condition"]
+        par = config["par"]
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
-        grid_cells = int(ic["nogrid"])
+        grid_cells = int(par["mesh"]["grid_cells"])
         cosmic_time = float(ic["initial_cosmic_time"])
         self.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
         self.par.simulation = SimpleNamespace(

@@ -37,13 +37,12 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    ICparams = eu.legacy_initial_condition_parameters(nested)
-    runparams = eu.legacy_example_parameters(nested)
+    ICparams = nested['initial_condition']
     eu.clean_previous_outputs(runtime['output'])
     code_units_obj = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
     ric = et.Simwrap(ICparams, code_units=code_units_obj)
-    rio.writehdf5(ric, runparams['ICfilename'])
+    rio.writehdf5(ric, runtime['simulation']['initial_condition_filename'])
 
     mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
@@ -67,7 +66,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.ReadandPlot(
         final_outfile,
         ICparams,
-        runparams,
+        runtime,
         ls='none',
         marker='o',
         mfc='none',

@@ -15,12 +15,14 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 class Simwrap:
     """Build opposing radial streams that collide in a spherical shell."""
 
-    def __init__(self, icparams, code_units, hydrogen_mass_fraction):
+    def __init__(self, config, code_units, hydrogen_mass_fraction):
+        icparams = config['initial_condition']
+        par = config['par']
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(icparams['nogrid'])
+        grid_cells = int(par['mesh']['grid_cells'])
         self.par.time = icparams['time'] * np.ones(1)
         self.par.simulation = SimpleNamespace(
             current_time=icparams['time'], box_size=icparams['boxsize'],

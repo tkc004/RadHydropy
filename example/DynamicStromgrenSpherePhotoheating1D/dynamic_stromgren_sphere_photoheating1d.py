@@ -38,29 +38,29 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
-    runparams, icparams = et.load_parameters(config_filename, rundir)
-    config = {**runparams, **icparams}
-    nested_config = eu.load_nested_example_config(config_filename)
-    runtime_params = eu.runtime_parameters(nested_config)
+    config = eu.load_nested_example_config(config_filename)
+    runtime_params = config['par']
+    output = runtime_params['output']
+    example = config.get('example', {})
 
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
+    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
 
-    et.write_initial_condition(config, runparams)
+    et.write_initial_condition(config)
 
     sim = Rsim(runtime_params)
     sim.RunAll(outputtime=0)
 
-    outputfilenames = et.output_files(runparams['outdir'], runparams['outfileprefix'])
+    outputfilenames = et.output_files(output['directory'], output['filename_prefix'])
     history = et.load_history_from_outputs(outputfilenames, config)
     out_par, out_mesh, out_fluid = et.load_output_state(outputfilenames[-1], config)
 
     figure_stem = 'DynamicStromgrenSpherePhotoheating1D'
-    if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
+    if runtime_params['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_stem += '_C2Ray'
-    figure_filename = Path(runparams['savedir']) / f'{figure_stem}.jpg'
+    figure_filename = Path(output['savedir']) / f'{figure_stem}.jpg'
     front_figure_filename = (
-        Path(runparams['savedir']) / f'{figure_stem}_IFront.jpg'
+        Path(output['savedir']) / f'{figure_stem}_IFront.jpg'
     )
     et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
@@ -69,7 +69,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('output files = %d' % len(outputfilenames))
     print('final front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temperature_cgs_K'][-1])
-    print('IC file = %s' % runparams['ICfilename'])
+    print('IC file = %s' % runtime_params['simulation']['initial_condition_filename'])
     for outputfilename in outputfilenames:
         print('output file = %s' % outputfilename)
     print('figure = %s' % figure_filename)

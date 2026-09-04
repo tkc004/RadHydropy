@@ -21,7 +21,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 
 import radhydropy.io as rio
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
@@ -41,9 +41,12 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
 
 def _run_case(
-    par_config, runparams, icparams, label, metallicity, hydrogen_density, table,
+    config, label, metallicity, hydrogen_density, table,
     adiabatic=False,
 ):
+    par_config = config['par']
+    thermo = par_config['thermochemistry']
+    initial = config['initial_condition']
     case = copy.deepcopy(par_config)
     output_dir = EXAMPLE_DIR / 'outputs' / label
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -58,12 +61,13 @@ def _run_case(
     })
     output_prefix = case['output']['filename_prefix']
     case['thermochemistry']['metallicity'] = metallicity
-    case_icparams = dict(icparams)
-    case_icparams['hydrogen_density'] = hydrogen_density * unyt.cm**-3
+    case_initial = dict(initial)
+    case_initial['hydrogen_density'] = hydrogen_density * unyt.cm**-3
     eu.clean_previous_outputs(case)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
+    case_config = {'par': case, 'initial_condition': case_initial}
     initial = Simwrap(
-        case_icparams, code_units,
+        case_config, code_units,
         case['thermochemistry']['hydrogen_mass_fraction'],
     )
     rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
@@ -78,15 +82,18 @@ def _run_case(
         'adiabatic': adiabatic,
         'snapshots': snapshots,
         'initial_density_cgs_g_cm3': (
-            case_icparams['hydrogen_density'].to_value('cm**-3')
+            case_initial['hydrogen_density'].to_value('cm**-3')
             * PROTON_MASS_G / case['thermochemistry']['hydrogen_mass_fraction']
         ),
-        'upstream_velocity_cgs_cm_s': case_icparams['collision_velocity'],
-        'mu': case_icparams['muini'],
+        'upstream_velocity_cgs_cm_s': case_initial['collision_velocity'],
+        'mu': case_initial['mean_molecular_weight'],
     }
 
 
-def _shock_diagnostics(result, table, runparams, icparams):
+def _shock_diagnostics(result, table, config):
+    thermo = config['par']['thermochemistry']
+    gamma = float(config['par']['hydrodynamics']['gamma'])
+    mu = float(config['initial_condition']['mean_molecular_weight'])
     snapshot = load_snapshot(result['snapshots'][-1])
     shock_snapshot = load_snapshot(result['snapshots'][1])
     density = shock_snapshot['density_cgs_g_cm3']
@@ -114,9 +121,8 @@ def _shock_diagnostics(result, table, runparams, icparams):
     post_density = float(np.median(density[immediate_slice]))
     post_temperature = float(np.median(temperature[immediate_slice]))
     compression = post_density / upstream_density
-    gamma = float(runparams['gamma'])
     expected_compression, post_velocity, expected_temperature = strong_shock_expectation(
-        gamma, upstream_velocity, float(icparams['muini'])
+        gamma, upstream_velocity, mu
     )
     if result['adiabatic']:
         cooling_length = np.nan
@@ -124,8 +130,8 @@ def _shock_diagnostics(result, table, runparams, icparams):
     else:
         cooling_length = cooling_length_estimate(
             table, post_temperature, post_density,
-            float(runparams['hydrogen_mass_fraction']), float(icparams['muini']),
-            gamma, result['metallicity'], float(runparams['metal_pie_redshift']),
+            float(thermo['hydrogen_mass_fraction']), mu,
+            gamma, result['metallicity'], float(thermo['metal_pie_redshift']),
             post_velocity,
         )
     final_boundary = snapshot['boundary_cgs_cm']
@@ -216,11 +222,10 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     par_config = nested['par']
-    runparams = eu.legacy_example_parameters(nested)
-    _, icparams = load_nested_example_parameters(config_filename)
-    table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
-    runparams['metal_pie_table_filename'] = str(table_path)
-    nested['par']['thermochemistry']['metal_pie_table_filename'] = str(table_path)
+    config = nested
+    thermo = config['par']['thermochemistry']
+    table_path = (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
+    thermo['metal_pie_table_filename'] = str(table_path)
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:
         raise ValueError('the example requires an HM12 UV-background table')
@@ -233,12 +238,12 @@ def main(config_filename=DEFAULT_CONFIG):
     results = []
     for label, metallicity, hydrogen_density, adiabatic in cases:
         result = _run_case(
-            par_config, runparams, icparams, label, metallicity, hydrogen_density,
+            config, label, metallicity, hydrogen_density,
             table, adiabatic
         )
         if adiabatic:
             result['metallicity'] = 0.0
-        results.append(_shock_diagnostics(result, table, runparams, icparams))
+        results.append(_shock_diagnostics(result, table, config))
     report = EXAMPLE_DIR / 'PIERadiativeShockTube1D_ShockReport.txt'
     with open(report, 'w', encoding='utf-8') as handle:
         handle.write(

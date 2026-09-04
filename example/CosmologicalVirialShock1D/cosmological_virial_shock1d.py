@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
@@ -28,8 +28,8 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_virial_shock1d.yaml")
 
 
-def load_correlation_table(config_filename, runparams):
-    filename = runparams.get("linear_correlation_table_filename")
+def load_correlation_table(config_filename, par):
+    filename = par.get("linear_correlation_table_filename")
     if not filename:
         return None
     filename = Path(filename)
@@ -39,16 +39,19 @@ def load_correlation_table(config_filename, runparams):
 
 
 def run_case(
-    runparams, icparams, units, cosmology, table, radiative,
+    par, initial_condition, units, cosmology, table, radiative,
     correlation_table=None,
 ):
     case = "radiative" if radiative else "adiabatic"
-    case_dir = Path(runparams["savedir"]) / case
+    output = par["output"]
+    case_dir = Path(output["savedir"]) / case
     case_dir.mkdir(parents=True, exist_ok=True)
-    local = copy.deepcopy(runparams)
-    local.update({
-        "savedir": str(case_dir), "outdir": str(case_dir),
-        "ICfilename": str(case_dir / "InitialCondition.hdf5"),
+    local = copy.deepcopy(par)
+    local["output"].update({
+        "savedir": str(case_dir), "directory": str(case_dir),
+    })
+    local["simulation"]["initial_condition_filename"] = str(case_dir / "InitialCondition.hdf5")
+    local["thermochemistry"].update({
         # Load the PIE table at startup so the network can switch to it at
         # z=10 without reconstructing the Rsim parameter object.
         "metal_pie_enabled": bool(radiative),
@@ -56,12 +59,12 @@ def run_case(
         "thermochemistry_network": "cie_cooling" if radiative else "hydrogen",
     })
     initial = et.Simwrap(
-        icparams, units, cosmology, table,
+        {"par": local, "initial_condition": initial_condition}, units, cosmology, table,
         correlation_table=correlation_table,
     )
     rio.writehdf5(initial, local["ICfilename"])
     dm = et.make_dark_matter(
-        icparams, units, cosmology, correlation_table=correlation_table
+        initial_condition, units, cosmology, correlation_table=correlation_table
     )
 
     sim = Rsim(local)
@@ -77,13 +80,13 @@ def run_case(
         dark_matter=dm, code_units=sim.par.CodeUnits,
     )
     sim.par.dark_matter = dm
-    sim.par.dark_matter_background_fraction = 1.0 - float(icparams["baryon_fraction"])
-    sim.par.gas_background_fraction = float(icparams["baryon_fraction"])
+    sim.par.dark_matter_background_fraction = 1.0 - float(initial_condition["baryon_fraction"])
+    sim.par.gas_background_fraction = float(initial_condition["baryon_fraction"])
 
-    t0 = float(icparams["initial_cosmic_time"])
-    tf = float(runparams["final_cosmic_time"])
+    t0 = float(initial_condition["initial_cosmic_time"])
+    tf = float(par["simulation"]["final_time"])
     target = float(cosmology.supercomoving_time(tf))
-    cadence = float(runparams["snapshot_cadence"])
+    cadence = float(par.get("snapshot_cadence", par.get("gas_profile_cadence", 0.1)))
     next_output = t0
     history = []
     while float(sim.fluid.time) < target - 1.0e-12:
@@ -92,7 +95,7 @@ def run_case(
         if radiative:
             a = float(cosmology.scale_factor(cosmic_time))
             redshift = max(0.0, 1.0 / a - 1.0)
-            if redshift > float(icparams["uv_background_on_redshift"]):
+            if redshift > float(initial_condition["uv_background_on_redshift"]):
                 sim.par.thermochemistry_network = "cie_cooling"
                 sim.par.cie_cooling = True
                 sim.par.metal_pie_enabled = True
@@ -106,7 +109,7 @@ def run_case(
         sim.Step(dt=dt, mode="hydro_sources" if radiative else "hydro")
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time)))
         if cosmic_time >= next_output or cosmic_time >= tf - 1.0e-10:
-            history.append(et.profiles(sim, dm, cosmic_time, cosmology, icparams))
+            history.append(et.profiles(sim, dm, cosmic_time, cosmology, initial_condition))
             next_output += cadence
 
     result = {key: np.asarray([row[key] for row in history]) for key in history[0]}
@@ -191,39 +194,42 @@ def plot_density_profiles(profiles, filename):
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = load_nested_example_parameters(config_filename)
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+    config = load_nested_example_config(config_filename)
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    gravity = par["gravity"]
     cosmology = __import__("radhydropy.cosmology", fromlist=["EinsteinDeSitter"]).EinsteinDeSitter.from_code_units(
-        units, t_ref=float(runparams["cosmology_t_ref"]), a_ref=float(runparams["cosmology_a_ref"])
+        units, t_ref=float(gravity["cosmology_t_ref"]), a_ref=float(gravity["cosmology_a_ref"])
     )
-    table_path = Path(runparams["metal_pie_table_filename"])
+    table_path = Path(par["thermochemistry"]["metal_pie_table_filename"])
     if not table_path.is_absolute():
         table_path = Path(config_filename).parent / table_path
     table = MetalPIETable(table_path)
-    runparams["metal_pie_table_filename"] = str(table_path.resolve())
-    correlation_table = load_correlation_table(config_filename, runparams)
+    par["thermochemistry"]["metal_pie_table_filename"] = str(table_path.resolve())
+    correlation_table = load_correlation_table(config_filename, par)
     outputs = {
         "adiabatic": run_case(
-            runparams, icparams, units, cosmology, table, False,
+            par, initial_condition, units, cosmology, table, False,
             correlation_table=correlation_table,
         ),
         "radiative": run_case(
-            runparams, icparams, units, cosmology, table, True,
+            par, initial_condition, units, cosmology, table, True,
             correlation_table=correlation_table,
         ),
     }
     histories = {key: value[0] for key, value in outputs.items()}
     density_profiles = {key: value[1] for key, value in outputs.items()}
-    figure = Path(runparams["savedir"]) / "CosmologicalVirialShock1D.jpg"
+    figure = Path(par["output"]["savedir"]) / "CosmologicalVirialShock1D.jpg"
     plot_histories(histories, figure)
-    radius_figure = Path(runparams["savedir"]) / "CosmologicalVirialShock1D_Radii.jpg"
+    radius_figure = Path(par["output"]["savedir"]) / "CosmologicalVirialShock1D_Radii.jpg"
     plot_radius_histories(histories, radius_figure)
-    density_figure = Path(runparams["savedir"]) / "CosmologicalVirialShock1D_Densities.jpg"
+    density_figure = Path(par["output"]["savedir"]) / "CosmologicalVirialShock1D_Densities.jpg"
     plot_density_profiles(density_profiles, density_figure)
     print("figure = %s" % figure)
     print("radius figure = %s" % radius_figure)
     print("density figure = %s" % density_figure)
-    print("histories = %s" % (Path(runparams["savedir"]) / "{adiabatic,radiative}" / "mass_radius_history.npz"))
+    print("histories = %s" % (Path(par["output"]["savedir"]) / "{adiabatic,radiative}" / "mass_radius_history.npz"))
 
 
 if __name__ == "__main__":

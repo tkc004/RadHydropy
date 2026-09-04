@@ -8,7 +8,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-import example_utils as eu
 
 import radhydropy.thermo_networks.hydrogen as rth
 from radhydropy.fluid import Fluid
@@ -20,63 +19,65 @@ import stromgren_analytic as sa
 
 
 def build_static_problem(config):
-    if 'par' in config:
-        config = {**eu.legacy_example_parameters(config), **config.get('initial_condition', {})}
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par_config = config['par']
+    simulation = par_config['simulation']
+    mesh_config = par_config['mesh']
+    boundary = par_config['boundary']
+    units = par_config['units']
+    chemistry = par_config.get('chemistry', {})
+    thermo = par_config.get('thermochemistry', {})
+    radiation = par_config.get('radiation', {})
+    output = par_config.get('output', {})
+    initial = config['initial_condition']
+    code_units_obj = CodeUnits.from_mapping(units['CodeUnits'])
     par = SimpleNamespace(
-        coordsys=config.get('coordsys', 'spherical'),
-        boundcond=config.get('boundcond', 'OpenSph'),
-        nogrid=config['number_of_cells'],
-        noghost=config.get('noghost', 2),
-        boxsize=config['boxsize'],
-        verbose=config.get('verbose', 0),
-        outdir=config.get('outdir', '.'),
-        outfileprefix=config.get('outfileprefix', 'Output'),
-        savedir=config.get('savedir', config.get('outdir', '.')),
-        area=config.get('area', 1.0 * unyt.cm**2),
-        hydrogen_chemistry=config.get('hydrogen_chemistry', True),
-        hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
-        hydrogen_xHI_initial=config.get('hydrogen_xHI_initial', 1.0),
-        hydrogen_xHI_inflow=config.get('hydrogen_xHI_inflow', 1.0),
-        hydrogen_xHI_outflow=config.get('hydrogen_xHI_outflow', 1.0),
-        hydrogen_source_CFL=config.get(
-            'hydrogen_source_CFL',
-            config.get('chemistry_timestep_cfl', 0.1),
-        ),
-        hydrogen_source_dtmin=config.get('hydrogen_source_dtmin', 1.0e-3 * unyt.Myr),
-        hydrogen_update_mu=config.get('hydrogen_update_mu', False),
-        hydrogen_thermal_coupling=config.get('hydrogen_thermal_coupling', False),
-        hydrogen_recombination=config.get('hydrogen_recombination', True),
-        hydrogen_collisional_ionization=config.get('hydrogen_collisional_ionization', False),
-        hydrogen_alpha_B=config.get('alpha_B_coefficient', config.get('hydrogen_alpha_B')),
-        hydrogen_beta=config.get('hydrogen_beta', 0.0 * unyt.cm**3 / unyt.s),
-        hydrogen_radiation_field=config.get('hydrogen_radiation_field', False),
-        hydrogen_radiation_evolution=config.get('hydrogen_radiation_evolution', False),
-        hydrogen_ngamma_initial=config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
-        hydrogen_sigma_gamma=config.get('sigma_gamma', config.get('hydrogen_sigma_gamma')),
-        hydrogen_epsilon_gamma=config.get('hydrogen_epsilon_gamma', 0.0 * unyt.erg),
-        radiative_transfer=config.get('radiative_transfer', True),
-        radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
-        radiative_transfer_temporal_scheme=config.get(
+        coordsys=simulation.get('coordinate_system', 'spherical'),
+        boundcond=boundary.get('condition', 'OpenSph'),
+        nogrid=mesh_config['grid_cells'],
+        noghost=mesh_config.get('ghost_cells', 2),
+        boxsize=initial['boxsize'],
+        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        outdir=output.get('directory', '.'),
+        outfileprefix=output.get('filename_prefix', 'Output'),
+        savedir=output.get('savedir', output.get('directory', '.')),
+        area=mesh_config.get('area', 1.0 * unyt.cm**2),
+        hydrogen_chemistry=thermo.get('hydrogen_chemistry', True),
+        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
+        hydrogen_xHI_inflow=chemistry.get('hydrogen_xHI_inflow', 1.0),
+        hydrogen_xHI_outflow=chemistry.get('hydrogen_xHI_outflow', 1.0),
+        hydrogen_source_CFL=thermo.get('hydrogen_source_CFL', 0.1),
+        hydrogen_source_dtmin=thermo.get('hydrogen_source_dtmin', 1.0e-3 * unyt.Myr),
+        hydrogen_update_mu=thermo.get('hydrogen_update_mu', False),
+        hydrogen_thermal_coupling=thermo.get('hydrogen_thermal_coupling', False),
+        hydrogen_recombination=thermo.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=thermo.get('hydrogen_collisional_ionization', False),
+        hydrogen_alpha_B=thermo.get('hydrogen_alpha_B'),
+        hydrogen_beta=thermo.get('hydrogen_beta', 0.0 * unyt.cm**3 / unyt.s),
+        hydrogen_radiation_field=thermo.get('hydrogen_radiation_field', False),
+        hydrogen_radiation_evolution=thermo.get('hydrogen_radiation_evolution', False),
+        hydrogen_ngamma_initial=thermo.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=thermo.get('hydrogen_sigma_gamma'),
+        hydrogen_epsilon_gamma=thermo.get('hydrogen_epsilon_gamma', 0.0 * unyt.erg),
+        radiative_transfer=radiation.get('radiative_transfer', True),
+        radiative_transfer_method=radiation.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=radiation.get(
             'radiative_transfer_temporal_scheme',
             'instantaneous',
         ),
-        c2ray_max_iterations=config.get('c2ray_max_iterations', 32),
-        c2ray_convergence_tolerance=config.get(
+        c2ray_max_iterations=radiation.get('c2ray_max_iterations', 32),
+        c2ray_convergence_tolerance=radiation.get(
             'c2ray_convergence_tolerance',
             1.0e-6,
         ),
-        c2ray_relaxation=config.get('c2ray_relaxation', 1.0),
-        c2ray_nonconvergence=config.get('c2ray_nonconvergence', 'raise'),
-        radiative_transfer_boundary_flux=config.get(
+        c2ray_relaxation=radiation.get('c2ray_relaxation', 1.0),
+        c2ray_nonconvergence=radiation.get('c2ray_nonconvergence', 'raise'),
+        radiative_transfer_boundary_flux=radiation.get(
             'radiative_transfer_boundary_flux',
             0.0 / (unyt.cm**2 * unyt.s),
         ),
-        radiative_transfer_source_photon_rate=config.get(
-            'source_photon_rate',
-            config.get('radiative_transfer_source_photon_rate'),
-        ),
-        radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
+        radiative_transfer_source_photon_rate=radiation.get('radiative_transfer_source_photon_rate'),
+        radiative_transfer_direction=radiation.get('radiative_transfer_direction', 1),
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
     )
@@ -91,21 +92,21 @@ def build_static_problem(config):
     mesh = Mesh()
     mesh.boundary = np.linspace(
         0.0,
-        config['boxsize'].to_value(unyt.cm),
+        initial['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
 
     fluid = Fluid()
     fluid.rho_code = (
         np.ones(par.nogrid)
-        * config['hydrogen_number_density']
+        * initial['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
     fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
     fluid.temp_code = np.ones(par.nogrid) * 1.0e4 * unyt.K
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.ngamma_code = np.ones(par.nogrid) * config.get(
+    fluid.ngamma_code = np.ones(par.nogrid) * thermo.get(
         'hydrogen_ngamma_initial',
         0.0 / unyt.cm**3,
     )
@@ -144,12 +145,13 @@ def _refresh_mesh_geometry(mesh, par):
         raise ValueError("coordsys unknown: %s" % par.coordsys)
 
 
-def write_initial_condition(config, runparams):
+def write_initial_condition(config):
     """Build the raw IC state and write it to ``ICfilename``."""
     par, mesh, fluid, solver = build_static_problem(config)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    Path(runparams['ICfilename']).unlink(missing_ok=True)
-    rio.writehdf5(sim, runparams['ICfilename'])
+    filename = config['par']['simulation']['initial_condition_filename']
+    Path(filename).unlink(missing_ok=True)
+    rio.writehdf5(sim, filename)
 
 
 def load_output_state(outputfilename, config):
@@ -234,12 +236,13 @@ def total_recombination_rate(mesh, fluid, par):
 
 
 def append_history(history, mesh, fluid, par, config, recombined_photons):
+    radiation = config['par']['radiation']
     history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
     history['front_radius_kpc'].append(
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
     history['injected_photons'].append(
-        (config['source_photon_rate'] * fluid.time).to_value('')
+        (radiation['radiative_transfer_source_photon_rate'] * fluid.time).to_value('')
     )
     history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, par))
     history['recombined_photons'].append(recombined_photons)
@@ -252,29 +255,32 @@ def append_history(history, mesh, fluid, par, config, recombined_photons):
 
 
 def save_plot(mesh, fluid, par, config, figure_filename):
+    radiation = config['par']['radiation']
+    initial = config['initial_condition']
+    thermo = config['par']['thermochemistry']
+    example = config.get('example', {})
     interior = interior_slice(par)
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
     if hasattr(mesh.coordinate[interior], 'to_value'):
         radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
     else:
         radius_kpc = np.asarray(mesh.coordinate[interior], dtype=float)
     radius = radius_kpc * unyt.kpc
-    plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = 1.0 - xHI
     xHI_analytic = sa.neutral_fraction_profile(
         radius,
-        config['hydrogen_number_density'],
-        config['sigma_gamma'],
-        config['alpha_B_coefficient'],
-        config['source_photon_rate'],
-        inner_radius=config['analytic_inner_radius'],
+        initial['hydrogen_number_density'],
+        thermo['hydrogen_sigma_gamma'],
+        thermo['hydrogen_alpha_B'],
+        radiation['radiative_transfer_source_photon_rate'],
+        inner_radius=example['analytic_inner_radius'],
     )
     xHII_analytic = 1.0 - xHI_analytic
     radius_stromgren = sa.stromgren_radius(
-        config['source_photon_rate'],
-        config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
+        radiation['radiative_transfer_source_photon_rate'],
+        initial['hydrogen_number_density'],
+        thermo['hydrogen_alpha_B'],
     ).to(unyt.kpc)
     plot_floor = 1.0e-6
 
@@ -328,20 +334,24 @@ def save_plot(mesh, fluid, par, config, figure_filename):
 
 
 def save_front_history_plot(history, config, figure_filename):
+    radiation = config['par']['radiation']
+    initial = config['initial_condition']
+    thermo = config['par']['thermochemistry']
+    example = config.get('example', {})
     time_Myr = np.asarray(history['time_Myr'])
     front_radius_kpc = np.asarray(history['front_radius_kpc'])
-    plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
     time = time_Myr * unyt.Myr
     analytic_front = sa.ionization_front_radius(
         time,
-        config['source_photon_rate'],
-        config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
+        radiation['radiative_transfer_source_photon_rate'],
+        initial['hydrogen_number_density'],
+        thermo['hydrogen_alpha_B'],
     ).to_value(unyt.kpc)
     radius_stromgren = sa.stromgren_radius(
-        config['source_photon_rate'],
-        config['hydrogen_number_density'],
-        config['alpha_B_coefficient'],
+        radiation['radiative_transfer_source_photon_rate'],
+        initial['hydrogen_number_density'],
+        thermo['hydrogen_alpha_B'],
     ).to_value(unyt.kpc)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))

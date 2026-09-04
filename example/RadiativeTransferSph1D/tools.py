@@ -18,52 +18,60 @@ PC_IN_CM = unyt.unyt_quantity(1.0, unyt.pc).to_value(unyt.cm)
 
 
 def build_static_problem(config):
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par_config = config['par']
+    simulation = par_config['simulation']
+    mesh_config = par_config['mesh']
+    boundary = par_config['boundary']
+    chemistry = par_config.get('chemistry', {})
+    thermo = par_config.get('thermochemistry', {})
+    radiation = par_config.get('radiation', {})
+    output = par_config.get('output', {})
+    initial = config['initial_condition']
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     par = SimpleNamespace(
-        coordsys=config.get('coordsys', 'spherical'),
-        boundcond=config.get('boundcond', 'OpenSph'),
-        nogrid=config['number_of_cells'],
-        noghost=config.get('noghost', 2),
-        boxsize=config['boxsize'],
-        verbose=config.get('verbose', 0),
-        outdir=config.get('outdir', '.'),
-        outfileprefix=config.get('outfileprefix', 'Output'),
-        savedir=config.get('savedir', config.get('outdir', '.')),
-        area=config.get('area', 1.0 * unyt.cm**2),
-        hydrogen_chemistry=config.get('hydrogen_chemistry', False),
-        thermochemistry_network=config.get('thermochemistry_network', 'hydrogen'),
-        hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
-        hydrogen_recombination=config.get('hydrogen_recombination', True),
-        hydrogen_collisional_ionization=config.get('hydrogen_collisional_ionization', True),
-        hydrogen_thermal_coupling=config.get('hydrogen_thermal_coupling', True),
-        hydrogen_ngamma_initial=config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
-        hydrogen_sigma_gamma=config.get('hydrogen_sigma_gamma', 0.0 * unyt.cm**2),
-        radiative_transfer=config.get('radiative_transfer', True),
-        radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
-        radiative_transfer_temporal_scheme=config.get(
+        coordsys=simulation.get('coordinate_system', 'spherical'),
+        boundcond=boundary.get('condition', 'OpenSph'),
+        nogrid=mesh_config['grid_cells'],
+        noghost=mesh_config.get('ghost_cells', 2),
+        boxsize=initial['boxsize'],
+        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        outdir=output.get('directory', '.'),
+        outfileprefix=output.get('filename_prefix', 'Output'),
+        savedir=output.get('savedir', output.get('directory', '.')),
+        area=mesh_config.get('area', 1.0 * unyt.cm**2),
+        hydrogen_chemistry=thermo.get('hydrogen_chemistry', False),
+        thermochemistry_network=thermo.get('thermochemistry_network', 'hydrogen'),
+        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
+        hydrogen_recombination=thermo.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=thermo.get('hydrogen_collisional_ionization', True),
+        hydrogen_thermal_coupling=thermo.get('hydrogen_thermal_coupling', True),
+        hydrogen_ngamma_initial=thermo.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=thermo.get('hydrogen_sigma_gamma', 0.0 * unyt.cm**2),
+        radiative_transfer=radiation.get('radiative_transfer', True),
+        radiative_transfer_method=radiation.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=radiation.get(
             'radiative_transfer_temporal_scheme', 'instantaneous'
         ),
-        radiative_transfer_c2ray_max_iterations=config.get(
+        radiative_transfer_c2ray_max_iterations=radiation.get(
             'radiative_transfer_c2ray_max_iterations', 32
         ),
-        radiative_transfer_c2ray_tolerance=config.get(
+        radiative_transfer_c2ray_tolerance=radiation.get(
             'radiative_transfer_c2ray_tolerance', 1.0e-6
         ),
-        radiative_transfer_c2ray_relaxation=config.get(
+        radiative_transfer_c2ray_relaxation=radiation.get(
             'radiative_transfer_c2ray_relaxation', 1.0
         ),
-        radiative_transfer_c2ray_nonconvergence=config.get(
+        radiative_transfer_c2ray_nonconvergence=radiation.get(
             'radiative_transfer_c2ray_nonconvergence', 'warn'
         ),
-        radiative_transfer_boundary_flux=config.get(
+        radiative_transfer_boundary_flux=radiation.get(
             'radiative_transfer_boundary_flux',
             0.0 / (unyt.cm**2 * unyt.s),
         ),
-        radiative_transfer_source_photon_rate=config.get(
-            'radiative_transfer_source_photon_rate',
-            config.get('source_photon_rate', 0.0 / unyt.s),
+        radiative_transfer_source_photon_rate=radiation.get(
+            'radiative_transfer_source_photon_rate', 0.0 / unyt.s
         ),
-        radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
+        radiative_transfer_direction=radiation.get('radiative_transfer_direction', 1),
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
     )
@@ -76,7 +84,7 @@ def build_static_problem(config):
     par.mesh = SimpleNamespace(grid_cells=par.nogrid, ghost_cells=par.noghost)
 
     mesh = SimpleNamespace()
-    mesh.boundary = np.linspace(0.0, config['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
+    mesh.boundary = np.linspace(0.0, initial['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
 
     fluid = SimpleNamespace()
     fluid.rho_code = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
@@ -128,16 +136,18 @@ def load_output_state(outputfilename, config):
     return par, mesh, fluid
 
 
-def write_initial_condition(config, runparams):
+def write_initial_condition(config):
     par, mesh, fluid, _ = build_static_problem(config)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    icfilename = Path(runparams['ICfilename'])
+    icfilename = Path(config['par']['simulation']['initial_condition_filename'])
     icfilename.unlink(missing_ok=True)
     rio.writehdf5(sim, icfilename)
 
 
-def save_plot(mesh, fluid, par, source_photon_rate, figure_filename, code_units=None):
-    code_units_obj = CodeUnits.from_mapping(code_units)
+def save_plot(mesh, fluid, par, config, figure_filename):
+    radiation = config['par']['radiation']
+    source_photon_rate = radiation['radiative_transfer_source_photon_rate']
+    code_units_obj = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     interior = slice(par.noghost, par.noghost + par.nogrid)
     radius_values = mesh.coordinate[interior]
     if hasattr(radius_values, 'to_value'):

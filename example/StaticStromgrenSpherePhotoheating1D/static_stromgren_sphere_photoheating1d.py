@@ -49,34 +49,24 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = {**runparams, **nested['initial_condition']}
+    config = nested
+    initial = config['initial_condition']
+    example = config.get('example', {})
     eu.clean_previous_outputs(runtime['output'])
     config_dir = Path(config_filename).resolve().parent
     for key in (
         'temperature_reference_filename',
         'neutral_fraction_reference_filename',
     ):
-        if key in runparams:
-            value = Path(runparams[key])
+        if key in example:
+            value = Path(example[key])
             if not value.is_absolute():
-                runparams[key] = str(config_dir / value)
-    config = nested
-    plot_config = {**runparams, **icparams}
-    print('config', config)
-    for alias, source in (
-        ('hydrogen_alpha_B', 'alpha_B_coefficient'),
-        ('hydrogen_sigma_gamma', 'sigma_gamma'),
-        ('hydrogen_epsilon_gamma', 'epsilon_gamma'),
-        ('radiative_transfer_source_photon_rate', 'source_photon_rate'),
-    ):
-        if source in runparams and alias not in runparams:
-            runparams[alias] = runparams[source]
+                example[key] = str(config_dir / value)
 
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)
 
-    et.write_initial_condition(config, runparams)
+    et.write_initial_condition(config)
 
     mainrun = Rsim(runtime)
     mainrun.Callreadhdf5()
@@ -88,45 +78,45 @@ def main(config_filename=DEFAULT_CONFIG):
         runtime['simulation']['final_time'],
         runtime['timestep']['evolution_timestep'],
         include_thermal_history=True,
-        reference_time=runparams['reference_time'],
+        reference_time=example['reference_time'],
     )
 
-    output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
+    output_filename = Path(runtime['output']['directory']) / f"{runtime['output']['filename_prefix']}_000.hdf5"
     rio.writehdf5(mainrun, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
     figure_name = 'StaticStromgrenSpherePhotoheating1D.jpg'
-    if runparams.get('radiative_transfer_temporal_scheme') == 'c2ray':
+    if runtime['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
-    figure_filename = Path(runparams['savedir']) / figure_name
-    et.save_plot(out_mesh, out_fluid, out_par, history, plot_config, figure_filename)
+    figure_filename = Path(runtime['output']['savedir']) / figure_name
+    et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
 
     print('time = %s' % out_fluid.time)
-    if runparams.get('alpha_B_coefficient') is None:
+    if runtime['thermochemistry'].get('hydrogen_alpha_B') is None:
         print('stromgren radius = temperature-dependent alpha_H(T)')
         print('analytic front radius = unavailable for temperature-dependent rates')
     else:
         print(
             'stromgren radius = %s'
             % sa.stromgren_radius(
-                runparams['source_photon_rate'],
-                icparams['hydrogen_number_density'],
-                runparams['alpha_B_coefficient'],
+                runtime['radiation']['radiative_transfer_source_photon_rate'],
+                initial['hydrogen_number_density'],
+                runtime['thermochemistry']['hydrogen_alpha_B'],
             ).to(unyt.kpc)
         )
         print(
             'analytic front radius = %s'
             % sa.ionization_front_radius(
-                runparams['final_time'],
-                runparams['source_photon_rate'],
-                icparams['hydrogen_number_density'],
-                runparams['alpha_B_coefficient'],
+                runtime['simulation']['final_time'],
+                runtime['radiation']['radiative_transfer_source_photon_rate'],
+                initial['hydrogen_number_density'],
+                runtime['thermochemistry']['hydrogen_alpha_B'],
             ).to(unyt.kpc)
         )
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_cgs_K'][-1])
     print('front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('evolution steps = %d' % history['evolution_steps'])
-    print('IC file = %s' % runparams['ICfilename'])
+    print('IC file = %s' % runtime['simulation']['initial_condition_filename'])
     print('output file = %s' % output_filename)
     print('figure = %s' % figure_filename)
 

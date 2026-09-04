@@ -8,7 +8,7 @@ from radhydropy.units import CodeUnits, _gravitational_constant_code
 
 
 def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['CodeUnits'])
+    return CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
 
 def volume_midpoint_boundaries(rmin, rmax, number):

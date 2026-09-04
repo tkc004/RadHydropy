@@ -22,7 +22,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -34,8 +34,8 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 )
 
 
-def load_correlation_table(config_filename, runparams):
-    filename = Path(runparams["linear_correlation_table_filename"])
+def load_correlation_table(config_filename, par):
+    filename = Path(par["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
     return et.load_lcdm_correlation_table(filename)
@@ -49,33 +49,36 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams):
 
 def run(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, icparams = load_nested_example_parameters(config_filename)
-    units = CodeUnits.from_mapping(runparams["CodeUnits"])
+    config = load_nested_example_config(config_filename)
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    gravity = par["gravity"]
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["cosmology_t_ref"]),
-        a_ref=float(runparams["cosmology_a_ref"]),
+        t_ref=float(gravity["cosmology_t_ref"]),
+        a_ref=float(gravity["cosmology_a_ref"]),
     )
-    correlation_table = load_correlation_table(config_filename, runparams)
+    correlation_table = load_correlation_table(config_filename, par)
 
-    output_dir = Path(runparams["savedir"])
+    output_dir = Path(par["output"]["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
     initial = et.Simwrap(
-        icparams, units, cosmology,
+        {"par": par, "initial_condition": initial_condition}, units, cosmology,
         correlation_table=correlation_table,
     )
     rio.writehdf5(initial, ic_filename)
     dm = et.make_dark_matter(
-        icparams, units, cosmology,
+        initial_condition, units, cosmology,
         correlation_table=correlation_table,
     )
 
     # The initial density is split explicitly into f_b and 1-f_b.  This
     # check is intentionally printed for this experiment because using the
     # full matter density in both components would double-count gravity.
-    baryon_fraction = float(icparams["baryon_fraction"])
+    baryon_fraction = float(initial_condition["baryon_fraction"])
     gas_mass = float(np.sum(initial.fluid.rho_code * initial.mesh.vol))
     dm_mass = float(np.sum(dm.mass))
     measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
@@ -87,7 +90,7 @@ def run(config_filename=DEFAULT_CONFIG):
     if hasattr(initial.fluid, "xHI"):
         print("initial CMB temperature = %.8g K" % float(np.median(
             np.asarray(initial.fluid.temp_code) /
-            float(cosmology.scale_factor(float(icparams["initial_cosmic_time"])))**2
+            float(cosmology.scale_factor(float(initial_condition["initial_cosmic_time"])))**2
         )))
         print("initial electron fraction = %.8g" % float(np.median(
             1.0 - np.asarray(initial.fluid.xHI)
@@ -98,11 +101,15 @@ def run(config_filename=DEFAULT_CONFIG):
             "cosmic baryon fraction"
         )
 
-    local = dict(runparams)
-    local.update({
-        "ICfilename": str(ic_filename),
-        "outdir": str(output_dir),
-        "savedir": str(output_dir),
+    local = dict(par)
+    local["simulation"] = dict(par["simulation"])
+    local["simulation"]["initial_condition_filename"] = str(ic_filename)
+    local["output"] = dict(par["output"])
+    local["output"].update({
+        "directory": str(output_dir), "savedir": str(output_dir),
+    })
+    local["thermochemistry"] = dict(par.get("thermochemistry", {}))
+    local["thermochemistry"].update({
         "metal_pie_enabled": False,
         "cie_cooling": False,
         "thermochemistry_network": "hydrogen",
@@ -128,16 +135,16 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(icparams["initial_cosmic_time"])
-    final_time = float(runparams["final_cosmic_time"])
+    initial_time = float(initial_condition["initial_cosmic_time"])
+    final_time = float(par["simulation"]["final_time"])
     target_tau = float(cosmology.supercomoving_time(final_time))
-    cadence = float(runparams.get("gas_profile_cadence", 0.10))
+    cadence = float(par.get("gas_profile_cadence", 0.10))
     next_snapshot = initial_time
     gas_profiles = []
     radius_history = []
 
     def save_snapshot(cosmic_time):
-        gas, radii = _snapshot(sim, dm, cosmic_time, cosmology, icparams)
+        gas, radii = _snapshot(sim, dm, cosmic_time, cosmology, initial_condition)
         gas_profiles.append(gas)
         radius_history.append(radii)
 
@@ -194,7 +201,7 @@ def run(config_filename=DEFAULT_CONFIG):
         scale_factors, output_dir / "AdiabaticGasDensityProfiles.jpg",
     )
     print("steps = %d, dark-matter shells = %d, gas cells = %d" % (
-        steps, dm.number_of_shells, int(icparams["nogrid"]),
+        steps, dm.number_of_shells, int(par["mesh"]["grid_cells"]),
     ))
     print("final cosmic time = %.8g Gyr" % times[-1])
     print("profile data = %s" % (output_dir / "AdiabaticGasDensityProfiles.npz"))

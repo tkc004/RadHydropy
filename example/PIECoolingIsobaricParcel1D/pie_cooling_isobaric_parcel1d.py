@@ -17,7 +17,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example_utils import load_nested_example_parameters
+from example_utils import load_nested_example_config
 from radhydropy.thermo_networks.pie import MetalPIETable
 from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate
 
@@ -105,19 +105,23 @@ def _plot_rate(results, table, metallicity, redshift, filename):
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
-    runparams, _ = load_nested_example_parameters(config_filename)
-    table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
+    config = load_nested_example_config(config_filename)
+    par = config['par']
+    simulation = par['simulation']
+    hydro = par['hydrodynamics']
+    thermo = par['thermochemistry']
+    table_path = (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:
         raise ValueError('the example requires an HM12 UV-background table')
-    gamma = float(runparams['gamma'])
-    mu = float(runparams['mu'])
-    metallicity = float(runparams['metallicity'])
-    redshift = float(runparams['metal_pie_redshift'])
-    hydrogen_mass_fraction = float(runparams['hydrogen_mass_fraction'])
-    time_final = runparams['timesim'].to_value('Myr')
-    temperature_floor = runparams['temperature_floor'].to_value('K')
-    output_count = int(runparams['output_count'])
+    gamma = float(hydro['gamma'])
+    mu = float(thermo['mu'])
+    metallicity = float(thermo['metallicity'])
+    redshift = float(thermo['metal_pie_redshift'])
+    hydrogen_mass_fraction = float(thermo['hydrogen_mass_fraction'])
+    time_final = simulation['final_time'].to_value('Myr')
+    temperature_floor = thermo['temperature_floor'].to_value('K')
+    output_count = int(thermo['output_count'])
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     results = []
     report_rows = []
@@ -125,7 +129,7 @@ def main(config_filename=DEFAULT_CONFIG):
     output_dir.mkdir(exist_ok=True)
     for stale_csv in output_dir.glob('*.csv'):
         stale_csv.unlink()
-    for index, (label, density, temperature) in enumerate(runparams['cases']):
+    for index, (label, density, temperature) in enumerate(thermo['cases']):
         density = float(density)
         temperature = float(temperature)
         result = integrate_isobaric_case(

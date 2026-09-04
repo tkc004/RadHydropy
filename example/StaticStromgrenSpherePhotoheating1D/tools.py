@@ -31,86 +31,89 @@ import stromgren_analytic as sa
 
 
 def build_static_problem(config):
-    if 'par' in config:
-        config = {**eu.legacy_example_parameters(config), **config.get('initial_condition', {})}
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    par_config = config['par']
+    simulation = par_config['simulation']
+    mesh_config = par_config['mesh']
+    hydro = par_config['hydrodynamics']
+    boundary = par_config['boundary']
+    timestep = par_config['timestep']
+    chemistry = par_config.get('chemistry', {})
+    thermo = par_config.get('thermochemistry', {})
+    radiation = par_config.get('radiation', {})
+    output = par_config.get('output', {})
+    initial = config['initial_condition']
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     par = SimpleNamespace(
-        coordsys=config.get('coordsys', 'spherical'),
-        boundcond=config.get('boundcond', 'OpenSph'),
-        nogrid=config['number_of_cells'],
-        noghost=config.get('noghost', 2),
-        boxsize=config['boxsize'],
-        verbose=config.get('verbose', 0),
-        outdir=config.get('outdir', '.'),
-        outfileprefix=config.get('outfileprefix', 'Output'),
-        savedir=config.get('savedir', config.get('outdir', '.')),
-        area=config.get('area', 1.0 * unyt.cm**2),
-        EOStype=config.get('EOStype', 'polytropic'),
-        gamma=config.get('gamma', 5.0 / 3.0),
-        dtmin=config.get('dtmin', 1.0e-6 * unyt.Myr),
-        dtmax=config.get('dtmax', 1.0 * unyt.Myr),
-        hydrogen_chemistry=config.get('hydrogen_chemistry', True),
-        thermochemistry_network=config.get('thermochemistry_network', 'hydrogen'),
-        hydrogen_mass_fraction=config.get('hydrogen_mass_fraction', 1.0),
-        helium_mass_fraction=config.get('helium_mass_fraction', 0.0),
-        hydrogen_helium_coupled_implicit=config.get(
+        coordsys=simulation.get('coordinate_system', 'spherical'),
+        boundcond=boundary.get('condition', 'OpenSph'),
+        nogrid=mesh_config['grid_cells'],
+        noghost=mesh_config.get('ghost_cells', 2),
+        boxsize=initial['boxsize'],
+        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        outdir=output.get('directory', '.'),
+        outfileprefix=output.get('filename_prefix', 'Output'),
+        savedir=output.get('savedir', output.get('directory', '.')),
+        area=mesh_config.get('area', 1.0 * unyt.cm**2),
+        EOStype=hydro.get('eos_type', 'polytropic'),
+        gamma=hydro.get('gamma', 5.0 / 3.0),
+        dtmin=timestep.get('dtmin', 1.0e-6 * unyt.Myr),
+        dtmax=timestep.get('dtmax', 1.0 * unyt.Myr),
+        hydrogen_chemistry=thermo.get('hydrogen_chemistry', True),
+        thermochemistry_network=thermo.get('thermochemistry_network', 'hydrogen'),
+        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
+        helium_mass_fraction=chemistry.get('helium_mass_fraction', 0.0),
+        hydrogen_helium_coupled_implicit=thermo.get(
             'hydrogen_helium_coupled_implicit', True
         ),
-        hydrogen_xHI_initial=config.get('hydrogen_xHI_initial', 1.0),
-        hydrogen_xHI_inflow=config.get('hydrogen_xHI_inflow', 1.0),
-        hydrogen_xHI_outflow=config.get('hydrogen_xHI_outflow', 1.0),
-        hydrogen_source_CFL=config.get(
-            'hydrogen_source_CFL',
-            config.get('evolution_timestep_cfl', 0.1),
-        ),
-        hydrogen_source_dtmin=config.get('hydrogen_source_dtmin', 0.0 * unyt.Myr),
-        hydrogen_update_mu=config.get('hydrogen_update_mu', True),
-        hydrogen_thermal_coupling=config.get('hydrogen_thermal_coupling', True),
-        hydrogen_recombination=config.get('hydrogen_recombination', True),
-        hydrogen_collisional_ionization=config.get('hydrogen_collisional_ionization', False),
-        hydrogen_alpha_B=config.get('alpha_B_coefficient', config.get('hydrogen_alpha_B')),
-        hydrogen_beta=config.get('hydrogen_beta', 0.0 * unyt.cm**3 / unyt.s),
-        hydrogen_radiation_field=config.get('hydrogen_radiation_field', False),
-        hydrogen_radiation_evolution=config.get('hydrogen_radiation_evolution', False),
-        hydrogen_ngamma_initial=config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
-        hydrogen_sigma_gamma=config.get('sigma_gamma', config.get('hydrogen_sigma_gamma')),
-        hydrogen_epsilon_gamma=config.get('epsilon_gamma', config.get('hydrogen_epsilon_gamma')),
-        radiative_transfer=config.get('radiative_transfer', True),
-        radiative_transfer_method=config.get('radiative_transfer_method', 'long_characteristics'),
-        radiative_transfer_temporal_scheme=config.get(
+        hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
+        hydrogen_xHI_inflow=chemistry.get('hydrogen_xHI_inflow', 1.0),
+        hydrogen_xHI_outflow=chemistry.get('hydrogen_xHI_outflow', 1.0),
+        hydrogen_source_CFL=thermo.get('hydrogen_source_CFL', 0.1),
+        hydrogen_source_dtmin=thermo.get('hydrogen_source_dtmin', 0.0 * unyt.Myr),
+        hydrogen_update_mu=thermo.get('hydrogen_update_mu', True),
+        hydrogen_thermal_coupling=thermo.get('hydrogen_thermal_coupling', True),
+        hydrogen_recombination=thermo.get('hydrogen_recombination', True),
+        hydrogen_collisional_ionization=thermo.get('hydrogen_collisional_ionization', False),
+        hydrogen_alpha_B=thermo.get('hydrogen_alpha_B'),
+        hydrogen_beta=thermo.get('hydrogen_beta', 0.0 * unyt.cm**3 / unyt.s),
+        hydrogen_radiation_field=thermo.get('hydrogen_radiation_field', False),
+        hydrogen_radiation_evolution=thermo.get('hydrogen_radiation_evolution', False),
+        hydrogen_ngamma_initial=thermo.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
+        hydrogen_sigma_gamma=thermo.get('hydrogen_sigma_gamma'),
+        hydrogen_epsilon_gamma=thermo.get('hydrogen_epsilon_gamma'),
+        radiative_transfer=radiation.get('radiative_transfer', True),
+        radiative_transfer_method=radiation.get('radiative_transfer_method', 'long_characteristics'),
+        radiative_transfer_temporal_scheme=radiation.get(
             'radiative_transfer_temporal_scheme', 'instantaneous'
         ),
-        radiative_transfer_c2ray_max_iterations=config.get(
+        radiative_transfer_c2ray_max_iterations=radiation.get(
             'radiative_transfer_c2ray_max_iterations', 32
         ),
-        radiative_transfer_c2ray_tolerance=config.get(
+        radiative_transfer_c2ray_tolerance=radiation.get(
             'radiative_transfer_c2ray_tolerance', 1.0e-6
         ),
-        radiative_transfer_c2ray_relaxation=config.get(
+        radiative_transfer_c2ray_relaxation=radiation.get(
             'radiative_transfer_c2ray_relaxation', 1.0
         ),
-        radiative_transfer_c2ray_nonconvergence=config.get(
+        radiative_transfer_c2ray_nonconvergence=radiation.get(
             'radiative_transfer_c2ray_nonconvergence', 'warn'
         ),
-        radiative_transfer_boundary_flux=config.get(
+        radiative_transfer_boundary_flux=radiation.get(
             'radiative_transfer_boundary_flux',
             0.0 / (unyt.cm**2 * unyt.s),
         ),
-        radiative_transfer_source_photon_rate=config.get(
-            'source_photon_rate',
-            config.get('radiative_transfer_source_photon_rate'),
-        ),
-        radiative_transfer_source_photon_rate_groups=config.get(
+        radiative_transfer_source_photon_rate=radiation.get('radiative_transfer_source_photon_rate'),
+        radiative_transfer_source_photon_rate_groups=radiation.get(
             'radiative_transfer_source_photon_rate_groups',
         ),
-        radiation_group_edges_eV=config.get('radiation_group_edges_eV'),
-        radiation_group_sigma_gamma=config.get('radiation_group_sigma_gamma'),
-        radiation_group_epsilon_gamma=config.get('radiation_group_epsilon_gamma'),
-        radiation_group_sigma_gamma_HeI=config.get('radiation_group_sigma_gamma_HeI'),
-        radiation_group_sigma_gamma_HeII=config.get('radiation_group_sigma_gamma_HeII'),
-        radiation_group_epsilon_gamma_HeI=config.get('radiation_group_epsilon_gamma_HeI'),
-        radiation_group_epsilon_gamma_HeII=config.get('radiation_group_epsilon_gamma_HeII'),
-        radiative_transfer_direction=config.get('radiative_transfer_direction', 1),
+        radiation_group_edges_eV=radiation.get('radiation_group_edges_eV'),
+        radiation_group_sigma_gamma=radiation.get('radiation_group_sigma_gamma'),
+        radiation_group_epsilon_gamma=radiation.get('radiation_group_epsilon_gamma'),
+        radiation_group_sigma_gamma_HeI=radiation.get('radiation_group_sigma_gamma_HeI'),
+        radiation_group_sigma_gamma_HeII=radiation.get('radiation_group_sigma_gamma_HeII'),
+        radiation_group_epsilon_gamma_HeI=radiation.get('radiation_group_epsilon_gamma_HeI'),
+        radiation_group_epsilon_gamma_HeII=radiation.get('radiation_group_epsilon_gamma_HeII'),
+        radiative_transfer_direction=radiation.get('radiative_transfer_direction', 1),
         CodeUnits=code_units_obj,
         unit_system=code_units_obj.unit_system,
     )
@@ -125,59 +128,60 @@ def build_static_problem(config):
     mesh = Mesh()
     mesh.boundary = np.linspace(
         0.0,
-        config['boxsize'].to_value(unyt.cm),
+        initial['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
     ) * unyt.cm
 
     fluid = Fluid()
     fluid.rho_code = (
         np.ones(par.nogrid)
-        * config['hydrogen_number_density']
+        * initial['hydrogen_number_density']
         * unyt.mp
         / par.hydrogen_mass_fraction
     ).to(unyt.g / unyt.cm**3)
     fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(par.nogrid) * config.get('initial_temperature', 1.0e4 * unyt.K)
+    fluid.temp_code = np.ones(par.nogrid) * initial.get('initial_temperature', 1.0e4 * unyt.K)
     fluid.mu = np.ones(par.nogrid)
-    if config.get('hydrogen_initial_collisional_equilibrium', False):
+    if initial.get('hydrogen_initial_collisional_equilibrium', False):
         fluid.xHI = np.ones(par.nogrid) * collisional_equilibrium_neutral_fraction(
-            config.get('initial_temperature', 1.0e4 * unyt.K).to_value(unyt.K)
+            initial.get('initial_temperature', 1.0e4 * unyt.K).to_value(unyt.K)
         )
     else:
-        fluid.xHI = np.ones(par.nogrid) * config.get(
+        fluid.xHI = np.ones(par.nogrid) * chemistry.get(
             'hydrogen_xHI_initial',
             1.0,
         )
     if par.thermochemistry_network == 'hydrogen_helium':
-        fluid.xHeI = np.ones(par.nogrid) * config.get(
+        fluid.xHeI = np.ones(par.nogrid) * chemistry.get(
             'hydrogen_helium_xHeI_initial', 1.0
         )
-        fluid.xHeII = np.ones(par.nogrid) * config.get(
+        fluid.xHeII = np.ones(par.nogrid) * chemistry.get(
             'hydrogen_helium_xHeII_initial', 0.0
         )
-        fluid.xHeIII = np.ones(par.nogrid) * config.get(
+        fluid.xHeIII = np.ones(par.nogrid) * chemistry.get(
             'hydrogen_helium_xHeIII_initial', 0.0
         )
         fluid.mu = np.ones(par.nogrid) / (
             par.hydrogen_mass_fraction + par.helium_mass_fraction / 4.0
         )
-    group_edges = config.get('radiation_group_edges_eV')
+    group_edges = radiation.get('radiation_group_edges_eV')
     if group_edges is not None:
         ngroup = len(group_edges) - 1
         fluid.ngamma_code = np.zeros((ngroup, par.nogrid)) / unyt.cm**3
     else:
-        fluid.ngamma_code = np.ones(par.nogrid) * config.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
+        fluid.ngamma_code = np.ones(par.nogrid) * thermo.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3)
     fluid.SetFluidTime(0.0 * unyt.Myr)
     solver = Solver()
     return par, mesh, fluid, solver
 
 
-def write_initial_condition(config, runparams):
+def write_initial_condition(config):
     """Build the raw IC state, replace any stale snapshot, and write it."""
     par, mesh, fluid, _ = build_static_problem(config)
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
-    Path(runparams['ICfilename']).unlink(missing_ok=True)
-    rio.writehdf5(sim, runparams['ICfilename'])
+    filename = config['par']['simulation']['initial_condition_filename']
+    Path(filename).unlink(missing_ok=True)
+    rio.writehdf5(sim, filename)
 
 
 def _refresh_mesh_geometry(mesh, par):
@@ -275,8 +279,13 @@ def load_log_reference_profile(filename, radius_unit):
 
 
 def save_plot(mesh, fluid, par, history, config, figure_filename):
+    par_config = config['par']
+    radiation = par_config['radiation']
+    thermo = par_config['thermochemistry']
+    initial = config['initial_condition']
+    example = config.get('example', {})
     interior = interior_slice(par)
-    code_units_obj = CodeUnits.from_mapping(config.get('CodeUnits'))
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     if hasattr(mesh.coordinate[interior], 'to_value'):
         radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
     else:
@@ -299,36 +308,36 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
         temperature_cgs_K = snapshot['temperature_cgs_K']
         profile_time_Myr = snapshot['time_Myr']
     xHII = 1.0 - xHI
-    plot_radius_max = config.get('plot_radius_max', config['boxsize']).to_value(unyt.kpc)
-    reference_radius_unit = config.get('reference_radius_unit', 5.4 * unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
+    reference_radius_unit = example.get('reference_radius_unit', 5.4 * unyt.kpc)
     temperature_reference = load_log_reference_profile(
-        config.get('temperature_reference_filename', None),
+        example.get('temperature_reference_filename', None),
         reference_radius_unit,
     )
     neutral_fraction_reference = load_log_reference_profile(
-        config.get('neutral_fraction_reference_filename', None),
+        example.get('neutral_fraction_reference_filename', None),
         reference_radius_unit,
     )
-    alpha_B = config.get('alpha_B_coefficient')
+    alpha_B = thermo.get('hydrogen_alpha_B')
     if alpha_B is not None:
         xHI_analytic = sa.neutral_fraction_profile(
             radius,
-            config['hydrogen_number_density'],
-            config['sigma_gamma'],
+            initial['hydrogen_number_density'],
+            thermo['hydrogen_sigma_gamma'],
             alpha_B,
-            config['source_photon_rate'],
-            inner_radius=config['analytic_inner_radius'],
+            radiation['radiative_transfer_source_photon_rate'],
+            inner_radius=example['analytic_inner_radius'],
         )
         xHII_analytic = 1.0 - xHI_analytic
         radius_stromgren = sa.stromgren_radius(
-            config['source_photon_rate'],
-            config['hydrogen_number_density'],
+            radiation['radiative_transfer_source_photon_rate'],
+            initial['hydrogen_number_density'],
             alpha_B,
         ).to(unyt.kpc)
         analytic_front = sa.ionization_front_radius(
             np.asarray(history['time_Myr']) * unyt.Myr,
-            config['source_photon_rate'],
-            config['hydrogen_number_density'],
+            radiation['radiative_transfer_source_photon_rate'],
+            initial['hydrogen_number_density'],
             alpha_B,
         ).to_value(unyt.kpc)
     else:

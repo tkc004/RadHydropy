@@ -44,23 +44,14 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    runparams = eu.legacy_example_parameters(nested)
-    plot_runparams, icparams = eu.load_nested_example_parameters(config_filename)
     config = nested
-    plot_config = {**plot_runparams, **icparams}
+    initial = config['initial_condition']
+    example = config.get('example', {})
     eu.clean_previous_outputs(runtime['output'])
-    for alias, source in (
-        ('source_photon_rate', 'radiative_transfer_source_photon_rate'),
-        ('alpha_B_coefficient', 'hydrogen_alpha_B'),
-        ('sigma_gamma', 'hydrogen_sigma_gamma'),
-    ):
-        if source in runparams and alias not in runparams:
-            runparams[alias] = runparams[source]
+    Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)
 
-    Path(runparams['outdir']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
-
-    et.write_initial_condition(config, runparams)
+    et.write_initial_condition(config)
 
     sim = Rsim(runtime)
     sim.Callreadhdf5()
@@ -73,16 +64,16 @@ def main(config_filename=DEFAULT_CONFIG):
         runtime['timestep']['chemistry_timestep'],
     )
 
-    output_filename = Path(runparams['outdir']) / f"{runparams['outfileprefix']}_000.hdf5"
+    output_filename = Path(runtime['output']['directory']) / f"{runtime['output']['filename_prefix']}_000.hdf5"
     rio.writehdf5(sim, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
-    figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D.jpg'
-    front_figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D_IFront.jpg'
-    budget_figure_filename = Path(runparams['savedir']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
+    figure_filename = Path(runtime['output']['savedir']) / 'StaticStromgrenSphere1D.jpg'
+    front_figure_filename = Path(runtime['output']['savedir']) / 'StaticStromgrenSphere1D_IFront.jpg'
+    budget_figure_filename = Path(runtime['output']['savedir']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
 
-    et.save_plot(out_mesh, out_fluid, out_par, plot_config, figure_filename)
-    et.save_front_history_plot(front_history, plot_config, front_figure_filename)
+    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
+    et.save_front_history_plot(front_history, config, front_figure_filename)
     photon_budget = et.save_photon_budget_plot(
         front_history,
         budget_figure_filename,
@@ -92,25 +83,25 @@ def main(config_filename=DEFAULT_CONFIG):
     print(
         'recombination time = %s'
         % sa.recombination_time(
-            icparams['hydrogen_number_density'],
-            runparams['alpha_B_coefficient'],
+            initial['hydrogen_number_density'],
+            runtime['thermochemistry']['hydrogen_alpha_B'],
         )
     )
     print(
         'stromgren radius = %s'
         % sa.stromgren_radius(
-            runparams['source_photon_rate'],
-            icparams['hydrogen_number_density'],
-            runparams['alpha_B_coefficient'],
+            runtime['radiation']['radiative_transfer_source_photon_rate'],
+            initial['hydrogen_number_density'],
+            runtime['thermochemistry']['hydrogen_alpha_B'],
         ).to(unyt.kpc)
     )
     print(
         'analytic front radius = %s'
         % sa.ionization_front_radius(
-            runparams['final_time'],
-            runparams['source_photon_rate'],
-            icparams['hydrogen_number_density'],
-            runparams['alpha_B_coefficient'],
+            runtime['simulation']['final_time'],
+            runtime['radiation']['radiative_transfer_source_photon_rate'],
+            initial['hydrogen_number_density'],
+            runtime['thermochemistry']['hydrogen_alpha_B'],
         ).to(unyt.kpc)
     )
     print(
@@ -139,7 +130,7 @@ def main(config_filename=DEFAULT_CONFIG):
             front_history['radiative_transfer_updates'],
         )
     )
-    print('IC file = %s' % runparams['ICfilename'])
+    print('IC file = %s' % runtime['simulation']['initial_condition_filename'])
     print('output file = %s' % output_filename)
     print('figure = %s' % figure_filename)
     print('front figure = %s' % front_figure_filename)

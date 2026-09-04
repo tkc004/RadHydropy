@@ -81,7 +81,11 @@ def _snapshot(filename, time_Myr=None):
         }
 
 
-def _run_case(par_config, runparams, icparams, label, density, temperature, table):
+def _run_case(config, label, density, temperature, table):
+    par_config = config['par']
+    hydro = par_config['hydrodynamics']
+    thermo = par_config['thermochemistry']
+    initial_condition = config['initial_condition']
     case = copy.deepcopy(par_config)
     output_dir = EXAMPLE_DIR / 'outputs' / label
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -95,16 +99,16 @@ def _run_case(par_config, runparams, icparams, label, density, temperature, tabl
         'filename_prefix': f'Output_{label}',
     })
     output_prefix = case['output']['filename_prefix']
-    case_icparams = dict(icparams)
-    case['thermochemistry']['metallicity'] = runparams['metallicity']
+    case_icparams = dict(initial_condition)
+    case['thermochemistry']['metallicity'] = thermo['metallicity']
     eu.clean_previous_outputs(case)
     output_dir.mkdir(parents=True, exist_ok=True)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
-    initial = Simwrap(
+    initial_state = Simwrap(
         case_icparams, code_units, density,
         case['thermochemistry']['hydrogen_mass_fraction'], temperature * unyt.K,
     )
-    rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
     sim = Rsim(case)
     # This is a one-cell isochoric parcel.  Use the dedicated source-only
     # mode so no hydro flux gradient is evaluated on the single active cell.
@@ -113,16 +117,16 @@ def _run_case(par_config, runparams, icparams, label, density, temperature, tabl
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
     initial_rate = float(_net_rate(
-        table, temperature, density, runparams['metallicity'], runparams['metal_pie_redshift']
+        table, temperature, density, thermo['metallicity'], thermo['metal_pie_redshift']
     ))
-    rho = density * PROTON_MASS_G / runparams['hydrogen_mass_fraction']
+    rho = density * PROTON_MASS_G / thermo['hydrogen_mass_fraction']
     thermal_energy = rho * BOLTZMANN_ERG_cgs_K * temperature / (
-        (runparams['gamma'] - 1.0) * icparams['mean_molecular_weight'] * PROTON_MASS_G
+        (hydro['gamma'] - 1.0) * initial_condition['mean_molecular_weight'] * PROTON_MASS_G
     )
     thermal_time = thermal_energy / max(abs(initial_rate), 1.0e-99) / SECONDS_PER_MYR
     equilibrium = _equilibrium_temperature(
-        table, density, runparams['metallicity'], runparams['metal_pie_redshift'],
-        icparams['mean_molecular_weight']
+        table, density, thermo['metallicity'], thermo['metal_pie_redshift'],
+        initial_condition['mean_molecular_weight']
     )
     return {
         'label': label,
@@ -248,20 +252,19 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     par_config = nested['par']
-    runparams = eu.legacy_example_parameters(nested)
-    icparams = eu.legacy_initial_condition_parameters(nested)
-    table_path = (config_filename.parent / runparams['metal_pie_table_filename']).resolve()
-    runparams['metal_pie_table_filename'] = str(table_path)
-    par_config['thermochemistry']['metal_pie_table_filename'] = str(table_path)
+    config = nested
+    thermo = par_config['thermochemistry']
+    table_path = (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
+    thermo['metal_pie_table_filename'] = str(table_path)
     TABLE = MetalPIETable(table_path)
     if not TABLE.is_hm12_uv_background:
         raise ValueError('the example requires an HM12 UV-background table')
-    METALLICITY = float(runparams['metallicity'])
-    REDSHIFT = float(runparams['metal_pie_redshift'])
+    METALLICITY = float(thermo['metallicity'])
+    REDSHIFT = float(thermo['metal_pie_redshift'])
     results = []
     for label, density, temperature in CASES:
         results.append(_run_case(
-            par_config, runparams, icparams, label, density, temperature, TABLE
+            config, label, density, temperature, TABLE
         ))
     figure = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D.jpg'
     report = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D_ThermalReport.txt'

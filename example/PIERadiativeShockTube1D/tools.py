@@ -15,20 +15,22 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 class Simwrap:
     """Build two uniform streams moving toward the central discontinuity."""
 
-    def __init__(self, icparams, code_units, hydrogen_mass_fraction):
+    def __init__(self, config, code_units, hydrogen_mass_fraction):
+        icparams = config['initial_condition']
+        par = config['par']
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
         self.par.units = SimpleNamespace(CodeUnits=code_units)
         self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordsys'],
-            current_time=icparams['time'],
-            box_size=icparams['boxsize'],
+            coordinate_system=icparams['coordinate_system'],
+            current_time=icparams['current_time'],
+            box_size=icparams['box_size'],
         )
-        grid_cells = int(icparams['nogrid'])
-        boxsize = icparams['boxsize'] * np.ones(1)
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
-        self.par.time = icparams['time'] * np.ones(1)
+        grid_cells = int(par['mesh']['grid_cells'])
+        boxsize = icparams['box_size'] * np.ones(1)
+        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=par['mesh']['ghost_cells'])
+        self.par.time = icparams['current_time'] * np.ones(1)
         self.mesh.boundary = np.linspace(
             0.0 * boxsize[0], boxsize[0], grid_cells + 1,
         )
@@ -39,8 +41,8 @@ class Simwrap:
         )
         rho = icparams['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
         self.fluid.rho_code = np.ones(grid_cells) * rho
-        self.fluid.temp_code = np.ones(grid_cells) * icparams['tempini']
-        self.fluid.mu = np.ones(grid_cells) * icparams['muini']
+        self.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
+        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
 def _physical_cells(data, header):

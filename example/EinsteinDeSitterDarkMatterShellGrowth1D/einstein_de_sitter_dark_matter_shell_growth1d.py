@@ -28,20 +28,14 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_dark_matter_shell_
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = {**config['initial_condition'],
-                'number_of_shells': runtime['mesh']['grid_cells']
-                if 'mesh' in runtime else config['initial_condition']['number_of_outer_shells']}
-    runparams = eu.legacy_example_parameters(config)
-    runparams.update(runtime.get('gravity', {}))
-    runparams.update(runtime.get('timestep', {}))
-    runparams.update(config.get('example', {}))
-    runparams['final_cosmic_time'] = runtime['simulation']['final_time']
-    runparams['savedir'] = runtime['output']['savedir']
-    runparams['CodeUnits'] = runtime['units']['CodeUnits']
-    units = et.load_units(runparams)
+    icparams = config['initial_condition']
+    units = et.load_units(runtime)
+    gravity = runtime['gravity']
+    timestep = runtime['timestep']
+    example = config.get('example', {})
     cosmology = EinsteinDeSitter.from_code_units(
-        units, t_ref=float(runparams['cosmology_t_ref']),
-        a_ref=float(runparams['cosmology_a_ref']),
+        units, t_ref=float(gravity['cosmology_t_ref']),
+        a_ref=float(gravity['cosmology_a_ref']),
     )
 
     # First verify that the discretized homogeneous background has no peculiar force.
@@ -56,7 +50,7 @@ def main(config_filename=DEFAULT_CONFIG):
         cosmological=True,
     )
     homogeneous_error = float(np.max(np.abs(homogeneous_acceleration)))
-    if homogeneous_error > float(runparams['homogeneous_acceleration_tolerance']):
+    if homogeneous_error > float(example['homogeneous_acceleration_tolerance']):
         raise RuntimeError('homogeneous shell acceleration %.6g is nonzero' % homogeneous_error)
 
     shells, boundaries = et.make_shells(icparams, units, cosmology)
@@ -70,10 +64,10 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_delta = et.overdensity_inside(lagrangian_radius, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]
-    final_cosmic_time = float(runparams['final_cosmic_time'])
+    final_cosmic_time = float(runtime['simulation']['final_time'])
     final_tau = float(cosmology.supercomoving_time(final_cosmic_time))
     time = float(tau)
-    dt = float(runparams['supercomoving_timestep'])
+    dt = float(timestep['supercomoving_timestep'])
     while time < final_tau:
         step = min(dt, final_tau - time)
         time_end = time + step
@@ -86,7 +80,7 @@ def main(config_filename=DEFAULT_CONFIG):
         rho_end = float(cosmology.background_density(cosmic_end)) * a_end**3
         shells.step(
             step,
-            crossing_safety_factor=float(runparams['crossing_safety_factor']),
+            crossing_safety_factor=float(timestep['crossing_safety_factor']),
             background_enclosed_mass=background,
             scale_factor=a_start,
             scale_factor_end=a_end,
@@ -102,12 +96,12 @@ def main(config_filename=DEFAULT_CONFIG):
 
     expected = initial_delta * history_a[-1] / a_initial
     relative_error = abs(history_delta[-1] - expected) / abs(expected)
-    if not np.isfinite(relative_error) or relative_error > float(runparams['growth_tolerance']):
+    if not np.isfinite(relative_error) or relative_error > float(example['growth_tolerance']):
         raise RuntimeError('dark-matter linear growth error %.6g exceeds tolerance' % relative_error)
     if not np.all(np.isfinite(shells.radius)) or not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError('dark-matter shells became invalid or unsorted')
 
-    figure = Path(runparams['savedir']) / 'EinsteinDeSitterDarkMatterShellGrowth1D.jpg'
+    figure = Path(runtime['output']['savedir']) / 'EinsteinDeSitterDarkMatterShellGrowth1D.jpg'
     a_plot = np.linspace(a_initial, history_a[-1], 200)
     plt.figure(figsize=(6, 4))
     plt.plot(history_a, history_delta, label='shells')
