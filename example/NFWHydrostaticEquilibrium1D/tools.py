@@ -123,63 +123,65 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    def __init__(self, config, code_units=None):
-        icparams = config['initial_condition']
-        grid_cells = int(config['par']['mesh']['grid_cells'])
-        box_size = icparams['boxsize'] if 'boxsize' in icparams else icparams['box_size']
-        time_value = icparams['time'] if 'time' in icparams else icparams['current_time']
-        radius_min = icparams['rmin'] if 'rmin' in icparams else icparams['inner_radius']
-        radius_max = icparams['rmax'] if 'rmax' in icparams else icparams['outer_radius']
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        box_size = np.ones(1) * box_size
-        self.par.time = np.ones(1) * time_value
-        self.par.simulation = SimpleNamespace(
-            coordinate_system='spherical',
-            current_time=self.par.time,
-            box_size=box_size,
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-        self.mesh.boundary = np.linspace(
-            radius_min,
-            radius_max,
-            grid_cells + 1,
-        )
-        self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * (
-            self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
-        )
-        halo = nfw_halo_parameters(
-            icparams['halo_mass'],
-            icparams['concentration'],
-            icparams['redshift'],
-            icparams['overdensity'],
-            icparams['h0'],
-        )
-        temperature = virial_temperature(halo, icparams['mu'])
-        self.fluid.temp_code = np.ones(grid_cells) * temperature
-        self.fluid.mu = np.ones(grid_cells) * icparams['mu']
-        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
-        self.fluid.rho_code = hydrostatic_density_profile(
-            self.mesh.coordinate,
-            self.mesh.boundary,
-            halo,
-            temperature,
-            icparams['mu'],
-            icparams['gas_fraction'],
-        )
+def build_initial_condition(config, code_units=None):
+    sim = SimpleNamespace()
+    icparams = config['initial_condition']
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    box_size = icparams['boxsize'] if 'boxsize' in icparams else icparams['box_size']
+    time_value = icparams['time'] if 'time' in icparams else icparams['current_time']
+    radius_min = icparams['rmin'] if 'rmin' in icparams else icparams['inner_radius']
+    radius_max = icparams['rmax'] if 'rmax' in icparams else icparams['outer_radius']
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    box_size = np.ones(1) * box_size
+    sim.par.time = np.ones(1) * time_value
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system='spherical',
+        current_time=sim.par.time,
+        box_size=box_size,
+    )
+    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    sim.mesh.boundary = np.linspace(
+        radius_min,
+        radius_max,
+        grid_cells + 1,
+    )
+    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
+    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
+    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    )
+    halo = nfw_halo_parameters(
+        icparams['halo_mass'],
+        icparams['concentration'],
+        icparams['redshift'],
+        icparams['overdensity'],
+        icparams['h0'],
+    )
+    temperature = virial_temperature(halo, icparams['mu'])
+    sim.fluid.temp_code = np.ones(grid_cells) * temperature
+    sim.fluid.mu = np.ones(grid_cells) * icparams['mu']
+    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.rho_code = hydrostatic_density_profile(
+        sim.mesh.coordinate,
+        sim.mesh.boundary,
+        halo,
+        temperature,
+        icparams['mu'],
+        icparams['gas_fraction'],
+    )
 
+
+    return sim
 
 def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     """Read the evolved snapshot and plot its NFW hydrostatic residuals."""
     icparams = config['initial_condition']
     par = config['par']
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    rout = Simwrap(config, code_units=code_units)
+    rout = build_initial_condition(config, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     nghost = int(par['mesh']['ghost_cells'])
     boundary_cgs = code_quantity_to_cgs(
@@ -221,3 +223,9 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
     return np.max(np.abs((rho_cgs - rho_expected_cgs) / rho_expected_cgs))
+
+
+
+
+
+

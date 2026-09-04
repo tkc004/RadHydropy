@@ -57,7 +57,8 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     code_units = et.CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    ric = et.Simwrap(ICparams, code_units=code_units)
+    config['_code_units'] = code_units
+    ric = et.build_initial_condition(config)
     rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)
@@ -138,3 +139,4 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
+

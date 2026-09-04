@@ -20,35 +20,46 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        if code_units is not None:
-            self.par.unit_system = code_units.unit_system
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    code_units = config['_code_units']
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    if code_units is not None:
+        sim.par.unit_system = code_units.unit_system
 
-        grid_cells = icparams['grid_cells']
-        box_size = icparams['box_size'] * np.ones(1)
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(coordinate_system=icparams['coordinate_system'], current_time=icparams['current_time'] * np.ones(1), box_size=box_size)
+    grid_cells = icparams['grid_cells']
+    box_size = icparams['box_size'] * np.ones(1)
+    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+    sim.par.simulation = SimpleNamespace(coordinate_system=icparams['coordinate_system'], current_time=icparams['current_time'] * np.ones(1), box_size=box_size)
 
-        dx = box_size[0] / grid_cells
-        self.mesh.boundary = np.linspace(
-            dx,
-            box_size[0] + dx,
-            grid_cells + 1,
-        )
-        self.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
-        self.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
-        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
-        self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
+    dx = box_size[0] / grid_cells
+    sim.mesh.boundary = np.linspace(
+        dx,
+        box_size[0] + dx,
+        grid_cells + 1,
+    )
+    sim.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
+    sim.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
+    sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
+    sim.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
 
 
-def ReadandPlot(outfilename, icparams, runparams, **kwargs):
-    rout = Simwrap(icparams)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    return sim
+
+def ReadandPlot(outfilename, config, **kwargs):
+    icparams = config['initial_condition']
+    runparams = config['par']
+    rout = build_initial_condition(config)
+    code_units_obj = config['_code_units']
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho_code', showhalf=0, showfig=0, **kwargs)
+
+
+
+
+

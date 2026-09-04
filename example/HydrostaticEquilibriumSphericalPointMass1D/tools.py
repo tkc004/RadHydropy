@@ -132,61 +132,62 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
     return _acceleration
 
 
-class Simwrap:
-    def __init__(self, config, code_units=None):
-        initial_condition = config['initial_condition']
-        grid_cells = int(config['par']['mesh']['grid_cells'])
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
+def build_initial_condition(config, code_units=None):
+    sim = SimpleNamespace()
+    initial_condition = config['initial_condition']
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.CodeUnits = code_units
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
 
-        self.par.nogrid = grid_cells
-        self.par.coordsys = initial_condition['coordinate_system']
-        self.par.boxsize = np.ones(1) * initial_condition['box_size']
-        self.par.time = np.ones(1) * initial_condition['current_time']
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=2)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system='spherical',
-            current_time=self.par.time,
-            box_size=self.par.boxsize,
-        )
+    sim.par.nogrid = grid_cells
+    sim.par.coordsys = initial_condition['coordinate_system']
+    sim.par.boxsize = np.ones(1) * initial_condition['box_size']
+    sim.par.time = np.ones(1) * initial_condition['current_time']
+    sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=2)
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system='spherical',
+        current_time=sim.par.time,
+        box_size=sim.par.boxsize,
+    )
 
-        self.mesh.boundary = np.linspace(
-            initial_condition['inner_radius'],
-            initial_condition['outer_radius'],
-            self.par.nogrid + 1,
-        )
-        self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
-        dx = self.mesh.boundary[1] - self.mesh.boundary[0]
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = (
-            np.absolute(self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-            * 4.0
-            * np.pi
-            / 3.0
-        )
+    sim.mesh.boundary = np.linspace(
+        initial_condition['inner_radius'],
+        initial_condition['outer_radius'],
+        sim.par.nogrid + 1,
+    )
+    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
+    dx = sim.mesh.boundary[1] - sim.mesh.boundary[0]
+    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
+    sim.mesh.vol = (
+        np.absolute(sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3)
+        * 4.0
+        * np.pi
+        / 3.0
+    )
 
-        self.fluid.temp_code = np.ones(self.par.nogrid) * initial_condition['initial_temperature']
-        self.fluid.mu = np.ones(self.par.nogrid) * initial_condition['mean_molecular_weight']
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho_code = point_mass_hydrostatic_density_profile(
-            self.mesh.coordinate,
-            initial_condition['reference_density'],
-            initial_condition['initial_temperature'],
-            initial_condition['mean_molecular_weight'],
-            initial_condition['point_mass'],
-            reference_radius=self.mesh.coordinate[0],
-            code_units=code_units,
-        )
+    sim.fluid.temp_code = np.ones(sim.par.nogrid) * initial_condition['initial_temperature']
+    sim.fluid.mu = np.ones(sim.par.nogrid) * initial_condition['mean_molecular_weight']
+    sim.fluid.vel_code = np.zeros(sim.par.nogrid) * unyt.cm / unyt.s
+    sim.fluid.rho_code = point_mass_hydrostatic_density_profile(
+        sim.mesh.coordinate,
+        initial_condition['reference_density'],
+        initial_condition['initial_temperature'],
+        initial_condition['mean_molecular_weight'],
+        initial_condition['point_mass'],
+        reference_radius=sim.mesh.coordinate[0],
+        code_units=code_units,
+    )
 
 
+    return sim
 def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = config['par']['units']['CodeUnits']
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = Simwrap(config, code_units=code_units_obj)
+    rout = build_initial_condition(config, code_units=code_units_obj)
     if code_units_obj is not None:
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
@@ -241,3 +242,5 @@ def ReadandPlot(outfilename, config, **kwargs):
     )
     plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
     plt.ylabel(rf"$v \; [{vel_units.latex_repr}]$")
+
+

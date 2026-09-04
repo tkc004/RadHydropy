@@ -27,7 +27,7 @@ from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
 from tools import (
-    Simwrap,
+    build_initial_condition,
     cooling_length_estimate,
     load_snapshot,
     strong_shock_expectation,
@@ -65,11 +65,8 @@ def _run_case(
     case_initial['hydrogen_density'] = hydrogen_density * unyt.cm**-3
     eu.clean_previous_outputs(case)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
-    case_config = {'par': case, 'initial_condition': case_initial}
-    initial = Simwrap(
-        case_config, code_units,
-        case['thermochemistry']['hydrogen_mass_fraction'],
-    )
+    case_config = {'par': case, 'initial_condition': case_initial, '_code_units': code_units}
+    initial = build_initial_condition(case_config)
     rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
     sim = Rsim(case)
     sim.RunAll(outputtime=0, mode='hydro' if adiabatic else 'hydro_sources')
@@ -281,3 +278,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
+

@@ -32,16 +32,16 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 )
 
 
-def load_snapshots(runparams, ICparams, max_outputs=10, start_index=1):
+def load_snapshots(config, max_outputs=10, start_index=1):
     """Load example outputs into lightweight snapshot wrappers."""
 
     snapshots = []
     for outindex in range(start_index, max_outputs):
         outfilename = os.path.join(
-            runparams['output']['directory'],
-            runparams['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
+            config['par']['output']['directory'],
+            config['par']['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
         )
-        snapshots.append(et.load_snapshot(outfilename, ICparams, runparams))
+        snapshots.append(et.load_snapshot(outfilename, config))
     return snapshots
 
 
@@ -57,16 +57,13 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
     if not plot_only:
         code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-        ric = et.Simwrap(
-            ICparams,
-            code_units=code_units_obj,
-            boundary_params=runparams['boundary'],
-        )
+        config['_code_units'] = code_units_obj
+        ric = et.build_initial_condition(config)
         rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
         mainrun = Rsim(runparams)
         mainrun.RunAll(outputtime=0)
 
-    snapshots = load_snapshots(runparams, ICparams)
+    snapshots = load_snapshots(config)
     figure_prefix = exampleparams.get('figure_prefix', 'StellarWindBubble1D')
 
     profile_figure = et.make_profile_figure(snapshots, ICparams, runparams)
@@ -118,3 +115,6 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config, plot_only=args.plot_only)
+
+
+

@@ -29,7 +29,7 @@ from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, code_unit_scales
 from radhydropy.thermo_networks.pie import MetalPIETable
 from tools import (
-    Simwrap, boundary_inflow_state, nfw_halo_parameters, pie_stability_diagnostics,
+    build_initial_condition, boundary_inflow_state, nfw_halo_parameters, pie_stability_diagnostics,
     plot_comparison, plot_stability_diagnostics, shock_history,
     virial_temperature, write_report, write_stability_report,
 )
@@ -202,7 +202,8 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
         icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
         icparams['overdensity'], icparams['h0'],
     )
-    initial = Simwrap(icparams, par_config, code_units, pie_table)
+    nested_config = {'par': par_config, 'initial_condition': icparams, '_code_units': code_units, '_pie_table': pie_table}
+    initial = build_initial_condition(nested_config)
     inflow = boundary_inflow_state(icparams, halo, pie_table, par_config)
     par_config['boundary'].update(inflow)
     initial_filename = par_config['simulation']['initial_condition_filename']

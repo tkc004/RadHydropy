@@ -26,7 +26,7 @@ from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
-from tools import Simwrap
+from tools import build_initial_condition
 
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_cooling_uniform_sph1d.yaml"
@@ -55,9 +55,8 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     output_dir.mkdir(parents=True, exist_ok=True)
     case = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(output_dir / f'InitialCondition_{label}.hdf5')}, 'output': {**par['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': f'Output_{label}'}}
 
-    case_config = {'par': case, 'initial_condition': {**initial_mapping, 'hydrogen_mass_fraction': case['thermochemistry']['hydrogen_mass_fraction'], 'proton_mass_g': float(unyt.mp.to_value(unyt.g)), 'vini': 0.0 * unyt.cm / unyt.s}, 'example': config['example']}
-    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
-    ric = Simwrap(case_config, code_units, hydrogen_density_cgs_cm3)
+    case_config = {'par': case, 'initial_condition': {**initial_mapping, 'hydrogen_density_cgs_cm3': hydrogen_density_cgs_cm3, 'hydrogen_mass_fraction': case['thermochemistry']['hydrogen_mass_fraction'], 'proton_mass_g': float(unyt.mp.to_value(unyt.g)), 'vini': 0.0 * unyt.cm / unyt.s}, 'example': config['example'], '_code_units': code_units}
+    ric = build_initial_condition(case_config)
     rio.writehdf5(ric, case['simulation']['initial_condition_filename'])
 
     runtime_only = {
@@ -181,3 +180,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
+

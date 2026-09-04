@@ -41,7 +41,8 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(runtime['output'])
     code_units_obj = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
-    ric = et.Simwrap(ICparams, code_units=code_units_obj)
+    nested['_code_units'] = code_units_obj
+    ric = et.build_initial_condition(nested)
     rio.writehdf5(ric, runtime['simulation']['initial_condition_filename'])
 
     mainrun = Rsim(runtime)
@@ -65,8 +66,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     et.ReadandPlot(
         final_outfile,
-        ICparams,
-        runtime,
+        nested,
         ls='none',
         marker='o',
         mfc='none',
@@ -98,3 +98,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
+

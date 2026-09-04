@@ -39,7 +39,9 @@ def main(config_filename=DEFAULT_CONFIG):
         units, t_ref=float(runtime['gravity']['cosmology_t_ref']),
         a_ref=float(runtime['gravity']['cosmology_a_ref']),
     )
-    initial = et.Simwrap(config, units, cosmology)
+    config['_code_units'] = units
+    config['_cosmology'] = cosmology
+    initial = et.build_initial_condition(config)
     rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
 
     runtime = {key: (dict(value) if isinstance(value, dict) else value)
@@ -123,3 +125,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
+
+
+

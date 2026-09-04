@@ -17,40 +17,27 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None, grid_cells=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(grid_cells)
-        self.par.coordsys = 'cartesian'
-        self.par.boxsize = icparams['box_size'] * np.ones(1)
-        self.par.time = icparams['current_time'] * np.ones(1)
-        self.par.simulation = SimpleNamespace(
-            current_time=self.par.time,
-            box_size=self.par.boxsize,
-            coordinate_system='cartesian',
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
-
-        dx = self.par.boxsize[0] / self.par.nogrid
-        self.mesh.boundary = np.linspace(
-            0.0 * self.par.boxsize[0],
-            self.par.boxsize[0],
-            self.par.nogrid + 1,
-        )
-        coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
-        phase = 2.0 * np.pi * coordinate / self.par.boxsize[0]
-
-        self.fluid.rho_code = np.ones(self.par.nogrid) * icparams['initial_density']
-        self.fluid.vel_code = np.ones(self.par.nogrid) * icparams['velocity']
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['temperature']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
-        if icparams.get('include_angular_momentum', True):
-            self.fluid.specific_angular_momentum_code = (
-                icparams['angular_momentum_offset']
-                + icparams['angular_momentum_amplitude'] * np.sin(phase)
-            )
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    code_units = config['_code_units']
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
+    result.par.CodeUnits = code_units
+    result.par.units = SimpleNamespace(CodeUnits=code_units)
+    result.par.unit_system = code_units.unit_system
+    result.par.nogrid = grid_cells
+    result.par.coordsys = 'cartesian'
+    result.par.boxsize = initial['box_size'] * np.ones(1)
+    result.par.time = initial['current_time'] * np.ones(1)
+    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=result.par.boxsize, coordinate_system='cartesian')
+    result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    result.mesh.boundary = np.linspace(0.0, result.par.boxsize[0], grid_cells + 1)
+    coordinate = 0.5 * (result.mesh.boundary[1:] + result.mesh.boundary[:-1])
+    phase = 2.0 * np.pi * coordinate / result.par.boxsize[0]
+    result.fluid.rho_code = np.ones(grid_cells) * initial['initial_density']
+    result.fluid.vel_code = np.ones(grid_cells) * initial['velocity']
+    result.fluid.temp_code = np.ones(grid_cells) * initial['temperature']
+    result.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
+    if initial.get('include_angular_momentum', True):
+        result.fluid.specific_angular_momentum_code = initial['angular_momentum_offset'] + initial['angular_momentum_amplitude'] * np.sin(phase)
+    return result

@@ -63,61 +63,68 @@ def set_plot_style():
     )
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None, boundary_params=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        if code_units is not None:
-            self.par.unit_system = code_units.unit_system
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    runparams = config['par']
+    code_units = config['_code_units']
+    boundary_params = runparams.get('boundary')
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    if code_units is not None:
+        sim.par.unit_system = code_units.unit_system
 
-        grid_cells = icparams['grid_cells']
-        box_size = icparams['box_size'] * np.ones(1)
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordinate_system'],
-            current_time=icparams['current_time'] * np.ones(1),
-            box_size=box_size,
+    grid_cells = icparams['grid_cells']
+    box_size = icparams['box_size'] * np.ones(1)
+    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system=icparams['coordinate_system'],
+        current_time=icparams['current_time'] * np.ones(1),
+        box_size=box_size,
+    )
+
+    sim.mesh.boundary = np.linspace(
+        icparams['injection_radius'],
+        icparams['injection_radius'] + box_size[0],
+        grid_cells + 1,
+    )
+    sim.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
+    sim.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
+    sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
+    sim.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
+
+    # Match the WindSph ghost profile in a resolved active launch region.
+    wind_cells = int(icparams.get('wind_injection_cells', 0))
+    if (
+        boundary_params is not None
+        and boundary_params.get('condition') == 'WindSph'
+        and wind_cells > 0
+    ):
+        centers = 0.5 * (
+            sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
         )
-
-        self.mesh.boundary = np.linspace(
-            icparams['injection_radius'],
-            icparams['injection_radius'] + box_size[0],
-            grid_cells + 1,
-        )
-        self.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
-        self.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
-        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
-        self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
-
-        # Match the WindSph ghost profile in a resolved active launch region.
-        wind_cells = int(icparams.get('wind_injection_cells', 0))
-        if (
-            boundary_params is not None
-            and boundary_params.get('condition') == 'WindSph'
-            and wind_cells > 0
-        ):
-            centers = 0.5 * (
-                self.mesh.boundary[:-1] + self.mesh.boundary[1:]
-            )
-            launch = np.arange(grid_cells) < wind_cells
-            radius = centers[launch]
-            reference_radius = icparams['injection_radius']
-            wind_density = boundary_params['outflow_density'] * (
-                reference_radius / radius
-            ) ** 2
-            self.fluid.rho_code[launch] = wind_density
-            self.fluid.vel_code[launch] = boundary_params['outflow_velocity']
-            self.fluid.temp_code[launch] = boundary_params['outflow_temperature']
-            self.fluid.mu[launch] = boundary_params['outflow_mu']
+        launch = np.arange(grid_cells) < wind_cells
+        radius = centers[launch]
+        reference_radius = icparams['injection_radius']
+        wind_density = boundary_params['outflow_density'] * (
+            reference_radius / radius
+        ) ** 2
+        sim.fluid.rho_code[launch] = wind_density
+        sim.fluid.vel_code[launch] = boundary_params['outflow_velocity']
+        sim.fluid.temp_code[launch] = boundary_params['outflow_temperature']
+        sim.fluid.mu[launch] = boundary_params['outflow_mu']
 
 
-def load_snapshot(outfilename, icparams, runparams):
+    return sim
+
+def load_snapshot(outfilename, config):
     """Load an output snapshot into a lightweight simulation wrapper."""
-
-    rout = Simwrap(icparams)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    icparams = config['initial_condition']
+    runparams = config['par']
+    rout = build_initial_condition(config)
+    code_units_obj = config['_code_units']
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     # Solver outputs retain ghost zones, whereas the example diagnostics are
     # defined on the physical domain.  Trim every cell-centered fluid field
@@ -636,3 +643,8 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
             color=kwargs['color'],
             ls='dashed',
         )
+
+
+
+
+

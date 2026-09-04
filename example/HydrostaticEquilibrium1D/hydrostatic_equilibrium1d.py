@@ -32,16 +32,13 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrostatic_equilibrium1d.y
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     ICparams = config['initial_condition']
     eu.clean_previous_outputs(runparams)
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
-    ric = et.Simwrap(
-        ICparams,
-        code_units=code_units_obj,
-        grid_cells=runparams['mesh']['grid_cells'],
-    )
+    config['_code_units'] = code_units_obj
+    ric = et.build_initial_condition(config)
     rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
 
     mainrun = Rsim(runparams)
@@ -65,8 +62,7 @@ def main(config_filename=DEFAULT_CONFIG):
     final_outfile = str(output_files[-1])
     et.ReadandPlot(
         final_outfile,
-        ICparams,
-        runparams,
+        config,
         ls='none',
         marker='o',
         mfc='none',

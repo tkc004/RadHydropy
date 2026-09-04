@@ -42,27 +42,32 @@ def analytic_density_profile(radius, time, icparams, runparams, cell_faces=None)
     return profile, front
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        grid_cells = int(icparams['grid_cells'])
-        box_size = icparams['box_size'] * np.ones(1)
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordinate_system'],
-            box_size=box_size,
-            current_time=icparams['current_time'] * np.ones(1),
-        )
-        self.mesh.boundary = np.linspace(
-            float(icparams['injection_radius']),
-            float(icparams['injection_radius'] + icparams['box_size']),
-            grid_cells + 1,
-        )
-        self.fluid.vel_code = icparams['initial_velocity'] * np.ones(grid_cells)
-        self.fluid.temp_code = icparams['initial_temperature'] * np.ones(grid_cells)
-        self.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
-        self.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    code_units = config['_code_units']
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    sim.par.unit_system = code_units.unit_system
+    grid_cells = int(icparams['grid_cells'])
+    box_size = icparams['box_size'] * np.ones(1)
+    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system=icparams['coordinate_system'],
+        box_size=box_size,
+        current_time=icparams['current_time'] * np.ones(1),
+    )
+    sim.mesh.boundary = np.linspace(
+        float(icparams['injection_radius']),
+        float(icparams['injection_radius'] + icparams['box_size']),
+        grid_cells + 1,
+    )
+    sim.fluid.vel_code = icparams['initial_velocity'] * np.ones(grid_cells)
+    sim.fluid.temp_code = icparams['initial_temperature'] * np.ones(grid_cells)
+    sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
+    sim.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
+
+
+    return sim

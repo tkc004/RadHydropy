@@ -38,8 +38,9 @@ import yaml
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.compton import cmb_compton_rate
+from radhydropy.units import CodeUnits
 import example_utils as eu
-from tools import Simwrap
+from tools import build_initial_condition
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('compton_cmb_heating1d.yaml')
@@ -79,24 +80,25 @@ def _analytic_temperature(
 
 
 def _run_case(
-    runparams,
-    icparams,
+    config,
     label,
     initial_temperature,
     timestep_override=None,
 ):
-    case_params = copy.deepcopy(runparams)
-    example = runparams['_example']
+    case_params = copy.deepcopy(config['par'])
+    example = copy.deepcopy(config['example'])
     if timestep_override is not None:
         example['evolution_timestep'] = timestep_override
     case_params['simulation']['initial_condition_filename'] = str(
-        Path(runparams['output']['directory']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
+        Path(config['par']['output']['directory']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
     )
-    case_icparams = dict(icparams)
+    case_icparams = dict(config['initial_condition'])
     case_icparams['initial_temperature'] = initial_temperature * unyt.K
     case_params.pop('_example', None)
 
-    ric = Simwrap(case_icparams, case_params)
+    code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
+    case_config = {'par': case_params, 'initial_condition': case_icparams, '_code_units': code_units}
+    ric = build_initial_condition(case_config)
     rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
 
     sim = Rsim(case_params)
@@ -171,15 +173,14 @@ def _timestep_difference(coarse_history, fine_history):
     return float(np.max(np.abs(coarse_temperature - fine_at_coarse) / scale))
 
 
-def _run_converged_case(runparams, icparams, label, initial_temperature):
+def _run_converged_case(config, label, initial_temperature):
     """Refine the implicit source timestep until two runs agree."""
-    timestep = runparams['_example']['evolution_timestep']
-    thermo = runparams['thermochemistry']
+    timestep = config['example']['evolution_timestep']
+    thermo = config['par']['thermochemistry']
     tolerance = float(thermo.get('hydrogen_implicit_convergence_tolerance', 1.0e-3))
     max_refinements = int(thermo.get('hydrogen_implicit_max_refinements', 4))
     coarse = _run_case(
-        runparams,
-        icparams,
+        config,
         label,
         initial_temperature,
         timestep_override=timestep,
@@ -187,8 +188,7 @@ def _run_converged_case(runparams, icparams, label, initial_temperature):
     for refinement in range(1, max_refinements + 1):
         timestep = timestep / 2.0
         fine = _run_case(
-            runparams,
-            icparams,
+            config,
             label,
             initial_temperature,
             timestep_override=timestep,
@@ -219,9 +219,7 @@ def _run_converged_case(runparams, icparams, label, initial_temperature):
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename)
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
-    icparams = config['initial_condition']
-    runparams['_example'] = config['example']
+    runparams = config['par']
     cases = config['example']['cases']
     eu.clean_previous_outputs(runparams['output'])
 
@@ -229,15 +227,13 @@ def main(config_filename=DEFAULT_CONFIG):
     for label, initial_temperature in cases.items():
         if str(runparams['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
             histories[label] = _run_converged_case(
-                runparams,
-                icparams,
+                config,
                 label,
                 float(initial_temperature),
             )
         else:
             histories[label] = _run_case(
-                runparams,
-                icparams,
+                config,
                 label,
                 float(initial_temperature),
             )

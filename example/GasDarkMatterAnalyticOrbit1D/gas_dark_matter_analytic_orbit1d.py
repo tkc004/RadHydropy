@@ -33,7 +33,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     icparams = config['initial_condition']
     example = config['example']
     code_units = et.load_units(runparams)

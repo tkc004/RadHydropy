@@ -58,7 +58,7 @@ def run_case(
         "cie_cooling": bool(radiative),
         "thermochemistry_network": "cie_cooling" if radiative else "hydrogen",
     })
-    initial = et.Simwrap(
+    initial = et.build_initial_condition(
         {"par": local, "initial_condition": initial_condition}, units, cosmology, table,
         correlation_table=correlation_table,
     )
@@ -236,3 +236,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
+
+

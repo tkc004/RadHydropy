@@ -34,16 +34,15 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
-    icparams = config['initial_condition']
-    Path(runparams['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(runparams['output']['savedir']).mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(runparams)
-    units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    initial = et.Simwrap(icparams, units, runparams['mesh']['grid_cells'])
-    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
+    par_config = config['par']
+    Path(par_config['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    eu.clean_previous_outputs(par_config)
+    config['_code_units'] = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    initial = et.build_initial_condition(config)
+    rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.RunAll(outputtime=0, mode='hydro')
     interior = slice(
         sim.par.mesh.ghost_cells,
@@ -206,3 +205,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
+

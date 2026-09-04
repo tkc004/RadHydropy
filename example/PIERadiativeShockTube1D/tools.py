@@ -12,37 +12,40 @@ SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
 KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
 
-class Simwrap:
-    """Build two uniform streams moving toward the central discontinuity."""
-
-    def __init__(self, config, code_units, hydrogen_mass_fraction):
-        icparams = config['initial_condition']
-        par = config['par']
-        self.par = SimpleNamespace()
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordinate_system'],
-            current_time=icparams['current_time'],
-            box_size=icparams['box_size'],
-        )
-        grid_cells = int(par['mesh']['grid_cells'])
-        boxsize = icparams['box_size'] * np.ones(1)
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=par['mesh']['ghost_cells'])
-        self.par.time = icparams['current_time'] * np.ones(1)
-        self.mesh.boundary = np.linspace(
-            0.0 * boxsize[0], boxsize[0], grid_cells + 1,
-        )
-        coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
-        velocity = icparams['collision_velocity']
-        self.fluid.vel_code = np.where(
-            coordinate < 0.5 * boxsize[0], velocity, -velocity
-        )
-        rho = icparams['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
-        self.fluid.rho_code = np.ones(grid_cells) * rho
-        self.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
-        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    par = config['par']
+    code_units = config['_code_units']
+    result = SimpleNamespace()
+    result.par = SimpleNamespace(
+        units=SimpleNamespace(CodeUnits=code_units),
+        simulation=SimpleNamespace(
+            coordinate_system=initial['coordinate_system'],
+            current_time=initial['current_time'],
+            box_size=initial['box_size'],
+        ),
+        mesh=SimpleNamespace(
+            grid_cells=int(par['mesh']['grid_cells']),
+            ghost_cells=int(par['mesh']['ghost_cells']),
+        ),
+        time=initial['current_time'] * np.ones(1),
+    )
+    result.mesh = SimpleNamespace()
+    result.fluid = SimpleNamespace()
+    boxsize = initial['box_size']
+    result.mesh.boundary = np.linspace(0.0 * boxsize, boxsize, result.par.mesh.grid_cells + 1)
+    coordinate = 0.5 * (result.mesh.boundary[1:] + result.mesh.boundary[:-1])
+    result.fluid.vel_code = np.where(
+        coordinate < 0.5 * boxsize,
+        initial['collision_velocity'],
+        -initial['collision_velocity'],
+    )
+    hydrogen_mass_fraction = float(par['thermochemistry']['hydrogen_mass_fraction'])
+    rho = initial['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
+    result.fluid.rho_code = np.ones(result.par.mesh.grid_cells) * rho
+    result.fluid.temp_code = np.ones(result.par.mesh.grid_cells) * initial['initial_temperature']
+    result.fluid.mu = np.ones(result.par.mesh.grid_cells) * initial['mean_molecular_weight']
+    return result
 
 
 def _physical_cells(data, header):
@@ -104,3 +107,4 @@ def cooling_length_estimate(
     )
     cooling_time_s = thermal_energy / net_cooling
     return post_velocity_cgs_cm_s * cooling_time_s
+

@@ -20,38 +20,30 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units, grid_cells):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(grid_cells)
-        self.par.coordsys = 'spherical'
-        self.par.boxsize = np.ones(1) * icparams['rmax']
-        self.par.time = np.ones(1) * icparams.get('current_time', 0.0 * unyt.s)
-        self.par.simulation = SimpleNamespace(
-            current_time=self.par.time,
-            box_size=self.par.boxsize,
-            coordinate_system='spherical',
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
-        self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], self.par.nogrid + 1
-        )
-        self.mesh.coordinate = 0.75 * (
-            self.mesh.boundary[1:]**4 - self.mesh.boundary[:-1]**4
-        ) / (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * (
-            self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
-        )
-        self.fluid.rho_code = np.ones(self.par.nogrid) * icparams['gas_density']
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['gas_temperature']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mu']
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    runtime = config['par']
+    code_units = config['_code_units']
+    grid_cells = int(runtime['mesh']['grid_cells'])
+    result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
+    result.par.CodeUnits = code_units
+    result.par.units = SimpleNamespace(CodeUnits=code_units)
+    result.par.unit_system = code_units.unit_system
+    result.par.nogrid = grid_cells
+    result.par.coordsys = 'spherical'
+    result.par.boxsize = np.ones(1) * initial['rmax']
+    result.par.time = np.ones(1) * initial.get('current_time', 0.0 * unyt.s)
+    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=result.par.boxsize, coordinate_system='spherical')
+    result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    result.mesh.boundary = np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1)
+    result.mesh.coordinate = 0.75 * (result.mesh.boundary[1:]**4 - result.mesh.boundary[:-1]**4) / (result.mesh.boundary[1:]**3 - result.mesh.boundary[:-1]**3)
+    result.mesh.area = 4.0 * np.pi * result.mesh.boundary[:-1]**2
+    result.mesh.vol = 4.0 * np.pi / 3.0 * (result.mesh.boundary[1:]**3 - result.mesh.boundary[:-1]**3)
+    result.fluid.rho_code = np.ones(grid_cells) * initial['gas_density']
+    result.fluid.temp_code = np.ones(grid_cells) * initial['gas_temperature']
+    result.fluid.mu = np.ones(grid_cells) * initial['mu']
+    result.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    return result
 
 
 def make_dark_matter(icparams, code_units):
@@ -71,3 +63,4 @@ def make_dark_matter(icparams, code_units):
 
 def load_units(runparams):
     return CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+

@@ -25,7 +25,7 @@ from radhydropy.units import code_unit_scales
 from radhydropy.units import CodeUnits
 from radhydropy.thermo_networks.pie import MetalPIETable
 import example_utils as eu
-from tools import Simwrap, estimate_cooling_length, load_snapshot, shock_history
+from tools import build_initial_condition, estimate_cooling_length, load_snapshot, shock_history
 
 
 DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_spherical_radiative_shock1d.yaml'
@@ -92,9 +92,8 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     eu.clean_previous_outputs(case)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
 
-    initial_state = Simwrap(
-        {'par': case, 'initial_condition': initial}, code_units,
-        float(case['thermochemistry']['hydrogen_mass_fraction'])
+    initial_state = build_initial_condition(
+        {'par': case, 'initial_condition': initial, '_code_units': code_units}
     )
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
 
@@ -233,3 +232,4 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
+

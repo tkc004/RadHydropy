@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from types import SimpleNamespace
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
@@ -116,52 +117,56 @@ def ballistic_velocity_profile(
     return acceleration * time
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        from types import SimpleNamespace
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    code_units = config['_code_units']
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
 
-        grid_cells = int(icparams['grid_cells'])
-        coordinate_system = icparams['coordinate_system']
-        box_size = np.ones(1) * icparams['box_size']
-        self.par.time = np.ones(1) * icparams['current_time']
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=coordinate_system,
-            current_time=self.par.time,
-            box_size=box_size,
-        )
+    grid_cells = int(icparams['grid_cells'])
+    coordinate_system = icparams['coordinate_system']
+    box_size = np.ones(1) * icparams['box_size']
+    sim.par.time = np.ones(1) * icparams['current_time']
+    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system=coordinate_system,
+        current_time=sim.par.time,
+        box_size=box_size,
+    )
 
-        self.mesh.boundary = np.linspace(
-            icparams['inner_radius'],
-            icparams['outer_radius'],
-            grid_cells + 1,
-        )
-        self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = (
-            np.absolute(self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-            * 4.0
-            * np.pi
-            / 3.0
-        )
+    sim.mesh.boundary = np.linspace(
+        icparams['inner_radius'],
+        icparams['outer_radius'],
+        grid_cells + 1,
+    )
+    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
+    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
+    sim.mesh.vol = (
+        np.absolute(sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3)
+        * 4.0
+        * np.pi
+        / 3.0
+    )
 
-        self.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
-        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
-        self.fluid.rho_code = ballistic_density_profile(
-            self.mesh.coordinate,
-            icparams['reference_density'],
-        )
+    sim.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
+    sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.rho_code = ballistic_density_profile(
+        sim.mesh.coordinate,
+        icparams['reference_density'],
+    )
 
 
-def ReadandPlot(outfilename, icparams, runparams, **kwargs):
+    return sim
+def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the ballistic short-time profile."""
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    rout = Simwrap(icparams, code_units=code_units_obj)
+    icparams = config['initial_condition']
+    runparams = config['par']
+    code_units_obj = config['_code_units']
+    rout = build_initial_condition(config)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('mesh', {}).get('ghost_cells', 0))

@@ -4,39 +4,31 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from types import SimpleNamespace
 
 
-class Simwrap:
-    """Build the uniform IC object consumed by ``radhydropy.io``."""
-
-    def __init__(self, config, code_units):
-        from types import SimpleNamespace
-        initial_mapping = config['initial_condition']
-        grid_cells = int(config['par']['mesh']['grid_cells'])
-
-        boxsize = np.ones(1) * initial_mapping["boxsize"]
-        self.par = SimpleNamespace(time=np.ones(1) * initial_mapping["time"])
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(
-            current_time=initial_mapping["time"], box_size=initial_mapping["boxsize"],
-            coordinate_system=initial_mapping["coordsys"],
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        self.mesh.boundary = np.linspace(
-            0.0 * boxsize[0], boxsize[0], grid_cells + 1,
-        )
-        self.fluid.vel_code = np.zeros(grid_cells) * initial_mapping["vini"]
-        self.fluid.temp_code = np.ones(grid_cells) * initial_mapping["tempini"]
-        rho = (
-            float(initial_mapping["nHini"])
-            * float(initial_mapping["proton_mass_g"])
-            / float(initial_mapping["hydrogen_mass_fraction"])
-        )
-        self.fluid.rho_code = np.ones(grid_cells) * rho
-        self.fluid.mu = np.ones(grid_cells) * initial_mapping["muini"]
-
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    result = SimpleNamespace()
+    result.par = SimpleNamespace(
+        time=np.ones(1) * initial['time'],
+        units=SimpleNamespace(CodeUnits=config['_code_units']),
+        simulation=SimpleNamespace(
+            current_time=initial['time'], box_size=initial['boxsize'],
+            coordinate_system=initial['coordsys'],
+        ),
+        mesh=SimpleNamespace(grid_cells=grid_cells, ghost_cells=0),
+    )
+    result.mesh = SimpleNamespace()
+    result.fluid = SimpleNamespace()
+    result.mesh.boundary = np.linspace(0.0, initial['boxsize'], grid_cells + 1)
+    result.fluid.vel_code = np.zeros(grid_cells) * initial['vini']
+    result.fluid.temp_code = np.ones(grid_cells) * initial['tempini']
+    rho = float(initial['nHini']) * float(initial['proton_mass_g']) / float(initial['hydrogen_mass_fraction'])
+    result.fluid.rho_code = np.ones(grid_cells) * rho
+    result.fluid.mu = np.ones(grid_cells) * initial['muini']
+    return result
 
 def clean_outputs(output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -65,3 +57,4 @@ def load_history(output_dir):
                 }
             )
     return history
+

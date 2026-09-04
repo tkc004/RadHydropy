@@ -121,89 +121,91 @@ def _interpolate_profile(solution, radius):
     return density, velocity, pressure
 
 
-class Simwrap:
-    """Build an HDF5 initial condition from the similarity profile."""
+def build_initial_condition(config):
+    sim = SimpleNamespace()
+    icparams = config['initial_condition']
+    runtime = config['par']
+    solution = config['_reference_solution']
+    simulation = runtime['simulation']
+    mesh = runtime['mesh']
+    code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    grid_cells = int(mesh['grid_cells'])
+    initial_time = float(icparams['initial_cosmic_time'])
+    sim.par.cosmological_expansion = True
+    sim.par.supercomoving_coordinates = True
+    sim.par.cosmological_gravity = True
+    sim.par.cosmology_type = 'einstein_de_sitter'
+    sim.par.cosmology_t_ref = initial_time
+    sim.par.cosmology_a_ref = 1.0
+    sim.par.cosmology = EinsteinDeSitter.from_code_units(
+        code_units, t_ref=initial_time, a_ref=1.0
+    )
+    sim.par.time = np.ones(1) * sim.par.cosmology.supercomoving_time(initial_time)
+    sim.par.coordinate_frame = 'comoving'
+    sim.par.time_coordinate = 'supercomoving'
+    sim.par.velocity_representation = 'physical'
+    sim.par.density_representation = 'physical'
+    sim.par.pressure_representation = 'physical'
+    sim.par.temperature_representation = 'physical'
+    sim.par.perturbation_amplitude = float(icparams['perturbation_amplitude'])
+    sim.par.simulation = SimpleNamespace(
+        current_time=icparams['initial_cosmic_time'],
+        box_size=icparams['box_size'],
+        coordinate_system=simulation['coordinate_system'],
+    )
+    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    sim.mesh.boundary = np.linspace(
+        icparams['inner_radius'], icparams['outer_radius'], grid_cells + 1
+    )
+    sim.mesh.coordinate = _spherical_centers(sim.mesh.boundary)
+    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
+    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    )
 
-    def __init__(self, icparams, runtime, solution):
-        simulation = runtime['simulation']
-        mesh = runtime['mesh']
-        code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
-        grid_cells = int(mesh['grid_cells'])
-        initial_time = float(icparams['initial_cosmic_time'])
-        self.par.cosmological_expansion = True
-        self.par.supercomoving_coordinates = True
-        self.par.cosmological_gravity = True
-        self.par.cosmology_type = 'einstein_de_sitter'
-        self.par.cosmology_t_ref = initial_time
-        self.par.cosmology_a_ref = 1.0
-        self.par.cosmology = EinsteinDeSitter.from_code_units(
-            code_units, t_ref=initial_time, a_ref=1.0
-        )
-        self.par.time = np.ones(1) * self.par.cosmology.supercomoving_time(initial_time)
-        self.par.coordinate_frame = 'comoving'
-        self.par.time_coordinate = 'supercomoving'
-        self.par.velocity_representation = 'physical'
-        self.par.density_representation = 'physical'
-        self.par.pressure_representation = 'physical'
-        self.par.temperature_representation = 'physical'
-        self.par.perturbation_amplitude = float(icparams['perturbation_amplitude'])
-        self.par.simulation = SimpleNamespace(
-            current_time=icparams['initial_cosmic_time'],
-            box_size=icparams['box_size'],
-            coordinate_system=simulation['coordinate_system'],
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-        self.mesh.boundary = np.linspace(
-            icparams['inner_radius'], icparams['outer_radius'], grid_cells + 1
-        )
-        self.mesh.coordinate = _spherical_centers(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * (
-            self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
-        )
+    radius = np.asarray(sim.mesh.coordinate.to_value(unyt.kpc), dtype=float)
+    cosmology = sim.par.cosmology
+    scale_factor = float(cosmology.scale_factor(initial_time))
+    hubble = float(cosmology.hubble(initial_time))
+    rho_background = float(cosmology.background_density(initial_time)) * scale_factor**3
+    amplitude = float(icparams['perturbation_amplitude'])
+    delta = amplitude / np.maximum(radius, 1.0e-30)**3
+    density = np.full_like(radius, rho_background)
+    velocity = scale_factor * hubble * radius * (
+        1.0 - delta / 3.0
+    )
+    pressure = np.full_like(radius, 0.0)
+    temperature_code = pressure * float(icparams['mean_molecular_weight']) / (
+        np.maximum(density, 1.0e-300)
+        * code_units.boltzmann_code / code_units.proton_mass_code
+    )
+    temperature_code.fill(
+        float(icparams['initial_temperature'].to_value(unyt.K))
+        / code_units.temperature_in_cgs
+    )
+    sim.par.initial_temperature_code = float(temperature_code[0])
+    sim.par.mu_outflow = float(icparams['mean_molecular_weight'])
+    sim.fluid.rho_code = density * code_units.density_unit
+    sim.fluid.vel_code = velocity * code_units.velocity_unit
+    sim.fluid.temp_code = temperature_code * code_units.temperature_unit
+    sim.fluid.mu = np.ones(grid_cells) * float(icparams['mean_molecular_weight'])
 
-        radius = np.asarray(self.mesh.coordinate.to_value(unyt.kpc), dtype=float)
-        cosmology = self.par.cosmology
-        scale_factor = float(cosmology.scale_factor(initial_time))
-        hubble = float(cosmology.hubble(initial_time))
-        rho_background = float(cosmology.background_density(initial_time)) * scale_factor**3
-        amplitude = float(icparams['perturbation_amplitude'])
-        delta = amplitude / np.maximum(radius, 1.0e-30)**3
-        density = np.full_like(radius, rho_background)
-        velocity = scale_factor * hubble * radius * (
-            1.0 - delta / 3.0
-        )
-        pressure = np.full_like(radius, 0.0)
-        temperature_code = pressure * float(icparams['mean_molecular_weight']) / (
-            np.maximum(density, 1.0e-300)
-            * code_units.boltzmann_code / code_units.proton_mass_code
-        )
-        temperature_code.fill(
-            float(icparams['initial_temperature'].to_value(unyt.K))
-            / code_units.temperature_in_cgs
-        )
-        self.par.initial_temperature_code = float(temperature_code[0])
-        self.par.mu_outflow = float(icparams['mean_molecular_weight'])
-        self.fluid.rho_code = density * code_units.density_unit
-        self.fluid.vel_code = velocity * code_units.velocity_unit
-        self.fluid.temp_code = temperature_code * code_units.temperature_unit
-        self.fluid.mu = np.ones(grid_cells) * float(icparams['mean_molecular_weight'])
-
-        delta_mass = 4.0 * np.pi / 3.0 * rho_background * amplitude
-        self.dark_matter = DarkMatterShells(
-            radius=np.array([float(icparams['outer_radius'].to_value(unyt.kpc)) * 2.0]),
-            velocity=np.zeros(1),
-            mass=np.full(1, 1.0e-30) * code_units.mass_unit,
-            fixed_enclosed_mass=delta_mass * code_units.mass_unit,
-            code_units=code_units,
-        )
+    delta_mass = 4.0 * np.pi / 3.0 * rho_background * amplitude
+    sim.dark_matter = DarkMatterShells(
+        radius=np.array([float(icparams['outer_radius'].to_value(unyt.kpc)) * 2.0]),
+        velocity=np.zeros(1),
+        mass=np.full(1, 1.0e-30) * code_units.mass_unit,
+        fixed_enclosed_mass=delta_mass * code_units.mass_unit,
+        code_units=code_units,
+    )
 
 
+    return sim
 def _similarity_profiles(sim, solution):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     tau = float(np.asarray(sim.fluid.time, dtype=float).reshape(-1)[0])
@@ -297,12 +299,13 @@ def _plot_comparison(numerical, reference, output, numerical_label):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     icparams = config['initial_condition']
     output = runparams['output']
     eu.clean_previous_outputs(output)
     reference = solve_bertschinger_gas()
-    initial = Simwrap(icparams, runparams, reference)
+    config['_reference_solution'] = reference
+    initial = build_initial_condition(config)
     rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)

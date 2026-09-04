@@ -65,7 +65,7 @@ def run(config_filename=DEFAULT_CONFIG):
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial = et.Simwrap(
+    initial = et.build_initial_condition(
         {"par": par, "initial_condition": initial_condition}, units, cosmology,
         correlation_table=correlation_table,
     )
@@ -265,3 +265,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     run(parser.parse_args().config)
+
+

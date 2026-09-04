@@ -25,39 +25,43 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        if code_units is not None:
-            self.par.unit_system = code_units.unit_system
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    code_units = config['_code_units']
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    if code_units is not None:
+        sim.par.unit_system = code_units.unit_system
 
-        grid_cells = icparams['grid_cells']
-        box_size = np.ones(1) * icparams['box_size']
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordinate_system'],
-            current_time=np.ones(1) * icparams['current_time'],
-            box_size=box_size,
-        )
+    grid_cells = icparams['grid_cells']
+    box_size = np.ones(1) * icparams['box_size']
+    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system=icparams['coordinate_system'],
+        current_time=np.ones(1) * icparams['current_time'],
+        box_size=box_size,
+    )
 
-        self.mesh.boundary = np.linspace(
-            0.0 * box_size[0], box_size[0], grid_cells + 1,
-        )
+    sim.mesh.boundary = np.linspace(
+        0.0 * box_size[0], box_size[0], grid_cells + 1,
+    )
 
-        self.fluid.rho_code = (
-            np.ones(grid_cells)
-            * icparams['hydrogen_number_density']
-            * unyt.mp
-        ).to(unyt.g / unyt.cm**3)
-        self.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
-        self.fluid.temp_code = np.ones(grid_cells) * icparams['temperature']
-        self.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
-        self.fluid.ngamma_code = np.ones(grid_cells) * icparams['photon_number_density']
-        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+    sim.fluid.rho_code = (
+        np.ones(grid_cells)
+        * icparams['hydrogen_number_density']
+        * unyt.mp
+    ).to(unyt.g / unyt.cm**3)
+    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.temp_code = np.ones(grid_cells) * icparams['temperature']
+    sim.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
+    sim.fluid.ngamma_code = np.ones(grid_cells) * icparams['photon_number_density']
+    sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
+
+    return sim
 
 def interior_slice(sim):
     first = sim.par.mesh.ghost_cells
@@ -109,7 +113,9 @@ def load_history_from_outputs(outputfiles, config):
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     for outfilename in sorted(outputfiles):
-        rout = Simwrap(icparams, code_units=code_units_obj)
+        nested_config = dict(config)
+        nested_config['_code_units'] = code_units_obj
+        rout = build_initial_condition(nested_config)
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         history['time_yr'].append(time_value(rout, unyt.yr))
@@ -140,7 +146,9 @@ def output_files(outdir, outfileprefix):
     return sorted(glob.glob(outdir + '/' + outfileprefix + '_*.hdf5'))
 
 
-def save_history_plot(history, filename, icparams, runparams, target_xHI):
+def save_history_plot(history, filename, config, target_xHI):
+    icparams = config['initial_condition']
+    runparams = config['par']
     time_yr = np.asarray(history['time_yr'])
     xHI = np.asarray(history['xHI'])
     positive_time_yr = time_yr[time_yr > 0.0]
@@ -190,3 +198,7 @@ def save_history_plot(history, filename, icparams, runparams, target_xHI):
     fig.tight_layout()
     fig.savefig(filename, dpi=200)
     plt.close(fig)
+
+
+
+

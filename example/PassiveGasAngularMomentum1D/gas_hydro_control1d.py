@@ -28,16 +28,12 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('gas_hydro_control1d.yaml')
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
-    icparams = config['initial_condition']
+    runparams = config['par']
     Path(runparams['output']['directory']).mkdir(parents=True, exist_ok=True)
     Path(runparams['output']['savedir']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(runparams)
-    initial = et.Simwrap(
-        icparams,
-        CodeUnits.from_mapping(runparams['units']['CodeUnits']),
-        runparams['mesh']['grid_cells'],
-    )
+    config['_code_units'] = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    initial = et.build_initial_condition(config)
     rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
 
     sim = Rsim(runparams)

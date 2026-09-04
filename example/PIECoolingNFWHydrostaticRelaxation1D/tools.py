@@ -20,7 +20,7 @@ from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 
 nfw_halo_parameters = BASE.nfw_halo_parameters
 virial_temperature = BASE.virial_temperature
-Simwrap = BASE.Simwrap
+build_initial_condition = BASE.build_initial_condition
 spherical_cell_centers = BASE.spherical_cell_centers
 hydrostatic_density_profile = BASE.hydrostatic_density_profile
 nfw_enclosed_mass = BASE.nfw_enclosed_mass

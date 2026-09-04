@@ -90,90 +90,69 @@ def boundary_inflow_state(icparams, halo, table, par_config):
     }
 
 
-class Simwrap:
-    """Build a hot NFW atmosphere surrounded by steady cold PIE inflow."""
-
-    def __init__(self, icparams, runparams, code_units, table):
-        self.par = SimpleNamespace()
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(runparams['mesh']['grid_cells'])
-        current_time = icparams['current_time']
-
-        halo = nfw_halo_parameters(
-            icparams['halo_mass'], icparams['concentration'],
-            icparams['redshift'], icparams['overdensity'], icparams['h0'],
-        )
-        r200 = halo['virial_radius']
-        inner = float(icparams['inner_radius_over_R200']) * r200
-        outer = float(icparams['outer_radius_over_R200']) * r200
-        self.par.simulation = SimpleNamespace(
-            coordinate_system='spherical',
-            current_time=current_time,
-            box_size=outer,
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-        self.mesh.boundary = np.geomspace(
-            inner.to_value(unyt.kpc), outer.to_value(unyt.kpc),
-            grid_cells + 1,
-        ) * unyt.kpc
-        self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
-        radius = self.mesh.coordinate
-
-        inflow_velocity = (
-            -float(icparams['inflow_velocity_over_V200']) * halo['virial_velocity']
-        ).to(unyt.cm / unyt.s)
-        mdot = icparams['baryon_accretion_rate']
-        rho_cold = inflow_density(mdot, radius, inflow_velocity)
-        temperature_cold = pie_equilibrium_temperature(
-            rho_cold.to_value(unyt.g / unyt.cm**3), table,
-            float(runparams['chemistry']['hydrogen_mass_fraction']),
-            float(runparams['thermochemistry']['metallicity']),
-            float(runparams['thermochemistry']['metal_pie_redshift']),
-        ) * unyt.K
-
-        transition = float(icparams['atmosphere_radius_over_R200']) * r200
-        transition_density = inflow_density(mdot, transition, inflow_velocity)
-        ram_pressure = transition_density * inflow_velocity**2
-        hot_pressure = float(icparams['atmosphere_ram_pressure_fraction']) * ram_pressure
-        hot_temperature = virial_temperature(halo, float(icparams['mu']))
-        rho_transition = (
-            hot_pressure.to_value(unyt.erg / unyt.cm**3)
-            * float(icparams['mu']) * PROTON_MASS_CGS
-            / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
-        ) * unyt.g / unyt.cm**3
-
-        potential = NFW.nfw_potential(
-            radius, halo['scale_density'], halo['scale_radius']
-        ).to_value(unyt.cm**2 / unyt.s**2)
-        potential_transition = NFW.nfw_potential(
-            transition, halo['scale_density'], halo['scale_radius']
-        ).to_value(unyt.cm**2 / unyt.s**2)
-        beta = (
-            float(icparams['mu']) * PROTON_MASS_CGS
-            / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
-        )
-        rho_hot = rho_transition * np.exp(-beta * (potential - potential_transition))
-
-        width = float(icparams['transition_width_over_R200']) * r200
-        weight = 0.5 * (
-            1.0 + np.tanh(
-                ((radius - transition) / width).to_value(unyt.dimensionless)
-            )
-        )
-        log_density = (
-            (1.0 - weight) * np.log(rho_hot.to_value(unyt.g / unyt.cm**3))
-            + weight * np.log(rho_cold.to_value(unyt.g / unyt.cm**3))
-        )
-        self.fluid.rho_code = np.exp(log_density) * unyt.g / unyt.cm**3
-        self.fluid.temp_code = (
-            (1.0 - weight) * hot_temperature.to_value(unyt.K)
-            + weight * temperature_cold.to_value(unyt.K)
-        ) * unyt.K
-        self.fluid.vel_code = weight * inflow_velocity
-        self.fluid.mu = np.ones(grid_cells) * float(icparams['mu'])
-
+def build_initial_condition(config):
+    """Build a hot NFW atmosphere with a steady cold PIE inflow."""
+    icparams = config['initial_condition']
+    par_config = config['par']
+    code_units = config['_code_units']
+    table = config['_pie_table']
+    sim = SimpleNamespace(
+        par=SimpleNamespace(units=SimpleNamespace(CodeUnits=code_units)),
+        mesh=SimpleNamespace(),
+        fluid=SimpleNamespace(),
+    )
+    grid_cells = int(par_config['mesh']['grid_cells'])
+    halo = nfw_halo_parameters(
+        icparams['halo_mass'], icparams['concentration'],
+        icparams['redshift'], icparams['overdensity'], icparams['h0'],
+    )
+    r200 = halo['virial_radius']
+    inner = float(icparams['inner_radius_over_R200']) * r200
+    outer = float(icparams['outer_radius_over_R200']) * r200
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system='spherical', current_time=icparams['current_time'], box_size=outer,
+    )
+    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    sim.mesh.boundary = np.geomspace(inner.to_value(unyt.kpc), outer.to_value(unyt.kpc), grid_cells + 1) * unyt.kpc
+    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
+    radius = sim.mesh.coordinate
+    inflow_velocity = (-float(icparams['inflow_velocity_over_V200']) * halo['virial_velocity']).to(unyt.cm / unyt.s)
+    mdot = icparams['baryon_accretion_rate']
+    rho_cold = inflow_density(mdot, radius, inflow_velocity)
+    temperature_cold = pie_equilibrium_temperature(
+        rho_cold.to_value(unyt.g / unyt.cm**3), table,
+        float(par_config['chemistry']['hydrogen_mass_fraction']),
+        float(par_config['thermochemistry']['metallicity']),
+        float(par_config['thermochemistry']['metal_pie_redshift']),
+    ) * unyt.K
+    transition = float(icparams['atmosphere_radius_over_R200']) * r200
+    transition_density = inflow_density(mdot, transition, inflow_velocity)
+    ram_pressure = transition_density * inflow_velocity**2
+    hot_pressure = float(icparams['atmosphere_ram_pressure_fraction']) * ram_pressure
+    hot_temperature = virial_temperature(halo, float(icparams['mu']))
+    rho_transition = (
+        hot_pressure.to_value(unyt.erg / unyt.cm**3) * float(icparams['mu']) * PROTON_MASS_CGS
+        / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
+    ) * unyt.g / unyt.cm**3
+    potential = NFW.nfw_potential(radius, halo['scale_density'], halo['scale_radius']).to_value(unyt.cm**2 / unyt.s**2)
+    potential_transition = NFW.nfw_potential(transition, halo['scale_density'], halo['scale_radius']).to_value(unyt.cm**2 / unyt.s**2)
+    beta = float(icparams['mu']) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
+    rho_hot = rho_transition * np.exp(-beta * (potential - potential_transition))
+    width = float(icparams['transition_width_over_R200']) * r200
+    weight = 0.5 * (1.0 + np.tanh(((radius - transition) / width).to_value(unyt.dimensionless)))
+    log_density = (
+        (1.0 - weight) * np.log(rho_hot.to_value(unyt.g / unyt.cm**3))
+        + weight * np.log(rho_cold.to_value(unyt.g / unyt.cm**3))
+    )
+    sim.fluid.rho_code = np.exp(log_density) * unyt.g / unyt.cm**3
+    sim.fluid.vel_code = weight * inflow_velocity
+    sim.fluid.temp_code = (
+        (1.0 - weight) * hot_temperature.to_value(unyt.K)
+        + weight * temperature_cold.to_value(unyt.K)
+    ) * unyt.K
+    sim.fluid.mu = np.ones(grid_cells) * float(icparams['mu'])
+    sim.fluid.xHI = np.ones(grid_cells)
+    return sim
 
 def load_snapshot(filename):
     """Load physical cells from a RadHydropy snapshot in CGS units."""

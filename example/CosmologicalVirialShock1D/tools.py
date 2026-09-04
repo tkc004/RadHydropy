@@ -165,6 +165,67 @@ def density_contrast_profile(
     return amplitude * xi, amplitude * mean_xi
 
 
+def build_initial_condition(config, units, cosmology, pie_table=None, correlation_table=None):
+    """Build the cosmological gas state from nested configuration mappings."""
+    ic = config['initial_condition']
+    par = config['par']
+    grid_cells = int(par['mesh']['grid_cells'])
+    result = SimpleNamespace(par=SimpleNamespace(), mesh=SimpleNamespace(), fluid=SimpleNamespace())
+    cosmic_time = float(ic['initial_cosmic_time'])
+    result.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
+    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=np.array([float(ic['rmax'])]), coordinate_system='spherical')
+    result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
+    result.par.units = SimpleNamespace(CodeUnits=units)
+    result.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    result.par.cosmological_expansion = True
+    result.par.supercomoving_coordinates = True
+    result.par.cosmological_gravity = True
+    result.par.selfgravity = True
+    result.par.externalgravity = False
+    result.par.cosmology = cosmology
+    result.par.cosmology_type = cosmology.type_name
+    result.par.cosmology_t_ref = cosmology.t_ref
+    result.par.cosmology_a_ref = cosmology.a_ref
+    result.par.coordinate_frame = 'comoving'
+    result.par.time_coordinate = 'supercomoving'
+    result.par.velocity_representation = 'supercomoving_peculiar'
+    result.par.density_representation = 'comoving'
+    result.par.pressure_representation = 'supercomoving'
+    result.par.temperature_representation = 'supercomoving'
+    result.mesh.boundary = np.geomspace(float(ic['rmin']), float(ic['rmax']), grid_cells + 1)
+    inner_wall = float(ic.get('inner_wall_radius_comoving', ic['rmin']))
+    result.mesh.boundary[0] = 0.0 if inner_wall <= 0.0 else inner_wall
+    result.mesh.coordinate = cell_centres(result.mesh.boundary)
+    result.mesh.area = 4.0 * np.pi * result.mesh.boundary[:-1]**2
+    result.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary**3)
+    a = float(cosmology.scale_factor(cosmic_time))
+    hubble = float(cosmology.hubble(cosmic_time))
+    rho_total = float(cosmology.background_density(cosmic_time))
+    rho_comoving = rho_total * a**3
+    fb = float(ic['baryon_fraction'])
+    delta, mean_delta = density_contrast_profile(result.mesh.coordinate, ic, cosmology, correlation_table=correlation_table, length_unit_mpc_h=float(units.length_in_cgs) / float((1.0 * unyt.Mpc).to_value('cm')) * float(ic.get('correlation_h', 0.674)))
+    result.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
+    rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
+    n_h = rho_total_cgs * fb * float(ic['hydrogen_mass_fraction']) * (1.0 + delta) / PROTON_MASS_CGS
+    redshift = 1.0 / a - 1.0
+    if bool(ic.get('cmb_equilibrium_initial', False)):
+        temp_phys = np.full(grid_cells, cmb_temperature(redshift, ic.get('cmb_temperature_0', 2.7255)))
+        electron_fraction = np.full(grid_cells, cmb_equilibrium_electron_fraction(ic))
+        result.fluid.xHI = 1.0 - electron_fraction
+        result.fluid.mu = 1.0 / (float(ic['hydrogen_mass_fraction']) * (2.0 - result.fluid.xHI))
+    elif redshift > float(ic.get('uv_background_on_redshift', 10.0)):
+        temp_phys = float(ic.get('cie_initial_temperature', 10.0))
+    else:
+        temp_phys = pie_temperature(pie_table, float(np.median(n_h)), redshift) if pie_table else 1.0e4
+    result.fluid.temp_code = temp_phys * a**2 * np.ones(grid_cells)
+    if not bool(ic.get('cmb_equilibrium_initial', False)):
+        result.fluid.mu = np.full(grid_cells, float(ic['mu']))
+    result.fluid.vel_code = -a**2 * hubble * mean_delta * result.mesh.coordinate / 3.0
+    if 'gas_specific_angular_momentum' in ic:
+        result.fluid.specific_angular_momentum_code = np.full(grid_cells, float(ic['gas_specific_angular_momentum']))
+    return result
+
+
 def pie_temperature(table, hydrogen_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
@@ -200,115 +261,6 @@ def cmb_equilibrium_electron_fraction(ic):
         raise ValueError("cmb_residual_electron_fraction must lie in [0, 1]")
     return value
 
-
-class Simwrap:
-    """Build a comoving/supercomoving IC accepted by ``writehdf5``."""
-
-    def __init__(self, config, units, cosmology, pie_table=None, correlation_table=None):
-        ic = config["initial_condition"]
-        par = config["par"]
-        self.par = SimpleNamespace()
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        grid_cells = int(par["mesh"]["grid_cells"])
-        cosmic_time = float(ic["initial_cosmic_time"])
-        self.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
-        self.par.simulation = SimpleNamespace(
-            current_time=self.par.time,
-            box_size=np.array([float(ic["rmax"])]),
-            coordinate_system="spherical",
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
-        self.par.units = SimpleNamespace(CodeUnits=units)
-        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
-        self.par.cosmological_expansion = True
-        self.par.supercomoving_coordinates = True
-        self.par.cosmological_gravity = True
-        self.par.selfgravity = True
-        self.par.externalgravity = False
-        self.par.cosmology = cosmology
-        self.par.cosmology_type = cosmology.type_name
-        self.par.cosmology_t_ref = cosmology.t_ref
-        self.par.cosmology_a_ref = cosmology.a_ref
-        self.par.coordinate_frame = "comoving"
-        self.par.time_coordinate = "supercomoving"
-        self.par.velocity_representation = "supercomoving_peculiar"
-        self.par.density_representation = "comoving"
-        self.par.pressure_representation = "supercomoving"
-        self.par.temperature_representation = "supercomoving"
-
-        self.mesh.boundary = np.geomspace(float(ic["rmin"]), float(ic["rmax"]), grid_cells + 1)
-        # Keep a small, finite comoving inner wall when requested.  Setting
-        # this face to zero would turn the test back into the singular
-        # spherical-origin problem, whose origin flux is intentionally zero.
-        inner_wall = float(ic.get("inner_wall_radius_comoving", ic["rmin"]))
-        if inner_wall <= 0.0:
-            self.mesh.boundary[0] = 0.0
-        else:
-            self.mesh.boundary[0] = inner_wall
-        self.mesh.coordinate = cell_centres(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary**3)
-
-        a = float(cosmology.scale_factor(cosmic_time))
-        hubble = float(cosmology.hubble(cosmic_time))
-        rho_total = float(cosmology.background_density(cosmic_time))
-        rho_comoving = rho_total * a**3
-        fb = float(ic["baryon_fraction"])
-        delta, mean_delta = density_contrast_profile(
-            self.mesh.coordinate,
-            ic,
-            cosmology,
-            correlation_table=correlation_table,
-            length_unit_mpc_h=(
-                float(units.length_in_cgs)
-                / float((1.0 * unyt.Mpc).to_value("cm"))
-                * float(ic.get("correlation_h", 0.674))
-            ),
-        )
-        self.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
-        rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
-        rho_g_cgs = rho_total_cgs * fb * (1.0 + delta)
-        n_h = (
-            rho_g_cgs * float(ic["hydrogen_mass_fraction"])
-            / PROTON_MASS_CGS
-        )
-        redshift = 1.0 / a - 1.0
-        if bool(ic.get("cmb_equilibrium_initial", False)):
-            temp_phys = np.full(
-                grid_cells,
-                cmb_temperature(
-                    redshift,
-                    ic.get("cmb_temperature_0", 2.7255),
-                ),
-            )
-            electron_fraction = np.full(
-                grid_cells,
-                cmb_equilibrium_electron_fraction(ic),
-            )
-            self.fluid.xHI = 1.0 - electron_fraction
-            self.fluid.mu = 1.0 / (
-                float(ic["hydrogen_mass_fraction"])
-                * (2.0 - self.fluid.xHI)
-            )
-        elif redshift > float(ic.get("uv_background_on_redshift", 10.0)):
-            # Before the UV background turns on, initialize cold gas; CIE is
-            # the active cooling model during this epoch.
-            temp_phys = float(ic.get("cie_initial_temperature", 10.0))
-        else:
-            temp_phys = (
-                pie_temperature(pie_table, float(np.median(n_h)), redshift)
-                if pie_table else 1.0e4
-            )
-        self.fluid.temp_code = temp_phys * a**2 * np.ones(grid_cells)
-        if not bool(ic.get("cmb_equilibrium_initial", False)):
-            self.fluid.mu = np.full(grid_cells, float(ic["mu"]))
-        self.fluid.vel_code = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
-        if "gas_specific_angular_momentum" in ic:
-            self.fluid.specific_angular_momentum_code = np.full(
-                grid_cells,
-                float(ic["gas_specific_angular_momentum"]),
-            )
 
 
 def make_dark_matter(
@@ -753,3 +705,4 @@ class VolumeSmoothedDarkMatter:
             left=0.0,
             right=total,
         )
+

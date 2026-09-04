@@ -103,7 +103,7 @@ def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwar
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     icparams = config["initial_condition"]
     eu.clean_previous_outputs(runparams)
     Path(runparams["output"]["directory"]).mkdir(parents=True, exist_ok=True)

@@ -110,7 +110,7 @@ def _absorbed_momentum(source_result, mesh, par, dt):
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     icparams = config["initial_condition"]
     eu.clean_previous_outputs(runparams)
     write_initial_condition(

@@ -41,42 +41,44 @@ def uniform_sphere_acceleration(radius, rho0):
     ).to(unyt.cm / unyt.s**2)
 
 
-class Simwrap:
-    """Build the uniform-density initial condition for ``writehdf5``."""
+def build_initial_condition(config, code_units=None):
+    if code_units is None:
+        code_units = config['_code_units']
+    sim = SimpleNamespace()
+    icparams = config['initial_condition']
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.CodeUnits = code_units
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    sim.par.unit_system = code_units.unit_system
+    sim.par.nogrid = grid_cells
+    sim.par.coordsys = icparams['coordsys']
+    sim.par.boxsize = np.ones(1) * icparams['boxsize']
+    sim.par.time = np.ones(1) * icparams['time']
+    sim.par.simulation = SimpleNamespace(current_time=sim.par.time, box_size=sim.par.boxsize, coordinate_system='spherical')
+    sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=0)
+    sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
 
-    def __init__(self, config, code_units):
-        icparams = config['initial_condition']
-        grid_cells = int(config['par']['mesh']['grid_cells'])
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = grid_cells
-        self.par.coordsys = icparams['coordsys']
-        self.par.boxsize = np.ones(1) * icparams['boxsize']
-        self.par.time = np.ones(1) * icparams['time']
-        self.par.simulation = SimpleNamespace(current_time=self.par.time, box_size=self.par.boxsize, coordinate_system='spherical')
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
-        self.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    sim.mesh.boundary = np.linspace(
+        icparams['rmin'],
+        icparams['rmax'],
+        sim.par.nogrid + 1,
+    )
+    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
+    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
+    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    )
 
-        self.mesh.boundary = np.linspace(
-            icparams['rmin'],
-            icparams['rmax'],
-            self.par.nogrid + 1,
-        )
-        self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * (
-            self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
-        )
+    sim.fluid.rho_code = np.ones(sim.par.nogrid) * icparams['rho0']
+    sim.fluid.temp_code = np.ones(sim.par.nogrid) * icparams['tempini']
+    sim.fluid.mu = np.ones(sim.par.nogrid) * icparams['muini']
+    sim.fluid.vel_code = np.zeros(sim.par.nogrid) * unyt.cm / unyt.s
 
-        self.fluid.rho_code = np.ones(self.par.nogrid) * icparams['rho0']
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['tempini']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['muini']
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
 
+    return sim
 
 def read_code_units(runparams):
     return CodeUnits.from_mapping(runparams['CodeUnits'])
@@ -84,7 +86,7 @@ def read_code_units(runparams):
 
 def read_snapshot(filename, runparams):
     code_units = read_code_units(runparams)
-    result = Simwrap(
+    result = build_initial_condition(
         {
             'nogrid': 1,
             'coordsys': 'spherical',
@@ -100,3 +102,8 @@ def read_snapshot(filename, runparams):
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
+
+
+
+
+

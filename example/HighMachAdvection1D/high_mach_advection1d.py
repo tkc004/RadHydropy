@@ -50,7 +50,8 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     output = Path(runparams["output"]["directory"])
     output.mkdir(parents=True, exist_ok=True)
     code_units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
-    initial = et.Simwrap(icparams, code_units=code_units)
+    config['_code_units'] = code_units
+    initial = et.build_initial_condition(config)
     initial.fluid.eos = None
     rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
 
@@ -64,7 +65,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     density_history = []
     temperature_history = []
     for filename in snapshots:
-        state = et.Simwrap(icparams, code_units=code_units)
+        state = et.build_initial_condition(config)
         rio.readhdf5(state.par, state.mesh, state.fluid, filename)
         radius, density, temperature = et.primitive_profiles(state)
         _, entropy = et.entropy_profile(state)
@@ -192,3 +193,4 @@ if __name__ == "__main__":
         dual_energy=False if args.without_dual_energy else None,
         pressure_selection="conservative" if args.conservative_pressure else None,
     )
+

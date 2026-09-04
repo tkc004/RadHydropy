@@ -12,41 +12,34 @@ SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
 KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
 
-class Simwrap:
-    """Build opposing radial streams that collide in a spherical shell."""
-
-    def __init__(self, config, code_units, hydrogen_mass_fraction):
-        icparams = config['initial_condition']
-        par = config['par']
-        self.par = SimpleNamespace()
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        grid_cells = int(par['mesh']['grid_cells'])
-        self.par.time = icparams['time'] * np.ones(1)
-        self.par.simulation = SimpleNamespace(
-            current_time=icparams['time'], box_size=icparams['boxsize'],
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    par = config['par']
+    code_units = config['_code_units']
+    grid_cells = int(par['mesh']['grid_cells'])
+    result = SimpleNamespace()
+    result.par = SimpleNamespace(
+        units=SimpleNamespace(CodeUnits=code_units),
+        time=initial['time'] * np.ones(1),
+        simulation=SimpleNamespace(
+            current_time=initial['time'], box_size=initial['boxsize'],
             coordinate_system='spherical',
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-
-        self.mesh.boundary = np.linspace(
-            icparams['rmin'], icparams['rmax'], grid_cells + 1
-        )
-        rho = (
-            icparams['hydrogen_density'] * unyt.mp
-            / hydrogen_mass_fraction
-        )
-        self.fluid.rho_code = np.ones(grid_cells) * rho
-        coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
-        midpoint = 0.5 * (icparams['rmin'] + icparams['rmax'])
-        self.fluid.vel_code = np.where(
-            coordinate < midpoint,
-            icparams['outflow_velocity'],
-            icparams['inflow_velocity'],
-        )
-        self.fluid.temp_code = np.ones(grid_cells) * icparams['inflow_temperature']
-        self.fluid.mu = np.ones(grid_cells) * icparams['muini']
+        ),
+        mesh=SimpleNamespace(grid_cells=grid_cells, ghost_cells=0),
+    )
+    result.mesh = SimpleNamespace()
+    result.fluid = SimpleNamespace()
+    result.mesh.boundary = np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1)
+    rho = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
+    result.fluid.rho_code = np.ones(grid_cells) * rho
+    coordinate = 0.5 * (result.mesh.boundary[1:] + result.mesh.boundary[:-1])
+    midpoint = 0.5 * (initial['rmin'] + initial['rmax'])
+    result.fluid.vel_code = np.where(
+        coordinate < midpoint, initial['outflow_velocity'], initial['inflow_velocity']
+    )
+    result.fluid.temp_code = np.ones(grid_cells) * initial['inflow_temperature']
+    result.fluid.mu = np.ones(grid_cells) * initial['muini']
+    return result
 
 
 def physical_cells(header):
@@ -138,3 +131,4 @@ def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction
         'cooling_length_kpc': cooling_length_cgs_cm / KPC_CM,
         'cooling_cells': cooling_length_cgs_cm / cell_width_cgs_cm,
     }
+

@@ -21,89 +21,41 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    """Build the spherical converging-flow IC for ``writehdf5``."""
-
-    def __init__(self, icparams, runparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        if code_units is None:
-            code_units = CodeUnits.from_mapping(
-                runparams['units']['CodeUnits']
-            )
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
-        self.par.nogrid = int(icparams['grid_cells'])
-        self.par.coordsys = icparams['coordinate_system']
-        rmin = quantity_to_value(
-            icparams['rmin'], code_units.length_unit
-        )
-        rmax = quantity_to_value(
-            icparams['rmax'], code_units.length_unit
-        )
-        if not 0.0 < rmin < rmax:
-            raise ValueError('spherical IC requires 0 < rmin < rmax')
-        self.par.inner_radius = rmin
-        self.par.boxsize = np.asarray([rmax])
-        self.par.time = np.asarray([
-            quantity_to_value(icparams['current_time'], code_units.time_unit)
-        ])
-        self.par.simulation = SimpleNamespace(
-            current_time=self.par.time,
-            box_size=self.par.boxsize,
-            coordinate_system=self.par.coordsys,
-        )
-        self.par.mesh = SimpleNamespace(
-            grid_cells=self.par.nogrid,
-            ghost_cells=0,
-        )
-        hydro = runparams['hydrodynamics']
-        self.par.hydrodynamics = SimpleNamespace(
-            gamma=float(hydro['gamma']),
-        )
-        self.par.dual_energy = bool(hydro.get('dual_energy', False))
-
-        faces = np.linspace(
-            self.par.inner_radius,
-            self.par.boxsize[0],
-            self.par.nogrid + 1,
-        )
-        self.mesh.boundary = faces
-        self.mesh.coordinate = 0.5 * (faces[1:] + faces[:-1])
-        self.mesh.area = 4.0 * np.pi * faces[:-1] ** 2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(faces ** 3)
-        self.fluid.rho_code = np.full(
-            self.par.nogrid,
-            quantity_to_value(
-                icparams['initial_density'], code_units.density_unit
-            ),
-        )
-        self.fluid.temp_code = np.full(
-            self.par.nogrid,
-            quantity_to_value(
-                icparams['temperature'], code_units.temperature_unit
-            ),
-        )
-        self.fluid.mu = np.full(
-            self.par.nogrid, float(icparams['mean_molecular_weight'])
-        )
-        self.fluid.vel_code = np.full(
-            self.par.nogrid,
-            quantity_to_value(
-                icparams['velocity'], code_units.velocity_unit
-            ),
-        )
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    runtime = config['par']
+    code_units = config['_code_units']
+    result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
+    result.par.CodeUnits = code_units
+    result.par.units = SimpleNamespace(CodeUnits=code_units)
+    result.par.unit_system = code_units.unit_system
+    result.par.nogrid = int(runtime['mesh']['grid_cells'])
+    result.par.coordsys = runtime['simulation']['coordinate_system']
+    rmin = quantity_to_value(initial['rmin'], code_units.length_unit)
+    rmax = quantity_to_value(initial['rmax'], code_units.length_unit)
+    result.par.inner_radius = rmin
+    result.par.boxsize = np.asarray([rmax])
+    result.par.time = np.asarray([quantity_to_value(initial['current_time'], code_units.time_unit)])
+    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=result.par.boxsize, coordinate_system=result.par.coordsys)
+    result.par.mesh = SimpleNamespace(grid_cells=result.par.nogrid, ghost_cells=0)
+    result.par.hydrodynamics = SimpleNamespace(gamma=float(runtime['hydrodynamics']['gamma']))
+    result.par.dual_energy = bool(runtime['hydrodynamics'].get('dual_energy', False))
+    faces = np.linspace(result.par.inner_radius, result.par.boxsize[0], result.par.nogrid + 1)
+    result.mesh.boundary = faces
+    result.mesh.coordinate = 0.5 * (faces[1:] + faces[:-1])
+    result.mesh.area = 4.0 * np.pi * faces[:-1] ** 2
+    result.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(faces ** 3)
+    result.fluid.rho_code = np.full(result.par.nogrid, quantity_to_value(initial['initial_density'], code_units.density_unit))
+    result.fluid.temp_code = np.full(result.par.nogrid, quantity_to_value(initial['temperature'], code_units.temperature_unit))
+    result.fluid.mu = np.full(result.par.nogrid, float(initial['mean_molecular_weight']))
+    result.fluid.vel_code = np.full(result.par.nogrid, quantity_to_value(initial['velocity'], code_units.velocity_unit))
+    return result
 
 
 def read_output(filename, runparams):
     """Read one output with the metadata needed by the HDF5 reader."""
     code_units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    result = Simwrap.__new__(Simwrap)
-    result.par = Par()
-    result.mesh = Mesh()
-    result.fluid = Fluid()
+    result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
     result.par.CodeUnits = code_units
     result.par.units = SimpleNamespace(CodeUnits=code_units)
     result.par.simulation = SimpleNamespace(coordinate_system='spherical')

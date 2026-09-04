@@ -46,7 +46,8 @@ def main(config_filename=DEFAULT_CONFIG):
         initial_mapping['overdensity'], initial_mapping['h0'],
     )
     temperature = et.virial_temperature(halo, initial_mapping['mu'])
-    initial = et.Simwrap(config, code_units=code_units)
+    config['_code_units'] = code_units
+    initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
     runtime_only = {
         'box_size', 'coordinate_system', 'current_time', 'grid_cells',
@@ -120,3 +121,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
+

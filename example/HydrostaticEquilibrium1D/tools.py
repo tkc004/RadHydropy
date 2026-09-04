@@ -113,59 +113,65 @@ def constant_gravity_acceleration(gravity_strength, code_units=None):
     return _acceleration
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None, grid_cells=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.unit_system = code_units.unit_system
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    code_units = config['_code_units']
+    grid_cells = config['par']['mesh']['grid_cells']
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.CodeUnits = code_units
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    sim.par.unit_system = code_units.unit_system
 
-        self.par.nogrid = int(icparams.get('nogrid', grid_cells))
-        self.par.coordsys = 'cartesian'
-        box_size = _physical_value(
-            icparams['box_size'], unyt.cm, 'box_size'
-        ) * unyt.cm
-        current_time = _physical_value(
-            icparams['current_time'], unyt.s, 'current_time'
-        ) * unyt.s
-        self.par.boxsize = np.ones(1) * box_size
-        self.par.time = np.ones(1) * current_time
-        self.par.simulation = SimpleNamespace(
-            current_time=self.par.time,
-            box_size=self.par.boxsize,
-            coordinate_system='cartesian',
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=self.par.nogrid, ghost_cells=0)
+    sim.par.nogrid = int(icparams.get('nogrid', grid_cells))
+    sim.par.coordsys = 'cartesian'
+    box_size = _physical_value(
+        icparams['box_size'], unyt.cm, 'box_size'
+    ) * unyt.cm
+    current_time = _physical_value(
+        icparams['current_time'], unyt.s, 'current_time'
+    ) * unyt.s
+    sim.par.boxsize = np.ones(1) * box_size
+    sim.par.time = np.ones(1) * current_time
+    sim.par.simulation = SimpleNamespace(
+        current_time=sim.par.time,
+        box_size=sim.par.boxsize,
+        coordinate_system='cartesian',
+    )
+    sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=0)
 
-        self.mesh.boundary = np.linspace(
-            0.0,
-            1.0,
-            self.par.nogrid + 1,
-        ) * box_size
-        self.mesh.coordinate = 0.5 * (
-            self.mesh.boundary[:-1] + self.mesh.boundary[1:]
-        )
-        dx = self.mesh.boundary[1] - self.mesh.boundary[0]
-        self.mesh.area = np.ones(self.par.nogrid) * (1.0 * unyt.cm**2)
-        self.mesh.vol = self.mesh.area * dx
+    sim.mesh.boundary = np.linspace(
+        0.0,
+        1.0,
+        sim.par.nogrid + 1,
+    ) * box_size
+    sim.mesh.coordinate = 0.5 * (
+        sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
+    )
+    dx = sim.mesh.boundary[1] - sim.mesh.boundary[0]
+    sim.mesh.area = np.ones(sim.par.nogrid) * (1.0 * unyt.cm**2)
+    sim.mesh.vol = sim.mesh.area * dx
 
-        self.fluid.temp_code = np.ones(self.par.nogrid) * icparams['initial_temperature']
-        self.fluid.mu = np.ones(self.par.nogrid) * icparams['mean_molecular_weight']
-        self.fluid.vel_code = np.zeros(self.par.nogrid) * unyt.cm / unyt.s
-        self.fluid.rho_code = hydrostatic_density_profile(
-            self.mesh.coordinate,
-            icparams['reference_density'],
-            icparams['initial_temperature'],
-            icparams['mean_molecular_weight'],
-            icparams['gravity_strength'],
-            code_units=code_units,
-        )
+    sim.fluid.temp_code = np.ones(sim.par.nogrid) * icparams['initial_temperature']
+    sim.fluid.mu = np.ones(sim.par.nogrid) * icparams['mean_molecular_weight']
+    sim.fluid.vel_code = np.zeros(sim.par.nogrid) * unyt.cm / unyt.s
+    sim.fluid.rho_code = hydrostatic_density_profile(
+        sim.mesh.coordinate,
+        icparams['reference_density'],
+        icparams['initial_temperature'],
+        icparams['mean_molecular_weight'],
+        icparams['gravity_strength'],
+        code_units=code_units,
+    )
 
 
-def ReadandPlot(outfilename, icparams, runparams, **kwargs):
+    return sim
+def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
+    icparams = config['initial_condition']
+    runparams = config['par']
     code_units_mapping = runparams.get('units', {}).get('CodeUnits')
     code_units_obj = (
         CodeUnits.from_mapping(code_units_mapping)
@@ -178,11 +184,9 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
             'UnitTemp_in_cgs': 1.0,
         })
     )
-    rout = Simwrap(
-        icparams,
-        code_units=code_units_obj,
-        grid_cells=runparams['mesh']['grid_cells'],
-    )
+    nested_config = dict(config)
+    nested_config['_code_units'] = code_units_obj
+    rout = build_initial_condition(nested_config)
     if code_units_obj is not None:
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)

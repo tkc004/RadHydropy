@@ -25,7 +25,7 @@ from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
-from tools import Simwrap
+from tools import build_initial_condition
 
 
 DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_cooling_isochoric_parcel1d.yaml'
@@ -100,14 +100,16 @@ def _run_case(config, label, density, temperature, table):
     })
     output_prefix = case['output']['filename_prefix']
     case_icparams = dict(initial_condition)
+    case_icparams.update({
+        'hydrogen_density_cgs_cm3': density,
+        'temperature_unyt': temperature * unyt.K,
+    })
     case['thermochemistry']['metallicity'] = thermo['metallicity']
     eu.clean_previous_outputs(case)
     output_dir.mkdir(parents=True, exist_ok=True)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
-    initial_state = Simwrap(
-        case_icparams, code_units, density,
-        case['thermochemistry']['hydrogen_mass_fraction'], temperature * unyt.K,
-    )
+    case_config = {'par': case, 'initial_condition': case_icparams, '_code_units': code_units}
+    initial_state = build_initial_condition(case_config)
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
     sim = Rsim(case)
     # This is a one-cell isochoric parcel.  Use the dedicated source-only
@@ -291,3 +293,4 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
+

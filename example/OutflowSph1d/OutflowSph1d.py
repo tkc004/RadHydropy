@@ -40,7 +40,8 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(runparams['output'])
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
-    ric = et.Simwrap(ICparams, code_units=code_units_obj)
+    config['_code_units'] = code_units_obj
+    ric = et.build_initial_condition(config)
     rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
     mainrun = Rsim(runparams)
     mainrun.RunAll(outputtime=0)
@@ -52,8 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         et.ReadandPlot(
             outfilename,
-            ICparams,
-            runparams,
+            config,
             ls='none',
             marker='o',
             mfc='none',
@@ -78,3 +78,6 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
+
+
+

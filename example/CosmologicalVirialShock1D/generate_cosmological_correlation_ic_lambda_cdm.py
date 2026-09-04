@@ -53,7 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
         table_filename = config_filename.parent / table_filename
     correlation_table = et.load_lcdm_correlation_table(table_filename)
 
-    initial = et.Simwrap(
+    initial = et.build_initial_condition(
         {"par": par, "initial_condition": icparams},
         units,
         cosmology,
@@ -112,3 +112,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
+
+

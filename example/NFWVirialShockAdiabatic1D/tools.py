@@ -59,55 +59,57 @@ def hubble_rate(h0, omega_m, omega_lambda, redshift):
     )
 
 
-class Simwrap:
-    def __init__(self, config, code_units=None):
-        icparams = config['initial_condition']
-        grid_cells = int(config['par']['mesh']['grid_cells'])
-        box_size = icparams['boxsize']
-        time_value = icparams['time']
-        radius_min = icparams['rmin']
-        radius_max = icparams['rmax']
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        box_size = np.ones(1) * box_size
-        self.par.time = np.ones(1) * time_value
-        self.par.simulation = SimpleNamespace(
-            coordinate_system='spherical',
-            current_time=self.par.time,
-            box_size=box_size,
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-        self.mesh.boundary = np.linspace(
-            radius_min, radius_max, grid_cells + 1
-        )
-        self.mesh.coordinate = NFW.spherical_cell_centers(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * (
-            self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3
-        )
-        mean_density = cosmic_mean_baryon_density(
-            icparams['h0'], icparams['omega_b'], icparams['initial_redshift']
-        )
-        expansion_rate = hubble_rate(
-            icparams['h0'], icparams['omega_m'], icparams['omega_lambda'],
-            icparams['initial_redshift']
-        )
-        cmb_temperature = icparams.get(
-            'cmb_temperature_0', icparams['initial_temperature']
-        )
-        self.fluid.temp_code = np.ones(grid_cells) * cmb_temperature * (
-            1.0 + float(icparams['initial_redshift'])
-        )
-        self.fluid.mu = np.ones(grid_cells) * icparams['mu']
-        self.fluid.vel_code = expansion_rate * self.mesh.coordinate
-        self.fluid.rho_code = np.ones(grid_cells) * mean_density
+def build_initial_condition(config, code_units=None):
+    sim = SimpleNamespace()
+    icparams = config['initial_condition']
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    box_size = icparams['boxsize']
+    time_value = icparams['time']
+    radius_min = icparams['rmin']
+    radius_max = icparams['rmax']
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    box_size = np.ones(1) * box_size
+    sim.par.time = np.ones(1) * time_value
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system='spherical',
+        current_time=sim.par.time,
+        box_size=box_size,
+    )
+    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    sim.mesh.boundary = np.linspace(
+        radius_min, radius_max, grid_cells + 1
+    )
+    sim.mesh.coordinate = NFW.spherical_cell_centers(sim.mesh.boundary)
+    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
+    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    )
+    mean_density = cosmic_mean_baryon_density(
+        icparams['h0'], icparams['omega_b'], icparams['initial_redshift']
+    )
+    expansion_rate = hubble_rate(
+        icparams['h0'], icparams['omega_m'], icparams['omega_lambda'],
+        icparams['initial_redshift']
+    )
+    cmb_temperature = icparams.get(
+        'cmb_temperature_0', icparams['initial_temperature']
+    )
+    sim.fluid.temp_code = np.ones(grid_cells) * cmb_temperature * (
+        1.0 + float(icparams['initial_redshift'])
+    )
+    sim.fluid.mu = np.ones(grid_cells) * icparams['mu']
+    sim.fluid.vel_code = expansion_rate * sim.mesh.coordinate
+    sim.fluid.rho_code = np.ones(grid_cells) * mean_density
 
+
+    return sim
 
 def _snapshot_profiles(filename, config):
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    rout = Simwrap(config, code_units=code_units)
+    rout = build_initial_condition(config, code_units=code_units)
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, filename)
     boundary_cgs_cm = code_quantity_to_cgs(
         rout.mesh.boundary, code_units, 'length_cgs_cm'
@@ -267,3 +269,9 @@ def plot_snapshots(filenames, config, _unused, halo, figure_filename):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
+
+
+
+
+
+

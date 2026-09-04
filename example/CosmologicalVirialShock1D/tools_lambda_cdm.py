@@ -201,104 +201,6 @@ def cmb_equilibrium_electron_fraction(ic):
     return value
 
 
-class Simwrap:
-    """Build a comoving/supercomoving IC accepted by ``writehdf5``."""
-
-    def __init__(self, ic, units, cosmology, pie_table=None, correlation_table=None):
-        self.par = SimpleNamespace()
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        self.par.CodeUnits = units
-        self.par.unit_system = units.unit_system
-        self.par.nogrid = int(ic["nogrid"])
-        self.par.coordsys = "spherical"
-        self.par.boxsize = np.array([float(ic["rmax"])])
-        cosmic_time = float(ic["initial_cosmic_time"])
-        self.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
-        self.par.cosmological_expansion = True
-        self.par.supercomoving_coordinates = True
-        self.par.cosmological_gravity = True
-        self.par.selfgravity = True
-        self.par.externalgravity = False
-        self.par.cosmology = cosmology
-        self.par.cosmology_type = cosmology.type_name
-        self.par.cosmology_t_ref = cosmology.t_ref
-        self.par.cosmology_a_ref = cosmology.a_ref
-        self.par.coordinate_frame = "comoving"
-        self.par.time_coordinate = "supercomoving"
-        self.par.velocity_representation = "supercomoving_peculiar"
-        self.par.density_representation = "comoving"
-        self.par.pressure_representation = "supercomoving"
-        self.par.temperature_representation = "supercomoving"
-
-        self.mesh.boundary = np.geomspace(float(ic["rmin"]), float(ic["rmax"]), self.par.nogrid + 1)
-        # Keep a small, finite comoving inner wall when requested.  Setting
-        # this face to zero would turn the test back into the singular
-        # spherical-origin problem, whose origin flux is intentionally zero.
-        inner_wall = float(ic.get("inner_wall_radius_comoving", ic["rmin"]))
-        if inner_wall <= 0.0:
-            self.mesh.boundary[0] = 0.0
-        else:
-            self.mesh.boundary[0] = inner_wall
-        self.mesh.coordinate = cell_centres(self.mesh.boundary)
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1]**2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary**3)
-
-        a = float(cosmology.scale_factor(cosmic_time))
-        hubble = float(cosmology.hubble(cosmic_time))
-        rho_total = float(cosmology.background_density(cosmic_time))
-        rho_comoving = rho_total * a**3
-        fb = float(ic["baryon_fraction"])
-        delta, mean_delta = density_contrast_profile(
-            self.mesh.coordinate,
-            ic,
-            cosmology,
-            correlation_table=correlation_table,
-            length_unit_mpc_h=(
-                float(units.length_in_cgs)
-                / float((1.0 * unyt.Mpc).to_value("cm"))
-                * float(ic.get("correlation_h", 0.674))
-            ),
-        )
-        self.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(self.par.nogrid)
-        rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
-        rho_g_cgs = rho_total_cgs * fb * (1.0 + delta)
-        n_h = (
-            rho_g_cgs * float(ic["hydrogen_mass_fraction"])
-            / PROTON_MASS_CGS
-        )
-        redshift = 1.0 / a - 1.0
-        if bool(ic.get("cmb_equilibrium_initial", False)):
-            temp_phys = np.full(
-                self.par.nogrid,
-                cmb_temperature(
-                    redshift,
-                    ic.get("cmb_temperature_0", 2.7255),
-                ),
-            )
-            electron_fraction = np.full(
-                self.par.nogrid,
-                cmb_equilibrium_electron_fraction(ic),
-            )
-            self.fluid.xHI = 1.0 - electron_fraction
-            self.fluid.mu = 1.0 / (
-                float(ic["hydrogen_mass_fraction"])
-                * (2.0 - self.fluid.xHI)
-            )
-        elif redshift > float(ic.get("uv_background_on_redshift", 10.0)):
-            # Before the UV background turns on, initialize cold gas; CIE is
-            # the active cooling model during this epoch.
-            temp_phys = float(ic.get("cie_initial_temperature", 10.0))
-        else:
-            temp_phys = (
-                pie_temperature(pie_table, float(np.median(n_h)), redshift)
-                if pie_table else 1.0e4
-            )
-        self.fluid.temp_code = temp_code_phys * a**2 * np.ones(self.par.nogrid)
-        if not bool(ic.get("cmb_equilibrium_initial", False)):
-            self.fluid.mu = np.full(self.par.nogrid, float(ic["mu"]))
-        self.fluid.vel_code = -a**2 * hubble * mean_delta * self.mesh.coordinate / 3.0
-
 
 def make_dark_matter(ic, units, cosmology, correlation_table=None):
     count = int(ic["dark_matter_shells"])
@@ -725,3 +627,5 @@ class VolumeSmoothedDarkMatter:
             left=0.0,
             right=total,
         )
+
+

@@ -950,7 +950,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial = et.Simwrap(
+    initial = et.build_initial_condition(
         {"par": runparams, "initial_condition": icparams},
         units, cosmology, correlation_table=correlation_table
     )
@@ -1826,3 +1826,5 @@ if __name__ == "__main__":
         ),
         cfl=args.cfl,
     )
+
+

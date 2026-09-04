@@ -196,7 +196,7 @@ def _make_matched_initial_state(config, units, cosmology,
     """Build gas cells and one volume-centred DM shell per identical cell."""
     icparams = config["initial_condition"]
     par = config["par"]
-    initial = et.Simwrap(
+    initial = et.build_initial_condition(
         config, units, cosmology, correlation_table=correlation_table
     )
     # A uniform origin-centred mesh avoids allowing logarithmic innermost-cell
@@ -665,3 +665,5 @@ if __name__ == "__main__":
         resolution_override=arguments.resolution,
         output_suffix=arguments.output_suffix,
     )
+
+

@@ -26,50 +26,56 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    def __init__(self, icparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        if code_units is not None:
-            self.par.unit_system = code_units.unit_system
+def build_initial_condition(config):
+    icparams = config['initial_condition']
+    code_units = config['_code_units']
+    sim = SimpleNamespace()
+    sim.par = Par()
+    sim.mesh = Mesh()
+    sim.fluid = Fluid()
+    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    if code_units is not None:
+        sim.par.unit_system = code_units.unit_system
 
-        if ru.CheckParamDimen(icparams) != True:
-            raise Exception('%s unit not correctly set in params' % ru.CheckParamDimen(icparams))
+    if ru.CheckParamDimen(icparams) != True:
+        raise Exception('%s unit not correctly set in params' % ru.CheckParamDimen(icparams))
 
-        grid_cells = icparams['grid_cells']
-        box_size = icparams['box_size'] * np.ones(1)
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams['coordinate_system'],
-            current_time=np.array([0.0]) * icparams['current_time'],
-            box_size=box_size,
-        )
+    grid_cells = icparams['grid_cells']
+    box_size = icparams['box_size'] * np.ones(1)
+    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+    sim.par.simulation = SimpleNamespace(
+        coordinate_system=icparams['coordinate_system'],
+        current_time=np.array([0.0]) * icparams['current_time'],
+        box_size=box_size,
+    )
 
-        dx = box_size[0] / grid_cells
-        self.mesh.boundary = np.linspace(
-            -dx,
-            box_size[0] + dx,
-            grid_cells + 1,
-        )
-        coordinate = 0.5 * (self.mesh.boundary[1:] + self.mesh.boundary[:-1])
+    dx = box_size[0] / grid_cells
+    sim.mesh.boundary = np.linspace(
+        -dx,
+        box_size[0] + dx,
+        grid_cells + 1,
+    )
+    coordinate = 0.5 * (sim.mesh.boundary[1:] + sim.mesh.boundary[:-1])
 
-        rho = np.ones(grid_cells) * icparams['initial_density']
-        self.fluid.vel_code = np.ones(grid_cells) * icparams['initial_velocity']
-        indexlow = np.logical_and(
-            coordinate > 0.25 * box_size[0],
-            coordinate < 0.75 * box_size[0],
-        )
-        rho[indexlow] *= icparams['density_ratio']
-        self.fluid.rho_code = rho
-        temp = np.ones(grid_cells) * icparams['initial_temperature']
-        temp[indexlow] *= icparams['temperature_ratio']
-        self.fluid.temp_code = temp
-        self.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+    rho = np.ones(grid_cells) * icparams['initial_density']
+    sim.fluid.vel_code = np.ones(grid_cells) * icparams['initial_velocity']
+    indexlow = np.logical_and(
+        coordinate > 0.25 * box_size[0],
+        coordinate < 0.75 * box_size[0],
+    )
+    rho[indexlow] *= icparams['density_ratio']
+    sim.fluid.rho_code = rho
+    temp = np.ones(grid_cells) * icparams['initial_temperature']
+    temp[indexlow] *= icparams['temperature_ratio']
+    sim.fluid.temp_code = temp
+    sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
 
 
-def getAnalyticSolution(icparams, runparams, rout):
+    return sim
+
+def getAnalyticSolution(config, rout):
+    icparams = config['initial_condition']
+    runparams = config['par']
     code_units_obj = getattr(rout.par.units, 'CodeUnits', None)
     if code_units_obj is None:
         code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
@@ -116,11 +122,18 @@ def getAnalyticSolution(icparams, runparams, rout):
     return rho_ana, p_ana, v_ana
 
 
-def ReadandPlot(outfilename, icparams, runparams, **kwargs):
-    rout = Simwrap(icparams)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+def ReadandPlot(outfilename, config, **kwargs):
+    icparams = config['initial_condition']
+    runparams = config['par']
+    rout = build_initial_condition(config)
+    code_units_obj = config['_code_units']
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho_code', showfig=0, showhalf=1, **kwargs)
-    rho_ana, p_ana, v_ana = getAnalyticSolution(icparams, runparams, rout)
+    rho_ana, p_ana, v_ana = getAnalyticSolution(config, rout)
     plt.plot(rout.mesh.boundary, rho_ana)
+
+
+
+
+

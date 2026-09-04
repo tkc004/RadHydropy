@@ -57,10 +57,9 @@ def _equilibrium_temperature(table, density, redshift, metallicity):
 
 
 def _write_initial_condition(config, output_dir):
-    from tools import Simwrap
-
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    ric = Simwrap(config, code_units)
+    config['_code_units'] = code_units
+    ric = build_initial_condition(config)
     rio.writehdf5(ric, output_dir / "InitialCondition.hdf5")
 
 
@@ -261,3 +260,4 @@ def parse_args():
 
 if __name__ == "__main__":
     main(parse_args().config)
+

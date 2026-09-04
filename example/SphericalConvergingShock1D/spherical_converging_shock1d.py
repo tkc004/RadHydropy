@@ -50,6 +50,8 @@ def _read_profile(filename, units):
     velocity = np.asarray(fluid.vel_code[first:first + count], dtype=float)
     temp_code = np.asarray(fluid.temp_code[first:first + count], dtype=float)
     mu = np.asarray(fluid.mu[first:first + count], dtype=float)
+    rho = rho_code
+    temp = temp_code
     eos = EOS("polytropic", gamma=1.4, code_units=units)
     pressure = eos.pressure(rho, temp, mu)
     mass = float(
@@ -76,7 +78,7 @@ def _read_profile(filename, units):
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     icparams = config['initial_condition']
     if riemann_solver is not None:
         runparams["hydrodynamics"]["riemann_solver"] = riemann_solver
@@ -85,7 +87,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     output = runparams['output']
     eu.clean_previous_outputs(output)
     units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
-    initial = et.Simwrap(icparams, runparams, code_units=units)
+    config['_code_units'] = units
+    initial = et.build_initial_condition(config)
     rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
 
     sim = Rsim(runparams)

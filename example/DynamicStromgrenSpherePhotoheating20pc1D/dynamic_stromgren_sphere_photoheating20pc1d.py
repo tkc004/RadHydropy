@@ -44,7 +44,7 @@ def main(config_filename=None):
 
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     output_dir = Path(runparams['output']['directory'])
     output_files = sorted(output_dir.glob(f"{runparams['output'].get('filename_prefix', 'Output')}_*.hdf5"))
     if not output_files:

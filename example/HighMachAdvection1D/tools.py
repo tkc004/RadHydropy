@@ -18,61 +18,40 @@ class Fluid:
     pass
 
 
-class Simwrap:
-    """Build a uniform periodic gas state in the requested code units."""
-
-    def __init__(self, icparams, code_units=None):
-        self.par = Par()
-        self.mesh = Mesh()
-        self.fluid = Fluid()
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        if code_units is not None:
-            self.par.unit_system = code_units.unit_system
-        grid_cells = int(icparams["grid_cells"])
-        self.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system=icparams["coordinate_system"],
-            box_size=icparams["box_size"],
-            current_time=icparams["current_time"],
+def build_initial_condition(config):
+    initial = config['initial_condition']
+    code_units = config['_code_units']
+    grid_cells = int(initial['grid_cells'])
+    result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
+    result.par.units = SimpleNamespace(CodeUnits=code_units)
+    result.par.unit_system = code_units.unit_system
+    result.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
+    result.par.simulation = SimpleNamespace(
+        coordinate_system=initial['coordinate_system'],
+        box_size=initial['box_size'], current_time=initial['current_time'],
+    )
+    result.par.nogrid = grid_cells
+    result.par.coordsys = initial['coordinate_system']
+    result.par.boxsize = initial['box_size']
+    result.par.time = initial['current_time']
+    result.mesh.boundary = np.linspace(0.0 * result.par.boxsize, result.par.boxsize, grid_cells + 1)
+    center = 0.5 * (result.mesh.boundary[:-1] + result.mesh.boundary[1:])
+    result.fluid.rho_code = np.where(
+        center < 0.5 * result.par.boxsize,
+        initial.get('rho_left', initial['initial_density']),
+        initial.get('rho_right', initial['initial_density']),
+    )
+    result.fluid.vel_code = np.ones(grid_cells) * initial['initial_velocity']
+    result.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
+    if 'temp_left' in initial or 'temp_right' in initial:
+        result.fluid.temp_code = np.where(
+            center < 0.5 * result.par.boxsize,
+            initial.get('temp_left', initial.get('initial_temperature', 0.0)),
+            initial.get('temp_right', initial.get('initial_temperature', 0.0)),
         )
-        self.par.nogrid = grid_cells
-        self.par.coordsys = self.par.simulation.coordinate_system
-        self.par.boxsize = self.par.simulation.box_size
-        self.par.time = self.par.simulation.current_time
-        self.mesh.boundary = np.linspace(
-            0.0 * self.par.boxsize,
-            self.par.simulation.box_size,
-            grid_cells + 1,
-        )
-        cell_center = 0.5 * (self.mesh.boundary[:-1] + self.mesh.boundary[1:])
-        if "rho_left" in icparams or "rho_right" in icparams:
-            rho_left = icparams.get("rho_left", icparams.get("initial_density"))
-            rho_right = icparams.get("rho_right", icparams.get("initial_density"))
-            self.fluid.rho_code = np.where(cell_center < 0.5 * self.par.boxsize, rho_left, rho_right)
-        else:
-            self.fluid.rho_code = np.ones(grid_cells) * icparams["initial_density"]
-        self.fluid.vel_code = np.ones(grid_cells) * icparams["initial_velocity"]
-        self.fluid.mu = np.ones(grid_cells) * icparams["mean_molecular_weight"]
-        if "temp_left" in icparams or "temp_right" in icparams:
-            temp_left = icparams.get("temp_left", icparams.get("initial_temperature", 0.0))
-            temp_right = icparams.get("temp_right", icparams.get("initial_temperature", 0.0))
-            self.fluid.temp_code = np.where(
-                cell_center < 0.5 * self.par.boxsize,
-                temp_left,
-                temp_right,
-            )
-        elif "pressure_initial" in icparams:
-            pressure = float(icparams["pressure_initial"])
-            pressure_factor = np.longdouble(
-                code_units.unit_conversion["boltzmann_code"]
-                / code_units.unit_conversion["proton_mass_code"]
-            )
-            self.fluid.temp_code = np.asarray(
-                self.fluid.mu * pressure / (self.fluid.rho_code * pressure_factor),
-                dtype=float,
-            )
-        else:
-            self.fluid.temp_code = np.ones(grid_cells) * icparams["initial_temperature"]
+    else:
+        result.fluid.temp_code = np.ones(grid_cells) * initial['initial_temperature']
+    return result
 
 
 def energy_components(state):
@@ -101,7 +80,7 @@ def energy_components(state):
     else:
         boundary = np.asarray(state.mesh.boundary, dtype=float)
         volume = np.diff(boundary)
-    kinetic = 0.5 * rho * velocity**2 * volume
+    kinetic = 0.5 * rho_code * velocity**2 * volume
     thermal = pressure / (state.fluid.eos.gamma - 1.0) * volume
     total = kinetic + thermal
     first = int(getattr(state.par, "noghost", 0))
@@ -123,7 +102,7 @@ def entropy_profile(state):
     radius = 0.5 * (boundary[:-1] + boundary[1:])
     gamma = float(getattr(state.par, "gamma", 5.0 / 3.0))
     with np.errstate(divide="ignore", invalid="ignore"):
-        entropy = temperature / rho ** (gamma - 1.0)
+        entropy = temperature / rho_code ** (gamma - 1.0)
     return radius[first:last], entropy[first:last]
 
 
@@ -135,4 +114,5 @@ def primitive_profiles(state):
     first = int(getattr(state.par, "noghost", 0))
     last = first + int(state.par.nogrid)
     radius = 0.5 * (boundary[:-1] + boundary[1:])
-    return radius[first:last], rho[first:last], temperature[first:last]
+    return radius[first:last], rho_code[first:last], temperature[first:last]
+

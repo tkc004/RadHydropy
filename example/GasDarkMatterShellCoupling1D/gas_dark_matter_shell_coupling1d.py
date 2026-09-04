@@ -34,11 +34,12 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = eu.runtime_parameters(config)
+    runparams = config['par']
     icparams = config['initial_condition']
     eu.clean_previous_outputs(runparams)
     code_units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    initial = et.Simwrap(icparams, code_units, runparams['mesh']['grid_cells'])
+    config['_code_units'] = code_units
+    initial = et.build_initial_condition(config)
     rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
     initial_density = quantity_to_value(
         initial.fluid.rho_code,

@@ -34,7 +34,8 @@ def run(config_filename=DEFAULT_CONFIG):
     exampleparams = config['example']
     eu.clean_previous_outputs(runparams['output'])
     units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    initial = tools.Simwrap(icparams, units)
+    config['_code_units'] = units
+    initial = tools.build_initial_condition(config)
     rio.writehdf5(
         initial,
         rundir / runparams['simulation']['initial_condition_filename'],
@@ -122,3 +123,4 @@ if __name__ == '__main__':
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     args = parser.parse_args()
     run(args.config)
+
