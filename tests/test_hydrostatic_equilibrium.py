@@ -106,7 +106,12 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
     code_units = _code_units()
 
     simwrap = _floatify_hydrostatic_simwrap(
-        module.Simwrap(icparams, code_units=code_units),
+        module.build_initial_condition({
+            "par": {"mesh": {"grid_cells": nogrid}},
+            "initial_condition": icparams,
+            "example": {},
+            "_code_units": code_units,
+        }),
         code_units,
     )
     par = parameter_namespace(
@@ -249,7 +254,12 @@ class Testing(unittest.TestCase):
         code_units = _code_units()
 
         sim = _floatify_hydrostatic_simwrap(
-            module.Simwrap(icparams, code_units=code_units),
+            module.build_initial_condition({
+                "par": {"mesh": {"grid_cells": icparams["nogrid"]}},
+                "initial_condition": icparams,
+                "example": {},
+                "_code_units": code_units,
+            }),
             code_units,
         )
         pressure = np.asarray(

@@ -46,6 +46,24 @@ def make_cie_tables(tmp_path):
     return ion_fraction_file, cooling_file, abundance_file
 
 
+def test_cie_hdf5_schema_is_stable(tmp_path):
+    ion_fraction_file, cooling_file, _ = make_cie_tables(tmp_path)
+
+    with h5py.File(ion_fraction_file, "r") as table:
+        assert set(table) == {
+            "log10_temperature_K",
+            "atomic_number",
+            "ion_fraction",
+        }
+    with h5py.File(cooling_file, "r") as table:
+        assert set(table) == {
+            "log10_temperature_K",
+            "log10_electron_density_cm-3",
+            "metallicity_Zsun",
+            "cooling_erg_cm3_s",
+        }
+
+
 def test_cie_table_interpolates_temperature_density_and_metallicity(tmp_path):
     paths = make_cie_tables(tmp_path)
     table = CIETable(*paths)

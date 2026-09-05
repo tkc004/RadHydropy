@@ -211,16 +211,21 @@ class Testing(unittest.TestCase):
             module.ReadandPlot(
                 'unused.hdf5',
                 {
-                    'nogrid': 5,
-                    'coordsys': 'cartesian',
-                    'box_size': 1.0 * unyt.pc,
-                    'current_time': 0.0 * unyt.s,
-                    'reference_density': 1.0 * (unyt.g / unyt.cm**3),
-                    'initial_temperature': 1.0 * unyt.K,
-                    'mean_molecular_weight': 1.0,
-                    'gravity_strength': 1.0 * (unyt.cm / unyt.s**2),
+                    'par': {
+                        'mesh': {'grid_cells': 5, 'ghost_cells': 2},
+                    },
+                    'initial_condition': {
+                        'grid_cells': 5,
+                        'coordinate_system': 'cartesian',
+                        'box_size': 1.0 * unyt.pc,
+                        'current_time': 0.0 * unyt.s,
+                        'reference_density': 1.0 * (unyt.g / unyt.cm**3),
+                        'initial_temperature': 1.0 * unyt.K,
+                        'mean_molecular_weight': 1.0,
+                        'gravity_strength': 1.0 * (unyt.cm / unyt.s**2),
+                    },
+                    'example': {},
                 },
-                {'noghost': 2, 'mesh': {'grid_cells': 5, 'ghost_cells': 2}},
             )
 
         self.assertEqual(len(captured_plots), 4)

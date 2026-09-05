@@ -53,7 +53,15 @@ def test_spherical_ic_density_is_mass_density():
             'UnitTemp_in_cgs': 1.0,
         },
     })
-    initial = TOOLS.Simwrap(icparams, code_units, 0.76)
+    initial = TOOLS.build_initial_condition({
+        'par': {
+            'mesh': {'grid_cells': icparams['nogrid']},
+            'thermochemistry': {'hydrogen_mass_fraction': 0.76},
+        },
+        'initial_condition': icparams,
+        'example': {},
+        '_code_units': code_units,
+    })
     assert np.isclose(
         initial.fluid.rho_code[0].to_value('g/cm**3'),
         1.0e-3 * TOOLS.PROTON_MASS_G / 0.76,

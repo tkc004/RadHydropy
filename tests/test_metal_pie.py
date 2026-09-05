@@ -54,6 +54,26 @@ def _write_power_law_table(filename):
         rates.create_dataset("metal_cooling_erg_cm3_s", data=cooling)
 
 
+def test_pie_hdf5_schema_is_stable(tmp_path):
+    filename = tmp_path / "schema.h5"
+    _write_power_law_table(filename)
+
+    with h5py.File(filename, "r") as handle:
+        assert set(handle) == {"MetalPIE"}
+        group = handle["MetalPIE"]
+        assert set(group) == {"axes", "rates"}
+        assert set(group["axes"]) == {
+            "log10_temperature_K",
+            "log10_hydrogen_density_cm-3",
+            "log10_ionization_parameter",
+            "metallicity_Zsun",
+        }
+        assert set(group["rates"]) == {
+            "metal_photoheating_erg_cm3_s",
+            "metal_cooling_erg_cm3_s",
+        }
+
+
 def _state():
     state = {
         "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS]),
