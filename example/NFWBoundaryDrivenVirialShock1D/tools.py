@@ -158,20 +158,21 @@ def load_snapshot(filename):
     """Load physical cells from a RadHydropy snapshot in CGS units."""
     with h5py.File(filename, 'r') as handle:
         header = handle['Header'].attrs
+        header_group = handle['Header']
         data = handle['Data']
         nogrid = int(header['GridCells'])
-        noghost = int(header.get('GhostCells', (len(data['Density']) - nogrid) // 2))
+        noghost = int(header.get('GhostCells', (len(data['rho_code']) - nogrid) // 2))
         physical = slice(noghost, noghost + nogrid)
-        boundary = np.asarray(data['Boundary'])[noghost:noghost + nogrid + 1]
+        boundary = np.asarray(data['boundary'])[noghost:noghost + nogrid + 1]
         centers = 0.75 * (
             boundary[1:]**4 - boundary[:-1]**4
         ) / (boundary[1:]**3 - boundary[:-1]**3)
         return {
-            'time_Myr': float(header['Time']) / SECONDS_PER_MYR,
+            'time_Myr': float(header_group['time_code'][()]) / SECONDS_PER_MYR,
             'radius_kpc': centers / KPC_CM,
-            'density_cgs_g_cm3': np.asarray(data['Density'])[physical],
-            'velocity_km_s': np.asarray(data['Velocity'])[physical] / 1.0e5,
-            'temperature_cgs_K': np.asarray(data['Temperature'])[physical],
+            'density_cgs_g_cm3': np.asarray(data['rho_code'])[physical],
+            'velocity_km_s': np.asarray(data['vel_code'])[physical] / 1.0e5,
+            'temperature_cgs_K': np.asarray(data['temp_code'])[physical],
         }
 
 

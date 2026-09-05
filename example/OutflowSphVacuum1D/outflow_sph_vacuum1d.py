@@ -66,7 +66,7 @@ def run(config_filename=DEFAULT_CONFIG):
             raise RuntimeError('vacuum outflow produced invalid density')
         if not (np.all(np.isfinite(energy)) and np.all(energy >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid energy')
-        profiles.append((float(fluid.time), rho_code, temp_code, np.asarray(mesh.boundary)))
+        profiles.append((float(fluid.time_code), rho_code, temp_code, np.asarray(mesh.boundary)))
 
     if not profiles:
         raise RuntimeError('vacuum outflow produced no output snapshots')
@@ -123,4 +123,3 @@ if __name__ == '__main__':
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     args = parser.parse_args()
     run(args.config)
-

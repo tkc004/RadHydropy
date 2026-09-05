@@ -531,7 +531,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.fluid.time = float(np.asarray(sim.par.time).flat[0])
+    sim.fluid.time_code = float(np.asarray(sim.par.time).flat[0])
     gravity_dm = SmoothEnclosedMassForGas(dm) if smooth_force else dm
     sim.par.gravity = Gravity(
         selfgravity=True,
@@ -574,9 +574,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )]
     steps = 0
     for target_tau in snapshot_taus[1:]:
-        while float(sim.fluid.time) < target_tau - 1.0e-13:
+        while float(sim.fluid.time_code) < target_tau - 1.0e-13:
             cosmic_time = float(
-                cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+                cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
             )
             _set_background_state(
                 sim, cosmology, cosmic_time, baryon_fraction,
@@ -584,7 +584,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             )
             sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
             sim.solver.SetConserved(sim.mesh, sim.fluid)
-            dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time))
+            dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time_code))
             crossing_dt = float(dm.crossing_timestep(safety_factor=1.0))
             if np.isfinite(crossing_dt) and crossing_dt <= dt * (1.0 + 1.0e-12):
                 raise RuntimeError(
@@ -599,7 +599,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 raise RuntimeError("dark-matter shell radii ceased to be strictly ordered")
 
         cosmic_time = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
         )
         _set_background_state(
             sim, cosmology, cosmic_time, baryon_fraction,
@@ -665,5 +665,4 @@ if __name__ == "__main__":
         resolution_override=arguments.resolution,
         output_suffix=arguments.output_suffix,
     )
-
 

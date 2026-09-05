@@ -414,7 +414,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         cosmology.physical_velocity(
             x,
             np.asarray(sim.fluid.vel_code[first:last], dtype=float),
-            float(sim.fluid.time),
+            float(sim.fluid.time_code),
         ),
         dtype=float,
     )
@@ -627,5 +627,4 @@ class VolumeSmoothedDarkMatter:
             left=0.0,
             right=total,
         )
-
 

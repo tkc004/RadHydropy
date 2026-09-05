@@ -93,7 +93,7 @@ def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwar
         dt, sim.mesh, sim.fluid, sim.par, source_result
     )
     sim._sync_hydro_state()
-    sim.fluid.time += dt
+    sim.fluid.time_code += dt
     interior = sim.par.noghost
     shell_state["velocity"] = float(sim.fluid.vel_code[interior])
     shell_state["radius"] += shell_state["velocity"] * float(dt)
@@ -128,7 +128,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     def record(simulation):
         interior = simulation.par.noghost
-        history["time"].append(float(simulation.fluid.time))
+        history["time"].append(float(simulation.fluid.time_code))
         history["radius"].append(shell_state["radius"])
         history["momentum"].append(float(simulation.fluid.Mom_code[interior]))
 

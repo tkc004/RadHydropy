@@ -58,7 +58,7 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
     def fixed_step_time(dt=None, final_time=None):
         if dt is not None:
             return float(dt)
-        remaining = float(final_time) - float(np.asarray(sim.fluid.time).flat[0])
+        remaining = float(final_time) - float(np.asarray(sim.fluid.time_code).flat[0])
         return min(source_dt, remaining)
 
     sim.GetStepTime = fixed_step_time
@@ -85,12 +85,12 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
         sim.solver.SetConserved(sim.mesh, sim.fluid)
 
     def step_backend(**kwargs):
-        cosmic_time = float(np.asarray(sim.fluid.time).flat[0])
+        cosmic_time = float(np.asarray(sim.fluid.time_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         reset_conserved_from_temperature()
         result = sim.Step(**kwargs)
-        cosmic_time = float(np.asarray(sim.fluid.time).flat[0])
+        cosmic_time = float(np.asarray(sim.fluid.time_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         history["time_s"].append(
             cosmic_time * float(sim.par.units.CodeUnits.time_unit.to_value("s"))

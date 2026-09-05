@@ -183,7 +183,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     vel_analytic = ballistic_velocity_profile(
         xcoord,
         icparams['point_mass'],
-        rout.fluid.time,
+        rout.fluid.time_code,
         code_units=code_units_obj,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s

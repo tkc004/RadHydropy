@@ -61,7 +61,46 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(self._scalar_value(loaded_par.time), 0.0)
         self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
-        self.assertEqual(self._scalar_value(loaded_fluid.time), 0.0)
+        self.assertEqual(self._scalar_value(loaded_fluid.time_code), 0.0)
+
+    def test_hdf5_uses_canonical_code_state_dataset_names(self):
+        par = parameter_namespace(
+            coordsys='cartesian',
+            nogrid=2,
+            time=0.0 * unyt.s,
+            boxsize=2.0 * unyt.cm,
+            CodeUnits=CODE_UNITS,
+        )
+        mesh = SimpleNamespace(boundary=np.array([0.0, 1.0, 2.0]) * unyt.cm)
+        fluid = SimpleNamespace(
+            rho_code=np.ones(2) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(2) * unyt.cm / unyt.s,
+            temp_code=np.ones(2) * unyt.K,
+            mu=np.ones(2),
+            xHI=np.ones(2),
+            Mass_code=np.ones(2) * unyt.g,
+            Energy_code=np.ones(2) * unyt.erg,
+            ngamma_code=np.ones(2) / unyt.cm**3,
+        )
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, 'r') as handle:
+                data_names = set(handle['Data'].keys())
+                assert {
+                    'boundary', 'rho_code', 'vel_code', 'temp_code',
+                    'Mass_code', 'Energy_code', 'ngamma_code', 'mu', 'xHI',
+                }.issubset(data_names)
+                assert not {'Density', 'Velocity', 'Temperature', 'Mass', 'Energy'}.intersection(data_names)
+            rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        np.testing.assert_allclose(loaded_fluid.rho_code, fluid.rho_code.value)
+        np.testing.assert_allclose(loaded_fluid.ngamma_code, fluid.ngamma_code.value)
+        np.testing.assert_allclose(loaded_mesh.boundary, mesh.boundary.value)
 
     def test_hdf5_roundtrip_preserves_gas_angular_momentum_fields(self):
         par = parameter_namespace(
@@ -133,19 +172,19 @@ class Testing(unittest.TestCase):
                     {'alpha': 1, 'beta': [2, 3]},
                 )
                 self.assertEqual(
-                    yaml.safe_load(header['Time'].attrs['units']),
+                    yaml.safe_load(header['time_code'].attrs['units']),
                     's',
                 )
                 self.assertEqual(
-                    np.asarray(header['Time'][()]).item(),
+                    np.asarray(header['time_code'][()]).item(),
                     1.5,
                 )
                 self.assertEqual(
-                    yaml.safe_load(header['BoxSize'].attrs['units']),
+                    yaml.safe_load(header['box_size_code'].attrs['units']),
                     'cm',
                 )
                 self.assertEqual(
-                    np.asarray(header['BoxSize'][()]).item(),
+                    np.asarray(header['box_size_code'][()]).item(),
                     3.0,
                 )
 
@@ -238,7 +277,7 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(self._scalar_value(loaded_fluid.time), self._scalar_value(loaded_par.time))
+        self.assertEqual(self._scalar_value(loaded_fluid.time_code), self._scalar_value(loaded_par.time))
         np.testing.assert_array_equal(loaded_fluid.xHI, fluid.xHI)
 
     def test_hdf5_roundtrip_preserves_photon_number_density_when_present(self):
@@ -268,7 +307,7 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(self._scalar_value(loaded_fluid.time), self._scalar_value(loaded_par.time))
+        self.assertEqual(self._scalar_value(loaded_fluid.time_code), self._scalar_value(loaded_par.time))
         self.assertFalse(hasattr(loaded_fluid.ngamma_code, "units"))
         np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma_code), fluid.ngamma_code.value)
 

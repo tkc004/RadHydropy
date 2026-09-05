@@ -74,7 +74,7 @@ def _pressure_diagnostic(snapshot, config):
         if weighted_volume > 0.0
         else 0.0
     )
-    time_myr = float(np.asarray(et._to_myr(fluid.time, par)))
+    time_myr = float(np.asarray(et._to_myr(fluid.time_code, par)))
     return time_myr, wind_pressure, gas_pressure, shell_radius_pc
 
 

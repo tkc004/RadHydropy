@@ -310,7 +310,7 @@ def main(config_filename=DEFAULT_CONFIG):
     exponent = float(initial['density_power_law_exponent'])
     for filename in output_files(outdir, output_config['filename_prefix']):
         par, mesh, fluid = load_snapshot(filename, runtime)
-        time_s = code_quantity_to_cgs(fluid.time, par.units.CodeUnits, "time_s")
+        time_s = code_quantity_to_cgs(fluid.time_code, par.units.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
         radii_cm.append(front_radius_cgs_cm(mesh, fluid, par))

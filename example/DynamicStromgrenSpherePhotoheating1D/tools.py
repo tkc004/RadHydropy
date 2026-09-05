@@ -265,7 +265,7 @@ def mean_ionized_temperature(fluid, par):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(_to_myr(fluid.time, par))
+    history['time_Myr'].append(_to_myr(fluid.time_code, par))
     history['front_radius_kpc'].append(
         ionization_front_position(
             mesh,

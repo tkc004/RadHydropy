@@ -24,7 +24,7 @@ def GetStepTime(sim, dt=None, final_time=None):
                     "advancing the simulation"
                 )
             dt = min(dt, dm_dt)
-    current_time = sim.fluid.time
+    current_time = sim.fluid.time_code
     if final_time is not None:
         if hasattr(final_time, "units"):
             target_units = final_time.units
@@ -229,7 +229,7 @@ def _hydro_step_ssprk2(
     if advect_chemistry and hasattr(initial_state, "xHI") and hasattr(stage2, "xHI"):
         sim.fluid.xHI = 0.5 * initial_state.xHI + 0.5 * stage2.xHI
 
-    sim.fluid.time = initial_state.time + dt
+    sim.fluid.time_code = initial_state.time_code + dt
     sim._sync_hydro_state()
     return {
         "dt": dt,
@@ -421,7 +421,7 @@ def Step(
         # Source updates can change temperature, pressure, and chemistry
         # fields, so refresh the boundary state before the next loop.
         if mode == "sources":
-            sim.fluid.time += dt
+            sim.fluid.time_code += dt
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, 'verbose', 0))
         diagnostics.check_conserved_energy_admissibility(

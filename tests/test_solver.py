@@ -244,7 +244,7 @@ class Testing(unittest.TestCase):
             CodeUnits=CODE_UNITS,
             EOStype='polytropic',
             gamma=1.4,
-            time=0.0,
+            time_code=0.0,
         )
         sim.mesh = SimpleNamespace()
         sim.fluid = RealFluid()
@@ -270,7 +270,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(sim.fluid.eos.EOStype, 'polytropic')
         self.assertEqual(sim.fluid.eos.gamma, 5.0 / 3.0)
         self.assertIs(sim.fluid.eos.CodeUnits, restored_units)
-        self.assertEqual(sim.fluid.time, 7.0)
+        self.assertEqual(sim.fluid.time_code, 7.0)
 
     def test_open_boundary_fills_all_ghost_cells(self):
         fluid = Fluid()
@@ -850,6 +850,27 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.rho_code[:2].value, [4.0, 5.0])
         np.testing.assert_array_equal(fluid.rho_code[-2:].value, [2.0, 3.0])
 
+    def test_periodic_boundary_fluxes_match_after_reconstruction(self):
+        par = make_code_par('Periodic')
+        mesh = make_code_mesh(n=12)
+        mesh._par = par
+        fluid = make_code_fluid(n=8)
+        fluid.SetUpFluid(par, mesh=mesh)
+        fluid.rho_code[2:6] = [1.0, 1.0, 0.125, 0.125]
+        fluid.temp_code[2:6] = 1.0e4
+
+        solver = Solver()
+        solver.SetBoundary(mesh, fluid, par)
+        solver.SetConserved(mesh, fluid)
+        solver.GetTimeStep(mesh, fluid, par)
+        solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=1)
+
+        first = par.mesh.ghost_cells
+        last = first + par.mesh.grid_cells
+        for name in ('Mass_code', 'Mom_code', 'Energy_code'):
+            flux = np.asarray(getattr(fluid, name).flux, dtype=float)
+            self.assertEqual(flux[first], flux[last])
+
     def test_periodic_boundary_wraps_neutral_fraction(self):
         fluid = Fluid()
         fluid.xHI = np.arange(8, dtype=float) / 10.0
@@ -969,7 +990,7 @@ class Testing(unittest.TestCase):
         fluid.rho_code = np.ones(8) * unyt.g/unyt.cm**3
         fluid.vel_code = np.zeros(8) * unyt.cm/unyt.s
         fluid.pre_code = np.ones(8) * unyt.dyn/unyt.cm**2
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         fluid.Mass_code = np.ones(8) * unyt.g
         fluid.Mom_code = np.zeros(8) * unyt.g*unyt.cm/unyt.s
         fluid.Energy_code = np.ones(8) * unyt.g*unyt.cm**2/unyt.s**2
@@ -1023,7 +1044,7 @@ class Testing(unittest.TestCase):
             Mass_code=as_named_array(np.ones(4)),
             Mom_code=as_named_array(np.zeros(4)),
             Energy_code=as_named_array(np.ones(4)),
-            time=0.0,
+            time_code=0.0,
         )
         fluid.Mass_code.flux = as_named_array(np.array([0.0, 3.0, 0.0, 0.0]))
         fluid.Mom_code.flux = as_named_array(np.zeros(4))
@@ -1246,7 +1267,7 @@ class Testing(unittest.TestCase):
         fluid.rho_code = np.ones(8) * unyt.g/unyt.cm**3
         fluid.vel_code = np.zeros(8) * unyt.cm/unyt.s
         fluid.pre_code = np.zeros(8) * unyt.dyn/unyt.cm**2
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         fluid.Mass_code = np.ones(8) * unyt.g
         fluid.Mom_code = np.ones(8) * unyt.g*unyt.cm/unyt.s
         fluid.Energy_code = np.ones(8) * unyt.g*unyt.cm**2/unyt.s**2
@@ -1569,7 +1590,7 @@ class Testing(unittest.TestCase):
         par.hydrogen_chemistry = False
         mesh = Mesh()
         fluid = RealFluid()
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         fluid.Mass_code = np.ones(8) * unyt.g
         fluid.Mom_code = np.ones(8) * (unyt.g * unyt.cm / unyt.s)
         fluid.Energy_code = np.ones(8) * (unyt.g * unyt.cm**2 / unyt.s**2)
@@ -1601,7 +1622,7 @@ class Testing(unittest.TestCase):
             fluid.Mass_code = fluid.Mass_code + 1.0 * unyt.g
             fluid.Mom_code = fluid.Mom_code + 2.0 * (unyt.g * unyt.cm / unyt.s)
             fluid.Energy_code = fluid.Energy_code + 3.0 * (unyt.g * unyt.cm**2 / unyt.s**2)
-            fluid.time += dt
+            fluid.time_code += dt
 
         def fake_sync(fluid=None):
             call_counts['sync'] += 1
@@ -1619,7 +1640,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(call_counts['advance'], 2)
         self.assertEqual(call_counts['finalize'], 2)
         self.assertEqual(call_counts['sync'], 1)
-        self.assertEqual(fluid.time, 0.25 * unyt.s)
+        self.assertEqual(fluid.time_code, 0.25 * unyt.s)
         np.testing.assert_allclose(fluid.Mass_code.value, np.full(8, 2.0))
         np.testing.assert_allclose(fluid.Mom_code.value, np.full(8, 3.0))
         np.testing.assert_allclose(fluid.Energy_code.value, np.full(8, 4.0))
@@ -1631,7 +1652,7 @@ class Testing(unittest.TestCase):
         par.externalgravity = True
         mesh = Mesh()
         fluid = RealFluid()
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         fluid.Mass_code = np.ones(8) * unyt.g
         fluid.Mom_code = np.ones(8) * (unyt.g * unyt.cm / unyt.s)
         fluid.Energy_code = np.ones(8) * (unyt.g * unyt.cm**2 / unyt.s**2)
@@ -1657,7 +1678,7 @@ class Testing(unittest.TestCase):
             apply_gravity=True,
         ):
             stage_gravity_flags.append(apply_gravity)
-            fluid.time += dt
+            fluid.time_code += dt
 
         sim.solver.ApplyGravity = fake_gravity
         sim.PrepareConservedStep = fake_prepare
@@ -1681,14 +1702,14 @@ class Testing(unittest.TestCase):
         par.hydrogen_chemistry = False
         mesh = Mesh()
         fluid = Fluid()
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         sim = Rsim.FromComponents(par, mesh, fluid)
 
         result = sim.Step(dt=0.25 * unyt.s, mode='sources')
 
         self.assertEqual(result['hydro_steps'], 0)
         self.assertEqual(result['source_steps'], 0)
-        self.assertEqual(fluid.time, 0.25 * unyt.s)
+        self.assertEqual(fluid.time_code, 0.25 * unyt.s)
         self.assertTrue(hasattr(fluid, 'Mass_code'))
 
     def test_rsim_evolve_uses_step_and_history_callback(self):
@@ -1702,7 +1723,7 @@ class Testing(unittest.TestCase):
         fluid.temp_code = np.zeros(8, dtype=float)
         fluid.mu = np.ones(8, dtype=float)
         fluid.SetPressure()
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         sim = Rsim.FromComponents(par, mesh, fluid)
         history = []
 
@@ -1710,13 +1731,13 @@ class Testing(unittest.TestCase):
             final_time=0.5 * unyt.s,
             mode='sources',
             history_callback=lambda current_sim: history.append(
-                current_sim.fluid.time.to_value(unyt.s)
+                current_sim.fluid.time_code.to_value(unyt.s)
             ),
         )
 
         self.assertEqual(counters['hydro_steps'], 0)
         self.assertEqual(counters['source_steps'], 0)
-        self.assertEqual(fluid.time, 0.5 * unyt.s)
+        self.assertEqual(fluid.time_code, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
 
     def test_rsim_evolve_uses_custom_step_backend(self):
@@ -1730,7 +1751,7 @@ class Testing(unittest.TestCase):
         fluid.temp_code = np.zeros(8, dtype=float)
         fluid.mu = np.ones(8, dtype=float)
         fluid.SetPressure()
-        fluid.time = 0.0 * unyt.s
+        fluid.time_code = 0.0 * unyt.s
         sim = Rsim.FromComponents(par, mesh, fluid)
         history = []
         backend_calls = []
@@ -1740,20 +1761,20 @@ class Testing(unittest.TestCase):
 
         def custom_backend(dt=None, mode=None, **kwargs):
             backend_calls.append((dt, mode, kwargs))
-            fluid.time += dt
+            fluid.time_code += dt
             return {'dt': dt, 'hydro_steps': 0, 'source_steps': 0}
 
         sim.Step = fail_step
         sim.GetStepTime = lambda dt=None, final_time=None: min(
             0.2 * unyt.s,
-            final_time - fluid.time,
+            final_time - fluid.time_code,
         )
 
         counters = sim.Evolve(
             final_time=0.5 * unyt.s,
             mode='sources',
             history_callback=lambda current_sim: history.append(
-                current_sim.fluid.time.to_value(unyt.s)
+                current_sim.fluid.time_code.to_value(unyt.s)
             ),
             step_backend=custom_backend,
         )
@@ -1761,7 +1782,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(counters['hydro_steps'], 0)
         self.assertEqual(counters['source_steps'], 0)
         self.assertEqual(len(backend_calls), 3)
-        self.assertEqual(fluid.time, 0.5 * unyt.s)
+        self.assertEqual(fluid.time_code, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
 
 

@@ -994,7 +994,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.fluid.time = float(np.asarray(sim.par.time).flat[0])
+    sim.fluid.time_code = float(np.asarray(sim.par.time).flat[0])
     dm_for_gas = (
         et.VolumeSmoothedDarkMatter(dm)
         if bool(hydro.get("smooth_dm_force_for_gas", False))
@@ -1172,7 +1172,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         physical_velocity = cosmology.physical_velocity(
             np.asarray(sim.mesh.coordinate[first:last], dtype=float),
             np.asarray(sim.fluid.vel_code[first:last], dtype=float),
-            float(sim.fluid.time),
+            float(sim.fluid.time_code),
         )
         signed_velocity_km_s = (
             np.asarray(physical_velocity, dtype=float)
@@ -1283,9 +1283,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "angular_momentum_conservation_residual": [0.0],
     }
     next_snapshot += cadence
-    while float(sim.fluid.time) < target_tau - 1.0e-12:
+    while float(sim.fluid.time_code) < target_tau - 1.0e-12:
         cosmic_start = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
         )
         configure_thermochemistry(cosmic_start)
         update_cosmic_boundary(cosmic_start)
@@ -1293,9 +1293,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         # Keep the outer ghost reservoir synchronized before GetStepTime().
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid)
-        dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time))
-        if transition_tau is not None and float(sim.fluid.time) < transition_tau:
-            dt = min(dt, transition_tau - float(sim.fluid.time))
+        dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time_code))
+        if transition_tau is not None and float(sim.fluid.time_code) < transition_tau:
+            dt = min(dt, transition_tau - float(sim.fluid.time_code))
         # Capture the finite inner-wall Riemann flux before Step refreshes the
         # temporary face arrays.
         wall_face = int(sim.par.mesh.ghost_cells)
@@ -1377,7 +1377,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         steps += 1
         cosmic_time = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
         )
         update_cosmic_boundary(cosmic_time)
         reservoir_mass_change, reservoir_energy_change = (
@@ -1826,5 +1826,4 @@ if __name__ == "__main__":
         ),
         cfl=args.cfl,
     )
-
 

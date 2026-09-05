@@ -60,7 +60,7 @@ def _snapshot_energy(snapshot, config, tools):
     thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.gamma - 1.0) * volume_cgs_cm3))
     kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
     time_myr = float(
-        np.asarray(fluid.time) * (1.0 * code.time_unit).to_value(unyt.Myr)
+        np.asarray(fluid.time_code) * (1.0 * code.time_unit).to_value(unyt.Myr)
     )
     return time_myr, thermal, kinetic, thermal + kinetic
 

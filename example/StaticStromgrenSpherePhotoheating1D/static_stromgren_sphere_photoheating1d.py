@@ -91,7 +91,7 @@ def main(config_filename=DEFAULT_CONFIG):
     figure_filename = Path(runtime['output']['savedir']) / figure_name
     et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
 
-    print('time = %s' % out_fluid.time)
+    print('time = %s' % out_fluid.time_code)
     if runtime['thermochemistry'].get('hydrogen_alpha_B') is None:
         print('stromgren radius = temperature-dependent alpha_H(T)')
         print('analytic front radius = unavailable for temperature-dependent rates')

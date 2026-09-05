@@ -74,7 +74,7 @@ def run_case(
     sim.SetInitFluid()
     # ``SetInitFluid`` initializes the hydro state time to zero; cosmological
     # ICs carry a non-zero (often negative) supercomoving start time.
-    sim.fluid.time = float(np.asarray(sim.par.time).flat[0])
+    sim.fluid.time_code = float(np.asarray(sim.par.time).flat[0])
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
         dark_matter=dm, code_units=sim.par.CodeUnits,
@@ -89,8 +89,8 @@ def run_case(
     cadence = float(par.get("snapshot_cadence", par.get("gas_profile_cadence", 0.1)))
     next_output = t0
     history = []
-    while float(sim.fluid.time) < target - 1.0e-12:
-        tau = float(sim.fluid.time)
+    while float(sim.fluid.time_code) < target - 1.0e-12:
+        tau = float(sim.fluid.time_code)
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
         if radiative:
             a = float(cosmology.scale_factor(cosmic_time))
@@ -107,7 +107,7 @@ def run_case(
         dt = float(sim.GetStepTime())
         dt = min(dt, target - tau)
         sim.Step(dt=dt, mode="hydro_sources" if radiative else "hydro")
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time)))
+        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code)))
         if cosmic_time >= next_output or cosmic_time >= tf - 1.0e-10:
             history.append(et.profiles(sim, dm, cosmic_time, cosmology, initial_condition))
             next_output += cadence
@@ -236,5 +236,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-
 

@@ -79,7 +79,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
             **et.energy_components(state),
         })
     if not history:
-        history = [{"time": float(sim.fluid.time), **et.energy_components(sim)}]
+        history = [{"time": float(sim.fluid.time_code), **et.energy_components(sim)}]
 
     data = output / "HighMachAdvection1D_EnergyHistory.npz"
     np.savez(
@@ -193,4 +193,3 @@ if __name__ == "__main__":
         dual_energy=False if args.without_dual_energy else None,
         pressure_selection="conservative" if args.conservative_pressure else None,
     )
-

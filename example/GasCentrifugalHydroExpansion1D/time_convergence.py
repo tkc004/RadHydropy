@@ -31,7 +31,7 @@ def total_energy_error(par, initial_condition, example_config):
     saved_radius = spherical_centers(saved_boundary)[active]
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
-    final_time = float(sim.fluid.time)
+    final_time = float(sim.fluid.time_code)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,

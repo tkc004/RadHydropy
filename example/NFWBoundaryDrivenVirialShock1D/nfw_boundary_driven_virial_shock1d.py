@@ -135,8 +135,8 @@ def _write_adiabatic_energy_audit(files, code_units, filename):
             energy_scale = (1.0 * energy_unit).to_value(unyt.erg)
             total_energy = float(np.sum(energy) * energy_scale)
             time = (
-                float(np.asarray(header['Time'][()]))
-                * unyt.Unit(header['Time'].attrs['units'])
+                float(np.asarray(header['time_code'][()]))
+                * unyt.Unit(header['time_code'].attrs['units'])
             ).to_value(unyt.Myr)
             boundary = float(header.attrs.get('CumulativeHydroBoundaryEnergyCode', 0.0))
             gravity = float(header.attrs.get('CumulativeGravityWorkCode', 0.0))

@@ -16,6 +16,7 @@ from radhydropy.thermo_networks.hydrogen import (
     _rotational_specific_energy_code,
 )
 from radhydropy.diagnostics import thermochemistry_active_mask
+from radhydropy.state_boundaries import cgs_source_state_from_code
 
 
 _TABLE_CACHE = {}
@@ -60,18 +61,24 @@ def _state(mesh, fluid, par):
     interior = slice(ghost_cells, ghost_cells + grid_cells)
     gamma = getattr(getattr(fluid, "eos", None), "gamma", 5.0 / 3.0)
     scaling = _fast_source_scaling(fluid, par, gamma)
-    rho_super = to_unit_value(fluid.rho_code[interior], code.density_unit)
+    runtime = fluid.code_state
+    primitive_cgs = cgs_source_state_from_code(
+        code_units=code,
+        fluid=runtime,
+        boundary_code=mesh.boundary[interior.start : interior.stop + 1],
+        volume_code=mesh.vol[interior],
+    )
+    rho_super = primitive_cgs.rho_cgs_g_cm3[interior]
     rho = rho_super / scaling["density_factor"]
-    velocity_super = to_unit_value(fluid.vel_code[interior], code.velocity_unit)
+    velocity_super = primitive_cgs.velocity_cgs_cm_s[interior]
     velocity = velocity_super / scaling["velocity_factor"]
     volume_code = np.asarray(mesh.vol[interior], dtype=float)
-    volume = to_unit_value(volume_code, code.volume_unit) * scaling["density_factor"]
-    if hasattr(fluid, "Mass_code"):
-        mass = to_unit_value(fluid.Mass_code[interior], code.mass_unit)
+    volume = primitive_cgs.volume_cgs_cm3 * scaling["density_factor"]
+    if runtime.Mass_code is not None:
+        mass = runtime.Mass_code[interior] * code.unit_conversion["mass_g"]
     else:
         mass = rho_super * volume_code * code.mass_in_cgs
-    total_energy_super = to_unit_value(fluid.Energy_code[interior], code.energy_unit)
-    specific_total_super = total_energy_super / np.maximum(mass, 1.0e-99)
+    specific_total_super = primitive_cgs.specific_energy_cgs_erg_g[interior]
     rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
     rotational_specific_super = (
         rotational_specific_code * code.unit_conversion['velocity_cgs_cm_s']**2
@@ -96,7 +103,10 @@ def _state(mesh, fluid, par):
         "specific_rotational_energy_cgs_erg_g": (
             rotational_specific_super / scaling["temperature_factor"]
         ),
-        "temperature_cgs_K": to_unit_value(fluid.temp_code[interior], code.temperature_unit) / scaling["temperature_factor"],
+        "temperature_cgs_K": (
+            primitive_cgs.temperature_cgs_K[interior]
+            / scaling["temperature_factor"]
+        ),
         "gamma": gamma,
         "mu": mu,
         "code": code,

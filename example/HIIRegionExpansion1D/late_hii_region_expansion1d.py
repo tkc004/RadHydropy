@@ -117,7 +117,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ).to_value(unyt.pc)
     stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
-    print('time = %.6e Myr' % et.time_myr(sim.fluid.time, sim.par.units.CodeUnits))
+    print('time = %.6e Myr' % et.time_myr(sim.fluid.time_code, sim.par.units.CodeUnits))
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
     print('stagnation radius = %.3e pc' % stagnation_radius_pc)
     print('output files = %d' % len(outputfilenames))

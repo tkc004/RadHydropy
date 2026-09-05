@@ -56,14 +56,14 @@ def load_snapshot(filename):
         noghost = int(header.attrs.get('GhostCells', 0))
         nogrid = int(header.attrs['GridCells'])
         boundary = np.asarray(
-            data['Boundary'][()]
+            data['boundary'][()]
         )[noghost:noghost + nogrid + 1]
         return {
-            'time_Myr': float(header.attrs['Time']) / SECONDS_PER_MYR,
+            'time_Myr': float(header['time_code'][()]) / SECONDS_PER_MYR,
             'boundary_cgs_cm': boundary,
-            'density_cgs_g_cm3': np.asarray(data['Density'][()])[physical],
-            'velocity_cgs_cm_s': np.asarray(data['Velocity'][()])[physical],
-            'temperature_cgs_K': np.asarray(data['Temperature'][()])[physical],
+            'density_cgs_g_cm3': np.asarray(data['rho_code'][()])[physical],
+            'velocity_cgs_cm_s': np.asarray(data['vel_code'][()])[physical],
+            'temperature_cgs_K': np.asarray(data['temp_code'][()])[physical],
         }
 
 
@@ -131,4 +131,3 @@ def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction
         'cooling_length_kpc': cooling_length_cgs_cm / KPC_CM,
         'cooling_cells': cooling_length_cgs_cm / cell_width_cgs_cm,
     }
-

@@ -27,7 +27,7 @@ def hdf5_output_callback(sim, outputtime=0, output_state=None):
         output_state = {
             'outtime': 0.0 * sim.par.simulation.final_time,
             'outindex': 1,
-            'last_output_time_s': float(np.asarray(sim.fluid.time, dtype=float)),
+            'last_output_time_s': float(np.asarray(sim.fluid.time_code, dtype=float)),
         }
     else:
         output_state.setdefault(
@@ -37,7 +37,7 @@ def hdf5_output_callback(sim, outputtime=0, output_state=None):
         output_state.setdefault('outindex', 1)
         output_state.setdefault(
             'last_output_time_s',
-            float(np.asarray(sim.fluid.time, dtype=float)),
+            float(np.asarray(sim.fluid.time_code, dtype=float)),
         )
 
     def callback(sim, step):
@@ -45,12 +45,12 @@ def hdf5_output_callback(sim, outputtime=0, output_state=None):
         if getattr(dt, "shape", None) == (1,):
             dt = dt[0]
         if getattr(sim.par, 'verbose', 0) >= 1:
-            print("time, dt", sim.fluid.time, dt)
+            print("time, dt", sim.fluid.time_code, dt)
         if output_state['outtime'] >= sim.par.output.cadence:
             sim.fluid.SetTemperature()
             write_numbered_hdf5(sim, output_state['outindex'])
             output_state['last_output_time_s'] = float(
-                np.asarray(sim.fluid.time, dtype=float)
+                np.asarray(sim.fluid.time_code, dtype=float)
             )
             output_state['outtime'] = 0.0 * sim.par.simulation.final_time
             output_state['outindex'] += 1
@@ -81,7 +81,7 @@ def run_with_output_times(
     print("--- Initization finished. Start running ... ---")
     print("--- %s seconds ---" % (time.time() - start))
     output_writer(sim, 0)
-    last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))
+    last_output_time_s = float(np.asarray(sim.fluid.time_code, dtype=float))
     progress_steps = 0
 
     def report_progress(step, dt):
@@ -92,15 +92,15 @@ def run_with_output_times(
                 "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
                 % (
                     progress_steps,
-                    float(np.asarray(sim.fluid.time, dtype=float)),
+                    float(np.asarray(sim.fluid.time_code, dtype=float)),
                     float(np.asarray(dt, dtype=float)),
-                    100.0 * float(np.asarray(sim.fluid.time, dtype=float))
+                    100.0 * float(np.asarray(sim.fluid.time_code, dtype=float))
                     / float(np.asarray(final_time, dtype=float)),
                 ),
                 flush=True,
             )
 
-    current_time = sim.fluid.time
+    current_time = sim.fluid.time_code
     final_time = sim.par.simulation.final_time
     time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
     from radhydropy.io import load_output_time_list
@@ -139,12 +139,12 @@ def run_with_output_times(
         if stop_condition is not None and stop_condition(sim):
             break
         target_time_value = float(np.asarray(target_time, dtype=float))
-        while float(np.asarray(sim.fluid.time, dtype=float)) < target_time_value - time_tol:
+        while float(np.asarray(sim.fluid.time_code, dtype=float)) < target_time_value - time_tol:
             if stop_condition is not None and stop_condition(sim):
                 break
             dt = sim.GetStepTime(final_time=target_time)
             if getattr(sim.par, 'verbose', 0) >= 1:
-                print("time, dt", sim.fluid.time, dt)
+                print("time, dt", sim.fluid.time_code, dt)
             step = step_backend(
                 dt=dt,
                 mode=mode,
@@ -157,19 +157,19 @@ def run_with_output_times(
         # Euler/source steps can cross a target by a roundoff- or CFL-sized
         # amount.  Treat the first state at or beyond the target as the
         # requested snapshot instead of silently dropping the output.
-        if float(np.asarray(sim.fluid.time, dtype=float)) >= target_time_value - time_tol:
+        if float(np.asarray(sim.fluid.time_code, dtype=float)) >= target_time_value - time_tol:
             sim.fluid.SetTemperature()
             output_writer(sim, outindex)
-            last_output_time_s = float(np.asarray(sim.fluid.time, dtype=float))
+            last_output_time_s = float(np.asarray(sim.fluid.time_code, dtype=float))
             outindex += 1
 
     final_time_value = float(np.asarray(final_time, dtype=float))
-    while float(np.asarray(sim.fluid.time, dtype=float)) < final_time_value - time_tol:
+    while float(np.asarray(sim.fluid.time_code, dtype=float)) < final_time_value - time_tol:
         if stop_condition is not None and stop_condition(sim):
             break
         dt = sim.GetStepTime(final_time=final_time)
         if getattr(sim.par, 'verbose', 0) >= 1:
-            print("time, dt", sim.fluid.time, dt)
+                print("time, dt", sim.fluid.time_code, dt)
         step = step_backend(
             dt=dt,
             mode=mode,
@@ -178,7 +178,7 @@ def run_with_output_times(
         )
         report_progress(step, dt)
 
-    if stop_condition is not None and abs(float(np.asarray(sim.fluid.time, dtype=float)) - last_output_time_s) > time_tol:
+    if stop_condition is not None and abs(float(np.asarray(sim.fluid.time_code, dtype=float)) - last_output_time_s) > time_tol:
         sim.fluid.SetTemperature()
         output_writer(sim, outindex)
 

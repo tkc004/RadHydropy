@@ -19,6 +19,7 @@ from radhydropy.thermo_networks.hydrogen_helium import (
     ionization_fraction_implicit_update,
 )
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS
+from radhydropy.fluid import Fluid
 from radhydropy.units import CodeUnits
 
 
@@ -123,21 +124,20 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
             / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
         )
         velocity_super = 2.0
-        fluid = SimpleNamespace(
-            rho_code=np.array([8.0]),
-            vel_code=np.array([velocity_super]),
-            temp_code=np.array([temperature * scale_factor**2]),
-            mu=np.array([mu]),
-            Mass_code=np.array([8.0]),
-            Energy_code=np.array([
-                8.0 * (specific_internal * scale_factor**2
-                        + 0.5 * velocity_super**2)
-            ]),
-            xHI=np.array([1.0]),
-            xHeI=np.array([1.0]),
-            xHeII=np.array([0.0]),
-            eos=SimpleNamespace(gamma=gamma),
-        )
+        fluid = Fluid()
+        fluid.rho_code = np.array([8.0])
+        fluid.vel_code = np.array([velocity_super])
+        fluid.temp_code = np.array([temperature * scale_factor**2])
+        fluid.mu = np.array([mu])
+        fluid.Mass_code = np.array([8.0])
+        fluid.Energy_code = np.array([
+            8.0 * (specific_internal * scale_factor**2
+                    + 0.5 * velocity_super**2)
+        ])
+        fluid.xHI = np.array([1.0])
+        fluid.xHeI = np.array([1.0])
+        fluid.xHeII = np.array([0.0])
+        fluid.eos = SimpleNamespace(gamma=gamma)
         mesh = SimpleNamespace(
             boundary=np.array([0.0, 1.0]),
             vol=np.array([1.0]),

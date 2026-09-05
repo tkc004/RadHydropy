@@ -191,7 +191,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             '[hydro dt] t=%s dt=%s idx=%d radius=%s rho=%s vel=%s '
             'cs=%s vsignal=%s dx=%s pre=%s dtmin=%s dtmax=%s'
             % (
-                fluid.time,
+                fluid.time_code,
                 dt,
                 diagnostic_index,
                 np.asarray(mesh.coordinate)[diagnostic_index],

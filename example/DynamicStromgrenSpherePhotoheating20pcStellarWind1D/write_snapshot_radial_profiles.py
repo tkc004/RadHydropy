@@ -23,7 +23,7 @@ import example_utils as eu
 def snapshot_time_myr(snapshot_filename):
     """Read the snapshot time from the HDF5 header and return Myr."""
     with h5py.File(snapshot_filename, 'r') as hdf5:
-        time_dataset = hdf5['Header']['Time']
+        time_dataset = hdf5['Header']['time_code']
         time = unyt.unyt_quantity(
             time_dataset[()],
             time_dataset.attrs.get('units', 's'),

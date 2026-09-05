@@ -73,11 +73,11 @@ def _snapshot(filename, time_Myr=None):
         last = first + nogrid
         return {
             'time_Myr': (
-                float(header.attrs['Time']) / SECONDS_PER_MYR
+                float(header['time_code'][()]) / SECONDS_PER_MYR
                 if time_Myr is None else float(time_Myr)
             ),
-            'density': np.asarray(data['Density'][()])[first:last],
-            'temperature': np.asarray(data['Temperature'][()])[first:last],
+            'density': np.asarray(data['rho_code'][()])[first:last],
+            'temperature': np.asarray(data['temp_code'][()])[first:last],
         }
 
 
@@ -293,4 +293,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

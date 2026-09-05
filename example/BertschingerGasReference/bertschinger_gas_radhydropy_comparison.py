@@ -68,7 +68,7 @@ class BertschingerBoundarySolver(Solver):
             if hasattr(fluid, name):
                 getattr(fluid, name)[left] = getattr(fluid, name)[first]
 
-        tau = float(np.asarray(fluid.time, dtype=float).reshape(-1)[0])
+        tau = float(np.asarray(fluid.time_code, dtype=float).reshape(-1)[0])
         cosmology = par.cosmology
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
         scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
@@ -208,7 +208,7 @@ def build_initial_condition(config):
     return sim
 def _similarity_profiles(sim, solution):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    tau = float(np.asarray(sim.fluid.time, dtype=float).reshape(-1)[0])
+    tau = float(np.asarray(sim.fluid.time_code, dtype=float).reshape(-1)[0])
     cosmology = sim.par.cosmology
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
     cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))

@@ -979,22 +979,22 @@ class Testing(unittest.TestCase):
                 header.attrs['noghost'] = 1
                 data = hdf5.create_group('Data')
                 boundary = data.create_dataset(
-                    'Boundary',
+                    'boundary',
                     data=np.array([-1.0, 0.0, 1.0, 2.0, 3.0, 4.0]) * 1.0e18,
                 )
                 boundary.attrs['units'] = 'cm'
                 velocity = data.create_dataset(
-                    'Velocity',
+                    'vel_code',
                     data=np.array([0.0, 1.0, 2.0, 3.0, 4.0]) * 1.0e5,
                 )
                 velocity.attrs['units'] = 'cm/s'
                 density = data.create_dataset(
-                    'Density',
+                    'rho_code',
                     data=np.arange(5.0) * (1.0 * unyt.mp).to_value(unyt.g),
                 )
                 density.attrs['units'] = 'g/cm**3'
                 temperature = data.create_dataset(
-                    'Temperature',
+                    'temp_code',
                     data=np.arange(5.0) * 100.0,
                 )
                 temperature.attrs['units'] = 'K'
@@ -1159,7 +1159,7 @@ class Testing(unittest.TestCase):
             np.asarray(expected_coordinate[out_par.noghost : out_par.noghost + out_par.nogrid], dtype=float),
         )
         self.assertEqual(
-            float(np.asarray(out_fluid.time, dtype=float)),
+            float(np.asarray(out_fluid.time_code, dtype=float)),
             0.0,
         )
 

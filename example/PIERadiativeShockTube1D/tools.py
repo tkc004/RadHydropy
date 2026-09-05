@@ -63,13 +63,13 @@ def load_snapshot(filename):
         physical = _physical_cells(data, header)
         noghost = int(header.attrs.get('GhostCells', 0))
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(data['Boundary'][()])[noghost:noghost + nogrid + 1]
+        boundary = np.asarray(data['boundary'][()])[noghost:noghost + nogrid + 1]
         return {
-            'time_Myr': float(header.attrs['Time']) / SECONDS_PER_MYR,
+            'time_Myr': float(header['time_code'][()]) / SECONDS_PER_MYR,
             'boundary_cgs_cm': boundary,
-            'density_cgs_g_cm3': np.asarray(data['Density'][()])[physical],
-            'velocity_cgs_cm_s': np.asarray(data['Velocity'][()])[physical],
-            'temperature_cgs_K': np.asarray(data['Temperature'][()])[physical],
+            'density_cgs_g_cm3': np.asarray(data['rho_code'][()])[physical],
+            'velocity_cgs_cm_s': np.asarray(data['vel_code'][()])[physical],
+            'temperature_cgs_K': np.asarray(data['temp_code'][()])[physical],
         }
 
 
@@ -107,4 +107,3 @@ def cooling_length_estimate(
     )
     cooling_time_s = thermal_energy / net_cooling
     return post_velocity_cgs_cm_s * cooling_time_s
-

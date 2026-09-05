@@ -181,7 +181,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         pressure_right,
         pressure_left,
     )
-    final_tau = float(np.asarray(sim.fluid.time, dtype=float))
+    final_tau = float(np.asarray(sim.fluid.time_code, dtype=float))
     print(f"final supercomoving time = {final_tau:.8g}")
     rho_exact, pressure_exact, _ = shocktubeanalyticgraph(
         gamma,
@@ -230,7 +230,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
     print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
     print(f"final density L1 error = {density_l1:.6e}")
-    print(f"scale factor at final time = {sim.par.cosmology.scale_factor_from_supercomoving(float(sim.fluid.time)):.8g}")
+    print(f"scale factor at final time = {sim.par.cosmology.scale_factor_from_supercomoving(float(sim.fluid.time_code)):.8g}")
     print(f"figure = {figure}")
     return figure
 

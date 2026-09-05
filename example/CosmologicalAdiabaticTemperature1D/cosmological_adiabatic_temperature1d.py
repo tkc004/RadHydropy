@@ -107,7 +107,7 @@ def run():
         sim.SetInitFluid()
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
-        final_tau_sim = float(np.asarray(sim.fluid.time, dtype=float).flat[0])
+        final_tau_sim = float(np.asarray(sim.fluid.time_code, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         stored_temperature = float(np.mean(sim.fluid.temp_code))
         measured_temperature = stored_temperature / final_a**2

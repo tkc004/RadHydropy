@@ -134,7 +134,7 @@ def main(config_filename=CONFIG):
     radius = np.asarray(sim.mesh.coordinate[active], dtype=float)
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
-    final_time = float(sim.fluid.time)
+    final_time = float(sim.fluid.time_code)
     saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
     source_boundary = saved_boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1]
     saved_radius = spherical_centers(saved_boundary)[active]

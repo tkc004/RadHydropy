@@ -100,7 +100,7 @@ def mean_photon_number_density(sim):
 
 def time_value(sim, units):
     code = getattr(sim.par.units, 'CodeUnits', None)
-    time_s = time_seconds(sim.fluid.time, code)
+    time_s = time_seconds(sim.fluid.time_code, code)
     unit_seconds = float((1.0 * units).to_value(unyt.s))
     return float(time_s / unit_seconds)
 
@@ -198,7 +198,6 @@ def save_history_plot(history, filename, config, target_xHI):
     fig.tight_layout()
     fig.savefig(filename, dpi=200)
     plt.close(fig)
-
 
 
 

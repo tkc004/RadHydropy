@@ -65,7 +65,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
 
-    print('time = %s' % out_fluid.time)
+    print('time = %s' % out_fluid.time_code)
     print('output files = %d' % len(outputfilenames))
     print('final front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temperature_cgs_K'][-1])

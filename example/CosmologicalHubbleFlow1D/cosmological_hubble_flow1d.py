@@ -126,7 +126,7 @@ def run():
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
 
-        final_tau_sim = float(np.asarray(sim.fluid.time, dtype=float).flat[0])
+        final_tau_sim = float(np.asarray(sim.fluid.time_code, dtype=float).flat[0])
         cosmic_time, final_a, final_hubble = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         coordinate = sim.mesh.coordinate[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]
         velocity = sim.fluid.vel_code[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]

@@ -68,7 +68,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         )
         return 0
     if gravity is not None and getattr(gravity, "cosmological", False):
-        gravity.fluid_time = fluid.time
+        gravity.fluid_time_code = fluid.time_code
     crossing_safety_factor = getattr(par, "dark_matter_crossing_safety_factor", 0.1)
     if gravity is not None and getattr(gravity, "dark_matter", None) is not None:
         gravity.advance_dark_matter(
@@ -77,7 +77,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             fluid.rho_code,
             par,
             crossing_safety_factor=crossing_safety_factor,
-            current_time=fluid.time,
+            current_time=fluid.time_code,
         )
     # ApplyGravity follows the conservative hydro flux update and precedes
     # the primitive-state refresh.  Therefore fluid.rho_code and fluid.vel_code can

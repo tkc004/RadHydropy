@@ -131,8 +131,8 @@ def main(config_filename=DEFAULT_CONFIG):
 
     final_time = runparams["simulation"]["final_time"].to_value(unyt.s)
     dtmax = runparams["timestep"]["dtmax"].to_value(unyt.s)
-    while float(np.asarray(sim.fluid.time)) < final_time:
-        remaining = final_time - float(np.asarray(sim.fluid.time))
+    while float(np.asarray(sim.fluid.time_code)) < final_time:
+        remaining = final_time - float(np.asarray(sim.fluid.time_code))
         # Keep this demonstration on a fixed, conservative source timestep so
         # the momentum-budget comparison is not obscured by a CFL diagnostic.
         dt = min(float(dtmax), remaining)
@@ -154,7 +154,7 @@ def main(config_filename=DEFAULT_CONFIG):
         sim._sync_hydro_state()
         expected += _absorbed_momentum(source_result, sim.mesh, sim.par, dt)
 
-        time_s.append(float(np.asarray(sim.fluid.time)))
+        time_s.append(float(np.asarray(sim.fluid.time_code)))
         gas_momentum.append(_total_momentum(sim.fluid, sim.par))
         expected_momentum.append(expected)
 

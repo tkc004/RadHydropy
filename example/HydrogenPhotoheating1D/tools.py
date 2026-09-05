@@ -143,7 +143,7 @@ def mean_photon_number_density(sim):
 
 def time_value(sim, units):
     code = getattr(sim.par.units, 'CodeUnits', None)
-    time_s = time_seconds(sim.fluid.time, code)
+    time_s = time_seconds(sim.fluid.time_code, code)
     unit_seconds = float((1.0 * units).to_value(unyt.s))
     return float(time_s / unit_seconds)
 
@@ -195,7 +195,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
     print("--- %s seconds ---" % (time.time() - start_time))
     rio.write_numbered_hdf5(sim, 0)
 
-    time_unit = getattr(sim.fluid.time, 'units', unyt.s)
+    time_unit = getattr(sim.fluid.time_code, 'units', unyt.s)
 
     def _as_time_quantity(value, unit=time_unit):
         if hasattr(value, 'to'):
@@ -209,7 +209,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
 
     final_time = _as_time_quantity(sim.par.simulation.final_time)
     source_switch_time = _as_time_quantity(source_switch_time, final_time.units)
-    sim.fluid.time = _as_time_quantity(sim.fluid.time, final_time.units)
+    sim.fluid.time_code = _as_time_quantity(sim.fluid.time_code, final_time.units)
     output_times = rio.load_output_time_list(
         getattr(sim.par.output, 'time_list_filename', None)
     )
@@ -221,7 +221,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         output_times = [
             value * target_unit
             for value in output_times
-            if value * target_unit > sim.fluid.time and value * target_unit <= final_time
+            if value * target_unit > sim.fluid.time_code and value * target_unit <= final_time
         ]
     else:
         output_interval = getattr(sim.par.output, 'cadence', None)
@@ -230,12 +230,12 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
             if output_interval is not None
             else None
         )
-    last_output_time = sim.fluid.time.copy()
+    last_output_time = sim.fluid.time_code.copy()
     outindex = 1
     next_output_index = 0
 
-    while sim.fluid.time < final_time:
-        current_time = sim.fluid.time
+    while sim.fluid.time_code < final_time:
+        current_time = sim.fluid.time_code
         dt = final_time - current_time
         if output_times is not None and next_output_index < len(output_times):
             target_output_time = output_times[next_output_index]
@@ -260,27 +260,27 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         ).to_value(sim.par.units.CodeUnits.number_density_unit)
 
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
-        sim.fluid.time += dt
+        sim.fluid.time_code += dt
 
         if getattr(sim.par, 'verbose', 0) >= 1:
-            print("time, dt", sim.fluid.time, dt)
+            print("time, dt", sim.fluid.time_code, dt)
 
         if output_times is not None:
             while (
                 next_output_index < len(output_times)
-                and sim.fluid.time >= output_times[next_output_index]
+                and sim.fluid.time_code >= output_times[next_output_index]
             ):
                 rio.write_numbered_hdf5(sim, outindex)
-                last_output_time = sim.fluid.time.copy()
+                last_output_time = sim.fluid.time_code.copy()
                 outindex += 1
                 next_output_index += 1
-        elif next_output_time is not None and sim.fluid.time >= next_output_time:
+        elif next_output_time is not None and sim.fluid.time_code >= next_output_time:
             rio.write_numbered_hdf5(sim, outindex)
-            last_output_time = sim.fluid.time.copy()
+            last_output_time = sim.fluid.time_code.copy()
             outindex += 1
             next_output_time += output_interval
 
-    if sim.fluid.time != last_output_time:
+    if sim.fluid.time_code != last_output_time:
         rio.write_numbered_hdf5(sim, outindex)
 
     print("--- Simulation finished. ---")

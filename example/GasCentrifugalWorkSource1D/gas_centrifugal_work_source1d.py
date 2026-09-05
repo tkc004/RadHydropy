@@ -64,7 +64,7 @@ def run_simulation(par, initial_condition, example_config):
     def source_backend(dt, mode='sources', **kwargs):
         sim.solver.ApplyGravity(dt, sim.mesh, sim.fluid, sim.par)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, par=sim.par)
-        sim.fluid.time += dt
+        sim.fluid.time_code += dt
         source_backend.record_source_state(dt)
         return {'dt': dt, 'hydro_steps': 0, 'source_steps': 1}
 
@@ -82,7 +82,7 @@ def run_simulation(par, initial_condition, example_config):
     source_works = [0.0]
 
     def record_source_state(dt):
-        source_times.append(float(sim.fluid.time))
+        source_times.append(float(sim.fluid.time_code))
         source_momenta.append(float(sim.fluid.Mom_code[sim.par.noghost]))
         source_energies.append(float(sim.fluid.Energy_code[sim.par.noghost]))
         source_works.append(source_works[-1] + sim.solver.last_centrifugal_work)
@@ -119,7 +119,7 @@ def main(config_filename=CONFIG):
     acceleration = j**2 / radius**3
     # The generic HDF5 header stores the initial IC time for this non-cosmology
     # source driver; use the live Rsim clock for the exact source interval.
-    final_time = float(sim.fluid.time)
+    final_time = float(sim.fluid.time_code)
     time = source_times
     expected_momentum = initial_momentum + mass * acceleration * time
     # Centrifugal work is an internal transfer from rotational to radial

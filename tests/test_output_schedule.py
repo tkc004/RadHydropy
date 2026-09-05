@@ -46,7 +46,7 @@ class Testing(unittest.TestCase):
             path.write_text('\n'.join(['s', '3.0', '1.0']))
 
             fluid = SimpleNamespace(
-                time=0.0 * unyt.s,
+                time_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
             )
             par = parameter_namespace(
@@ -60,17 +60,17 @@ class Testing(unittest.TestCase):
             writes = []
 
             def fake_write(sim, index):
-                writes.append((index, fluid.time.copy()))
+                writes.append((index, fluid.time_code.copy()))
 
             def fake_step(dt=None, mode=None, **kwargs):
-                fluid.time += dt
+                fluid.time_code += dt
                 return {'dt': dt, 'hydro_steps': 1, 'source_steps': 1}
 
             def fake_get_step_time(dt=None, final_time=None):
                 if dt is not None:
                     return dt
                 if final_time is not None:
-                    return final_time - fluid.time
+                    return final_time - fluid.time_code
                 return 1.0 * unyt.s
 
             with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
@@ -86,12 +86,12 @@ class Testing(unittest.TestCase):
                 [time.to_value(unyt.s) for _, time in writes],
                 [0.0, 1.0, 3.0],
             )
-            self.assertEqual(fluid.time, 3.0 * unyt.s)
+            self.assertEqual(fluid.time_code, 3.0 * unyt.s)
 
     def test_run_honors_stop_condition_in_source_only_mode(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fluid = SimpleNamespace(
-                time=0.0 * unyt.s,
+                time_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
             )
             par = parameter_namespace(
@@ -106,11 +106,11 @@ class Testing(unittest.TestCase):
             step_modes = []
 
             def fake_write(sim, index):
-                writes.append((index, fluid.time.copy()))
+                writes.append((index, fluid.time_code.copy()))
 
             def fake_step(dt=None, mode=None, **kwargs):
                 step_modes.append(mode)
-                fluid.time += dt
+                fluid.time_code += dt
                 return {'dt': dt, 'hydro_steps': 0, 'source_steps': 1}
 
             def fake_get_step_time(dt=None, final_time=None):
@@ -126,7 +126,7 @@ class Testing(unittest.TestCase):
                 rio.run_with_output_times(
                     sim,
                     mode='sources',
-                    stop_condition=lambda runner: runner.fluid.time >= 2.5 * unyt.s,
+                stop_condition=lambda runner: runner.fluid.time_code >= 2.5 * unyt.s,
                 )
 
             self.assertEqual(step_modes, ['sources', 'sources', 'sources'])
@@ -135,7 +135,7 @@ class Testing(unittest.TestCase):
                 [time.to_value(unyt.s) for _, time in writes],
                 [0.0, 3.0],
             )
-            self.assertEqual(fluid.time, 3.0 * unyt.s)
+            self.assertEqual(fluid.time_code, 3.0 * unyt.s)
 
     def test_run_writes_used_parameters_in_current_directory(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -150,7 +150,7 @@ class Testing(unittest.TestCase):
                     simname='test_run',
                 )
                 fluid = SimpleNamespace(
-                    time=0.0 * unyt.s,
+                    time_code=0.0 * unyt.s,
                     SetTemperature=lambda: None,
                 )
                 sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)

@@ -158,13 +158,13 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
-    par.time = unyt.unyt_array(np.asarray(getattr(par, 'time', par.Time), dtype=float), code_units_obj.time_unit)
-    par.boxsize = unyt.unyt_array(np.asarray(getattr(par, 'boxsize', par.BoxSize), dtype=float), code_units_obj.length_unit)
+    par.time = unyt.unyt_array(np.asarray(par.time_code, dtype=float), code_units_obj.time_unit)
+    par.boxsize = unyt.unyt_array(np.asarray(par.box_size_code, dtype=float), code_units_obj.length_unit)
     mesh.boundary = unyt.unyt_array(np.asarray(mesh.boundary, dtype=float), code_units_obj.length_unit)
     fluid.rho_code = unyt.unyt_array(np.asarray(fluid.rho_code, dtype=float), code_units_obj.density_unit)
     fluid.vel_code = unyt.unyt_array(np.asarray(fluid.vel_code, dtype=float), code_units_obj.velocity_unit)
     fluid.temp_code = unyt.unyt_array(np.asarray(fluid.temp_code, dtype=float), code_units_obj.temperature_unit)
-    fluid.time = par.time.copy()
+    fluid.time_code = par.time.copy()
     if hasattr(fluid, 'ngamma_code'):
         fluid.ngamma_code = unyt.unyt_array(
             np.asarray(fluid.ngamma_code, dtype=float),
@@ -237,12 +237,12 @@ def total_recombination_rate(mesh, fluid, par):
 
 def append_history(history, mesh, fluid, par, config, recombined_photons):
     radiation = config['par']['radiation']
-    history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
+    history['time_Myr'].append(fluid.time_code.to_value(unyt.Myr))
     history['front_radius_kpc'].append(
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
     history['injected_photons'].append(
-        (radiation['radiative_transfer_source_photon_rate'] * fluid.time).to_value('')
+        (radiation['radiative_transfer_source_photon_rate'] * fluid.time_code).to_value('')
     )
     history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, par))
     history['recombined_photons'].append(recombined_photons)

@@ -298,7 +298,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
 
         # Continue from the reloaded state at a later supercomoving time.
         loaded_par.time = tau_restart
-        loaded_fluid.time = tau_restart
+        loaded_fluid.time_code = tau_restart
         restart_scale = cosmology.scale_factor(cosmic_times[1])
         restart_rho_code = np.asarray(loaded_fluid.rho_code, dtype=float)
         restart_j = np.asarray(loaded_fluid.specific_angular_momentum_code, dtype=float)

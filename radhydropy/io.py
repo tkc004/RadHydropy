@@ -56,29 +56,6 @@ def _normalize_attr_name(name):
     return result or "field"
 
 
-def _dataset_aliases(name):
-    alias_map = {
-        "Boundary": ("boundary",),
-        "Density": ("rho_code",),
-        "Velocity": ("vel_code",),
-        "Temperature": ("temp_code",),
-        "Mol_weight": ("mu",),
-        "NeutralFraction": ("xHI",),
-        "PhotonNumberDensity": ("ngamma_code",),
-        "InternalEnergy": ("InternalEnergy_code",),
-        "Energy": ("Energy_code",),
-        "Mass": ("Mass_code",),
-        "AngularMomentum": ("AngularMomentum_code",),
-        "GravitationalPotentialEnergy": ("GravitationalPotentialEnergy_code",),
-        "SpecificAngularMomentum": ("specific_angular_momentum_code",),
-        "AngularMomentum": ("AngularMomentum_code",),
-        "HeINeutralFraction": ("xHeI",),
-        "HeIIFraction": ("xHeII",),
-        "HeIIIFraction": ("xHeIII",),
-    }
-    return alias_map.get(name, ())
-
-
 def _read_any_dataset(dataset, code_units=None, scale_key=None):
     """Read a dataset and normalize it into code-unit numeric arrays.
 
@@ -117,8 +94,6 @@ def _populate_group_targets(group, targets, code_units=None, scale_map=None):
         attr_name = _normalize_attr_name(name)
         for target in targets:
             setattr(target, attr_name, value)
-            for alias in _dataset_aliases(name):
-                setattr(target, alias, value)
 
 
 def _yaml_config_value(value):
@@ -471,7 +446,7 @@ def writehdf5(ric,ICfilename):
     """
     ICfilename = str(ICfilename)
     print(f"--- writing {ICfilename} --- ")
-    output_time = getattr(ric.fluid, "time", None)
+    output_time = getattr(ric.fluid, "time_code", None)
     if output_time is None:
         output_time = ric.par.simulation.current_time
     with h5py.File(ICfilename, 'w') as fic:
@@ -507,7 +482,7 @@ def writehdf5(ric,ICfilename):
         _write_cosmology_header(header, ric.par, output_time, code_units)
         _write_quantity(
             header,
-            "Time",
+            "time_code",
             output_time,
             code_units=code_units,
             scale_key="time_s",
@@ -515,7 +490,7 @@ def writehdf5(ric,ICfilename):
         )
         _write_quantity(
             header,
-            "BoxSize",
+            "box_size_code",
             ric.par.simulation.box_size,
             code_units=code_units,
             scale_key="length_cgs_cm",
@@ -536,7 +511,7 @@ def writehdf5(ric,ICfilename):
         gdata = fic.create_group("Data")
         _write_quantity(
             gdata,
-            "Boundary",
+            "boundary",
             ric.mesh.boundary,
             code_units=code_units,
             scale_key="length_cgs_cm",
@@ -554,7 +529,7 @@ def writehdf5(ric,ICfilename):
         )
         _write_quantity(
             gdata,
-            "Density",
+            "rho_code",
             ric.fluid.rho_code,
             code_units=code_units,
             scale_key="density_cgs_g_cm3",
@@ -572,7 +547,7 @@ def writehdf5(ric,ICfilename):
         )
         _write_quantity(
             gdata,
-            "Velocity",
+            "vel_code",
             ric.fluid.vel_code,
             code_units=code_units,
             scale_key="velocity_cgs_cm_s",
@@ -589,7 +564,7 @@ def writehdf5(ric,ICfilename):
         )
         _write_quantity(
             gdata,
-            "Temperature",
+            "temp_code",
             ric.fluid.temp_code,
             code_units=code_units,
             scale_key="temperature_cgs_K",
@@ -611,18 +586,18 @@ def writehdf5(ric,ICfilename):
         if hasattr(ric.fluid, "specific_angular_momentum_code"):
             _write_quantity(
                 gdata,
-                "SpecificAngularMomentum",
+                "specific_angular_momentum_code",
                 ric.fluid.specific_angular_momentum_code,
                 code_units=code_units,
                 scale_key="specific_angular_momentum",
                 default_unit=unyt.cm**2 / unyt.s,
             )
         for attr, dataset_name in (
-            ("Mass_code", "Mass"),
-            ("Energy_code", "Energy"),
-            ("InternalEnergy_code", "InternalEnergy"),
-            ("AngularMomentum_code", "AngularMomentum"),
-            ("GravitationalPotentialEnergy_code", "GravitationalPotentialEnergy"),
+            ("Mass_code", "Mass_code"),
+            ("Energy_code", "Energy_code"),
+            ("InternalEnergy_code", "InternalEnergy_code"),
+            ("AngularMomentum_code", "AngularMomentum_code"),
+            ("GravitationalPotentialEnergy_code", "GravitationalPotentialEnergy_code"),
         ):
             if hasattr(ric.fluid, attr):
                 scale_key = (
@@ -642,10 +617,10 @@ def writehdf5(ric,ICfilename):
                         if attr == "AngularMomentum_code" else unyt.erg
                     ),
                 )
-        gdata.create_dataset("Mol_weight", data=np.asarray(ric.fluid.mu))
+        gdata.create_dataset("mu", data=np.asarray(ric.fluid.mu))
         if hasattr(ric.fluid, "xHI"):
-            gdata.create_dataset("NeutralFraction", data=np.asarray(ric.fluid.xHI))
-        for attr, dataset in (("xHeI", "HeINeutralFraction"), ("xHeII", "HeIIFraction"), ("xHeIII", "HeIIIFraction")):
+            gdata.create_dataset("xHI", data=np.asarray(ric.fluid.xHI))
+        for attr, dataset in (("xHeI", "xHeI"), ("xHeII", "xHeII"), ("xHeIII", "xHeIII")):
             if hasattr(ric.fluid, attr):
                 gdata.create_dataset(dataset, data=np.asarray(getattr(ric.fluid, attr)))
         if hasattr(ric.fluid, "ngamma_code"):
@@ -658,7 +633,7 @@ def writehdf5(ric,ICfilename):
                 ngamma_cgs_cm3 = np.asarray(ngamma_cgs_cm3.to_value(code_units.number_density_unit))
             _write_quantity(
                 gdata,
-                "PhotonNumberDensity",
+                "ngamma_code",
                 ngamma_cgs_cm3,
                 code_units=code_units,
                 scale_key="number_density_cgs_cm3",
@@ -668,7 +643,7 @@ def writehdf5(ric,ICfilename):
             for dataset_name, dataset in gdata.items():
                 if not isinstance(dataset, h5py.Dataset):
                     continue
-                if dataset_name in {"Boundary", "Density", "Velocity", "Temperature"}:
+                if dataset_name in {"boundary", "rho_code", "vel_code", "temp_code"}:
                     continue
                 dataset.attrs["representation"] = "physical"
         dark_matter = getattr(ric.par, "dark_matter", None)
@@ -707,9 +682,9 @@ def writehdf5(ric,ICfilename):
 def readhdf5(par, mesh, fluid, ICfilename): 
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
 
-    Datasets such as ``Density`` are restored into the runtime code-unit
-    system when ``CodeUnits`` is available in the file header, so
-    ``fluid.rho_code`` comes back as a plain numeric array in code units.
+    Canonical ``*_code`` datasets are restored into the runtime code-unit
+    system when ``CodeUnits`` is available in the file header, so fields such
+    as ``fluid.rho_code`` come back as plain numeric arrays in code units.
     """
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
@@ -764,8 +739,8 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 % (grid_cells, expected_nogrid)
             )
         header_scale_map = {
-            "Time": "time_s",
-            "BoxSize": "length_cgs_cm",
+            "time_code": "time_s",
+            "box_size_code": "length_cgs_cm",
         }
         _populate_group_targets(
             header,
@@ -793,30 +768,30 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 par.output.directory
             )
         if hasattr(par, 'simulation'):
-            par.simulation.current_time = getattr(par, "Time")
-            par.simulation.box_size = getattr(par, "BoxSize")
-            fluid.time = par.simulation.current_time.copy() if hasattr(
+            par.simulation.current_time = getattr(par, "time_code")
+            par.simulation.box_size = getattr(par, "box_size_code")
+            fluid.time_code = par.simulation.current_time.copy() if hasattr(
                 par.simulation.current_time, "copy"
             ) else float(par.simulation.current_time)
         else:
             # Plain parameter namespaces are accepted only as an I/O boundary
             # for callers that do not construct a full Par object.
-            fluid.time = getattr(par, "Time")
+            fluid.time_code = getattr(par, "time_code")
 
         #second, save mesh and fluid data:
         gdata = fic["Data"]
         data_scale_map = {
-            "Boundary": "length_cgs_cm",
-            "Density": "density_cgs_g_cm3",
-            "Velocity": "velocity_cgs_cm_s",
-            "Temperature": "temperature_cgs_K",
-            "PhotonNumberDensity": "number_density_cgs_cm3",
-            "Mass": "mass_g",
-            "Energy": "energy_cgs_erg",
-            "InternalEnergy": "energy_cgs_erg",
-            "SpecificAngularMomentum": "specific_angular_momentum",
-            "AngularMomentum": "angular_momentum",
-            "GravitationalPotentialEnergy": "energy_cgs_erg",
+            "boundary": "length_cgs_cm",
+            "rho_code": "density_cgs_g_cm3",
+            "vel_code": "velocity_cgs_cm_s",
+            "temp_code": "temperature_cgs_K",
+            "ngamma_code": "number_density_cgs_cm3",
+            "Mass_code": "mass_g",
+            "Energy_code": "energy_cgs_erg",
+            "InternalEnergy_code": "energy_cgs_erg",
+            "specific_angular_momentum_code": "specific_angular_momentum",
+            "AngularMomentum_code": "angular_momentum",
+            "GravitationalPotentialEnergy_code": "energy_cgs_erg",
         }
         _populate_group_targets(
             gdata,
@@ -824,6 +799,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units=code_units,
             scale_map=data_scale_map,
         )
+        if hasattr(fluid, "code_state"):
+            # Force the canonical runtime boundary to validate the restored
+            # arrays before a restart can enter solver code.
+            _ = fluid.code_state
         par.field_metadata = {}
         for dataset_name, dataset in gdata.items():
             if isinstance(dataset, h5py.Dataset):
@@ -865,22 +844,3 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 softening=snapshot["softening"],
                 code_units=code_units,
             )
-
-        # Preserve the canonical runtime field names expected by the solver.
-        if hasattr(mesh, "Boundary"):
-            mesh.boundary = getattr(mesh, "Boundary")
-        if hasattr(fluid, "Density"):
-            fluid.rho_code = getattr(fluid, "Density")
-        if hasattr(fluid, "Velocity"):
-            fluid.vel_code = getattr(fluid, "Velocity")
-        if hasattr(fluid, "Temperature"):
-            fluid.temp_code = getattr(fluid, "Temperature")
-        if hasattr(fluid, "Mol_weight"):
-            fluid.mu = getattr(fluid, "Mol_weight")
-        if hasattr(fluid, "NeutralFraction"):
-            fluid.xHI = getattr(fluid, "NeutralFraction")
-        if hasattr(fluid, "PhotonNumberDensity"):
-            fluid.ngamma_code = getattr(fluid, "PhotonNumberDensity")
-        for dataset, attr in (("HeINeutralFraction", "xHeI"), ("HeIIFraction", "xHeII"), ("HeIIIFraction", "xHeIII")):
-            if hasattr(fluid, dataset):
-                setattr(fluid, attr, getattr(fluid, dataset))

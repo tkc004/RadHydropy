@@ -92,7 +92,7 @@ def build_static_problem(config):
     fluid.temp_code = np.ones(par.nogrid) * unyt.K
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.time = 0.0 * unyt.s
+    fluid.time_code = 0.0 * unyt.s
 
     solver = SimpleNamespace()
     return par, mesh, fluid, solver

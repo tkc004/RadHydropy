@@ -72,10 +72,10 @@ def snapshot_physical_fields(hdf5_filename):
     with h5py.File(hdf5_filename, 'r') as hdf5:
         header = hdf5['Header']
         data = hdf5['Data']
-        boundary = np.asarray(data['Boundary'][()], dtype=float)
-        density = np.asarray(data['Density'][()], dtype=float)
-        velocity = np.asarray(data['Velocity'][()], dtype=float)
-        temperature = np.asarray(data['Temperature'][()], dtype=float)
+        boundary = np.asarray(data['boundary'][()], dtype=float)
+        density = np.asarray(data['rho_code'][()], dtype=float)
+        velocity = np.asarray(data['vel_code'][()], dtype=float)
+        temperature = np.asarray(data['temp_code'][()], dtype=float)
         representation = header.attrs.get('VelocityRepresentation', 'physical')
         if isinstance(representation, bytes):
             representation = representation.decode()
@@ -88,7 +88,7 @@ def snapshot_physical_fields(hdf5_filename):
                 t_ref=float(header.attrs['CosmologyTRef']),
                 a_ref=float(header.attrs['CosmologyARef']),
             )
-            tau = float(np.asarray(data.file['Header']['Time'][()]))
+            tau = float(np.asarray(data.file['Header']['time_code'][()]))
             gamma = float(header.attrs.get('gamma', 5.0 / 3.0))
             scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
             hubble = float(cosmology.hubble_from_supercomoving(tau))
@@ -158,10 +158,10 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
     with h5py.File(hdf5_filename, 'r') as hdf5:
         header = hdf5['Header']
         data = hdf5['Data']
-        boundary_dataset = data['Boundary']
-        velocity_dataset = data['Velocity']
-        density_dataset = data['Density']
-        temperature_dataset = data['Temperature']
+        boundary_dataset = data['boundary']
+        velocity_dataset = data['vel_code']
+        density_dataset = data['rho_code']
+        temperature_dataset = data['temp_code']
 
         fields = snapshot_physical_fields(hdf5_filename)
         boundaries = np.asarray(fields['boundary'], dtype=float)

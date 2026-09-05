@@ -32,17 +32,17 @@ def load_snapshot(filename, config):
         header = handle['Header']
         noghost = int(config['par']['mesh']['ghost_cells'])
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(data['Boundary'][()])
+        boundary = np.asarray(data['boundary'][()])
         boundary = boundary[noghost:noghost + nogrid + 1]
         # Raw output datasets are written in their physical units (cm, g cm^-3,
         # K, and cm s^-1).  The CodeUnits metadata describes the runtime state,
         # but must not be applied a second time to these HDF5 values.
         radius = spherical_cell_centers(boundary * unyt.cm).to_value(unyt.kpc)
-        density = np.asarray(data['Density'][()])[noghost:noghost + nogrid]
-        temperature = np.asarray(data['Temperature'][()])[noghost:noghost + nogrid]
-        velocity = (np.asarray(data['Velocity'][()])[noghost:noghost + nogrid]
+        density = np.asarray(data['rho_code'][()])[noghost:noghost + nogrid]
+        temperature = np.asarray(data['temp_code'][()])[noghost:noghost + nogrid]
+        velocity = (np.asarray(data['vel_code'][()])[noghost:noghost + nogrid]
                     / 1.0e5)
-        time = float(header.attrs.get('Time', 0.0))
+        time = float(header.attrs.get('time_code', 0.0))
         # Fixed output-time files store the physical time in the fluid state;
         # the header time is retained as a fallback for older snapshots.
         return time, radius, density, temperature, velocity

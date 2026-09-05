@@ -141,7 +141,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 sim.last_source_dt,
             )
         code = CodeUnits.from_mapping(sim.par.CodeUnits)
-        time_s = float(np.asarray(sim.fluid.time)) * float(
+        time_s = float(np.asarray(sim.fluid.time_code)) * float(
             (1.0 * code.time_unit).to_value(unyt.s)
         )
         momentum_history["time_s"].append(time_s)

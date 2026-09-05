@@ -25,7 +25,7 @@ def Evolve(
     progress_steps = 0
     if history_callback is not None:
         history_callback(sim)
-    while sim.fluid.time < final_time:
+    while sim.fluid.time_code < final_time:
         if stop_condition is not None and stop_condition(sim):
             break
         dt = sim.GetStepTime(final_time=final_time)
@@ -43,9 +43,9 @@ def Evolve(
                 "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
                 % (
                     progress_steps,
-                    float(sim.fluid.time),
+                    float(sim.fluid.time_code),
                     float(dt),
-                    100.0 * float(sim.fluid.time) / float(final_time),
+                    100.0 * float(sim.fluid.time_code) / float(final_time),
                 ),
                 flush=True,
             )

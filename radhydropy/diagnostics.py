@@ -16,7 +16,7 @@ def temperature_physical_cgs_K(sim):
     if code is not None:
         temperature = temperature * float(code.temperature_in_cgs)
     if getattr(sim.par, 'supercomoving_coordinates', False):
-        scale_factor, _ = supercomoving_scale(sim.par, time=sim.fluid.time)
+        scale_factor, _ = supercomoving_scale(sim.par, time=sim.fluid.time_code)
         temperature = physical_temperature(
             temperature, scale_factor, float(sim.fluid.eos.gamma)
         )
@@ -165,7 +165,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     lines = [
         'temperature jump error: physical gas temperature exceeded %.6e K '
         'during %s at cell %d (time=%s)' % (
-            threshold, stage, index, sim.fluid.time,
+            threshold, stage, index, sim.fluid.time_code,
         ),
         'cell: radius=%s T_before=%s K T_after=%s K rho=%s vel=%s '
         'pressure=%s cs=%s mass=%s energy=%s' % (

@@ -8,6 +8,7 @@ import radhydropy.utils as ru
 from radhydropy.eos import EOS
 from radhydropy.mesh import Mesh
 from radhydropy.arrays import as_named_array
+from radhydropy.state_boundaries import CodeFluidState, UnitBoundaryError
 from radhydropy.cosmological_variables import (
     supercomoving_scale,
     to_supercomoving_density,
@@ -27,7 +28,39 @@ class Fluid():
 
     # import mesh and EOS information into Fluid
     def __init__(self):
-        self.time = 0.0
+        self.time_code = 0.0
+
+    @property
+    def code_state(self):
+        """Return the current runtime arrays as a validated typed state.
+
+        The property is deliberately constructed on access so it cannot become
+        stale while solver operators update the mutable fluid arrays.
+        """
+        specific_energy_code = None
+        if hasattr(self, "eth_code"):
+            if hasattr(self.eth_code, "units"):
+                raise UnitBoundaryError(
+                    "eth_code must be a unitless numeric code-unit array"
+                )
+            specific_energy_code = np.divide(
+                np.asarray(self.eth_code, dtype=float),
+                np.maximum(np.asarray(self.rho_code, dtype=float), np.finfo(float).tiny),
+            )
+        return CodeFluidState(
+            rho_code=self.rho_code,
+            vel_code=self.vel_code,
+            temp_code=self.temp_code,
+            pre_code=getattr(self, "pre_code", None),
+            specific_energy_code=specific_energy_code,
+            Mass_code=getattr(self, "Mass_code", None),
+            Mom_code=getattr(self, "Mom_code", None),
+            Energy_code=getattr(self, "Energy_code", None),
+            ngamma_code=getattr(self, "ngamma_code", None),
+            mu_dimensionless=getattr(self, "mu", None),
+            xHI_dimensionless=getattr(self, "xHI", None),
+            time_code=self.time_code,
+        )
 
     def SetPressure(self):
         """Set gas pressure from density, temperature, and mean molecular weight."""
@@ -83,7 +116,7 @@ class Fluid():
             raise ValueError("SetUpFluid requires configured code units")
         self.CodeUnits = code_units
         self.supercomoving = bool(getattr(par, 'supercomoving_coordinates', False))
-        self.time = 0.0
+        self.time_code = 0.0
 
         # check if the required attributes exist
         attrlist = ['rho_code','temp_code','mu','vel_code']
@@ -116,7 +149,7 @@ class Fluid():
         if getattr(par, 'supercomoving_coordinates', False):
             if not hasattr(par, 'cosmology'):
                 raise ValueError("supercomoving coordinates require par.cosmology")
-            a, hubble = supercomoving_scale(par, time=self.time)
+            a, hubble = supercomoving_scale(par, time=self.time_code)
             gamma = float(self.eos.gamma)
             if getattr(par, 'density_representation', 'physical') == 'physical':
                 self.rho_code = as_named_array(to_supercomoving_density(self.rho_code, a))
@@ -244,4 +277,4 @@ class Fluid():
 
     def SetFluidTime(self, time): 
         """Set the current fluid time."""
-        self.time = time       
+        self.time_code = time

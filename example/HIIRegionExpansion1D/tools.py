@@ -142,9 +142,9 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
-    par.Time = np.asarray(par.Time, dtype=float) * code_units_obj.time_unit
-    par.BoxSize = np.asarray(par.BoxSize, dtype=float) * code_units_obj.length_unit
-    fluid.time = np.asarray(fluid.time, dtype=float) * code_units_obj.time_unit
+    par.time_code = np.asarray(par.time_code, dtype=float) * code_units_obj.time_unit
+    par.box_size_code = np.asarray(par.box_size_code, dtype=float) * code_units_obj.length_unit
+    fluid.time_code = np.asarray(fluid.time_code, dtype=float) * code_units_obj.time_unit
     mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units_obj.length_unit
     fluid.rho_code = np.asarray(fluid.rho_code, dtype=float) * code_units_obj.density_unit
     fluid.vel_code = np.asarray(fluid.vel_code, dtype=float) * code_units_obj.velocity_unit
@@ -259,7 +259,7 @@ def print_startup_diagnostics(sim, config, initial_condition):
 
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.mesh.grid_cells)
-    print('time = %.6e Myr' % time_myr(sim.fluid.time, code_units_obj))
+    print('time = %.6e Myr' % time_myr(sim.fluid.time_code, code_units_obj))
     print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_cgs), np.max(rho_cgs)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel_code)) / 1.0e5))
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp_code), np.max(temp_code)))
@@ -336,7 +336,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         if should_log:
             print(
                 '--- step %d begin: time=%.6e Myr dt=%s mode=%s ---'
-                % (step_index + 1, time_myr(sim.fluid.time, code_units_obj), dt, mode)
+                % (step_index + 1, time_myr(sim.fluid.time_code, code_units_obj), dt, mode)
             )
         result = base_step_backend(
             dt=dt,
@@ -353,7 +353,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
                 '--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
                 % (
                     step_index + 1,
-                    time_myr(sim.fluid.time, code_units_obj),
+                    time_myr(sim.fluid.time_code, code_units_obj),
                     result['hydro_steps'],
                     result['source_steps'],
                     front_radius,
@@ -424,7 +424,7 @@ def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(_scalar_in_unit(fluid.time, unyt.Myr))
+    history['time_Myr'].append(_scalar_in_unit(fluid.time_code, unyt.Myr))
     history['front_radius_pc'].append(ionization_front_position(mesh, fluid, par))
 
 
@@ -445,7 +445,7 @@ def density_snapshot(mesh, fluid, par):
     if ngamma_code.ndim > 1:
         ngamma_code = np.sum(ngamma_code, axis=0)
     return {
-        'time_Myr': _scalar_in_unit(fluid.time, unyt.Myr),
+        'time_Myr': _scalar_in_unit(fluid.time_code, unyt.Myr),
         'radius_pc': _value_in_unit(mesh.coordinate[interior], unyt.pc).copy(),
         'density_cgs_g_cm3': _value_in_unit(fluid.rho_code[interior], unyt.g / unyt.cm**3).copy(),
         'radiation_density_cgs_cm3': _value_in_unit(

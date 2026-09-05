@@ -304,7 +304,7 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     }
 
     def record(state):
-        tau = float(np.asarray(state.fluid.time).flat[0])
+        tau = float(np.asarray(state.fluid.time_code).flat[0])
         a = float(state.par.cosmology.scale_factor_from_supercomoving(tau))
         radius = np.abs(np.asarray(state.mesh.coordinate[active], dtype=float))
         j = np.asarray(state.fluid.specific_angular_momentum_code[active], dtype=float)

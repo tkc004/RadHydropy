@@ -262,7 +262,7 @@ def mean_ionized_temperature(fluid, par):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(fluid.time.to_value(unyt.Myr))
+    history['time_Myr'].append(fluid.time_code.to_value(unyt.Myr))
     history['front_radius_kpc'].append(
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
@@ -301,10 +301,10 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
             temperature_cgs_K = fluid.temp_code[interior].to_value(unyt.K)
         else:
             temperature_cgs_K = np.asarray(fluid.temp_code[interior], dtype=float)
-        if hasattr(fluid.time, 'to_value'):
-            profile_time_Myr = float(fluid.time.to_value(unyt.Myr))
+        if hasattr(fluid.time_code, 'to_value'):
+            profile_time_Myr = float(fluid.time_code.to_value(unyt.Myr))
         else:
-            profile_time_Myr = float(np.asarray(fluid.time, dtype=float))
+            profile_time_Myr = float(np.asarray(fluid.time_code, dtype=float))
     else:
         radius_kpc = snapshot['radius_kpc']
         xHI = snapshot['xHI']

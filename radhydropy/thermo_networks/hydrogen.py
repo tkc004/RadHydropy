@@ -33,6 +33,11 @@ from radhydropy.diagnostics import (
     check_source_temperature,
     thermochemistry_active_mask,
 )
+from radhydropy.state_boundaries import (
+    CgsSourceState,
+    CodeFluidState,
+    cgs_source_state_from_code,
+)
 
 
 
@@ -453,23 +458,14 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
 
 
 def source_state(mesh, fluid, par):
-    """Return a float state for fixed-density thermo-chemistry tests."""
+    """Return the hydrogen source state through the typed cgs boundary."""
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen thermo-chemistry requires configured code units")
     kpc_in_cm = float((1.0 * unyt.kpc).to_value(unyt.cm))
     interior = interior_slice(par)
-    boundary = as_named_array(
-        to_unit_value(
-            mesh.boundary[interior.start : interior.stop + 1],
-            code.length_unit,
-        )
-    )
-    xHI = as_named_array(np.asarray(fluid.xHI[interior], dtype=float).copy())
-    temperature = as_named_array(
-        to_unit_value(fluid.temp_code[interior], code.temperature_unit).copy()
-    )
-    rho_code = as_named_array(to_unit_value(fluid.rho_code[interior], code.density_unit))
+    runtime = fluid.code_state
+    xHI = as_named_array(runtime.xHI_dimensionless[interior].copy())
     gamma = getattr(
         getattr(fluid, 'eos', None),
         'gamma',
@@ -477,13 +473,45 @@ def source_state(mesh, fluid, par):
     )
     scaling = _fast_source_scaling(fluid, par, gamma)
     mu = 1.0 / (2.0 - np.clip(xHI, 1.0e-12, 1.0))
-    temperature_physical = temperature / scaling['temperature_factor']
-    rho_physical = rho_code / scaling['density_factor']
-    specific_energy = (
+
+    # The constructor below is the single primitive code-to-cgs conversion
+    # for this source state.  Specific internal energy is supplied in code
+    # units after applying the same EOS relation used by the existing source
+    # equations; the source-state scaling is applied only after this boundary.
+    temperature_code = runtime.temp_code[interior]
+    temperature_cgs_K = temperature_code * code.unit_conversion['temperature_cgs_K']
+    specific_energy_cgs_erg_g = (
         BOLTZMANN_CONSTANT_CGS
-        * temperature_physical
+        * temperature_cgs_K
         / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
+    interior_code = CodeFluidState(
+        rho_code=runtime.rho_code[interior],
+        vel_code=runtime.vel_code[interior],
+        temp_code=temperature_code,
+        specific_energy_code=(
+            specific_energy_cgs_erg_g
+            / code.unit_conversion['specific_energy_cgs_erg_g']
+        ),
+        xHI_dimensionless=xHI,
+    )
+    primitive_cgs = cgs_source_state_from_code(
+        code_units=code,
+        fluid=interior_code,
+        boundary_code=mesh.boundary[interior.start : interior.stop + 1],
+        volume_code=mesh.vol[interior],
+    )
+    source = CgsSourceState(
+        boundary_cgs_cm=primitive_cgs.boundary_cgs_cm * scaling['scale_factor'],
+        volume_cgs_cm3=primitive_cgs.volume_cgs_cm3 * scaling['density_factor'],
+        rho_cgs_g_cm3=primitive_cgs.rho_cgs_g_cm3 / scaling['density_factor'],
+        velocity_cgs_cm_s=primitive_cgs.velocity_cgs_cm_s,
+        temperature_cgs_K=primitive_cgs.temperature_cgs_K / scaling['temperature_factor'],
+        specific_energy_cgs_erg_g=specific_energy_cgs_erg_g,
+        xHI_dimensionless=xHI,
+    )
+    temperature_physical = source.temperature_cgs_K
+    rho_physical = source.rho_cgs_g_cm3
     sigma_parameter = getattr(
         par,
         'radiation_group_sigma_gamma',
@@ -525,12 +553,9 @@ def source_state(mesh, fluid, par):
         beta = to_unit_value(beta, code.volume_unit / code.time_unit)
     return {
         'interior': interior,
-        'boundary_cgs_cm': boundary * scaling['scale_factor'],
-        'width_cgs_cm': np.diff(boundary) * scaling['scale_factor'],
-        'volume_cgs_cm3': as_named_array(
-            to_unit_value(mesh.vol[interior], code.volume_unit)
-            * scaling['density_factor']
-        ),
+        'boundary_cgs_cm': source.boundary_cgs_cm,
+        'width_cgs_cm': np.diff(source.boundary_cgs_cm),
+        'volume_cgs_cm3': source.volume_cgs_cm3,
         'radius_cgs_cm': as_named_array(
             to_unit_value(mesh.coordinate[interior], code.length_unit)
             * scaling['scale_factor']
@@ -540,10 +565,10 @@ def source_state(mesh, fluid, par):
             * scaling['scale_factor'] / kpc_in_cm,
             dtype=float,
         ),
-        'xHI': xHI,
-        'temperature_cgs_K': temperature_physical,
-        'specific_energy_cgs_erg_g': specific_energy,
-        'rho_cgs_g_cm3': rho_physical,
+        'xHI': source.xHI_dimensionless,
+        'temperature_cgs_K': source.temperature_cgs_K,
+        'specific_energy_cgs_erg_g': source.specific_energy_cgs_erg_g,
+        'rho_cgs_g_cm3': source.rho_cgs_g_cm3,
         'active': thermochemistry_active_mask(
             rho_physical, par, scaling['density_factor']
         ),
@@ -799,7 +824,7 @@ def apply_state(state, fluid, par):
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )
         fluid.SetPressure()
-    fluid.time = from_unit_value(state['time_s'], code.time_unit)
+    fluid.time_code = from_unit_value(state['time_s'], code.time_unit)
 
 
 def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):

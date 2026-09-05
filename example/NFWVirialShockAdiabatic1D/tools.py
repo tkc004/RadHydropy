@@ -126,7 +126,7 @@ def _snapshot_profiles(filename, config):
     velocity = code_quantity_to_cgs(
         rout.fluid.vel_code[nghost:-nghost], code_units, 'velocity_cgs_cm_s'
     ) / 1.0e5
-    time_myr = time_seconds(rout.fluid.time, code_units) / (1.0e6 * 365.25 * 86400.0)
+    time_myr = time_seconds(rout.fluid.time_code, code_units) / (1.0e6 * 365.25 * 86400.0)
     return time_myr, radius.to_value(unyt.kpc), density, temperature, velocity
 
 
@@ -269,7 +269,6 @@ def plot_snapshots(filenames, config, _unused, halo, figure_filename):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
-
 
 
 

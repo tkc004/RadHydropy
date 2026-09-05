@@ -119,7 +119,7 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.fluid.time = float(np.asarray(sim.par.time).flat[0])
+    sim.fluid.time_code = float(np.asarray(sim.par.time).flat[0])
     sim.par.gravity = Gravity(
         selfgravity=True,
         cosmological=True,
@@ -151,20 +151,20 @@ def run(config_filename=DEFAULT_CONFIG):
     save_snapshot(initial_time)
     next_snapshot += cadence
     steps = 0
-    while float(sim.fluid.time) < target_tau - 1.0e-12:
+    while float(sim.fluid.time_code) < target_tau - 1.0e-12:
         cosmic_start = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
         )
         scale_start = float(cosmology.scale_factor(cosmic_start))
         sim.par.compton_cmb_redshift = 1.0 / scale_start - 1.0
         dt = min(
             float(sim.GetStepTime()),
-            target_tau - float(sim.fluid.time),
+            target_tau - float(sim.fluid.time_code),
         )
         sim.Step(dt=dt, mode="hydro_sources")
         steps += 1
         cosmic_time = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
         )
         if steps == 1 or steps % 500 == 0:
             print(
@@ -265,5 +265,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     run(parser.parse_args().config)
-
 

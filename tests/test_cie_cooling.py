@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.fluid import Fluid
 from radhydropy.thermo_networks.cie.cie_cooling import CIECoolingNetwork, _state
 from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.units import CodeUnits
@@ -155,16 +156,16 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
     specific_energy = BOLTZMANN_CONSTANT_CGS * temperature / (
         (gamma - 1.0) * PROTON_MASS_CGS
     )
-    fluid = SimpleNamespace(
-        rho_code=np.array([rho, rho]),
-        vel_code=np.zeros(2),
-        temp_code=np.array([temperature, temperature]),
-        mu=np.ones(2),
-        Energy_code=np.array([specific_energy * rho, specific_energy * rho]),
-            pre_code=np.ones(2),
-        eos=SimpleNamespace(gamma=gamma),
-    )
-    mesh = SimpleNamespace(vol=np.ones(2))
+    fluid = Fluid()
+    fluid.rho_code = np.array([rho, rho])
+    fluid.vel_code = np.zeros(2)
+    fluid.temp_code = np.array([temperature, temperature])
+    fluid.mu = np.ones(2)
+    fluid.Mass_code = np.array([rho, rho])
+    fluid.Energy_code = np.array([specific_energy * rho, specific_energy * rho])
+    fluid.pre_code = np.ones(2)
+    fluid.eos = SimpleNamespace(gamma=gamma)
+    mesh = SimpleNamespace(vol=np.ones(2), boundary=np.array([0.0, 1.0, 2.0]))
     par = parameter_namespace(
         CodeUnits=code_units,
         noghost=1,
@@ -212,19 +213,18 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
         / ((gamma - 1.0) * PROTON_MASS_CGS)
     )
     velocity_supercomoving = 3.0
-    fluid = SimpleNamespace(
-        rho_code=np.array([8.0]),
-        vel_code=np.array([velocity_supercomoving]),
-        temp_code=np.array([physical_temperature * scale_factor**2]),
-        mu=np.ones(1),
-        Mass_code=np.array([8.0]),
-        Energy_code=np.array([
-            8.0 * (specific_internal * scale_factor**2
-                   + 0.5 * velocity_supercomoving**2)
-        ]),
-        eos=SimpleNamespace(gamma=gamma),
-    )
-    mesh = SimpleNamespace(vol=np.array([1.0]))
+    fluid = Fluid()
+    fluid.rho_code = np.array([8.0])
+    fluid.vel_code = np.array([velocity_supercomoving])
+    fluid.temp_code = np.array([physical_temperature * scale_factor**2])
+    fluid.mu = np.ones(1)
+    fluid.Mass_code = np.array([8.0])
+    fluid.Energy_code = np.array([
+        8.0 * (specific_internal * scale_factor**2
+               + 0.5 * velocity_supercomoving**2)
+    ])
+    fluid.eos = SimpleNamespace(gamma=gamma)
+    mesh = SimpleNamespace(vol=np.array([1.0]), boundary=np.array([0.0, 1.0]))
     par = parameter_namespace(
         CodeUnits=code_units,
         noghost=0,

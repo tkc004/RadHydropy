@@ -33,7 +33,7 @@ def measure(par, initial_condition, example_config):
     saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
-    final_time = float(sim.fluid.time)
+    final_time = float(sim.fluid.time_code)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,

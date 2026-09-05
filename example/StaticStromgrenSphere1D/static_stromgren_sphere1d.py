@@ -79,7 +79,7 @@ def main(config_filename=DEFAULT_CONFIG):
         budget_figure_filename,
     )
 
-    print('time = %s' % out_fluid.time)
+    print('time = %s' % out_fluid.time_code)
     print(
         'recombination time = %s'
         % sa.recombination_time(

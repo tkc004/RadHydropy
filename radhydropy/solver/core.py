@@ -738,13 +738,59 @@ class Solver():
     def SetGradient(self, mesh, fluid):
         """Calculate centered gradients for density, velocity, and pressure."""
         xdelta = mesh.xdelta
-        fluid.rho_code.grad = ru.CalGradient(fluid.rho_code, xdelta)
-        fluid.vel_code.grad = ru.CalGradient(fluid.vel_code, xdelta)
-        fluid.pre_code.grad = ru.CalGradient(fluid.pre_code, xdelta)
+        par = getattr(mesh, '_par', None)
+        periodic = (
+            par is not None
+            and hasattr(par, 'boundary')
+            and par.boundary.condition == 'Periodic'
+        )
+        if periodic:
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
+            for quantity in (
+                fluid.rho_code,
+                fluid.vel_code,
+                fluid.pre_code,
+            ):
+                quantity.grad = self._periodic_physical_gradient(
+                    quantity, xdelta, first, count
+                )
+        else:
+            fluid.rho_code.grad = ru.CalGradient(fluid.rho_code, xdelta)
+            fluid.vel_code.grad = ru.CalGradient(fluid.vel_code, xdelta)
+            fluid.pre_code.grad = ru.CalGradient(fluid.pre_code, xdelta)
         if hasattr(fluid, 'specific_angular_momentum_code'):
-            fluid.specific_angular_momentum_code.grad = ru.CalGradient(
-                fluid.specific_angular_momentum_code, xdelta
-            )
+            if periodic:
+                fluid.specific_angular_momentum_code.grad = (
+                    self._periodic_physical_gradient(
+                        fluid.specific_angular_momentum_code,
+                        xdelta,
+                        first,
+                        count,
+                    )
+                )
+            else:
+                fluid.specific_angular_momentum_code.grad = ru.CalGradient(
+                    fluid.specific_angular_momentum_code, xdelta
+                )
+
+    @staticmethod
+    def _periodic_physical_gradient(quantity, xdelta, first, count):
+        """Build periodic gradients from physical cells and mirror ghosts."""
+        values = np.asarray(quantity, dtype=float)
+        last = first + count
+        gradient = np.zeros_like(values)
+        physical_values = values[first:last]
+        physical_xdelta = np.asarray(xdelta[first:last], dtype=float)
+        gradient[first:last] = (
+            ru.periodic_roll(physical_values, -1)
+            - ru.periodic_roll(physical_values, 1)
+        ) / (2.0 * physical_xdelta)
+        if first:
+            gradient[:first] = gradient[last - first:last]
+        if last < len(gradient):
+            gradient[last:] = gradient[first:first + len(gradient) - last]
+        return as_named_array(gradient)
 
     @staticmethod
     def _positivity_limited_internal_flux(old_internal, flux, area, dt,
@@ -2086,7 +2132,7 @@ class Solver():
                 - ru.periodic_roll(limited_potential_flux_area, -1)
             )
         # advance time
-        fluid.time += dt
+        fluid.time_code += dt
 
     def _gravity_model(self, *args, **kwargs):
         from .gravity_sources import _gravity_model

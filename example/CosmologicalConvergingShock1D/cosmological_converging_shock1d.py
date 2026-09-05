@@ -121,7 +121,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     target = float(runparams["simulation"]["final_time"].to_value("s"))
     output_dt = float(runparams["output"]["cadence"].to_value("s"))
     next_output = 0.0
-    while float(sim.fluid.time) < target:
+    while float(sim.fluid.time_code) < target:
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, sim.par)
@@ -130,14 +130,14 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
             sim.mesh, sim.fluid, sim.par.boundary.condition,
             method=runparams["hydrodynamics"]["riemann_solver"], order=0,
         )
-        fluxes.append([float(sim.fluid.time), float(sim.fluid.Mass_code.flux[wall_face]), float(sim.fluid.Mom_code.flux[wall_face]), float(sim.fluid.Energy_code.flux[wall_face])])
+        fluxes.append([float(sim.fluid.time_code), float(sim.fluid.Mass_code.flux[wall_face]), float(sim.fluid.Mom_code.flux[wall_face]), float(sim.fluid.Energy_code.flux[wall_face])])
         sim.Step(dt=dt, mode="hydro")
-        time_code = float(sim.fluid.time)
+        time_code = float(sim.fluid.time_code)
         if time_code >= next_output - 1.0e-12:
             snapshots.append((time_code,) + _profile(sim))
             next_output += output_dt
 
-    snapshots.append((float(sim.fluid.time),) + _profile(sim))
+    snapshots.append((float(sim.fluid.time_code),) + _profile(sim))
     final = snapshots[-1]
     r, rho, vel, pre, temp, entropy = final[1:]
     active = rho > float(runparams["hydrodynamics"].get("cfl_density_floor", 0.0))

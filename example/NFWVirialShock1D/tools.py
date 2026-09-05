@@ -130,7 +130,7 @@ def _snapshot_profiles(filename, config):
         code_units,
         'velocity_cgs_cm_s',
     ) / 1.0e5
-    time_myr = time_seconds(rout.fluid.time, code_units) / float(
+    time_myr = time_seconds(rout.fluid.time_code, code_units) / float(
         (1.0 * unyt.Myr).to_value(unyt.s)
     )
     radius_kpc = radius.to_value(unyt.kpc)
@@ -279,7 +279,6 @@ def plot_snapshots(filenames, config, _unused, figure_filename):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
-
 
 
 

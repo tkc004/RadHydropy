@@ -215,7 +215,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
         mu=full_mu,
         pre_code=full_pre,
         eos=simwrap.fluid.eos,
-        time=0.0,
+        time_code=0.0,
     )
     fluid.cs_code = as_named_array(
         np.asarray(
@@ -305,7 +305,7 @@ class Testing(unittest.TestCase):
         )
 
         self.assertEqual(result["hydro_steps"], 1)
-        self.assertEqual(sim.fluid.time, dt)
+        self.assertEqual(sim.fluid.time_code, dt)
         self.assertLess(rho_rel, 1.0e-10)
         self.assertLess(pre_rel, 1.0e-10)
         self.assertLess(
@@ -336,7 +336,7 @@ class Testing(unittest.TestCase):
         )
 
         self.assertEqual(result["hydro_steps"], 1)
-        self.assertEqual(sim.fluid.time, dt)
+        self.assertEqual(sim.fluid.time_code, dt)
         self.assertLess(rho_rel, 1.0e-10)
         self.assertLess(pre_rel, 1.0e-10)
         self.assertLess(
