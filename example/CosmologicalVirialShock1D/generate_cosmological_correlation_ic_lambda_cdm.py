@@ -32,6 +32,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
     par = config["par"]
     icparams = config["initial_condition"]
+    example = config["example"]
     gravity = par["gravity"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
@@ -48,7 +49,7 @@ def main(config_filename=DEFAULT_CONFIG):
             a_ref=float(gravity["cosmology_a_ref"]),
         )
 
-    table_filename = Path(par["linear_correlation_table_filename"])
+    table_filename = Path(example["linear_correlation_table_filename"])
     if not table_filename.is_absolute():
         table_filename = config_filename.parent / table_filename
     correlation_table = et.load_lcdm_correlation_table(table_filename)
@@ -68,7 +69,7 @@ def main(config_filename=DEFAULT_CONFIG):
         / float((1.0 * unyt.Mpc).to_value("cm"))
         * float(icparams.get("correlation_h", 0.674))
     )
-    radius = np.asarray(initial.mesh.coordinate, dtype=float)
+    radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     delta, mean_delta = et.density_contrast_profile(
         radius,
         icparams,
@@ -78,7 +79,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     initial_time = float(icparams["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(initial_time))
-    peculiar_velocity = np.asarray(initial.fluid.vel_code, dtype=float)
+    peculiar_velocity = np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius
 
     figure = output.with_name("CosmologicalCorrelationInitialCondition.jpg")
@@ -112,5 +113,3 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-
-

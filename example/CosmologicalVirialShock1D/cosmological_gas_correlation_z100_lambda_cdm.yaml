@@ -13,11 +13,11 @@ par:
     order: 1
     dual_energy: true
     CFL: 0.10
+    smooth_dm_force_for_gas: true
     cfl_density_floor: 9.3e-20
     temperature_jump_error_threshold: 1.0e8
   boundary:
     condition: InflowSph
-    cosmological_background_boundary_reconstruction: true
   timestep:
     dtmin:
       value: 1.0e-12
@@ -25,6 +25,10 @@ par:
     dtmax:
       value: 200.0
       unit: Myr
+  cosmological_background_boundary_reconstruction: true
+  dark_matter_crossing_batch_fraction: 0.1
+  dark_matter_crossing_safety_factor: 0.5
+  dark_matter_global_timestep_limit: false
   gravity:
     selfgravity: true
     cosmological_expansion: true
@@ -69,18 +73,6 @@ par:
         UnitVelocity_in_cgs: 1.0e5
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-  figure_prefix: CosmologicalGasCorrelationZ100
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.1
-  dark_matter_global_timestep_limit: false
-  smooth_dm_force_for_gas: true
-  dm_density_bins: 128
-  gas_profile_cadence: 0.10
-  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  minimum_temperature: null
-  temperature_plot_ymin:
-    value: 1.0
-    unit: K
 initial_condition:
   nogrid: 128
   rmin: 3.0
@@ -104,11 +96,6 @@ initial_condition:
   cmb_residual_electron_fraction: 2.0e-4
 example:
   figure_prefix: CosmologicalGasCorrelationZ100
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_safety_factor: 0.5
-  dark_matter_crossing_batch_fraction: 0.1
-  dark_matter_global_timestep_limit: false
-  smooth_dm_force_for_gas: true
   dm_density_bins: 128
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

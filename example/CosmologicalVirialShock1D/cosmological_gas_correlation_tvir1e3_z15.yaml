@@ -36,6 +36,9 @@ par:
       value: 200.0
       unit: Myr
   dark_matter_crossing_safety_factor: 0.5
+  cosmological_background_boundary_reconstruction: true
+  dark_matter_crossing_batch_fraction: 0.1
+  dark_matter_global_timestep_limit: false
   output:
     directory: outputs_correlation_gas_tvir1e3_z15_gas1024
     savedir: outputs_correlation_gas_tvir1e3_z15_gas1024
@@ -71,18 +74,6 @@ par:
     hydrogen_atomic_cooling: false
     hydrogen_thermal_coupling: false
     hydrogen_chemistry: false
-  figure_prefix: CosmologicalGasCorrelationTvir1e3Z15
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.1
-  dark_matter_global_timestep_limit: false
-  dm_density_bins: 128
-  temperature_plot_ymin:
-    value: 1.0
-    unit: K
-  plot_exclude_outer_cells: 2
-  gas_profile_cadence: 0.05
-  linear_correlation_table_filename: outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5
-  minimum_temperature: null
 initial_condition:
   rmin: 3.0
   rmax: 4000.0
@@ -103,3 +94,13 @@ initial_condition:
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 0.0002
+example:
+  figure_prefix: CosmologicalGasCorrelationTvir1e3Z15
+  dm_density_bins: 128
+  temperature_plot_ymin:
+    value: 1.0
+    unit: K
+  plot_exclude_outer_cells: 2
+  gas_profile_cadence: 0.05
+  linear_correlation_table_filename: outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5
+  minimum_temperature: null

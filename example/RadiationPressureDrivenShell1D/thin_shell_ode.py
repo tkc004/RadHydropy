@@ -47,7 +47,7 @@ def _write_initial_condition(runparams, icparams):
         time=0.0 * unyt.s,
     )
     par.simulation = SimpleNamespace(
-        current_time=par.time,
+        time_code=par.time_code,
         box_size=icparams["box_size"],
         coordinate_system=runparams["simulation"]["coordinate_system"],
     )

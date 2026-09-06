@@ -56,8 +56,8 @@ def build_initial_condition(config, code_units=None):
     sim.par.nogrid = grid_cells
     sim.par.coordsys = icparams['coordsys']
     sim.par.boxsize = np.ones(1) * icparams['boxsize']
-    sim.par.time = np.ones(1) * icparams['time']
-    sim.par.simulation = SimpleNamespace(current_time=sim.par.time, box_size=sim.par.boxsize, coordinate_system='spherical')
+    sim.par.time_code = np.ones(1) * icparams['time']
+    sim.par.simulation = SimpleNamespace(time_code=sim.par.time_code, box_size=sim.par.boxsize, coordinate_system='spherical')
     sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=0)
     sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
 
@@ -75,7 +75,7 @@ def build_initial_condition(config, code_units=None):
     sim.fluid.rho_code = np.ones(sim.par.nogrid) * icparams['rho0']
     sim.fluid.temp_code = np.ones(sim.par.nogrid) * icparams['tempini']
     sim.fluid.mu = np.ones(sim.par.nogrid) * icparams['muini']
-    sim.fluid.vel_code = np.zeros(sim.par.nogrid) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
 
 
     return sim
@@ -102,8 +102,6 @@ def read_snapshot(filename, runparams):
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
-
 
 
 

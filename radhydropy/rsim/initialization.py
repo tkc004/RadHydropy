@@ -58,7 +58,7 @@ def Callreadhdf5(sim):
     )
     sim.checkparams()
     sim.fluid.SetFluidTime(
-        sim.par.simulation.current_time
+        sim.par.simulation.time_code
     )
     print("--- Start Initial Time ---")
 
@@ -123,7 +123,7 @@ def ConvertParametersToCodeUnits(sim):
     nested_specs = {
         "simulation": (
             ("final_time", "time"),
-            ("current_time", "time"),
+            ("time_code", "time"),
             ("initial_time", "time"),
             ("box_size", "length"),
         ),
@@ -207,7 +207,7 @@ def ConvertParametersToCodeUnits(sim):
     if simulation is not None and not hasattr(sim.par, "_sync_simulation_parameters"):
         for nested_name, flat_name in (
             ("final_time", "timesim"),
-            ("current_time", "time"),
+            ("time_code", "time"),
             ("box_size", "boxsize"),
         ):
             if hasattr(simulation, nested_name) and hasattr(sim.par, flat_name):

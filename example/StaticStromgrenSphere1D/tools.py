@@ -10,12 +10,57 @@ import numpy as np
 import unyt
 
 import radhydropy.thermo_networks.hydrogen as rth
+from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 import stromgren_analytic as sa
+
+
+def _attach_proper_runtime_states(mesh, fluid):
+    boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
+    width_proper_code = np.diff(boundary_proper_code)
+    area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
+    volume_proper_code = (
+        4.0 * np.pi / 3.0
+        * np.abs(boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    )
+    coordinate_proper_code = 0.5 * (
+        boundary_proper_code[1:] + boundary_proper_code[:-1]
+    )
+    denominator = boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
+    valid = denominator != 0.0
+    coordinate_proper_code[valid] = 0.75 * (
+        boundary_proper_code[1:][valid] ** 4
+        - boundary_proper_code[:-1][valid] ** 4
+    ) / denominator[valid]
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=coordinate_proper_code,
+        boundary=boundary_proper_code,
+        width=width_proper_code,
+        area=area_proper_code,
+        volume=volume_proper_code,
+    )
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    fluid.SetPressure()
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=fluid.time_proper_code,
+        mu=fluid.mu,
+        xHI=fluid.xHI if hasattr(fluid, 'xHI') else None,
+    )
 
 
 def build_static_problem(config):
@@ -23,6 +68,7 @@ def build_static_problem(config):
     simulation = par_config['simulation']
     mesh_config = par_config['mesh']
     boundary = par_config['boundary']
+    hydro = par_config.get('hydrodynamics', {})
     units = par_config['units']
     chemistry = par_config.get('chemistry', {})
     thermo = par_config.get('thermochemistry', {})
@@ -41,6 +87,8 @@ def build_static_problem(config):
         outfileprefix=output.get('filename_prefix', 'Output'),
         savedir=output.get('savedir', output.get('directory', '.')),
         area=mesh_config.get('area', 1.0 * unyt.cm**2),
+        EOStype=hydro.get('eos_type', 'polytropic'),
+        gamma=hydro.get('gamma', 5.0 / 3.0),
         hydrogen_chemistry=thermo.get('hydrogen_chemistry', True),
         hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
         hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
@@ -84,33 +132,39 @@ def build_static_problem(config):
     par.units = SimpleNamespace(CodeUnits=code_units_obj)
     par.simulation = SimpleNamespace(
         coordinate_system=par.coordsys,
-        current_time=0.0 * unyt.Myr,
+        time_code=0.0 * unyt.Myr,
         box_size=par.boxsize,
     )
     par.mesh = SimpleNamespace(grid_cells=par.nogrid, ghost_cells=par.noghost)
 
     mesh = Mesh()
-    mesh.boundary = np.linspace(
+    mesh.boundary_proper_code = quantity_to_value(np.linspace(
         0.0,
         initial['boxsize'].to_value(unyt.cm),
         par.nogrid + 1,
-    ) * unyt.cm
+    ) * unyt.cm, code_units_obj.length_unit)
 
     fluid = Fluid()
-    fluid.rho_code = (
+    fluid.code_units = code_units_obj
+    fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
+    fluid.rho_proper_code = quantity_to_value((
         np.ones(par.nogrid)
         * initial['hydrogen_number_density']
         * unyt.mp
-    ).to(unyt.g / unyt.cm**3)
-    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(par.nogrid) * 1.0e4 * unyt.K
+    ).to(unyt.g / unyt.cm**3), code_units_obj.density_unit)
+    fluid.vel_proper_code = np.zeros(par.nogrid, dtype=float)
+    temperature_proper_cgs_K_unyt = np.ones(par.nogrid) * 1.0e4 * unyt.K
+    fluid.temp_proper_code = quantity_to_value(
+        temperature_proper_cgs_K_unyt, code_units_obj.temperature_unit
+    )
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.ngamma_code = np.ones(par.nogrid) * thermo.get(
+    fluid.ngamma_code = quantity_to_value(np.ones(par.nogrid) * thermo.get(
         'hydrogen_ngamma_initial',
         0.0 / unyt.cm**3,
-    )
-    fluid.SetFluidTime(0.0 * unyt.Myr)
+    ), code_units_obj.number_density_unit)
+    fluid.SetFluidTime(0.0)
+    _attach_proper_runtime_states(mesh, fluid)
 
     solver = Solver()
     return par, mesh, fluid, solver
@@ -118,31 +172,43 @@ def build_static_problem(config):
 
 def _refresh_mesh_geometry(mesh, par):
     """Recompute derived mesh geometry from an already ghosted boundary."""
-    mesh.xdelta = mesh.boundary[1:] - mesh.boundary[:-1]
-    mesh.oneoverdx = 1.0 / mesh.xdelta
+    mesh.width_proper_code = mesh.boundary_proper_code[1:] - mesh.boundary_proper_code[:-1]
+    mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
     if par.coordsys == 'cartesian':
-        mesh.coordinate = 0.5 * (mesh.boundary[1:] + mesh.boundary[:-1])
+        mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         if hasattr(par, 'area'):
-            mesh.area = np.ones(len(mesh.xdelta)) * par.area
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(
+                par.area, par.CodeUnits.area_unit
+            )
         else:
-            mesh.area = np.ones(len(mesh.xdelta))
-        mesh.vol = mesh.xdelta * mesh.area
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
+        mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
     elif par.coordsys == 'spherical':
-        mesh.area = (mesh.boundary[:-1] ** 2) * 4.0 * np.pi
-        mesh.vol = np.absolute((mesh.boundary[1:] ** 3 - mesh.boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
-        vol_denom = mesh.boundary[1:] ** 3 - mesh.boundary[:-1] ** 3
-        mesh.coordinate = 0.5 * (mesh.boundary[1:] + mesh.boundary[:-1])
+        mesh.area_proper_code = (mesh.boundary_proper_code[:-1] ** 2) * 4.0 * np.pi
+        mesh.volume_proper_code = np.absolute(
+            mesh.boundary_proper_code[1:] ** 3 - mesh.boundary_proper_code[:-1] ** 3
+        ) * 4.0 * np.pi / 3.0
+        vol_denom = mesh.boundary_proper_code[1:] ** 3 - mesh.boundary_proper_code[:-1] ** 3
+        mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         nonzero_vol_denom = vol_denom != 0.0
-        mesh.coordinate[nonzero_vol_denom] = 0.75 * (
-            mesh.boundary[1:][nonzero_vol_denom] ** 4 - mesh.boundary[:-1][nonzero_vol_denom] ** 4
+        mesh.x_proper_code[nonzero_vol_denom] = 0.75 * (
+            mesh.boundary_proper_code[1:][nonzero_vol_denom] ** 4 - mesh.boundary_proper_code[:-1][nonzero_vol_denom] ** 4
         ) / vol_denom[nonzero_vol_denom]
-        for ig in range(len(mesh.vol)):
-            if (mesh.boundary[ig] < 0.0) and (mesh.boundary[ig + 1] > 0.0):
-                mesh.vol[ig] = (mesh.boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
-                mesh.coordinate[ig] = 0.75 * mesh.boundary[ig + 1]
-                mesh.area[ig] = 0.0
+        for ig in range(len(mesh.volume_proper_code)):
+            if (mesh.boundary_proper_code[ig] < 0.0) and (mesh.boundary_proper_code[ig + 1] > 0.0):
+                mesh.volume_proper_code[ig] = (mesh.boundary_proper_code[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.x_proper_code[ig] = 0.75 * mesh.boundary_proper_code[ig + 1]
+                mesh.area_proper_code[ig] = 0.0
     else:
         raise ValueError("coordsys unknown: %s" % par.coordsys)
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=mesh.x_proper_code,
+        boundary=mesh.boundary_proper_code,
+        width=mesh.width_proper_code,
+        area=mesh.area_proper_code,
+        volume=mesh.volume_proper_code,
+    )
 
 
 def write_initial_condition(config):
@@ -158,19 +224,28 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
-    par.time = unyt.unyt_array(np.asarray(par.time_code, dtype=float), code_units_obj.time_unit)
-    par.boxsize = unyt.unyt_array(np.asarray(par.box_size_code, dtype=float), code_units_obj.length_unit)
-    mesh.boundary = unyt.unyt_array(np.asarray(mesh.boundary, dtype=float), code_units_obj.length_unit)
-    fluid.rho_code = unyt.unyt_array(np.asarray(fluid.rho_code, dtype=float), code_units_obj.density_unit)
-    fluid.vel_code = unyt.unyt_array(np.asarray(fluid.vel_code, dtype=float), code_units_obj.velocity_unit)
-    fluid.temp_code = unyt.unyt_array(np.asarray(fluid.temp_code, dtype=float), code_units_obj.temperature_unit)
-    fluid.time_code = par.time.copy()
+    par.time_proper_code = float(np.asarray(par.time_proper_code, dtype=float))
+    par.boxsize = float(np.asarray(par.box_size_proper_code, dtype=float))
+    mesh.boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
+    fluid.rho_proper_code = np.asarray(fluid.rho_proper_code, dtype=float)
+    fluid.vel_proper_code = np.asarray(fluid.vel_proper_code, dtype=float)
+    fluid.temp_proper_code = np.asarray(fluid.temp_proper_code, dtype=float)
+    fluid.time_proper_code = par.time_proper_code
     if hasattr(fluid, 'ngamma_code'):
-        fluid.ngamma_code = unyt.unyt_array(
-            np.asarray(fluid.ngamma_code, dtype=float),
-            code_units_obj.number_density_unit,
-        )
+        fluid.ngamma_code = np.asarray(fluid.ngamma_code, dtype=float)
     _refresh_mesh_geometry(mesh, par)
+    fluid.SetPressure()
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=fluid.time_proper_code,
+        mu=fluid.mu,
+        xHI=fluid.xHI,
+    )
     return par, mesh, fluid
 
 
@@ -179,16 +254,28 @@ def interior_slice(par):
     return slice(first, first + par.nogrid)
 
 
+def _density_cgs_g_cm3(values, par):
+    return code_quantity_to_cgs(values, par.CodeUnits, 'density_cgs_g_cm3')
+
+
+def _volume_cgs_cm3(values, par):
+    return code_quantity_to_cgs(values, par.CodeUnits, 'volume_cgs_cm3')
+
+
+def _radius_kpc(values, par):
+    return code_quantity_to_cgs(values, par.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm)
+
+
 def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     interior = interior_slice(par)
-    radius = mesh.coordinate[interior].to(unyt.kpc)
+    radius = _radius_kpc(mesh.x_proper_code[interior], par) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
 
     ionized = xHI <= neutral_fraction
     if not np.any(ionized):
         return 0.0 * unyt.kpc
     if np.all(ionized):
-        return mesh.boundary[interior.stop].to(unyt.kpc)
+        return _radius_kpc(mesh.boundary_proper_code[interior.stop], par) * unyt.kpc
 
     outer_ionized_index = np.where(ionized)[0][-1]
     left = outer_ionized_index
@@ -205,24 +292,27 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
 def ionized_hydrogen_atoms(mesh, fluid, par):
     interior = interior_slice(par)
     nH = rth._cgs_hydrogen_number_density(
-        fluid.rho_code[interior].to_value(unyt.g / unyt.cm**3),
+        _density_cgs_g_cm3(fluid.rho_proper_code[interior], par),
         par.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
-    ionized_atoms = np.sum(ionized_fraction * nH * mesh.vol[interior])
-    return ionized_atoms.to_value('')
+    volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], par)
+    return float(np.sum(ionized_fraction * nH * volume_cgs_cm3))
 
 
 def photons_in_volume(mesh, fluid, par):
     interior = interior_slice(par)
-    photon_count = np.sum(fluid.ngamma_code[interior] * mesh.vol[interior])
-    return photon_count.to_value('')
+    photon_density_cgs_cm3 = code_quantity_to_cgs(
+        fluid.ngamma_code[interior], par.CodeUnits, 'number_density_cgs_cm3'
+    )
+    volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], par)
+    return float(np.sum(photon_density_cgs_cm3 * volume_cgs_cm3))
 
 
 def total_recombination_rate(mesh, fluid, par):
     interior = interior_slice(par)
     nH = rth._cgs_hydrogen_number_density(
-        fluid.rho_code[interior].to_value(unyt.g / unyt.cm**3),
+        _density_cgs_g_cm3(fluid.rho_proper_code[interior], par),
         par.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
@@ -230,19 +320,20 @@ def total_recombination_rate(mesh, fluid, par):
         par.hydrogen_alpha_B
         * ionized_fraction**2
         * nH**2
-        * mesh.vol[interior]
+        * _volume_cgs_cm3(mesh.volume_proper_code[interior], par)
     )
-    return rate.to(1.0 / unyt.s)
+    return float(rate) / unyt.s
 
 
 def append_history(history, mesh, fluid, par, config, recombined_photons):
     radiation = config['par']['radiation']
-    history['time_Myr'].append(fluid.time_code.to_value(unyt.Myr))
+    time_Myr = float(fluid.time_proper_code * par.CodeUnits.time_unit.to_value(unyt.Myr))
+    history['time_Myr'].append(time_Myr)
     history['front_radius_kpc'].append(
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
     history['injected_photons'].append(
-        (radiation['radiative_transfer_source_photon_rate'] * fluid.time_code).to_value('')
+        (radiation['radiative_transfer_source_photon_rate'] * time_Myr * unyt.Myr).to_value('')
     )
     history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, par))
     history['recombined_photons'].append(recombined_photons)
@@ -260,10 +351,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     thermo = config['par']['thermochemistry']
     example = config.get('example', {})
     interior = interior_slice(par)
-    if hasattr(mesh.coordinate[interior], 'to_value'):
-        radius_kpc = mesh.coordinate[interior].to_value(unyt.kpc)
-    else:
-        radius_kpc = np.asarray(mesh.coordinate[interior], dtype=float)
+    radius_kpc = _radius_kpc(mesh.x_proper_code[interior], par)
     radius = radius_kpc * unyt.kpc
     plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)

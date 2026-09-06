@@ -13,10 +13,12 @@ from radhydropy.thermo_networks.base import ThermochemistryNetwork
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.thermo_networks.hydrogen import (
     _fast_source_scaling,
+    _canonical_mesh_geometry_arrays,
     _rotational_specific_energy_code,
 )
 from radhydropy.diagnostics import thermochemistry_active_mask
 from radhydropy.state_boundaries import cgs_source_state_from_code
+from radhydropy.runtime_fields import runtime_fields
 
 
 _TABLE_CACHE = {}
@@ -59,20 +61,24 @@ def _state(mesh, fluid, par):
     ghost_cells = int(par.mesh.ghost_cells)
     grid_cells = int(par.mesh.grid_cells)
     interior = slice(ghost_cells, ghost_cells + grid_cells)
+    fields = runtime_fields(par)
+    _, boundary_runtime_code, _, _, volume_runtime_code = (
+        _canonical_mesh_geometry_arrays(mesh, par)
+    )
     gamma = getattr(getattr(fluid, "eos", None), "gamma", 5.0 / 3.0)
     scaling = _fast_source_scaling(fluid, par, gamma)
     runtime = fluid.code_state
     primitive_cgs = cgs_source_state_from_code(
         code_units=code,
         fluid=runtime,
-        boundary_code=mesh.boundary[interior.start : interior.stop + 1],
-        volume_code=mesh.vol[interior],
+        boundary_code=boundary_runtime_code[interior.start : interior.stop + 1],
+        volume_code=volume_runtime_code[interior],
     )
     rho_super = primitive_cgs.rho_cgs_g_cm3[interior]
     rho = rho_super / scaling["density_factor"]
     velocity_super = primitive_cgs.velocity_cgs_cm_s[interior]
     velocity = velocity_super / scaling["velocity_factor"]
-    volume_code = np.asarray(mesh.vol[interior], dtype=float)
+    volume_code = np.asarray(volume_runtime_code[interior], dtype=float)
     volume = primitive_cgs.volume_cgs_cm3 * scaling["density_factor"]
     if runtime.Mass_code is not None:
         mass = runtime.Mass_code[interior] * code.unit_conversion["mass_g"]
@@ -219,6 +225,18 @@ class CIECoolingNetwork(ThermochemistryNetwork):
 
     def apply_fast(self, dt, mesh, fluid, par):
         state = _state(mesh, fluid, par)
+        fields = runtime_fields(par)
+        if getattr(fluid, 'runtime_state', None) is None:
+            fluid.runtime_fields = fields
+            fluid._refresh_runtime_state()
+        if getattr(par, 'supercomoving_coordinates', False):
+            rho_runtime_code = fluid.rho_comoving_code
+            temp_runtime_code = fluid.temp_supercomoving_code
+            pre_runtime_code = fluid.pre_supercomoving_code
+        else:
+            rho_runtime_code = fluid.rho_proper_code
+            temp_runtime_code = fluid.temp_proper_code
+            pre_runtime_code = fluid.pre_proper_code
         state.update(
             par=par,
             metallicity=float(getattr(par, "metallicity", 1.0)),
@@ -270,8 +288,10 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         mass_code = (
             np.asarray(fluid.Mass_code[interior], dtype=float)
             if hasattr(fluid, "Mass_code") else
-            np.asarray(fluid.rho_code[interior], dtype=float)
-            * np.asarray(mesh.vol[interior], dtype=float)
+            np.asarray(
+                rho_runtime_code[interior], dtype=float
+            )
+            * np.asarray(volume_runtime_code[interior], dtype=float)
         )
         updated_energy = updated_energy + from_unit_value(
             mass_code * rotational_code,
@@ -282,23 +302,23 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             code.temperature_unit,
         )
         energy_target = fluid.Energy_code[interior].copy()
-        temperature_target = fluid.temp_code[interior].copy()
+        temperature_target = temp_runtime_code[interior].copy()
         energy_target[active] = updated_energy[active]
         temperature_target[active] = updated_temperature[active]
         fluid.Energy_code[interior] = energy_target
-        fluid.temp_code[interior] = temperature_target
+        temp_runtime_code[interior] = temperature_target
         if hasattr(fluid.eos, "pressure"):
-            fluid.pre_code[interior] = fluid.eos.pressure(
-                fluid.rho_code[interior],
-                fluid.temp_code[interior],
+            pre_runtime_code[interior] = fluid.eos.pressure(
+                rho_runtime_code[interior],
+                temp_runtime_code[interior],
                 fluid.mu[interior],
             )
         else:
             # Lightweight test doubles may only expose gamma.
             internal_code = internal_super / code.velocity_in_cgs**2
-            fluid.pre_code[interior] = (
+            pre_runtime_code[interior] = (
                 (state["gamma"] - 1.0)
-                * np.asarray(fluid.rho_code[interior], dtype=float)
+                * np.asarray(rho_runtime_code[interior], dtype=float)
                 * internal_code
             )
         return source_steps

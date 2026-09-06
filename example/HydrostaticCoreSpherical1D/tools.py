@@ -58,14 +58,14 @@ class InitialCondition:
         self.par.nogrid = grid_cells
         self.par.noghost = 2
         self.par.coordsys = "spherical"
-        self.par.time = 0.0
+        self.par.time_code = 0.0
         self.par.boxsize = np.asarray(
             [float(initial_condition["outer_radius"].to_value(code_units.length_unit))]
         )
         self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
         self.par.simulation = SimpleNamespace(
             coordinate_system="spherical",
-            current_time=self.par.time,
+            time_code=self.par.time_code,
             box_size=self.par.boxsize,
         )
 

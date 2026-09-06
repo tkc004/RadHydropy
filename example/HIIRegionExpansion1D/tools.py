@@ -94,7 +94,7 @@ def build_problem(config):
         coordinate_system=par.coordsys,
         final_time=par.timesim,
         initial_condition_filename=simulation['initial_condition_filename'],
-        current_time=initial.get('current_time', 0.0 * unyt.Myr),
+        time_code=initial.get('current_time', 0.0 * unyt.Myr),
         box_size=box_size,
     )
     par.hydrodynamics = SimpleNamespace(
@@ -117,11 +117,14 @@ def build_problem(config):
         source_photon_rate=par.radiative_transfer_source_photon_rate,
     )
     mesh = Mesh()
-    mesh.boundary = np.linspace(0.0, box_size.to_value(unyt.cm), grid_cells + 1) * unyt.cm
+    boundary_proper_cgs_cm_unyt = np.linspace(
+        0.0, box_size.to_value(unyt.cm), grid_cells + 1
+    ) * unyt.cm
+    mesh.boundary = boundary_proper_cgs_cm_unyt
     fluid = Fluid()
     fluid.eos = EOS(par.EOStype, par.gamma, code_units)
     fluid.rho_code = np.ones(grid_cells) * initial['rho_initial']
-    fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    fluid.vel_code = np.zeros(grid_cells, dtype=float)
     fluid.temp_code = np.ones(grid_cells) * initial['neutral_temperature']
     fluid.mu = np.ones(grid_cells)
     fluid.xHI = np.ones(grid_cells)
@@ -142,10 +145,18 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.CodeUnits
-    par.time_code = np.asarray(par.time_code, dtype=float) * code_units_obj.time_unit
-    par.box_size_code = np.asarray(par.box_size_code, dtype=float) * code_units_obj.length_unit
-    fluid.time_code = np.asarray(fluid.time_code, dtype=float) * code_units_obj.time_unit
-    mesh.boundary = np.asarray(mesh.boundary, dtype=float) * code_units_obj.length_unit
+    par.time_proper_code = np.asarray(
+        par.time_proper_code, dtype=float
+    ) * code_units_obj.time_unit
+    par.box_size_proper_code = np.asarray(
+        par.box_size_proper_code, dtype=float
+    ) * code_units_obj.length_unit
+    fluid.time_proper_code = np.asarray(
+        fluid.time_proper_code, dtype=float
+    ) * code_units_obj.time_unit
+    mesh.boundary_proper_code = np.asarray(
+        mesh.boundary_proper_code, dtype=float
+    ) * code_units_obj.length_unit
     fluid.rho_code = np.asarray(fluid.rho_code, dtype=float) * code_units_obj.density_unit
     fluid.vel_code = np.asarray(fluid.vel_code, dtype=float) * code_units_obj.velocity_unit
     fluid.temp_code = np.asarray(fluid.temp_code, dtype=float) * code_units_obj.temperature_unit
@@ -159,33 +170,33 @@ def load_output_state(outputfilename, config):
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's
     # actual coordinates instead of the constructor-time placeholders.
-    boundary = mesh.boundary
+    boundary = mesh.boundary_proper_code
     if par.coordsys == 'cartesian':
-        mesh.xdelta = boundary[1:] - boundary[:-1]
-        mesh.oneoverdx = 1.0 / mesh.xdelta
-        mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+        mesh.width_proper_code = boundary[1:] - boundary[:-1]
+        mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
+        mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
         if hasattr(par, 'area'):
-            mesh.area = np.ones(len(mesh.xdelta)) * par.area
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * par.area
         else:
-            mesh.area = np.ones(len(mesh.xdelta))
-        mesh.vol = mesh.xdelta * mesh.area
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
+        mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
     elif par.coordsys == 'spherical':
-        mesh.xdelta = boundary[1:] - boundary[:-1]
-        mesh.oneoverdx = 1.0 / mesh.xdelta
-        mesh.area = (boundary[:-1] ** 2) * 4.0 * np.pi
-        mesh.vol = np.absolute((boundary[1:] ** 3 - boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
+        mesh.width_proper_code = boundary[1:] - boundary[:-1]
+        mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
+        mesh.area_proper_code = (boundary[:-1] ** 2) * 4.0 * np.pi
+        mesh.volume_proper_code = np.absolute((boundary[1:] ** 3 - boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
         vol_denom = boundary[1:] ** 3 - boundary[:-1] ** 3
-        mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+        mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
         nonzero_vol_denom = vol_denom != 0.0
-        mesh.coordinate[nonzero_vol_denom] = 0.75 * (
+        mesh.x_proper_code[nonzero_vol_denom] = 0.75 * (
             boundary[1:][nonzero_vol_denom] ** 4 - boundary[:-1][nonzero_vol_denom] ** 4
         ) / vol_denom[nonzero_vol_denom]
         if np.any((boundary[:-1] < 0.0) & (boundary[1:] > 0.0)):
             crossing = np.where((boundary[:-1] < 0.0) & (boundary[1:] > 0.0))[0]
             for ig in crossing:
-                mesh.vol[ig] = (boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
-                mesh.coordinate[ig] = 0.75 * boundary[ig + 1]
-                mesh.area[ig] = 0.0
+                mesh.volume_proper_code[ig] = (boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.x_proper_code[ig] = 0.75 * boundary[ig + 1]
+                mesh.area_proper_code[ig] = 0.0
     return par, mesh, fluid
 
 

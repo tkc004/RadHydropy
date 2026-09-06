@@ -80,7 +80,7 @@ def run():
         )
         # For gamma=5/3, T_tilde = T*a^2.  The stored temperature is therefore
         # constant for homogeneous adiabatic expansion.
-        initial.fluid.temp_code[:] = initial_temperature * initial_scale_factor**2
+        initial.fluid.temp_supercomoving_code[:] = initial_temperature * initial_scale_factor**2
         output_dir = OUTPUT_ROOT / label
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
@@ -103,13 +103,13 @@ def run():
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
-        sim.fluid.SetFluidTime(sim.par.time)
+        sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
         sim.SetInitFluid()
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
-        final_tau_sim = float(np.asarray(sim.fluid.time_code, dtype=float).flat[0])
+        final_tau_sim = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
-        stored_temperature = float(np.mean(sim.fluid.temp_code))
+        stored_temperature = float(np.mean(sim.fluid.temp_supercomoving_code))
         measured_temperature = stored_temperature / final_a**2
         expected_temperature = initial_temperature * (initial_scale_factor / final_scale_factor) ** 2
         print(

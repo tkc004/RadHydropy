@@ -28,12 +28,12 @@ def build_initial_condition(config):
     result.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     result.par.simulation = SimpleNamespace(
         coordinate_system=initial['coordinate_system'],
-        box_size=initial['box_size'], current_time=initial['current_time'],
+        box_size=initial['box_size'], time_code=initial['current_time'],
     )
     result.par.nogrid = grid_cells
     result.par.coordsys = initial['coordinate_system']
     result.par.boxsize = initial['box_size']
-    result.par.time = initial['current_time']
+    result.par.time_code = initial['current_time']
     result.mesh.boundary = np.linspace(0.0 * result.par.boxsize, result.par.boxsize, grid_cells + 1)
     center = 0.5 * (result.mesh.boundary[:-1] + result.mesh.boundary[1:])
     result.fluid.rho_code = np.where(
@@ -115,4 +115,3 @@ def primitive_profiles(state):
     last = first + int(state.par.nogrid)
     radius = 0.5 * (boundary[:-1] + boundary[1:])
     return radius[first:last], rho_code[first:last], temperature[first:last]
-

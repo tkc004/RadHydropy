@@ -48,7 +48,7 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
-    sim.fluid.SetFluidTime(sim.par.time)
+    sim.fluid.SetFluidTime(sim.par.time_code)
     sim.SetInitFluid()
     sim.par.cosmology = cosmology
 

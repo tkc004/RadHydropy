@@ -76,7 +76,7 @@ _CODE_UNIT_GROUPS = (
     _CodeUnitGroup(
         'par',
         (
-            ('time', 'time'),
+            ('time_code', 'time'),
             ('timesim', 'time'),
             ('initial_time', 'time'),
             ('time_interval', 'time'),

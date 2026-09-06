@@ -34,7 +34,7 @@ class InitialCondition:
             time=0.0, boxsize=np.asarray([radius]),
         )
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(current_time=0.0, box_size=np.asarray([radius]), coordinate_system='spherical')
+        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius]), coordinate_system='spherical')
         self.par.mesh = SimpleNamespace(grid_cells=1, ghost_cells=0)
         self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
         self.mesh = SimpleNamespace(

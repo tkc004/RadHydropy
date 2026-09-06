@@ -7,10 +7,46 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     """Return a CFL-limited timestep in the active time coordinate."""
     if CFL is None:
         CFL = par.hydrodynamics.CFL
+    geometry = getattr(mesh, "geometry_state", None)
+    if geometry is not None:
+        if getattr(par, "supercomoving_coordinates", False):
+            xdelta = geometry.width_comoving_code
+            mesh_area = geometry.area_comoving_code
+            mesh_volume = geometry.volume_comoving_code
+            mesh_coordinate = geometry.x_comoving_code
+        else:
+            xdelta = geometry.width_proper_code
+            mesh_area = geometry.area_proper_code
+            mesh_volume = geometry.volume_proper_code
+            mesh_coordinate = geometry.x_proper_code
+    else:
+        raise ValueError("timestep calculation requires typed mesh geometry state")
     fluid.SetSoundSpeed()
-    vsignal = np.absolute(fluid.vel_code) + fluid.cs_code
-    xdelta = mesh.xdelta
-    density = np.asarray(fluid.rho_code, dtype=float)
+    runtime_state = getattr(fluid, "runtime_state", None)
+    if runtime_state is not None:
+        if getattr(par, "supercomoving_coordinates", False):
+            velocity = runtime_state.vel_supercomoving_code
+            density_field = runtime_state.rho_comoving_code
+            pressure_field = runtime_state.pre_supercomoving_code
+            time_runtime_code = runtime_state.tau_supercomoving_code
+        else:
+            velocity = runtime_state.vel_proper_code
+            density_field = runtime_state.rho_proper_code
+            pressure_field = runtime_state.pre_proper_code
+            time_runtime_code = runtime_state.time_proper_code
+    else:
+        if getattr(par, "supercomoving_coordinates", False):
+            velocity = fluid.vel_supercomoving_code
+            density_field = fluid.rho_comoving_code
+            pressure_field = fluid.pre_supercomoving_code
+            time_runtime_code = fluid.tau_supercomoving_code
+        else:
+            velocity = fluid.vel_proper_code
+            density_field = fluid.rho_proper_code
+            pressure_field = fluid.pre_proper_code
+            time_runtime_code = fluid.time_proper_code
+    vsignal = np.absolute(velocity) + fluid.cs_code
+    density = np.asarray(density_field, dtype=float)
     if xdelta.shape != vsignal.shape:
         interior = solver._interior_slice(par)
         if xdelta[interior].shape == vsignal.shape:
@@ -112,7 +148,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         boundary_condition in ('InflowSph', 'OutflowSph')
         and hasattr(fluid, 'Mass_code')
         and first + 1 < len(fluid.Mass_code)
-        and first < len(mesh.area)
+        and first < len(mesh_area)
     ):
         if boundary_condition == 'InflowSph':
             boundary_density = getattr(boundary, 'inflow_density', 0.0)
@@ -122,7 +158,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             boundary_velocity = getattr(boundary, 'outflow_velocity', 0.0)
         mass_flux = abs(float(np.asarray(boundary_density))) * abs(
             float(np.asarray(boundary_velocity))
-        ) * abs(float(np.asarray(mesh.area[first])))
+        ) * abs(float(np.asarray(mesh_area[first])))
         # The reconstructed boundary/front stencil can deliver the imposed
         # flux into the next active cell as the wind front advances.  Use the
         # lower mass of the two receiving cells so the constraint follows a
@@ -153,7 +189,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     solver.dt = dt
     if np.isnan(np.asarray(dt)):
         print('vsignal', vsignal)
-        print('fluid.vel_code', fluid.vel_code)
+        print('runtime velocity', velocity)
         print('fluid.cs_code', fluid.cs_code)
         raise Exception(" time step is nan")
     dtmin_value = par.timestep.dtmin
@@ -169,7 +205,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 dtmin_value,
                 min_index,
                 cfl_density[active_index],
-                fluid.vel_code[diagnostic_index],
+                velocity[diagnostic_index],
                 fluid.cs_code[diagnostic_index],
                 cfl_xdelta[active_index],
             )
@@ -183,7 +219,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         and dt <= 1.0e-4 * dtmax
     ):
         min_index = int(np.argmin(dt_array))
-        if len(np.asarray(fluid.vel_code)) == len(active_vsignal):
+        if len(np.asarray(velocity)) == len(active_vsignal):
             diagnostic_index = min_index
         else:
             diagnostic_index = min_index + first
@@ -191,23 +227,23 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             '[hydro dt] t=%s dt=%s idx=%d radius=%s rho=%s vel=%s '
             'cs=%s vsignal=%s dx=%s pre=%s dtmin=%s dtmax=%s'
             % (
-                fluid.time_code,
+                time_runtime_code,
                 dt,
                 diagnostic_index,
-                np.asarray(mesh.coordinate)[diagnostic_index],
-                np.asarray(fluid.rho_code)[diagnostic_index],
-                np.asarray(fluid.vel_code)[diagnostic_index],
+                np.asarray(mesh_coordinate)[diagnostic_index],
+                np.asarray(density_field)[diagnostic_index],
+                np.asarray(velocity)[diagnostic_index],
                 np.asarray(fluid.cs_code)[diagnostic_index],
                 np.asarray(vsignal)[diagnostic_index],
-                np.asarray(mesh.xdelta)[diagnostic_index],
-                np.asarray(fluid.pre_code)[diagnostic_index],
+                np.asarray(xdelta)[diagnostic_index],
+                np.asarray(pressure_field)[diagnostic_index],
                 dtmin_value,
                 dtmax_value,
             )
         )
-        cell_volume = np.asarray(mesh.vol)[diagnostic_index]
-        cell_rho_code = np.asarray(fluid.rho_code)[diagnostic_index]
-        cell_vel_code = np.asarray(fluid.vel_code)[diagnostic_index]
+        cell_volume = np.asarray(mesh_volume)[diagnostic_index]
+        cell_rho_code = np.asarray(density_field)[diagnostic_index]
+        cell_vel_code = np.asarray(velocity)[diagnostic_index]
         cell_energy_density = (
             np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
         )
@@ -246,11 +282,11 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 '[hydro dt neighbors] %d %s %s %s %s %s'
                 % (
                     neighbor,
-                    np.asarray(mesh.coordinate)[neighbor],
-                    np.asarray(fluid.rho_code)[neighbor],
-                    np.asarray(fluid.vel_code)[neighbor],
+                    np.asarray(mesh_coordinate)[neighbor],
+                    np.asarray(density_field)[neighbor],
+                    np.asarray(velocity)[neighbor],
                     np.asarray(fluid.cs_code)[neighbor],
-                    np.asarray(fluid.pre_code)[neighbor],
+                    np.asarray(pressure_field)[neighbor],
                 )
             )
     return dt

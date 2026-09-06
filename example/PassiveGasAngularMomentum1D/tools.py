@@ -28,8 +28,8 @@ def build_initial_condition(config):
     result.par.nogrid = grid_cells
     result.par.coordsys = 'cartesian'
     result.par.boxsize = initial['box_size'] * np.ones(1)
-    result.par.time = initial['current_time'] * np.ones(1)
-    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=result.par.boxsize, coordinate_system='cartesian')
+    result.par.time_code = initial['current_time'] * np.ones(1)
+    result.par.simulation = SimpleNamespace(time_code=result.par.time_code, box_size=result.par.boxsize, coordinate_system='cartesian')
     result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     result.mesh.boundary = np.linspace(0.0, result.par.boxsize[0], grid_cells + 1)
     coordinate = 0.5 * (result.mesh.boundary[1:] + result.mesh.boundary[:-1])

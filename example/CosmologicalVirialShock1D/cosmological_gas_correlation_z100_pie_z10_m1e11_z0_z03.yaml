@@ -26,7 +26,9 @@ par:
     dtmax:
       value: 200.0
       unit: Myr
+  dark_matter_crossing_batch_fraction: 0.0
   dark_matter_crossing_safety_factor: 0.5
+  dark_matter_global_timestep_limit: false
   output:
     directory: outputs_correlation_gas_pie_z10_m1e11_z0_z03
     savedir: outputs_correlation_gas_pie_z10_m1e11_z0_z03
@@ -69,15 +71,6 @@ par:
     hydrogen_atomic_cooling: true
     hydrogen_thermal_coupling: true
     hydrogen_chemistry: true
-  figure_prefix: CosmologicalGasCorrelationZ100_PIE_Z10_M1e11_Z0_Z03
-  dark_matter_crossing_batch_fraction: 0.0
-  dark_matter_global_timestep_limit: false
-  dm_density_bins: 128
-  gas_profile_cadence: 0.1
-  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  minimum_temperature:
-    value: 2.0
-    unit: K
 initial_condition:
   rmin: 5.0
   rmax: 4000.0
@@ -99,3 +92,10 @@ initial_condition:
   cmb_residual_electron_fraction: 0.0002
 example:
   thermochemistry_transition_redshift: 10.0
+  figure_prefix: CosmologicalGasCorrelationZ100_PIE_Z10_M1e11_Z0_Z03
+  dm_density_bins: 128
+  gas_profile_cadence: 0.1
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  minimum_temperature:
+    value: 2.0
+    unit: K

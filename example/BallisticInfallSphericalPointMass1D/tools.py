@@ -129,11 +129,11 @@ def build_initial_condition(config):
     grid_cells = int(icparams['grid_cells'])
     coordinate_system = icparams['coordinate_system']
     box_size = np.ones(1) * icparams['box_size']
-    sim.par.time = np.ones(1) * icparams['current_time']
+    sim.par.time_code = np.ones(1) * icparams['current_time']
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=coordinate_system,
-        current_time=sim.par.time,
+        time_code=sim.par.time_code,
         box_size=box_size,
     )
 
@@ -153,7 +153,7 @@ def build_initial_condition(config):
 
     sim.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
     sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_code = ballistic_density_profile(
         sim.mesh.coordinate,
         icparams['reference_density'],

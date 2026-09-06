@@ -2,7 +2,7 @@ par:
   simulation: {name: DynamicStromgrenSpherePhotoheating20pcStellarWind1D, initial_condition_filename: InitialCondition.hdf5, coordinate_system: spherical, final_time: {value: 1.0, unit: Myr}}
   mesh: {grid_cells: 512, ghost_cells: 2, area: {value: 1.0, unit: cm**2}}
   boundary:
-    condition: OutflowSph
+    condition: WindSph
     outflow_density: {value: 2.1064555e-24, unit: g/cm**3}
     outflow_velocity: {value: 1000.0, unit: km/s}
     outflow_temperature: {value: 100.0, unit: K}
@@ -18,4 +18,4 @@ par:
       name: galactic_unit_system
       InternalUnitSystem: {UnitMass_in_cgs: 4.92e31, UnitLength_in_cgs: 3.08567758e21, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
 initial_condition: {box_size: {value: 20.0, unit: pc}, initial_radius: {value: 0.05, unit: pc}, current_time: {value: 0.0, unit: Myr}, hydrogen_number_density: {value: 100.0, unit: 1/cm**3}, initial_temperature: {value: 100.0, unit: K}}
-example: {plot_radius_max: {value: 20.0, unit: pc}, reference_radius_unit: {value: 20.0, unit: pc}, wind_mass_loss_rate: {value: 1.0e-6, unit: Msun/yr}, wind_velocity: {value: 1000.0, unit: km/s}, wind_temperature: {value: 100.0, unit: K}, wind_mu: 0.62, rinj: {value: 0.05, unit: pc}}
+example: {plot_radius_max: {value: 20.0, unit: pc}, reference_radius_unit: {value: 20.0, unit: pc}, wind_mass_loss_rate: {value: 1.0e-6, unit: Msun/yr}, wind_velocity: {value: 1000.0, unit: km/s}, wind_temperature: {value: 100.0, unit: K}, wind_mu: 0.62, rinj: {value: 0.05, unit: pc}, wind_injection_cells: 2}

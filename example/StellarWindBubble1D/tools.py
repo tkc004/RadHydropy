@@ -27,9 +27,9 @@ class Fluid:
 
 def _current_time(rout):
     simulation = getattr(rout.par, 'simulation', None)
-    if simulation is not None and hasattr(simulation, 'current_time'):
-        return simulation.current_time
-    return rout.par.time
+    if simulation is not None and hasattr(simulation, 'time_code'):
+        return simulation.time_code
+    return rout.par.time_code
 
 
 def _config_value(mapping, group, key, legacy):
@@ -81,7 +81,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=icparams['current_time'] * np.ones(1),
+        time_code=icparams['current_time'] * np.ones(1),
         box_size=box_size,
     )
 
@@ -149,20 +149,33 @@ def load_snapshot(outfilename, config):
                 continue
             if value_length == boundary_count:
                 setattr(rout.fluid, name, value[first:stop])
-    rout.par.simulation.current_time = unyt.unyt_array(np.asarray(rout.par.simulation.current_time, dtype=float), code_units_obj.time_unit)
+    rout.par.simulation.time_code = unyt.unyt_array(np.asarray(rout.par.simulation.time_code, dtype=float), code_units_obj.time_unit)
     rout.par.simulation.box_size = unyt.unyt_array(np.asarray(rout.par.simulation.box_size, dtype=float), code_units_obj.length_unit)
-    rout.mesh.boundary = unyt.unyt_array(np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit)
-    rout.fluid.vel_code = unyt.unyt_array(np.asarray(rout.fluid.vel_code, dtype=float), code_units_obj.velocity_unit)
-    rout.fluid.temp_code = unyt.unyt_array(np.asarray(rout.fluid.temp_code, dtype=float), code_units_obj.temperature_unit)
-    rout.fluid.rho_code = unyt.unyt_array(np.asarray(rout.fluid.rho_code, dtype=float), code_units_obj.density_unit)
+    boundary_proper_code_unyt = unyt.unyt_array(
+        np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit
+    )
+    rout.mesh.boundary = boundary_proper_code_unyt
+    velocity_proper_code_unyt = unyt.unyt_array(
+        np.asarray(rout.fluid.vel_code, dtype=float), code_units_obj.velocity_unit
+    )
+    rout.fluid.vel_code = velocity_proper_code_unyt
+    temperature_proper_code_unyt = unyt.unyt_array(
+        np.asarray(rout.fluid.temp_code, dtype=float), code_units_obj.temperature_unit
+    )
+    rout.fluid.temp_code = temperature_proper_code_unyt
+    density_proper_code_unyt = unyt.unyt_array(
+        np.asarray(rout.fluid.rho_code, dtype=float), code_units_obj.density_unit
+    )
+    rout.fluid.rho_code = density_proper_code_unyt
     rout.fluid.mu = np.asarray(rout.fluid.mu, dtype=float)
     if hasattr(rout.fluid, 'xHI'):
         rout.fluid.xHI = np.asarray(rout.fluid.xHI, dtype=float)
     if hasattr(rout.fluid, 'ngamma_code'):
-        rout.fluid.ngamma_code = unyt.unyt_array(
+        photon_number_density_code_unyt = unyt.unyt_array(
             np.asarray(rout.fluid.ngamma_code, dtype=float),
             code_units_obj.number_density_unit,
         )
+        rout.fluid.ngamma_code = photon_number_density_code_unyt
     return rout
 
 
@@ -643,8 +656,5 @@ def ReadandPlot(outfilename, icparams, runparams, **kwargs):
             color=kwargs['color'],
             ls='dashed',
         )
-
-
-
 
 

@@ -35,9 +35,11 @@ from radhydropy.diagnostics import (
 )
 from radhydropy.state_boundaries import (
     CgsSourceState,
-    CodeFluidState,
+    ProperCodeState,
+    SupercomovingCodeState,
     cgs_source_state_from_code,
 )
+from radhydropy.runtime_fields import runtime_fields
 
 
 
@@ -46,6 +48,82 @@ def _require_numeric_array(value, label):
     if hasattr(value, "to_value"):
         raise TypeError(f"{label} must be a plain numeric array, not a unyt quantity")
     return np.asarray(value, dtype=float)
+
+
+def _canonical_fluid_primitive_arrays(fluid, par):
+    """Return primitive arrays through an explicit representation branch."""
+    state = getattr(fluid, 'runtime_state', None)
+    if getattr(par, 'supercomoving_coordinates', False):
+        if state is None:
+            return (
+                fluid.rho_comoving_code,
+                fluid.vel_supercomoving_code,
+                fluid.pre_supercomoving_code,
+                fluid.temp_supercomoving_code,
+                fluid.tau_supercomoving_code,
+            )
+        return (
+            state.rho_comoving_code,
+            state.vel_supercomoving_code,
+            state.pre_supercomoving_code,
+            state.temp_supercomoving_code,
+            state.tau_supercomoving_code,
+        )
+    if state is None:
+        return (
+            fluid.rho_proper_code,
+            fluid.vel_proper_code,
+            fluid.pre_proper_code,
+            fluid.temp_proper_code,
+            fluid.time_proper_code,
+        )
+    return (
+        state.rho_proper_code,
+        state.vel_proper_code,
+        state.pre_proper_code,
+        state.temp_proper_code,
+        state.time_proper_code,
+    )
+
+
+def _canonical_mesh_geometry_arrays(mesh, par):
+    """Return geometry arrays through an explicit proper/comoving branch."""
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        return (
+            geometry.x_comoving_code,
+            geometry.boundary_comoving_code,
+            geometry.width_comoving_code,
+            geometry.area_comoving_code,
+            geometry.volume_comoving_code,
+        )
+    return (
+        geometry.x_proper_code,
+        geometry.boundary_proper_code,
+        geometry.width_proper_code,
+        geometry.area_proper_code,
+        geometry.volume_proper_code,
+    )
+
+
+def _canonical_mesh_geometry_arrays(mesh, par):
+    """Return mesh arrays through an explicit frame branch."""
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        return (
+            geometry.x_comoving_code,
+            geometry.boundary_comoving_code,
+            geometry.width_comoving_code,
+            geometry.area_comoving_code,
+            geometry.volume_comoving_code,
+        )
+    return (
+        geometry.x_proper_code,
+        geometry.boundary_proper_code,
+        geometry.width_proper_code,
+        geometry.area_proper_code,
+        geometry.volume_proper_code,
+    )
 
 def _optional_numeric_value(value, unit, default=None):
     if value is None:
@@ -443,7 +521,8 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     """Advect the chemistry fraction consistently with the mass flux."""
     if not hasattr(fluid, 'xHI'):
         return
-    face_area = mesh.area
+    _, _, _, area_runtime_code, _ = _canonical_mesh_geometry_arrays(mesh, par)
+    face_area = area_runtime_code
     x_left = np.roll(fluid.xHI, 1)
     x_right = fluid.xHI
     x_face = np.where(np.asarray(mass_flux, dtype=float) >= 0.0, x_left, x_right)
@@ -464,7 +543,8 @@ def source_state(mesh, fluid, par):
         raise ValueError("hydrogen thermo-chemistry requires configured code units")
     kpc_in_cm = float((1.0 * unyt.kpc).to_value(unyt.cm))
     interior = interior_slice(par)
-    runtime = fluid.code_state
+    fields = runtime_fields(par)
+    runtime = fluid.runtime_state
     xHI = as_named_array(runtime.xHI_dimensionless[interior].copy())
     gamma = getattr(
         getattr(fluid, 'eos', None),
@@ -478,28 +558,51 @@ def source_state(mesh, fluid, par):
     # for this source state.  Specific internal energy is supplied in code
     # units after applying the same EOS relation used by the existing source
     # equations; the source-state scaling is applied only after this boundary.
-    temperature_code = runtime.temp_code[interior]
+    _, _, _, temp_runtime_code, _ = _canonical_fluid_primitive_arrays(fluid, par)
+    temperature_code = temp_runtime_code[interior]
     temperature_cgs_K = temperature_code * code.unit_conversion['temperature_cgs_K']
     specific_energy_cgs_erg_g = (
         BOLTZMANN_CONSTANT_CGS
         * temperature_cgs_K
         / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
-    interior_code = CodeFluidState(
-        rho_code=runtime.rho_code[interior],
-        vel_code=runtime.vel_code[interior],
-        temp_code=temperature_code,
-        specific_energy_code=(
+    density_code, velocity_code, _, _, _ = _canonical_fluid_primitive_arrays(fluid, par)
+    state_type = (
+        ProperCodeState
+        if fields.time == "time_proper_code"
+        else SupercomovingCodeState
+    )
+    state_kwargs = {
+        "specific_energy_proper_code" if state_type is ProperCodeState
+        else "specific_energy_supercomoving_code": (
             specific_energy_cgs_erg_g
             / code.unit_conversion['specific_energy_cgs_erg_g']
         ),
-        xHI_dimensionless=xHI,
+        "xHI_dimensionless": xHI,
+    }
+    if state_type is ProperCodeState:
+        state_kwargs.update(
+            rho_proper_code=density_code[interior],
+            vel_proper_code=velocity_code[interior],
+            temp_proper_code=temperature_code,
+            time_proper_code=None,
+        )
+    else:
+        state_kwargs.update(
+            rho_comoving_code=density_code[interior],
+            vel_supercomoving_code=velocity_code[interior],
+            temp_supercomoving_code=temperature_code,
+            tau_supercomoving_code=None,
+        )
+    interior_code = state_type(**state_kwargs)
+    _, boundary_runtime_code, _, _, volume_runtime_code = (
+        _canonical_mesh_geometry_arrays(mesh, par)
     )
     primitive_cgs = cgs_source_state_from_code(
         code_units=code,
         fluid=interior_code,
-        boundary_code=mesh.boundary[interior.start : interior.stop + 1],
-        volume_code=mesh.vol[interior],
+        boundary_code=boundary_runtime_code[interior.start : interior.stop + 1],
+        volume_code=volume_runtime_code[interior],
     )
     source = CgsSourceState(
         boundary_cgs_cm=primitive_cgs.boundary_cgs_cm * scaling['scale_factor'],
@@ -557,11 +660,17 @@ def source_state(mesh, fluid, par):
         'width_cgs_cm': np.diff(source.boundary_cgs_cm),
         'volume_cgs_cm3': source.volume_cgs_cm3,
         'radius_cgs_cm': as_named_array(
-            to_unit_value(mesh.coordinate[interior], code.length_unit)
+            to_unit_value(
+                _canonical_mesh_geometry_arrays(mesh, par)[0][interior],
+                code.length_unit,
+            )
             * scaling['scale_factor']
         ),
         'radius_kpc': np.asarray(
-            to_unit_value(mesh.coordinate[interior], code.length_unit)
+            to_unit_value(
+                _canonical_mesh_geometry_arrays(mesh, par)[0][interior],
+                code.length_unit,
+            )
             * scaling['scale_factor'] / kpc_in_cm,
             dtype=float,
         ),
@@ -617,7 +726,9 @@ def trace_spherical_tau(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):
         rh.photon_cross_section(sigma_gamma), code.area_unit
     )
     width_cgs_cm = to_unit_value(
-        np.abs(mesh.boundary[1:] - mesh.boundary[:-1]),
+        np.abs(
+            boundary_runtime_code[1:] - boundary_runtime_code[:-1]
+        ),
         code.length_unit,
     )
     nH_cgs_cm3 = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
@@ -754,7 +865,12 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, verbose=False):
     if len(candidates) == 0:
         dt = float(min(dtmax_s, remaining_s))
     else:
-        dt = float(min(dtmax_s, remaining_s, max(dtmin_s, min(candidates))))
+        # A source stability timescale is a hard upper bound.  The configured
+        # source minimum is a stopping/progress threshold, not permission to
+        # take a larger unstable chemistry or photoheating step.  This matters
+        # for resolved stellar-wind cells, whose low density gives a much
+        # shorter photoheating timescale than the hydro-scale dtmin.
+        dt = float(min(dtmax_s, remaining_s, min(candidates)))
     if verbose:
         print(
             '[source dt] remaining=%s dtmax=%s dtmin=%s selected=%s'
@@ -814,8 +930,14 @@ def apply_state(state, fluid, par):
             fluid.ngamma_code[:, interior] = target
         else:
             fluid.ngamma_code[interior] = target
-    if hasattr(fluid, 'temp_code') and 'temperature_cgs_K' in state:
-        fluid.temp_code[interior] = from_unit_value(
+    fields = runtime_fields(par)
+    if 'temperature_cgs_K' in state:
+        temperature_runtime_code = (
+            fluid.temp_supercomoving_code
+            if getattr(par, 'supercomoving_coordinates', False)
+            else fluid.temp_proper_code
+        )
+        temperature_runtime_code[interior] = from_unit_value(
             state['temperature_cgs_K'] * state.get('source_temperature_factor', 1.0),
             code.temperature_unit,
         )
@@ -824,7 +946,11 @@ def apply_state(state, fluid, par):
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )
         fluid.SetPressure()
-    fluid.time_code = from_unit_value(state['time_s'], code.time_unit)
+    setattr(
+        fluid,
+        fields.time,
+        from_unit_value(state['time_s'], code.time_unit),
+    )
 
 
 def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
@@ -867,16 +993,10 @@ def _fast_source_scaling(fluid, par, gamma):
     cosmology = getattr(par, 'cosmology', None)
     if cosmology is None:
         raise ValueError("supercomoving thermo-chemistry requires par.cosmology")
-    if hasattr(getattr(par, 'simulation', None), 'current_time'):
-        time = getattr(fluid, 'time', None)
-        if time is None:
-            time = par.simulation.current_time
-    else:
-        # Lightweight source-test objects predate grouped parameters.
-        time = getattr(
-            par, 'fluid_time', getattr(par, 'time', getattr(fluid, 'time', 0.0))
-        )
-    tau = float(np.asarray(time, dtype=float).flat[0])
+    _, _, _, _, tau_supercomoving_code = _canonical_fluid_primitive_arrays(
+        fluid, par
+    )
+    tau = float(np.asarray(tau_supercomoving_code, dtype=float).flat[0])
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
     return {
         'scale_factor': scale_factor,
@@ -899,7 +1019,10 @@ def _rotational_specific_energy_code(mesh, fluid, par):
     interior = slice(ghost_cells, ghost_cells + grid_cells)
     mass = np.asarray(fluid.Mass_code[interior], dtype=float)
     angular = np.asarray(fluid.AngularMomentum_code[interior], dtype=float)
-    radius = np.abs(np.asarray(mesh.coordinate[interior], dtype=float))
+    fields = runtime_fields(par)
+    radius = np.abs(np.asarray(
+        _canonical_mesh_geometry_arrays(mesh, par)[0][interior], dtype=float
+    ))
     j = np.zeros_like(mass)
     np.divide(angular, mass, out=j, where=mass > 0.0)
     result = np.zeros_like(mass)
@@ -917,20 +1040,29 @@ def _fast_source_state(mesh, fluid, par):
     ghost_cells = int(par.mesh.ghost_cells)
     grid_cells = int(par.mesh.grid_cells)
     interior = slice(ghost_cells, ghost_cells + grid_cells)
+    fields = runtime_fields(par)
+    if not hasattr(mesh, 'geometry_state'):
+        raise ValueError("thermochemistry requires typed mesh geometry state")
+    runtime_state = getattr(fluid, 'runtime_state', None)
+    if runtime_state is None:
+        raise ValueError("thermochemistry requires typed fluid runtime state")
     gamma = getattr(getattr(fluid, 'eos', None), 'gamma', par.hydrodynamics.gamma)
     scaling = _fast_source_scaling(fluid, par, gamma)
+    rho_runtime_code, vel_runtime_code, pre_runtime_code, temp_runtime_code, time_runtime_code = (
+        _canonical_fluid_primitive_arrays(fluid, par)
+    )
     rho_cgs_g_cm3 = (
-        np.asarray(fluid.rho_code[interior], dtype=float)
+        np.asarray(rho_runtime_code[interior], dtype=float)
         * unit_conversion['density_cgs_g_cm3']
         / scaling['density_factor']
     )
     temperature_cgs_K = (
-        np.asarray(fluid.temp_code[interior], dtype=float)
+        np.asarray(temp_runtime_code[interior], dtype=float)
         * unit_conversion['temperature_cgs_K']
         / scaling['temperature_factor']
     )
     velocity_supercomoving_cgs_cm_s = (
-        np.asarray(fluid.vel_code[interior], dtype=float)
+        np.asarray(vel_runtime_code[interior], dtype=float)
         * unit_conversion['velocity_cgs_cm_s']
     )
     vel_cgs_cm_s = velocity_supercomoving_cgs_cm_s / scaling['velocity_factor']
@@ -940,21 +1072,29 @@ def _fast_source_state(mesh, fluid, par):
         * unit_conversion['energy_cgs_erg']
     )
     rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
+    _, boundary_runtime_code, width_runtime_code, _, volume_runtime_code = (
+        _canonical_mesh_geometry_arrays(mesh, par)
+    )
     state = {
         'interior': interior,
         'boundary_cgs_cm': as_named_array(
             np.asarray(
-                mesh.boundary[interior.start : interior.stop + 1], dtype=float
+                boundary_runtime_code[interior.start : interior.stop + 1],
+                dtype=float,
             ) * unit_conversion['length_cgs_cm']
             * scaling['scale_factor']
         ),
         'width_cgs_cm': as_named_array(
-            np.asarray(mesh.xdelta[interior], dtype=float)
+            np.asarray(
+                width_runtime_code[interior], dtype=float
+            )
             * unit_conversion['length_cgs_cm']
             * scaling['scale_factor']
         ),
         'volume_cgs_cm3': as_named_array(
-            np.asarray(mesh.vol[interior], dtype=float)
+            np.asarray(
+                volume_runtime_code[interior], dtype=float
+            )
             * unit_conversion['volume_cgs_cm3']
             * scaling['density_factor']
         ),
@@ -1163,6 +1303,10 @@ def _fast_update_temperature_from_energy(state):
             state['xHI'],
             hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
         )
+    active = np.asarray(
+        state.get('active', np.asarray(state['rho_cgs_g_cm3']) > 0.0),
+        dtype=bool,
+    )
     temperature_floor = float(state.get('temperature_floor_cgs_K', 0.0) or 0.0)
     if temperature_floor > 0.0:
         energy_floor = (
@@ -1174,17 +1318,16 @@ def _fast_update_temperature_from_energy(state):
                 * PROTON_MASS_CGS
             )
         )
-        active = np.asarray(
-            state.get('active', np.asarray(state['rho_cgs_g_cm3']) > 0.0),
-            dtype=bool,
-        )
         internal_specific = np.where(
             active,
             np.maximum(internal_specific, energy_floor),
             internal_specific,
         )
-        # Keep the conserved source state consistent with the temperature
-        # floor. A pressure-only floor would leave E-K equal to zero.
+    # Keep the source state synchronized after every thermal update.  The
+    # split-implicit limiter compares this field between trial states; if it
+    # is left stale, a large temperature jump appears to have zero energy
+    # change and bypasses the source stability limit.
+    if 'specific_energy_cgs_erg_g' in state:
         state['specific_energy_cgs_erg_g'] = np.where(
             active,
             internal_specific,
@@ -1867,7 +2010,6 @@ def _split_implicit_source_state_update(state, dt_s, par):
     source_steps = 0
     trial_dt_s = remaining_s
     max_subcycles = int(getattr(par, 'hydrogen_split_implicit_max_subcycles', 100000))
-    dtmin_s = float(state.get('dtmin_s', 0.0) or 0.0)
     active = np.asarray(
         state.get('active', np.asarray(state['rho_cgs_g_cm3']) > 0.0),
         dtype=bool,
@@ -1940,9 +2082,7 @@ def _split_implicit_source_state_update(state, dt_s, par):
                 break
 
             candidate_dt_s *= 0.5
-            if candidate_dt_s <= 0.0 or (
-                dtmin_s > 0.0 and candidate_dt_s < dtmin_s
-            ):
+            if candidate_dt_s <= 0.0:
                 raise RuntimeError(
                     'split-implicit hydrogen source update cannot satisfy '
                     'the 10% internal-energy change limit'
@@ -2250,9 +2390,19 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         state['temperature_cgs_K'] * state.get('source_temperature_factor', 1.0)
         / code.unit_conversion['temperature_cgs_K']
     )
-    temp_code = np.asarray(fluid.temp_code[interior], dtype=float).copy()
+    fields = runtime_fields(par)
+    runtime_state = getattr(fluid, 'runtime_state', None)
+    if runtime_state is None and hasattr(fluid, '_refresh_runtime_state'):
+        fluid.runtime_fields = fields
+        fluid._refresh_runtime_state()
+        runtime_state = fluid.runtime_state
+    _, _, _, temp_runtime_code, _ = _canonical_fluid_primitive_arrays(fluid, par)
+    temp_code = np.asarray(temp_runtime_code[interior], dtype=float).copy()
     temp_code[active] = temperature[active]
-    fluid.temp_code[interior] = temp_code
+    if getattr(par, 'supercomoving_coordinates', False):
+        fluid.temp_supercomoving_code[interior] = temp_code
+    else:
+        fluid.temp_proper_code[interior] = temp_code
     if state.get('thermal_coupling', False):
         # The source state stores specific energies in physical cgs units
         # (erg/g), while Fluid pressure and Energy use the code velocity
@@ -2286,14 +2436,20 @@ def _fast_sync_state_to_fluid(state, fluid, par):
             specific_internal_energy_code + specific_kinetic_energy_code
             + rotational_specific_code
         )
+        rho_runtime_code, _, pre_runtime_code, _, _ = (
+            _canonical_fluid_primitive_arrays(fluid, par)
+        )
         pressure = (
             specific_internal_energy_code
-            * np.asarray(fluid.rho_code[interior], dtype=float)
+            * np.asarray(rho_runtime_code[interior], dtype=float)
             * (fluid.eos.gamma - 1.0)
         )
-        pre = np.asarray(fluid.pre_code[interior], dtype=float).copy()
+        pre = np.asarray(pre_runtime_code[interior], dtype=float).copy()
         pre[active] = pressure[active]
-        fluid.pre_code[interior] = pre
+        if getattr(par, 'supercomoving_coordinates', False):
+            fluid.pre_supercomoving_code[interior] = pre
+        else:
+            fluid.pre_proper_code[interior] = pre
         energy = specific_total_energy * np.asarray(fluid.Mass_code[interior], dtype=float)
         conserved_energy = np.asarray(fluid.Energy_code[interior], dtype=float).copy()
         conserved_energy[active] = energy[active]

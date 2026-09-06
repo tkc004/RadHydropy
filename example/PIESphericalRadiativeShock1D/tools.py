@@ -22,7 +22,7 @@ def build_initial_condition(config):
         units=SimpleNamespace(CodeUnits=code_units),
         time=initial['time'] * np.ones(1),
         simulation=SimpleNamespace(
-            current_time=initial['time'], box_size=initial['boxsize'],
+            time_code=initial['time'], box_size=initial['boxsize'],
             coordinate_system='spherical',
         ),
         mesh=SimpleNamespace(grid_cells=grid_cells, ghost_cells=0),

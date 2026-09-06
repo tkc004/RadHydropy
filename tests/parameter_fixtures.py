@@ -21,7 +21,7 @@ def parameter_namespace(**values):
         coordinate_system=values.get("coordsys"),
         final_time=values.get("timesim"),
         initial_condition_filename=values.get("ICfilename"),
-        current_time=values.get("time", values.get("fluid_time")),
+        time_code=values.get("time_code"),
         box_size=values.get("boxsize"),
     )
     par.hydrodynamics = SimpleNamespace(

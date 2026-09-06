@@ -12,6 +12,11 @@ import h5py
 
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 
 
 CODE_UNITS = CodeUnits.from_mapping(
@@ -28,6 +33,45 @@ CODE_UNITS = CodeUnits.from_mapping(
 )
 
 
+def _attach_proper_runtime_state(mesh, fluid):
+    """Attach the numeric proper-code state used by the serializer tests."""
+    boundary_proper_code = np.asarray(mesh.boundary.to_value(unyt.cm), dtype=float)
+    width_proper_code = np.diff(boundary_proper_code)
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+        boundary=boundary_proper_code,
+        width=width_proper_code,
+        area=np.ones_like(width_proper_code),
+        volume=width_proper_code,
+    )
+    density_proper_code = np.asarray(
+        fluid.rho_code.to_value(unyt.g / unyt.cm**3), dtype=float
+    )
+    velocity_proper_code = np.asarray(
+        fluid.vel_code.to_value(unyt.cm / unyt.s), dtype=float
+    )
+    temperature_proper_code = np.asarray(
+        fluid.temp_code.to_value(unyt.K), dtype=float
+    )
+    fluid.rho_proper_code = density_proper_code
+    fluid.vel_proper_code = velocity_proper_code
+    fluid.temp_proper_code = temperature_proper_code
+    fluid.pre_proper_code = np.ones_like(density_proper_code)
+    fluid.time_proper_code = 0.0
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=density_proper_code,
+        velocity=velocity_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=temperature_proper_code,
+        time=fluid.time_proper_code,
+        mu=getattr(fluid, "mu", None),
+        xHI=getattr(fluid, "xHI", None),
+    )
+    return mesh, fluid
+
+
 class Testing(unittest.TestCase):
     @staticmethod
     def _scalar_value(value):
@@ -37,7 +81,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=0.0 * unyt.s,
+            time_code=0.0 * unyt.s,
             boxsize=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -50,6 +94,7 @@ class Testing(unittest.TestCase):
             temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
@@ -59,15 +104,15 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(self._scalar_value(loaded_par.time), 0.0)
+        self.assertEqual(self._scalar_value(loaded_par.time_proper_code), 0.0)
         self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
-        self.assertEqual(self._scalar_value(loaded_fluid.time_code), 0.0)
+        self.assertEqual(self._scalar_value(loaded_fluid.time_proper_code), 0.0)
 
     def test_hdf5_uses_canonical_code_state_dataset_names(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=2,
-            time=0.0 * unyt.s,
+            time_code=0.0 * unyt.s,
             boxsize=2.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -82,6 +127,7 @@ class Testing(unittest.TestCase):
             Energy_code=np.ones(2) * unyt.erg,
             ngamma_code=np.ones(2) / unyt.cm**3,
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
@@ -92,21 +138,21 @@ class Testing(unittest.TestCase):
             with h5py.File(output.name, 'r') as handle:
                 data_names = set(handle['Data'].keys())
                 assert {
-                    'boundary', 'rho_code', 'vel_code', 'temp_code',
+                    'boundary_proper_code', 'rho_proper_code', 'vel_proper_code', 'temp_proper_code',
                     'Mass_code', 'Energy_code', 'ngamma_code', 'mu', 'xHI',
                 }.issubset(data_names)
                 assert not {'Density', 'Velocity', 'Temperature', 'Mass', 'Energy'}.intersection(data_names)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        np.testing.assert_allclose(loaded_fluid.rho_code, fluid.rho_code.value)
+        np.testing.assert_allclose(loaded_fluid.rho_proper_code, fluid.rho_code.value)
         np.testing.assert_allclose(loaded_fluid.ngamma_code, fluid.ngamma_code.value)
-        np.testing.assert_allclose(loaded_mesh.boundary, mesh.boundary.value)
+        np.testing.assert_allclose(loaded_mesh.boundary_proper_code, mesh.boundary.to_value(unyt.cm))
 
     def test_hdf5_roundtrip_preserves_gas_angular_momentum_fields(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=0.0 * unyt.s,
+            time_code=0.0 * unyt.s,
             boxsize=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -123,6 +169,7 @@ class Testing(unittest.TestCase):
             specific_angular_momentum_code=specific,
             AngularMomentum_code=angular,
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
@@ -141,7 +188,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=1.5 * unyt.s,
+            time_code=1.5 * unyt.s,
             boxsize=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
             custom_scalar=7,
@@ -157,6 +204,9 @@ class Testing(unittest.TestCase):
             temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
+        fluid.time_proper_code = 1.5
+        fluid.runtime_state.time_proper_code = fluid.time_proper_code
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
         with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
@@ -172,19 +222,19 @@ class Testing(unittest.TestCase):
                     {'alpha': 1, 'beta': [2, 3]},
                 )
                 self.assertEqual(
-                    yaml.safe_load(header['time_code'].attrs['units']),
+                    yaml.safe_load(header['time_proper_code'].attrs['units']),
                     's',
                 )
                 self.assertEqual(
-                    np.asarray(header['time_code'][()]).item(),
+                    np.asarray(header['time_proper_code'][()]).item(),
                     1.5,
                 )
                 self.assertEqual(
-                    yaml.safe_load(header['box_size_code'].attrs['units']),
+                    yaml.safe_load(header['box_size_proper_code'].attrs['units']),
                     'cm',
                 )
                 self.assertEqual(
-                    np.asarray(header['box_size_code'][()]).item(),
+                    np.asarray(header['box_size_proper_code'][()]).item(),
                     3.0,
                 )
 
@@ -192,7 +242,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=1.5 * unyt.s,
+            time_code=1.5 * unyt.s,
             boxsize=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
             custom_scalar=7,
@@ -207,6 +257,9 @@ class Testing(unittest.TestCase):
             temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
+        fluid.time_proper_code = 1.5
+        fluid.runtime_state.time_proper_code = fluid.time_proper_code
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace()
         loaded_mesh = SimpleNamespace()
@@ -222,14 +275,14 @@ class Testing(unittest.TestCase):
         self.assertEqual(loaded_par.nogrid, 3)
         self.assertEqual(loaded_par.custom_scalar, 7)
         self.assertEqual(loaded_par.custom_nested, {'alpha': 1, 'beta': [2, 3]})
-        self.assertEqual(self._scalar_value(loaded_par.time), 1.5)
+        self.assertEqual(self._scalar_value(loaded_par.time_proper_code), 1.5)
         self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
 
     def test_writehdf5_does_not_mutate_par_time(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=1.5 * unyt.s,
+            time_code=1.5 * unyt.s,
             boxsize=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -241,20 +294,21 @@ class Testing(unittest.TestCase):
             vel_code=np.zeros(3) * unyt.cm / unyt.s,
             temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
-            time=2.5 * unyt.s,
+            time_code=2.5 * unyt.s,
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
         with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
             rio.writehdf5(sim, output.name)
 
-        self.assertEqual(par.time, 1.5 * unyt.s)
+        self.assertEqual(par.time_code, 1.5 * unyt.s)
 
     def test_hdf5_roundtrip_preserves_neutral_fraction_when_present(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=np.array([0.0]) * unyt.s,
+            time_code=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -268,6 +322,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
             xHI=np.array([1.0, 0.5, 0.0]),
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
@@ -277,14 +332,14 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(self._scalar_value(loaded_fluid.time_code), self._scalar_value(loaded_par.time))
+        self.assertEqual(self._scalar_value(loaded_fluid.time_proper_code), self._scalar_value(loaded_par.time_proper_code))
         np.testing.assert_array_equal(loaded_fluid.xHI, fluid.xHI)
 
     def test_hdf5_roundtrip_preserves_photon_number_density_when_present(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=np.array([0.0]) * unyt.s,
+            time_code=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -298,6 +353,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
             ngamma_code=np.array([0.0, 1.0, 2.0]) / unyt.cm**3,
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
@@ -307,7 +363,7 @@ class Testing(unittest.TestCase):
             rio.writehdf5(sim, output.name)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        self.assertEqual(self._scalar_value(loaded_fluid.time_code), self._scalar_value(loaded_par.time))
+        self.assertEqual(self._scalar_value(loaded_fluid.time_proper_code), self._scalar_value(loaded_par.time_proper_code))
         self.assertFalse(hasattr(loaded_fluid.ngamma_code, "units"))
         np.testing.assert_array_equal(np.asarray(loaded_fluid.ngamma_code), fluid.ngamma_code.value)
 
@@ -315,7 +371,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=np.array([0.0]) * unyt.s,
+            time_code=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -329,6 +385,7 @@ class Testing(unittest.TestCase):
             mu=np.ones(3),
             InternalEnergy_code=np.array([1.0, 2.0, 3.0]) * unyt.erg,
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
         loaded_mesh = SimpleNamespace()
@@ -349,7 +406,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time=np.array([0.0]) * unyt.s,
+            time_code=np.array([0.0]) * unyt.s,
             boxsize=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -362,6 +419,7 @@ class Testing(unittest.TestCase):
             temp_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian')
         loaded_mesh = SimpleNamespace()
@@ -396,7 +454,7 @@ class Testing(unittest.TestCase):
                 par = parameter_namespace(
                     coordsys='cartesian',
                     nogrid=3,
-                    time=0.0 * unyt.s,
+                    time_code=0.0 * unyt.s,
                     boxsize=3.0 * unyt.cm,
                     CodeUnits=CODE_UNITS,
                 )
@@ -409,6 +467,7 @@ class Testing(unittest.TestCase):
                     temp_code=np.ones(3) * unyt.K,
                     mu=np.ones(3),
                 )
+                mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
                 sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
                 rio.writehdf5(sim, 'InitialCondition.hdf5')
@@ -433,7 +492,7 @@ class Testing(unittest.TestCase):
                 par = parameter_namespace(
                     coordsys='cartesian',
                     nogrid=3,
-                    time=0.0 * unyt.s,
+                    time_code=0.0 * unyt.s,
                     boxsize=3.0 * unyt.cm,
                     CodeUnits=CODE_UNITS,
                 )
@@ -446,6 +505,7 @@ class Testing(unittest.TestCase):
                     temp_code=np.ones(3) * unyt.K,
                     mu=np.ones(3),
                 )
+                mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
                 sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
                 rio.writehdf5(sim, 'InitialCondition.hdf5')

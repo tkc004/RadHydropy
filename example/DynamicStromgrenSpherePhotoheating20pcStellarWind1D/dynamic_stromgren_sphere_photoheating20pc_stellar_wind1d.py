@@ -40,9 +40,9 @@ def _pressure_diagnostic(snapshot, config):
     """Return shell wind pressure, photoheated gas pressure, and shell radius."""
     par, mesh, fluid = et.load_output_state(snapshot, config)
     interior = et.interior_slice(par)
-    radius_pc = et._to_kpc(mesh.coordinate[interior], par) * 1000.0
-    density = et._to_number_density(fluid.rho_code[interior], par)
-    pressure = et._to_pressure(fluid.pre_code[interior], par)
+    radius_pc = et._to_kpc(mesh.x_proper_code[interior], par) * 1000.0
+    density = et._to_number_density(fluid.rho_proper_code[interior], par)
+    pressure = et._to_pressure(fluid.pre_proper_code[interior], par)
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
 
     # The wind shell is the strongest density peak outside the injection cell.
@@ -60,7 +60,7 @@ def _pressure_diagnostic(snapshot, config):
         )
 
     code = CodeUnits.from_mapping(par.CodeUnits)
-    volume_cgs_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(mesh.volume_proper_code[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
@@ -74,7 +74,7 @@ def _pressure_diagnostic(snapshot, config):
         if weighted_volume > 0.0
         else 0.0
     )
-    time_myr = float(np.asarray(et._to_myr(fluid.time_code, par)))
+    time_myr = float(np.asarray(et._to_myr(fluid.time_proper_code, par)))
     return time_myr, wind_pressure, gas_pressure, shell_radius_pc
 
 

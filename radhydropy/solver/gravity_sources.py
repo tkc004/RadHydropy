@@ -1,8 +1,8 @@
 """Numerical solver subsystem helpers."""
 
 import numpy as np
+from radhydropy.runtime_fields import runtime_fields
 from types import SimpleNamespace
-import unyt
 
 import radhydropy.utils as ru
 import radhydropy.chemistry_species.hydrogen as rh
@@ -68,24 +68,28 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         )
         return 0
     if gravity is not None and getattr(gravity, "cosmological", False):
-        gravity.fluid_time_code = fluid.time_code
+        time_field = runtime_fields(par).time
+        gravity.tau_supercomoving_code = getattr(fluid, time_field)
     crossing_safety_factor = getattr(par, "dark_matter_crossing_safety_factor", 0.1)
     if gravity is not None and getattr(gravity, "dark_matter", None) is not None:
         gravity.advance_dark_matter(
             dt,
             mesh,
-            fluid.rho_code,
+            getattr(fluid, runtime_fields(par).density),
             par,
             crossing_safety_factor=crossing_safety_factor,
-            current_time=fluid.time_code,
+            tau_supercomoving_code=getattr(fluid, runtime_fields(par).time),
         )
     # ApplyGravity follows the conservative hydro flux update and precedes
-    # the primitive-state refresh.  Therefore fluid.rho_code and fluid.vel_code can
+    # the primitive-state refresh.  Therefore the primitive runtime state can
     # still describe the pre-hydro state, while Mass and Mom already
     # describe the post-hydro state.  Derive both quantities from the
     # current conserved fields so the gravity momentum and work updates
     # use the same state.
-    volume = np.asarray(mesh.vol, dtype=float)
+    fields = runtime_fields(par)
+    volume = np.asarray(
+        solver._geometry_state(mesh, par).volume, dtype=float
+    )
     mass = np.asarray(fluid.Mass_code, dtype=float)
     momentum = np.asarray(fluid.Mom_code, dtype=float)
     current_rho = np.zeros_like(mass)
@@ -105,10 +109,11 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             acceleration = np.asarray(acceleration.to_value(target_unit), dtype=float)
         else:
             acceleration = np.asarray(acceleration, dtype=float)
-    if np.shape(acceleration) != np.shape(fluid.rho_code):
+    density_field = current_rho
+    if np.shape(acceleration) != np.shape(density_field):
         raise ValueError(
             "Gravity acceleration shape %s does not match fluid state shape %s"
-            % (np.shape(acceleration), np.shape(fluid.rho_code))
+            % (np.shape(acceleration), np.shape(density_field))
         )
     gravity_acceleration = acceleration.copy()
     rotational_acceleration = np.zeros_like(current_rho)
@@ -118,7 +123,9 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         np.divide(
             angular_momentum, mass, out=specific, where=mass > 0.0
         )
-        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+        radius = np.abs(np.asarray(
+            solver._geometry_state(mesh, par).coordinate, dtype=float
+        ))
         valid_radius = (
             (radius > 0.0) & np.isfinite(radius)
             & np.isfinite(specific) & (mass > 0.0)
@@ -148,7 +155,9 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     source_factors = np.ones_like(source_increment)
     if rotational_support:
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
-        radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+        radius = np.abs(np.asarray(
+            solver._geometry_state(mesh, par).coordinate, dtype=float
+        ))
         rotational_energy = np.zeros_like(mass)
         valid_rotational = (
             (mass > 0.0) & (radius > 0.0)

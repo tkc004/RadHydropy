@@ -21,6 +21,11 @@ from radhydropy.thermo_networks.hydrogen_helium import (
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS
 from radhydropy.fluid import Fluid
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 
 
 class HydrogenHeliumNetworkTests(unittest.TestCase):
@@ -125,9 +130,9 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         )
         velocity_super = 2.0
         fluid = Fluid()
-        fluid.rho_code = np.array([8.0])
-        fluid.vel_code = np.array([velocity_super])
-        fluid.temp_code = np.array([temperature * scale_factor**2])
+        fluid.rho_comoving_code = np.array([8.0])
+        fluid.vel_supercomoving_code = np.array([velocity_super])
+        fluid.temp_supercomoving_code = np.array([temperature * scale_factor**2])
         fluid.mu = np.array([mu])
         fluid.Mass_code = np.array([8.0])
         fluid.Energy_code = np.array([
@@ -138,10 +143,27 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         fluid.xHeI = np.array([1.0])
         fluid.xHeII = np.array([0.0])
         fluid.eos = SimpleNamespace(gamma=gamma)
+        fluid.tau_supercomoving_code = 0.0
+        fluid.pre_supercomoving_code = np.zeros_like(fluid.rho_comoving_code)
+        fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            SUPERCOMOVING_RUNTIME_FIELDS,
+            density=fluid.rho_comoving_code,
+            velocity=fluid.vel_supercomoving_code,
+            pressure=fluid.pre_supercomoving_code,
+            temperature=fluid.temp_supercomoving_code,
+            time=fluid.tau_supercomoving_code,
+            mu=fluid.mu,
+            xHI=fluid.xHI,
+        )
         mesh = SimpleNamespace(
-            boundary=np.array([0.0, 1.0]),
-            vol=np.array([1.0]),
-            coordinate=np.array([0.5]),
+            geometry_state=MeshGeometryState(
+                x_comoving_code=np.array([0.5]),
+                boundary_comoving_code=np.array([0.0, 1.0]),
+                width_comoving_code=np.ones(1),
+                area_comoving_code=np.ones(1),
+                volume_comoving_code=np.ones(1),
+            )
         )
         par = parameter_namespace(
             CodeUnits=code,
@@ -153,7 +175,10 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
             radiation_group_sigma_gamma=np.array([1.0e-18]),
             radiation_group_epsilon_gamma=np.array([1.0e-11]),
             supercomoving_coordinates=True,
-            fluid_time=0.0,
+            coordinate_frame="comoving",
+            time_coordinate="supercomoving",
+            velocity_representation="supercomoving_peculiar",
+            tau_supercomoving_code=0.0,
             cosmology=SimpleNamespace(
                 scale_factor_from_supercomoving=lambda _: scale_factor,
             ),

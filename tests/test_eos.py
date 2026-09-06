@@ -7,12 +7,21 @@ from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 
 
 class Mesh:
     def __init__(self):
-        self.boundary = np.linspace(0.0, 8.0, 9)
-        self.vol = np.ones(8)
+        self.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            coordinate=np.arange(8, dtype=float) + 0.5,
+            boundary=np.linspace(0.0, 8.0, 9),
+            width=np.ones(8), area=np.ones(8), volume=np.ones(8),
+        )
 
 
 CODE_UNITS = CodeUnits.from_mapping(
@@ -59,10 +68,16 @@ class Testing(unittest.TestCase):
         fluid.temp_code = np.ones(8) * 100.0
         fluid.mu = np.ones(8)
         fluid.SetPressure()
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            density=fluid.rho_code, velocity=fluid.vel_code,
+            pressure=fluid.pre_code, temperature=fluid.temp_code, time=0.0,
+            mu=fluid.mu,
+        )
 
         Solver().SetConserved(Mesh(), fluid)
 
-        expected = 0.5 * fluid.rho_code * fluid.vel_code**2 * Mesh().vol
+        expected = 0.5 * fluid.rho_code * fluid.vel_code**2 * Mesh().geometry_state.volume_proper_code
         np.testing.assert_allclose(np.asarray(fluid.Energy_code), expected)
 
     def test_isothermal_set_primitive_recovers_pressure_from_temperature(self):
@@ -74,6 +89,12 @@ class Testing(unittest.TestCase):
         fluid.temp_code = np.ones(8) * 250.0
         fluid.mu = np.ones(8)
         fluid.SetPressure()
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            density=fluid.rho_code, velocity=fluid.vel_code,
+            pressure=fluid.pre_code, temperature=fluid.temp_code, time=0.0,
+            mu=fluid.mu,
+        )
         Solver().SetConserved(mesh, fluid)
 
         fluid.Energy_code[:] = 0.0

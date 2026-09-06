@@ -2,7 +2,6 @@
 
 import numpy as np
 from types import SimpleNamespace
-import unyt
 
 import radhydropy.utils as ru
 import radhydropy.chemistry_species.hydrogen as rh
@@ -41,7 +40,12 @@ def _gravity_potential(solver, mesh, par):
         raise ValueError(
             'gravity_potential_energy requires a gravity model with potential_on'
         )
-    return np.asarray(gravity.potential_on(mesh.coordinate), dtype=float)
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        coordinate_runtime_code = geometry.x_comoving_code
+    else:
+        coordinate_runtime_code = geometry.x_proper_code
+    return np.asarray(gravity.potential_on(coordinate_runtime_code), dtype=float)
 
 def _gravity_potential_faces(solver, mesh, par):
     if not solver._gravity_potential_energy_enabled(par):
@@ -51,11 +55,21 @@ def _gravity_potential_faces(solver, mesh, par):
         raise ValueError(
             'gravity_potential_energy requires a gravity model with potential_on'
         )
-    return np.asarray(gravity.potential_on(mesh.boundary[:-1]), dtype=float)
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        boundary_runtime_code = geometry.boundary_comoving_code
+    else:
+        boundary_runtime_code = geometry.boundary_proper_code
+    return np.asarray(gravity.potential_on(boundary_runtime_code[:-1]), dtype=float)
 
 def _rotational_energy_density(solver, mesh, fluid, par):
     """Return opt-in rotational kinetic-energy density."""
-    rho = np.asarray(fluid.rho_code, dtype=float)
+    runtime_state = fluid.runtime_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        rho_runtime_code = runtime_state.rho_comoving_code
+    else:
+        rho_runtime_code = runtime_state.rho_proper_code
+    rho = np.asarray(rho_runtime_code, dtype=float)
     result = np.zeros_like(rho)
     if not solver._rotational_energy_enabled(par):
         return result
@@ -65,7 +79,12 @@ def _rotational_energy_density(solver, mesh, fluid, par):
         )
     if getattr(mesh, 'coordsys', None) != 'spherical':
         raise ValueError('gas_rotational_energy requires a spherical mesh')
-    radius = np.asarray(mesh.coordinate, dtype=float)
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        radius_runtime_code = geometry.x_comoving_code
+    else:
+        radius_runtime_code = geometry.x_proper_code
+    radius = np.asarray(radius_runtime_code, dtype=float)
     specific = np.asarray(fluid.specific_angular_momentum_code, dtype=float)
     valid = (
         np.isfinite(rho) & (rho > 0.0)
@@ -83,7 +102,12 @@ def _rotational_energy_from_conserved(solver, mesh, fluid, par):
         return result
     mass = np.asarray(fluid.Mass_code, dtype=float)
     angular_momentum = np.asarray(fluid.AngularMomentum_code, dtype=float)
-    radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        radius_runtime_code = geometry.x_comoving_code
+    else:
+        radius_runtime_code = geometry.x_proper_code
+    radius = np.abs(np.asarray(radius_runtime_code, dtype=float))
     valid = (
         np.isfinite(mass) & (mass > 0.0)
         & np.isfinite(angular_momentum)

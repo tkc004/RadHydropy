@@ -7,6 +7,7 @@ from radhydropy.thermo_networks.cie.cie_cooling import _state, _update_temperatu
 from radhydropy.thermo_networks.hydrogen import _rotational_specific_energy_code
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.units import from_unit_value, to_unit_value
+from radhydropy.runtime_fields import runtime_fields
 
 
 class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
@@ -282,6 +283,15 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
 
         _update_temperature(state)
         interior = state["interior"]
+        fields = runtime_fields(par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            rho_runtime_code = fluid.rho_comoving_code
+            temp_runtime_code = fluid.temp_supercomoving_code
+            pre_runtime_code = fluid.pre_supercomoving_code
+        else:
+            rho_runtime_code = fluid.rho_proper_code
+            temp_runtime_code = fluid.temp_proper_code
+            pre_runtime_code = fluid.pre_proper_code
         internal_super = (
             state["specific_energy_cgs_erg_g"]
             * state["source_temperature_factor"]
@@ -296,21 +306,21 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             np.asarray(fluid.Mass_code[interior], dtype=float) * rotational_code,
             code.energy_unit,
         )
-        fluid.temp_code[interior] = from_unit_value(
+        temp_runtime_code[interior] = from_unit_value(
             state["temperature_cgs_K"] * state["source_temperature_factor"],
             code.temperature_unit,
         )
         if hasattr(fluid.eos, "pressure"):
-            fluid.pre_code[interior] = fluid.eos.pressure(
-                fluid.rho_code[interior],
-                fluid.temp_code[interior],
+            pre_runtime_code[interior] = fluid.eos.pressure(
+                rho_runtime_code[interior],
+                temp_runtime_code[interior],
                 fluid.mu[interior],
             )
         else:
             internal_code = internal_super / code.velocity_in_cgs**2
-            fluid.pre_code[interior] = (
+            pre_runtime_code[interior] = (
                 (state["gamma"] - 1.0)
-                * np.asarray(fluid.rho_code[interior], dtype=float)
+                * np.asarray(rho_runtime_code[interior], dtype=float)
                 * internal_code
             )
         return source_steps

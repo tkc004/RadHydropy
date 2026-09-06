@@ -20,6 +20,11 @@ import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 import example_utils as eu
 from sodshock_analytic import shocktubecal, shocktubeanalyticgraph
 
@@ -47,13 +52,13 @@ def make_initial_condition(ic, units, par):
     state.par.hydrodynamics = State()
     state.par.hydrodynamics.gamma = float(par["hydrodynamics"]["gamma"])
     state.par.simulation = State()
-    state.par.simulation.current_time = np.asarray([0.0]) * units.time_unit
+    state.par.simulation.tau_supercomoving_code = np.asarray([0.0])
     state.par.simulation.box_size = np.asarray([float(ic["boxsize"].to_value(units.length_unit))]) * units.length_unit
     state.par.simulation.coordinate_system = "cartesian"
     state.par.coordsys = "cartesian"
     boxsize = float(ic["boxsize"].to_value(units.length_unit))
     state.par.boxsize = np.asarray([boxsize]) * units.length_unit
-    state.par.time = np.asarray([0.0]) * units.time_unit
+    state.par.tau_supercomoving_code = np.asarray([0.0])
     state.par.cosmological_expansion = True
     state.par.supercomoving_coordinates = True
     state.par.coordinate_frame = "comoving"
@@ -78,20 +83,37 @@ def make_initial_condition(ic, units, par):
     dx = boxsize / state.par.nogrid
     boundary = np.linspace(-dx, boxsize + dx, state.par.nogrid + 1)
     coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    state.mesh.boundary = boundary * units.length_unit
-    state.mesh.coordinate = coordinate * units.length_unit
-    state.mesh.xdelta = np.full(state.par.nogrid, dx) * units.length_unit
-    state.mesh.area = np.ones(state.par.nogrid + 0) * units.area_unit
-    state.mesh.vol = np.full(state.par.nogrid, dx) * units.volume_unit
+    state.mesh.boundary_comoving_code = boundary
+    state.mesh.x_comoving_code = coordinate
+    state.mesh.width_comoving_code = np.full(state.par.nogrid, dx)
+    state.mesh.area_comoving_code = np.ones(state.par.nogrid + 0)
+    state.mesh.volume_comoving_code = np.full(state.par.nogrid, dx)
     left = coordinate < 0.5 * boxsize
-    state.fluid.rho_code = np.where(left, float(ic["rho_left"]), float(ic["rho_right"]))
-    state.fluid.temp_code = np.where(
+    state.fluid.rho_comoving_code = np.where(left, float(ic["rho_left"]), float(ic["rho_right"]))
+    state.fluid.temp_supercomoving_code = np.where(
         left,
         float(ic["temp_left"].to_value("K")),
         float(ic["temp_right"].to_value("K")),
     )
-    state.fluid.vel_code = np.zeros(state.par.nogrid)
+    state.fluid.vel_supercomoving_code = np.zeros(state.par.nogrid)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mu"]))
+    state.fluid.tau_supercomoving_code = 0.0
+    state.mesh.geometry_state = MeshGeometryState(
+        x_comoving_code=state.mesh.x_comoving_code,
+        boundary_comoving_code=state.mesh.boundary_comoving_code,
+        width_comoving_code=state.mesh.width_comoving_code,
+        area_comoving_code=state.mesh.area_comoving_code,
+        volume_comoving_code=state.mesh.volume_comoving_code,
+    )
+    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=state.fluid.rho_comoving_code,
+        velocity=state.fluid.vel_supercomoving_code,
+        pressure=np.zeros(state.par.nogrid),
+        temperature=state.fluid.temp_supercomoving_code,
+        time=state.fluid.tau_supercomoving_code,
+        mu=state.fluid.mu,
+    )
     return state
 
 
@@ -110,12 +132,12 @@ def _read_profile(filename, units):
     count = int(par.nogrid)
     return (
         0.5 * np.asarray(
-            mesh.boundary[first:first + count + 1], dtype=float
+            mesh.boundary_comoving_code[first:first + count + 1], dtype=float
         )[:-1] + 0.5 * np.asarray(
-            mesh.boundary[first:first + count + 1], dtype=float
+            mesh.boundary_comoving_code[first:first + count + 1], dtype=float
         )[1:],
-        np.asarray(fluid.rho_code[first:first + count], dtype=float),
-        np.asarray(fluid.temp_code[first:first + count], dtype=float),
+        np.asarray(fluid.rho_comoving_code[first:first + count], dtype=float),
+        np.asarray(fluid.temp_supercomoving_code[first:first + count], dtype=float),
         float(np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))),
         float(np.sum(np.asarray(fluid.Energy_code[first:first + count], dtype=float))),
     )
@@ -181,7 +203,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         pressure_right,
         pressure_left,
     )
-    final_tau = float(np.asarray(sim.fluid.time_code, dtype=float))
+    final_tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float))
     print(f"final supercomoving time = {final_tau:.8g}")
     rho_exact, pressure_exact, _ = shocktubeanalyticgraph(
         gamma,
@@ -230,7 +252,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
     print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
     print(f"final density L1 error = {density_l1:.6e}")
-    print(f"scale factor at final time = {sim.par.cosmology.scale_factor_from_supercomoving(float(sim.fluid.time_code)):.8g}")
+    print(f"scale factor at final time = {sim.par.cosmology.scale_factor_from_supercomoving(float(sim.fluid.tau_supercomoving_code)):.8g}")
     print(f"figure = {figure}")
     return figure
 

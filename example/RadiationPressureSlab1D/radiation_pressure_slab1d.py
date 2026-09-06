@@ -56,10 +56,10 @@ def write_initial_condition(runparams, icparams, filename):
     par.nogrid = runparams["mesh"]["grid_cells"]
     par.noghost = runparams["mesh"].get("ghost_cells", 2)
     par.coordsys = runparams["simulation"]["coordinate_system"]
-    par.time = 0.0 * unyt.s
+    par.time_code = 0.0 * unyt.s
     par.boxsize = icparams["box_size"]
     par.simulation = type(
-        "Simulation", (), {"current_time": par.time, "box_size": par.boxsize}
+        "Simulation", (), {"time_code": par.time_code, "box_size": par.boxsize}
     )()
     par.mesh = type(
         "MeshParameters", (), {

@@ -39,7 +39,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=icparams['current_time'] * np.ones(1),
+        time_code=icparams['current_time'] * np.ones(1),
         box_size=box_size,
     )
 
@@ -64,12 +64,11 @@ def ReadandPlot(outfilename, config, **kwargs):
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho_code', showhalf=0, showfig=0, **kwargs)
     plt.axvline(
-        x=(rout.par.simulation.current_time * code_units_obj.time_unit)
+        x=(rout.par.simulation.time_code * code_units_obj.time_unit)
         * runparams['boundary']['outflow_velocity'],
         color=kwargs['color'],
         ls='dashed',
     )
-
 
 
 

@@ -15,6 +15,11 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / 'example'
 if str(EXAMPLE_ROOT) not in sys.path:
@@ -511,7 +516,7 @@ class Testing(unittest.TestCase):
                 len(boundary) - 1 - shell_start_index
             )
             return SimpleNamespace(
-                par = parameter_namespace(time=unyt.unyt_quantity(time_myr, unyt.Myr)),
+                par = parameter_namespace(time_code=unyt.unyt_quantity(time_myr, unyt.Myr)),
                 mesh=SimpleNamespace(boundary=boundary),
                 fluid=SimpleNamespace(
                     rho_code=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
@@ -1137,8 +1142,58 @@ class Testing(unittest.TestCase):
 
         par, mesh, fluid, _ = hii_tools.build_problem(config)
         par = parameter_namespace(**vars(par))
+        # Rebuild the explicit numeric runtime clock after flattening the
+        # example parameter namespace; the nested simulation group is not
+        # copied by parameter_namespace.
+        par.simulation.time_code = 0.0
         modified_boundary = np.asarray(mesh.boundary, dtype=float).copy() * 1.25
         mesh.boundary = modified_boundary * unyt.cm
+        boundary_proper_code = np.asarray(
+            mesh.boundary.to_value(par.CodeUnits.length_unit), dtype=float
+        )
+        width_proper_code = np.diff(boundary_proper_code)
+        mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            coordinate=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+            boundary=boundary_proper_code,
+            width=width_proper_code,
+            area=np.ones_like(width_proper_code),
+            volume=width_proper_code,
+        )
+        density_proper_code = np.asarray(
+            fluid.rho_code.to_value(par.CodeUnits.density_unit)
+            if hasattr(fluid.rho_code, "to_value") else fluid.rho_code,
+            dtype=float,
+        )
+        velocity_proper_code = np.asarray(
+            fluid.vel_code.to_value(par.CodeUnits.velocity_unit)
+            if hasattr(fluid.vel_code, "to_value") else fluid.vel_code,
+            dtype=float,
+        )
+        temperature_proper_code = np.asarray(
+            fluid.temp_code.to_value(par.CodeUnits.temperature_unit)
+            if hasattr(fluid.temp_code, "to_value") else fluid.temp_code,
+            dtype=float,
+        )
+        pressure_value = fluid.eos.pressure(
+            fluid.rho_code, fluid.temp_code, fluid.mu
+        )
+        pressure_proper_code = np.asarray(
+            pressure_value.to_value(par.CodeUnits.pressure_unit)
+            if hasattr(pressure_value, "to_value") else pressure_value,
+            dtype=float,
+        )
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            density=density_proper_code,
+            velocity=velocity_proper_code,
+            pressure=pressure_proper_code,
+            temperature=temperature_proper_code,
+            time=0.0,
+            mu=fluid.mu,
+            xHI=fluid.xHI,
+        )
+        fluid.time_proper_code = 0.0
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outputfilename = Path(tmpdir) / 'Output_000.hdf5'
@@ -1155,11 +1210,11 @@ class Testing(unittest.TestCase):
             - modified_boundary[:-1][nonzero_vol_denom] ** 4
         ) / vol_denom[nonzero_vol_denom]
         np.testing.assert_allclose(
-            np.asarray(out_mesh.coordinate[interior], dtype=float),
+            np.asarray(out_mesh.x_proper_code[interior], dtype=float),
             np.asarray(expected_coordinate[out_par.noghost : out_par.noghost + out_par.nogrid], dtype=float),
         )
         self.assertEqual(
-            float(np.asarray(out_fluid.time_code, dtype=float)),
+            float(np.asarray(out_fluid.time_proper_code, dtype=float)),
             0.0,
         )
 

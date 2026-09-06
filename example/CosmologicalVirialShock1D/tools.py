@@ -11,6 +11,12 @@ import unyt
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.eos import EOS
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import quantity_to_value
 
@@ -165,6 +171,35 @@ def density_contrast_profile(
     return amplitude * xi, amplitude * mean_xi
 
 
+def refresh_typed_initial_condition(result, units):
+    """Synchronize typed runtime states after an IC array update."""
+    result.fluid.pre_supercomoving_code = EOS(
+        "polytropic", 5.0 / 3.0, units
+    ).pressure(
+        result.fluid.rho_comoving_code,
+        result.fluid.temp_supercomoving_code,
+        result.fluid.mu,
+    )
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        coordinate=result.mesh.x_comoving_code,
+        boundary=result.mesh.boundary_comoving_code,
+        width=np.diff(result.mesh.boundary_comoving_code),
+        area=result.mesh.area_comoving_code,
+        volume=result.mesh.volume_comoving_code,
+    )
+    result.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=result.fluid.rho_comoving_code,
+        velocity=result.fluid.vel_supercomoving_code,
+        pressure=result.fluid.pre_supercomoving_code,
+        temperature=result.fluid.temp_supercomoving_code,
+        time=float(result.par.tau_supercomoving_code[0]),
+        mu=result.fluid.mu,
+        xHI=result.fluid.xHI if hasattr(result.fluid, "xHI") else None,
+    )
+
+
 def build_initial_condition(config, units, cosmology, pie_table=None, correlation_table=None):
     """Build the cosmological gas state from nested configuration mappings."""
     ic = config['initial_condition']
@@ -172,8 +207,8 @@ def build_initial_condition(config, units, cosmology, pie_table=None, correlatio
     grid_cells = int(par['mesh']['grid_cells'])
     result = SimpleNamespace(par=SimpleNamespace(), mesh=SimpleNamespace(), fluid=SimpleNamespace())
     cosmic_time = float(ic['initial_cosmic_time'])
-    result.par.time = np.array([cosmology.supercomoving_time(cosmic_time)])
-    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=np.array([float(ic['rmax'])]), coordinate_system='spherical')
+    result.par.tau_supercomoving_code = np.array([cosmology.supercomoving_time(cosmic_time)])
+    result.par.simulation = SimpleNamespace(tau_supercomoving_code=result.par.tau_supercomoving_code, box_size=np.array([float(ic['rmax'])]), coordinate_system='spherical')
     result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
     result.par.units = SimpleNamespace(CodeUnits=units)
     result.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
@@ -192,19 +227,19 @@ def build_initial_condition(config, units, cosmology, pie_table=None, correlatio
     result.par.density_representation = 'comoving'
     result.par.pressure_representation = 'supercomoving'
     result.par.temperature_representation = 'supercomoving'
-    result.mesh.boundary = np.geomspace(float(ic['rmin']), float(ic['rmax']), grid_cells + 1)
+    result.mesh.boundary_comoving_code = np.geomspace(float(ic['rmin']), float(ic['rmax']), grid_cells + 1)
     inner_wall = float(ic.get('inner_wall_radius_comoving', ic['rmin']))
-    result.mesh.boundary[0] = 0.0 if inner_wall <= 0.0 else inner_wall
-    result.mesh.coordinate = cell_centres(result.mesh.boundary)
-    result.mesh.area = 4.0 * np.pi * result.mesh.boundary[:-1]**2
-    result.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary**3)
+    result.mesh.boundary_comoving_code[0] = 0.0 if inner_wall <= 0.0 else inner_wall
+    result.mesh.x_comoving_code = cell_centres(result.mesh.boundary_comoving_code)
+    result.mesh.area_comoving_code = 4.0 * np.pi * result.mesh.boundary_comoving_code[:-1]**2
+    result.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary_comoving_code**3)
     a = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     rho_total = float(cosmology.background_density(cosmic_time))
     rho_comoving = rho_total * a**3
     fb = float(ic['baryon_fraction'])
-    delta, mean_delta = density_contrast_profile(result.mesh.coordinate, ic, cosmology, correlation_table=correlation_table, length_unit_mpc_h=float(units.length_in_cgs) / float((1.0 * unyt.Mpc).to_value('cm')) * float(ic.get('correlation_h', 0.674)))
-    result.fluid.rho_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
+    delta, mean_delta = density_contrast_profile(result.mesh.x_comoving_code, ic, cosmology, correlation_table=correlation_table, length_unit_mpc_h=float(units.length_in_cgs) / float((1.0 * unyt.Mpc).to_value('cm')) * float(ic.get('correlation_h', 0.674)))
+    result.fluid.rho_comoving_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
     rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
     n_h = rho_total_cgs * fb * float(ic['hydrogen_mass_fraction']) * (1.0 + delta) / PROTON_MASS_CGS
     redshift = 1.0 / a - 1.0
@@ -217,12 +252,13 @@ def build_initial_condition(config, units, cosmology, pie_table=None, correlatio
         temp_phys = float(ic.get('cie_initial_temperature', 10.0))
     else:
         temp_phys = pie_temperature(pie_table, float(np.median(n_h)), redshift) if pie_table else 1.0e4
-    result.fluid.temp_code = temp_phys * a**2 * np.ones(grid_cells)
+    result.fluid.temp_supercomoving_code = temp_phys * a**2 * np.ones(grid_cells)
     if not bool(ic.get('cmb_equilibrium_initial', False)):
         result.fluid.mu = np.full(grid_cells, float(ic['mu']))
-    result.fluid.vel_code = -a**2 * hubble * mean_delta * result.mesh.coordinate / 3.0
+    result.fluid.vel_supercomoving_code = -a**2 * hubble * mean_delta * result.mesh.x_comoving_code / 3.0
     if 'gas_specific_angular_momentum' in ic:
         result.fluid.specific_angular_momentum_code = np.full(grid_cells, float(ic['gas_specific_angular_momentum']))
+    refresh_typed_initial_condition(result, units)
     return result
 
 
@@ -409,14 +445,14 @@ def splashback_radius(
     return float(radii[local])
 
 
-def profiles(sim, dm, cosmic_time, cosmology, ic):
+def profiles(sim, dm, cosmic_time, cosmology, ic, density_bin_count=128):
     """Measure virial, shock, disc radii and enclosed total masses."""
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    edges = np.asarray(sim.mesh.boundary[first:last + 1], dtype=float)
-    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
-    gas_mass = rho_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
+    x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
+    edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
+    rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
+    gas_mass = rho_comoving_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
     gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass)))
     dm_order = np.argsort(dm.radius)
     dm_r = dm.radius[dm_order]
@@ -475,23 +511,23 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     else:
         tvir = float("nan")
 
-    temp_code_phys = np.asarray(sim.fluid.temp_code[first:last], dtype=float) / a**2
+    temp_code_phys = np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / a**2
     velocity_phys = np.asarray(
         cosmology.physical_velocity(
             x,
-            np.asarray(sim.fluid.vel_code[first:last], dtype=float),
-            float(sim.fluid.time_code),
+            np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float),
+            float(sim.fluid.tau_supercomoving_code),
         ),
         dtype=float,
     )
     gamma = float(sim.par.hydrodynamics.gamma)
-    entropy_proxy = temp_code_phys / np.maximum(rho_code, 1.0e-300) ** (gamma - 1.0)
+    entropy_proxy = temp_code_phys / np.maximum(rho_comoving_code, 1.0e-300) ** (gamma - 1.0)
     # Temperatures at or below 1 K are numerical-floor/invalid states in this
     # run; allowing them would create enormous artificial entropy jumps.
     finite_entropy = (
         np.isfinite(entropy_proxy) & (entropy_proxy > 0.0)
         & np.isfinite(temp_code_phys) & (temp_code_phys > 1.0)
-        & np.isfinite(rho_code) & (rho_code > 0.0)
+        & np.isfinite(rho_comoving_code) & (rho_comoving_code > 0.0)
     )
     shock_cell_index = -1
     if np.count_nonzero(finite_entropy) >= 7:
@@ -528,7 +564,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
             for local in shock_candidates:
                 inner = max(0, int(local) - 2)
                 outer = min(proper.size - 1, int(local) + 2)
-                compression = rho_code[inner] / max(rho_code[outer], 1.0e-300)
+                compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
                 entropy_jump = entropy_proxy[inner] - entropy_proxy[outer]
                 upstream_velocity = velocity_phys[outer]
                 downstream_velocity = velocity_phys[inner]
@@ -565,7 +601,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
         dm_proper,
         dm_m,
         rvir_kpc=rvir,
-        bin_count=int(getattr(sim.par, "dm_density_bins", 128)),
+        bin_count=int(density_bin_count),
     )
 
     g_code = float(cosmology.gravitational_constant)
@@ -643,7 +679,7 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
 def gas_density_profile(sim, cosmic_time, cosmology):
     """Return one snapshot of the physical gas density profile.
 
-    The mesh coordinate is comoving, while ``fluid.rho_code`` is the
+    The mesh coordinate is comoving, while ``fluid.rho_comoving_code`` is the
     supercomoving/comoving density used by the solver.  The returned density
     is physical (divide by ``a**3``), and both radius representations are
     stored so an evolution plot can use a fixed comoving x-axis while
@@ -653,10 +689,10 @@ def gas_density_profile(sim, cosmic_time, cosmology):
     last = first + int(sim.par.mesh.grid_cells)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     radius_comoving = np.asarray(
-        sim.mesh.coordinate[first:last], dtype=float
+        sim.mesh.x_comoving_code[first:last], dtype=float
     )
     density_comoving = np.asarray(
-        sim.fluid.rho_code[first:last], dtype=float
+        sim.fluid.rho_comoving_code[first:last], dtype=float
     )
     return {
         "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),

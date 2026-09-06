@@ -21,6 +21,11 @@ from radhydropy.units import CodeUnits
 from radhydropy.params import Par
 from radhydropy.solver import Solver
 import radhydropy.io as rio
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 
 
 def code_units():
@@ -138,9 +143,26 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     rho_sc = to_supercomoving_density(physical_density_value, a)
     j = physical_radius * physical_tangential_velocity
 
-    mesh = SimpleNamespace(coordsys='spherical', coordinate=x)
-    fluid = SimpleNamespace(rho_code=rho_sc, specific_angular_momentum_code=j)
-    options = SimpleNamespace(gas_rotational_energy=True, gas_angular_momentum=True)
+    mesh = SimpleNamespace(coordsys='spherical')
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        coordinate=x, boundary=np.array([0.75, 2.25, 3.75]),
+        width=np.ones(2), area=np.ones(2), volume=np.ones(2),
+    )
+    fluid = SimpleNamespace(
+        rho_comoving_code=rho_sc,
+        specific_angular_momentum_code=j,
+    )
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=rho_sc, velocity=np.zeros(2), pressure=np.ones(2),
+        temperature=np.ones(2), time=tau,
+    )
+    options = SimpleNamespace(
+        gas_rotational_energy=True,
+        gas_angular_momentum=True,
+        supercomoving_coordinates=True,
+    )
     energy_sc = Solver()._rotational_energy_density(mesh, fluid, options)
     energy_phys = 0.5 * physical_density_value * physical_tangential_velocity**2
 
@@ -160,6 +182,11 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
         gas_rotational_energy = True
         gas_angular_momentum = True
         energy_diagnostics = True
+        cosmological_expansion = True
+        supercomoving_coordinates = True
+        coordinate_frame = 'comoving'
+        time_coordinate = 'supercomoving'
+        velocity_representation = 'supercomoving_peculiar'
 
     par = Par()
     par.cosmology = cosmology
@@ -170,12 +197,20 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     j = physical_radius * physical_tangential_velocity
     mass = 3.0
     dt = 0.125
-    mesh = SimpleNamespace(
-        coordsys='spherical', coordinate=np.array([x]), vol=np.array([1.0]),
+    mesh = SimpleNamespace(coordsys='spherical')
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        coordinate=np.array([x]), boundary=np.array([x - 0.5, x + 0.5]),
+        width=np.array([1.0]), area=np.array([1.0]), volume=np.array([1.0]),
     )
     fluid = SimpleNamespace(
-        rho_code=np.array([mass]), Mass_code=np.array([mass]), Mom_code=np.array([0.0]),
+        rho_comoving_code=np.array([mass]), Mass_code=np.array([mass]), Mom_code=np.array([0.0]),
         Energy_code=np.array([7.0]), AngularMomentum_code=np.array([mass * j]),
+    )
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=fluid.rho_comoving_code, velocity=np.array([0.0]),
+        pressure=np.ones(1), temperature=np.ones(1), time=tau,
     )
 
     solver = Solver()
@@ -251,7 +286,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     )
     par = parameter_namespace(
         coordsys='spherical', nogrid=2, noghost=0,
-        CodeUnits=units, time=tau_initial,
+        CodeUnits=units, time_code=tau_initial,
         boxsize=3.0 * units.length_unit,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='einstein_de_sitter',
@@ -262,13 +297,26 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         temperature_representation='supercomoving', gamma=5.0 / 3.0,
         gas_angular_momentum=True, gas_rotational_energy=True,
     )
+    boundary_comoving_code = np.array([0.5, 1.5, 2.5])
     mesh = SimpleNamespace(
-        boundary=np.array([0.5, 1.5, 2.5]) * units.length_unit,
+        geometry_state=MeshGeometryState(
+            x_comoving_code=0.5 * (boundary_comoving_code[1:] + boundary_comoving_code[:-1]),
+            boundary_comoving_code=boundary_comoving_code,
+            width_comoving_code=np.diff(boundary_comoving_code),
+            area_comoving_code=np.ones(2),
+            volume_comoving_code=np.asarray(volume.to_value(units.volume_unit)),
+        )
     )
     fluid = SimpleNamespace(
-        rho_code=rho_quantity,
-        vel_code=np.zeros(2) * units.velocity_unit,
-        temp_code=np.ones(2) * units.temperature_unit,
+        runtime_state=FluidRuntimeState.from_arrays(
+            SUPERCOMOVING_RUNTIME_FIELDS,
+            density=np.asarray(rho_quantity.to_value(units.density_unit)),
+            velocity=np.zeros(2),
+            pressure=np.zeros(2),
+            temperature=np.ones(2),
+            time=tau_initial,
+            mu=np.ones(2),
+        ),
         mu=np.ones(2),
         specific_angular_momentum_code=specific_quantity,
         Mass_code=rho_quantity * volume,
@@ -294,13 +342,16 @@ def test_cosmological_angular_momentum_evolution_and_restart():
                 units.mass_unit * units.length_unit**2 / units.time_unit
             )),
         )
-        assert loaded_par.time == pytest.approx(tau_initial)
+        assert loaded_par.tau_supercomoving_code == pytest.approx(tau_initial)
+        assert loaded_fluid.tau_supercomoving_code == pytest.approx(tau_initial)
 
         # Continue from the reloaded state at a later supercomoving time.
-        loaded_par.time = tau_restart
-        loaded_fluid.time_code = tau_restart
+        loaded_par.tau_supercomoving_code = tau_restart
+        loaded_fluid.tau_supercomoving_code = tau_restart
         restart_scale = cosmology.scale_factor(cosmic_times[1])
-        restart_rho_code = np.asarray(loaded_fluid.rho_code, dtype=float)
+        restart_rho_code = np.asarray(
+            loaded_fluid.rho_comoving_code, dtype=float
+        )
         restart_j = np.asarray(loaded_fluid.specific_angular_momentum_code, dtype=float)
         restart_energy = 0.5 * restart_rho_code * (restart_j / x)**2
         physical_restart_energy = (
@@ -321,7 +372,7 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
         coordsys='cartesian', nogrid=2, noghost=0,
-        CodeUnits=units, time=tau, boxsize=2.0,
+        CodeUnits=units, time_code=tau, boxsize=2.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='einstein_de_sitter',
         cosmology_t_ref=1.0, cosmology_a_ref=1.0,
@@ -331,10 +382,26 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
         pressure_representation='supercomoving',
         temperature_representation='supercomoving', gamma=5.0 / 3.0,
     )
-    mesh = SimpleNamespace(boundary=np.array([0.0, 1.0, 2.0]))
+    mesh = SimpleNamespace(
+        geometry_state=MeshGeometryState(
+            x_comoving_code=np.array([0.5, 1.5]),
+            boundary_comoving_code=np.array([0.0, 1.0, 2.0]),
+            width_comoving_code=np.ones(2),
+            area_comoving_code=np.ones(2),
+            volume_comoving_code=np.ones(2),
+        )
+    )
     fluid = SimpleNamespace(
-        rho_code=np.ones(2) * 4.0, vel_code=np.ones(2) * 2.0,
-        temp_code=np.ones(2) * 3.0, mu=np.ones(2), time=tau,
+        runtime_state=FluidRuntimeState.from_arrays(
+            SUPERCOMOVING_RUNTIME_FIELDS,
+            density=np.ones(2) * 4.0,
+            velocity=np.ones(2) * 2.0,
+            pressure=np.zeros(2),
+            temperature=np.ones(2) * 3.0,
+            time=tau,
+            mu=np.ones(2),
+        ),
+        mu=np.ones(2),
     )
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
     with tempfile.TemporaryDirectory() as directory:
@@ -361,7 +428,7 @@ def test_lambda_cdm_header_round_trip():
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
         coordsys='cartesian', nogrid=1, noghost=0,
-        CodeUnits=units, time=tau, boxsize=1.0,
+        CodeUnits=units, time_code=tau, boxsize=1.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='lambda_cdm',
         cosmology_t_ref=2.0, cosmology_a_ref=1.0,
@@ -370,8 +437,23 @@ def test_lambda_cdm_header_round_trip():
         density_representation='comoving', pressure_representation='supercomoving',
         temperature_representation='supercomoving', gamma=5.0 / 3.0,
     )
-    mesh = SimpleNamespace(boundary=np.array([0.0, 1.0]))
-    fluid = SimpleNamespace(rho_code=np.ones(1), vel_code=np.zeros(1), temp_code=np.ones(1), mu=np.ones(1), time=tau)
+    mesh = SimpleNamespace(
+        geometry_state=MeshGeometryState(
+            x_comoving_code=np.array([0.5]),
+            boundary_comoving_code=np.array([0.0, 1.0]),
+            width_comoving_code=np.ones(1),
+            area_comoving_code=np.ones(1),
+            volume_comoving_code=np.ones(1),
+        )
+    )
+    fluid = SimpleNamespace(
+        runtime_state=FluidRuntimeState.from_arrays(
+            SUPERCOMOVING_RUNTIME_FIELDS,
+            density=np.ones(1), velocity=np.zeros(1), pressure=np.zeros(1),
+            temperature=np.ones(1), time=tau, mu=np.ones(1),
+        ),
+        mu=np.ones(1),
+    )
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
     with tempfile.TemporaryDirectory() as directory:
         filename = Path(directory) / 'lambda_cdm.hdf5'

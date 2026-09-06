@@ -67,7 +67,7 @@ def build_initial_condition(config):
         CodeUnits=code,
         simulation=SimpleNamespace(
             coordinate_system="spherical",
-            current_time=0.0 * unyt.yr,
+            time_code=0.0 * unyt.yr,
             box_size=boxsize,
         ),
         mesh=SimpleNamespace(
@@ -82,12 +82,14 @@ def build_initial_condition(config):
     mesh.boundary = boundary
     fluid = Fluid()
     fluid.eos = EOS(par_config['hydrodynamics']['eos_type'], par_config['hydrodynamics']['gamma'], code)
-    fluid.rho_code = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
-    fluid.vel_code = np.zeros(ncell) * unyt.cm / unyt.s
+    density_proper_cgs_g_cm3_unyt = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
+    fluid.rho_code = density_proper_cgs_g_cm3_unyt
+    fluid.vel_code = np.zeros(ncell, dtype=float)
     fluid.temp_code = np.ones(ncell) * initial['initial_temperature']
     fluid.xHI = np.ones(ncell)
     fluid.mu = np.ones(ncell)
-    fluid.ngamma_code = np.zeros(ncell) / unyt.cm**3
+    photon_number_density_cgs_cm3_unyt = np.zeros(ncell) / unyt.cm**3
+    fluid.ngamma_code = photon_number_density_cgs_cm3_unyt
     fluid.SetFluidTime(0.0 * unyt.yr)
     return SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 

@@ -34,7 +34,7 @@ def build_initial_condition(config):
     grid_cells = icparams['grid_cells']
     box_size = icparams['box_size'] * np.ones(1)
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-    sim.par.simulation = SimpleNamespace(coordinate_system=icparams['coordinate_system'], current_time=icparams['current_time'] * np.ones(1), box_size=box_size)
+    sim.par.simulation = SimpleNamespace(coordinate_system=icparams['coordinate_system'], time_code=icparams['current_time'] * np.ones(1), box_size=box_size)
 
     dx = box_size[0] / grid_cells
     sim.mesh.boundary = np.linspace(
@@ -58,7 +58,6 @@ def ReadandPlot(outfilename, config, **kwargs):
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     rplot1d(rout, yquan='rho_code', showhalf=0, showfig=0, **kwargs)
-
 
 
 

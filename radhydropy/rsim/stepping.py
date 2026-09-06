@@ -24,7 +24,10 @@ def GetStepTime(sim, dt=None, final_time=None):
                     "advancing the simulation"
                 )
             dt = min(dt, dm_dt)
-    current_time = sim.fluid.time_code
+    if getattr(sim.par, "supercomoving_coordinates", False):
+        current_time = sim.fluid.tau_supercomoving_code
+    else:
+        current_time = sim.fluid.time_proper_code
     if final_time is not None:
         if hasattr(final_time, "units"):
             target_units = final_time.units
@@ -52,20 +55,63 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     """Advance the Euler flux update and return mass data for scalar advection."""
     if fluid is None:
         fluid = sim.fluid
+    fluid_state = fluid.runtime_state
+    mesh_state = sim.mesh.geometry_state
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    rho_code = np.asarray(fluid.rho_code[first:last], dtype=float)
-    old_energy = np.asarray(fluid.Energy_code[first:last], dtype=float).copy()
-    pressure = np.asarray(fluid.pre_code[first:last], dtype=float)
-    velocity = np.asarray(fluid.vel_code[first:last], dtype=float)
-    coordinate = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    if getattr(sim.mesh, "coordsys", None) == "spherical":
-        radius = np.maximum(np.abs(coordinate), np.finfo(float).tiny)
-        divergence = np.gradient(radius**2 * velocity, coordinate) / radius**2
+    if getattr(sim.par, "supercomoving_coordinates", False):
+        rho_runtime_code = np.asarray(
+            fluid_state.rho_comoving_code[first:last], dtype=float
+        )
+        pressure_runtime_code = np.asarray(
+            fluid_state.pre_supercomoving_code[first:last], dtype=float
+        )
+        velocity_runtime_code = np.asarray(
+            fluid_state.vel_supercomoving_code[first:last], dtype=float
+        )
+        coordinate_runtime_code = np.asarray(
+            mesh_state.x_comoving_code[first:last], dtype=float
+        )
+        volume_runtime_code = np.asarray(
+            mesh_state.volume_comoving_code[first:last], dtype=float
+        )
+        coordinate_all_runtime_code = mesh_state.x_comoving_code
+        boundary_all_runtime_code = mesh_state.boundary_comoving_code
+        area_runtime_code = np.asarray(mesh_state.area_comoving_code, dtype=float)
     else:
-        divergence = np.gradient(velocity, coordinate)
+        rho_runtime_code = np.asarray(
+            fluid_state.rho_proper_code[first:last], dtype=float
+        )
+        pressure_runtime_code = np.asarray(
+            fluid_state.pre_proper_code[first:last], dtype=float
+        )
+        velocity_runtime_code = np.asarray(
+            fluid_state.vel_proper_code[first:last], dtype=float
+        )
+        coordinate_runtime_code = np.asarray(
+            mesh_state.x_proper_code[first:last], dtype=float
+        )
+        volume_runtime_code = np.asarray(
+            mesh_state.volume_proper_code[first:last], dtype=float
+        )
+        coordinate_all_runtime_code = mesh_state.x_proper_code
+        boundary_all_runtime_code = mesh_state.boundary_proper_code
+        area_runtime_code = np.asarray(mesh_state.area_proper_code, dtype=float)
+    old_energy = np.asarray(fluid.Energy_code[first:last], dtype=float).copy()
+    if getattr(sim.mesh, "coordsys", None) == "spherical":
+        radius_runtime_code = np.maximum(
+            np.abs(coordinate_runtime_code), np.finfo(float).tiny
+        )
+        divergence = np.gradient(
+            radius_runtime_code**2 * velocity_runtime_code,
+            coordinate_runtime_code,
+        ) / radius_runtime_code**2
+    else:
+        divergence = np.gradient(velocity_runtime_code, coordinate_runtime_code)
     sim.last_compression_work_by_cell = (
-        -pressure * divergence * np.asarray(sim.mesh.vol[first:last], dtype=float)
+        -pressure_runtime_code * divergence * np.asarray(
+            volume_runtime_code, dtype=float
+        )
         * float(np.asarray(dt, dtype=float))
         if sim.energy_diagnostics_enabled else None
     )
@@ -82,10 +128,11 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         )
     ):
         potential_cell = np.asarray(
-            gravity.potential_on(sim.mesh.coordinate), dtype=float
+            gravity.potential_on(coordinate_all_runtime_code), dtype=float
         )
         potential_face = np.asarray(
-            gravity.potential_on(sim.mesh.boundary[:-1]), dtype=float
+            gravity.potential_on(boundary_all_runtime_code[:-1]),
+            dtype=float,
         )
     sim.solver.SetInterFaceFlux(
         sim.mesh,
@@ -98,10 +145,9 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     mass_flux = fluid.Mass_code.flux.copy()
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    area = np.asarray(sim.mesh.area, dtype=float)
     energy_flux = np.asarray(fluid.Energy_code.flux, dtype=float)
     if potential_face is not None:
-        mass_flux_area = np.asarray(mass_flux, dtype=float) * area
+        mass_flux_area = np.asarray(mass_flux, dtype=float) * area_runtime_code
         potential_flux_area = potential_face * mass_flux_area
         sim.last_hydro_potential_flux = float(
             dt * (potential_flux_area[first] - potential_flux_area[last])
@@ -112,8 +158,8 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     # net energy entering the physical domain through its boundaries.
     sim.last_hydro_boundary_energy_flux = float(
             dt * (
-                energy_flux[first] * area[first]
-            - energy_flux[last] * area[last]
+                energy_flux[first] * area_runtime_code[first]
+            - energy_flux[last] * area_runtime_code[last]
             )
     )
     sim.cumulative_hydro_boundary_energy += sim.last_hydro_boundary_energy_flux
@@ -163,7 +209,8 @@ def _sync_hydro_state(sim, fluid=None):
     elif getattr(fluid.eos, 'is_polytropic', False):
         # Hydro-only adiabatic runs still need their primitive temperature
         # refreshed from the conserved internal energy.  Previously this
-        # was done only by the thermochemistry path, leaving ``fluid.temp_code``
+        # was done only by the thermochemistry path, leaving the explicit
+        # runtime temperature field
         # at its initial value and making adiabatic temperature plots lie.
         fluid.SetTemperature()
     sim.solver.SetConserved(sim.mesh, fluid, verbose=getattr(sim.par, 'verbose', 0))
@@ -229,7 +276,12 @@ def _hydro_step_ssprk2(
     if advect_chemistry and hasattr(initial_state, "xHI") and hasattr(stage2, "xHI"):
         sim.fluid.xHI = 0.5 * initial_state.xHI + 0.5 * stage2.xHI
 
-    sim.fluid.time_code = initial_state.time_code + dt
+    if getattr(sim.par, "supercomoving_coordinates", False):
+        sim.fluid.tau_supercomoving_code = (
+            initial_state.tau_supercomoving_code + dt
+        )
+    else:
+        sim.fluid.time_proper_code = initial_state.time_proper_code + dt
     sim._sync_hydro_state()
     return {
         "dt": dt,
@@ -421,7 +473,10 @@ def Step(
         # Source updates can change temperature, pressure, and chemistry
         # fields, so refresh the boundary state before the next loop.
         if mode == "sources":
-            sim.fluid.time_code += dt
+            if getattr(sim.par, "supercomoving_coordinates", False):
+                sim.fluid.tau_supercomoving_code += dt
+            else:
+                sim.fluid.time_proper_code += dt
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, 'verbose', 0))
         diagnostics.check_conserved_energy_admissibility(

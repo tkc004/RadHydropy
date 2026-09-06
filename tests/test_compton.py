@@ -12,9 +12,42 @@ from radhydropy.thermo_networks.hydrogen import (
     _split_implicit_source_state_update,
     _source_stiffness_groups,
     apply_thermochemistry_fast,
+    get_timestep,
     ionization_fraction_rate,
     thermal_rate,
 )
+
+
+def test_source_stability_limit_overrides_configured_source_dtmin():
+    """Low-density wind cells must not take an unstable photoheating step."""
+    state = {
+        'source_CFL': 1.0,
+        'dtmin_s': 3.0e10,
+        'recombination': True,
+        'collisional_ionization': False,
+        'thermal_coupling': True,
+        'xHI': np.array([1.0]),
+        'rho_cgs_g_cm3': np.array([1.65e-24]),
+        'specific_energy_cgs_erg_g': np.array([1.6e10]),
+        'temperature_cgs_K': np.array([129.0]),
+        'hydrogen_mass_fraction': 1.0,
+        'gamma': 5.0 / 3.0,
+        'sigma_gamma_cgs_cm2': 1.62e-18,
+        'epsilon_gamma_cgs_erg': 6.33 * 1.602176634e-12,
+        'atomic_cooling': True,
+        'alpha_B_cgs_cm3_s': 2.59e-13,
+        'beta_cgs_cm3_s': 0.0,
+        'compton_cmb_enabled': False,
+        'compton_cmb_redshift': 0.0,
+        'cmb_temperature_0_cgs_K': 2.7255,
+    }
+    source_dt_s, _ = get_timestep(
+        state,
+        np.array([292.0]),
+        remaining_s=1.0e12,
+        dtmax_s=1.0e12,
+    )
+    assert source_dt_s < state['dtmin_s']
 from radhydropy.thermo_networks.hydrogen_helium import _rates
 from radhydropy.constants import (
     BOLTZMANN_CONSTANT_CGS,
@@ -24,6 +57,12 @@ from radhydropy.constants import (
 import radhydropy.chemistry_species.hydrogen as hydrogen_species
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    MeshGeometryState,
+    FluidRuntimeState,
+    PROPER_RUNTIME_FIELDS,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 
 
 def _implicit_hydrogen_state(temperature, xhi, recombination, collisional,
@@ -149,24 +188,47 @@ def _source_test_problem(
         radiative_transfer_direction=1,
         hydrogen_photon_energy=13.6,
         supercomoving_coordinates=supercomoving,
+        coordinate_frame='comoving' if supercomoving else 'physical',
+        time_coordinate='supercomoving' if supercomoving else 'proper',
+        velocity_representation='supercomoving_peculiar' if supercomoving else 'proper',
         cosmology=cosmology,
-        fluid_time=tau,
+        time_code=tau,
     )
+    runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS if supercomoving else PROPER_RUNTIME_FIELDS
     fluid = SimpleNamespace(
-        rho_code=np.array([fluid_density]),
-        temp_code=np.array([fluid_temperature]),
-        vel_code=np.array([0.0]),
+        rho_comoving_code=np.array([fluid_density]) if supercomoving else None,
+        temp_supercomoving_code=np.array([fluid_temperature]) if supercomoving else None,
+        vel_supercomoving_code=np.array([0.0]) if supercomoving else None,
+        rho_proper_code=np.array([fluid_density]) if not supercomoving else None,
+        temp_proper_code=np.array([fluid_temperature]) if not supercomoving else None,
+        vel_proper_code=np.array([0.0]) if not supercomoving else None,
         Mass_code=np.array([1.0]),
         Energy_code=np.array([fluid_energy]),
-        pre_code=np.array([1.0]),
+        pre_supercomoving_code=np.array([1.0]) if supercomoving else None,
+        pre_proper_code=np.array([1.0]) if not supercomoving else None,
         xHI=np.array([xhi]),
         mu=np.array([mu]),
         eos=SimpleNamespace(gamma=5.0 / 3.0),
+        tau_supercomoving_code=tau if supercomoving else None,
+        time_proper_code=tau if not supercomoving else None,
     )
-    mesh = SimpleNamespace(
+    fluid.runtime_fields = runtime_fields
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        runtime_fields,
+        density=np.array([fluid_density]),
+        velocity=np.array([0.0]),
+        pressure=np.array([1.0]),
+        temperature=np.array([fluid_temperature]),
+        time=tau,
+    )
+    mesh = SimpleNamespace(coordsys='cartesian')
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        runtime_fields,
+        coordinate=np.array([0.5]),
         boundary=np.array([0.0, 1.0]),
-        xdelta=np.array([1.0]),
-        vol=np.array([1.0]),
+        width=np.array([1.0]),
+        area=np.array([1.0]),
+        volume=np.array([1.0]),
     )
     return units, par, fluid, mesh, scale_factor
 
@@ -468,7 +530,7 @@ def test_coupled_implicit_fallback_to_explicit():
     par.hydrogen_implicit_max_iterations = 0
     result = apply_thermochemistry_fast(1.0, mesh, fluid, par)
     assert result['source_steps'] > 1
-    assert np.isfinite(fluid.temp_code[0])
+    assert np.isfinite(fluid.temp_proper_code[0])
 
 
 def test_coupled_implicit_error_fallback_raises():
@@ -523,8 +585,8 @@ def test_coupled_implicit_supercomoving_matches_physical_source_update():
         supercomoving_fluid,
         supercomoving_par,
     )
-    physical_temperature = physical_fluid.temp_code[0]
-    supercomoving_temperature = supercomoving_fluid.temp_code[0] / scale_factor**2
+    physical_temperature = physical_fluid.temp_proper_code[0]
+    supercomoving_temperature = supercomoving_fluid.temp_supercomoving_code[0] / scale_factor**2
     np.testing.assert_allclose(
         supercomoving_temperature, physical_temperature, rtol=1.0e-10
     )
@@ -577,27 +639,40 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
         hydrogen_photon_energy=13.6,
     )
     fluid = SimpleNamespace(
-        rho_code=np.array([1.0e-3]),
-        temp_code=np.array([temperature]),
-        vel_code=np.array([0.0]),
+        rho_proper_code=np.array([1.0e-3]),
+        temp_proper_code=np.array([temperature]),
+        vel_proper_code=np.array([0.0]),
         Mass_code=np.array([1.0]),
         Energy_code=np.array([energy_code]),
-        pre_code=np.array([1.0]),
+        pre_proper_code=np.array([1.0]),
         xHI=np.array([xhi]),
         mu=np.array([mu]),
         eos=SimpleNamespace(gamma=5.0 / 3.0),
     )
     fluid.SetHydrogenMu = lambda hydrogen_mass_fraction=1.0: None
     fluid.SetPressure = lambda: None
-    mesh = SimpleNamespace(
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=0.0,
+    )
+    mesh = SimpleNamespace(coordsys='cartesian')
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=np.array([0.5]),
         boundary=np.array([0.0, 1.0]),
-        xdelta=np.array([1.0]),
-        vol=np.array([1.0]),
+        width=np.array([1.0]),
+        area=np.array([1.0]),
+        volume=np.array([1.0]),
     )
     result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
     assert result['source_steps'] >= 2
     assert fluid.xHI[0] > xhi
-    assert np.isfinite(fluid.temp_code[0])
+    assert np.isfinite(fluid.temp_proper_code[0])
 
 
 def test_split_implicit_source_includes_compton_and_atomic_cooling():
@@ -610,7 +685,7 @@ def test_split_implicit_source_includes_compton_and_atomic_cooling():
 
     assert result['source_solver'] == 'split_implicit'
     assert result['source_steps'] >= 1
-    assert np.isfinite(fluid.temp_code[0])
+    assert np.isfinite(fluid.temp_proper_code[0])
     assert np.isfinite(fluid.xHI[0])
 
 
@@ -629,7 +704,7 @@ def test_split_implicit_matches_coupled_solvers_for_identical_source_state():
         fluid.SetPressure = lambda: None
         result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
         results[solver] = (
-            float(fluid.temp_code[0]),
+            float(fluid.temp_proper_code[0]),
             float(fluid.xHI[0]),
             float(fluid.Energy_code[0]),
             result,
@@ -791,23 +866,39 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
         compton_cmb_redshift=100.0,
         cmb_temperature_0=2.7255,
         supercomoving_coordinates=True,
+        coordinate_frame='comoving',
+        time_coordinate='supercomoving',
+        velocity_representation='supercomoving_peculiar',
         cosmology=cosmology,
-        fluid_time=tau,
+        time_code=tau,
     )
-    mesh = SimpleNamespace(
+    mesh = SimpleNamespace(coordsys='spherical')
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        coordinate=np.array([0.75]),
         boundary=np.array([0.0, 1.0]),
-        xdelta=np.array([1.0]),
-        vol=np.array([4.0 * np.pi / 3.0]),
+        width=np.array([1.0]),
+        area=np.array([1.0]),
+        volume=np.array([4.0 * np.pi / 3.0]),
     )
     fluid = SimpleNamespace(
-        rho_code=np.array([scale_factor**3]),
-        temp_code=np.array([physical_temperature * scale_factor**2]),
-        vel_code=np.array([0.0]),
+        rho_comoving_code=np.array([scale_factor**3]),
+        temp_supercomoving_code=np.array([physical_temperature * scale_factor**2]),
+        vel_supercomoving_code=np.array([0.0]),
         Mass_code=np.array([1.0]),
         Energy_code=np.array([1.0]),
         xHI=np.array([0.9998]),
         mu=np.array([1.0 / (0.76 * (2.0 - 0.9998))]),
         eos=SimpleNamespace(gamma=5.0 / 3.0),
+        tau_supercomoving_code=tau,
+    )
+    fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=fluid.rho_comoving_code,
+        velocity=fluid.vel_supercomoving_code,
+        pressure=np.array([1.0]),
+        temperature=fluid.temp_supercomoving_code,
         time=tau,
     )
 
@@ -816,4 +907,6 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
     density_unit_cgs = units.mass_in_cgs / units.length_in_cgs**3
     assert np.isclose(state["rho_cgs_g_cm3"][0], density_unit_cgs)
     _fast_sync_state_to_fluid(state, fluid, par)
-    assert np.isclose(fluid.temp_code[0], physical_temperature * scale_factor**2)
+    assert np.isclose(
+        fluid.temp_supercomoving_code[0], physical_temperature * scale_factor**2
+    )

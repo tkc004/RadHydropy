@@ -39,7 +39,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=icparams['current_time'] * np.ones(1),
+        time_code=icparams['current_time'] * np.ones(1),
         box_size=box_size,
     )
 
@@ -74,7 +74,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         icparams['injection_radius'],
     )
     front = oa.front_position(
-        rout.par.simulation.current_time * code_units_obj.time_unit,
+        rout.par.simulation.time_code * code_units_obj.time_unit,
         runparams['boundary']['outflow_velocity'],
     )
     x_values = x_center.to_value(icparams['box_size'].units)
@@ -99,7 +99,6 @@ def ReadandPlot(outfilename, config, **kwargs):
     plt.yscale('log')
     plt.xlabel(r'Radius [cm]')
     plt.ylabel(r'$\rho$ [g/cm$^3$]')
-
 
 
 

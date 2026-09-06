@@ -2,6 +2,7 @@
 
 import time
 import radhydropy.io as rio
+from radhydropy.runtime_fields import runtime_fields
 
 def Evolve(
     sim,
@@ -22,10 +23,11 @@ def Evolve(
     if step_backend_kwargs is None:
         step_backend_kwargs = {}
     counters = {"hydro_steps": 0, "source_steps": 0}
+    time_field = runtime_fields(sim.par).time
     progress_steps = 0
     if history_callback is not None:
         history_callback(sim)
-    while sim.fluid.time_code < final_time:
+    while getattr(sim.fluid, time_field) < final_time:
         if stop_condition is not None and stop_condition(sim):
             break
         dt = sim.GetStepTime(final_time=final_time)
@@ -43,9 +45,9 @@ def Evolve(
                 "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
                 % (
                     progress_steps,
-                    float(sim.fluid.time_code),
+                    float(getattr(sim.fluid, time_field)),
                     float(dt),
-                    100.0 * float(sim.fluid.time_code) / float(final_time),
+                    100.0 * float(getattr(sim.fluid, time_field)) / float(final_time),
                 ),
                 flush=True,
             )

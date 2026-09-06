@@ -79,7 +79,7 @@ def run(config_filename=DEFAULT_CONFIG):
     # check is intentionally printed for this experiment because using the
     # full matter density in both components would double-count gravity.
     baryon_fraction = float(initial_condition["baryon_fraction"])
-    gas_mass = float(np.sum(initial.fluid.rho_code * initial.mesh.vol))
+    gas_mass = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
     dm_mass = float(np.sum(dm.mass))
     measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
     print("initial gas mass = %.8g code masses" % gas_mass)
@@ -89,7 +89,7 @@ def run(config_filename=DEFAULT_CONFIG):
     ))
     if hasattr(initial.fluid, "xHI"):
         print("initial CMB temperature = %.8g K" % float(np.median(
-            np.asarray(initial.fluid.temp_code) /
+            np.asarray(initial.fluid.temp_supercomoving_code) /
             float(cosmology.scale_factor(float(initial_condition["initial_cosmic_time"])))**2
         )))
         print("initial electron fraction = %.8g" % float(np.median(
@@ -119,7 +119,7 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.fluid.time_code = float(np.asarray(sim.par.time).flat[0])
+    sim.fluid.tau_supercomoving_code = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     sim.par.gravity = Gravity(
         selfgravity=True,
         cosmological=True,
@@ -151,20 +151,20 @@ def run(config_filename=DEFAULT_CONFIG):
     save_snapshot(initial_time)
     next_snapshot += cadence
     steps = 0
-    while float(sim.fluid.time_code) < target_tau - 1.0e-12:
+    while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-12:
         cosmic_start = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
         scale_start = float(cosmology.scale_factor(cosmic_start))
         sim.par.compton_cmb_redshift = 1.0 / scale_start - 1.0
         dt = min(
             float(sim.GetStepTime()),
-            target_tau - float(sim.fluid.time_code),
+            target_tau - float(sim.fluid.tau_supercomoving_code),
         )
         sim.Step(dt=dt, mode="hydro_sources")
         steps += 1
         cosmic_time = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
         if steps == 1 or steps % 500 == 0:
             print(
@@ -265,4 +265,3 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     run(parser.parse_args().config)
-

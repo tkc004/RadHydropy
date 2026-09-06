@@ -10,6 +10,12 @@ from radhydropy.fluid import Fluid
 from radhydropy.thermo_networks.cie.cie_cooling import CIECoolingNetwork, _state
 from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+    runtime_fields,
+)
 
 
 def make_cie_tables(tmp_path):
@@ -157,15 +163,37 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
         (gamma - 1.0) * PROTON_MASS_CGS
     )
     fluid = Fluid()
-    fluid.rho_code = np.array([rho, rho])
-    fluid.vel_code = np.zeros(2)
-    fluid.temp_code = np.array([temperature, temperature])
+    fluid.rho_proper_code = np.array([rho, rho])
+    fluid.vel_proper_code = np.zeros(2)
+    fluid.temp_proper_code = np.array([temperature, temperature])
     fluid.mu = np.ones(2)
     fluid.Mass_code = np.array([rho, rho])
     fluid.Energy_code = np.array([specific_energy * rho, specific_energy * rho])
-    fluid.pre_code = np.ones(2)
+    fluid.pre_proper_code = np.ones(2)
     fluid.eos = SimpleNamespace(gamma=gamma)
-    mesh = SimpleNamespace(vol=np.ones(2), boundary=np.array([0.0, 1.0, 2.0]))
+    fluid.time_proper_code = 0.0
+    fluid.runtime_fields = runtime_fields(parameter_namespace(
+        coordinate_frame="physical", time_coordinate="proper",
+        velocity_representation="proper"
+    ))
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        fluid.runtime_fields,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=fluid.time_proper_code,
+        mu=fluid.mu,
+    )
+    mesh = SimpleNamespace(
+        geometry_state=MeshGeometryState(
+            x_proper_code=np.array([0.5, 1.5]),
+            boundary_proper_code=np.array([0.0, 1.0, 2.0]),
+            width_proper_code=np.ones(2),
+            area_proper_code=np.ones(2),
+            volume_proper_code=np.ones(2),
+        )
+    )
     par = parameter_namespace(
         CodeUnits=code_units,
         noghost=1,
@@ -188,9 +216,9 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
 
     assert steps > 1
     assert fluid.Energy_code[1] < initial_energy
-    assert fluid.temp_code[1] >= par.cooling_temperature_floor * (1.0 - 1.0e-12)
+    assert fluid.temp_proper_code[1] >= par.cooling_temperature_floor * (1.0 - 1.0e-12)
     assert np.isfinite(fluid.Energy_code[1])
-    assert np.isfinite(fluid.temp_code[1])
+    assert np.isfinite(fluid.temp_proper_code[1])
 
 
 def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
@@ -214,9 +242,9 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
     )
     velocity_supercomoving = 3.0
     fluid = Fluid()
-    fluid.rho_code = np.array([8.0])
-    fluid.vel_code = np.array([velocity_supercomoving])
-    fluid.temp_code = np.array([physical_temperature * scale_factor**2])
+    fluid.rho_comoving_code = np.array([8.0])
+    fluid.vel_supercomoving_code = np.array([velocity_supercomoving])
+    fluid.temp_supercomoving_code = np.array([physical_temperature * scale_factor**2])
     fluid.mu = np.ones(1)
     fluid.Mass_code = np.array([8.0])
     fluid.Energy_code = np.array([
@@ -224,13 +252,37 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
                + 0.5 * velocity_supercomoving**2)
     ])
     fluid.eos = SimpleNamespace(gamma=gamma)
-    mesh = SimpleNamespace(vol=np.array([1.0]), boundary=np.array([0.0, 1.0]))
+    fluid.pre_supercomoving_code = np.zeros_like(fluid.rho_comoving_code)
+    fluid.tau_supercomoving_code = 0.0
+    fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=fluid.rho_comoving_code,
+        velocity=fluid.vel_supercomoving_code,
+        pressure=fluid.pre_supercomoving_code,
+        temperature=fluid.temp_supercomoving_code,
+        time=fluid.tau_supercomoving_code,
+        mu=fluid.mu,
+    )
+    fluid.tau_supercomoving_code = 0.0
+    mesh = SimpleNamespace(
+        geometry_state=MeshGeometryState(
+            x_comoving_code=np.array([0.5]),
+            boundary_comoving_code=np.array([0.0, 1.0]),
+            width_comoving_code=np.ones(1),
+            area_comoving_code=np.ones(1),
+            volume_comoving_code=np.ones(1),
+        )
+    )
     par = parameter_namespace(
         CodeUnits=code_units,
         noghost=0,
         nogrid=1,
         supercomoving_coordinates=True,
-        fluid_time=0.0,
+        coordinate_frame="comoving",
+        time_coordinate="supercomoving",
+        velocity_representation="supercomoving_peculiar",
+        tau_supercomoving_code=0.0,
         cosmology=SimpleNamespace(
             scale_factor_from_supercomoving=lambda _: scale_factor,
         ),

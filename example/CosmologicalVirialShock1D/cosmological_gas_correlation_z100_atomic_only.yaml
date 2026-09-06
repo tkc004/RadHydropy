@@ -28,6 +28,9 @@ par:
       value: 200.0
       unit: Myr
   dark_matter_crossing_safety_factor: 0.5
+  cosmological_background_boundary_reconstruction: true
+  dark_matter_crossing_batch_fraction: 0.01
+  dark_matter_global_timestep_limit: false
   output:
     directory: outputs_correlation_gas_compton_atomic_atomic_only
     savedir: outputs_correlation_gas_compton_atomic_atomic_only
@@ -81,19 +84,6 @@ par:
     hydrogen_thermal_coupling: true
     hydrogen_chemistry: true
     hydrogen_source_floor_temperature_tolerance: 0.01
-  figure_prefix: CosmologicalGasCorrelationZ100_AtomicOnly
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.01
-  dark_matter_global_timestep_limit: false
-  dm_density_bins: 128
-  temperature_plot_ymin:
-    value: 1.0
-    unit: K
-  gas_profile_cadence: 0.1
-  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  minimum_temperature:
-    value: 2.69851485e-05
-    unit: K
 initial_condition:
   rmin: 3.0
   rmax: 4000.0
@@ -114,3 +104,14 @@ initial_condition:
   cmb_equilibrium_initial: true
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 0.0002
+example:
+  figure_prefix: CosmologicalGasCorrelationZ100_AtomicOnly
+  dm_density_bins: 128
+  temperature_plot_ymin:
+    value: 1.0
+    unit: K
+  gas_profile_cadence: 0.1
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
+  minimum_temperature:
+    value: 2.69851485e-05
+    unit: K

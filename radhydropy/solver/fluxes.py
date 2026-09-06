@@ -23,14 +23,10 @@ def vacuum_safe_primitive_state(rho, vel, pre):
     vel_safe = np.where(active & finite_velocity, vel_value, 0.0)
     pre_safe = np.where(active & finite_pressure, pre_value, 0.0)
 
-    def restore_units(values, original):
-        units = getattr(original, 'units', None)
-        return values * units if units is not None else as_named_array(values)
-
     return (
-        restore_units(rho_safe, rho),
-        restore_units(vel_safe, vel),
-        restore_units(pre_safe, pre),
+        as_named_array(rho_safe),
+        as_named_array(vel_safe),
+        as_named_array(pre_safe),
     )
 
 

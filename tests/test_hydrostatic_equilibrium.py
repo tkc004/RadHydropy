@@ -14,6 +14,11 @@ from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 
 
 def _to_float(value, unit=None):
@@ -62,6 +67,23 @@ def _floatify_hydrostatic_simwrap(simwrap, code_units):
             ),
             code_units.pressure_unit,
         )
+    )
+    simwrap.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=simwrap.mesh.coordinate,
+        boundary=simwrap.mesh.boundary,
+        width=simwrap.mesh.boundary[1:] - simwrap.mesh.boundary[:-1],
+        area=simwrap.mesh.area,
+        volume=simwrap.mesh.vol,
+    )
+    simwrap.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=simwrap.fluid.rho_code,
+        velocity=simwrap.fluid.vel_code,
+        pressure=simwrap.fluid.pre_code,
+        temperature=simwrap.fluid.temp_code,
+        time=0.0,
+        mu=simwrap.fluid.mu,
     )
     return simwrap
 
@@ -217,6 +239,29 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
         eos=simwrap.fluid.eos,
         time_code=0.0,
     )
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=full_coordinate,
+        boundary=full_boundary,
+        width=full_boundary[1:] - full_boundary[:-1],
+        area=np.ones(len(full_coordinate), dtype=float),
+        volume=full_boundary[1:] - full_boundary[:-1],
+    )
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_code,
+        velocity=fluid.vel_code,
+        pressure=fluid.pre_code,
+        temperature=fluid.temp_code,
+        time=0.0,
+        mu=fluid.mu,
+    )
+    fluid.rho_proper_code = fluid.rho_code
+    fluid.vel_proper_code = fluid.vel_code
+    fluid.pre_proper_code = fluid.pre_code
+    fluid.temp_proper_code = fluid.temp_code
+    fluid.time_proper_code = 0.0
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.cs_code = as_named_array(
         np.asarray(
             fluid.eos.sound_speed(
@@ -305,7 +350,7 @@ class Testing(unittest.TestCase):
         )
 
         self.assertEqual(result["hydro_steps"], 1)
-        self.assertEqual(sim.fluid.time_code, dt)
+        self.assertEqual(sim.fluid.time_proper_code, dt)
         self.assertLess(rho_rel, 1.0e-10)
         self.assertLess(pre_rel, 1.0e-10)
         self.assertLess(
@@ -336,7 +381,7 @@ class Testing(unittest.TestCase):
         )
 
         self.assertEqual(result["hydro_steps"], 1)
-        self.assertEqual(sim.fluid.time_code, dt)
+        self.assertEqual(sim.fluid.time_proper_code, dt)
         self.assertLess(rho_rel, 1.0e-10)
         self.assertLess(pre_rel, 1.0e-10)
         self.assertLess(

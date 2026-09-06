@@ -42,7 +42,7 @@ class CosmologicalInitialCondition:
             boxsize=np.asarray([radius_max]),
         )
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(current_time=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
+        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
         self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
         self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
         self.par.unit_system = code_units.unit_system
@@ -70,7 +70,7 @@ class CosmologicalCentralGravity:
 
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
         tau = float(np.asarray(
-            getattr(par, 'fluid_time', getattr(par, 'time', self.tau))
+            getattr(getattr(par, 'simulation', None), 'time_code', self.tau)
         )) if par is not None else self.tau
         scale_factor = self.cosmology.scale_factor_from_supercomoving(tau)
         radius = np.asarray(mesh.coordinate, dtype=float)

@@ -56,8 +56,8 @@ def make_initial_condition(ic, units):
     state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': state.par.nogrid})()
     state.par.coordsys = "spherical"
     state.par.boxsize = np.asarray([float(ic["outer_radius"].to_value(units.length_unit))]) * units.length_unit
-    state.par.time = np.asarray([0.0]) * units.time_unit
-    state.par.simulation.current_time = state.par.time
+    state.par.time_code = np.asarray([0.0]) * units.time_unit
+    state.par.simulation.time_code = state.par.time_code
     state.par.simulation.coordinate_system = 'spherical'
     state.par.simulation.box_size = state.par.boxsize
     rmin = float(ic["inner_radius"].to_value(units.length_unit))

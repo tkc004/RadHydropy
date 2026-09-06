@@ -43,8 +43,8 @@ def make_initial_condition(ic, units):
     state.par.coordsys = "spherical"
     rmax = float(ic["box_size"].to_value(units.length_unit))
     state.par.boxsize = np.asarray([rmax]) * units.length_unit
-    state.par.time = np.asarray([0.0]) * units.time_unit
-    state.par.simulation.current_time = state.par.time
+    state.par.time_code = np.asarray([0.0]) * units.time_unit
+    state.par.simulation.time_code = state.par.time_code
     state.par.simulation.coordinate_system = 'spherical'
     state.par.simulation.box_size = state.par.boxsize
     boundary = np.linspace(0.0, rmax, state.par.nogrid + 1)
@@ -95,7 +95,7 @@ def read_profile(filename, units, gamma):
         "pressure": pressure,
         "kinetic": float(np.sum(kinetic)),
         "thermal": float(np.sum(thermal)),
-        "time": float(np.asarray(par.time).flat[0]),
+        "time": float(np.asarray(par.time_code).flat[0]),
     }
 
 

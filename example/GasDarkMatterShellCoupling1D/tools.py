@@ -32,8 +32,8 @@ def build_initial_condition(config):
     result.par.nogrid = grid_cells
     result.par.coordsys = 'spherical'
     result.par.boxsize = np.ones(1) * initial['rmax']
-    result.par.time = np.ones(1) * initial.get('current_time', 0.0 * unyt.s)
-    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=result.par.boxsize, coordinate_system='spherical')
+    result.par.time_code = np.ones(1) * initial.get('current_time', 0.0 * unyt.s)
+    result.par.simulation = SimpleNamespace(time_code=result.par.time_code, box_size=result.par.boxsize, coordinate_system='spherical')
     result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     result.mesh.boundary = np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1)
     result.mesh.coordinate = 0.75 * (result.mesh.boundary[1:]**4 - result.mesh.boundary[:-1]**4) / (result.mesh.boundary[1:]**3 - result.mesh.boundary[:-1]**3)
@@ -42,7 +42,7 @@ def build_initial_condition(config):
     result.fluid.rho_code = np.ones(grid_cells) * initial['gas_density']
     result.fluid.temp_code = np.ones(grid_cells) * initial['gas_temperature']
     result.fluid.mu = np.ones(grid_cells) * initial['mu']
-    result.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    result.fluid.vel_code = np.zeros(grid_cells, dtype=float)
     return result
 
 
@@ -63,4 +63,3 @@ def make_dark_matter(icparams, code_units):
 
 def load_units(runparams):
     return CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-

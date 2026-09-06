@@ -1,6 +1,5 @@
 """Initial conditions and diagnostics for the cosmological virial-shock test."""
 
-from types import SimpleNamespace
 from math import erf
 from pathlib import Path
 import importlib.util
@@ -347,9 +346,9 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     """Measure virial, shock, disc radii and enclosed total masses."""
     first = int(sim.par.noghost)
     last = first + int(sim.par.nogrid)
-    x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    edges = np.asarray(sim.mesh.boundary[first:last + 1], dtype=float)
-    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
+    x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
+    edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
+    rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     gas_mass = rho * 4.0 * np.pi / 3.0 * np.diff(edges**3)
     gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass)))
     dm_order = np.argsort(dm.radius)
@@ -409,12 +408,12 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     else:
         tvir = float("nan")
 
-    temp_code_phys = np.asarray(sim.fluid.temp_code[first:last], dtype=float) / a**2
+    temp_code_phys = np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / a**2
     velocity_phys = np.asarray(
         cosmology.physical_velocity(
             x,
-            np.asarray(sim.fluid.vel_code[first:last], dtype=float),
-            float(sim.fluid.time_code),
+            np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float),
+            float(sim.fluid.tau_supercomoving_code),
         ),
         dtype=float,
     )
@@ -565,7 +564,7 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
 def gas_density_profile(sim, cosmic_time, cosmology):
     """Return one snapshot of the physical gas density profile.
 
-    The mesh coordinate is comoving, while ``fluid.rho_code`` is the
+    The mesh coordinate is comoving, while ``fluid.rho_comoving_code`` is the
     supercomoving/comoving density used by the solver.  The returned density
     is physical (divide by ``a**3``), and both radius representations are
     stored so an evolution plot can use a fixed comoving x-axis while
@@ -575,10 +574,10 @@ def gas_density_profile(sim, cosmic_time, cosmology):
     last = first + int(sim.par.nogrid)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     radius_comoving = np.asarray(
-        sim.mesh.coordinate[first:last], dtype=float
+        sim.mesh.x_comoving_code[first:last], dtype=float
     )
     density_comoving = np.asarray(
-        sim.fluid.rho_code[first:last], dtype=float
+        sim.fluid.rho_comoving_code[first:last], dtype=float
     )
     return {
         "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
@@ -627,4 +626,3 @@ class VolumeSmoothedDarkMatter:
             left=0.0,
             right=total,
         )
-

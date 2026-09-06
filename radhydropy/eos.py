@@ -4,6 +4,7 @@ import numpy as np
 import unyt
 import radhydropy.utils as ru
 from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, SUPERCOMOVING_RUNTIME_FIELDS
 
 
 class EOS:
@@ -163,19 +164,25 @@ class EOS:
         grid_cells = int(par.mesh.grid_cells)
         interior = slice(ghost_cells, ghost_cells + grid_cells)
         ionized_fraction = 1.0 - np.clip(fluid.xHI[interior], 0.0, 1.0)
+        if fluid.runtime_fields is PROPER_RUNTIME_FIELDS:
+            temperature = fluid.temp_proper_code
+        elif fluid.runtime_fields is SUPERCOMOVING_RUNTIME_FIELDS:
+            temperature = fluid.temp_supercomoving_code
+        else:
+            raise ValueError("piecewise isothermal state requires canonical runtime fields")
         if ionized_fraction_threshold is None:
-            fluid.temp_code[interior] = (
+            temperature[interior] = (
                 neutral_temperature
                 + ionized_fraction * (ionized_temperature - neutral_temperature)
             )
         else:
             if not 0.0 <= ionized_fraction_threshold <= 1.0:
                 raise ValueError('ionized_fraction_threshold must be in [0, 1]')
-            fluid.temp_code[interior] = neutral_temperature
+            temperature[interior] = neutral_temperature
             ionized = ionized_fraction > ionized_fraction_threshold
-            temperature = np.asarray(fluid.temp_code[interior])
-            temperature[ionized] = ionized_temperature
-            fluid.temp_code[interior] = temperature
+            interior_temperature = np.asarray(temperature[interior])
+            interior_temperature[ionized] = ionized_temperature
+            temperature[interior] = interior_temperature
         fluid.SetHydrogenMu(
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
         )

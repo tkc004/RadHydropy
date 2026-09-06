@@ -25,6 +25,11 @@ class NamedArray(np.ndarray):
 
 def as_named_array(value, dtype=float):
     """Return ``value`` as a mutable NumPy subclass with attribute support."""
+    if hasattr(value, "units") or hasattr(value, "to_value"):
+        raise TypeError(
+            "runtime arrays must be unitless code-unit values; "
+            "convert physical quantities at the input boundary"
+        )
     if isinstance(value, NamedArray):
         return value
     return NamedArray(value, dtype=dtype, copy=False)

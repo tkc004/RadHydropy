@@ -110,10 +110,13 @@ def build_initial_condition(config):
     inner = float(icparams['inner_radius_over_R200']) * r200
     outer = float(icparams['outer_radius_over_R200']) * r200
     sim.par.simulation = SimpleNamespace(
-        coordinate_system='spherical', current_time=icparams['current_time'], box_size=outer,
+        coordinate_system='spherical', time_code=icparams['current_time'], box_size=outer,
     )
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-    sim.mesh.boundary = np.geomspace(inner.to_value(unyt.kpc), outer.to_value(unyt.kpc), grid_cells + 1) * unyt.kpc
+    boundary_proper_cgs_cm_unyt = np.geomspace(
+        inner.to_value(unyt.kpc), outer.to_value(unyt.kpc), grid_cells + 1
+    ) * unyt.kpc
+    sim.mesh.boundary = boundary_proper_cgs_cm_unyt
     sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
     radius = sim.mesh.coordinate
     inflow_velocity = (-float(icparams['inflow_velocity_over_V200']) * halo['virial_velocity']).to(unyt.cm / unyt.s)
@@ -144,7 +147,8 @@ def build_initial_condition(config):
         (1.0 - weight) * np.log(rho_hot.to_value(unyt.g / unyt.cm**3))
         + weight * np.log(rho_cold.to_value(unyt.g / unyt.cm**3))
     )
-    sim.fluid.rho_code = np.exp(log_density) * unyt.g / unyt.cm**3
+    density_proper_cgs_g_cm3_unyt = np.exp(log_density) * unyt.g / unyt.cm**3
+    sim.fluid.rho_code = density_proper_cgs_g_cm3_unyt
     sim.fluid.vel_code = weight * inflow_velocity
     sim.fluid.temp_code = (
         (1.0 - weight) * hot_temperature.to_value(unyt.K)

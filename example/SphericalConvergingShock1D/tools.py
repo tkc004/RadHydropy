@@ -35,8 +35,8 @@ def build_initial_condition(config):
     rmax = quantity_to_value(initial['rmax'], code_units.length_unit)
     result.par.inner_radius = rmin
     result.par.boxsize = np.asarray([rmax])
-    result.par.time = np.asarray([quantity_to_value(initial['current_time'], code_units.time_unit)])
-    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=result.par.boxsize, coordinate_system=result.par.coordsys)
+    result.par.time_code = np.asarray([quantity_to_value(initial['current_time'], code_units.time_unit)])
+    result.par.simulation = SimpleNamespace(time_code=result.par.time_code, box_size=result.par.boxsize, coordinate_system=result.par.coordsys)
     result.par.mesh = SimpleNamespace(grid_cells=result.par.nogrid, ghost_cells=0)
     result.par.hydrodynamics = SimpleNamespace(gamma=float(runtime['hydrodynamics']['gamma']))
     result.par.dual_energy = bool(runtime['hydrodynamics'].get('dual_energy', False))

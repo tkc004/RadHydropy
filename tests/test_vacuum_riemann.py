@@ -6,6 +6,7 @@ from radhydropy.eos import EOS
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 from radhydropy.utils import CalFluxFromLR
+from radhydropy.runtime_fields import FluidRuntimeState, MeshGeometryState, PROPER_RUNTIME_FIELDS
 
 
 CODE_UNITS = CodeUnits.from_mapping(
@@ -55,29 +56,51 @@ def test_rusanov_flux_between_gas_and_vacuum_is_finite_and_positive():
 
 
 def test_primitive_reconstruction_stores_active_mask_for_vacuum_cells():
-    mesh = SimpleNamespace(vol=np.ones(3), coordsys="cartesian")
+    mesh = SimpleNamespace(coordsys="cartesian")
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=np.array([0.5, 1.5, 2.5]),
+        boundary=np.array([0.0, 1.0, 2.0, 3.0]),
+        width=np.ones(3), area=np.ones(3), volume=np.ones(3),
+    )
     fluid = SimpleNamespace(
         Mass_code=np.array([1.0, 0.0, 2.0]),
         Mom_code=np.array([1.0, 5.0, 0.0]),
         Energy_code=np.array([2.0, 7.0, 3.0]),
+        rho_proper_code=np.zeros(3), vel_proper_code=np.zeros(3),
+        pre_proper_code=np.zeros(3), temp_proper_code=np.ones(3),
         eos=EOS("polytropic", gamma=5.0 / 3.0, code_units=CODE_UNITS),
+    )
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=0.0,
     )
 
     Solver().SetPrimitive(mesh, fluid)
 
     np.testing.assert_array_equal(fluid.active, [True, False, True])
-    np.testing.assert_array_equal(fluid.rho_code, [1.0, 0.0, 2.0])
-    np.testing.assert_array_equal(fluid.vel_code, [1.0, 0.0, 0.0])
-    assert fluid.pre_code[1] == 0.0
+    np.testing.assert_array_equal(fluid.rho_proper_code, [1.0, 0.0, 2.0])
+    np.testing.assert_array_equal(fluid.vel_proper_code, [1.0, 0.0, 0.0])
+    assert fluid.pre_proper_code[1] == 0.0
 
 
 def test_low_density_active_cell_blocks_both_interface_fluxes():
     par = parameter_namespace(noghost=1, nogrid=3, cfl_density_floor=1.0e-9)
     fluid = SimpleNamespace(
-        rho_code=np.array([1.0, 1.0, 1.0e-12, 1.0e-12, 1.0]),
+        rho_proper_code=np.array([1.0, 1.0, 1.0e-12, 1.0e-12, 1.0]),
         Mass_code=SimpleNamespace(flux=np.ones(5)),
         Mom_code=SimpleNamespace(flux=np.ones(5) * 2.0),
         Energy_code=SimpleNamespace(flux=np.ones(5) * 3.0),
+    )
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=np.zeros(5), pressure=np.ones(5),
+        temperature=np.ones(5), time=0.0,
     )
 
     Solver()._apply_low_density_flux_mask(fluid, par)

@@ -8,6 +8,11 @@ import numpy as np
 from radhydropy.constants import SPEED_OF_LIGHT_CGS
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 
 
 CODE_UNITS = CodeUnits.from_mapping(
@@ -27,17 +32,31 @@ CODE_UNITS = CodeUnits.from_mapping(
 def make_state(rho):
     rho = np.asarray(rho, dtype=float)
     ncell = rho.size
-    mesh = SimpleNamespace(
-        coordsys="cartesian",
-        boundary=np.arange(ncell + 1, dtype=float),
-        vol=np.ones(ncell, dtype=float),
+    mesh = SimpleNamespace(coordsys="cartesian")
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
         coordinate=np.arange(ncell, dtype=float) + 0.5,
+        boundary=np.arange(ncell + 1, dtype=float),
+        width=np.ones(ncell, dtype=float),
+        area=np.ones(ncell, dtype=float),
+        volume=np.ones(ncell, dtype=float),
     )
     fluid = SimpleNamespace(
-        rho_code=rho.copy(),
-        vel_code=np.zeros(ncell, dtype=float),
+        rho_proper_code=rho.copy(),
+        vel_proper_code=np.zeros(ncell, dtype=float),
+        pre_proper_code=np.ones(ncell, dtype=float),
+        temp_proper_code=np.ones(ncell, dtype=float),
         Mom_code=np.zeros(ncell, dtype=float),
         Energy_code=np.zeros(ncell, dtype=float),
+    )
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=0.0,
     )
     par = parameter_namespace(
         CodeUnits=CODE_UNITS,

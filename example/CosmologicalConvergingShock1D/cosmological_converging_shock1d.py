@@ -22,6 +22,11 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_converging_shock1d.yaml")
 
@@ -55,42 +60,59 @@ def make_initial_condition(ic, units):
     state.par.nogrid = int(ic["grid_cells"])
     state.par.coordsys = "spherical"
     state.par.boxsize = np.asarray([float(ic["outer_radius"].to_value(units.length_unit))]) * units.length_unit
-    state.par.time = np.asarray([0.0]) * units.time_unit
-    state.par.simulation = SimpleNamespace(current_time=state.par.time, box_size=state.par.boxsize, coordinate_system="spherical")
+    state.par.time_proper_code = np.asarray([0.0])
+    state.par.simulation = SimpleNamespace(time_proper_code=state.par.time_proper_code, box_size=state.par.boxsize, coordinate_system="spherical")
     state.par.mesh = SimpleNamespace(grid_cells=state.par.nogrid, ghost_cells=0)
     state.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
     rmin = float(ic["inner_radius"].to_value(units.length_unit))
     rmax = float(ic["outer_radius"].to_value(units.length_unit))
     boundary = np.linspace(rmin, rmax, state.par.nogrid + 1)
-    state.mesh.boundary = boundary * units.length_unit
-    state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1]) * units.length_unit
-    state.mesh.xdelta = np.diff(boundary) * units.length_unit
-    state.mesh.area = 4.0 * np.pi * boundary[:-1] ** 2 * units.area_unit
-    state.mesh.vol = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3) * units.volume_unit
-    radius = np.asarray(state.mesh.coordinate.to_value(units.length_unit))
+    state.mesh.boundary_proper_code = boundary
+    state.mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
+    state.mesh.width_proper_code = np.diff(boundary)
+    state.mesh.area_proper_code = 4.0 * np.pi * boundary[:-1] ** 2
+    state.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
+    radius = np.asarray(state.mesh.x_proper_code, dtype=float)
     shell = (radius >= float(ic["shell_inner"].to_value(units.length_unit))) & (radius <= float(ic["shell_outer"].to_value(units.length_unit)))
-    state.fluid.rho_code = np.where(shell, float(ic["rho_shell"]), 0.0)
-    state.fluid.temp_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
-    state.fluid.vel_code = np.where(shell, float(ic["velocity"].to_value(units.velocity_unit)), 0.0)
+    state.fluid.rho_proper_code = np.where(shell, float(ic["rho_shell"]), 0.0)
+    state.fluid.temp_proper_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
+    state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(units.velocity_unit)), 0.0)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mu"]))
+    state.fluid.time_proper_code = 0.0
+    state.mesh.geometry_state = MeshGeometryState(
+        x_proper_code=state.mesh.x_proper_code,
+        boundary_proper_code=state.mesh.boundary_proper_code,
+        width_proper_code=state.mesh.width_proper_code,
+        area_proper_code=state.mesh.area_proper_code,
+        volume_proper_code=state.mesh.volume_proper_code,
+    )
+    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=state.fluid.rho_proper_code,
+        velocity=state.fluid.vel_proper_code,
+        pressure=np.zeros(state.par.nogrid),
+        temperature=state.fluid.temp_proper_code,
+        time=state.fluid.time_proper_code,
+        mu=state.fluid.mu,
+    )
     return state
 
 
 def _profile(sim):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    r = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
-    vel_code = np.asarray(sim.fluid.vel_code[first:last], dtype=float)
-    pre = np.asarray(sim.fluid.pre_code[first:last], dtype=float)
-    temp_code = np.asarray(sim.fluid.temp_code[first:last], dtype=float)
+    r = np.asarray(sim.mesh.x_proper_code[first:last], dtype=float)
+    rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
+    vel_proper_code = np.asarray(sim.fluid.vel_proper_code[first:last], dtype=float)
+    pre = np.asarray(sim.fluid.pre_proper_code[first:last], dtype=float)
+    temp_proper_code = np.asarray(sim.fluid.temp_proper_code[first:last], dtype=float)
     entropy = np.full_like(pre, np.nan)
-    active = rho_code > 0.0
+    active = rho_proper_code > 0.0
     entropy[active] = (
         pre[active]
-        / rho_code[active] ** float(sim.par.hydrodynamics.gamma)
+        / rho_proper_code[active] ** float(sim.par.hydrodynamics.gamma)
     )
-    return r, rho_code, vel_code, pre, temp_code, entropy
+    return r, rho_proper_code, vel_proper_code, pre, temp_proper_code, entropy
 
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
@@ -121,7 +143,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     target = float(runparams["simulation"]["final_time"].to_value("s"))
     output_dt = float(runparams["output"]["cadence"].to_value("s"))
     next_output = 0.0
-    while float(sim.fluid.time_code) < target:
+    while float(sim.fluid.time_proper_code) < target:
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, sim.par)
@@ -130,14 +152,14 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
             sim.mesh, sim.fluid, sim.par.boundary.condition,
             method=runparams["hydrodynamics"]["riemann_solver"], order=0,
         )
-        fluxes.append([float(sim.fluid.time_code), float(sim.fluid.Mass_code.flux[wall_face]), float(sim.fluid.Mom_code.flux[wall_face]), float(sim.fluid.Energy_code.flux[wall_face])])
+        fluxes.append([float(sim.fluid.time_proper_code), float(sim.fluid.Mass_code.flux[wall_face]), float(sim.fluid.Mom_code.flux[wall_face]), float(sim.fluid.Energy_code.flux[wall_face])])
         sim.Step(dt=dt, mode="hydro")
-        time_code = float(sim.fluid.time_code)
-        if time_code >= next_output - 1.0e-12:
-            snapshots.append((time_code,) + _profile(sim))
+        time_proper_code = float(sim.fluid.time_proper_code)
+        if time_proper_code >= next_output - 1.0e-12:
+            snapshots.append((time_proper_code,) + _profile(sim))
             next_output += output_dt
 
-    snapshots.append((float(sim.fluid.time_code),) + _profile(sim))
+    snapshots.append((float(sim.fluid.time_proper_code),) + _profile(sim))
     final = snapshots[-1]
     r, rho, vel, pre, temp, entropy = final[1:]
     active = rho > float(runparams["hydrodynamics"].get("cfl_density_floor", 0.0))

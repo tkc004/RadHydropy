@@ -25,7 +25,7 @@ def build_initial_condition(config):
         mesh=SimpleNamespace(ghost_cells=0, grid_cells=grid_cells),
         simulation=SimpleNamespace(
             coordinate_system=initial['coordinate_system'],
-            current_time=np.ones(1) * initial['current_time'],
+            time_code=np.ones(1) * initial['current_time'],
             box_size=box_size,
         ),
     )

@@ -121,7 +121,7 @@ def run():
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
-        sim.fluid.SetFluidTime(sim.par.time)
+        sim.fluid.SetFluidTime(sim.par.time_code)
         sim.SetInitFluid()
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)

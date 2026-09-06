@@ -53,25 +53,25 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetFluid()
     # SetUpFluid initializes its runtime clock to zero; cosmological runs must
     # retain the supercomoving time stored in the IC header.
-    sim.fluid.SetFluidTime(sim.par.time)
+    sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
     sim.SetInitFluid()
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    initial_mass = float(np.sum(sim.fluid.rho_code[physical] * sim.mesh.vol[physical]))
+    initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))
     top_hat_radius = float(icparams['top_hat_radius'])
-    initial_inside = sim.mesh.coordinate[physical] < top_hat_radius
-    target_mass = float(np.sum(sim.fluid.rho_code[physical][initial_inside] * sim.mesh.vol[physical][initial_inside]))
-    initial_tau = float(np.asarray(sim.fluid.time_code).flat[0])
+    initial_inside = sim.mesh.x_comoving_code[physical] < top_hat_radius
+    target_mass = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
+    initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])
     initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)
     initial_delta = float(icparams['overdensity'])
     history = {'a': [], 'delta': [], 'time': []}
 
     def record(state):
-        tau = float(np.asarray(state.fluid.time_code).flat[0])
+        tau = float(np.asarray(state.fluid.tau_supercomoving_code).flat[0])
         a = state.par.cosmology.scale_factor_from_supercomoving(tau)
         radius = et.enclosed_mass_radius(
-            state.mesh.boundary[physical.start:physical.stop + 1],
-            state.fluid.rho_code[physical], state.mesh.vol[physical], target_mass,
+            state.mesh.boundary_comoving_code[physical.start:physical.stop + 1],
+            state.fluid.rho_comoving_code[physical], state.mesh.volume_comoving_code[physical], target_mass,
         )
         cosmic_time = state.par.cosmology.cosmic_time_from_supercomoving(tau)
         rho_background = state.par.cosmology.background_density(cosmic_time) * a**3
@@ -88,13 +88,13 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     final = sim
     final_physical = slice(final.par.mesh.ghost_cells, final.par.mesh.ghost_cells + final.par.mesh.grid_cells)
-    final_tau = float(np.asarray(final.fluid.time_code).flat[0])
+    final_tau = float(np.asarray(final.fluid.tau_supercomoving_code).flat[0])
     final_a = final.par.cosmology.scale_factor_from_supercomoving(final_tau)
     final_cosmic_time = final.par.cosmology.cosmic_time_from_supercomoving(final_tau)
     final_background = final.par.cosmology.background_density(final_cosmic_time) * final_a**3
     final_radius = et.enclosed_mass_radius(
-        final.mesh.boundary[final_physical.start:final_physical.stop + 1],
-        final.fluid.rho_code[final_physical], final.mesh.vol[final_physical], target_mass,
+        final.mesh.boundary_comoving_code[final_physical.start:final_physical.stop + 1],
+        final.fluid.rho_comoving_code[final_physical], final.mesh.volume_comoving_code[final_physical], target_mass,
     )
     measured_delta = 3.0 * target_mass / (4.0 * np.pi * final_radius**3) / final_background - 1.0
     expected_delta = et.linear_overdensity(initial_delta, final_a, initial_a)
@@ -125,4 +125,3 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-

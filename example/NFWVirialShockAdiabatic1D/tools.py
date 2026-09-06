@@ -72,10 +72,10 @@ def build_initial_condition(config, code_units=None):
     sim.fluid = Fluid()
     sim.par.units = SimpleNamespace(CodeUnits=code_units)
     box_size = np.ones(1) * box_size
-    sim.par.time = np.ones(1) * time_value
+    sim.par.time_code = np.ones(1) * time_value
     sim.par.simulation = SimpleNamespace(
         coordinate_system='spherical',
-        current_time=sim.par.time,
+        time_code=sim.par.time_code,
         box_size=box_size,
     )
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
@@ -269,7 +269,6 @@ def plot_snapshots(filenames, config, _unused, halo, figure_filename):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
-
 
 
 

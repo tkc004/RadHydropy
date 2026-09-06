@@ -20,17 +20,18 @@ def build_initial_condition(config):
     result.par.units = SimpleNamespace(CodeUnits=code_units)
     result.par.simulation = SimpleNamespace(
         coordinate_system=initial['coordinate_system'],
-        current_time=initial['current_time'],
+        time_code=initial['current_time'],
         box_size=initial['box_size'],
     )
     grid_cells = int(config['par']['mesh']['grid_cells'])
     boxsize = initial['box_size'] * np.ones(1)
     result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
-    result.par.time = initial['current_time'] * np.ones(1)
+    result.par.time_code = initial['current_time'] * np.ones(1)
     dx = boxsize[0] / grid_cells
     result.mesh.boundary = np.linspace(dx, boxsize[0] + dx, grid_cells + 1)
-    result.fluid.vel_code = np.zeros(grid_cells) * (0.0 * unyt.cm / unyt.s)
-    result.fluid.temp_code = np.ones(grid_cells) * temperature_unyt
+    result.fluid.vel_code = np.zeros(grid_cells, dtype=float)
+    temperature_proper_cgs_K_unyt = np.ones(grid_cells) * temperature_unyt
+    result.fluid.temp_code = temperature_proper_cgs_K_unyt
     rho_cgs_g_cm3 = density_cgs_cm3 * unyt.mp.to_value(unyt.g) / hydrogen_mass_fraction
     result.fluid.rho_code = np.ones(grid_cells) * rho_cgs_g_cm3
     result.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']

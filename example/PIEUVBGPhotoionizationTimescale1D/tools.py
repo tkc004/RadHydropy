@@ -15,7 +15,7 @@ def build_initial_condition(config):
         time=np.ones(1) * initial['time'],
         units=SimpleNamespace(CodeUnits=config['_code_units']),
         simulation=SimpleNamespace(
-            current_time=initial['time'], box_size=initial['boxsize'],
+            time_code=initial['time'], box_size=initial['boxsize'],
             coordinate_system=initial['coordsys'],
         ),
         mesh=SimpleNamespace(grid_cells=grid_cells, ghost_cells=0),
@@ -57,4 +57,3 @@ def load_history(output_dir):
                 }
             )
     return history
-

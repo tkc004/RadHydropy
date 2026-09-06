@@ -73,7 +73,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=icparams['current_time'] * np.ones(1),
+        time_code=icparams['current_time'] * np.ones(1),
         box_size=box_size,
     )
 
@@ -86,14 +86,15 @@ def build_initial_condition(config):
     sim.mesh.coordinate = 0.5 * (
         sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
     )
-    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
     sim.mesh.area = runparams['mesh']['area'] * np.ones(grid_cells)
     sim.mesh.vol = sim.mesh.area * (
         sim.mesh.boundary[1:] - sim.mesh.boundary[:-1]
     )
     sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-    sim.fluid.temp_code = np.ones(grid_cells) * 0.0 * unyt.K
+    temperature_proper_cgs_K_unyt = np.ones(grid_cells) * 0.0 * unyt.K
+    sim.fluid.temp_code = temperature_proper_cgs_K_unyt
     icut = 1
     pre = icparams['explosion_energy'] / np.sum(sim.mesh.vol[icut]) * (
         runparams['hydrodynamics']['gamma'] - 1.0
@@ -124,7 +125,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         E0 = icparams['explosion_energy'] * 2.0
     rho1d0 = icparams['initial_density'] * runparams['mesh']['area']
     A0 = rho1d0
-    t = rout.par.simulation.current_time * code_units_obj.time_unit
+    t = rout.par.simulation.time_code * code_units_obj.time_unit
     r, rho, v, p, Rs = sa.get_blastwave_solution(E0, A0, nu, g, w, t)
     r = unyt.uconcatenate((r, unyt.unyt_array([1.0, 2] * Rs)))
     rho = unyt.uconcatenate((rho, unyt.unyt_array([rho1d0, rho1d0])))
@@ -143,8 +144,5 @@ def ReadandPlot(outfilename, config, **kwargs):
     plt.subplot(1, 3, 3)
     rplot1d(rout, yquan='rho_code', showfig=0, showhalf=1, **kwargs)
     plt.plot(r.in_cgs(), (rho / runparams['mesh']['area']).in_cgs(), color=kwargs['color'])
-
-
-
 
 

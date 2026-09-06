@@ -51,7 +51,7 @@ refparams = {
     'temperature':2.7*unyt.K, # default gas/background temperature
     'hydro_integrator': 'euler',
     'initial_time': None,
-    'time': 0.0 * unyt.s,
+    'time_code': 0.0 * unyt.s,
     'timesim':2.0*unyt.s, # final simulation time
     'boxsize': None,
     'CFL':0.1, # CFL condition for time-step
@@ -400,7 +400,7 @@ class SimulationParameters:
     initial_condition_filename: object = None
     coordinate_system: str = 'cartesian'
     final_time: object = None
-    current_time: object = None
+    time_code: object = None
     box_size: object = None
     cosmological_expansion: bool = False
     supercomoving_coordinates: bool = False
@@ -615,7 +615,7 @@ class Par:
                 'final_time': 'timesim',
                 'initial_time': 'initial_time',
                 'box_size': 'boxsize',
-                'current_time': 'time',
+                'current_time': 'time_code',
             },
             'mesh': {'grid_cells': 'nogrid', 'ghost_cells': 'noghost', 'area': 'area'},
             'hydrodynamics': {
@@ -988,7 +988,7 @@ class Par:
             initial_condition_filename=self.ICfilename,
             coordinate_system=self._parameter('coordsys'),
             final_time=self._parameter('timesim'),
-            current_time=getattr(self, 'time', None),
+            time_code=getattr(self, 'time_code', None),
             box_size=getattr(self, 'boxsize', None),
             cosmological_expansion=self.cosmological_expansion,
             supercomoving_coordinates=self.supercomoving_coordinates,

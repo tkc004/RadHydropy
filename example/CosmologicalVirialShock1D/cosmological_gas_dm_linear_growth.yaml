@@ -24,6 +24,8 @@ par:
   timestep:
     dtmin: 1.0e-12
     dtmax: 1.0
+  cosmological_background_boundary_reconstruction: true
+  dark_matter_crossing_batch_fraction: 0.0
   output:
     directory: outputs_linear_growth
     savedir: outputs_linear_growth
@@ -53,9 +55,6 @@ par:
     hydrogen_atomic_cooling: false
     hydrogen_thermal_coupling: false
     hydrogen_chemistry: false
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.0
-  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
 initial_condition:
   rmin: 1.0
   rmax: 500.0
@@ -79,3 +78,4 @@ example:
   snapshot_count: 7
   diagnostic_radius_min_comoving_kpc: 20.0
   diagnostic_radius_max_comoving_kpc: 200.0
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

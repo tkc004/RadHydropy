@@ -107,8 +107,8 @@ class LinearGrowthDiagnosticSolver(Solver):
         return factor
 
 
-def _load_correlation_table(config_filename, par):
-    filename = Path(par["linear_correlation_table_filename"])
+def _load_correlation_table(config_filename, example):
+    filename = Path(example["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
     return et.load_lcdm_correlation_table(filename)
@@ -134,12 +134,12 @@ def _set_background_state(sim, cosmology, cosmic_time, baryon_fraction,
         sim.fluid.eos.pressure(rho, initial_temperature_code, mu),
         dtype=float,
     ))
-    volume = float(np.asarray(sim.mesh.vol[index], dtype=float))
-    sim.fluid.rho_code[index] = rho
-    sim.fluid.vel_code[index] = velocity
-    sim.fluid.temp_code[index] = initial_temperature_code
+    volume = float(np.asarray(sim.mesh.volume_comoving_code[index], dtype=float))
+    sim.fluid.rho_comoving_code[index] = rho
+    sim.fluid.vel_supercomoving_code[index] = velocity
+    sim.fluid.temp_supercomoving_code[index] = initial_temperature_code
     sim.fluid.mu[index] = mu
-    sim.fluid.pre_code[index] = pressure
+    sim.fluid.pre_supercomoving_code[index] = pressure
     sim.fluid.Mass_code[index] = rho * volume
     sim.fluid.Mom_code[index] = 0.0
     sim.fluid.Energy_code[index] = float(np.asarray(
@@ -205,10 +205,10 @@ def _make_matched_initial_state(config, units, cosmology,
         0.0, float(icparams["rmax"]), int(par["mesh"]["grid_cells"]) + 1
     )
     coordinates = et.cell_centres(boundaries)
-    initial.mesh.boundary = boundaries
-    initial.mesh.coordinate = coordinates
-    initial.mesh.area = 4.0 * np.pi * boundaries[:-1]**2
-    initial.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
+    initial.mesh.boundary_comoving_code = boundaries
+    initial.mesh.x_comoving_code = coordinates
+    initial.mesh.area_comoving_code = 4.0 * np.pi * boundaries[:-1]**2
+    initial.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
     cosmic_time = float(icparams["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
@@ -229,16 +229,17 @@ def _make_matched_initial_state(config, units, cosmology,
     target_total_mass = (
         background_comoving * enclosed_volume * (1.0 + mean_delta)
     )
-    initial.fluid.rho_code = _matched_cell_density(
+    initial.fluid.rho_comoving_code = _matched_cell_density(
         boundaries, coordinates, baryon_fraction * target_total_mass
     )
-    initial.fluid.vel_code = -(
+    initial.fluid.vel_supercomoving_code = -(
         scale_factor**2 * hubble * mean_delta * coordinates / 3.0
     )
-    initial.fluid.temp_code = np.full(
+    initial.fluid.temp_supercomoving_code = np.full(
         int(par["mesh"]["grid_cells"]),
         float(icparams["cie_initial_temperature"]) * scale_factor**2,
     )
+    et.refresh_typed_initial_condition(initial, units)
 
     shell_radius = coordinates.copy()
     shells = DarkMatterShells(
@@ -258,8 +259,8 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
               initial_scale_factor, diagnostic_min, diagnostic_max):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    x = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
-    rho_code = np.asarray(sim.fluid.rho_code[first:last], dtype=float)
+    x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
+    rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     growth = scale_factor / initial_scale_factor
@@ -271,7 +272,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     volume = 4.0 * np.pi / 3.0 * x**3
 
     gas_mass = prepare_enclosed_gas_mass(
-        sim.mesh, sim.fluid.rho_code, sim.par
+        sim.mesh, sim.fluid.rho_comoving_code, sim.par
     )(x)
     dm_x = np.asarray(dm.radius, dtype=float)
     dm_mass = dm.enclosed_mass(dm_x)
@@ -297,7 +298,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     )
     delta_analytic = growth * mean_delta_initial
 
-    gas_velocity = np.asarray(sim.fluid.vel_code[first:last], dtype=float) / scale_factor
+    gas_velocity = np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float) / scale_factor
     gas_velocity_analytic = -(
         scale_factor * hubble * x * delta_analytic / 3.0
     )
@@ -491,7 +492,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         t_ref=float(gravity["cosmology_t_ref"]),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
-    correlation_table = _load_correlation_table(config_filename, par)
+    correlation_table = _load_correlation_table(config_filename, example)
     smooth_force = (
         bool(par["hydrodynamics"].get("smooth_dm_force_for_gas", True))
         if smooth_force_override is None else bool(smooth_force_override)
@@ -531,7 +532,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.fluid.time_code = float(np.asarray(sim.par.time).flat[0])
+    sim.fluid.tau_supercomoving_code = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     gravity_dm = SmoothEnclosedMassForGas(dm) if smooth_force else dm
     sim.par.gravity = Gravity(
         selfgravity=True,
@@ -574,9 +575,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )]
     steps = 0
     for target_tau in snapshot_taus[1:]:
-        while float(sim.fluid.time_code) < target_tau - 1.0e-13:
+        while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-13:
             cosmic_time = float(
-                cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
+                cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
             )
             _set_background_state(
                 sim, cosmology, cosmic_time, baryon_fraction,
@@ -584,7 +585,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             )
             sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
             sim.solver.SetConserved(sim.mesh, sim.fluid)
-            dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.time_code))
+            dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.tau_supercomoving_code))
             crossing_dt = float(dm.crossing_timestep(safety_factor=1.0))
             if np.isfinite(crossing_dt) and crossing_dt <= dt * (1.0 + 1.0e-12):
                 raise RuntimeError(
@@ -599,7 +600,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 raise RuntimeError("dark-matter shell radii ceased to be strictly ordered")
 
         cosmic_time = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.time_code))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
         _set_background_state(
             sim, cosmology, cosmic_time, baryon_fraction,
@@ -665,4 +666,3 @@ if __name__ == "__main__":
         resolution_override=arguments.resolution,
         output_suffix=arguments.output_suffix,
     )
-

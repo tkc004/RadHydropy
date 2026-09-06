@@ -8,6 +8,7 @@ import numpy as np
 import unyt
 
 from radhydropy import io as rio
+from radhydropy.units import quantity_to_value
 
 
 TEMPLATE_TOOLS = (
@@ -47,7 +48,7 @@ def build_static_problem(config):
     par, mesh, fluid, solver = _BASE_BUILD_STATIC_PROBLEM(config)
     initial = config['initial_condition']
     example = config['example']
-    par.boundcond = 'OutflowSph'
+    par.boundcond = 'WindSph'
     par.rho_outflow = _wind_density(config)
     par.vel_outflow = example['wind_velocity']
     par.temp_outflow = example['wind_temperature']
@@ -55,11 +56,42 @@ def build_static_problem(config):
 
     boxsize_cm = initial['box_size'].to_value(unyt.cm)
     rinj_cm = example['rinj'].to_value(unyt.cm)
-    mesh.boundary = np.linspace(
+    boundary_proper_cgs_cm_unyt = np.linspace(
         rinj_cm,
         rinj_cm + boxsize_cm,
         config['par']['mesh']['grid_cells'] + 1,
     ) * unyt.cm
+    mesh.boundary_proper_code = quantity_to_value(
+        boundary_proper_cgs_cm_unyt, par.CodeUnits.length_unit
+    )
+    wind_cells = min(
+        int(example.get('wind_injection_cells', 2)),
+        par.nogrid,
+    )
+    if wind_cells > 0:
+        cell_center_proper_code = 0.5 * (
+            mesh.boundary_proper_code[:wind_cells]
+            + mesh.boundary_proper_code[1:wind_cells + 1]
+        )
+        injection_radius_proper_code = quantity_to_value(
+            example['rinj'], par.CodeUnits.length_unit
+        )
+        wind_density_proper_code = quantity_to_value(
+            _wind_density(config), par.CodeUnits.density_unit
+        )
+        wind_velocity_proper_code = quantity_to_value(
+            example['wind_velocity'], par.CodeUnits.velocity_unit
+        )
+        wind_temperature_proper_code = quantity_to_value(
+            example['wind_temperature'], par.CodeUnits.temperature_unit
+        )
+        fluid.rho_proper_code[:wind_cells] = wind_density_proper_code * (
+            injection_radius_proper_code / cell_center_proper_code
+        ) ** 2
+        fluid.vel_proper_code[:wind_cells] = wind_velocity_proper_code
+        fluid.temp_proper_code[:wind_cells] = wind_temperature_proper_code
+        fluid.mu[:wind_cells] = example['wind_mu']
+    _template._attach_proper_runtime_states(par, mesh, fluid)
     return par, mesh, fluid, solver
 
 

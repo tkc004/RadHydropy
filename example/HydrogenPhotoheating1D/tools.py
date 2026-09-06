@@ -45,7 +45,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=np.ones(1) * icparams['current_time'],
+        time_code=np.ones(1) * icparams['current_time'],
         box_size=box_size,
     )
 
@@ -58,7 +58,7 @@ def build_initial_condition(config):
         * icparams['hydrogen_number_density']
         * unyt.mp
     ).to(unyt.g / unyt.cm**3)
-    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.temp_code = np.ones(grid_cells) * icparams['temperature']
     sim.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
     sim.fluid.ngamma_code = np.ones(grid_cells) * icparams['photon_number_density']

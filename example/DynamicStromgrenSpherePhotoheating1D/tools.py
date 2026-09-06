@@ -17,6 +17,11 @@ from radhydropy.fluid import Fluid
 import radhydropy.io as rio
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 
 IONIZATION_FRONT_NEUTRAL_FRACTION = 0.5
@@ -89,6 +94,46 @@ def _to_temperature(values, par):
     return np.asarray(code_quantity_to_cgs(values, code, 'temperature_cgs_K'), dtype=float)
 
 
+def _attach_proper_runtime_states(par, mesh, fluid):
+    """Attach unitless proper-code geometry and fluid states for HDF5."""
+    boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
+    width_proper_code = np.diff(boundary_proper_code)
+    area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
+    volume_proper_code = (
+        4.0 * np.pi / 3.0
+        * np.abs(boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    )
+    coordinate_proper_code = 0.5 * (
+        boundary_proper_code[1:] + boundary_proper_code[:-1]
+    )
+    denominator = boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
+    valid = denominator != 0.0
+    coordinate_proper_code[valid] = 0.75 * (
+        boundary_proper_code[1:][valid] ** 4
+        - boundary_proper_code[:-1][valid] ** 4
+    ) / denominator[valid]
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=coordinate_proper_code,
+        boundary=boundary_proper_code,
+        width=width_proper_code,
+        area=area_proper_code,
+        volume=volume_proper_code,
+    )
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    fluid.SetPressure()
+    fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=fluid.rho_proper_code,
+        velocity=fluid.vel_proper_code,
+        pressure=fluid.pre_proper_code,
+        temperature=fluid.temp_proper_code,
+        time=fluid.time_proper_code,
+        mu=fluid.mu,
+        xHI=fluid.xHI if hasattr(fluid, 'xHI') else None,
+    )
+
+
 def build_static_problem(config):
     par_config = config['par']
     simulation = par_config['simulation']
@@ -159,7 +204,7 @@ def build_static_problem(config):
         unit_system=code_units_obj.unit_system,
     )
     par.simulation = SimpleNamespace(
-        current_time=0.0 * unyt.Myr,
+        time_code=0.0 * unyt.Myr,
         box_size=initial['box_size'],
         coordinate_system=par.coordsys,
     )
@@ -169,24 +214,36 @@ def build_static_problem(config):
     )
 
     mesh = Mesh()
-    mesh.boundary = np.linspace(
+    mesh.boundary_proper_code = quantity_to_value(np.linspace(
         0.0,
         initial['box_size'].to_value(unyt.cm),
         par.nogrid + 1,
-    ) * unyt.cm
+    ) * unyt.cm, code_units_obj.length_unit)
 
     fluid = Fluid()
+    fluid.code_units = code_units_obj
     fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
-    fluid.rho_code = (
+    fluid.rho_proper_code = quantity_to_value((
         np.ones(par.nogrid)
         * initial['hydrogen_number_density']
         * unyt.mp
-    ).to(unyt.g / unyt.cm**3)
-    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(par.nogrid) * initial['initial_temperature']
+    ).to(unyt.g / unyt.cm**3), code_units_obj.density_unit)
+    fluid.vel_proper_code = quantity_to_value(
+        np.zeros(par.nogrid) * unyt.cm / unyt.s,
+        code_units_obj.velocity_unit,
+    )
+    fluid.temp_proper_code = quantity_to_value(
+        np.ones(par.nogrid) * initial['initial_temperature'],
+        code_units_obj.temperature_unit,
+    )
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.SetFluidTime(0.0 * unyt.Myr)
+    fluid.ngamma_code = quantity_to_value(
+        np.ones(par.nogrid) * radiation['hydrogen_ngamma_initial'],
+        code_units_obj.number_density_unit,
+    )
+    fluid.SetFluidTime(0.0)
+    _attach_proper_runtime_states(par, mesh, fluid)
 
     solver = Solver()
     return par, mesh, fluid, solver
@@ -208,7 +265,9 @@ def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
     if getattr(par, 'noghost', 0) > 0:
-        mesh.boundary = np.asarray(mesh.boundary[par.noghost : -par.noghost], dtype=float)
+        mesh.boundary_proper_code = np.asarray(
+            mesh.boundary_proper_code[par.noghost : -par.noghost], dtype=float
+        )
     mesh.SetUpMesh(par)
     fluid.SetPressure()
     return par, mesh, fluid
@@ -231,7 +290,7 @@ def ionization_front_position(
     neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
 ):
     interior = interior_slice(par)
-    radius = _to_kpc(mesh.coordinate[interior], par)
+    radius = _to_kpc(mesh.x_proper_code[interior], par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
     if np.all(xHI > neutral_fraction):
@@ -257,7 +316,7 @@ def ionization_front_position(
 def mean_ionized_temperature(fluid, par):
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
-    temperature = _to_temperature(fluid.temp_code[interior], par)
+    temperature = _to_temperature(fluid.temp_proper_code[interior], par)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
@@ -265,7 +324,7 @@ def mean_ionized_temperature(fluid, par):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(_to_myr(fluid.time_code, par))
+    history['time_Myr'].append(_to_myr(fluid.time_proper_code, par))
     history['front_radius_kpc'].append(
         ionization_front_position(
             mesh,
@@ -444,12 +503,12 @@ def save_front_plot(history, config, figure_filename):
 def save_plot(mesh, fluid, par, config, figure_filename):
     example = config.get('example', {})
     interior = interior_slice(par)
-    radius_pc = _to_kpc(mesh.coordinate[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho_code[interior], par)
-    velocity = _to_km_s(fluid.vel_code[interior], par)
+    radius_pc = _to_kpc(mesh.x_proper_code[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
+    number_density = _to_number_density(fluid.rho_proper_code[interior], par)
+    velocity = _to_km_s(fluid.vel_proper_code[interior], par)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure = _to_pressure(fluid.pre_code[interior], par)
-    temperature = _to_temperature(fluid.temp_code[interior], par)
+    pressure = _to_pressure(fluid.pre_proper_code[interior], par)
+    temperature = _to_temperature(fluid.temp_proper_code[interior], par)
     plot_radius_max = example['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

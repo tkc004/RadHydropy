@@ -31,14 +31,21 @@ class Testing(unittest.TestCase):
     def setUp(self):
         self.par = Par()
         self.mesh = Mesh()
-        self.mesh.boundary = np.linspace(1, 10, num=self.par.nogrid + 1) * unyt.cm
+        self.mesh.boundary_proper_code = (
+            np.linspace(1, 10, num=self.par.nogrid + 1) * unyt.cm
+        )
 
     def test_SetUpMesh(self):
         self.mesh.SetUpMesh(self.par)
-        self.assertEqual(len(self.mesh.vol), self.par.nogrid + 2 * self.par.noghost)
-        self.assertEqual(len(self.mesh.boundary), self.par.nogrid + 1 + 2 * self.par.noghost)
-        np.testing.assert_allclose(self.mesh.vol, np.full(len(self.mesh.vol), 2.7))
-        self.assertFalse(hasattr(self.mesh.boundary, 'units'))
+        self.assertEqual(len(self.mesh.volume_proper_code), self.par.nogrid + 2 * self.par.noghost)
+        self.assertEqual(len(self.mesh.boundary_proper_code), self.par.nogrid + 1 + 2 * self.par.noghost)
+        np.testing.assert_allclose(self.mesh.volume_proper_code, np.full(len(self.mesh.volume_proper_code), 2.7))
+        self.assertFalse(hasattr(self.mesh.boundary_proper_code, 'units'))
+        for name in (
+            "x_proper_code", "boundary_proper_code", "width_proper_code",
+            "area_proper_code", "volume_proper_code",
+        ):
+            self.assertFalse(hasattr(getattr(self.mesh.geometry_state, name), "units"))
 
     def test_unknown_coordinate_system_raises(self):
         self.par.coordsys = 'cylindrical'
@@ -49,26 +56,26 @@ class Testing(unittest.TestCase):
     def test_spherical_origin_face_has_zero_area(self):
         self.par.coordsys = 'spherical'
         self.par.simulation.coordinate_system = 'spherical'
-        self.mesh.boundary = np.linspace(-0.5, 1.5, num=self.par.nogrid + 1)
+        self.mesh.boundary_proper_code = np.linspace(-0.5, 1.5, num=self.par.nogrid + 1)
 
         self.mesh.SetUpMesh(self.par)
 
         origin_cell = np.where(
-            np.logical_and(self.mesh.boundary[:-1] < 0.0,
-                           self.mesh.boundary[1:] > 0.0)
+            np.logical_and(self.mesh.boundary_proper_code[:-1] < 0.0,
+                           self.mesh.boundary_proper_code[1:] > 0.0)
         )[0][0]
-        self.assertEqual(self.mesh.area[origin_cell], 0.0)
+        self.assertEqual(self.mesh.area_proper_code[origin_cell], 0.0)
 
     def test_spherical_zero_inner_boundary_has_zero_area(self):
         self.par.coordsys = 'spherical'
         self.par.simulation.coordinate_system = 'spherical'
-        self.mesh.boundary = np.linspace(0.0, 1.0, num=self.par.nogrid + 1)
+        self.mesh.boundary_proper_code = np.linspace(0.0, 1.0, num=self.par.nogrid + 1)
 
         self.mesh.SetUpMesh(self.par)
 
-        self.assertEqual(self.mesh.boundary[self.par.noghost], 0.0)
-        self.assertEqual(self.mesh.area[self.par.noghost], 0.0)
+        self.assertEqual(self.mesh.boundary_proper_code[self.par.noghost], 0.0)
+        self.assertEqual(self.mesh.area_proper_code[self.par.noghost], 0.0)
         self.assertAlmostEqual(
-            float(self.mesh.coordinate[self.par.noghost]),
-            0.75 * float(self.mesh.boundary[self.par.noghost+1] - self.mesh.boundary[self.par.noghost]),
+            float(self.mesh.x_proper_code[self.par.noghost]),
+            0.75 * float(self.mesh.boundary_proper_code[self.par.noghost+1] - self.mesh.boundary_proper_code[self.par.noghost]),
         )

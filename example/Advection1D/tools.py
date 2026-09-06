@@ -39,7 +39,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=config['par']['simulation']['coordinate_system'],
-        current_time=initial['current_time'] * np.ones(1),
+        time_code=initial['current_time'] * np.ones(1),
         box_size=box_size,
     )
 
@@ -72,7 +72,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     rout.par.units.CodeUnits = code_units_obj
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    time = rout.par.simulation.current_time * code_units_obj.time_unit
+    time = rout.par.simulation.time_code * code_units_obj.time_unit
     x = np.linspace(
         0.0 * initial['box_size'],
         initial['box_size'],
@@ -91,7 +91,6 @@ def ReadandPlot(outfilename, config, **kwargs):
         rho[np.logical_and(x > x1, x < x2)] *= 0.5
     plt.plot(x, rho, color=kwargs['color'], ls='solid')
     rplot1d(rout, showfig=0, **kwargs)
-
 
 
 

@@ -9,14 +9,43 @@ from radhydropy.cosmological_variables import physical_temperature, supercomovin
 
 def temperature_physical_cgs_K(sim):
     """Return the simulation gas temperature in physical kelvin."""
-    if not hasattr(sim.fluid, 'temp_code'):
+    runtime_state = getattr(sim.fluid, "runtime_state", None)
+    if getattr(sim.par, "supercomoving_coordinates", False):
+        temperature_field = (
+            runtime_state.temp_supercomoving_code
+            if runtime_state is not None
+            else sim.fluid.temp_supercomoving_code
+        )
+        time_runtime_code = (
+            runtime_state.tau_supercomoving_code
+            if runtime_state is not None
+            else sim.fluid.tau_supercomoving_code
+        )
+    else:
+        temperature_field = (
+            runtime_state.temp_proper_code
+            if runtime_state is not None
+            else sim.fluid.temp_proper_code
+            if hasattr(sim.fluid, "temp_proper_code")
+            else None
+        )
+        time_runtime_code = (
+            runtime_state.time_proper_code
+            if runtime_state is not None
+            else sim.fluid.time_proper_code
+            if hasattr(sim.fluid, "time_proper_code")
+            else 0.0
+        )
+    if temperature_field is None:
         return None
-    temperature = np.asarray(sim.fluid.temp_code, dtype=float)
+    temperature = np.asarray(temperature_field, dtype=float)
     code = getattr(sim.par, 'CodeUnits', None)
     if code is not None:
         temperature = temperature * float(code.temperature_in_cgs)
     if getattr(sim.par, 'supercomoving_coordinates', False):
-        scale_factor, _ = supercomoving_scale(sim.par, time=sim.fluid.time_code)
+        scale_factor, _ = supercomoving_scale(
+            sim.par, time=time_runtime_code
+        )
         temperature = physical_temperature(
             temperature, scale_factor, float(sim.fluid.eos.gamma)
         )
@@ -78,7 +107,15 @@ def check_conserved_energy_admissibility(
         return
     first = int(par.mesh.ghost_cells)
     last = first + int(par.mesh.grid_cells)
-    volume = np.asarray(sim.mesh.vol, dtype=float)
+    if not hasattr(sim.mesh, 'geometry_state'):
+        return
+    if getattr(par, "supercomoving_coordinates", False):
+        volume_runtime_code = sim.mesh.geometry_state.volume_comoving_code
+    else:
+        volume_runtime_code = sim.mesh.geometry_state.volume_proper_code
+    volume = np.asarray(
+        volume_runtime_code, dtype=float
+    )
     mass = np.asarray(sim.fluid.Mass_code, dtype=float)
     momentum = np.asarray(sim.fluid.Mom_code, dtype=float)
     energy = np.asarray(sim.fluid.Energy_code, dtype=float)
@@ -137,7 +174,21 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     if temperature_after is None or temperature_before is None:
         return
     before = np.asarray(temperature_before, dtype=float)
-    density = np.asarray(sim.fluid.rho_code, dtype=float)
+    if getattr(sim.par, "supercomoving_coordinates", False):
+        density_runtime_code = sim.fluid.runtime_state.rho_comoving_code
+        coordinate_runtime_code = sim.mesh.geometry_state.x_comoving_code
+        velocity_runtime_code = sim.fluid.runtime_state.vel_supercomoving_code
+        pressure_runtime_code = sim.fluid.runtime_state.pre_supercomoving_code
+        time_runtime_code = sim.fluid.runtime_state.tau_supercomoving_code
+    else:
+        density_runtime_code = sim.fluid.runtime_state.rho_proper_code
+        coordinate_runtime_code = sim.mesh.geometry_state.x_proper_code
+        velocity_runtime_code = sim.fluid.runtime_state.vel_proper_code
+        pressure_runtime_code = sim.fluid.runtime_state.pre_proper_code
+        time_runtime_code = sim.fluid.runtime_state.time_proper_code
+    density = np.asarray(
+        density_runtime_code, dtype=float
+    )
     crossing = (
         (density > 0.0)
         & np.isfinite(temperature_after)
@@ -154,9 +205,15 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     if candidates.size == 0:
         return
     index = int(candidates[0])
-    radius = np.asarray(sim.mesh.coordinate, dtype=float)
-    velocity = np.asarray(sim.fluid.vel_code, dtype=float)
-    pressure = np.asarray(sim.fluid.pre_code, dtype=float)
+    radius = np.asarray(
+        coordinate_runtime_code, dtype=float
+    )
+    velocity = np.asarray(
+        velocity_runtime_code, dtype=float
+    )
+    pressure = np.asarray(
+        pressure_runtime_code, dtype=float
+    )
     sound_speed = np.asarray(
         getattr(sim.fluid, 'cs_code', np.zeros_like(density)), dtype=float
     )
@@ -165,7 +222,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     lines = [
         'temperature jump error: physical gas temperature exceeded %.6e K '
         'during %s at cell %d (time=%s)' % (
-            threshold, stage, index, sim.fluid.time_code,
+            threshold, stage, index, time_runtime_code,
         ),
         'cell: radius=%s T_before=%s K T_after=%s K rho=%s vel=%s '
         'pressure=%s cs=%s mass=%s energy=%s' % (

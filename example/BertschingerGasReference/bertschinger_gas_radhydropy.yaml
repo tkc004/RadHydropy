@@ -15,7 +15,7 @@ par:
   timestep:
     dtmin: {value: 1.0e-5, unit: yr}
     dtmax: {value: 1.0e-3, unit: Myr}
-  output: {directory: ., savedir: ., filename_prefix: Output_RadHydro}
+  output: {directory: ., savedir: ., filename_prefix: Output_RadHydro, cadence: 0.001}
   diagnostics: {verbose: 0}
   units:
     CodeUnits:

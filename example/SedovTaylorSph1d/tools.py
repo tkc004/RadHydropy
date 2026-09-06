@@ -73,7 +73,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=icparams['current_time'] * np.ones(1),
+        time_code=icparams['current_time'] * np.ones(1),
         box_size=box_size,
     )
 
@@ -85,13 +85,14 @@ def build_initial_condition(config):
     sim.mesh.coordinate = 0.5 * (
         sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
     )
-    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
     sim.mesh.vol = (
         sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
     ) * 4.0 * np.pi / 3.0
     sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-    sim.fluid.temp_code = np.ones(grid_cells) * 0.0 * unyt.K
+    temperature_proper_cgs_K_unyt = np.ones(grid_cells) * 0.0 * unyt.K
+    sim.fluid.temp_code = temperature_proper_cgs_K_unyt
     icut = np.logical_and(
         sim.mesh.coordinate < icparams['explosion_radius'],
         sim.mesh.coordinate >= icparams['injection_radius'],
@@ -120,7 +121,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     w = 0.0
     E0 = float(np.asarray(icparams['explosion_energy'].to_value(unyt.erg), dtype=float))
     A0 = float(np.asarray(icparams['initial_density'].to_value(unyt.g / unyt.cm**3), dtype=float))
-    t = float(np.asarray(rout.par.simulation.current_time, dtype=float))
+    t = float(np.asarray(rout.par.simulation.time_code, dtype=float))
     r, rho, v, p, Rs = sa.get_blastwave_solution(E0, A0, nu, g, w, t)
     r = r * unyt.cm
     rho = rho * (unyt.g / unyt.cm**3)
@@ -151,8 +152,5 @@ def ReadandPlot(outfilename, config, **kwargs):
     rplot1d(rout, yquan='rho_code', showfig=0, **kwargs)
     plt.plot(r.in_cgs(), rho.in_cgs(), color=kwargs['color'])
     plt.xlim([0, 4])
-
-
-
 
 

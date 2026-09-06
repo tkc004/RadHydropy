@@ -19,6 +19,11 @@ from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 import example_utils as eu
 from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
@@ -75,9 +80,9 @@ def make_initial_condition(
     state.par.coordsys = "cartesian"
     state.par.boxsize = np.asarray([boxsize])
     initial_tau = float(code_cosmology.supercomoving_time(initial_time))
-    state.par.time = np.asarray([initial_tau])
+    state.par.tau_supercomoving_code = np.asarray([initial_tau])
     state.par.simulation = State()
-    state.par.simulation.current_time = state.par.time
+    state.par.simulation.tau_supercomoving_code = state.par.tau_supercomoving_code
     state.par.simulation.box_size = state.par.boxsize
     state.par.simulation.coordinate_system = "cartesian"
     state.par.mesh = State()
@@ -102,16 +107,32 @@ def make_initial_condition(
     state.par.temperature_representation = "supercomoving"
 
     boundary = np.linspace(0.0, boxsize, count + 1)
-    state.mesh.boundary = boundary
-    state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    state.mesh.xdelta = np.full(count, boxsize / count)
-    state.mesh.area = np.ones(count)
-    state.mesh.vol = np.full(count, boxsize / count)
-    state.fluid.rho_code = np.full(count, density_code * initial_scale_factor**3)
-    state.fluid.vel_code = np.zeros(count)
-    state.fluid.temp_code = np.full(count, 1.0)
+    state.mesh.boundary_comoving_code = boundary
+    state.mesh.x_comoving_code = 0.5 * (boundary[1:] + boundary[:-1])
+    state.mesh.width_comoving_code = np.full(count, boxsize / count)
+    state.mesh.area_comoving_code = np.ones(count)
+    state.mesh.volume_comoving_code = np.full(count, boxsize / count)
+    state.fluid.rho_comoving_code = np.full(count, density_code * initial_scale_factor**3)
+    state.fluid.vel_supercomoving_code = np.zeros(count)
+    state.fluid.temp_supercomoving_code = np.full(count, 1.0)
     state.fluid.mu = np.ones(count)
-    state.fluid.time_code = np.asarray([initial_tau])
+    state.fluid.tau_supercomoving_code = initial_tau
+    state.mesh.geometry_state = MeshGeometryState(
+        x_comoving_code=state.mesh.x_comoving_code,
+        boundary_comoving_code=state.mesh.boundary_comoving_code,
+        width_comoving_code=state.mesh.width_comoving_code,
+        area_comoving_code=state.mesh.area_comoving_code,
+        volume_comoving_code=state.mesh.volume_comoving_code,
+    )
+    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=state.fluid.rho_comoving_code,
+        velocity=state.fluid.vel_supercomoving_code,
+        pressure=np.zeros(count),
+        temperature=state.fluid.temp_supercomoving_code,
+        time=state.fluid.tau_supercomoving_code,
+        mu=state.fluid.mu,
+    )
     return state
 
 
@@ -183,13 +204,13 @@ def run():
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
-        sim.fluid.SetFluidTime(sim.par.time)
+        sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
         sim.SetInitFluid()
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
-        final_tau_sim = float(np.asarray(sim.fluid.time_code, dtype=float).flat[0])
+        final_tau_sim = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
-        measured_density = float(np.mean(sim.fluid.rho_code)) / final_a**3
+        measured_density = float(np.mean(sim.fluid.rho_comoving_code)) / final_a**3
         expected_density = density_code * (initial_scale_factor / final_scale_factor) ** 3
         expected_critical = density_msun_mpc3_to_cgs(
             physical.critical_density(final_time_gyr)

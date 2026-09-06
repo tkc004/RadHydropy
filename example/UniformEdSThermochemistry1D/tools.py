@@ -28,7 +28,7 @@ class UniformEdSInitialCondition:
         self.par.nogrid = count
         self.par.coordsys = "spherical"
         self.par.boxsize = np.asarray([rmax])
-        self.par.time = np.asarray([initial_time], dtype=float)
+        self.par.time_code = np.asarray([initial_time], dtype=float)
         self.par.cosmological_expansion = True
         self.par.supercomoving_coordinates = False
         self.par.cosmological_gravity = False
@@ -45,7 +45,7 @@ class UniformEdSInitialCondition:
         self.par.pressure_representation = "physical"
         self.par.temperature_representation = "physical"
         self.par.simulation = SimpleNamespace(
-            current_time=initial_time,
+            time_code=initial_time,
             box_size=np.asarray([rmax]),
             coordinate_system="spherical",
         )

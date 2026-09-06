@@ -85,8 +85,8 @@ def build_initial_condition(config):
     result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
     result.par.units = SimpleNamespace(CodeUnits=code_units)
     box_size = np.ones(1) * initial['boxsize']
-    result.par.time = np.ones(1) * initial['time']
-    result.par.simulation = SimpleNamespace(current_time=result.par.time, box_size=box_size, coordinate_system='spherical')
+    result.par.time_code = np.ones(1) * initial['time']
+    result.par.simulation = SimpleNamespace(time_code=result.par.time_code, box_size=box_size, coordinate_system='spherical')
     result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     result.par.hydrodynamics = SimpleNamespace(gamma=2.0)
     result.mesh.boundary = np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1)
@@ -128,4 +128,3 @@ def read_output(filename, config):
         result.fluid.mu,
     )
     return result
-

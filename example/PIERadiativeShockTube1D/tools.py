@@ -21,7 +21,7 @@ def build_initial_condition(config):
         units=SimpleNamespace(CodeUnits=code_units),
         simulation=SimpleNamespace(
             coordinate_system=initial['coordinate_system'],
-            current_time=initial['current_time'],
+            time_code=initial['current_time'],
             box_size=initial['box_size'],
         ),
         mesh=SimpleNamespace(

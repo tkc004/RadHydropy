@@ -28,6 +28,11 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 import example_utils as eu
 from bertschinger_gas import solve_bertschinger_gas
 
@@ -64,27 +69,27 @@ class BertschingerBoundarySolver(Solver):
         last = first + int(par.mesh.grid_cells)
         left = slice(0, first)
         right = slice(last, last + int(par.mesh.ghost_cells))
-        for name in ('rho', 'vel', 'pre', 'temp', 'mu'):
+        for name in ('rho_comoving_code', 'vel_supercomoving_code', 'pre_supercomoving_code', 'temp_supercomoving_code', 'mu'):
             if hasattr(fluid, name):
                 getattr(fluid, name)[left] = getattr(fluid, name)[first]
 
-        tau = float(np.asarray(fluid.time_code, dtype=float).reshape(-1)[0])
+        tau = float(np.asarray(fluid.tau_supercomoving_code, dtype=float).reshape(-1)[0])
         cosmology = par.cosmology
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
         scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
         hubble = float(cosmology.hubble_from_supercomoving(tau))
-        radius = np.asarray(mesh.coordinate[right], dtype=float)
+        radius = np.asarray(mesh.x_comoving_code[right], dtype=float)
         amplitude = float(par.perturbation_amplitude)
         delta = amplitude / np.maximum(radius, 1.0e-30)**3
-        fluid.rho_code[right] = (
+        fluid.rho_comoving_code[right] = (
             float(cosmology.background_density(cosmic_time)) * scale_factor**3
         )
-        fluid.vel_code[right] = -scale_factor**2 * hubble * delta * radius / 3.0
+        fluid.vel_supercomoving_code[right] = -scale_factor**2 * hubble * delta * radius / 3.0
         # The Bertschinger exterior is pressureless.  Do not use the finite
         # cold-temperature floor from the active IC in the outer ghosts.
-        fluid.temp_code[right] = 0.0
+        fluid.temp_supercomoving_code[right] = 0.0
         fluid.mu[right] = float(par.mu_outflow)
-        fluid.pre_code[right] = 0.0
+        fluid.pre_supercomoving_code[right] = 0.0
 
 
 def _spherical_centers(boundary):
@@ -145,62 +150,110 @@ def build_initial_condition(config):
     sim.par.cosmology = EinsteinDeSitter.from_code_units(
         code_units, t_ref=initial_time, a_ref=1.0
     )
-    sim.par.time = np.ones(1) * sim.par.cosmology.supercomoving_time(initial_time)
+    sim.par.tau_supercomoving_code = np.ones(1) * sim.par.cosmology.supercomoving_time(initial_time)
     sim.par.coordinate_frame = 'comoving'
     sim.par.time_coordinate = 'supercomoving'
-    sim.par.velocity_representation = 'physical'
-    sim.par.density_representation = 'physical'
-    sim.par.pressure_representation = 'physical'
-    sim.par.temperature_representation = 'physical'
+    sim.par.velocity_representation = 'supercomoving_peculiar'
+    sim.par.density_representation = 'comoving'
+    sim.par.pressure_representation = 'supercomoving'
+    sim.par.temperature_representation = 'supercomoving'
     sim.par.perturbation_amplitude = float(icparams['perturbation_amplitude'])
     sim.par.simulation = SimpleNamespace(
-        current_time=icparams['initial_cosmic_time'],
+        # The runtime and HDF5 state use supercomoving time.  The IC profile
+        # itself is evaluated at this cosmic time, but the serialized state
+        # must start at the corresponding tau (zero at t_ref here).
+        tau_supercomoving_code=sim.par.tau_supercomoving_code.copy(),
         box_size=icparams['box_size'],
         coordinate_system=simulation['coordinate_system'],
     )
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-    sim.mesh.boundary = np.linspace(
-        icparams['inner_radius'], icparams['outer_radius'], grid_cells + 1
+    inner_radius_code = float(
+        icparams['inner_radius'].to_value(code_units.length_unit)
     )
-    sim.mesh.coordinate = _spherical_centers(sim.mesh.boundary)
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
-        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    outer_radius_code = float(
+        icparams['outer_radius'].to_value(code_units.length_unit)
+    )
+    sim.mesh.boundary_comoving_code = np.linspace(
+        inner_radius_code, outer_radius_code, grid_cells + 1
+    )
+    sim.mesh.x_comoving_code = _spherical_centers(sim.mesh.boundary_comoving_code)
+    sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
+    sim.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary_comoving_code[1:]**3 - sim.mesh.boundary_comoving_code[:-1]**3
     )
 
-    radius = np.asarray(sim.mesh.coordinate.to_value(unyt.kpc), dtype=float)
+    radius = np.asarray(sim.mesh.x_comoving_code, dtype=float)
     cosmology = sim.par.cosmology
     scale_factor = float(cosmology.scale_factor(initial_time))
-    hubble = float(cosmology.hubble(initial_time))
     rho_background = float(cosmology.background_density(initial_time)) * scale_factor**3
     amplitude = float(icparams['perturbation_amplitude'])
-    delta = amplitude / np.maximum(radius, 1.0e-30)**3
-    density = np.full_like(radius, rho_background)
-    velocity = scale_factor * hubble * radius * (
-        1.0 - delta / 3.0
+    rta = scale_factor * (
+        amplitude / solution.mass_out[np.argmin(
+            np.abs(solution.lambda_out - 1.0)
+        )]
+    ) ** (1.0 / 3.0)
+    similarity_radius = scale_factor * radius / rta
+    combined_lambda = np.concatenate((solution.lambda_in, solution.lambda_out))
+    order = np.argsort(combined_lambda)
+    combined_lambda = combined_lambda[order]
+    density_profile = np.concatenate(
+        (solution.density_in, solution.density_out)
+    )[order]
+    velocity_profile = np.concatenate(
+        (solution.velocity_in, solution.velocity_out)
+    )[order]
+    density = rho_background * np.interp(
+        similarity_radius, combined_lambda, density_profile
     )
-    pressure = np.full_like(radius, 0.0)
-    temperature_code = pressure * float(icparams['mean_molecular_weight']) / (
+    velocity_physical = np.interp(
+        similarity_radius, combined_lambda, velocity_profile
+    ) * rta / initial_time
+    hubble_initial = float(cosmology.hubble(initial_time))
+    velocity = scale_factor * (
+        velocity_physical - hubble_initial * scale_factor * radius
+    )
+    pressure_profile = np.zeros_like(similarity_radius)
+    interior = similarity_radius <= solution.shock_lambda
+    pressure_profile[interior] = np.interp(
+        similarity_radius[interior], solution.lambda_in, solution.pressure_in
+    )
+    pressure = pressure_profile * rho_background * (rta / initial_time) ** 2
+    mean_molecular_weight = float(icparams['mean_molecular_weight'])
+    temperature_code = pressure * mean_molecular_weight / (
         np.maximum(density, 1.0e-300)
         * code_units.boltzmann_code / code_units.proton_mass_code
     )
-    temperature_code.fill(
-        float(icparams['initial_temperature'].to_value(unyt.K))
-        / code_units.temperature_in_cgs
-    )
-    sim.par.initial_temperature_code = float(temperature_code[0])
+    temperature_code = np.maximum(temperature_code, 0.0)
+    sim.par.initial_temperature_code = float(np.max(temperature_code))
     sim.par.mu_outflow = float(icparams['mean_molecular_weight'])
-    sim.fluid.rho_code = density * code_units.density_unit
-    sim.fluid.vel_code = velocity * code_units.velocity_unit
-    sim.fluid.temp_code = temperature_code * code_units.temperature_unit
+    sim.fluid.rho_comoving_code = density
+    sim.fluid.vel_supercomoving_code = velocity
+    sim.fluid.temp_supercomoving_code = temperature_code
     sim.fluid.mu = np.ones(grid_cells) * float(icparams['mean_molecular_weight'])
+    sim.mesh.geometry_state = MeshGeometryState(
+        x_comoving_code=sim.mesh.x_comoving_code,
+        boundary_comoving_code=sim.mesh.boundary_comoving_code,
+        width_comoving_code=np.diff(sim.mesh.boundary_comoving_code),
+        area_comoving_code=sim.mesh.area_comoving_code,
+        volume_comoving_code=sim.mesh.volume_comoving_code,
+    )
+    sim.fluid.tau_supercomoving_code = float(
+        np.asarray(sim.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
+    )
+    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=sim.fluid.rho_comoving_code,
+        velocity=sim.fluid.vel_supercomoving_code,
+        pressure=np.zeros_like(sim.fluid.rho_comoving_code),
+        temperature=sim.fluid.temp_supercomoving_code,
+        time=sim.fluid.tau_supercomoving_code,
+        mu=sim.fluid.mu,
+    )
 
-    delta_mass = 4.0 * np.pi / 3.0 * rho_background * amplitude
     sim.dark_matter = DarkMatterShells(
         radius=np.array([float(icparams['outer_radius'].to_value(unyt.kpc)) * 2.0]),
         velocity=np.zeros(1),
         mass=np.full(1, 1.0e-30) * code_units.mass_unit,
-        fixed_enclosed_mass=delta_mass * code_units.mass_unit,
         code_units=code_units,
     )
 
@@ -208,23 +261,23 @@ def build_initial_condition(config):
     return sim
 def _similarity_profiles(sim, solution):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    tau = float(np.asarray(sim.fluid.time_code, dtype=float).reshape(-1)[0])
+    tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).reshape(-1)[0])
     cosmology = sim.par.cosmology
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
     cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
-    radius = scale_factor * np.asarray(sim.mesh.coordinate[interior], dtype=float)
+    radius = scale_factor * np.asarray(sim.mesh.x_comoving_code[interior], dtype=float)
     density = cosmology.physical_density(
-        np.asarray(sim.fluid.rho_code[interior], dtype=float), tau
+        np.asarray(sim.fluid.rho_comoving_code[interior], dtype=float), tau
     )
     velocity = cosmology.physical_velocity(
-        np.asarray(sim.mesh.coordinate[interior], dtype=float),
-        np.asarray(sim.fluid.vel_code[interior], dtype=float), tau,
+        np.asarray(sim.mesh.x_comoving_code[interior], dtype=float),
+        np.asarray(sim.fluid.vel_supercomoving_code[interior], dtype=float), tau,
     )
     pressure = cosmology.physical_pressure(
-        np.asarray(sim.fluid.pre_code[interior], dtype=float), tau, sim.par.hydrodynamics.gamma
+        np.asarray(sim.fluid.pre_supercomoving_code[interior], dtype=float), tau, sim.par.hydrodynamics.gamma
     )
     boundaries = np.asarray(
-        sim.mesh.boundary[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1],
+        sim.mesh.boundary_comoving_code[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1],
         dtype=float,
     ) * scale_factor
     time = cosmic_time
@@ -312,7 +365,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
-    sim.fluid.SetFluidTime(sim.par.time)
+    sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
     sim.SetInitFluid()
     sim.par.cosmology = initial.par.cosmology
     sim.par.gravity = Gravity(

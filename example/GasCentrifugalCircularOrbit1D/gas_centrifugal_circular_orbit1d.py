@@ -55,7 +55,7 @@ class CircularInitialCondition:
             boxsize=np.asarray([radius_max]),
         )
         self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(current_time=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
+        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
         self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
         self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
         self.mesh = SimpleNamespace()

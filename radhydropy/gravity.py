@@ -13,6 +13,26 @@ from radhydropy.units import (
 )
 
 
+def _canonical_mesh_geometry_arrays(mesh, par):
+    """Return geometry arrays through an explicit proper/comoving branch."""
+    geometry = mesh.geometry_state
+    if getattr(par, 'supercomoving_coordinates', False):
+        return (
+            geometry.x_comoving_code,
+            geometry.boundary_comoving_code,
+            geometry.width_comoving_code,
+            geometry.area_comoving_code,
+            geometry.volume_comoving_code,
+        )
+    return (
+        geometry.x_proper_code,
+        geometry.boundary_proper_code,
+        geometry.width_proper_code,
+        geometry.area_proper_code,
+        geometry.volume_proper_code,
+    )
+
+
 def _require_code_units(code_units):
     if code_units is None:
         raise ValueError("gravity helpers require code_units")
@@ -210,9 +230,11 @@ class Gravity:
 
     def potential_on_mesh(self, mesh):
         """Return the potential evaluated on a mesh coordinate array."""
-        if not hasattr(mesh, "coordinate"):
-            raise AttributeError("mesh does not provide cell coordinates")
-        return self.potential_on(mesh.coordinate)
+        if not hasattr(mesh, "geometry_state"):
+            raise AttributeError("mesh does not provide typed geometry state")
+        return self.potential_on(
+            _canonical_mesh_geometry_arrays(mesh, getattr(mesh, '_par', None))[0]
+        )
 
     def self_acceleration_on_mesh(self, mesh, rho, par):
         """Return the gas self-gravity acceleration on a one-dimensional mesh.
@@ -222,9 +244,16 @@ class Gravity:
         ``selfgravity_boundary_acceleration`` as the left-boundary field.
         """
         code_units = _require_code_units(_code_units(self))
+        coordinate_runtime_code, boundary_runtime_code, width_runtime_code, _, volume_runtime_code = (
+            _canonical_mesh_geometry_arrays(mesh, par)
+        )
         rho = np.asarray(quantity_to_value(rho, code_units.density_unit), dtype=float)
-        coordinate = np.asarray(quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float)
-        volume = np.asarray(quantity_to_value(mesh.vol, code_units.volume_unit), dtype=float)
+        coordinate = np.asarray(quantity_to_value(
+            coordinate_runtime_code, code_units.length_unit
+        ), dtype=float)
+        volume = np.asarray(quantity_to_value(
+            volume_runtime_code, code_units.volume_unit
+        ), dtype=float)
         if rho.shape != coordinate.shape or volume.shape != coordinate.shape:
             raise ValueError("self-gravity inputs must match the mesh cell shape")
 
@@ -236,7 +265,7 @@ class Gravity:
 
         if mesh.coordsys == "spherical":
             boundaries = np.asarray(
-                quantity_to_value(mesh.boundary, code_units.length_unit),
+                quantity_to_value(boundary_runtime_code, code_units.length_unit),
                 dtype=float,
             )
             radii = coordinate[interior]
@@ -256,7 +285,9 @@ class Gravity:
 
         if mesh.coordsys == "cartesian":
             result[first] = self.selfgravity_boundary_acceleration
-            dx = np.asarray(quantity_to_value(mesh.xdelta, code_units.length_unit), dtype=float)
+            dx = np.asarray(quantity_to_value(
+                width_runtime_code, code_units.length_unit
+            ), dtype=float)
             for index in range(first + 1, last):
                 result[index] = result[index - 1] - 4.0 * np.pi * g_code * rho[index - 1] * dx[index - 1]
             if first < last:
@@ -275,7 +306,10 @@ class Gravity:
         ``g_sc = -G * a * DeltaM(<x) / x**2``.
         """
         if not self.cosmological:
-            return np.zeros_like(mesh.coordinate, dtype=float)
+            coordinate_runtime_code = _canonical_mesh_geometry_arrays(mesh, par)[0]
+            return np.zeros_like(
+                coordinate_runtime_code, dtype=float
+            )
         if getattr(mesh, "coordsys", None) != "spherical":
             raise ValueError("cosmological gravity currently requires a spherical mesh")
         cosmology = self.cosmology or getattr(par, "cosmology", None)
@@ -287,14 +321,21 @@ class Gravity:
         density = np.asarray(
             quantity_to_value(rho, code_units.density_unit), dtype=float
         )
+        _, boundary_runtime_code, _, _, volume_runtime_code = (
+            _canonical_mesh_geometry_arrays(mesh, par)
+        )
+        coordinate_runtime_code = _canonical_mesh_geometry_arrays(mesh, par)[0]
         boundaries = np.asarray(
-            quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
+            quantity_to_value(boundary_runtime_code, code_units.length_unit),
+            dtype=float,
         )
         coordinate = np.asarray(
-            quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float
+            quantity_to_value(coordinate_runtime_code, code_units.length_unit),
+            dtype=float,
         )
         volume = np.asarray(
-            quantity_to_value(mesh.vol, code_units.volume_unit), dtype=float
+            quantity_to_value(volume_runtime_code, code_units.volume_unit),
+            dtype=float,
         )
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)
@@ -303,13 +344,16 @@ class Gravity:
             raise ValueError("cosmological gravity inputs must match mesh shape")
         tau = float(
             np.asarray(
-                getattr(getattr(par, 'simulation', None), 'current_time', 0.0),
+                getattr(
+                    getattr(par, 'simulation', None),
+                    'tau_supercomoving_code', 0.0,
+                ),
                 dtype=float,
             )
         )
         # A gravity model's live fluid time is authoritative once the run has started.
-        if hasattr(self, 'fluid_time'):
-            tau = float(np.asarray(self.fluid_time, dtype=float))
+        if hasattr(self, 'tau_supercomoving_code'):
+            tau = float(np.asarray(self.tau_supercomoving_code, dtype=float))
         cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
         background_physical = float(cosmology.background_density(cosmic_time))
         background_comoving = background_physical * scale_factor**3
@@ -353,15 +397,18 @@ class Gravity:
 
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
         """Return the total external plus self-gravity acceleration."""
+        coordinate = _canonical_mesh_geometry_arrays(
+            mesh, par or getattr(mesh, '_par', None)
+        )[0]
         if (
             not self.externalgravity
             and not self.selfgravity
             and self.dark_matter is None
         ):
-            return np.zeros_like(mesh.coordinate, dtype=float)
-        total = np.zeros_like(mesh.coordinate, dtype=float)
+            return np.zeros_like(coordinate, dtype=float)
+        total = np.zeros_like(coordinate, dtype=float)
         if self.externalgravity:
-            total += self.acceleration_on(mesh.coordinate)
+            total += self.acceleration_on(coordinate)
         if self.selfgravity or self.cosmological:
             if rho is None or par is None:
                 raise ValueError("rho and par are required when selfgravity is enabled")
@@ -376,10 +423,13 @@ class Gravity:
     def dark_matter_acceleration_on_mesh(self, mesh, rho, par):
         """Return the acceleration from live dark-matter shells."""
         if self.dark_matter is None:
-            return np.zeros_like(mesh.coordinate, dtype=float)
+            return np.zeros_like(_canonical_mesh_geometry_arrays(mesh, par)[0], dtype=float)
         code_units = _require_code_units(_code_units(self))
         coordinate = np.asarray(
-            quantity_to_value(mesh.coordinate, code_units.length_unit), dtype=float
+            quantity_to_value(
+                _canonical_mesh_geometry_arrays(mesh, par)[0],
+                code_units.length_unit,
+            ), dtype=float
         )
         enclosed = self.dark_matter.gravitating_enclosed_mass(coordinate)
         radius = np.maximum(coordinate, np.finfo(float).tiny)
@@ -395,15 +445,14 @@ class Gravity:
         rho,
         par,
         crossing_safety_factor=0.1,
-        current_time=None,
+        tau_supercomoving_code=None,
     ):
         """Advance live dark-matter shells using the current gas mass field.
 
-        ``current_time`` is the current supercomoving time. Fluid-coupled
+        ``tau_supercomoving_code`` is the current supercomoving time. Fluid-coupled
         runs pass it explicitly; direct dark-matter callers can do the same
         without constructing a fluid object. Set ``rho=None`` for a
-        fluid-free run. The stored ``fluid_time`` and simulation parameter
-        remain compatibility fallbacks for older callers.
+        fluid-free run.
         """
         if self.dark_matter is None:
             return 0.0
@@ -420,22 +469,22 @@ class Gravity:
                 raise ValueError(
                     "cosmological dark-matter shells require supercomoving cosmology"
                 )
-            # ``par.simulation.current_time`` is generally only an
+            # ``par.simulation.time_code`` is generally only an
             # initialization/restart value. Prefer an explicit live time,
-            # then the compatibility attribute set by ApplyGravity, and only
-            # finally use the parameter fallback for legacy callers.
-            if current_time is None:
-                current_time = getattr(self, "fluid_time", None)
-            if current_time is None:
-                current_time = getattr(
-                    getattr(par, "simulation", None), "current_time", None
+            # then the live attribute set by ApplyGravity, and finally use the
+            # initialization parameter.
+            if tau_supercomoving_code is None:
+                tau_supercomoving_code = getattr(
+                    getattr(par, "simulation", None),
+                    "tau_supercomoving_code", None,
                 )
-            if current_time is None:
+            if tau_supercomoving_code is None:
                 raise ValueError(
-                    "cosmological dark-matter advance requires current_time "
+                    "cosmological dark-matter advance requires "
+                    "tau_supercomoving_code "
                     "when no fluid time is available"
                 )
-            tau = float(np.asarray(current_time, dtype=float))
+            tau = float(np.asarray(tau_supercomoving_code, dtype=float))
             cosmic_time, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
             tau_start = tau - float(dt)
             _, scale_factor_start, _ = cosmology.background_state_from_supercomoving(tau_start)

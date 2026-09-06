@@ -136,10 +136,10 @@ def build_initial_condition(config, code_units=None):
     sim.fluid = Fluid()
     sim.par.units = SimpleNamespace(CodeUnits=code_units)
     box_size = np.ones(1) * box_size
-    sim.par.time = np.ones(1) * time_value
+    sim.par.time_code = np.ones(1) * time_value
     sim.par.simulation = SimpleNamespace(
         coordinate_system='spherical',
-        current_time=sim.par.time,
+        time_code=sim.par.time_code,
         box_size=box_size,
     )
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
@@ -163,7 +163,7 @@ def build_initial_condition(config, code_units=None):
     temperature = virial_temperature(halo, icparams['mu'])
     sim.fluid.temp_code = np.ones(grid_cells) * temperature
     sim.fluid.mu = np.ones(grid_cells) * icparams['mu']
-    sim.fluid.vel_code = np.zeros(grid_cells) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_code = hydrostatic_density_profile(
         sim.mesh.coordinate,
         sim.mesh.boundary,
@@ -223,8 +223,6 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
     return np.max(np.abs((rho_cgs - rho_expected_cgs) / rho_expected_cgs))
-
-
 
 
 

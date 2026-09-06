@@ -6,6 +6,11 @@ import unyt
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+)
 import radhydropy.io as rio
 
 
@@ -49,16 +54,17 @@ def build_initial_condition(config):
     sim.par.coordsys = 'spherical'
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
-    sim.par.boxsize = np.ones(1) * icparams['boxsize']
+    boxsize_code = quantity_to_value(icparams['boxsize'], code_units.length_unit)
+    sim.par.boxsize = np.ones(1) * boxsize_code
     cosmic_time = float(icparams['cosmic_time'])
     sim.par.simulation = SimpleNamespace(
-        current_time=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
-        box_size=np.ones(1) * icparams['boxsize'],
+        tau_supercomoving_code=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
+        box_size=np.ones(1) * boxsize_code,
         coordinate_system='spherical',
     )
     scale_factor = cosmology.scale_factor(cosmic_time)
     hubble = cosmology.hubble(cosmic_time)
-    sim.par.time = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
+    sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True
@@ -75,27 +81,49 @@ def build_initial_condition(config):
     sim.par.pressure_representation = 'supercomoving'
     sim.par.temperature_representation = 'supercomoving'
 
-    sim.mesh.boundary = np.linspace(
-        icparams['rmin'], icparams['rmax'], sim.par.nogrid + 1,
+    rmin_code = quantity_to_value(icparams['rmin'], code_units.length_unit)
+    rmax_code = quantity_to_value(icparams['rmax'], code_units.length_unit)
+    sim.mesh.boundary_comoving_code = np.linspace(
+        rmin_code, rmax_code, sim.par.nogrid + 1,
     )
-    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
-        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    sim.mesh.x_comoving_code = spherical_cell_centers(sim.mesh.boundary_comoving_code)
+    sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
+    sim.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary_comoving_code[1:]**3 - sim.mesh.boundary_comoving_code[:-1]**3
     )
 
     rho_background = cosmology.background_density(cosmic_time)
     rho_comoving = rho_background * scale_factor**3
     delta = float(icparams['overdensity'])
-    inside = sim.mesh.coordinate < float(icparams['top_hat_radius'])
-    sim.fluid.rho_code = rho_comoving * (1.0 + delta * inside) * np.ones(sim.par.nogrid)
-    sim.fluid.vel_code = growing_mode_velocity(
-        sim.mesh.coordinate, delta, scale_factor, hubble,
+    inside = sim.mesh.x_comoving_code < float(icparams['top_hat_radius'])
+    sim.fluid.rho_comoving_code = rho_comoving * (1.0 + delta * inside) * np.ones(sim.par.nogrid)
+    sim.fluid.vel_supercomoving_code = growing_mode_velocity(
+        sim.mesh.x_comoving_code, delta, scale_factor, hubble,
     )
-    sim.fluid.temp_code = np.ones(sim.par.nogrid) * quantity_to_value(
+    sim.fluid.temp_supercomoving_code = np.ones(sim.par.nogrid) * quantity_to_value(
         icparams['tempini'], code_units.temperature_unit,
     ) * scale_factor**2
     sim.fluid.mu = np.ones(sim.par.nogrid) * float(icparams['muini'])
+    sim.mesh.width_comoving_code = np.diff(sim.mesh.boundary_comoving_code)
+    sim.mesh.geometry_state = MeshGeometryState(
+        x_comoving_code=sim.mesh.x_comoving_code,
+        boundary_comoving_code=sim.mesh.boundary_comoving_code,
+        width_comoving_code=sim.mesh.width_comoving_code,
+        area_comoving_code=sim.mesh.area_comoving_code,
+        volume_comoving_code=sim.mesh.volume_comoving_code,
+    )
+    sim.fluid.tau_supercomoving_code = float(
+        np.asarray(sim.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
+    )
+    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        density=sim.fluid.rho_comoving_code,
+        velocity=sim.fluid.vel_supercomoving_code,
+        pressure=np.zeros_like(sim.fluid.rho_comoving_code),
+        temperature=sim.fluid.temp_supercomoving_code,
+        time=sim.fluid.tau_supercomoving_code,
+        mu=sim.fluid.mu,
+    )
 
 
     return sim
@@ -115,8 +143,3 @@ def read_snapshot(filename, runparams):
     })
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
-
-
-
-

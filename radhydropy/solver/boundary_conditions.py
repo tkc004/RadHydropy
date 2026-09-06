@@ -17,10 +17,14 @@ from radhydropy.units import (
     photon_number_density,
 )
 from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import runtime_fields
 
 
 def _boundary_field_names(solver, fluid):
-    fields = ['rho_code', 'vel_code', 'pre_code']
+    runtime = getattr(fluid, 'runtime_fields', None)
+    if runtime is None:
+        runtime = runtime_fields(getattr(fluid, '_par', None))
+    fields = [runtime.density, runtime.velocity, runtime.pressure]
     if hasattr(fluid, 'specific_angular_momentum_code'):
         fields.append('specific_angular_momentum_code')
     if hasattr(fluid, 'xHI'):
@@ -48,13 +52,16 @@ def _boundary_state(
     negate_velocity=False,
     reverse=False,
 ):
+    runtime = getattr(fluid, 'runtime_fields', None)
+    if runtime is None:
+        runtime = runtime_fields(getattr(fluid, '_par', None))
     state = {
-        'rho_code': fluid.rho_code[source],
-        'pre_code': fluid.pre_code[source],
+        runtime.density: getattr(fluid, runtime.density)[source],
+        runtime.pressure: getattr(fluid, runtime.pressure)[source],
     }
     if include_velocity:
-        velocity = fluid.vel_code[source]
-        state['vel_code'] = -velocity if negate_velocity else velocity
+        velocity = getattr(fluid, runtime.velocity)[source]
+        state[runtime.velocity] = -velocity if negate_velocity else velocity
     if hasattr(fluid, 'specific_angular_momentum_code'):
         state['specific_angular_momentum_code'] = fluid.specific_angular_momentum_code[source]
     if hasattr(fluid, 'xHI'):
@@ -98,21 +105,29 @@ def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
             quan[right_ghost] = quan[nolast]
 
 def _apply_reflecting_boundary(solver, fluid, interior, left_ghost, right_ghost, noghost):
-    for attr in ('rho_code', 'pre_code', 'specific_angular_momentum_code'):
+    runtime = getattr(fluid, 'runtime_fields', None)
+    if runtime is None:
+        runtime = runtime_fields(getattr(fluid, '_par', None))
+    for attr in (runtime.density, runtime.pressure, 'specific_angular_momentum_code'):
         if not hasattr(fluid, attr):
             continue
         quan = getattr(fluid, attr)
         quan[left_ghost] = quan[interior][:noghost][::-1]
         quan[right_ghost] = quan[interior][-noghost:][::-1]
-    fluid.vel_code[left_ghost] = -fluid.vel_code[interior][:noghost][::-1]
-    fluid.vel_code[right_ghost] = -fluid.vel_code[interior][-noghost:][::-1]
+    velocity = getattr(fluid, runtime.velocity)
+    velocity[left_ghost] = -velocity[interior][:noghost][::-1]
+    velocity[right_ghost] = -velocity[interior][-noghost:][::-1]
 
 def _apply_spherical_inner_boundary(solver, mesh, fluid, first, noghost):
     mirror_start = first
-    if mesh is not None and hasattr(mesh, 'boundary'):
-        boundary_units = getattr(mesh.boundary, 'units', None)
+    runtime = getattr(fluid, 'runtime_fields', None)
+    if runtime is None:
+        runtime = runtime_fields(getattr(fluid, '_par', None))
+    if mesh is not None and hasattr(mesh, 'geometry_state'):
+        boundary = getattr(mesh.geometry_state, runtime.boundary)
+        boundary_units = getattr(boundary, 'units', None)
         origin = 0.0 * boundary_units if boundary_units is not None else 0.0
-        if mesh.boundary[first] < origin and mesh.boundary[first+1] > origin:
+        if boundary[first] < origin and boundary[first+1] > origin:
             mirror_start = first + 1
     left_state = solver._boundary_state(
         fluid,
@@ -151,10 +166,11 @@ def _apply_inflow_spherical_boundary(
     noghost,
 ):
     solver._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
+    runtime = runtime_fields(par)
     right_state = {
-        'rho_code': par.boundary.inflow_density,
-        'vel_code': par.boundary.inflow_velocity,
-        'pre_code': fluid.eos.pressure(
+        runtime.density: par.boundary.inflow_density,
+        runtime.velocity: par.boundary.inflow_velocity,
+        runtime.pressure: fluid.eos.pressure(
             par.boundary.inflow_density,
             par.boundary.inflow_temperature,
             par.boundary.inflow_mu,
@@ -185,10 +201,11 @@ def _apply_outflow_spherical_boundary(
     right_ghost,
     noghost,
 ):
+    runtime = runtime_fields(par)
     left_state = {
-        'rho_code': par.boundary.outflow_density,
-        'vel_code': par.boundary.outflow_velocity,
-        'pre_code': fluid.eos.pressure(
+        runtime.density: par.boundary.outflow_density,
+        runtime.velocity: par.boundary.outflow_velocity,
+        runtime.pressure: fluid.eos.pressure(
             par.boundary.outflow_density,
             par.boundary.outflow_temperature,
             par.boundary.outflow_mu,
@@ -230,7 +247,14 @@ def _apply_wind_spherical_boundary(
     reservoir to the first active cell.  The active launch cells are
     initialized by the example/IC builder with the matching profile.
     """
-    boundary_position = np.asarray(mesh.boundary, dtype=float)
+    runtime = runtime_fields(par)
+    geometry = getattr(mesh, 'geometry_state', None)
+    if geometry is None:
+        boundary_position = np.asarray(mesh.boundary, dtype=float)
+    else:
+        boundary_position = np.asarray(
+            getattr(geometry, runtime.boundary), dtype=float
+        )
     radius = np.abs(
         0.5 * (boundary_position[:noghost] + boundary_position[1:noghost + 1])
     )
@@ -250,9 +274,9 @@ def _apply_wind_spherical_boundary(
         mu,
     )
     left_state = {
-        'rho_code': density,
-        'vel_code': velocity,
-        'pre_code': pressure,
+        runtime.density: density,
+        runtime.velocity: velocity,
+        runtime.pressure: pressure,
     }
     if hasattr(fluid, 'specific_angular_momentum_code'):
         left_state['specific_angular_momentum_code'] = np.full(

@@ -45,7 +45,7 @@ def build_initial_condition(config):
     sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
-        current_time=np.array([0.0]) * icparams['current_time'],
+        time_code=np.array([0.0]) * icparams['current_time'],
         box_size=box_size,
     )
 
@@ -79,7 +79,7 @@ def getAnalyticSolution(config, rout):
     code_units_obj = getattr(rout.par.units, 'CodeUnits', None)
     if code_units_obj is None:
         code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    time = rout.par.simulation.current_time
+    time = rout.par.simulation.time_code
     if not hasattr(time, 'in_cgs'):
         time = time * code_units_obj.time_unit
     boundary = rout.mesh.boundary
@@ -132,7 +132,6 @@ def ReadandPlot(outfilename, config, **kwargs):
     rplot1d(rout, yquan='rho_code', showfig=0, showhalf=1, **kwargs)
     rho_ana, p_ana, v_ana = getAnalyticSolution(config, rout)
     plt.plot(rout.mesh.boundary, rho_ana)
-
 
 
 

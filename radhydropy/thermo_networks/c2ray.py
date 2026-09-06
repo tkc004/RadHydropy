@@ -33,6 +33,7 @@ from radhydropy.units import (
 from radhydropy import radiative_transfer as rrt
 from radhydropy.thermo_networks import hydrogen
 from radhydropy.thermo_networks import hydrogen_helium
+from radhydropy.runtime_fields import runtime_fields
 
 
 @dataclass
@@ -123,10 +124,12 @@ def _group_parameters(par):
 
 def _state_geometry(state, par):
     """Build shared RT geometry from a C²-Ray source state."""
+    boundary_cgs_cm = np.asarray(state["boundary_cgs_cm"], dtype=float)
+    volume_cgs_cm3 = np.asarray(state["volume_cgs_cm3"], dtype=float)
     mesh = SimpleNamespace(
         coordsys=getattr(par, "coordsys", "spherical"),
-        boundary=np.asarray(state["boundary_cgs_cm"], dtype=float),
-        vol=np.asarray(state["volume_cgs_cm3"], dtype=float),
+        boundary=boundary_cgs_cm,
+        vol=volume_cgs_cm3,
     )
     if "area_cgs_cm2" in state:
         mesh.area = np.asarray(state["area_cgs_cm2"], dtype=float)
@@ -834,4 +837,11 @@ def _ensure_fluid_photon_shape(fluid, photon_density):
     target = np.shape(photon_density)
     if np.shape(getattr(fluid, "ngamma_code", None)) == target:
         return
-    fluid.ngamma_code = np.zeros((target[0], len(fluid.rho_code)), dtype=float) if len(target) == 2 else np.zeros(len(fluid.rho_code), dtype=float)
+    if getattr(par, 'supercomoving_coordinates', False):
+        density = fluid.rho_comoving_code
+    else:
+        density = fluid.rho_proper_code
+    fluid.ngamma_code = (
+        np.zeros((target[0], len(density)), dtype=float)
+        if len(target) == 2 else np.zeros(len(density), dtype=float)
+    )

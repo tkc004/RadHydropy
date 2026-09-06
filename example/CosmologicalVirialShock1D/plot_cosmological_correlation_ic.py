@@ -32,6 +32,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
     par = config["par"]
     icparams = config["initial_condition"]
+    example = config["example"]
     gravity = par["gravity"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
@@ -39,7 +40,7 @@ def main(config_filename=DEFAULT_CONFIG):
         t_ref=float(gravity["cosmology_t_ref"]),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
-    table_filename = Path(par["linear_correlation_table_filename"])
+    table_filename = Path(example["linear_correlation_table_filename"])
     if not table_filename.is_absolute():
         table_filename = config_filename.parent / table_filename
     table = et.load_lcdm_correlation_table(table_filename)

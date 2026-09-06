@@ -17,8 +17,21 @@ class EnclosedGasMassProfile:
         code_units = _code_units(par)
         if code_units is None:
             raise ValueError("gas mass coupling requires configured code units")
+        geometry = getattr(mesh, "geometry_state", None)
+        if geometry is not None and getattr(
+            geometry, "boundary_comoving_code", None
+        ) is not None:
+            boundary_code = geometry.boundary_comoving_code
+        elif geometry is not None and getattr(
+            geometry, "boundary_proper_code", None
+        ) is not None:
+            boundary_code = geometry.boundary_proper_code
+        else:
+            raise AttributeError(
+                "mesh.geometry_state must provide explicit comoving or proper boundaries"
+            )
         boundaries = np.asarray(
-            quantity_to_value(mesh.boundary, code_units.length_unit), dtype=float
+            quantity_to_value(boundary_code, code_units.length_unit), dtype=float
         )
         density = np.asarray(
             quantity_to_value(rho, code_units.density_unit), dtype=float

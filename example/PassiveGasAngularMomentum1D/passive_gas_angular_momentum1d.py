@@ -156,7 +156,7 @@ def main(config_filename=DEFAULT_CONFIG):
             snapshot_fluid,
             str(output),
         )
-        snapshot_times.append(float(np.asarray(snapshot_par.time)))
+        snapshot_times.append(float(np.asarray(snapshot_par.time_code)))
         snapshot_total_j.append(
             np.sum(
                 np.asarray(snapshot_fluid.AngularMomentum_code[interior], dtype=float)
@@ -205,4 +205,3 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-

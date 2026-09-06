@@ -12,22 +12,32 @@ from radhydropy.gravity import (
 )
 from radhydropy.units import CodeUnits
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.runtime_fields import MeshGeometryState
 
 
 class DummyMesh:
     def __init__(self):
         self.coordsys = "cartesian"
-        self.coordinate = np.array([0.5, 1.5, 2.5], dtype=float)
-        self.vol = np.ones(3, dtype=float)
+        self.geometry_state = MeshGeometryState(
+            x_proper_code=np.array([0.5, 1.5, 2.5], dtype=float),
+            volume_proper_code=np.ones(3, dtype=float),
+        )
 
 
 class DummySphericalMesh:
     def __init__(self):
         self.coordsys = "spherical"
-        self.boundary = np.array([0.0, 1.0, 2.0, 3.0], dtype=float)
-        self.coordinate = np.array([0.75, 1.5, 2.5], dtype=float)
-        self.xdelta = np.ones(3, dtype=float)
-        self.vol = 4.0 * np.pi / 3.0 * np.diff(self.boundary**3)
+        boundary = np.array([0.0, 1.0, 2.0, 3.0], dtype=float)
+        self.geometry_state = MeshGeometryState(
+            x_proper_code=np.array([0.75, 1.5, 2.5], dtype=float),
+            boundary_proper_code=boundary,
+            width_proper_code=np.ones(3, dtype=float),
+            volume_proper_code=4.0 * np.pi / 3.0 * np.diff(boundary**3),
+            x_comoving_code=np.array([0.75, 1.5, 2.5], dtype=float),
+            boundary_comoving_code=boundary,
+            width_comoving_code=np.ones(3, dtype=float),
+            volume_comoving_code=4.0 * np.pi / 3.0 * np.diff(boundary**3),
+        )
 
 
 class DummyFluid:
@@ -150,8 +160,9 @@ def test_spherical_self_gravity_and_external_gravity_are_combined():
         * code_units.mass_in_cgs
         / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
     )
-    enclosed_mass = rho * (4.0 * np.pi / 3.0) * mesh.coordinate**3
-    expected_self = -g_code * enclosed_mass / mesh.coordinate**2
+    coordinate = mesh.geometry_state.x_proper_code
+    enclosed_mass = rho * (4.0 * np.pi / 3.0) * coordinate**3
+    expected_self = -g_code * enclosed_mass / coordinate**2
     expected_self[0] = 0.0
 
     assert np.allclose(total + 1.0, expected_self, rtol=1.0e-12, atol=1.0e-12)
@@ -180,10 +191,12 @@ def test_cosmological_gravity_cancels_homogeneous_background(cosmology_type):
     class Par:
         noghost = 0
         nogrid = 3
-        time = tau
         supercomoving_coordinates = True
+        coordinate_frame = "comoving"
+        time_coordinate = "supercomoving"
+        velocity_representation = "supercomoving_peculiar"
         mesh = SimpleNamespace(ghost_cells=0, grid_cells=3)
-        simulation = SimpleNamespace(current_time=tau)
+        simulation = SimpleNamespace(tau_supercomoving_code=tau)
     par = Par()
     par.cosmology = cosmology
 
@@ -217,10 +230,12 @@ def test_cosmological_gravity_scales_excess_mass_with_scale_factor(cosmology_typ
     class Par:
         noghost = 0
         nogrid = 3
-        time = tau
         supercomoving_coordinates = True
+        coordinate_frame = "comoving"
+        time_coordinate = "supercomoving"
+        velocity_representation = "supercomoving_peculiar"
         mesh = SimpleNamespace(ghost_cells=0, grid_cells=3)
-        simulation = SimpleNamespace(current_time=tau)
+        simulation = SimpleNamespace(tau_supercomoving_code=tau)
     par = Par()
     par.cosmology = cosmology
 
@@ -241,7 +256,8 @@ def test_cosmological_gravity_scales_excess_mass_with_scale_factor(cosmology_typ
         / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     expected = np.zeros(3)
-    expected[1:] = -g_code * scale_factor * (4.0 * np.pi / 3.0) / mesh.coordinate[1:]**2
+    coordinate = mesh.geometry_state.x_proper_code
+    expected[1:] = -g_code * scale_factor * (4.0 * np.pi / 3.0) / coordinate[1:]**2
     assert np.allclose(acceleration, expected)
 
 
@@ -266,7 +282,7 @@ def test_cosmological_dark_matter_accepts_explicit_time_without_fluid():
         supercomoving_coordinates=True,
         mesh=SimpleNamespace(ghost_cells=0, grid_cells=3),
         dark_matter_crossing_batch_fraction=0.01,
-        simulation=SimpleNamespace(current_time=None),
+            simulation=SimpleNamespace(tau_supercomoving_code=None),
     )
     gravity = Gravity(
         dark_matter=dark_matter,
@@ -280,7 +296,7 @@ def test_cosmological_dark_matter_accepts_explicit_time_without_fluid():
         mesh,
         None,
         par,
-        current_time=tau,
+        tau_supercomoving_code=tau,
     )
 
     assert result == 1.0

@@ -134,9 +134,9 @@ def build_initial_condition(config):
         icparams['current_time'], unyt.s, 'current_time'
     ) * unyt.s
     sim.par.boxsize = np.ones(1) * box_size
-    sim.par.time = np.ones(1) * current_time
+    sim.par.time_code = np.ones(1) * current_time
     sim.par.simulation = SimpleNamespace(
-        current_time=sim.par.time,
+        time_code=sim.par.time_code,
         box_size=sim.par.boxsize,
         coordinate_system='cartesian',
     )
@@ -151,12 +151,13 @@ def build_initial_condition(config):
         sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
     )
     dx = sim.mesh.boundary[1] - sim.mesh.boundary[0]
-    sim.mesh.area = np.ones(sim.par.nogrid) * (1.0 * unyt.cm**2)
+    area_proper_cgs_cm2_unyt = np.ones(sim.par.nogrid) * (1.0 * unyt.cm**2)
+    sim.mesh.area = area_proper_cgs_cm2_unyt
     sim.mesh.vol = sim.mesh.area * dx
 
     sim.fluid.temp_code = np.ones(sim.par.nogrid) * icparams['initial_temperature']
     sim.fluid.mu = np.ones(sim.par.nogrid) * icparams['mean_molecular_weight']
-    sim.fluid.vel_code = np.zeros(sim.par.nogrid) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
     sim.fluid.rho_code = hydrostatic_density_profile(
         sim.mesh.coordinate,
         icparams['reference_density'],

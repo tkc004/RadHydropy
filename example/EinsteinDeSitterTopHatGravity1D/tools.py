@@ -61,11 +61,11 @@ def build_initial_condition(config):
     sim.par.boxsize = np.ones(1) * icparams['boxsize']
     cosmic_time = float(icparams['cosmic_time'])
     sim.par.simulation = SimpleNamespace(
-        current_time=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
+        time_code=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
         box_size=np.ones(1) * icparams['boxsize'],
         coordinate_system='spherical',
     )
-    sim.par.time = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
+    sim.par.time_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True
@@ -129,7 +129,6 @@ def read_snapshot(filename, runparams):
     })
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
 
 
 

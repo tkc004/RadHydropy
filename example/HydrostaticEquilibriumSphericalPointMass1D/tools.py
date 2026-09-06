@@ -145,11 +145,11 @@ def build_initial_condition(config, code_units=None):
     sim.par.nogrid = grid_cells
     sim.par.coordsys = initial_condition['coordinate_system']
     sim.par.boxsize = np.ones(1) * initial_condition['box_size']
-    sim.par.time = np.ones(1) * initial_condition['current_time']
+    sim.par.time_code = np.ones(1) * initial_condition['current_time']
     sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=2)
     sim.par.simulation = SimpleNamespace(
         coordinate_system='spherical',
-        current_time=sim.par.time,
+        time_code=sim.par.time_code,
         box_size=sim.par.boxsize,
     )
 
@@ -170,7 +170,7 @@ def build_initial_condition(config, code_units=None):
 
     sim.fluid.temp_code = np.ones(sim.par.nogrid) * initial_condition['initial_temperature']
     sim.fluid.mu = np.ones(sim.par.nogrid) * initial_condition['mean_molecular_weight']
-    sim.fluid.vel_code = np.zeros(sim.par.nogrid) * unyt.cm / unyt.s
+    sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
     sim.fluid.rho_code = point_mass_hydrostatic_density_profile(
         sim.mesh.coordinate,
         initial_condition['reference_density'],
@@ -242,5 +242,3 @@ def ReadandPlot(outfilename, config, **kwargs):
     )
     plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
     plt.ylabel(rf"$v \; [{vel_units.latex_repr}]$")
-
-

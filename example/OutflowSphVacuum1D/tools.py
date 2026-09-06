@@ -57,7 +57,7 @@ def build_initial_condition(config):
     sim.par.simulation = SimpleNamespace(
         coordinate_system=icparams['coordinate_system'],
         box_size=box_size,
-        current_time=icparams['current_time'] * np.ones(1),
+        time_code=icparams['current_time'] * np.ones(1),
     )
     sim.mesh.boundary = np.linspace(
         float(icparams['injection_radius']),

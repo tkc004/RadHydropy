@@ -21,7 +21,6 @@ from radhydropy.units import (
 )
 import numpy as np
 from types import SimpleNamespace
-import unyt
 from radhydropy.arrays import as_named_array
 
 class Solver():
@@ -52,6 +51,36 @@ class Solver():
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
 
+    def _geometry_state(self, mesh, par):
+        """Return the representation-selected typed mesh geometry."""
+        if par is None:
+            par = getattr(mesh, '_par', None)
+        geometry = getattr(mesh, 'geometry_state', None)
+        if geometry is None:
+            raise ValueError("solver requires typed mesh geometry state")
+        if getattr(par, 'supercomoving_coordinates', False):
+            return SimpleNamespace(
+                coordinate=geometry.x_comoving_code,
+                boundary=geometry.boundary_comoving_code,
+                width=geometry.width_comoving_code,
+                area=geometry.area_comoving_code,
+                volume=geometry.volume_comoving_code,
+            )
+        return SimpleNamespace(
+            coordinate=geometry.x_proper_code,
+            boundary=geometry.boundary_proper_code,
+            width=geometry.width_proper_code,
+            area=geometry.area_proper_code,
+            volume=geometry.volume_proper_code,
+        )
+
+    def _fluid_primitive_state(self, fluid, par):
+        """Return the typed representation-selected primitive arrays."""
+        runtime_state = getattr(fluid, 'runtime_state', None)
+        if runtime_state is None:
+            raise ValueError("solver requires typed fluid runtime state")
+        return runtime_state
+
     def _interior_slice(self, par):
         first = int(par.mesh.ghost_cells)
         return slice(
@@ -79,17 +108,44 @@ class Solver():
         code_units = _code_units(par)
         scales = code_unit_scales(code_units)
         if not hasattr(fluid, 'ngamma_code'):
-            fluid.ngamma_code = np.zeros(np.shape(fluid.rho_code), dtype=float)
+            primitive = self._fluid_primitive_state(fluid, par)
+            if getattr(par, 'supercomoving_coordinates', False):
+                density_runtime_code = primitive.rho_comoving_code
+            else:
+                density_runtime_code = primitive.rho_proper_code
+            fluid.ngamma_code = np.zeros(
+                np.shape(density_runtime_code),
+                dtype=float,
+            )
+        else:
+            primitive = self._fluid_primitive_state(fluid, par)
+            if getattr(par, 'supercomoving_coordinates', False):
+                density_runtime_code = primitive.rho_comoving_code
+            else:
+                density_runtime_code = primitive.rho_proper_code
         interior = self._interior_slice(par)
-        boundary = np.asarray(mesh.boundary[interior.start : interior.stop + 1], dtype=float)
-        volume = np.asarray(mesh.vol[interior], dtype=float)
+        geometry = getattr(mesh, 'geometry_state', None)
+        if geometry is None:
+            raise ValueError("radiative transfer requires typed mesh geometry state")
+        if getattr(par, 'supercomoving_coordinates', False):
+            boundary_field = geometry.boundary_comoving_code
+            volume_field = geometry.volume_comoving_code
+            area_field = geometry.area_comoving_code
+        else:
+            boundary_field = geometry.boundary_proper_code
+            volume_field = geometry.volume_proper_code
+            area_field = geometry.area_proper_code
+        boundary = np.asarray(
+            boundary_field[interior.start : interior.stop + 1], dtype=float
+        )
+        volume = np.asarray(volume_field[interior], dtype=float)
         submesh = SimpleNamespace(
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
             boundary=boundary * scales['length_cgs_cm'],
             vol=volume * scales['volume_cgs_cm3'],
         )
-        if hasattr(mesh, 'area'):
-            submesh.area = np.asarray(mesh.area[interior], dtype=float) * scales['area_cgs_cm2']
+        if area_field is not None:
+            submesh.area = np.asarray(area_field[interior], dtype=float) * scales['area_cgs_cm2']
         group_edges_eV = getattr(par, 'radiation_group_edges_eV', None)
         if group_edges_eV is not None:
             sigma_groups = getattr(par, 'radiation_group_sigma_gamma', None)
@@ -131,7 +187,7 @@ class Solver():
                 )
             result = rrt.trace_long_characteristics(
                 submesh,
-                np.asarray(fluid.rho_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
+                np.asarray(density_runtime_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
                 np.asarray(fluid.xHI[interior], dtype=float),
                 hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
                 sigma_gamma=sigma_groups,
@@ -146,7 +202,7 @@ class Solver():
                 / scales['number_density_cgs_cm3']
             )
             if np.ndim(photon_density_code) == 2:
-                expected_shape = (photon_density_code.shape[0], len(fluid.rho_code))
+                expected_shape = (photon_density_code.shape[0], len(density_runtime_code))
                 if np.shape(fluid.ngamma_code) != expected_shape:
                     fluid.ngamma_code = np.zeros(expected_shape, dtype=float)
                 fluid.ngamma_code[:, interior] = photon_density_code
@@ -182,7 +238,7 @@ class Solver():
             )
         result = rrt.trace_long_characteristics(
             submesh,
-            np.asarray(fluid.rho_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
+            np.asarray(density_runtime_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
             np.asarray(fluid.xHI[interior], dtype=float),
             hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
             sigma_gamma=sigma_gamma_cgs_cm2,
@@ -200,7 +256,10 @@ class Solver():
     def _spherical_origin_face_index(self, mesh):
         if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
             return None
-        boundary = np.asarray(mesh.boundary, dtype=float)
+        boundary = np.asarray(
+            self._geometry_state(mesh, getattr(mesh, '_par', None)).boundary,
+            dtype=float,
+        )
         origin_faces = np.where(boundary[:-1] == 0.0)[0]
         if len(origin_faces) > 0:
             return int(origin_faces[0])
@@ -241,14 +300,15 @@ class Solver():
             raise ValueError('gas_core_radius must be positive for gas_core_model')
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)
-        coordinate = np.asarray(mesh.coordinate[first:last], dtype=float)
+        geometry = self._geometry_state(mesh, par)
+        coordinate = np.asarray(geometry.coordinate[first:last], dtype=float)
         core_local = coordinate < float(radius)
         if not np.any(core_local) or np.all(core_local):
             raise ValueError(
                 'gas_core_radius must contain at least one, but not all, '
                 'resolved cells'
             )
-        core = np.zeros(len(mesh.coordinate), dtype=bool)
+        core = np.zeros(len(geometry.coordinate), dtype=bool)
         core[first:last] = core_local
         core_indices = np.flatnonzero(core)
         state = {
@@ -256,7 +316,17 @@ class Solver():
             'core_indices': core_indices,
             'core_last': int(core_indices[-1]),
         }
-        for name in ('rho_code', 'vel_code', 'temp_code', 'mu', 'pre_code', 'xHI',
+        if getattr(par, 'supercomoving_coordinates', False):
+            primitive_names = (
+                'rho_comoving_code', 'vel_supercomoving_code',
+                'temp_supercomoving_code', 'pre_supercomoving_code',
+            )
+        else:
+            primitive_names = (
+                'rho_proper_code', 'vel_proper_code', 'temp_proper_code',
+                'pre_proper_code',
+            )
+        for name in (*primitive_names, 'mu', 'xHI',
                      'xHeI', 'xHeII', 'xHeIII',
                      'specific_angular_momentum_code'):
             if hasattr(fluid, name):
@@ -271,7 +341,17 @@ class Solver():
         if state is None:
             return
         core = state['core_mask']
-        for name in ('rho_code', 'vel_code', 'temp_code', 'mu', 'pre_code', 'xHI',
+        if getattr(par, 'supercomoving_coordinates', False):
+            primitive_names = (
+                'rho_comoving_code', 'vel_supercomoving_code',
+                'temp_supercomoving_code', 'pre_supercomoving_code',
+            )
+        else:
+            primitive_names = (
+                'rho_proper_code', 'vel_proper_code', 'temp_proper_code',
+                'pre_proper_code',
+            )
+        for name in (*primitive_names, 'mu', 'xHI',
                      'xHeI', 'xHeII', 'xHeIII',
                      'specific_angular_momentum_code'):
             if name in state and hasattr(fluid, name):
@@ -279,7 +359,10 @@ class Solver():
                 values[core] = state[name]
                 setattr(fluid, name, as_named_array(values))
         # A fixed core is hydrostatic and has no resolved radial motion.
-        fluid.vel_code[core] = 0.0
+        if getattr(par, 'supercomoving_coordinates', False):
+            fluid.vel_supercomoving_code[core] = 0.0
+        else:
+            fluid.vel_proper_code[core] = 0.0
 
     def _apply_hydrostatic_core_flux(self, fluid, par):
         """Close the resolved halo with a pressure-bearing, no-mass-flux core."""
@@ -292,7 +375,11 @@ class Solver():
         # and radial momentum do not cross the core/halo interface.
         fluid.Mass_code.flux[face] = 0.0
         fluid.Energy_code.flux[face] = 0.0
-        fluid.Mom_code.flux[face] = fluid.pre_code[core_last]
+        if getattr(par, 'supercomoving_coordinates', False):
+            pressure_runtime_code = fluid.runtime_state.pre_supercomoving_code
+        else:
+            pressure_runtime_code = fluid.runtime_state.pre_proper_code
+        fluid.Mom_code.flux[face] = pressure_runtime_code[core_last]
 
     def _boundary_field_names(self, *args, **kwargs):
         from .boundary_conditions import _boundary_field_names
@@ -358,7 +445,18 @@ class Solver():
         """Update primitive variables from conserved quantities."""
         if verbose is None:
             verbose = 0
-        vol = mesh.vol
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            rho_runtime_code = primitive.rho_comoving_code
+            vel_runtime_code = primitive.vel_supercomoving_code
+            pre_runtime_code = primitive.pre_supercomoving_code
+            temp_runtime_code = primitive.temp_supercomoving_code
+        else:
+            rho_runtime_code = primitive.rho_proper_code
+            vel_runtime_code = primitive.vel_proper_code
+            pre_runtime_code = primitive.pre_proper_code
+            temp_runtime_code = primitive.temp_proper_code
+        vol = self._geometry_state(mesh, par).volume
         rho = np.asarray(self._safe_divide(fluid.Mass_code, vol), dtype=float)
         active = np.isfinite(rho) & (rho > 0.0)
         fluid.active = active
@@ -376,8 +474,8 @@ class Solver():
             np.asarray(fluid.Energy_code, dtype=float)[valid_volume]
             / np.asarray(vol, dtype=float)[valid_volume]
         )
-        fluid.rho_code = as_named_array(rho)
-        fluid.vel_code = as_named_array(vel)
+        rho_runtime_code[...] = as_named_array(rho)
+        vel_runtime_code[...] = as_named_array(vel)
         if hasattr(fluid, 'AngularMomentum_code'):
             specific_angular_momentum = np.zeros_like(rho)
             np.divide(
@@ -394,23 +492,23 @@ class Solver():
         )
         density_floor = self._cfl_density_floor(par)
         numerical_vacuum = active & (rho <= density_floor)
-        fluid.vel_code[numerical_vacuum] = 0.0
+        vel_runtime_code[numerical_vacuum] = 0.0
         # Conserved Energy contains rotational kinetic energy when the opt-in
         # model is enabled; pressure sees only thermal plus radial kinetic
         # energy at this stage.
         energy_density = as_named_array(
             energy_density - rotational_energy_density
         )
-        pressure_args = (fluid.rho_code, fluid.vel_code, energy_density)
+        pressure_args = (rho_runtime_code, vel_runtime_code, energy_density)
         if getattr(fluid.eos, 'is_isothermal', False):
             total_pressure = fluid.eos.pressure_from_conserved(
                 *pressure_args,
-                temp=getattr(fluid, 'temp_code', None),
+                temp=temp_runtime_code,
                 mu=getattr(fluid, 'mu', None),
             )
         else:
             total_pressure = fluid.eos.pressure_from_conserved(*pressure_args)
-        fluid.pre_code = total_pressure
+        pre_runtime_code[...] = total_pressure
         if self._dual_energy_enabled(par) and hasattr(fluid, 'InternalEnergy_code'):
             internal_density = np.zeros_like(rho)
             internal_density[valid_volume] = (
@@ -418,7 +516,7 @@ class Solver():
                 / np.asarray(vol, dtype=float)[valid_volume]
             )
             dual_pressure = (fluid.eos.gamma - 1.0) * internal_density
-            total_thermal = energy_density - 0.5 * fluid.rho_code * fluid.vel_code**2
+            total_thermal = energy_density - 0.5 * rho_runtime_code * vel_runtime_code**2
             eta1 = self._dual_energy_eta(par, 'dual_energy_eta1', 1.0e-3)
             total_valid = (
                 active & ~numerical_vacuum
@@ -491,8 +589,8 @@ class Solver():
             self.dual_energy_total_valid = total_valid.copy()
             self.dual_energy_dual_valid = dual_valid.copy()
             self.dual_energy_pressure_selection_code = selection_code
-            fluid.pre_code[use_dual] = dual_pressure[use_dual]
-            fluid.pre_code[use_total] = total_pressure[use_total]
+            pre_runtime_code[use_dual] = dual_pressure[use_dual]
+            pre_runtime_code[use_total] = total_pressure[use_total]
 
             # If the separately advected field has failed but E-K is still a
             # valid conservative estimate, use E-K and count the fallback.
@@ -534,7 +632,7 @@ class Solver():
                 )
                 injected_energy = injected_density * np.asarray(vol, dtype=float)
                 fluid.Energy_code[both_invalid] += injected_energy[both_invalid]
-                fluid.pre_code[both_invalid] = floor_pressure[both_invalid]
+                pre_runtime_code[both_invalid] = floor_pressure[both_invalid]
                 internal_density[both_invalid] = floor_internal_density[both_invalid]
                 fluid.InternalEnergy_code[both_invalid] = injected_energy[both_invalid] + (
                     current_internal_density[both_invalid]
@@ -549,37 +647,49 @@ class Solver():
                 selection_code[both_invalid] = 2
             # Keep the conservative fallback pressure for cells where the
             # dual field is invalid but E-K is admissible.
-            fluid.pre_code[fallback] = total_pressure[fallback]
-        fluid.rho_code[~active] = 0.0
-        fluid.vel_code[~active] = 0.0
-        invalid_pressure = np.logical_or(fluid.pre_code <= 0.0, np.isnan(fluid.pre_code))
+            pre_runtime_code[fallback] = total_pressure[fallback]
+        rho_runtime_code[~active] = 0.0
+        vel_runtime_code[~active] = 0.0
+        invalid_pressure = np.logical_or(pre_runtime_code <= 0.0, np.isnan(pre_runtime_code))
         temperature_floor = getattr(par, 'hydro_temperature_floor', None)
         if temperature_floor is not None and float(temperature_floor) > 0.0:
-            floor_pressure = fluid.eos.pressure(
-                fluid.rho_code,
-                float(temperature_floor),
-                fluid.mu,
+            floor_pressure = np.asarray(
+                fluid.eos.pressure(
+                    rho_runtime_code,
+                    float(temperature_floor),
+                    fluid.mu,
+                ),
+                dtype=float,
             )
             # Enforce the configured floor for both invalid reconstructions
             # and valid states that have cooled below the physical minimum.
             below_floor = (
                 ~numerical_vacuum
-                & np.logical_or(invalid_pressure, fluid.pre_code < floor_pressure)
+                & np.logical_or(invalid_pressure, pre_runtime_code < floor_pressure)
             )
-            fluid.pre_code[below_floor] = floor_pressure[below_floor]
+            pre_runtime_code[below_floor] = floor_pressure[below_floor]
         else:
-            fluid.pre_code[invalid_pressure & ~numerical_vacuum] = 0.0
-        fluid.pre_code[numerical_vacuum] = 0.0
+            pre_runtime_code[invalid_pressure & ~numerical_vacuum] = 0.0
+        pre_runtime_code[numerical_vacuum] = 0.0
         if verbose >= 2:
-            print('fluid.rho_code',fluid.rho_code)
-            print('fluid.vel_code',fluid.vel_code)
-            print('fluid.pre_code', fluid.pre_code)
+            print('rho_runtime_code', rho_runtime_code)
+            print('vel_runtime_code', vel_runtime_code)
+            print('pre_runtime_code', pre_runtime_code)
     
     def SetConserved(self, mesh, fluid, verbose=None):
         """Update conserved mass, momentum, and energy from primitive variables."""
         if verbose is None:
             verbose = 0
         par = getattr(mesh, '_par', None)
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            rho_runtime_code = primitive.rho_comoving_code
+            vel_runtime_code = primitive.vel_supercomoving_code
+            pre_runtime_code = primitive.pre_supercomoving_code
+        else:
+            rho_runtime_code = primitive.rho_proper_code
+            vel_runtime_code = primitive.vel_proper_code
+            pre_runtime_code = primitive.pre_proper_code
         density_floor = self._cfl_density_floor(par)
         dual_energy = self._dual_energy_enabled(par)
         old_internal = (
@@ -620,7 +730,7 @@ class Solver():
         if density_floor > 0.0 and all(
             hasattr(fluid, name) for name in ('Mass_code', 'Mom_code', 'Energy_code')
         ):
-            density = np.asarray(fluid.rho_code, dtype=float)
+            density = np.asarray(rho_runtime_code, dtype=float)
             inactive = np.isfinite(density) & (density <= density_floor)
             old_conserved = (
                 inactive,
@@ -628,24 +738,24 @@ class Solver():
                 np.asarray(fluid.Mom_code, dtype=float).copy(),
                 np.asarray(fluid.Energy_code, dtype=float).copy(),
             )
-        vol = mesh.vol
-        fluid.Mass_code = as_named_array(fluid.rho_code * vol)
-        fluid.Mom_code = as_named_array(fluid.rho_code * fluid.vel_code * vol)
+        vol = self._geometry_state(mesh, getattr(mesh, '_par', None)).volume
+        fluid.Mass_code = as_named_array(rho_runtime_code * vol)
+        fluid.Mom_code = as_named_array(rho_runtime_code * vel_runtime_code * vol)
         if hasattr(fluid, 'specific_angular_momentum_code') or old_angular_momentum is not None:
             specific_angular_momentum = np.asarray(
                 getattr(fluid, 'specific_angular_momentum_code',
-                        np.zeros_like(fluid.rho_code)),
+                        np.zeros_like(rho_runtime_code)),
                 dtype=float,
             )
             fluid.AngularMomentum_code = as_named_array(
-                fluid.rho_code * specific_angular_momentum * vol
+                rho_runtime_code * specific_angular_momentum * vol
             )
         rotational_energy_density = self._rotational_energy_density(
             mesh, fluid, par
         )
         fluid.Energy_code = as_named_array(
             (
-                fluid.eos.total_energy_density(fluid.rho_code, fluid.vel_code, fluid.pre_code)
+                fluid.eos.total_energy_density(rho_runtime_code, vel_runtime_code, pre_runtime_code)
                 + rotational_energy_density
             ) * vol
         )
@@ -681,7 +791,7 @@ class Solver():
             )
         if dual_energy and getattr(fluid.eos, 'is_polytropic', False):
             internal = np.asarray(
-                fluid.eos.thermal_energy_density(fluid.pre_code) * vol,
+                fluid.eos.thermal_energy_density(pre_runtime_code) * vol,
                 dtype=float,
             )
             if old_internal is not None:
@@ -733,12 +843,15 @@ class Solver():
             print('fluid.Mass_code',fluid.Mass_code)
             print('fluid.Mom_code',fluid.Mom_code)
             print('fluid.Energy_code',fluid.Energy_code)
+        if hasattr(fluid, '_refresh_runtime_state'):
+            fluid._refresh_runtime_state()
         
         
     def SetGradient(self, mesh, fluid):
         """Calculate centered gradients for density, velocity, and pressure."""
-        xdelta = mesh.xdelta
         par = getattr(mesh, '_par', None)
+        xdelta = self._geometry_state(mesh, par).width
+        primitive = self._fluid_primitive_state(fluid, par)
         periodic = (
             par is not None
             and hasattr(par, 'boundary')
@@ -747,18 +860,30 @@ class Solver():
         if periodic:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
-            for quantity in (
-                fluid.rho_code,
-                fluid.vel_code,
-                fluid.pre_code,
-            ):
+            if getattr(par, 'supercomoving_coordinates', False):
+                density_code = primitive.rho_comoving_code
+                velocity_code = primitive.vel_supercomoving_code
+                pressure_code = primitive.pre_supercomoving_code
+            else:
+                density_code = primitive.rho_proper_code
+                velocity_code = primitive.vel_proper_code
+                pressure_code = primitive.pre_proper_code
+            for quantity in (density_code, velocity_code, pressure_code):
                 quantity.grad = self._periodic_physical_gradient(
                     quantity, xdelta, first, count
                 )
         else:
-            fluid.rho_code.grad = ru.CalGradient(fluid.rho_code, xdelta)
-            fluid.vel_code.grad = ru.CalGradient(fluid.vel_code, xdelta)
-            fluid.pre_code.grad = ru.CalGradient(fluid.pre_code, xdelta)
+            if getattr(par, 'supercomoving_coordinates', False):
+                density_code = primitive.rho_comoving_code
+                velocity_code = primitive.vel_supercomoving_code
+                pressure_code = primitive.pre_supercomoving_code
+            else:
+                density_code = primitive.rho_proper_code
+                velocity_code = primitive.vel_proper_code
+                pressure_code = primitive.pre_proper_code
+            density_code.grad = ru.CalGradient(density_code, xdelta)
+            velocity_code.grad = ru.CalGradient(velocity_code, xdelta)
+            pressure_code.grad = ru.CalGradient(pressure_code, xdelta)
         if hasattr(fluid, 'specific_angular_momentum_code'):
             if periodic:
                 fluid.specific_angular_momentum_code.grad = (
@@ -864,9 +989,18 @@ class Solver():
         density_floor = self._cfl_density_floor(par)
         if density_floor <= 0.0:
             return
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            density_code = primitive.rho_comoving_code
+            velocity_code = primitive.vel_supercomoving_code
+            pressure_code = primitive.pre_supercomoving_code
+        else:
+            density_code = primitive.rho_proper_code
+            velocity_code = primitive.vel_proper_code
+            pressure_code = primitive.pre_proper_code
         for density, velocity, pressure in (
-            (fluid.rho_code.R, fluid.vel_code.R, fluid.pre_code.R),
-            (fluid.rho_code.L, fluid.vel_code.L, fluid.pre_code.L),
+            (density_code.R, velocity_code.R, pressure_code.R),
+            (density_code.L, velocity_code.L, pressure_code.L),
         ):
             inactive = ~np.isfinite(density) | (density <= density_floor)
             density[inactive] = 0.0
@@ -874,8 +1008,8 @@ class Solver():
             pressure[inactive] = 0.0
         if order == 1:
             for density, velocity, pressure in (
-                (fluid.rho_code.R.first, fluid.vel_code.R.first, fluid.pre_code.R.first),
-                (fluid.rho_code.L.first, fluid.vel_code.L.first, fluid.pre_code.L.first),
+                (density_code.R.first, velocity_code.R.first, pressure_code.R.first),
+                (density_code.L.first, velocity_code.L.first, pressure_code.L.first),
             ):
                 inactive = ~np.isfinite(density) | (density <= density_floor)
                 density[inactive] = 0.0
@@ -883,8 +1017,17 @@ class Solver():
                 pressure[inactive] = 0.0
         
         
-    def SetConservedDensityFlux(self, fluid):
+    def SetConservedDensityFlux(self, fluid, par=None):
         """Store Euler fluxes and conserved densities on fluid arrays."""
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            density_code = primitive.rho_comoving_code
+            velocity_code = primitive.vel_supercomoving_code
+            pressure_code = primitive.pre_supercomoving_code
+        else:
+            density_code = primitive.rho_proper_code
+            velocity_code = primitive.vel_proper_code
+            pressure_code = primitive.pre_proper_code
         (
             fluid.Mass_code.F,
             fluid.Mass_code.q,
@@ -892,7 +1035,7 @@ class Solver():
             fluid.Mom_code.q,
             fluid.Energy_code.F,
             fluid.Energy_code.q,
-        ) = fluid.eos.fluxes(fluid.rho_code, fluid.vel_code, fluid.pre_code)
+        ) = fluid.eos.fluxes(density_code, velocity_code, pressure_code)
 
     @staticmethod
     @staticmethod
@@ -922,17 +1065,27 @@ class Solver():
         ``order=0`` uses piecewise constant states. ``order=1`` applies a
         gradient reconstruction before limiting the fluxes.
         """
+        geometry = self._geometry_state(mesh, getattr(mesh, '_par', None))
+        primitive = self._fluid_primitive_state(fluid, getattr(mesh, '_par', None))
+        if getattr(getattr(mesh, '_par', None), 'supercomoving_coordinates', False):
+            density_code = primitive.rho_comoving_code
+            velocity_code = primitive.vel_supercomoving_code
+            pressure_code = primitive.pre_supercomoving_code
+        else:
+            density_code = primitive.rho_proper_code
+            velocity_code = primitive.vel_proper_code
+            pressure_code = primitive.pre_proper_code
         # Start from neighbor-shifted cell states, then optionally replace them
         # with reconstructed face values for second-order updates.
         if order == 0 or order == 1:
             # Keep face states independent from cell-centred primitives: the
             # low-density numerical-vacuum mask may modify them in place.
-            fluid.rho_code.R = as_named_array(np.asarray(fluid.rho_code, dtype=float).copy())
-            fluid.rho_code.L = ru.periodic_roll(fluid.rho_code, 1)
-            fluid.vel_code.R = as_named_array(np.asarray(fluid.vel_code, dtype=float).copy())
-            fluid.vel_code.L = ru.periodic_roll(fluid.vel_code, 1)
-            fluid.pre_code.R = as_named_array(np.asarray(fluid.pre_code, dtype=float).copy())
-            fluid.pre_code.L = ru.periodic_roll(fluid.pre_code, 1)
+            density_code.R = as_named_array(np.asarray(density_code, dtype=float).copy())
+            density_code.L = ru.periodic_roll(density_code, 1)
+            velocity_code.R = as_named_array(np.asarray(velocity_code, dtype=float).copy())
+            velocity_code.L = ru.periodic_roll(velocity_code, 1)
+            pressure_code.R = as_named_array(np.asarray(pressure_code, dtype=float).copy())
+            pressure_code.L = ru.periodic_roll(pressure_code, 1)
             if hasattr(fluid, 'specific_angular_momentum_code'):
                 fluid.specific_angular_momentum_code.R = as_named_array(
                     np.asarray(fluid.specific_angular_momentum_code, dtype=float).copy()
@@ -942,16 +1095,16 @@ class Solver():
                 )
             if order == 1:
                 self.SetGradient(mesh, fluid)
-                fluid.rho_code.R.first, fluid.rho_code.L.first = ru.extrapolateToFace(fluid.rho_code, mesh.boundary, fluid.rho_code.grad, order=1)
-                fluid.vel_code.R.first, fluid.vel_code.L.first = ru.extrapolateToFace(fluid.vel_code, mesh.boundary, fluid.vel_code.grad, order=1)
-                fluid.pre_code.R.first, fluid.pre_code.L.first = ru.extrapolateToFace(fluid.pre_code, mesh.boundary, fluid.pre_code.grad, order=1)
+                density_code.R.first, density_code.L.first = ru.extrapolateToFace(density_code, geometry.boundary, density_code.grad, order=1)
+                velocity_code.R.first, velocity_code.L.first = ru.extrapolateToFace(velocity_code, geometry.boundary, velocity_code.grad, order=1)
+                pressure_code.R.first, pressure_code.L.first = ru.extrapolateToFace(pressure_code, geometry.boundary, pressure_code.grad, order=1)
                 if hasattr(fluid, 'specific_angular_momentum_code'):
                     (
                         fluid.specific_angular_momentum_code.R.first,
                         fluid.specific_angular_momentum_code.L.first,
                     ) = ru.extrapolateToFace(
                         fluid.specific_angular_momentum_code,
-                        mesh.boundary,
+                        geometry.boundary,
                         fluid.specific_angular_momentum_code.grad,
                         order=1,
                     )
@@ -1004,9 +1157,18 @@ class Solver():
             return
         if par.boundary.condition != 'InflowSph':
             return
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            density_code = primitive.rho_comoving_code
+            velocity_code = primitive.vel_supercomoving_code
+            pressure_code = primitive.pre_supercomoving_code
+        else:
+            density_code = primitive.rho_proper_code
+            velocity_code = primitive.vel_proper_code
+            pressure_code = primitive.pre_proper_code
         first = int(par.mesh.ghost_cells)
         outer_face = first + int(par.mesh.grid_cells)
-        if outer_face >= len(fluid.rho_code.R):
+        if outer_face >= len(density_code.R):
             return
         rho_background = float(
             par.boundary.inflow_density
@@ -1024,9 +1186,9 @@ class Solver():
             )
         )
         for quantity, value in (
-            (fluid.rho_code, rho_background),
-            (fluid.vel_code, velocity_background),
-            (fluid.pre_code, pressure_background),
+            (density_code, rho_background),
+            (velocity_code, velocity_background),
+            (pressure_code, pressure_background),
         ):
             quantity.R[outer_face] = value
             quantity.L[outer_face] = value
@@ -1064,11 +1226,20 @@ class Solver():
 
     def SetFluxOnFace(self,fluid,boundcond,order=0,par=None,method='Rusanov'):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            density_code = primitive.rho_comoving_code
+            velocity_code = primitive.vel_supercomoving_code
+            pressure_code = primitive.pre_supercomoving_code
+        else:
+            density_code = primitive.rho_proper_code
+            velocity_code = primitive.vel_proper_code
+            pressure_code = primitive.pre_proper_code
         rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
-            fluid.rho_code.L, fluid.vel_code.L, fluid.pre_code.L
+            density_code.L, velocity_code.L, pressure_code.L
         )
         rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
-            fluid.rho_code.R, fluid.vel_code.R, fluid.pre_code.R
+            density_code.R, velocity_code.R, pressure_code.R
         )
         Mass_flux_0, Mom_flux_0, Energy_flux_0 = self._interface_fluxes(
             fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
@@ -1080,15 +1251,15 @@ class Solver():
             fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
         elif order==1:
             rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
-                fluid.rho_code.L.first, fluid.vel_code.L.first, fluid.pre_code.L.first
+                density_code.L.first, velocity_code.L.first, pressure_code.L.first
             )
             rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
-                fluid.rho_code.R.first, fluid.vel_code.R.first, fluid.pre_code.R.first
+                density_code.R.first, velocity_code.R.first, pressure_code.R.first
             )
             Mass_flux_1, Mom_flux_1, Energy_flux_1 = self._interface_fluxes(
                 fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
             )
-            self.SetConservedDensityFlux(fluid)
+            self.SetConservedDensityFlux(fluid, par=par)
             limiter = getattr(par, 'flux_limiter', 'minmod') if par is not None else 'minmod'
             fluid.Mass_code.flux, fluid.philim_Mass_code = ru.ApplyFluxLimiter(
                 fluid.Mass_code.q, Mass_flux_1, Mass_flux_0, limiter=limiter
@@ -1113,12 +1284,12 @@ class Solver():
             # only ``rho_code.L/R`` therefore lets an inadmissible high-order
             # flux through when the positivity limiter is disabled.
             reconstructed_density = (
-                np.asarray(fluid.rho_code.L.first, dtype=float),
-                np.asarray(fluid.rho_code.R.first, dtype=float),
+                np.asarray(density_code.L.first, dtype=float),
+                np.asarray(density_code.R.first, dtype=float),
             )
             reconstructed_pressure = (
-                np.asarray(fluid.pre_code.L.first, dtype=float),
-                np.asarray(fluid.pre_code.R.first, dtype=float),
+                np.asarray(pressure_code.L.first, dtype=float),
+                np.asarray(pressure_code.R.first, dtype=float),
             )
             vacuum_face = np.zeros_like(
                 reconstructed_density[0], dtype=bool
@@ -1159,7 +1330,12 @@ class Solver():
         density_floor = self._cfl_density_floor(par)
         if density_floor <= 0.0:
             return
-        density = np.asarray(fluid.rho_code, dtype=float)
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            density_runtime_code = primitive.rho_comoving_code
+        else:
+            density_runtime_code = primitive.rho_proper_code
+        density = np.asarray(density_runtime_code, dtype=float)
         first = int(par.mesh.ghost_cells)
         count = int(par.mesh.grid_cells)
         last = min(first + count, len(density))
@@ -1205,7 +1381,8 @@ class Solver():
         """
         if not getattr(par, 'positivity_preserving', True):
             dt_value = float(np.asarray(dt, dtype=float))
-            area = np.asarray(mesh.area, dtype=float)
+            geometry = self._geometry_state(mesh, par)
+            area = np.asarray(geometry.area, dtype=float)
             fluid.Mass_code += dt_value * (
                 np.asarray(mass_face, dtype=float) * area
                 - ru.periodic_roll(np.asarray(mass_face, dtype=float) * area, -1)
@@ -1235,9 +1412,10 @@ class Solver():
         energy = np.asarray(fluid.Energy_code, dtype=float).copy()
         angular = (np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
                    if angular_face is not None else None)
+        geometry = self._geometry_state(mesh, par)
         radius = (
-            np.abs(np.asarray(mesh.coordinate, dtype=float))
-            if angular is not None and hasattr(mesh, 'coordinate')
+            np.abs(np.asarray(geometry.coordinate, dtype=float))
+            if angular is not None
             else None
         )
         count = len(mass)
@@ -1248,7 +1426,7 @@ class Solver():
             last = min(first + int(par.mesh.grid_cells), count)
         physical = np.zeros(count, dtype=bool)
         physical[first:last] = True
-        volume = np.asarray(mesh.vol, dtype=float)
+        volume = np.asarray(geometry.volume, dtype=float)
         mass_floor = max(
             0.0, float(np.asarray(getattr(par, 'positivity_density_floor', 0.0)))
         ) * volume
@@ -1368,7 +1546,7 @@ class Solver():
         mass_face = np.asarray(mass_face, dtype=float)
         mom_face = np.asarray(mom_face, dtype=float)
         energy_face = np.asarray(energy_face, dtype=float)
-        area = np.asarray(mesh.area, dtype=float)
+        area = np.asarray(geometry.area, dtype=float)
         delta_mass = dt_value * mass_face * area
         delta_mom = dt_value * mom_face * area
         delta_energy = dt_value * energy_face * area
@@ -1673,7 +1851,8 @@ class Solver():
             dtype=float,
         )
         first = int(par.mesh.ghost_cells)
-        if first >= len(factors) or first >= len(mesh.area):
+        geometry = self._geometry_state(mesh, par)
+        if first >= len(factors) or first >= len(geometry.area):
             return 0.0
         rejected_fraction = max(0.0, 1.0 - float(factors[first]))
         if rejected_fraction <= 0.0:
@@ -1693,7 +1872,7 @@ class Solver():
             else 0.0
         )
         wind_specific_energy = 0.5 * velocity_wind**2 + wind_internal
-        area = float(np.asarray(mesh.area[first]))
+        area = float(np.asarray(geometry.area[first]))
         dt_value = float(np.asarray(dt))
         mass_rate = rho_wind * velocity_wind * area
         momentum_rate = (rho_wind * velocity_wind**2 + pressure_wind) * area
@@ -1782,13 +1961,14 @@ class Solver():
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
         if verbose is None:
             verbose = 0
+        geometry = self._geometry_state(mesh, getattr(mesh, '_par', None))
         if method in ('GLF', 'Rusanov', 'HLLC'):
             if method=='GLF':
                 # Global Lax Friedrich scheme
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
                 # simple to implement but very diffusive
                 # calculate cmax
-                fluid.cmax = mesh.xdelta / np.amin(self.dt)
+                fluid.cmax = geometry.width / np.amin(self.dt)
             elif method=='Rusanov':
                 # Local Lax Friedrich schem
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
@@ -1838,7 +2018,22 @@ class Solver():
         )
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
-        area = mesh.area
+        geometry = self._geometry_state(mesh, getattr(mesh, '_par', None))
+        area = geometry.area
+        par = getattr(mesh, '_par', None)
+        pressure_runtime_code = None
+        velocity_runtime_code = None
+        if getattr(mesh, 'coordsys', None) == 'spherical' or (
+            self._dual_energy_enabled(par)
+            and hasattr(fluid, 'InternalEnergy_code')
+        ):
+            primitive = self._fluid_primitive_state(fluid, par)
+            if getattr(par, 'supercomoving_coordinates', False):
+                pressure_runtime_code = primitive.pre_supercomoving_code
+                velocity_runtime_code = primitive.vel_supercomoving_code
+            else:
+                pressure_runtime_code = primitive.pre_proper_code
+                velocity_runtime_code = primitive.vel_proper_code
         df_Mass_code = fluid.Mass_code.flux * area - ru.periodic_roll(fluid.Mass_code.flux * area, -1)
         df_Mom_code = fluid.Mom_code.flux * area - ru.periodic_roll(fluid.Mom_code.flux * area, -1)
         df_Energy_code = fluid.Energy_code.flux * area - ru.periodic_roll(fluid.Energy_code.flux * area, -1)
@@ -1860,7 +2055,7 @@ class Solver():
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
             area_right = ru.periodic_roll(area, -1)
-            df_Mom_code += fluid.pre_code * (area_right - area)
+            df_Mom_code += pressure_runtime_code * (area_right - area)
 
         dual_energy = (
             self._dual_energy_enabled(getattr(mesh, '_par', None))
@@ -1869,8 +2064,8 @@ class Solver():
         )
         df_InternalEnergy = None
         if dual_energy:
-            velocity_left = np.asarray(fluid.vel_code.L, dtype=float)
-            velocity_right = np.asarray(fluid.vel_code.R, dtype=float)
+            velocity_left = np.asarray(velocity_runtime_code.L, dtype=float)
+            velocity_right = np.asarray(velocity_runtime_code.R, dtype=float)
             face_velocity = np.where(
                 0.5 * (velocity_left + velocity_right) >= 0.0,
                 velocity_left,
@@ -1908,11 +2103,10 @@ class Solver():
                     - face_pressure * face_velocity * area
                 )
 
-        par = getattr(mesh, '_par', None)
         geometric_mom = None
         if getattr(mesh, 'coordsys', None) == 'spherical':
             area_right = ru.periodic_roll(area, -1)
-            geometric_mom = fluid.pre_code * (area_right - area)
+            geometric_mom = pressure_runtime_code * (area_right - area)
         positivity_factor = self._positivity_limited_face_fluxes(
             fluid, dt, mesh, par,
             fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux,
@@ -1959,7 +2153,7 @@ class Solver():
                 # Riemann internal-energy flux above; changing the geometric
                 # source and limiting it as a scalar face flux simultaneously
                 # can over-limit cold expanding cells.
-                limited_df_internal -= fluid.pre_code * (
+                limited_df_internal -= pressure_runtime_code * (
                     ru.periodic_roll(
                         factors * face_velocity * area, -1
                     ) - factors * face_velocity * area
@@ -2071,7 +2265,9 @@ class Solver():
                 getattr(par, 'dual_energy_entropy_limiter', False)
                 and not self._thermochemistry_enabled(fluid, par)
             ):
-                volume = np.asarray(mesh.vol, dtype=float)
+                volume = np.asarray(
+                    self._geometry_state(mesh, par).volume, dtype=float
+                )
                 old_density = np.divide(
                     old_mass_for_internal,
                     volume,
@@ -2131,8 +2327,12 @@ class Solver():
                 limited_potential_flux_area
                 - ru.periodic_roll(limited_potential_flux_area, -1)
             )
-        # advance time
-        fluid.time_code += dt
+        # Advance the representation-specific runtime clock.
+        par = getattr(mesh, '_par', None)
+        if getattr(par, 'supercomoving_coordinates', False):
+            fluid.tau_supercomoving_code += dt
+        else:
+            fluid.time_proper_code += dt
 
     def _gravity_model(self, *args, **kwargs):
         from .gravity_sources import _gravity_model
@@ -2191,7 +2391,14 @@ class Solver():
         if absorbed.shape[1] != grid_cells:
             raise ValueError("absorbed photon rate must contain physical cells only")
 
-        rho_cgs = np.asarray(fluid.rho_code[interior], dtype=float) * scales["density_cgs_g_cm3"]
+        primitive = self._fluid_primitive_state(fluid, par)
+        if getattr(par, 'supercomoving_coordinates', False):
+            density_runtime_code = primitive.rho_comoving_code
+            velocity_runtime_code = primitive.vel_supercomoving_code
+        else:
+            density_runtime_code = primitive.rho_proper_code
+            velocity_runtime_code = primitive.vel_proper_code
+        rho_cgs = np.asarray(density_runtime_code[interior], dtype=float) * scales["density_cgs_g_cm3"]
         momentum_rate_density = (
             float(source_result.get("direction", 1))
             * np.sum(absorbed * energies[:, None], axis=0)
@@ -2206,11 +2413,13 @@ class Solver():
             efficiency * momentum_rate_density[valid] / rho_cgs[valid]
         )
         acceleration = acceleration_cgs / scales["acceleration_cgs_cm_s2"]
-        volume = np.asarray(mesh.vol[interior], dtype=float)
+        volume = np.asarray(
+            self._geometry_state(mesh, par).volume[interior], dtype=float
+        )
         momentum = fluid.Mom_code[interior]
         energy = fluid.Energy_code[interior]
-        rho_code = fluid.rho_code[interior]
-        velocity = fluid.vel_code[interior]
+        rho_code = density_runtime_code[interior]
+        velocity = velocity_runtime_code[interior]
         momentum[valid] += rho_code[valid] * acceleration[valid] * volume[valid] * dt
         energy[valid] += (
             rho_code[valid]
@@ -2224,6 +2433,8 @@ class Solver():
 
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
+        if getattr(fluid, 'runtime_fields', None) is None:
+            raise ValueError("boundary update requires configured fluid runtime state")
         self.ApplyHydrostaticCore(mesh, fluid, par)
         btype = par.boundary.condition
         code_units = getattr(par, 'CodeUnits', None)

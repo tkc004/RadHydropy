@@ -2,7 +2,6 @@
 
 import numpy as np
 from types import SimpleNamespace
-import unyt
 
 import radhydropy.utils as ru
 import radhydropy.chemistry_species.hydrogen as rh
@@ -17,6 +16,65 @@ from radhydropy.units import (
     photon_number_density,
 )
 from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, SUPERCOMOVING_RUNTIME_FIELDS
+
+
+def _canonical_mesh_geometry(mesh):
+    """Return explicit active-representation mesh geometry."""
+    geometry = getattr(mesh, "geometry_state", None)
+    if geometry is not None and all(
+        getattr(geometry, name, None) is not None
+        for name in (
+            "area_comoving_code",
+            "boundary_comoving_code",
+            "x_comoving_code",
+        )
+    ):
+        return (
+            np.asarray(geometry.area_comoving_code, dtype=float),
+            np.asarray(geometry.boundary_comoving_code, dtype=float),
+            np.asarray(geometry.x_comoving_code, dtype=float),
+        )
+    if geometry is not None and all(
+        getattr(geometry, name, None) is not None
+        for name in (
+            "area_proper_code",
+            "boundary_proper_code",
+            "x_proper_code",
+        )
+    ):
+        return (
+            np.asarray(geometry.area_proper_code, dtype=float),
+            np.asarray(geometry.boundary_proper_code, dtype=float),
+            np.asarray(geometry.x_proper_code, dtype=float),
+        )
+    if all(
+        hasattr(mesh, name)
+        for name in (
+            "area_comoving_code",
+            "boundary_comoving_code",
+            "x_comoving_code",
+        )
+    ):
+        return (
+            np.asarray(mesh.area_comoving_code, dtype=float),
+            np.asarray(mesh.boundary_comoving_code, dtype=float),
+            np.asarray(mesh.x_comoving_code, dtype=float),
+        )
+    if all(
+        hasattr(mesh, name)
+        for name in (
+            "area_proper_code",
+            "boundary_proper_code",
+            "x_proper_code",
+        )
+    ):
+        return (
+            np.asarray(mesh.area_proper_code, dtype=float),
+            np.asarray(mesh.boundary_proper_code, dtype=float),
+            np.asarray(mesh.x_proper_code, dtype=float),
+        )
+    raise ValueError("angular momentum requires canonical mesh runtime fields")
 
 
 def _set_angular_momentum_flux(fluid, order=0):
@@ -96,7 +154,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
 
     mass = np.asarray(fluid.Mass_code, dtype=float)
     angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
-    area = np.asarray(mesh.area, dtype=float)
+    area, boundary, coordinate = _canonical_mesh_geometry(mesh)
     first = int(par.mesh.ghost_cells)
     last = min(first + int(par.mesh.grid_cells), len(mass))
     physical = np.zeros(len(mass), dtype=bool)
@@ -121,7 +179,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     upper = np.maximum.reduce((specific, ru.periodic_roll(specific, 1),
                                ru.periodic_roll(specific, -1)))
     correction_area = correction * area
-    radius_face = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
+    radius_face = np.abs(boundary[:-1])
     mass_flux = np.asarray(fluid.Mass_code.flux, dtype=float)
     rotational_low_flux = np.zeros_like(mass_flux)
     rotational_high_flux = np.zeros_like(mass_flux)
@@ -154,7 +212,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
         0.5 * np.asarray(fluid.Mom_code, dtype=float)**2,
         mass, out=kinetic, where=mass > 0.0
     )
-    radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+    radius = np.abs(coordinate)
     rotational = np.zeros_like(mass)
     valid_radius = (mass > 0.0) & (radius > 0.0)
     rotational[valid_radius] = (
@@ -184,7 +242,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
             and candidate <= upper[index] + tolerance
         )
         kinetic_new = 0.5 * mom_new[index]**2 / mass_new[index]
-        radius_value = abs(float(np.asarray(mesh.coordinate, dtype=float)[index]))
+        radius_value = abs(float(coordinate[index]))
         rotational_new = (
             0.5 * value**2 / (mass_new[index] * radius_value**2)
             if radius_value > 0.0 else 0.0
@@ -252,7 +310,8 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     )
     fluid.angular_momentum_fct_factors = as_named_array(factors)
     if hasattr(fluid, 'rotational_energy_flux'):
-        radius = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
+        _, boundary, _ = _canonical_mesh_geometry(mesh)
+        radius = np.abs(boundary[:-1])
         new_rotational = np.zeros_like(mass_flux)
         valid = (radius > 0.0) & np.isfinite(radius)
         new_rotational[valid] = (
@@ -273,7 +332,8 @@ def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
         j_left = np.asarray(fluid.specific_angular_momentum_code.L, dtype=float)
         j_right = np.asarray(fluid.specific_angular_momentum_code.R, dtype=float)
         j_face = np.where(mass_flux >= 0.0, j_left, j_right)
-    radius = np.abs(np.asarray(mesh.boundary[:-1], dtype=float))
+    _, boundary, _ = _canonical_mesh_geometry(mesh)
+    radius = np.abs(boundary[:-1])
     rotational_specific = np.zeros_like(radius)
     valid = np.isfinite(radius) & (radius > 0.0) & np.isfinite(j_face)
     rotational_specific[valid] = 0.5 * j_face[valid]**2 / radius[valid]**2
@@ -296,7 +356,8 @@ def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
     momentum = np.asarray(fluid.Mom_code, dtype=float)
     energy = np.asarray(fluid.Energy_code, dtype=float)
     angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
-    radius = np.abs(np.asarray(mesh.coordinate, dtype=float))
+    _, _, coordinate = _canonical_mesh_geometry(mesh)
+    radius = np.abs(coordinate)
     kinetic = np.zeros_like(mass)
     np.divide(0.5 * momentum**2, mass, out=kinetic, where=mass > 0.0)
     rotational = np.zeros_like(mass)

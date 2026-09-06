@@ -66,7 +66,7 @@ def main(output_root=None):
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
-    sim.fluid.SetFluidTime(sim.par.time)
+    sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
     sim.SetInitFluid()
     sim.par.set_cosmology_model(cosmology)
 
@@ -76,7 +76,7 @@ def main(output_root=None):
     mass_before = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
     angular_before = np.asarray(sim.fluid.AngularMomentum_code[active], dtype=float).copy()
     energy_before = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
-    radius = np.abs(np.asarray(sim.mesh.coordinate[active], dtype=float))
+    radius = np.abs(np.asarray(sim.mesh.x_comoving_code[active], dtype=float))
     rotational_before = np.zeros_like(mass_before)
     valid = (mass_before > 0.0) & (radius > 0.0)
     rotational_before[valid] = (

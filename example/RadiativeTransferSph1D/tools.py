@@ -78,21 +78,26 @@ def build_static_problem(config):
     par.units = SimpleNamespace(CodeUnits=code_units_obj)
     par.simulation = SimpleNamespace(
         coordinate_system=par.coordsys,
-        current_time=0.0 * unyt.s,
+        time_code=0.0 * unyt.s,
         box_size=par.boxsize,
     )
     par.mesh = SimpleNamespace(grid_cells=par.nogrid, ghost_cells=par.noghost)
 
     mesh = SimpleNamespace()
-    mesh.boundary = np.linspace(0.0, initial['boxsize'].to_value(unyt.cm), par.nogrid + 1) * unyt.cm
+    boundary_proper_cgs_cm_unyt = np.linspace(
+        0.0, initial['boxsize'].to_value(unyt.cm), par.nogrid + 1
+    ) * unyt.cm
+    mesh.boundary = boundary_proper_cgs_cm_unyt
 
     fluid = SimpleNamespace()
-    fluid.rho_code = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
-    fluid.vel_code = np.zeros(par.nogrid) * unyt.cm / unyt.s
-    fluid.temp_code = np.ones(par.nogrid) * unyt.K
+    density_proper_cgs_g_cm3_unyt = np.ones(par.nogrid) * unyt.mp / unyt.cm**3
+    fluid.rho_code = density_proper_cgs_g_cm3_unyt
+    fluid.vel_code = np.zeros(par.nogrid, dtype=float)
+    temperature_proper_cgs_K_unyt = np.ones(par.nogrid) * unyt.K
+    fluid.temp_code = temperature_proper_cgs_K_unyt
     fluid.mu = np.ones(par.nogrid)
     fluid.xHI = np.ones(par.nogrid)
-    fluid.time_code = 0.0 * unyt.s
+    fluid.time_code = 0.0
 
     solver = SimpleNamespace()
     return par, mesh, fluid, solver
