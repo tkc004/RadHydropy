@@ -42,14 +42,15 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
     initial_density = quantity_to_value(
-        initial.fluid.rho_code,
+        initial.fluid.rho_proper_code,
         'g/cm**3',
     )
-    initial_gas_mass = np.sum(
-        initial.fluid.rho_code
-        * (4.0 * np.pi / 3.0)
-        * (initial.mesh.boundary[1:]**3 - initial.mesh.boundary[:-1]**3)
-    ).to_value('g')
+    density_cgs_g_cm3 = np.asarray(initial.fluid.rho_proper_code, dtype=float) * code_units.density_unit.to_value('g/cm**3')
+    boundary_cgs_cm = np.asarray(initial.mesh.boundary_proper_code, dtype=float) * code_units.length_unit.to_value('cm')
+    initial_gas_mass = float(np.sum(
+        density_cgs_g_cm3 * (4.0 * np.pi / 3.0)
+        * (boundary_cgs_cm[1:]**3 - boundary_cgs_cm[:-1]**3)
+    ))
     dark_matter = et.make_dark_matter(icparams, code_units)
     initial_dm_mass = dark_matter.total_mass * code_units.mass_in_cgs
 
@@ -71,22 +72,22 @@ def main(config_filename=DEFAULT_CONFIG):
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
     )
     radius_pc = quantity_to_value(
-        np.asarray(sim.mesh.coordinate[interior]) * sim.par.CodeUnits.length_unit,
+        np.asarray(sim.mesh.x_proper_code[interior]) * sim.par.CodeUnits.length_unit,
         'pc',
     )
     density = quantity_to_value(
-        np.asarray(sim.fluid.rho_code[interior]) * sim.par.CodeUnits.density_unit,
+        np.asarray(sim.fluid.rho_proper_code[interior]) * sim.par.CodeUnits.density_unit,
         'g/cm**3',
     )
     physical_boundaries = np.asarray(
-        sim.mesh.boundary[
+        sim.mesh.boundary_proper_code[
             sim.par.mesh.ghost_cells:
             sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1
         ],
         dtype=float,
     )
     gas_mass = np.sum(
-        np.asarray(sim.fluid.rho_code[interior], dtype=float)
+        np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
         * (4.0 * np.pi / 3.0)
         * (physical_boundaries[1:]**3 - physical_boundaries[:-1]**3)
     ) * sim.par.CodeUnits.mass_unit

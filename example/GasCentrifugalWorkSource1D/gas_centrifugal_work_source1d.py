@@ -20,10 +20,55 @@ import numpy as np
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
 
 
 CONFIG = ROOT / 'gas_centrifugal_work_source1d.yaml'
+
+def prepare_initial_condition(initial):
+    boundary = np.asarray(initial.mesh.boundary, dtype=float)
+    initial.mesh.boundary_proper_code = boundary
+    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
+        boundary=boundary, width=np.diff(boundary),
+        area=4.0 * np.pi * boundary[:-1]**2,
+        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
+    )
+    initial.fluid.rho_proper_code = initial.fluid.rho_code
+    initial.fluid.vel_proper_code = initial.fluid.vel_code
+    initial.fluid.temp_proper_code = initial.fluid.temp_code
+    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.time_proper_code = 0.0
+    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
+        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
+        temperature=initial.fluid.temp_proper_code, time=0.0, mu=initial.fluid.mu,
+    )
+
+def prepare_initial_condition(initial):
+    boundary = np.asarray(initial.mesh.boundary, dtype=float)
+    initial.mesh.boundary_proper_code = boundary
+    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
+        boundary=boundary, width=np.diff(boundary),
+        area=4.0 * np.pi * boundary[:-1]**2,
+        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
+    )
+    initial.fluid.rho_proper_code = initial.fluid.rho_code
+    initial.fluid.vel_proper_code = initial.fluid.vel_code
+    initial.fluid.temp_proper_code = initial.fluid.temp_code
+    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.time_proper_code = 0.0
+    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
+        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
+        temperature=initial.fluid.temp_proper_code, time=0.0,
+        mu=initial.fluid.mu,
+    )
 
 
 class InitialCondition:
@@ -56,6 +101,8 @@ def run_simulation(par, initial_condition, example_config):
         float(example_config['temperature']),
         float(initial_condition['specific_angular_momentum']), units,
     )
+    prepare_initial_condition(initial)
+    prepare_initial_condition(initial)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
@@ -64,7 +111,7 @@ def run_simulation(par, initial_condition, example_config):
     def source_backend(dt, mode='sources', **kwargs):
         sim.solver.ApplyGravity(dt, sim.mesh, sim.fluid, sim.par)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, par=sim.par)
-        sim.fluid.time_code += dt
+        sim.fluid.time_proper_code += dt
         source_backend.record_source_state(dt)
         return {'dt': dt, 'hydro_steps': 0, 'source_steps': 1}
 
@@ -82,7 +129,7 @@ def run_simulation(par, initial_condition, example_config):
     source_works = [0.0]
 
     def record_source_state(dt):
-        source_times.append(float(sim.fluid.time_code))
+        source_times.append(float(sim.fluid.time_proper_code))
         source_momenta.append(float(sim.fluid.Mom_code[sim.par.noghost]))
         source_energies.append(float(sim.fluid.Energy_code[sim.par.noghost]))
         source_works.append(source_works[-1] + sim.solver.last_centrifugal_work)
@@ -115,11 +162,11 @@ def main(config_filename=CONFIG):
      source_works) = run_simulation(par, initial_condition, example_config)
     active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
     j = float(initial_condition['specific_angular_momentum'])
-    radius = float(sim.mesh.coordinate[sim.par.noghost])
+    radius = float(sim.mesh.x_proper_code[sim.par.noghost])
     acceleration = j**2 / radius**3
     # The generic HDF5 header stores the initial IC time for this non-cosmology
     # source driver; use the live Rsim clock for the exact source interval.
-    final_time = float(sim.fluid.time_code)
+    final_time = float(sim.fluid.time_proper_code)
     time = source_times
     expected_momentum = initial_momentum + mass * acceleration * time
     # Centrifugal work is an internal transfer from rotational to radial
@@ -132,7 +179,7 @@ def main(config_filename=CONFIG):
     expected_work = (
         0.5 * (expected_momentum**2 - initial_momentum**2) / mass
     )
-    final_momentum = float(saved.Mass_code[active][0] * saved.vel_code[active][0])
+    final_momentum = float(saved.Mass_code[active][0] * saved.vel_proper_code[active][0])
     final_energy = float(saved.Energy_code[active][0])
     final_j = float(saved.specific_angular_momentum_code[active][0])
     final_internal = float(saved.InternalEnergy_code[active][0]) if hasattr(

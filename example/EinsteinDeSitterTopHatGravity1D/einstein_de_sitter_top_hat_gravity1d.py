@@ -58,9 +58,11 @@ def main(config_filename=DEFAULT_CONFIG):
         selfgravity=True, externalgravity=False, cosmological=True,
         cosmology=sim.par.cosmology, code_units=sim.par.CodeUnits,
     )
-    numerical = sim.par.gravity.acceleration_on_mesh(sim.mesh, sim.fluid.rho_code, sim.par)
+    numerical = sim.par.gravity.acceleration_on_mesh(
+        sim.mesh, sim.fluid.rho_comoving_code, sim.par
+    )
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    radius = np.asarray(sim.mesh.coordinate[physical], dtype=float)
+    radius = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
     tau = float(np.asarray(sim.par.time_code).flat[0])
     a = sim.par.cosmology.scale_factor_from_supercomoving(tau)
     cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
@@ -95,5 +97,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-
 

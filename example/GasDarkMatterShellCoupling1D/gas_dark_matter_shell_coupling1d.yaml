@@ -11,6 +11,7 @@ par:
     eos_type: isothermal
     gamma: 1.0
     CFL: 0.05
+    positivity_preserving: false
   gravity:
     selfgravity: true
     externalgravity: false

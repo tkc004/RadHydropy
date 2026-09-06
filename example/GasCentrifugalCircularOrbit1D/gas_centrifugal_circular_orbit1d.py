@@ -23,10 +23,55 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
 
 
 CONFIG = ROOT / 'gas_centrifugal_circular_orbit1d.yaml'
+
+def prepare_initial_condition(initial):
+    boundary = np.asarray(initial.mesh.boundary, dtype=float)
+    initial.mesh.boundary_proper_code = boundary
+    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
+        boundary=boundary, width=np.diff(boundary),
+        area=4.0 * np.pi * boundary[:-1]**2,
+        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
+    )
+    initial.fluid.rho_proper_code = initial.fluid.rho_code
+    initial.fluid.vel_proper_code = initial.fluid.vel_code
+    initial.fluid.temp_proper_code = initial.fluid.temp_code
+    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.time_proper_code = 0.0
+    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
+        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
+        temperature=initial.fluid.temp_proper_code, time=0.0, mu=initial.fluid.mu,
+    )
+
+def prepare_initial_condition(initial):
+    boundary = np.asarray(initial.mesh.boundary, dtype=float)
+    initial.mesh.boundary_proper_code = boundary
+    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
+        boundary=boundary, width=np.diff(boundary),
+        area=4.0 * np.pi * boundary[:-1]**2,
+        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
+    )
+    initial.fluid.rho_proper_code = initial.fluid.rho_code
+    initial.fluid.vel_proper_code = initial.fluid.vel_code
+    initial.fluid.temp_proper_code = initial.fluid.temp_code
+    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.time_proper_code = 0.0
+    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
+        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
+        temperature=initial.fluid.temp_proper_code, time=0.0,
+        mu=initial.fluid.mu,
+    )
 
 
 class FixedCentralGravity:
@@ -80,6 +125,8 @@ def run_rsim(par, initial_condition, runtime):
         float(initial_condition['density']), float(initial_condition['pressure']),
         float(initial_condition['central_mass']), units,
     )
+    prepare_initial_condition(initial)
+    prepare_initial_condition(initial)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
@@ -139,6 +186,12 @@ def main(config_filename=CONFIG):
             gravity=FixedCentralGravity(central_mass, specific_j),
         ),
     )
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=mesh.coordinate,
+        boundary=np.linspace(radius - 0.5, radius + 0.5, count + 1),
+        width=np.ones(count), area=4.0 * np.pi * np.ones(count) * radius**2,
+        volume=volume,
+    )
     par = mesh._par
     par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=count)
     fluid = SimpleNamespace(
@@ -173,16 +226,16 @@ def main(config_filename=CONFIG):
         raise RuntimeError('rotational energy bookkeeping is inconsistent')
 
     # Compare the saved Rsim state with the circular analytic solution.
-    saved_velocity = np.asarray(saved_fluid.vel_code[active], dtype=float)
+    saved_velocity = np.asarray(saved_fluid.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved_fluid.specific_angular_momentum_code[active], dtype=float)
-    saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
+    saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
     saved_radius = 0.75 * (
         saved_boundary[1:]**4 - saved_boundary[:-1]**4
     ) / (saved_boundary[1:]**3 - saved_boundary[:-1]**3)
     saved_radius = saved_radius[active]
     saved_mass = np.asarray(saved_fluid.Mass_code[active], dtype=float)
     saved_momentum = np.asarray(
-        saved_fluid.Mass_code[active] * saved_fluid.vel_code[active], dtype=float
+        saved_fluid.Mass_code[active] * saved_fluid.vel_proper_code[active], dtype=float
     )
     saved_energy = np.asarray(saved_fluid.Energy_code[active], dtype=float)
     if np.max(np.abs(saved_velocity)) > 5.0e-5:
@@ -263,6 +316,12 @@ def main(config_filename=CONFIG):
     shell_mesh = SimpleNamespace(
         coordsys='spherical', coordinate=np.asarray([radius]),
         vol=np.asarray([1.0]),
+    )
+    shell_mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=np.asarray([radius]),
+        boundary=np.asarray([radius - 0.5, radius + 0.5]),
+        width=np.asarray([1.0]), area=np.asarray([4.0 * np.pi * radius**2]),
+        volume=np.asarray([1.0]),
     )
     shell_par = SimpleNamespace(
         gas_angular_momentum=True, gas_rotational_energy=True,

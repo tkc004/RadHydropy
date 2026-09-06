@@ -7,6 +7,7 @@ import unyt
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, SUPERCOMOVING_RUNTIME_FIELDS
 
 
 class Par:
@@ -104,7 +105,25 @@ def build_initial_condition(config):
     sim.fluid.temp_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(sim.par.nogrid)
     sim.fluid.mu = np.ones(sim.par.nogrid) * float(icparams['muini'])
     sim.fluid.vel_code = np.zeros(sim.par.nogrid)
-
+    sim.mesh.boundary_comoving_code = sim.mesh.boundary
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS, coordinate=sim.mesh.coordinate,
+        boundary=sim.mesh.boundary, width=np.diff(sim.mesh.boundary),
+        area=sim.mesh.area, volume=sim.mesh.vol,
+    )
+    sim.fluid.rho_comoving_code = sim.fluid.rho_code
+    sim.fluid.vel_supercomoving_code = sim.fluid.vel_code
+    sim.fluid.temp_supercomoving_code = sim.fluid.temp_code
+    sim.fluid.pre_supercomoving_code = sim.fluid.rho_code * sim.fluid.temp_code
+    sim.fluid.tau_supercomoving_code = float(sim.par.simulation.time_code[0])
+    sim.fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
+    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS, density=sim.fluid.rho_comoving_code,
+        velocity=sim.fluid.vel_supercomoving_code,
+        pressure=sim.fluid.pre_supercomoving_code,
+        temperature=sim.fluid.temp_supercomoving_code,
+        time=sim.fluid.tau_supercomoving_code, mu=sim.fluid.mu,
+    )
 
     return sim
 
@@ -129,7 +148,6 @@ def read_snapshot(filename, runparams):
     })
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
 
 
 
