@@ -11,6 +11,10 @@ par:
     ghost_cells: 2
   boundary:
     condition: OpenSph
+  timestep:
+    dtmin: {value: 1.0e-6, unit: Myr}
+    dtmax: {value: 0.5, unit: Myr}
+    evolution_timestep: {value: 0.5, unit: Myr}
   units:
     CodeUnits:
       name: galactic_unit_system
@@ -50,9 +54,13 @@ par:
     radiative_transfer: true
     radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB100000K_5groups_HHe.h5
     radiative_transfer_method: long_characteristics
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output_C2Ray
 initial_condition:
   number_of_cells: 128
-  boxsize:
+  box_size:
     value: 10.0
     unit: kpc
   hydrogen_number_density:

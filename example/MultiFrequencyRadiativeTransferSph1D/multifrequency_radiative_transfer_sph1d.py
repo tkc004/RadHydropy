@@ -61,16 +61,24 @@ def _resolve_reference(config, config_filename, key):
 
 
 def _save_plot(output_filename, config, figure_filename, config_filename):
-    par, mesh, fluid = tools.load_output_state(output_filename, config)[:3]
+    snapshot = Rsim(config["par"])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, output_filename)
+    par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
     code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    interior = slice(par.noghost, par.noghost + par.nogrid)
+    first = int(par.mesh.ghost_cells)
+    last = first + int(par.mesh.grid_cells)
+    interior = slice(first, last)
+    boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
+    x_proper_code = 0.5 * (
+        boundary_proper_code[:-1] + boundary_proper_code[1:]
+    )
     radius_kpc = (
-        np.asarray(mesh.coordinate[interior], dtype=float) * code.length_unit
+        x_proper_code[interior] * code.length_unit
     ).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
     temperature_cgs_K = (
-        np.asarray(fluid.temp_code[interior], dtype=float) * code.temperature_unit
+        np.asarray(fluid.temp_proper_code[interior], dtype=float) * code.temperature_unit
     ).to_value(unyt.K)
     ngamma_values = np.asarray(fluid.ngamma_code, dtype=float)
     if ngamma_values.ndim == 1:

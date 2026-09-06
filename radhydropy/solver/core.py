@@ -771,7 +771,8 @@ class Solver():
         if old_total_energy is not None:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
-            fluid.Energy_code[first:first + count] = old_total_energy[first:first + count]
+            preserved = old_total_energy if old_total_energy.size == count else old_total_energy[first:first + count]
+            fluid.Energy_code[first:first + count] = preserved
         if old_total_mass is not None and old_total_momentum is not None:
             # In dual-energy mode Mass/Mom are the authoritative conservative
             # state.  Rebuilding them as rho*vol and rho*vel*vol after
@@ -781,8 +782,10 @@ class Solver():
             # exact and synchronize only the primitive/thermal quantities.
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
-            fluid.Mass_code[first:first + count] = old_total_mass[first:first + count]
-            fluid.Mom_code[first:first + count] = old_total_momentum[first:first + count]
+            preserved_mass = old_total_mass if old_total_mass.size == count else old_total_mass[first:first + count]
+            preserved_momentum = old_total_momentum if old_total_momentum.size == count else old_total_momentum[first:first + count]
+            fluid.Mass_code[first:first + count] = preserved_mass
+            fluid.Mom_code[first:first + count] = preserved_momentum
         if old_angular_momentum is not None:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)

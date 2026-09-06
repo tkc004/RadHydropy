@@ -1,138 +1,53 @@
-"""Helper utilities for the Sod shock-tube example."""
-
+"""Initial conditions and plotting for the Sod shock tube."""
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import unyt
-from types import SimpleNamespace
-
-from radhydropy.analysis import rplot1d
-import radhydropy.io as rio
-import radhydropy.utils as ru
-from radhydropy.units import CodeUnits
+from radhydropy.rsim import Rsim
+from radhydropy.units import quantity_to_value
+from basic_hydro_utils import make_initial_condition
 from sodshock_analytic import shocktubecal, shocktubeanalyticgraph
 
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
-
-
 def build_initial_condition(config):
-    icparams = config['initial_condition']
-    code_units = config['_code_units']
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    if code_units is not None:
-        sim.par.unit_system = code_units.unit_system
+    ic, units = config["initial_condition"], config["_code_units"]; n=int(ic["grid_cells"]); size=quantity_to_value(ic["box_size"],units.length_unit); b=np.linspace(-size/n,size+size/n,n+1); x=.5*(b[:-1]+b[1:]); mid=(x>.25*size)&(x<.75*size)
+    rho=np.full(n,quantity_to_value(ic["initial_density"],units.density_unit)); rho[mid]*=ic["density_ratio"]; temp=np.full(n,quantity_to_value(ic["initial_temperature"],units.temperature_unit)); temp[mid]*=ic["temperature_ratio"]
+    return make_initial_condition(config,b,rho,np.full(n,quantity_to_value(ic["initial_velocity"],units.velocity_unit)),temp,np.full(n,ic["mean_molecular_weight"]),area=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area"],units.area_unit))
 
-    if ru.CheckParamDimen(icparams) != True:
-        raise Exception('%s unit not correctly set in params' % ru.CheckParamDimen(icparams))
-
-    grid_cells = icparams['grid_cells']
-    box_size = icparams['box_size'] * np.ones(1)
-    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system=icparams['coordinate_system'],
-        time_code=np.array([0.0]) * icparams['current_time'],
-        box_size=box_size,
+def getAnalyticSolution(config, state):
+    ic = config["initial_condition"]
+    units = config["_code_units"]
+    rho_high = quantity_to_value(ic["initial_density"], units.density_unit)
+    rho_low = rho_high * ic["density_ratio"]
+    temp_high = quantity_to_value(ic["initial_temperature"], units.temperature_unit)
+    temp_low = temp_high * ic["temperature_ratio"]
+    mu = ic["mean_molecular_weight"]
+    pressure_low = float(np.asarray(state.fluid.eos.pressure(rho_low, temp_low, mu)))
+    pressure_high = float(np.asarray(state.fluid.eos.pressure(rho_high, temp_high, mu)))
+    rho2, rho3, p2, v2, vt, vs, _ = shocktubecal(
+        config["par"]["hydrodynamics"]["gamma"], rho_low, rho_high,
+        pressure_low, pressure_high,
     )
-
-    dx = box_size[0] / grid_cells
-    sim.mesh.boundary = np.linspace(
-        -dx,
-        box_size[0] + dx,
-        grid_cells + 1,
+    time = float(np.asarray(state.fluid.time_proper_code).flat[0])
+    if time <= 0.0:
+        return None
+    boundary = np.asarray(state.mesh.boundary_proper_code, dtype=float)
+    centers = 0.5 * (boundary[:-1] + boundary[1:])
+    box = quantity_to_value(ic["box_size"], units.length_unit)
+    interface = 0.25 * box
+    left, _, _ = shocktubeanalyticgraph(
+        config["par"]["hydrodynamics"]["gamma"], rho_low, rho2, rho3,
+        rho_high, pressure_low, p2, pressure_high, v2, vt, vs,
+        time, centers, interface,
     )
-    coordinate = 0.5 * (sim.mesh.boundary[1:] + sim.mesh.boundary[:-1])
-
-    rho = np.ones(grid_cells) * icparams['initial_density']
-    sim.fluid.vel_code = np.ones(grid_cells) * icparams['initial_velocity']
-    indexlow = np.logical_and(
-        coordinate > 0.25 * box_size[0],
-        coordinate < 0.75 * box_size[0],
+    mirrored, _, _ = shocktubeanalyticgraph(
+        config["par"]["hydrodynamics"]["gamma"], rho_low, rho2, rho3,
+        rho_high, pressure_low, p2, pressure_high, v2, vt, vs,
+        time, box - centers, interface,
     )
-    rho[indexlow] *= icparams['density_ratio']
-    sim.fluid.rho_code = rho
-    temp = np.ones(grid_cells) * icparams['initial_temperature']
-    temp[indexlow] *= icparams['temperature_ratio']
-    sim.fluid.temp_code = temp
-    sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
+    return np.where(centers <= 0.5 * box, left, mirrored)
 
-
-    return sim
-
-def getAnalyticSolution(config, rout):
-    icparams = config['initial_condition']
-    runparams = config['par']
-    code_units_obj = getattr(rout.par.units, 'CodeUnits', None)
-    if code_units_obj is None:
-        code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    time = rout.par.simulation.time_code
-    if not hasattr(time, 'in_cgs'):
-        time = time * code_units_obj.time_unit
-    boundary = rout.mesh.boundary
-    if not hasattr(boundary, 'in_cgs'):
-        boundary = np.asarray(boundary, dtype=float) * code_units_obj.length_unit
-    p5 = ru.CalPressure(icparams['initial_density'], icparams['initial_temperature'], icparams['mean_molecular_weight'])
-    p1 = ru.CalPressure(
-        icparams['initial_density'] * icparams['density_ratio'],
-        icparams['initial_temperature'] * icparams['temperature_ratio'],
-        icparams['mean_molecular_weight'],
-    )
-    p5 = np.array(p5.in_cgs())
-    p1 = np.array(p1.in_cgs())
-    rho5 = np.array(icparams['initial_density'].in_cgs())
-    rho1 = np.array((icparams['initial_density'] * icparams['density_ratio']).in_cgs())
-
-    rho2, rho3, p2, v2, vt, vs, Mach = shocktubecal(
-        runparams['hydrodynamics']['gamma'],
-        rho1,
-        rho5,
-        p1,
-        p5,
-    )
-    rho_ana, p_ana, v_ana = shocktubeanalyticgraph(
-        runparams['hydrodynamics']['gamma'],
-        rho1,
-        rho2,
-        rho3,
-        rho5,
-        p1,
-        p2,
-        p5,
-        v2,
-        vt,
-        vs,
-        np.array(time.in_cgs()),
-        np.array(boundary.in_cgs()),
-        np.array(0.25 * icparams['box_size']),
-    )
-    return rho_ana, p_ana, v_ana
-
-
-def ReadandPlot(outfilename, config, **kwargs):
-    icparams = config['initial_condition']
-    runparams = config['par']
-    rout = build_initial_condition(config)
-    code_units_obj = config['_code_units']
-    rout.par.unit_system = code_units_obj.unit_system
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    rplot1d(rout, yquan='rho_code', showfig=0, showhalf=1, **kwargs)
-    rho_ana, p_ana, v_ana = getAnalyticSolution(config, rout)
-    plt.plot(rout.mesh.boundary, rho_ana)
-
-
-
-
+def ReadandPlot(filename, config, **kwargs):
+    sim=Rsim(config["par"]); import radhydropy.io as rio; rio.readhdf5(sim.par,sim.mesh,sim.fluid,filename); first=int(sim.par.mesh.ghost_cells); last=first+int(sim.par.mesh.grid_cells); b=np.asarray(sim.mesh.boundary_proper_code); x=.5*(b[:-1]+b[1:]); plt.plot(x[first:last],np.asarray(sim.fluid.rho_proper_code)[first:last],**kwargs)
+    analytic = getAnalyticSolution(config, sim)
+    if analytic is not None:
+        plt.plot(x[first:last], analytic[first:last], color=kwargs.get("color"), linestyle="--", label="analytic")

@@ -11,6 +11,15 @@ par:
     ghost_cells: 2
   boundary:
     condition: OpenSph
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.5
+    order: 0
+  timestep:
+    dtmin: {value: 1.0e-6, unit: Myr}
+    dtmax: {value: 0.5, unit: Myr}
+    evolution_timestep: {value: 0.5, unit: Myr}
   units:
     CodeUnits:
       name: galactic_unit_system
@@ -44,8 +53,13 @@ par:
     radiative_transfer: true
     radiation_spectrum_filename: null
     radiative_transfer_method: long_characteristics
+    radiative_transfer_source_photon_rate: {value: 5.0e48, unit: 1/s}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output_SingleFrequency
 initial_condition:
-  number_of_cells: 512
+  grid_cells: 512
   box_size:
     value: 10.0
     unit: kpc
@@ -56,12 +70,6 @@ initial_condition:
     value: 100.0
     unit: K
 example:
-  outdir: .
-  outfileprefix: Output_SingleFrequency
-  savedir: .
-  radiative_transfer_source_photon_rate:
-    value: 5.0e48
-    unit: 1/s
   reference_radius_unit:
     value: 5.4
     unit: kpc

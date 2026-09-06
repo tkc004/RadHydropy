@@ -6,6 +6,7 @@ par:
     final_time: {value: 10.0, unit: s}
   mesh:
     ghost_cells: 2
+    area: {value: 1.0, unit: cm**2}
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666666667

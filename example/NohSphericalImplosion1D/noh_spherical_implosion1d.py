@@ -23,66 +23,31 @@ from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
+from basic_hydro_utils import make_initial_condition as make_canonical_initial_condition
 
 
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
 
-class State:
-    pass
+def make_initial_condition(ic, units, runtime):
+    n = int(ic["grid_cells"]); rmax = float(ic["box_size"].to_value(units.length_unit))
+    boundary = np.linspace(0.0, rmax, n + 1)
+    config = {"par": runtime, "initial_condition": ic, "_code_units": units}
+    return make_canonical_initial_condition(config, boundary, np.full(n, float(ic["initial_density"].to_value("g/cm**3"))), np.full(n, float(ic["velocity"].to_value(units.velocity_unit))), np.full(n, float(ic["temperature"].to_value("K"))), np.full(n, float(ic["mean_molecular_weight"])))
 
 
-def make_initial_condition(ic, units):
-    state = State()
-    state.par, state.mesh, state.fluid = State(), State(), State()
-    state.par.units = type('Units', (), {'CodeUnits': units})()
-    state.par.unit_system = units.unit_system
-    state.par.simulation = type('Simulation', (), {})()
-    state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': int(ic['grid_cells'])})()
-    state.par.nogrid = int(ic["grid_cells"])
-    state.par.coordsys = "spherical"
-    rmax = float(ic["box_size"].to_value(units.length_unit))
-    state.par.boxsize = np.asarray([rmax]) * units.length_unit
-    state.par.time_code = np.asarray([0.0]) * units.time_unit
-    state.par.simulation.time_code = state.par.time_code
-    state.par.simulation.coordinate_system = 'spherical'
-    state.par.simulation.box_size = state.par.boxsize
-    boundary = np.linspace(0.0, rmax, state.par.nogrid + 1)
-    state.mesh.boundary = boundary * units.length_unit
-    state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1]) * units.length_unit
-    state.mesh.xdelta = np.diff(boundary) * units.length_unit
-    state.mesh.area = 4.0 * np.pi * boundary[:-1] ** 2 * units.area_unit
-    state.mesh.vol = (
-        4.0 * np.pi / 3.0 * np.diff(boundary**3) * units.volume_unit
-    )
-    state.fluid.rho_code = np.full(
-        state.par.nogrid, float(ic["initial_density"].to_value("g/cm**3"))
-    )
-    state.fluid.vel_code = np.full(
-        state.par.nogrid, float(ic["velocity"].to_value(units.velocity_unit))
-    )
-    state.fluid.temp_code = np.full(
-        state.par.nogrid, float(ic["temperature"].to_value("K"))
-    )
-    state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
-    return state
-
-
-def read_profile(filename, units, gamma):
-    par, mesh, fluid = State(), State(), State()
-    par.CodeUnits = units
-    par.simulation = type("Simulation", (), {"coordinate_system": "spherical"})()
-    par.mesh = type("MeshParameters", (), {"grid_cells": None, "ghost_cells": 0})()
-    rio.readhdf5(par, mesh, fluid, filename)
-    first = int(getattr(par, "noghost", 2))
-    last = first + int(par.nogrid)
-    boundary = np.asarray(mesh.boundary, dtype=float)
+def read_profile(filename, units, gamma, runtime):
+    sim = Rsim(runtime)
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
+    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
     radius = 0.5 * (boundary[1:] + boundary[:-1])
     volume = 4.0 * np.pi / 3.0 * np.diff(boundary**3)
-    rho_code = np.asarray(fluid.rho_code, dtype=float)[first:last]
-    velocity = np.asarray(fluid.vel_code, dtype=float)[first:last]
-    temperature = np.asarray(fluid.temp_code, dtype=float)[first:last]
-    mu = np.asarray(fluid.mu, dtype=float)[first:last]
+    rho = np.asarray(sim.fluid.rho_proper_code, dtype=float)[first:last]
+    velocity = np.asarray(sim.fluid.vel_proper_code, dtype=float)[first:last]
+    temperature = np.asarray(sim.fluid.temp_proper_code, dtype=float)[first:last]
+    mu = np.asarray(sim.fluid.mu, dtype=float)[first:last]
     eos = EOS("polytropic", gamma=gamma, code_units=units)
     pressure = np.asarray(eos.pressure(rho, temperature, mu), dtype=float)
     kinetic = 0.5 * rho * velocity**2 * volume[first:last]
@@ -95,7 +60,7 @@ def read_profile(filename, units, gamma):
         "pressure": pressure,
         "kinetic": float(np.sum(kinetic)),
         "thermal": float(np.sum(thermal)),
-        "time": float(np.asarray(par.time_code).flat[0]),
+        "time": float(np.asarray(sim.par.time_proper_code).flat[0]),
     }
 
 
@@ -128,7 +93,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         runparams["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
         icparams["grid_cells"] = resolution
         runparams["mesh"]["grid_cells"] = resolution
-        initial = make_initial_condition(icparams, units)
+        initial = make_initial_condition(icparams, units, runparams)
         rio.writehdf5(
             initial, runparams["simulation"]["initial_condition_filename"]
         )
@@ -138,7 +103,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         snapshots = sorted(output.glob("Output_*.hdf5"))
         if len(snapshots) < 2:
             raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
-        profiles = [read_profile(filename, units, runparams["hydrodynamics"]["gamma"]) for filename in snapshots]
+        profiles = [read_profile(filename, units, runparams["hydrodynamics"]["gamma"], runparams) for filename in snapshots]
         all_profiles[resolution] = profiles
         initial_profile, final_profile = profiles[0], profiles[-1]
         if not final_profile["thermal"] > initial_profile["thermal"]:

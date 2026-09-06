@@ -33,9 +33,6 @@ par:
     hydrogen_recombination: true
     hydrogen_collisional_ionization: true
     hydrogen_initial_collisional_equilibrium: true
-    metal_pie_enabled: true
-    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
-    metallicity: 1.0
     explicit_tolerance: 0.1
     relative_tolerance: 1.0e-3
     absolute_tolerance: 1.0e-10
@@ -46,6 +43,9 @@ par:
     radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB30000K_5groups_HHe.h5
     radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
     stellar_spectrum_blackbody_temperature_cgs_K: 30000.0
+    metal_pie_enabled: true
+    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
+    metallicity: 1.0
   output:
     directory: .
     savedir: .

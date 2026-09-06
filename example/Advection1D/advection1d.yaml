@@ -8,6 +8,8 @@ par:
       unit: s
   mesh:
     ghost_cells: 5
+    grid_cells: 100
+    area: {value: 1.0, unit: cm**2}
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.4

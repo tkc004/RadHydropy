@@ -4,62 +4,50 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from types import SimpleNamespace
-
-from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits
-
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
+from radhydropy.arrays import as_named_array
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import quantity_to_value
 
 
 def build_initial_condition(config):
     initial = config['initial_condition']
     code_units = config['_code_units']
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    if code_units is not None:
-        sim.par.unit_system = code_units.unit_system
+    sim = Rsim(config['par'])
+    grid_cells = int(initial['grid_cells'])
+    sim.par.mesh.grid_cells = grid_cells
+    box_size_code = quantity_to_value(initial['box_size'], code_units.length_unit)
+    boundary_proper_code = np.linspace(0.0, box_size_code, grid_cells + 1)
+    coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
 
-    grid_cells = config['par']['mesh']['grid_cells']
-    box_size = initial['box_size'] * np.ones(1)
-    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system=config['par']['simulation']['coordinate_system'],
-        time_code=initial['current_time'] * np.ones(1),
-        box_size=box_size,
-    )
-
-    dx = box_size[0] / grid_cells
-    sim.mesh.boundary = np.linspace(
-        0.0 * box_size[0], box_size[0] + dx, grid_cells + 1,
-    )
-    coordinate = 0.5 * (sim.mesh.boundary[1:] + sim.mesh.boundary[:-1])
-
-    rho = np.ones(grid_cells) * initial['initial_density']
-    sim.fluid.vel_code = np.ones(grid_cells) * initial['initial_velocity']
-    sim.fluid.temp_code = np.ones(grid_cells) * initial['initial_temperature']
-    rho[
+    rho_proper_code = np.full(grid_cells, quantity_to_value(initial['initial_density'], code_units.density_unit))
+    sim.fluid.vel_proper_code = as_named_array(np.full(grid_cells, quantity_to_value(initial['initial_velocity'], code_units.velocity_unit)))
+    sim.fluid.temp_proper_code = as_named_array(np.full(grid_cells, quantity_to_value(initial['initial_temperature'], code_units.temperature_unit)))
+    rho_proper_code[
         np.logical_or(
-            coordinate < 0.25 * box_size[0],
-            coordinate > 0.75 * box_size[0],
+            coordinate_proper_code < 0.25 * box_size_code,
+            coordinate_proper_code > 0.75 * box_size_code,
         )
     ] *= 0.5
-    sim.fluid.rho_code = rho
-    sim.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
+    sim.fluid.rho_proper_code = as_named_array(rho_proper_code)
+    sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
+    sim.mesh.boundary_proper_code = as_named_array(boundary_proper_code)
+    sim.SetMesh()
+    sim.fluid.SetUpFluid(sim.par, sim.mesh)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + grid_cells
+    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
+    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'mu', 'Energy_code', 'InternalEnergy_code'):
+        if hasattr(sim.fluid, field):
+            setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
+    sim.par.mesh.ghost_cells = 0
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(PROPER_RUNTIME_FIELDS,
+        coordinate=sim.mesh.x_proper_code[first:last], boundary=sim.mesh.boundary_proper_code,
+        width=sim.mesh.width_proper_code[first:last], area=sim.mesh.area_proper_code[first:last],
+        volume=sim.mesh.volume_proper_code[first:last])
+    sim.fluid._refresh_runtime_state()
 
 
     return sim
@@ -67,31 +55,31 @@ def build_initial_condition(config):
 def ReadandPlot(outfilename, config, **kwargs):
     initial = config['initial_condition']
     run = config['par']
-    rout = build_initial_condition(config)
+    rout = Rsim(config['par'])
     code_units_obj = config['_code_units']
-    rout.par.units.CodeUnits = code_units_obj
-    rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    time = rout.par.simulation.time_code * code_units_obj.time_unit
-    x = np.linspace(
-        0.0 * initial['box_size'],
-        initial['box_size'],
-        initial['grid_cells'],
+    first = int(rout.par.mesh.ghost_cells)
+    last = first + int(rout.par.mesh.grid_cells)
+    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[:-1] + rout.mesh.boundary_proper_code[1:])
+    x_physical = x_proper_code[first:last]
+    box_size = quantity_to_value(initial['box_size'], code_units_obj.length_unit)
+    velocity = quantity_to_value(initial['initial_velocity'], code_units_obj.velocity_unit)
+    time_code = float(np.asarray(rout.fluid.time_proper_code).flat[0])
+    launch = np.mod(x_physical - velocity * time_code, box_size)
+    high_density = quantity_to_value(initial['initial_density'], code_units_obj.density_unit)
+    analytic_density = np.where(
+        (launch >= 0.25 * box_size) & (launch <= 0.75 * box_size),
+        high_density,
+        0.5 * high_density,
     )
-    rho = np.ones(initial['grid_cells']) * initial['initial_density']
-    x1 = 0.25 * initial['box_size'] + time * initial['initial_velocity']
-    x2 = 0.75 * initial['box_size'] + time * initial['initial_velocity']
-    if x1 > initial['box_size']:
-        x1 -= initial['box_size']
-    if x2 > initial['box_size']:
-        x2 -= initial['box_size']
-    if x2 > x1:
-        rho[np.logical_or(x < x1, x > x2)] *= 0.5
-    if x1 > x2:
-        rho[np.logical_and(x > x1, x < x2)] *= 0.5
-    plt.plot(x, rho, color=kwargs['color'], ls='solid')
-    rplot1d(rout, showfig=0, **kwargs)
-
-
-
+    plt.plot(x_proper_code[first:last] * code_units_obj.length_unit,
+             rout.fluid.rho_proper_code[first:last] * code_units_obj.density_unit,
+             **kwargs)
+    plt.plot(
+        x_physical * code_units_obj.length_unit,
+        analytic_density * code_units_obj.density_unit,
+        color=kwargs.get('color'),
+        linestyle='--',
+        label='analytic',
+    )
 

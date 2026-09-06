@@ -24,21 +24,28 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE):
     snapshot_filename = Path(snapshot_filename)
     figure_filename = Path(figure_filename)
     with h5py.File(snapshot_filename, "r") as handle:
+        header = handle["Header"]
         data = handle["Data"]
-        temperature = np.asarray(data["Temperature"])
-        xhi = np.asarray(data["NeutralFraction"])
-        xhei = np.asarray(data["HeINeutralFraction"])
-        xheii = np.asarray(data["HeIIFraction"])
-        xheiii = np.asarray(data["HeIIIFraction"])
+        temperature_proper_code = np.asarray(data["temp_proper_code"])
+        xhi = np.asarray(data["xHI"])
+        xhei = np.asarray(data["xHeI"])
+        xheii = np.asarray(data["xHeII"])
+        xheiii = np.asarray(data["xHeIII"])
+        boundary_proper_code = np.asarray(data["boundary_proper_code"])
+        ghost_cells = int(header.attrs.get("GhostCells", 0))
+        grid_cells = int(header.attrs["GridCells"])
 
-    ncell = temperature.size - 4
-    radius = (np.arange(ncell, dtype=float) + 0.5) * 10.0 / ncell / 5.4
+    interior = slice(ghost_cells, ghost_cells + grid_cells)
+    radius = (
+        0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])[interior]
+        / 5.4
+    )
     snapshot = {
-        "H I": xhi[2:-2],
-        "H II": 1.0 - xhi[2:-2],
-        "He I": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xhei[2:-2],
-        "He II": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheii[2:-2],
-        "He III": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheiii[2:-2],
+        "H I": xhi[interior],
+        "H II": 1.0 - xhi[interior],
+        "He I": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xhei[interior],
+        "He II": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheii[interior],
+        "He III": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheiii[interior],
     }
     references = {
         "H I": "xHITT1D_Stromgren100Myr_HHe.txt",
@@ -68,7 +75,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE):
 
     temperature_axis = axes[1, 2]
     temperature_axis.clear()
-    temperature_axis.plot(radius, np.clip(temperature[2:-2], 1.0, None),
+    temperature_axis.plot(radius, np.clip(temperature_proper_code[interior], 1.0, None),
                            color="tab:red", label=snapshot_label)
     temperature_reference = np.loadtxt(
         HERE / "TTT1D_Stromgren100Myr_HHe.txt", delimiter=","

@@ -1,231 +1,73 @@
-"""Helper utilities for the spherical ballistic-infall example."""
-
+"""Helpers for spherical ballistic infall."""
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from types import SimpleNamespace
-
-from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
-from radhydropy.units import (
-    CodeUnits,
-    code_quantity_to_cgs,
-    code_unit_scales,
-    quantity_to_value,
-    time_seconds,
-)
-
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
+from radhydropy.rsim import Rsim
+from radhydropy.units import code_quantity_to_cgs, code_unit_scales, quantity_to_value, time_seconds
+from basic_hydro_utils import make_initial_condition
 
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
-
-
 def spherical_cell_centers(boundary):
-    """Return spherical cell centers consistent with the mesh geometry."""
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    vol_denom = boundary[1:]**3 - boundary[:-1]**3
-    nonzero = vol_denom != 0.0
-    coordinate[nonzero] = 0.75 * (
-        boundary[1:][nonzero]**4 - boundary[:-1][nonzero]**4
-    ) / vol_denom[nonzero]
+    coordinate = .5 * (boundary[1:] + boundary[:-1])
+    denom = boundary[1:]**3 - boundary[:-1]**3
+    mask = denom != 0
+    coordinate[mask] = .75 * (boundary[1:][mask]**4 - boundary[:-1][mask]**4) / denom[mask]
     return coordinate
 
-
 def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
-    """Return a callable for a point-mass gravitational acceleration field."""
-    if code_units is not None:
-        scales = code_unit_scales(code_units)
-        point_mass = (
-            point_mass.to_value(unyt.g)
-            if hasattr(point_mass, "to_value")
-            else float(point_mass) * scales["mass_g"]
-        )
-        softening = (
-            softening.to_value(unyt.cm)
-            if hasattr(softening, "to_value")
-            else float(softening) * scales["length_cgs_cm"]
-        )
-        coord_unit = code_units.length_unit
-        accel_unit = ACCELERATION_UNIT
-    else:
-        point_mass = (
-            point_mass.to_value(unyt.g)
-            if hasattr(point_mass, "to_value")
-            else float(point_mass)
-        )
-        softening = (
-            softening.to_value(unyt.cm)
-            if hasattr(softening, "to_value")
-            else float(softening)
-        )
-        coord_unit = unyt.cm
-        accel_unit = ACCELERATION_UNIT
-
-    def _acceleration(coordinate):
-        radius = (
-            coordinate.to_value(coord_unit)
-            if hasattr(coordinate, "to_value")
-            else np.asarray(coordinate, dtype=float)
-        )
-        if code_units is not None:
-            radius = radius * scales["length_cgs_cm"]
-        radius = np.maximum(radius, softening)
-        return (
-            -GRAVITATIONAL_CONSTANT_CGS * point_mass / radius**2
-        ) * accel_unit
-
-    return _acceleration
-
+    scales = code_unit_scales(code_units) if code_units is not None else None
+    mass = point_mass.to_value(unyt.g) if hasattr(point_mass, "to_value") else float(point_mass) * (scales["mass_g"] if scales else 1)
+    soft = softening.to_value(unyt.cm) if hasattr(softening, "to_value") else float(softening) * (scales["length_cgs_cm"] if scales else 1)
+    def acceleration(coordinate):
+        radius = coordinate.to_value(code_units.length_unit) if hasattr(coordinate, "to_value") and code_units is not None else np.asarray(coordinate, dtype=float)
+        if scales is not None: radius = radius * scales["length_cgs_cm"]
+        radius = np.maximum(radius, soft)
+        return (-GRAVITATIONAL_CONSTANT_CGS * mass / radius**2) * ACCELERATION_UNIT
+    return acceleration
 
 def ballistic_density_profile(coordinate, rho_ref):
-    """Return a constant-density profile for the ballistic infall example."""
     return np.ones(np.shape(coordinate), dtype=float) * rho_ref
 
-
-def ballistic_velocity_profile(
-    coordinate,
-    point_mass,
-    time,
-    softening=0.0,
-    code_units=None,
-):
-    """Return the short-time free-fall velocity under a point mass."""
-    acceleration = point_mass_acceleration(
-        point_mass,
-        softening=softening,
-        code_units=code_units,
-    )(coordinate)
-    if code_units is not None:
-        time = time_seconds(time, code_units) * unyt.s
-    elif hasattr(time, 'to_value'):
-        time = time.to_value(unyt.s) * unyt.s
-    else:
-        time = float(time) * unyt.s
-    return acceleration * time
-
+def ballistic_velocity_profile(coordinate, point_mass, time, softening=0.0, code_units=None):
+    t = time_seconds(time, code_units) * unyt.s if code_units is not None else float(time) * unyt.s
+    return point_mass_acceleration(point_mass, softening, code_units)(coordinate) * t
 
 def build_initial_condition(config):
-    icparams = config['initial_condition']
-    code_units = config['_code_units']
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
+    ic = config["initial_condition"]
+    units = config["_code_units"]
+    n = int(ic["grid_cells"])
+    boundary = np.linspace(quantity_to_value(ic["inner_radius"], units.length_unit), quantity_to_value(ic["outer_radius"], units.length_unit), n + 1)
+    center = spherical_cell_centers(boundary)
+    return make_initial_condition(config, boundary,
+        ballistic_density_profile(center, quantity_to_value(ic["reference_density"], units.density_unit)),
+        np.zeros(n), np.full(n, quantity_to_value(ic["initial_temperature"], units.temperature_unit)),
+        np.full(n, ic["mean_molecular_weight"]), area=4*np.pi*boundary[:-1]**2)
 
-    grid_cells = int(icparams['grid_cells'])
-    coordinate_system = icparams['coordinate_system']
-    box_size = np.ones(1) * icparams['box_size']
-    sim.par.time_code = np.ones(1) * icparams['current_time']
-    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system=coordinate_system,
-        time_code=sim.par.time_code,
-        box_size=box_size,
+def ReadandPlot(filename, config, **kwargs):
+    ic, units = config["initial_condition"], config["_code_units"]
+    sim = Rsim(config["par"]); rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    first = int(sim.par.mesh.ghost_cells); last = first + int(sim.par.mesh.grid_cells)
+    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    x = spherical_cell_centers(boundary)[first:last]
+    rho = np.asarray(sim.fluid.rho_proper_code)[first:last]
+    vel = np.asarray(sim.fluid.vel_proper_code)[first:last]
+    time_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
+    analytic_rho = ballistic_density_profile(
+        x, quantity_to_value(ic["reference_density"], units.density_unit)
     )
-
-    sim.mesh.boundary = np.linspace(
-        icparams['inner_radius'],
-        icparams['outer_radius'],
-        grid_cells + 1,
-    )
-    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = (
-        np.absolute(sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3)
-        * 4.0
-        * np.pi
-        / 3.0
-    )
-
-    sim.fluid.temp_code = np.ones(grid_cells) * icparams['initial_temperature']
-    sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
-    sim.fluid.rho_code = ballistic_density_profile(
-        sim.mesh.coordinate,
-        icparams['reference_density'],
-    )
-
-
-    return sim
-def ReadandPlot(outfilename, config, **kwargs):
-    """Read a snapshot and compare it with the ballistic short-time profile."""
-    icparams = config['initial_condition']
-    runparams = config['par']
-    code_units_obj = config['_code_units']
-    rout = build_initial_condition(config)
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    color = kwargs.get('color', 'C0')
-    nghost = int(runparams.get('mesh', {}).get('ghost_cells', 0))
-    xall = spherical_cell_centers(rout.mesh.boundary)
-    if nghost > 0:
-        xcoord = xall[nghost:-nghost]
-        rho_num = rout.fluid.rho_code[nghost:-nghost]
-        vel_code_num = rout.fluid.vel_code[nghost:-nghost]
-    else:
-        xcoord = xall
-        rho_num = rout.fluid.rho_code
-        vel_code_num = rout.fluid.vel_code
-    rho_analytic = ballistic_density_profile(xcoord, icparams['reference_density'])
-    vel_analytic = ballistic_velocity_profile(
-        xcoord,
-        icparams['point_mass'],
-        rout.fluid.time_code,
-        code_units=code_units_obj,
-    )
-    zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
-    x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
-    rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
-    vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units)
-    xcoord_cgs = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm')
-    rho_num_cgs = code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
-    rho_analytic_cgs = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
-    vel_num_cgs = code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cgs_cm_s')
-    vel_analytic_cgs = quantity_to_value(vel_analytic, unyt.cm / unyt.s)
-    zero_velocity_cgs = quantity_to_value(zero_velocity, unyt.cm / unyt.s)
-
+    analytic_vel = ballistic_velocity_profile(
+        x, ic["point_mass"], time_code, code_units=units
+    ).to_value(unyt.cm / unyt.s) / units.velocity_in_cgs
     plt.subplot(1, 2, 1)
-    plt.plot(xcoord_cgs, rho_num_cgs, label='numerical', **kwargs)
-    plt.plot(
-        xcoord_cgs,
-        rho_analytic_cgs,
-        ls='dashed',
-        color=color,
-        label='analytic',
-    )
-    plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
-    plt.ylabel(rf"$\rho \; [{rho_units.latex_repr}]$")
-    plt.legend(loc='best')
-
+    plt.plot(x, rho, label="numerical", **kwargs)
+    plt.plot(x, analytic_rho, color="black", linestyle="--", linewidth=2.0, label="analytic", zorder=5)
+    plt.legend()
     plt.subplot(1, 2, 2)
-    plt.plot(xcoord_cgs, vel_num_cgs, label='numerical', **kwargs)
-    plt.plot(
-        xcoord_cgs,
-        vel_analytic_cgs,
-        ls='dashed',
-        color=color,
-        label='free-fall',
-    )
-    plt.plot(
-        xcoord_cgs,
-        zero_velocity_cgs,
-        ls='dotted',
-        color='C2',
-        label='zero velocity',
-    )
-    plt.xlabel(rf"$r \; [{x_units.latex_repr}]$")
-    plt.ylabel(rf"$v \; [{vel_units.latex_repr}]$")
-    plt.legend(loc='best')
+    plt.plot(x, vel, label="numerical", **kwargs)
+    plt.plot(x, analytic_vel, color="black", linestyle="--", linewidth=2.0, label="free-fall", zorder=5)
+    plt.legend()
