@@ -49,20 +49,35 @@ class C2RayResult:
 
 
 def _group_parameters(par):
+    radiation = getattr(par, "radiation", None)
     edges = getattr(par, "radiation_group_edges_eV", None)
     if edges is None:
+        edges = getattr(radiation, "group_edges_eV", None)
+    if edges is None:
         ngroup = 1
-        sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
-        epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
+        sigma_value = getattr(par, "hydrogen_sigma_gamma", None)
+        if sigma_value is None:
+            sigma_value = getattr(radiation, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
+        epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
+        if epsilon_value is None:
+            epsilon_value = getattr(radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
     else:
         edges = np.asarray(edges, dtype=float)
         ngroup = edges.size - 1
         sigma_value = getattr(par, "radiation_group_sigma_gamma", None)
         if sigma_value is None:
-            sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
+            sigma_value = getattr(radiation, "group_sigma_gamma", None)
+        if sigma_value is None:
+            sigma_value = getattr(par, "hydrogen_sigma_gamma", None)
+        if sigma_value is None:
+            sigma_value = getattr(radiation, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
         epsilon_value = getattr(par, "radiation_group_epsilon_gamma", None)
         if epsilon_value is None:
-            epsilon_value = getattr(par, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
+            epsilon_value = getattr(radiation, "group_epsilon_gamma", None)
+        if epsilon_value is None:
+            epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
+        if epsilon_value is None:
+            epsilon_value = getattr(radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
 
     code = _code_units(par)
     sigma = quantity_or_code_to_cgs(sigma_value, code, CGS_AREA_UNIT, "area_cgs_cm2")
@@ -87,14 +102,18 @@ def _group_parameters(par):
         None,
     )
     if boundary_flux is None:
-        boundary_flux = getattr(par, "radiative_transfer_boundary_flux", 0.0)
+        boundary_flux = getattr(par, "radiative_transfer_boundary_flux", None)
+    if boundary_flux is None:
+        boundary_flux = getattr(radiation, "boundary_flux", 0.0)
     source_rate = getattr(
         par,
         "radiative_transfer_source_photon_rate_groups",
         None,
     )
     if source_rate is None:
-        source_rate = getattr(par, "radiative_transfer_source_photon_rate", 0.0)
+        source_rate = getattr(par, "radiative_transfer_source_photon_rate", None)
+    if source_rate is None:
+        source_rate = getattr(radiation, "source_photon_rate", 0.0)
     boundary_flux = quantity_or_code_to_cgs(
         boundary_flux,
         code,
@@ -814,7 +833,7 @@ def apply_fast(dt, mesh, fluid, par):
     # physical source interval with dt_phys = a^2 d tau.
     dt_s = time_seconds(dt, code) * state.get("source_scale_factor", 1.0) ** 2
     result = advance_state(state, par, dt_s)
-    _ensure_fluid_photon_shape(fluid, state["ngamma_cgs_cm3"])
+    _ensure_fluid_photon_shape(fluid, state["ngamma_cgs_cm3"], par)
     if network == "hydrogen_helium":
         hydrogen_helium.apply_state(state, fluid, par)
     else:
@@ -832,7 +851,7 @@ def apply_fast(dt, mesh, fluid, par):
     }
 
 
-def _ensure_fluid_photon_shape(fluid, photon_density):
+def _ensure_fluid_photon_shape(fluid, photon_density, par):
     """Resize the runtime photon field when a spectrum changes group count."""
     target = np.shape(photon_density)
     if np.shape(getattr(fluid, "ngamma_code", None)) == target:

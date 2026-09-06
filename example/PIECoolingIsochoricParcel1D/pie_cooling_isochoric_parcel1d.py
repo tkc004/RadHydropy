@@ -73,11 +73,11 @@ def _snapshot(filename, time_Myr=None):
         last = first + nogrid
         return {
             'time_Myr': (
-                float(header['time_code'][()]) / SECONDS_PER_MYR
+                float(header['time_proper_code'][()]) / SECONDS_PER_MYR
                 if time_Myr is None else float(time_Myr)
             ),
-            'density': np.asarray(data['rho_code'][()])[first:last],
-            'temperature': np.asarray(data['temp_code'][()])[first:last],
+            'density': np.asarray(data['rho_proper_code'][()])[first:last],
+            'temperature': np.asarray(data['temp_proper_code'][()])[first:last],
         }
 
 
@@ -111,10 +111,13 @@ def _run_case(config, label, density, temperature, table):
     case_config = {'par': case, 'initial_condition': case_icparams, '_code_units': code_units}
     initial_state = build_initial_condition(case_config)
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
-    sim = Rsim(case)
+    # The canonical IC builder already returned a fully initialized Rsim.  Keep
+    # its loaded PIE table instead of reconstructing Par from the mutated
+    # nested mapping (which serializes the table object as a plain dict).
+    sim = initial_state
     # This is a one-cell isochoric parcel.  Use the dedicated source-only
     # mode so no hydro flux gradient is evaluated on the single active cell.
-    sim.RunAll(outputtime=0, mode='sources')
+    sim.Run(outputtime=0, mode='sources')
     snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')

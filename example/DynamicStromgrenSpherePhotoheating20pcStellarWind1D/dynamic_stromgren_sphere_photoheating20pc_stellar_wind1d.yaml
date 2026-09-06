@@ -11,7 +11,7 @@ par:
   timestep: {dtmin: {value: 1.0e-10, unit: Myr}, dtmax: {value: 0.01, unit: Myr}, hydrogen_source_CFL: 1.0, hydrogen_source_dtmin: {value: 1.0e-3, unit: Myr}}
   output: {directory: ., savedir: ., filename_prefix: Output, time_list_filename: output_times.txt}
   chemistry: {hydrogen_chemistry: true, hydrogen_mass_fraction: 1.0, hydrogen_xHI_initial: 1.0, hydrogen_xHI_inflow: 1.0, hydrogen_xHI_outflow: 1.0, hydrogen_update_mu: true, hydrogen_recombination: true, hydrogen_collisional_ionization: false, hydrogen_alpha_B: {value: 2.59e-13, unit: cm**3/s}, hydrogen_beta: {value: 0.0, unit: cm**3/s}}
-  thermochemistry: {hydrogen_thermal_coupling: true, hydrogen_source_solver: split_implicit, hydrogen_split_implicit_max_subcycles: 128}
+  thermochemistry: {hydrogen_thermal_coupling: true, hydrogen_source_solver: coupled_implicit, hydrogen_split_implicit_max_subcycles: 128}
   radiation: {radiative_transfer: true, radiative_transfer_method: long_characteristics, radiative_transfer_temporal_scheme: instantaneous, hydrogen_radiation_field: false, hydrogen_radiation_evolution: false, hydrogen_ngamma_initial: {value: 0.0, unit: 1/cm**3}, hydrogen_sigma_gamma: {value: 1.62e-18, unit: cm**2}, hydrogen_epsilon_gamma: {value: 6.33, unit: eV}, radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}, radiative_transfer_source_photon_rate: {value: 1.0e49, unit: 1/s}, radiative_transfer_direction: 1}
   units:
     CodeUnits:

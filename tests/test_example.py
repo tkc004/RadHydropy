@@ -490,8 +490,8 @@ class Testing(unittest.TestCase):
             unyt.g / unyt.cm**3,
         ) * 1.0e-24
         rout = SimpleNamespace(
-            mesh=SimpleNamespace(boundary=boundary),
-            fluid=SimpleNamespace(rho_code=density),
+            mesh=SimpleNamespace(boundary_proper_code=boundary),
+            fluid=SimpleNamespace(rho_proper_code=density),
         )
 
         radius = stellar_wind_tools.shell_inner_edge_radius(
@@ -516,30 +516,32 @@ class Testing(unittest.TestCase):
                 len(boundary) - 1 - shell_start_index
             )
             return SimpleNamespace(
-                par = parameter_namespace(time_code=unyt.unyt_quantity(time_myr, unyt.Myr)),
-                mesh=SimpleNamespace(boundary=boundary),
+                par = parameter_namespace(CodeUnits=SimpleNamespace(time_unit=unyt.s)),
+                mesh=SimpleNamespace(boundary_proper_code=boundary),
                 fluid=SimpleNamespace(
-                    rho_code=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
-                    temp_code=unyt.unyt_array(temp, unyt.K),
+                    time_proper_code=unyt.unyt_quantity(time_myr, unyt.Myr).to_value(unyt.s),
+                    rho_proper_code=unyt.unyt_array(rho, unyt.g / unyt.cm**3),
+                    temp_proper_code=unyt.unyt_array(temp, unyt.K),
                     mu=unyt.unyt_array([0.62] * (len(boundary) - 1)),
                 ),
             )
 
         snapshots = [make_snapshot(1.0, 25), make_snapshot(2.0, 26)]
-        runparams = {
-            'shell_edge_density_threshold_factor': 1.0,
-            'rho_outflow': unyt.unyt_quantity(1.0e-22, unyt.g / unyt.cm**3),
-            'vel_outflow': unyt.unyt_quantity(1000.0, unyt.km / unyt.s),
-        }
-        icparams = {
-            'rhoini': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
-            'rinj': unyt.unyt_quantity(0.05, unyt.pc),
+        config = {
+            'example': {'shell_edge_density_threshold_factor': 1.0},
+            'par': {'boundary': {
+                'outflow_density': unyt.unyt_quantity(1.0e-22, unyt.g / unyt.cm**3),
+                'outflow_velocity': unyt.unyt_quantity(1000.0, unyt.km / unyt.s),
+            }},
+            'initial_condition': {
+                'initial_density': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
+                'injection_radius': unyt.unyt_quantity(0.05, unyt.pc),
+            },
         }
 
         diagnostics = stellar_wind_tools.collect_shell_diagnostics(
             snapshots,
-            icparams,
-            runparams,
+            config,
         )
 
         self.assertIsNotNone(diagnostics)
@@ -768,7 +770,6 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
 
         par, mesh, fluid, solver = static_stromgren_tools.build_static_problem(config)
-        par = parameter_namespace(**vars(par))
         sim = Rsim.FromComponents(par, mesh, fluid, solver)
         sim.ConvertParametersToCodeUnits()
 

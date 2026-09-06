@@ -1,10 +1,12 @@
 """Initial conditions and diagnostics for a gravity-free spherical PIE shock."""
 
-from types import SimpleNamespace
-
 import h5py
 import numpy as np
 import unyt
+from radhydropy.arrays import as_named_array
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import quantity_to_value
 
 
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
@@ -17,28 +19,38 @@ def build_initial_condition(config):
     par = config['par']
     code_units = config['_code_units']
     grid_cells = int(par['mesh']['grid_cells'])
-    result = SimpleNamespace()
-    result.par = SimpleNamespace(
-        units=SimpleNamespace(CodeUnits=code_units),
-        time=initial['time'] * np.ones(1),
-        simulation=SimpleNamespace(
-            time_code=initial['time'], box_size=initial['boxsize'],
-            coordinate_system='spherical',
-        ),
-        mesh=SimpleNamespace(grid_cells=grid_cells, ghost_cells=0),
+    result = Rsim(par)
+    result.par.simulation.time_code = quantity_to_value(initial['time'], code_units.time_unit)
+    result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
+    result.par.simulation.coordinate_system = 'spherical'
+    result.par.mesh.grid_cells = grid_cells
+    boundary = as_named_array(quantity_to_value(
+        np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1), code_units.length_unit
+    ))
+    result.mesh.boundary_proper_code = boundary
+    width = np.diff(boundary)
+    coordinate = 0.75 * (boundary[1:] ** 4 - boundary[:-1] ** 4) / (boundary[1:] ** 3 - boundary[:-1] ** 3)
+    volume = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
+        width=width, area=4.0 * np.pi * boundary[:-1] ** 2, volume=volume,
     )
-    result.mesh = SimpleNamespace()
-    result.fluid = SimpleNamespace()
-    result.mesh.boundary = np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1)
     rho = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
-    result.fluid.rho_code = np.ones(grid_cells) * rho
-    coordinate = 0.5 * (result.mesh.boundary[1:] + result.mesh.boundary[:-1])
+    result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho, code_units.density_unit))
     midpoint = 0.5 * (initial['rmin'] + initial['rmax'])
-    result.fluid.vel_code = np.where(
+    result.fluid.vel_proper_code = as_named_array(quantity_to_value(np.where(
         coordinate < midpoint, initial['outflow_velocity'], initial['inflow_velocity']
-    )
-    result.fluid.temp_code = np.ones(grid_cells) * initial['inflow_temperature']
+    ), code_units.velocity_unit))
+    result.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * initial['inflow_temperature'], code_units.temperature_unit))
     result.fluid.mu = np.ones(grid_cells) * initial['muini']
+    result.fluid.time_proper_code = 0.0
+    result.SetMesh()
+    result.fluid.SetUpFluid(result.par, result.mesh)
+    result.fluid.SetFluidTime(0.0)
+    result.fluid.SetEnergyDensity()
+    result.mesh._par = result.par
+    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
+    result.ConvertParametersToCodeUnits()
     return result
 
 
@@ -56,14 +68,14 @@ def load_snapshot(filename):
         noghost = int(header.attrs.get('GhostCells', 0))
         nogrid = int(header.attrs['GridCells'])
         boundary = np.asarray(
-            data['boundary'][()]
+            data['boundary_proper_code'][()]
         )[noghost:noghost + nogrid + 1]
         return {
-            'time_Myr': float(header['time_code'][()]) / SECONDS_PER_MYR,
+            'time_Myr': float(header['time_proper_code'][()]) / SECONDS_PER_MYR,
             'boundary_cgs_cm': boundary,
-            'density_cgs_g_cm3': np.asarray(data['rho_code'][()])[physical],
-            'velocity_cgs_cm_s': np.asarray(data['vel_code'][()])[physical],
-            'temperature_cgs_K': np.asarray(data['temp_code'][()])[physical],
+            'density_cgs_g_cm3': np.asarray(data['rho_proper_code'][()])[physical],
+            'velocity_cgs_cm_s': np.asarray(data['vel_proper_code'][()])[physical],
+            'temperature_cgs_K': np.asarray(data['temp_proper_code'][()])[physical],
         }
 
 

@@ -68,8 +68,8 @@ def _run_case(
     case_config = {'par': case, 'initial_condition': case_initial, '_code_units': code_units}
     initial = build_initial_condition(case_config)
     rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
-    sim = Rsim(case)
-    sim.RunAll(outputtime=0, mode='hydro' if adiabatic else 'hydro_sources')
+    sim = initial
+    sim.Run(outputtime=0, mode='hydro' if adiabatic else 'hydro_sources')
     snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
@@ -92,7 +92,10 @@ def _shock_diagnostics(result, table, config):
     gamma = float(config['par']['hydrodynamics']['gamma'])
     mu = float(config['initial_condition']['mean_molecular_weight'])
     snapshot = load_snapshot(result['snapshots'][-1])
-    shock_snapshot = load_snapshot(result['snapshots'][1])
+    # Diagnose the same final state that is plotted below.  Using the second
+    # output here made the report and cooling-length overlays describe the
+    # barely developed initial transient rather than the displayed shock.
+    shock_snapshot = snapshot
     density = shock_snapshot['density_cgs_g_cm3']
     temperature = shock_snapshot['temperature_cgs_K']
     velocity = shock_snapshot['velocity_cgs_cm_s']
@@ -278,4 +281,3 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-

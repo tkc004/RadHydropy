@@ -50,54 +50,54 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runparams, ICparams = config['par'], config['initial_condition']
-    exampleparams = config['example']
-    output = runparams['output']
-    eu.clean_previous_outputs(output)
+    par_config = config['par']
+    example_config = config['example']
+    output_config = par_config['output']
+    eu.clean_previous_outputs(output_config)
 
     if not plot_only:
-        code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+        code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
         config['_code_units'] = code_units_obj
-        ric = et.build_initial_condition(config)
-        rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
-        mainrun = Rsim(runparams)
+        initial_condition = et.build_initial_condition(config)
+        rio.writehdf5(initial_condition, par_config['simulation']['initial_condition_filename'])
+        mainrun = Rsim(par_config)
         mainrun.RunAll(outputtime=0)
 
     snapshots = load_snapshots(config)
-    figure_prefix = exampleparams.get('figure_prefix', 'StellarWindBubble1D')
+    figure_prefix = example_config.get('figure_prefix', 'StellarWindBubble1D')
 
-    profile_figure = et.make_profile_figure(snapshots, ICparams, runparams)
+    profile_figure = et.make_profile_figure(snapshots, config)
     profile_figure_filename = os.path.join(
-        output['savedir'],
+        output_config['savedir'],
         f'{figure_prefix}_profiles.jpg',
     )
     profile_figure.savefig(profile_figure_filename, dpi=200)
     plt.close(profile_figure)
     print('figure = %s' % profile_figure_filename)
 
-    radius_figure = et.make_radius_figure(snapshots, ICparams, runparams)
+    radius_figure = et.make_radius_figure(snapshots, config)
     radius_figure_filename = os.path.join(
-        output['savedir'],
+        output_config['savedir'],
         f'{figure_prefix}_radius.jpg',
     )
     radius_figure.savefig(radius_figure_filename, dpi=200)
     plt.close(radius_figure)
     print('figure = %s' % radius_figure_filename)
 
-    velocity_figure = et.make_velocity_figure(snapshots, ICparams, runparams)
+    velocity_figure = et.make_velocity_figure(snapshots, config)
     if velocity_figure is not None:
         velocity_figure_filename = os.path.join(
-            output['savedir'],
+            output_config['savedir'],
             f'{figure_prefix}_velocity.jpg',
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
         plt.close(velocity_figure)
         print('figure = %s' % velocity_figure_filename)
 
-    pressure_figure = et.make_pressure_figure(snapshots, ICparams, runparams)
+    pressure_figure = et.make_pressure_figure(snapshots, config)
     if pressure_figure is not None:
         pressure_figure_filename = os.path.join(
-            output['savedir'],
+            output_config['savedir'],
             f'{figure_prefix}_pressure.jpg',
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)
@@ -107,7 +107,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run the spherical stellar-wind bubble example.')
-    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with runparams and ICparams.')
+    parser.add_argument('--config', default=DEFAULT_CONFIG, help='Nested YAML configuration.')
     parser.add_argument('--plot-only', action='store_true', help='Skip the hydro run and rebuild the figure from existing outputs.')
     return parser.parse_args()
 
@@ -115,6 +115,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config, plot_only=args.plot_only)
-
-
 

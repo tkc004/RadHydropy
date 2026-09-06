@@ -27,7 +27,7 @@ from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
-from tools import clean_outputs, load_history
+from tools import build_initial_condition, clean_outputs, load_history
 
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_photoionization_timescale_1d.yaml"
@@ -61,6 +61,7 @@ def _write_initial_condition(config, output_dir):
     config['_code_units'] = code_units
     ric = build_initial_condition(config)
     rio.writehdf5(ric, output_dir / "InitialCondition.hdf5")
+    return ric
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -115,11 +116,11 @@ def main(config_filename=DEFAULT_CONFIG):
                 'initial_condition': {**initial_condition, 'nHini': density,
                                       'tempini': initial_temperature * unyt.K},
                 'example': config['example']}
-            _write_initial_condition(case_config, case_dir)
-            sim = Rsim(case_config['par'])
+            ric = _write_initial_condition(case_config, case_dir)
+            sim = ric
             # This is a one-cell source-only parcel; a hydro gradient cannot
             # be evaluated on its single active cell.
-            sim.RunAll(outputtime=0, mode="sources")
+            sim.Run(outputtime=0, mode="sources")
             history = load_history(case_dir)
             if len(history) < 2:
                 raise RuntimeError(f"expected evolved snapshots in {case_dir}")
@@ -260,4 +261,3 @@ def parse_args():
 
 if __name__ == "__main__":
     main(parse_args().config)
-

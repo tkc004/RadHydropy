@@ -1,9 +1,12 @@
 """Initial conditions and diagnostics for the PIE radiative shock tube."""
 
-from types import SimpleNamespace
-
 import numpy as np
 import unyt
+
+from radhydropy.arrays import as_named_array
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import quantity_to_value
 
 
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
@@ -16,35 +19,53 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     par = config['par']
     code_units = config['_code_units']
-    result = SimpleNamespace()
-    result.par = SimpleNamespace(
-        units=SimpleNamespace(CodeUnits=code_units),
-        simulation=SimpleNamespace(
-            coordinate_system=initial['coordinate_system'],
-            time_code=initial['current_time'],
-            box_size=initial['box_size'],
-        ),
-        mesh=SimpleNamespace(
-            grid_cells=int(par['mesh']['grid_cells']),
-            ghost_cells=int(par['mesh']['ghost_cells']),
-        ),
-        time=initial['current_time'] * np.ones(1),
-    )
-    result.mesh = SimpleNamespace()
-    result.fluid = SimpleNamespace()
+    result = Rsim(par)
+    result.par.simulation.coordinate_system = initial['coordinate_system']
+    result.par.simulation.time_code = quantity_to_value(initial['current_time'], code_units.time_unit)
+    result.par.simulation.box_size = quantity_to_value(initial['box_size'], code_units.length_unit)
+    grid_cells = int(par['mesh']['grid_cells'])
+    result.par.mesh.grid_cells = grid_cells
+    result.par.mesh.ghost_cells = int(par['mesh']['ghost_cells'])
     boxsize = initial['box_size']
-    result.mesh.boundary = np.linspace(0.0 * boxsize, boxsize, result.par.mesh.grid_cells + 1)
-    coordinate = 0.5 * (result.mesh.boundary[1:] + result.mesh.boundary[:-1])
-    result.fluid.vel_code = np.where(
-        coordinate < 0.5 * boxsize,
-        initial['collision_velocity'],
-        -initial['collision_velocity'],
+    boundary = as_named_array(quantity_to_value(
+        np.linspace(0.0 * boxsize, boxsize, grid_cells + 1), code_units.length_unit
+    ))
+    width = np.diff(boundary)
+    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+    midpoint_proper_code = quantity_to_value(
+        0.5 * boxsize, code_units.length_unit
     )
+    result.mesh.boundary_proper_code = boundary
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
+        width=width, area=np.ones(grid_cells), volume=width,
+    )
+    collision_velocity_proper_code = quantity_to_value(
+        initial['collision_velocity'], code_units.velocity_unit
+    )
+    result.fluid.vel_proper_code = as_named_array(np.where(
+        coordinate < midpoint_proper_code,
+        collision_velocity_proper_code,
+        -collision_velocity_proper_code,
+    ))
     hydrogen_mass_fraction = float(par['thermochemistry']['hydrogen_mass_fraction'])
     rho = initial['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
-    result.fluid.rho_code = np.ones(result.par.mesh.grid_cells) * rho
-    result.fluid.temp_code = np.ones(result.par.mesh.grid_cells) * initial['initial_temperature']
+    result.fluid.rho_proper_code = as_named_array(quantity_to_value(
+        np.ones(grid_cells) * rho, code_units.density_unit
+    ))
+    result.fluid.temp_proper_code = as_named_array(quantity_to_value(
+        np.ones(grid_cells) * initial['initial_temperature'], code_units.temperature_unit
+    ))
     result.fluid.mu = np.ones(result.par.mesh.grid_cells) * initial['mean_molecular_weight']
+    result.fluid.time_proper_code = 0.0
+    result.SetMesh()
+    result.fluid.SetUpFluid(result.par, result.mesh)
+    result.fluid.SetFluidTime(0.0)
+    result.fluid.SetEnergyDensity()
+    result.fluid._refresh_runtime_state()
+    result.mesh._par = result.par
+    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
+    result.ConvertParametersToCodeUnits()
     return result
 
 
@@ -63,13 +84,13 @@ def load_snapshot(filename):
         physical = _physical_cells(data, header)
         noghost = int(header.attrs.get('GhostCells', 0))
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(data['boundary'][()])[noghost:noghost + nogrid + 1]
+        boundary = np.asarray(data['boundary_proper_code'][()])[noghost:noghost + nogrid + 1]
         return {
-            'time_Myr': float(header['time_code'][()]) / SECONDS_PER_MYR,
+            'time_Myr': float(header['time_proper_code'][()]) / SECONDS_PER_MYR,
             'boundary_cgs_cm': boundary,
-            'density_cgs_g_cm3': np.asarray(data['rho_code'][()])[physical],
-            'velocity_cgs_cm_s': np.asarray(data['vel_code'][()])[physical],
-            'temperature_cgs_K': np.asarray(data['temp_code'][()])[physical],
+            'density_cgs_g_cm3': np.asarray(data['rho_proper_code'][()])[physical],
+            'velocity_cgs_cm_s': np.asarray(data['vel_proper_code'][()])[physical],
+            'temperature_cgs_K': np.asarray(data['temp_proper_code'][()])[physical],
         }
 
 

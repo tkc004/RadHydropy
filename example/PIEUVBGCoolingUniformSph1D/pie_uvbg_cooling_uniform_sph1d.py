@@ -41,11 +41,11 @@ def _snapshot(filename):
         nogrid = int(header.attrs["GridCells"])
         first = noghost
         last = first + nogrid
-        boundary = np.asarray(data["Boundary"][()])[first : last + 1]
+        boundary = np.asarray(data["boundary_proper_code"][()])[first : last + 1]
         return {
             "radius": 0.5 * (boundary[:-1] + boundary[1:]),
-            "density": np.asarray(data["Density"][()])[first:last],
-            "temperature": np.asarray(data["Temperature"][()])[first:last],
+            "density": np.asarray(data["rho_proper_code"][()])[first:last],
+            "temperature": np.asarray(data["temp_proper_code"][()])[first:last],
         }
 
 
@@ -55,6 +55,7 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     output_dir.mkdir(parents=True, exist_ok=True)
     case = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(output_dir / f'InitialCondition_{label}.hdf5')}, 'output': {**par['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': f'Output_{label}'}}
 
+    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
     case_config = {'par': case, 'initial_condition': {**initial_mapping, 'hydrogen_density_cgs_cm3': hydrogen_density_cgs_cm3, 'hydrogen_mass_fraction': case['thermochemistry']['hydrogen_mass_fraction'], 'proton_mass_g': float(unyt.mp.to_value(unyt.g)), 'vini': 0.0 * unyt.cm / unyt.s}, 'example': config['example'], '_code_units': code_units}
     ric = build_initial_condition(case_config)
     rio.writehdf5(ric, case['simulation']['initial_condition_filename'])
@@ -65,8 +66,8 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
         'current_time', 'grid_cells', 'initial_temperature',
         'mean_molecular_weight',
     }
-    sim = Rsim(case)
-    sim.RunAll(outputtime=0, mode="hydro")
+    sim = ric
+    sim.Run(outputtime=0, mode="hydro")
     snapshots = sorted(output_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"))
     if len(snapshots) < 2:
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
@@ -180,4 +181,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-

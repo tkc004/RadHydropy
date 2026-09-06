@@ -9,6 +9,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+from radhydropy.arrays import as_named_array
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import quantity_to_value
 
 BASE_PATH = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
 SPEC = importlib.util.spec_from_file_location('nfw_hydrostatic_tools_for_pie', BASE_PATH)
@@ -20,10 +24,53 @@ from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 
 nfw_halo_parameters = BASE.nfw_halo_parameters
 virial_temperature = BASE.virial_temperature
-build_initial_condition = BASE.build_initial_condition
 spherical_cell_centers = BASE.spherical_cell_centers
 hydrostatic_density_profile = BASE.hydrostatic_density_profile
 nfw_enclosed_mass = BASE.nfw_enclosed_mass
+
+
+def build_initial_condition(config):
+    """Build the hydrostatic NFW atmosphere using canonical runtime fields."""
+    initial = config['initial_condition']
+    sim = Rsim(config['par'])
+    code_units = sim.par.units.CodeUnits
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    rmin = initial.get('rmin', initial.get('inner_radius'))
+    rmax = initial.get('rmax', initial.get('outer_radius'))
+    boundary = as_named_array(quantity_to_value(
+        np.linspace(rmin, rmax, grid_cells + 1), code_units.length_unit
+    ))
+    volume = 4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3)
+    coordinate = 0.75 * (boundary[1:]**4 - boundary[:-1]**4) / (boundary[1:]**3 - boundary[:-1]**3)
+    sim.mesh.boundary_proper_code = boundary
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
+        width=np.diff(boundary), area=4.0 * np.pi * boundary[:-1]**2,
+        volume=volume,
+    )
+    halo = nfw_halo_parameters(
+        initial['halo_mass'], initial['concentration'], initial['redshift'],
+        initial['overdensity'], initial['h0'],
+    )
+    temperature = virial_temperature(halo, initial['mu'])
+    radius = spherical_cell_centers(np.asarray(boundary) * code_units.length_unit)
+    density = hydrostatic_density_profile(
+        radius, np.asarray(boundary) * code_units.length_unit, halo, temperature,
+        initial['mu'], initial['gas_fraction'],
+    )
+    sim.fluid.rho_proper_code = as_named_array(quantity_to_value(density, code_units.density_unit))
+    sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
+    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * temperature, code_units.temperature_unit))
+    sim.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mu'])
+    sim.fluid.time_proper_code = 0.0
+    sim.SetMesh()
+    sim.fluid.SetUpFluid(sim.par, sim.mesh)
+    sim.fluid.SetFluidTime(0.0)
+    sim.fluid.SetEnergyDensity()
+    sim.mesh._par = sim.par
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
+    sim.ConvertParametersToCodeUnits()
+    return sim
 
 
 def load_snapshot(filename, config):
@@ -32,15 +79,15 @@ def load_snapshot(filename, config):
         header = handle['Header']
         noghost = int(config['par']['mesh']['ghost_cells'])
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(data['boundary'][()])
+        boundary = np.asarray(data['boundary_proper_code'][()])
         boundary = boundary[noghost:noghost + nogrid + 1]
         # Raw output datasets are written in their physical units (cm, g cm^-3,
         # K, and cm s^-1).  The CodeUnits metadata describes the runtime state,
         # but must not be applied a second time to these HDF5 values.
         radius = spherical_cell_centers(boundary * unyt.cm).to_value(unyt.kpc)
-        density = np.asarray(data['rho_code'][()])[noghost:noghost + nogrid]
-        temperature = np.asarray(data['temp_code'][()])[noghost:noghost + nogrid]
-        velocity = (np.asarray(data['vel_code'][()])[noghost:noghost + nogrid]
+        density = np.asarray(data['rho_proper_code'][()])[noghost:noghost + nogrid]
+        temperature = np.asarray(data['temp_proper_code'][()])[noghost:noghost + nogrid]
+        velocity = (np.asarray(data['vel_proper_code'][()])[noghost:noghost + nogrid]
                     / 1.0e5)
         time = float(header.attrs.get('time_code', 0.0))
         # Fixed output-time files store the physical time in the fluid state;

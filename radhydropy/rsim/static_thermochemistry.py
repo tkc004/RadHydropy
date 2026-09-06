@@ -170,11 +170,16 @@ def _finish_static_thermochemistry(sim, state, time_s):
         from radhydropy.thermo_networks import c2ray
 
         state['ngamma_cgs_cm3'] = state.get('ngamma_cgs_cm3')
-        c2ray._ensure_fluid_photon_shape(sim.fluid, state['ngamma_cgs_cm3'])
+        c2ray._ensure_fluid_photon_shape(
+            sim.fluid,
+            state['ngamma_cgs_cm3'],
+            sim.par,
+        )
     else:
         state['ngamma_cgs_cm3'] = rrt.trace_photon_density(state, sim.par)
     state['time_s'] = time_s
     rtc.apply_state(state, sim.fluid, sim.par)
+    sim.fluid._refresh_runtime_state()
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
 
 def EvolveStaticThermochemistry(

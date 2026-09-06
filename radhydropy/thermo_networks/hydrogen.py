@@ -2076,7 +2076,9 @@ def _split_implicit_source_state_update(state, dt_s, par):
                 if source_steps > max_subcycles:
                     raise RuntimeError(
                         'split-implicit hydrogen source update exceeded '
-                        f'{max_subcycles} subcycles'
+                        f'{max_subcycles} subcycles '
+                        f'(remaining_s={remaining_s:.6e}, '
+                        f'candidate_dt_s={candidate_dt_s:.6e})'
                     )
                 trial_dt_s = min(2.0 * candidate_dt_s, remaining_s)
                 break

@@ -50,6 +50,12 @@ def load_nested_example_config(config_filename):
         for key in ('output_directory', 'savedir', 'outputtimefilename'):
             if key in values:
                 values[key] = _resolve_path(values[key], config_filename.parent)
+    if 'thermochemistry' in par:
+        filename = par['thermochemistry'].get('metal_pie_table_filename')
+        if filename:
+            par['thermochemistry']['metal_pie_table_filename'] = _resolve_path(
+                filename, config_filename.parent
+            )
         if section == 'par' and 'output' in values:
             output = values['output']
             for key in ('directory', 'savedir', 'time_list_filename'):

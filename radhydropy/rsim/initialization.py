@@ -162,13 +162,20 @@ def ConvertParametersToCodeUnits(sim):
             ("radiation_pressure_source_luminosity", "luminosity"),
         ),
         "chemistry": (
-            ("hydrogen_alpha_B", "alpha"),
-            ("hydrogen_beta", "alpha"),
-            ("hydrogen_photon_energy", "energy"),
+            ("implicit_absolute_temperature_tolerance", "temperature"),
+            ("alpha_B", "alpha"),
+            ("beta", "alpha"),
         ),
         "thermochemistry": (
             ("cooling_temperature_floor", "temperature"),
-            ("hydrogen_implicit_absolute_temperature_tolerance", "temperature"),
+            ("implicit_absolute_temperature_tolerance", "temperature"),
+        ),
+        "gravity": (
+            ("selfgravity_softening", "length"),
+            ("selfgravity_boundary_acceleration", "acceleration"),
+        ),
+        "dark_matter_config": (
+            ("softening", "length"),
         ),
     }
     for group_name, specs in nested_specs.items():

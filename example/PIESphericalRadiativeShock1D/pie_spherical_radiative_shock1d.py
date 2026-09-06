@@ -48,18 +48,18 @@ class CollidingStreamsSolver(Solver):
         scales = code_unit_scales(getattr(par, 'CodeUnits', None))
 
         left_state = {
-            'rho_code': par.boundary.outflow_density,
-            'vel_code': par.boundary.outflow_velocity,
-            'pre_code': fluid.eos.pressure(
+            'rho_proper_code': par.boundary.outflow_density,
+            'vel_proper_code': par.boundary.outflow_velocity,
+            'pre_proper_code': fluid.eos.pressure(
                 par.boundary.outflow_density,
                 par.boundary.outflow_temperature,
                 par.boundary.outflow_mu,
             ),
         }
         right_state = {
-            'rho_code': par.boundary.inflow_density,
-            'vel_code': par.boundary.inflow_velocity,
-            'pre_code': fluid.eos.pressure(
+            'rho_proper_code': par.boundary.inflow_density,
+            'vel_proper_code': par.boundary.inflow_velocity,
+            'pre_proper_code': fluid.eos.pressure(
                 par.boundary.inflow_density,
                 par.boundary.inflow_temperature,
                 par.boundary.inflow_mu,
@@ -97,12 +97,13 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     )
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
 
-    sim = Rsim(case)
-    sim.par.boundary = SimpleNamespace(**case['boundary'])
+    sim = initial_state
     sim.solver = CollidingStreamsSolver()
     # Maintain an outward inner stream and inward outer stream so the shock
     # forms near the initial midpoint instead of at a reflecting wall.
-    sim.RunAll(outputtime=0, mode='hydro_sources' if pie_enabled else 'hydro')
+    sim.solver = CollidingStreamsSolver()
+    sim.par.boundary = SimpleNamespace(**case['boundary'])
+    sim.Run(outputtime=0, mode='hydro_sources' if pie_enabled else 'hydro')
 
     output_files = sorted(
         case_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5")
@@ -232,4 +233,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

@@ -5,38 +5,19 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from types import SimpleNamespace
-
-from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits
+from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.rsim import Rsim
 import weaver_analytic as wa
 
 
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
-
-
 def _current_time(rout):
-    simulation = getattr(rout.par, 'simulation', None)
-    if simulation is not None and hasattr(simulation, 'time_code'):
-        return simulation.time_code
-    return rout.par.time_code
-
-
-def _config_value(mapping, group, key, legacy):
-    values = mapping.get(group)
-    if isinstance(values, dict) and key in values:
-        return values[key]
-    return mapping[legacy]
+    return unyt.unyt_quantity(
+        float(np.asarray(rout.fluid.time_proper_code)),
+        rout.par.CodeUnits.time_unit,
+    )
 
 
 def set_plot_style():
@@ -64,65 +45,65 @@ def set_plot_style():
 
 
 def build_initial_condition(config):
-    icparams = config['initial_condition']
-    runparams = config['par']
+    initial_config = config['initial_condition']
+    par_config = config['par']
     code_units = config['_code_units']
-    boundary_params = runparams.get('boundary')
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    if code_units is not None:
-        sim.par.unit_system = code_units.unit_system
-
-    grid_cells = icparams['grid_cells']
-    box_size = icparams['box_size'] * np.ones(1)
-    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system=icparams['coordinate_system'],
-        time_code=icparams['current_time'] * np.ones(1),
-        box_size=box_size,
+    boundary_config = par_config['boundary']
+    grid_cells = int(initial_config['grid_cells'])
+    sim = Rsim(par_config)
+    sim.par.simulation.coordinate_system = initial_config['coordinate_system']
+    sim.par.simulation.box_size = np.asarray(
+        quantity_to_value(initial_config['box_size'], code_units.length_unit),
+        dtype=float,
     )
-
-    sim.mesh.boundary = np.linspace(
-        icparams['injection_radius'],
-        icparams['injection_radius'] + box_size[0],
+    sim.fluid.time_proper_code = float(
+        np.asarray(quantity_to_value(initial_config['current_time'], code_units.time_unit))
+    )
+    boundary_proper_cgs_cm = np.linspace(
+        initial_config['injection_radius'],
+        initial_config['injection_radius'] + initial_config['box_size'],
         grid_cells + 1,
     )
-    sim.fluid.vel_code = icparams['velocity'] * np.ones(grid_cells)
-    sim.fluid.temp_code = icparams['temperature'] * np.ones(grid_cells)
-    sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
-    sim.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
-
-    # Match the WindSph ghost profile in a resolved active launch region.
-    wind_cells = int(icparams.get('wind_injection_cells', 0))
-    if (
-        boundary_params is not None
-        and boundary_params.get('condition') == 'WindSph'
-        and wind_cells > 0
+    sim.mesh.boundary_proper_code = as_named_array(
+        quantity_to_value(boundary_proper_cgs_cm, code_units.length_unit)
+    )
+    boundary_values = sim.mesh.boundary_proper_code
+    width_values = np.diff(boundary_values)
+    volume_values = (4.0 * np.pi / 3.0) * (
+        boundary_values[1:] ** 3 - boundary_values[:-1] ** 3
+    )
+    coordinate_values = 0.75 * (
+        boundary_values[1:] ** 4 - boundary_values[:-1] ** 4
+    ) / (boundary_values[1:] ** 3 - boundary_values[:-1] ** 3)
+    area_values = 4.0 * np.pi * boundary_values[:-1] ** 2
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=coordinate_values,
+        boundary=boundary_values,
+        width=width_values,
+        area=area_values,
+        volume=volume_values,
+    )
+    sim.fluid.rho_proper_code = initial_config['initial_density'] * np.ones(grid_cells)
+    sim.fluid.vel_proper_code = initial_config['velocity'] * np.ones(grid_cells)
+    sim.fluid.temp_proper_code = initial_config['temperature'] * np.ones(grid_cells)
+    sim.fluid.mu = initial_config['mean_molecular_weight'] * np.ones(grid_cells)
+    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    for name, unit in (
+        ('rho_proper_code', code_units.density_unit),
+        ('vel_proper_code', code_units.velocity_unit),
+        ('temp_proper_code', code_units.temperature_unit),
     ):
-        centers = 0.5 * (
-            sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
-        )
-        launch = np.arange(grid_cells) < wind_cells
-        radius = centers[launch]
-        reference_radius = icparams['injection_radius']
-        wind_density = boundary_params['outflow_density'] * (
-            reference_radius / radius
-        ) ** 2
-        sim.fluid.rho_code[launch] = wind_density
-        sim.fluid.vel_code[launch] = boundary_params['outflow_velocity']
-        sim.fluid.temp_code[launch] = boundary_params['outflow_temperature']
-        sim.fluid.mu[launch] = boundary_params['outflow_mu']
+        setattr(sim.fluid, name, as_named_array(quantity_to_value(getattr(sim.fluid, name), unit)))
 
-
+    sim.fluid.SetPressure()
+    sim.fluid._refresh_runtime_state()
     return sim
 
 def load_snapshot(outfilename, config):
     """Load an output snapshot into a lightweight simulation wrapper."""
-    icparams = config['initial_condition']
-    runparams = config['par']
+    initial_config = config['initial_condition']
+    par_config = config['par']
     rout = build_initial_condition(config)
     code_units_obj = config['_code_units']
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
@@ -131,17 +112,17 @@ def load_snapshot(outfilename, config):
     # and the corresponding faces before calculating profiles or shell
     # diagnostics; otherwise ghost states can be mistaken for the swept-up
     # shell and produce discontinuous pressure histories.
-    first = int(runparams.get('mesh', {}).get('ghost_cells', 0))
-    configured_count = int(runparams.get('mesh', {}).get(
-        'grid_cells', icparams['grid_cells']
+    first = int(par_config.get('mesh', {}).get('ghost_cells', 0))
+    configured_count = int(par_config.get('mesh', {}).get(
+        'grid_cells', initial_config['grid_cells']
     ))
-    boundary_count = len(rout.mesh.boundary) - 1
-    # Permit reduced-resolution diagnostic runs whose output count is lower
-    # than the production value still present in the YAML configuration.
-    count = min(configured_count, boundary_count - 2 * first)
-    if boundary_count >= first + count and boundary_count != count:
+    boundary_count = len(rout.mesh.boundary_proper_code) - 1
+    # Output snapshots contain ghost cells; the initial-condition snapshot
+    # contains active cells only and is therefore already diagnostic-ready.
+    count = configured_count
+    if boundary_count == configured_count + 2 * first:
         stop = first + count
-        rout.mesh.boundary = rout.mesh.boundary[first:stop + 1]
+        rout.mesh.boundary_proper_code = rout.mesh.boundary_proper_code[first:stop + 1]
         for name, value in vars(rout.fluid).items():
             try:
                 value_length = len(value)
@@ -149,24 +130,23 @@ def load_snapshot(outfilename, config):
                 continue
             if value_length == boundary_count:
                 setattr(rout.fluid, name, value[first:stop])
-    rout.par.simulation.time_code = unyt.unyt_array(np.asarray(rout.par.simulation.time_code, dtype=float), code_units_obj.time_unit)
-    rout.par.simulation.box_size = unyt.unyt_array(np.asarray(rout.par.simulation.box_size, dtype=float), code_units_obj.length_unit)
+    rout.fluid.time_proper_code = float(np.asarray(rout.fluid.time_proper_code))
     boundary_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.mesh.boundary, dtype=float), code_units_obj.length_unit
+        np.asarray(rout.mesh.boundary_proper_code, dtype=float), code_units_obj.length_unit
     )
-    rout.mesh.boundary = boundary_proper_code_unyt
+    rout.mesh.boundary_proper_code = boundary_proper_code_unyt
     velocity_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.fluid.vel_code, dtype=float), code_units_obj.velocity_unit
+        np.asarray(rout.fluid.vel_proper_code, dtype=float), code_units_obj.velocity_unit
     )
-    rout.fluid.vel_code = velocity_proper_code_unyt
+    rout.fluid.vel_proper_code = velocity_proper_code_unyt
     temperature_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.fluid.temp_code, dtype=float), code_units_obj.temperature_unit
+        np.asarray(rout.fluid.temp_proper_code, dtype=float), code_units_obj.temperature_unit
     )
-    rout.fluid.temp_code = temperature_proper_code_unyt
+    rout.fluid.temp_proper_code = temperature_proper_code_unyt
     density_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.fluid.rho_code, dtype=float), code_units_obj.density_unit
+        np.asarray(rout.fluid.rho_proper_code, dtype=float), code_units_obj.density_unit
     )
-    rout.fluid.rho_code = density_proper_code_unyt
+    rout.fluid.rho_proper_code = density_proper_code_unyt
     rout.fluid.mu = np.asarray(rout.fluid.mu, dtype=float)
     if hasattr(rout.fluid, 'xHI'):
         rout.fluid.xHI = np.asarray(rout.fluid.xHI, dtype=float)
@@ -182,12 +162,12 @@ def load_snapshot(outfilename, config):
 def numerical_forward_shock_radius(rout, search_fraction=0.1):
     """Estimate the forward-shock radius from the steepest pressure drop."""
 
-    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     pressure = (
-        rout.fluid.rho_code
+        rout.fluid.rho_proper_code
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
-        * rout.fluid.temp_code
+        * rout.fluid.temp_proper_code
     ).to(unyt.dyn / unyt.cm**2)
 
     coordinate_values = coordinate.to_value(coordinate.units)
@@ -237,8 +217,8 @@ def shell_inner_edge_radius(
     the first one encountered after the launch region.
     """
 
-    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
-    density = rout.fluid.rho_code
+    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    density = rout.fluid.rho_proper_code
 
     coordinate_values = coordinate.to_value(coordinate.units)
     density_values = density.to_value(density.units)
@@ -303,33 +283,22 @@ def shell_inner_edge_radius(
     return radius * coordinate.units
 
 
-def shell_search_minimum_radius(rout, icparams):
-    """Return the outer edge of a resolved wind launch region."""
-
-    wind_cells = int(icparams.get('wind_injection_cells', 0))
-    if wind_cells <= 0:
-        return None
-    first = int(getattr(rout.par.mesh, 'ghost_cells', 0))
-    dx = abs(rout.mesh.boundary[first + 1] - rout.mesh.boundary[first])
-    return icparams['injection_radius'] + wind_cells * dx
-
-
-def weaver_forward_shock_radius(rout, icparams, runparams):
+def weaver_forward_shock_radius(rout, config):
     """Return the Weaver shock radius for a loaded snapshot."""
 
     return wa.shock_radius(
         _current_time(rout),
-        icparams.get('initial_density', icparams.get('rhoini')),
-        _config_value(runparams, 'boundary', 'outflow_density', 'rho_outflow'),
-        _config_value(runparams, 'boundary', 'outflow_velocity', 'vel_outflow'),
-        icparams.get('injection_radius', icparams.get('rinj')),
+        config['initial_condition']['initial_density'],
+        config['par']['boundary']['outflow_density'],
+        config['par']['boundary']['outflow_velocity'],
+        config['initial_condition']['injection_radius'],
     )
 
 
 def _snapshot_coordinate(rout, xunit=unyt.pc):
     """Return nonnegative cell-center coordinates for a snapshot."""
 
-    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     coordinate_values = coordinate.to_value(xunit)
     nonnegative = coordinate_values >= 0.0
     return coordinate[nonnegative], coordinate_values[nonnegative]
@@ -339,7 +308,9 @@ def plot_density_snapshot(ax, rout, **kwargs):
     """Plot one density snapshot on a supplied axis."""
 
     plt.sca(ax)
-    rplot1d(rout, yquan='rho_code', showhalf=0, showfig=0, **kwargs)
+    coordinate, coordinate_values = _snapshot_coordinate(rout)
+    density = rout.fluid.rho_proper_code.to(unyt.g / unyt.cm**3)
+    ax.plot(coordinate_values, density.to_value(unyt.g / unyt.cm**3), **kwargs)
     ax.set_yscale('log')
 
 
@@ -347,14 +318,16 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
     """Plot one temperature snapshot on a supplied axis."""
 
     plt.sca(ax)
-    rplot1d(rout, yquan='temp_code', showhalf=0, showfig=0, **kwargs)
+    coordinate, coordinate_values = _snapshot_coordinate(rout)
+    temperature = rout.fluid.temp_proper_code.to(unyt.K)
+    ax.plot(coordinate_values, temperature.to_value(unyt.K), **kwargs)
     ax.set_yscale('log')
 
 
 def plot_profile_snapshot(ax, rout, yquan, xunit=unyt.pc, **kwargs):
     """Plot one radial profile on a supplied axis using ``xunit``."""
 
-    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     coordinate_values = coordinate.to_value(xunit)
     nonnegative = coordinate_values >= 0.0
     ax.plot(
@@ -367,7 +340,7 @@ def plot_profile_snapshot(ax, rout, yquan, xunit=unyt.pc, **kwargs):
     ax.set_yscale('log')
 
 
-def make_profile_figure(snapshots, icparams, runparams):
+def make_profile_figure(snapshots, config):
     """Build the stacked density/temperature comparison figure."""
 
     figure, (ax_density, ax_temperature) = plt.subplots(
@@ -384,7 +357,7 @@ def make_profile_figure(snapshots, icparams, runparams):
         plot_profile_snapshot(
             ax_density,
             rout,
-            'rho_code',
+            'rho_proper_code',
             ls='none',
             marker='o',
             mfc='none',
@@ -394,7 +367,7 @@ def make_profile_figure(snapshots, icparams, runparams):
         plot_profile_snapshot(
             ax_temperature,
             rout,
-            'temp_code',
+            'temp_proper_code',
             ls='none',
             marker='o',
             mfc='none',
@@ -402,8 +375,8 @@ def make_profile_figure(snapshots, icparams, runparams):
             color=color,
         )
         if _current_time(rout) > 0 * _current_time(rout).units:
-            shock_radius = weaver_forward_shock_radius(rout, icparams, runparams)
-            shock_value = shock_radius.to_value(icparams['injection_radius'].units).item()
+            shock_radius = weaver_forward_shock_radius(rout, config)
+            shock_value = shock_radius.to_value(config['initial_condition']['injection_radius'].units).item()
             for ax in (ax_density, ax_temperature):
                 ax.axvline(
                     x=shock_value,
@@ -422,7 +395,7 @@ def make_profile_figure(snapshots, icparams, runparams):
     return figure
 
 
-def make_radius_figure(snapshots, icparams, runparams):
+def make_radius_figure(snapshots, config):
     """Build the cavity-side inner-shell-edge radius evolution figure."""
 
     figure, ax_radius = plt.subplots(1, 1, figsize=(8.5, 6.0))
@@ -430,20 +403,21 @@ def make_radius_figure(snapshots, icparams, runparams):
     numerical_radii = []
     weaver_times = []
     weaver_radii = []
-    shell_threshold_factor = runparams.get('example', {}).get('shell_edge_density_threshold_factor', runparams.get('shell_edge_density_threshold_factor', 1.0))
+    initial_config = config['initial_condition']
+    par_config = config['par']
+    shell_threshold_factor = config['example'].get('shell_edge_density_threshold_factor', 1.0)
 
     for rout in snapshots:
         if _current_time(rout) <= 0 * _current_time(rout).units:
             continue
         numerical_radius = shell_inner_edge_radius(
             rout,
-            icparams.get('initial_density', icparams.get('rhoini')),
+            initial_config['initial_density'],
             shell_threshold_factor,
-            minimum_radius=shell_search_minimum_radius(rout, icparams),
         )
         if numerical_radius is None:
             continue
-        weaver_radius = weaver_forward_shock_radius(rout, icparams, runparams)
+        weaver_radius = weaver_forward_shock_radius(rout, config)
         time_myr = _current_time(rout).to_value(unyt.Myr)
         numerical_times.append(time_myr)
         numerical_radii.append(numerical_radius.to_value(unyt.pc))
@@ -483,16 +457,16 @@ def make_radius_figure(snapshots, icparams, runparams):
 def numerical_bubble_pressure(rout, shell_radius):
     """Estimate the bubble pressure from a cavity-side annulus."""
 
-    coordinate = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     coordinate_values = coordinate.to_value(unyt.pc)
     nonnegative = coordinate_values >= 0.0
     coordinate_values = coordinate_values[nonnegative]
     shell_radius_value = shell_radius.to_value(unyt.pc)
     pressure = (
-        rout.fluid.rho_code
+        rout.fluid.rho_proper_code
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
-        * rout.fluid.temp_code
+        * rout.fluid.temp_proper_code
     ).to(unyt.dyn / unyt.cm**2)
     pressure_values = pressure.to_value(pressure.units)[nonnegative]
 
@@ -509,10 +483,11 @@ def numerical_bubble_pressure(rout, shell_radius):
     return unyt.unyt_quantity(np.median(pressure_values[cavity_band]), pressure.units)
 
 
-def collect_shell_diagnostics(snapshots, icparams, runparams):
+def collect_shell_diagnostics(snapshots, config):
     """Collect shell radius, velocity, and pressure comparison data."""
 
-    shell_threshold_factor = runparams.get('example', {}).get('shell_edge_density_threshold_factor', runparams.get('shell_edge_density_threshold_factor', 1.0))
+    initial_config = config['initial_condition']
+    shell_threshold_factor = config['example'].get('shell_edge_density_threshold_factor', 1.0)
     times = []
     radii = []
     pressures = []
@@ -522,9 +497,8 @@ def collect_shell_diagnostics(snapshots, icparams, runparams):
             continue
         shell_radius = shell_inner_edge_radius(
             rout,
-            icparams.get('initial_density', icparams.get('rhoini')),
+            initial_config['initial_density'],
             shell_threshold_factor,
-            minimum_radius=shell_search_minimum_radius(rout, icparams),
         )
         if shell_radius is None:
             continue
@@ -557,10 +531,10 @@ def collect_shell_diagnostics(snapshots, icparams, runparams):
     for time in times:
         radius, velocity, pressure = wa.weaver_solution(
             time,
-            icparams.get('initial_density', icparams.get('rhoini')),
-            _config_value(runparams, 'boundary', 'outflow_density', 'rho_outflow'),
-            _config_value(runparams, 'boundary', 'outflow_velocity', 'vel_outflow'),
-            icparams.get('injection_radius', icparams.get('rinj')),
+            initial_config['initial_density'],
+            config['par']['boundary']['outflow_density'],
+            config['par']['boundary']['outflow_velocity'],
+            initial_config['injection_radius'],
         )
         weaver_radii.append(radius.to_value(unyt.pc))
         weaver_velocities.append(velocity.to_value(unyt.km / unyt.s))
@@ -577,10 +551,10 @@ def collect_shell_diagnostics(snapshots, icparams, runparams):
     }
 
 
-def make_velocity_figure(snapshots, icparams, runparams):
+def make_velocity_figure(snapshots, config):
     """Build the shock-velocity comparison figure."""
 
-    diagnostics = collect_shell_diagnostics(snapshots, icparams, runparams)
+    diagnostics = collect_shell_diagnostics(snapshots, config)
     if diagnostics is None:
         return None
 
@@ -611,10 +585,10 @@ def make_velocity_figure(snapshots, icparams, runparams):
     return figure
 
 
-def make_pressure_figure(snapshots, icparams, runparams):
+def make_pressure_figure(snapshots, config):
     """Build the bubble-pressure comparison figure."""
 
-    diagnostics = collect_shell_diagnostics(snapshots, icparams, runparams)
+    diagnostics = collect_shell_diagnostics(snapshots, config)
     if diagnostics is None:
         return None
 
@@ -646,15 +620,13 @@ def make_pressure_figure(snapshots, icparams, runparams):
     return figure
 
 
-def ReadandPlot(outfilename, icparams, runparams, **kwargs):
-    rout = load_snapshot(outfilename, icparams, runparams)
+def ReadandPlot(outfilename, config, **kwargs):
+    rout = load_snapshot(outfilename, config)
     plot_density_snapshot(plt.gca(), rout, **kwargs)
     if np.all(_current_time(rout) > 0 * _current_time(rout).units):
-        shock_radius = weaver_forward_shock_radius(rout, icparams, runparams)
+        shock_radius = weaver_forward_shock_radius(rout, config)
         plt.axvline(
-            x=shock_radius.to_value(icparams['injection_radius'].units).item(),
+            x=shock_radius.to_value(config['initial_condition']['injection_radius'].units).item(),
             color=kwargs['color'],
             ls='dashed',
         )
-
-

@@ -57,17 +57,16 @@ def main(config_filename=DEFAULT_CONFIG):
         'initial_temperature', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
-    sim = Rsim(par)
-    sim.Callreadhdf5(); sim.SetMesh(); sim.SetFluid(); sim.SetInitFluid()
+    sim = initial
     nghost = int(par['mesh']['ghost_cells'])
     interior = slice(nghost, -nghost if nghost else None)
-    initial_density_max = float(np.max(np.asarray(sim.fluid.rho_code[interior])))
+    initial_density_max = float(np.max(np.asarray(sim.fluid.rho_proper_code[interior])))
     floor = thermochemistry['cooling_temperature_floor'].to_value(unyt.K)
     runaway_factor = float(thermochemistry.get('runaway_density_factor', 100.0))
 
     def stop_on_runaway(runner):
-        density = np.asarray(runner.fluid.rho_code[interior])
-        temperature_state = np.asarray(runner.fluid.temp_code[interior])
+        density = np.asarray(runner.fluid.rho_proper_code[interior])
+        temperature_state = np.asarray(runner.fluid.temp_proper_code[interior])
         runaway = np.max(density) >= runaway_factor * initial_density_max
         # Do not terminate because a tenuous outer cell reaches the imposed
         # floor.  The relevant runaway is central loss of pressure support.
@@ -82,10 +81,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-            sim.mesh.coordinate, halo['scale_density'], halo['scale_radius'],
+            sim.mesh.x_proper_code, halo['scale_density'], halo['scale_radius'],
             code_units=sim.par.units.CodeUnits,
         ),
-        coordinate=sim.mesh.coordinate.copy(),
+        coordinate=sim.mesh.x_proper_code.copy(),
         code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode='hydro_sources', stop_condition=stop_on_runaway)
@@ -121,4 +120,3 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
     main(parser.parse_args().config)
-

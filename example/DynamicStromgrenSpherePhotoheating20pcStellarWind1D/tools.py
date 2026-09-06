@@ -69,9 +69,11 @@ def build_static_problem(config):
         par.nogrid,
     )
     if wind_cells > 0:
+        first_active = int(par.noghost)
+        active_slice = slice(first_active, first_active + wind_cells)
         cell_center_proper_code = 0.5 * (
-            mesh.boundary_proper_code[:wind_cells]
-            + mesh.boundary_proper_code[1:wind_cells + 1]
+            mesh.boundary_proper_code[first_active:first_active + wind_cells]
+            + mesh.boundary_proper_code[first_active + 1:first_active + wind_cells + 1]
         )
         injection_radius_proper_code = quantity_to_value(
             example['rinj'], par.CodeUnits.length_unit
@@ -85,12 +87,12 @@ def build_static_problem(config):
         wind_temperature_proper_code = quantity_to_value(
             example['wind_temperature'], par.CodeUnits.temperature_unit
         )
-        fluid.rho_proper_code[:wind_cells] = wind_density_proper_code * (
+        fluid.rho_proper_code[active_slice] = wind_density_proper_code * (
             injection_radius_proper_code / cell_center_proper_code
         ) ** 2
-        fluid.vel_proper_code[:wind_cells] = wind_velocity_proper_code
-        fluid.temp_proper_code[:wind_cells] = wind_temperature_proper_code
-        fluid.mu[:wind_cells] = example['wind_mu']
+        fluid.vel_proper_code[active_slice] = wind_velocity_proper_code
+        fluid.temp_proper_code[active_slice] = wind_temperature_proper_code
+        fluid.mu[active_slice] = example['wind_mu']
     _template._attach_proper_runtime_states(par, mesh, fluid)
     return par, mesh, fluid, solver
 

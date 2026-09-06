@@ -11,7 +11,7 @@ par:
     eos_type: polytropic
     gamma: 1.6666666666666667
     CFL: 0.1
-    order: 1
+    order: 0
     riemann_solver: Rusanov
     dual_energy: true
     dual_energy_eta1: 1.0e-3
