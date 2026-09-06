@@ -3,9 +3,7 @@ par:
     name: HydrogenPhotoheating1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
-    final_time:
-      value: 1.0e8
-      unit: yr
+    final_time: {value: 1.0e8, unit: yr}
   mesh:
     ghost_cells: 2
   hydrodynamics:
@@ -67,38 +65,18 @@ par:
 initial_condition:
   grid_cells: 16
   coordinate_system: cartesian
-  box_size:
-    value: 1.0
-    unit: kpc
-  current_time:
-    value: 0.0
-    unit: yr
-  hydrogen_number_density:
-    value: 1.0
-    unit: 1/cm**3
-  temperature:
-    value: 100.0
-    unit: K
+  box_size: {value: 1.0, unit: kpc}
+  current_time: {value: 0.0, unit: yr}
+  hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
+  temperature: {value: 100.0, unit: K}
   neutral_fraction: 1.0
-  photon_number_density:
-    value: 1.0
-    unit: 1/cm**3
+  photon_number_density: {value: 1.0, unit: 1/cm**3}
   mean_molecular_weight: 1.0
 
 example:
-  photon_flux:
-    value: 1.0e12
-    unit: 1/(cm**2*s)
-  source_switch_time:
-    value: 5.0e7
-    unit: yr
-  excess_photoionization_energy:
-    value: 6.33
-    unit: eV
-  sigma_gamma:
-    value: 6.3e-18
-    unit: cm**2
-  thermal_equilibrium_timescale:
-    value: 1.99526231496888e9
-    unit: yr
+  photon_flux: {value: 1.0e12, unit: 1/(cm**2*s)}
+  source_switch_time: {value: 5.0e7, unit: yr}
+  excess_photoionization_energy: {value: 6.33, unit: eV}
+  sigma_gamma: {value: 6.3e-18, unit: cm**2}
+  thermal_equilibrium_timescale: {value: 1.99526231496887e9, unit: yr}
   plot_filename: HydrogenPhotoheating1D.jpg

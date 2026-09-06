@@ -224,7 +224,7 @@ def build_static_problem(config):
         radiative_transfer=radiation.get('radiative_transfer', True),
         radiative_transfer_method=radiation.get('radiative_transfer_method', 'long_characteristics'),
         radiative_transfer_temporal_scheme=radiation.get(
-            'radiative_transfer_temporal_scheme', 'instantaneous'
+            'radiative_transfer_temporal_scheme', 'c2ray'
         ),
         radiative_transfer_c2ray_max_iterations=radiation.get(
             'radiative_transfer_c2ray_max_iterations', 32

@@ -26,7 +26,8 @@ par:
     savedir: .
     filename_prefix: Output_lateHII_C2Ray
     time_list_filename: output_times_late.txt
-  diagnostics: {verbose: 0}
+  diagnostics:
+    verbose: 0
   chemistry:
     hydrogen_mass_fraction: 1.0
     hydrogen_xHI_initial: 1.0
@@ -82,11 +83,15 @@ initial_condition:
 example:
   show_stagnation_radius: true
   output_snapshots:
-    - {time: {value: 0.0, unit: Myr}}
-    - {time: {value: 0.05, unit: Myr}, label: 0p05}
-    - {time: {value: 0.10, unit: Myr}}
-    - {time: {value: 0.20, unit: Myr}, label: 0p20}
-    - {time: {value: 0.50, unit: Myr}}
-    - {time: {value: 0.80, unit: Myr}, label: 0p80}
-    - {time: {value: 1.50, unit: Myr}}
-    - {time: {value: 3.0, unit: Myr}, label: 3p00}
+  - time: {value: 0.0, unit: Myr}
+  - time: {value: 0.05, unit: Myr}
+    label: 0p05
+  - time: {value: 0.10, unit: Myr}
+  - time: {value: 0.20, unit: Myr}
+    label: 0p20
+  - time: {value: 0.50, unit: Myr}
+  - time: {value: 0.80, unit: Myr}
+    label: 0p80
+  - time: {value: 1.50, unit: Myr}
+  - time: {value: 3.0, unit: Myr}
+    label: 3p00

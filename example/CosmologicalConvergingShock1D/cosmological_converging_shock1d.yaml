@@ -4,7 +4,9 @@ par:
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
     final_time: {value: 30.0, unit: Myr}
-  mesh: {grid_cells: 64, ghost_cells: 2}
+  mesh:
+    grid_cells: 64
+    ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666667
@@ -13,8 +15,9 @@ par:
     riemann_solver: HLLC
     dual_energy: false
     cfl_density_floor: 1.0e-30
-    temperature_jump_error_threshold: null
-  boundary: {condition: Reflecting}
+    temperature_jump_error_threshold:
+  boundary:
+    condition: Reflecting
   timestep:
     dtmax: {value: 1.0e15, unit: s}
     dtmin: {value: 1.0e-6, unit: s}
@@ -23,11 +26,18 @@ par:
     savedir: outputs_cosmological_converging
     filename_prefix: Output
     cadence: {value: 5.0, unit: Myr}
-  gravity: {selfgravity: false, externalgravity: false}
+  gravity:
+    selfgravity: false
+    externalgravity: false
   units:
     CodeUnits:
       name: spherical_shell_wall_units
-      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 initial_condition:
   grid_cells: 64
   inner_radius: {value: 1.0, unit: kpc}

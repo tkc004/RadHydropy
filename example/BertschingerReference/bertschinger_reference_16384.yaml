@@ -1,11 +1,25 @@
 par:
-  simulation: {name: BertschingerReference16384}
-  output: {directory: ., savedir: outputs_caustic_convergence/shells_16384}
+  simulation:
+    name: BertschingerReference16384
+  output:
+    directory: .
+    savedir: outputs_caustic_convergence/shells_16384
   units:
     CodeUnits:
       name: bertschinger_reference_unit_system
-      InternalUnitSystem: {UnitMass_in_cgs: 1.0e33, UnitLength_in_cgs: 3.08567758e18, UnitVelocity_in_cgs: 1.0e5, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
-initial_condition: {number_of_shells: 16384, inner_radius: 0.05, outer_radius: 20.0, initial_cosmic_time: 1.0, perturbation_amplitude: 5.0, softening: 0.02}
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e33
+        UnitLength_in_cgs: 3.08567758e18
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  number_of_shells: 16384
+  inner_radius: 0.05
+  outer_radius: 20.0
+  initial_cosmic_time: 1.0
+  perturbation_amplitude: 5.0
+  softening: 0.02
 example:
   cosmology_t_ref: 1.0
   cosmology_a_ref: 1.0

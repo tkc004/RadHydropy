@@ -20,12 +20,8 @@ par:
   boundary:
     condition: InflowSph
   timestep:
-    dtmin:
-      value: 1.0e-12
-      unit: Myr
-    dtmax:
-      value: 200.0
-      unit: Myr
+    dtmin: {value: 1.0e-12, unit: Myr}
+    dtmax: {value: 200.0, unit: Myr}
   dark_matter_crossing_batch_fraction: 0.0
   dark_matter_crossing_safety_factor: 0.5
   dark_matter_global_timestep_limit: false
@@ -56,9 +52,7 @@ par:
     hydrogen_collisional_ionization: true
     hydrogen_xHI_initial: 0.9998
     compton_cmb_enabled: true
-    cmb_temperature_0:
-      value: 2.7255
-      unit: K
+    cmb_temperature_0: {value: 2.7255, unit: K}
     metallicity: 0.1
     hydrogen_recombination: true
     metal_pie_redshift: 10.0
@@ -96,6 +90,4 @@ example:
   dm_density_bins: 128
   gas_profile_cadence: 0.1
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  minimum_temperature:
-    value: 2.0
-    unit: K
+  minimum_temperature: {value: 2.0, unit: K}

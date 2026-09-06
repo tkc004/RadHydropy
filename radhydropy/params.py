@@ -203,7 +203,7 @@ refparams = {
     'radiation_pressure_source_luminosity': None,
     'radiative_transfer': False,
     'radiative_transfer_method': 'long_characteristics',
-    'radiative_transfer_temporal_scheme': 'instantaneous',
+    'radiative_transfer_temporal_scheme': 'c2ray',
     'radiative_transfer_c2ray_max_iterations': 32,
     'radiative_transfer_c2ray_tolerance': 1.0e-6,
     'radiative_transfer_c2ray_relaxation': 1.0,
@@ -531,7 +531,7 @@ class RadiationParameters:
     group_epsilon_gamma_HeI: object = None
     group_epsilon_gamma_HeII: object = None
     radiative_transfer_method: str = 'long_characteristics'
-    radiative_transfer_temporal_scheme: str = 'instantaneous'
+    radiative_transfer_temporal_scheme: str = 'c2ray'
     radiative_transfer_direction: int = 1
     boundary_flux: object = None
     source_photon_rate: object = None

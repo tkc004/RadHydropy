@@ -6,7 +6,8 @@ converged before its outgoing photon rate is passed to the next cell.
 
 The hydrogen path retains its analytic local update.  The optional H/He path
 uses the same causal transport ordering with a coupled implicit local solve.
-The ordinary instantaneous thermo-chemistry path remains the default.
+C²-Ray is the default radiative-transfer temporal scheme; the ordinary
+instantaneous path remains available when explicitly selected.
 """
 
 from dataclasses import dataclass

@@ -4,13 +4,16 @@ par:
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
     final_time: {value: 10.0, unit: Myr}
-  mesh: {grid_cells: 256, ghost_cells: 2}
+  mesh:
+    grid_cells: 256
+    ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666666667
     CFL: 0.1
     order: 0
-  boundary: {condition: Periodic}
+  boundary:
+    condition: Periodic
   timestep:
     dtmin: {value: 1.0, unit: yr}
     dtmax: {value: 0.05, unit: Myr}
@@ -24,7 +27,8 @@ par:
     hydrogen_mass_fraction: 0.76
     cooling_safety_factor: 0.05
     cooling_temperature_floor: {value: 100.0, unit: K}
-  radiation: {radiative_transfer: false}
+  radiation:
+    radiative_transfer: false
   output:
     directory: outputs
     savedir: outputs

@@ -461,8 +461,8 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
      - Transport method. Currently ``long_characteristics``.
      - string
    * - ``radiative_transfer_temporal_scheme``
-     - ``instantaneous`` for the existing update or ``c2ray`` for causal,
-       time-averaged C²-Ray source integration. With
+     - ``c2ray`` (default) for causal, time-averaged C²-Ray source integration,
+       or ``instantaneous`` for the existing update. With
        ``thermochemistry_network: hydrogen_helium``, it also enables the
        coupled H/He C²-Ray update.
      - string

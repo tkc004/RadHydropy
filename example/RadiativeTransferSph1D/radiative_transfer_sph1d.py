@@ -59,7 +59,7 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
-    if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray':
+    if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray':
         mainrun.EvolveStaticThermochemistry(
             runtime['simulation']['final_time'],
             runtime['timestep']['evolution_timestep'],
@@ -77,7 +77,7 @@ def main(config_filename=DEFAULT_CONFIG):
             Path(runtime['output']['savedir'])
             / (
                 'RadiativeTransferSph1D_C2Ray.jpg'
-                if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+                if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
                 else 'RadiativeTransferSph1D.jpg'
             )
         ),
@@ -86,7 +86,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('max relative error = %.3e' % relative_error)
     figure_name = (
         'RadiativeTransferSph1D_C2Ray.jpg'
-        if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'instantaneous') == 'c2ray'
+        if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
         else 'RadiativeTransferSph1D.jpg'
     )
     print('figure = %s' % (Path(runtime['output']['savedir']) / figure_name))

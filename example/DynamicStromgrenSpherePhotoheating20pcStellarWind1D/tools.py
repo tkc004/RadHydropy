@@ -45,14 +45,15 @@ def _wind_density(config):
 
 def build_static_problem(config):
     """Build the photoheated ambient cloud with a stellar-wind inner boundary."""
-    par, mesh, fluid, solver = _BASE_BUILD_STATIC_PROBLEM(config)
+    sim = _BASE_BUILD_STATIC_PROBLEM(config)
+    par, mesh, fluid, solver = sim.par, sim.mesh, sim.fluid, sim.solver
     initial = config['initial_condition']
     example = config['example']
-    par.boundcond = 'WindSph'
-    par.rho_outflow = _wind_density(config)
-    par.vel_outflow = example['wind_velocity']
-    par.temp_outflow = example['wind_temperature']
-    par.mu_outflow = example['wind_mu']
+    par.boundary.condition = 'OutflowSph'
+    par.boundary.outflow_density = _wind_density(config)
+    par.boundary.outflow_velocity = example['wind_velocity']
+    par.boundary.outflow_temperature = example['wind_temperature']
+    par.boundary.outflow_mu = example['wind_mu']
 
     boxsize_cm = initial['box_size'].to_value(unyt.cm)
     rinj_cm = example['rinj'].to_value(unyt.cm)
@@ -64,12 +65,25 @@ def build_static_problem(config):
     mesh.boundary_proper_code = quantity_to_value(
         boundary_proper_cgs_cm_unyt, par.CodeUnits.length_unit
     )
-    wind_cells = min(
-        int(example.get('wind_injection_cells', 2)),
-        par.nogrid,
+    mesh.width_proper_code = np.diff(mesh.boundary_proper_code)
+    mesh.area_proper_code = 4.0 * np.pi * mesh.boundary_proper_code[:-1] ** 2
+    mesh.volume_proper_code = (
+        4.0 * np.pi / 3.0
+        * (
+            mesh.boundary_proper_code[1:] ** 3
+            - mesh.boundary_proper_code[:-1] ** 3
+        )
     )
+    mesh.x_proper_code = 0.75 * (
+        mesh.boundary_proper_code[1:] ** 4
+        - mesh.boundary_proper_code[:-1] ** 4
+    ) / (
+        mesh.boundary_proper_code[1:] ** 3
+        - mesh.boundary_proper_code[:-1] ** 3
+    )
+    wind_cells = min(int(example.get('wind_injection_cells', 2)), int(par.mesh.grid_cells))
     if wind_cells > 0:
-        first_active = int(par.noghost)
+        first_active = int(par.mesh.ghost_cells)
         active_slice = slice(first_active, first_active + wind_cells)
         cell_center_proper_code = 0.5 * (
             mesh.boundary_proper_code[first_active:first_active + wind_cells]
@@ -93,14 +107,15 @@ def build_static_problem(config):
         fluid.vel_proper_code[active_slice] = wind_velocity_proper_code
         fluid.temp_proper_code[active_slice] = wind_temperature_proper_code
         fluid.mu[active_slice] = example['wind_mu']
+    fluid.SetUpFluid(par, mesh)
+    solver.SetConserved(mesh, fluid, verbose=0)
     _template._attach_proper_runtime_states(par, mesh, fluid)
-    return par, mesh, fluid, solver
+    return sim
 
 
 def write_initial_condition(config):
     """Write an IC file with the wind boundary parameters in its header."""
-    par, mesh, fluid, _ = build_static_problem(config)
-    sim = _template.SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    sim = build_static_problem(config)
     filename = config['par']['simulation']['initial_condition_filename']
     Path(filename).unlink(missing_ok=True)
     rio.writehdf5(sim, filename)

@@ -3,9 +3,7 @@ par:
     name: NFWHydrostaticEquilibrium1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 1.0e6
-      unit: yr
+    final_time: {value: 1.0e6, unit: yr}
   mesh:
     grid_cells: 256
     ghost_cells: 2
@@ -17,12 +15,8 @@ par:
   boundary:
     condition: Reflecting
   timestep:
-    dtmin:
-      value: 1.0e2
-      unit: yr
-    dtmax:
-      value: 1.0e5
-      unit: yr
+    dtmin: {value: 1.0e2, unit: yr}
+    dtmax: {value: 1.0e5, unit: yr}
   output:
     directory: .
     savedir: .
@@ -40,33 +34,17 @@ par:
   diagnostics:
     verbose: 0
 initial_condition:
-  boxsize:
-    value: 10.0
-    unit: kpc
-  time:
-    value: 0.0
-    unit: yr
-  rmin:
-    value: 0.1
-    unit: kpc
-  rmax:
-    value: 9.6
-    unit: kpc
-  halo_mass:
-    value: 1.0e8
-    unit: Msun
+  boxsize: {value: 10.0, unit: kpc}
+  time: {value: 0.0, unit: yr}
+  rmin: {value: 0.1, unit: kpc}
+  rmax: {value: 9.6, unit: kpc}
+  halo_mass: {value: 1.0e8, unit: Msun}
   concentration: 10.0
   redshift: 0.0
   overdensity: 200.0
-  h0:
-    value: 70.0
-    unit: km/(s*Mpc)
+  h0: {value: 70.0, unit: km/(s*Mpc)}
   gas_fraction: 0.157
   mu: 0.59
-  rho_ref:
-    value: 1.0e-27
-    unit: g/cm**3
-  tempini:
-    value: 1.0
-    unit: K
+  rho_ref: {value: 1.0e-27, unit: g/cm**3}
+  tempini: {value: 1.0, unit: K}
 example: {}

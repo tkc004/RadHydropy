@@ -4,8 +4,15 @@ par:
     initial_condition_filename: InitialCondition_RadHydro.hdf5
     coordinate_system: spherical
     final_time: 0.291535719769
-  mesh: {grid_cells: 8192, ghost_cells: 2}
-  hydrodynamics: {eos_type: polytropic, gamma: 1.6666666666666667, CFL: 0.15, order: 0, temperature_jump_error_threshold: 1.0e99}
+  mesh:
+    grid_cells: 8192
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.15
+    order: 0
+    temperature_jump_error_threshold: 1.0e99
   boundary:
     condition: OutflowSph
     outflow_density: {value: 8.0e-22, unit: g/cm**3}
@@ -15,8 +22,13 @@ par:
   timestep:
     dtmin: {value: 1.0e-5, unit: yr}
     dtmax: {value: 1.0e-3, unit: Myr}
-  output: {directory: ., savedir: ., filename_prefix: Output_RadHydro, cadence: 0.001}
-  diagnostics: {verbose: 0}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output_RadHydro
+    cadence: 0.001
+  diagnostics:
+    verbose: 0
   units:
     CodeUnits:
       name: bertschinger_gas_unit_system

@@ -43,20 +43,12 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  rmin:
-    value: 0.0
-    unit: pc
-  rmax:
-    value: 2.0
-    unit: pc
+  rmin: {value: 0.0, unit: pc}
+  rmax: {value: 2.0, unit: pc}
   cosmic_time: 1.0
-  top_hat_radius:
-    value: 0.75
-    unit: pc
+  top_hat_radius: {value: 0.75, unit: pc}
   overdensity: 0.20
-  tempini:
-    value: 1.0e-3
-    unit: K
+  tempini: {value: 1.0e-3, unit: K}
   muini: 1.0
   moderate_rotation_factor: 0.45
   high_rotation_factor: 0.85

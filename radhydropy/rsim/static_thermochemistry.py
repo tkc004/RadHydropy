@@ -164,7 +164,7 @@ def _store_static_reference_snapshot(sim, history, state, time_s, reference_time
 
 def _finish_static_thermochemistry(sim, state, time_s):
     if (
-        getattr(sim.par, 'radiative_transfer_temporal_scheme', 'instantaneous')
+        getattr(sim.par, 'radiative_transfer_temporal_scheme', 'c2ray')
         == 'c2ray'
     ):
         from radhydropy.thermo_networks import c2ray
@@ -196,7 +196,7 @@ def EvolveStaticThermochemistry(
     dtmax_s = time_seconds(source_timestep, code_units)
     reference_time_s = sim._static_reference_time_seconds(reference_time)
     if (
-        getattr(sim.par, 'radiative_transfer_temporal_scheme', 'instantaneous')
+        getattr(sim.par, 'radiative_transfer_temporal_scheme', 'c2ray')
         == 'c2ray'
     ):
         history = rtc.evolve_static_source_state(

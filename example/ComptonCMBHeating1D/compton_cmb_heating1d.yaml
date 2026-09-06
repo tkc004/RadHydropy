@@ -3,9 +3,7 @@ par:
     name: ComptonCMBHeating1D
     initial_condition_filename: ComptonCMBHeating1D_InitialCondition.hdf5
     coordinate_system: cartesian
-    final_time:
-      value: 1.0e3
-      unit: Myr
+    final_time: {value: 1.0e3, unit: Myr}
   mesh:
     grid_cells: 8
     ghost_cells: 2
@@ -30,9 +28,7 @@ par:
     hydrogen_source_solver: explicit
     compton_cmb_enabled: true
     compton_cmb_redshift: 100.0
-    cmb_temperature_0:
-      value: 2.7255
-      unit: K
+    cmb_temperature_0: {value: 2.7255, unit: K}
   output:
     directory: .
     savedir: .
@@ -50,25 +46,15 @@ par:
         UnitTemp_in_cgs: 1.0
 
 initial_condition:
-  box_size:
-    value: 1.0
-    unit: kpc
-  current_time:
-    value: 0.0
-    unit: Myr
-  hydrogen_density:
-    value: 1.0e-3
-    unit: 1/cm**3
-  initial_temperature:
-    value: 1.0e6
-    unit: K
+  box_size: {value: 1.0, unit: kpc}
+  current_time: {value: 0.0, unit: Myr}
+  hydrogen_density: {value: 1.0e-3, unit: 1/cm**3}
+  initial_temperature: {value: 1.0e6, unit: K}
   xHI: 0.99
   mean_molecular_weight: 0.9900990099
 
 example:
-  evolution_timestep:
-    value: 5.0
-    unit: Myr
+  evolution_timestep: {value: 5.0, unit: Myr}
   cases:
     cooling: 1.0e6
     heating: 1.0

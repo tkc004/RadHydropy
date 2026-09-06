@@ -15,10 +15,10 @@ par:
     temperature_floor: {value: 100.0, unit: K}
     output_count: 101
     cases:
-      - [diffuse_hot, 1.0e-4, 1.0e6]
-      - [diffuse_cold, 1.0e-3, 1.0e5]
-      - [dense_hot, 1.0e-3, 1.0e6]
-      - [dense_cold, 1.0e-2, 1.0e5]
+    - [diffuse_hot, 1.0e-4, 1.0e6]
+    - [diffuse_cold, 1.0e-3, 1.0e5]
+    - [dense_hot, 1.0e-3, 1.0e6]
+    - [dense_cold, 1.0e-2, 1.0e5]
   output: {}
   units:
     CodeUnits:

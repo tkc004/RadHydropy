@@ -1,8 +1,9 @@
 """Photoheated 20 pc Stromgren sphere with a central stellar wind."""
 
 import argparse
-import importlib.util
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import matplotlib
@@ -13,27 +14,23 @@ import unyt
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = REPO_ROOT / 'example'
-TEMPLATE_DIR = EXAMPLE_ROOT / 'DynamicStromgrenSpherePhotoheating20pc1D'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
+from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import example_utils as eu
 import tools as et
 
 
-def _load_template_runner():
-    module_name = '_radhydropy_dynamic_stromgren_wind_template'
-    spec = importlib.util.spec_from_file_location(
-        module_name,
-        TEMPLATE_DIR / 'dynamic_stromgren_sphere_photoheating20pc1d.py',
-    )
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
+cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
+mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+os.makedirs(cache_dir, exist_ok=True)
+os.makedirs(mplconfig_dir, exist_ok=True)
+os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
+os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 
 def _pressure_diagnostic(snapshot, config):
@@ -138,23 +135,44 @@ def save_pressure_ratio_plot(diagnostics, output_dir):
 
 
 def main(config_filename=None):
-    template = _load_template_runner()
     if config_filename is None:
-        config_filename = Path(__file__).resolve().with_name(
-            'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
-        )
-    template.main(config_filename)
-
-    config = et.eu.load_nested_example_config(config_filename)
-    output = config['par']['output']
+        config_filename = DEFAULT_CONFIG
+    config = eu.load_nested_example_config(config_filename)
+    par = config['par']
+    output = par['output']
+    config['_code_units'] = CodeUnits.from_mapping(par['units']['CodeUnits'])
     output_dir = Path(output['directory'])
+    eu.clean_previous_outputs(output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
+    et.write_initial_condition(config)
+    sim = Rsim(par)
+    sim.RunAll(outputtime=0)
+
+    output_files = et.output_files(output['directory'], output['filename_prefix'])
+    history = et.load_history_from_outputs(output_files, config)
+    out_par, out_mesh, out_fluid = et.load_output_state(output_files[-1], config)
+    figure_stem = 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
+    if par['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
+        figure_stem += '_C2Ray'
+    et.save_plot(
+        out_mesh, out_fluid, out_par, config,
+        Path(output['savedir']) / f'{figure_stem}.jpg',
+    )
+    et.save_front_plot(
+        history, config,
+        Path(output['savedir']) / f'{figure_stem}_IFront.jpg',
+    )
+
     old_csv = output_dir / 'radial_profile_rhd.csv'
     wind_csv = output_dir / 'radial_profile_rhd_wind.csv'
     if old_csv.exists():
         old_csv.replace(wind_csv)
     print('RHD wind profile CSV = %s' % wind_csv)
 
-    output_files = sorted(output_dir.glob(f"{output.get('filename_prefix', 'Output')}_*.hdf5"))
+    output_files = et.output_files(
+        output['directory'], output.get('filename_prefix', 'Output')
+    )
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)
     times = diagnostics[:, 0]

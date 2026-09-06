@@ -3,9 +3,7 @@ par:
     name: MultiFrequencyRadiativeTransferSph1D_SingleFrequency
     initial_condition_filename: InitialCondition_SingleFrequency.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 100.0
-      unit: Myr
+    final_time: {value: 100.0, unit: Myr}
   mesh:
     grid_cells: 512
     ghost_cells: 2
@@ -38,20 +36,16 @@ par:
     hydrogen_collisional_ionization: true
   thermochemistry:
     hydrogen_initial_collisional_equilibrium: false
-    hydrogen_sigma_gamma:
-      value: 1.62e-18
-      unit: cm**2
+    hydrogen_sigma_gamma: {value: 1.62e-18, unit: cm**2}
     hydrogen_thermal_coupling: true
     relative_tolerance: 0.001
     absolute_tolerance: 1.0e-10
     explicit_tolerance: 0.1
-    hydrogen_epsilon_gamma:
-      value: 6.33
-      unit: eV
+    hydrogen_epsilon_gamma: {value: 6.33, unit: eV}
   radiation:
     radiative_transfer_direction: 1
     radiative_transfer: true
-    radiation_spectrum_filename: null
+    radiation_spectrum_filename:
     radiative_transfer_method: long_characteristics
     radiative_transfer_source_photon_rate: {value: 5.0e48, unit: 1/s}
   output:
@@ -60,31 +54,15 @@ par:
     filename_prefix: Output_SingleFrequency
 initial_condition:
   grid_cells: 512
-  box_size:
-    value: 10.0
-    unit: kpc
-  hydrogen_number_density:
-    value: 0.001
-    unit: 1/cm**3
-  initial_temperature:
-    value: 100.0
-    unit: K
+  box_size: {value: 10.0, unit: kpc}
+  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
+  initial_temperature: {value: 100.0, unit: K}
 example:
-  reference_radius_unit:
-    value: 5.4
-    unit: kpc
+  reference_radius_unit: {value: 5.4, unit: kpc}
   temperature_reference_filename: TTT1D_Stromgren100Myr.txt
   neutral_fraction_reference_filename: xTT1D_Stromgren100Myr.txt
-  evolution_timestep:
-    value: 0.5
-    unit: Myr
-  initial_temperature:
-    value: 100.0
-    unit: K
-  hydrogen_number_density:
-    value: 0.001
-    unit: 1/cm**3
-  box_size:
-    value: 10.0
-    unit: kpc
+  evolution_timestep: {value: 0.5, unit: Myr}
+  initial_temperature: {value: 100.0, unit: K}
+  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
+  box_size: {value: 10.0, unit: kpc}
   figure_filename: MultiFrequencyRadiativeTransferSph1D_SingleFrequency.jpg

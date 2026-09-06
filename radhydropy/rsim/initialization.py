@@ -89,7 +89,7 @@ def SetInitFluid(sim):
     sim.solver.InitializeHydrostaticCore(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetBoundary(sim.mesh,sim.fluid,sim.par)
     sim.solver.SetConserved(sim.mesh,sim.fluid, verbose=getattr(sim.par, 'verbose', 0))
-    if getattr(sim.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
+    if getattr(sim.par, 'radiative_transfer_temporal_scheme', 'c2ray') != 'c2ray':
         sim.solver.ApplyRadiativeTransfer(sim.mesh, sim.fluid, sim.par)
 
 def ConvertParametersToCodeUnits(sim):

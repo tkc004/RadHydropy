@@ -4,7 +4,9 @@ par:
     coordinate_system: spherical
     initial_condition_filename: InitialCondition.hdf5
     final_time: {value: 0.0, unit: s}
-  mesh: {grid_cells: 128, ghost_cells: 2}
+  mesh:
+    grid_cells: 128
+    ghost_cells: 2
   gravity:
     selfgravity: true
     cosmological_expansion: true
@@ -13,7 +15,10 @@ par:
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: 1.0
     cosmology_a_ref: 1.0
-  output: {directory: ., savedir: ., filename_prefix: Output}
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
   units:
     CodeUnits:
       name: einstein_de_sitter_top_hat_unit_system
@@ -32,4 +37,5 @@ initial_condition:
   overdensity: 0.1
   tempini: {value: 10.0, unit: K}
   muini: 1.0
-example: {verbose: 0}
+example:
+  verbose: 0

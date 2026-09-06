@@ -18,7 +18,7 @@ par:
     dual_energy: true
     smooth_dm_force_for_gas: true
     cfl_density_floor: 0.0
-    temperature_jump_error_threshold: null
+    temperature_jump_error_threshold:
   boundary:
     condition: InflowSph
   timestep:

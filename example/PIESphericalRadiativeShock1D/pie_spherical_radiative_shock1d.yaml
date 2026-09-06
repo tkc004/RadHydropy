@@ -3,9 +3,7 @@ par:
     name: PIESphericalRadiativeShock1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 20.0
-      unit: Myr
+    final_time: {value: 20.0, unit: Myr}
   mesh:
     ghost_cells: 2
     grid_cells: 512
@@ -16,40 +14,22 @@ par:
     order: 0
   boundary:
     condition: InflowOutflowSph
-    inflow_velocity:
-      value: -100.0
-      unit: km/s
-    inflow_density:
-      value: 4.402e-27
-      unit: g/cm**3
-    inflow_temperature:
-      value: 10000.0
-      unit: K
+    inflow_velocity: {value: -100.0, unit: km/s}
+    inflow_density: {value: 4.402e-27, unit: g/cm**3}
+    inflow_temperature: {value: 10000.0, unit: K}
     inflow_mu: 0.62
-    outflow_velocity:
-      value: 100.0
-      unit: km/s
-    outflow_density:
-      value: 4.402e-27
-      unit: g/cm**3
-    outflow_temperature:
-      value: 10000.0
-      unit: K
+    outflow_velocity: {value: 100.0, unit: km/s}
+    outflow_density: {value: 4.402e-27, unit: g/cm**3}
+    outflow_temperature: {value: 10000.0, unit: K}
     outflow_mu: 0.62
   timestep:
-    dtmin:
-      value: 1.0
-      unit: yr
-    dtmax:
-      value: 0.01
-      unit: Myr
+    dtmin: {value: 1.0, unit: yr}
+    dtmax: {value: 0.01, unit: Myr}
   output:
     directory: outputs
     savedir: outputs
     filename_prefix: Output
-    time_interval:
-      value: 0.5
-      unit: Myr
+    time_interval: {value: 0.5, unit: Myr}
   units:
     CodeUnits:
       name: galactic_unit_system
@@ -70,37 +50,19 @@ par:
     hydrogen_mass_fraction: 0.76
     cooling_safety_factor: 0.05
     pie_uvbg_implicit_step_doubling: false
-    cooling_temperature_floor:
-      value: 100.0
-      unit: K
+    cooling_temperature_floor: {value: 100.0, unit: K}
   radiation:
     radiative_transfer: false
 initial_condition:
   nogrid: 512
   coordsys: spherical
-  boxsize:
-    value: 19.0
-    unit: kpc
-  rmin:
-    value: 1.0
-    unit: kpc
-  rmax:
-    value: 20.0
-    unit: kpc
-  time:
-    value: 0.0
-    unit: Myr
-  hydrogen_density:
-    value: 0.002
-    unit: cm**-3
-  inflow_velocity:
-    value: -100.0
-    unit: km/s
-  outflow_velocity:
-    value: 100.0
-    unit: km/s
-  inflow_temperature:
-    value: 1.0e4
-    unit: K
+  boxsize: {value: 19.0, unit: kpc}
+  rmin: {value: 1.0, unit: kpc}
+  rmax: {value: 20.0, unit: kpc}
+  time: {value: 0.0, unit: Myr}
+  hydrogen_density: {value: 0.002, unit: cm**-3}
+  inflow_velocity: {value: -100.0, unit: km/s}
+  outflow_velocity: {value: 100.0, unit: km/s}
+  inflow_temperature: {value: 1.0e4, unit: K}
   muini: 0.62
 example: {}

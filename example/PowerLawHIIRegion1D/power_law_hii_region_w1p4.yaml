@@ -3,15 +3,11 @@ par:
     name: PowerLawHIIRegion1D_w1p4_RadHydro
     initial_condition_filename: InitialCondition_PowerLawHIIRegion1D_w1p4.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 1.9952623e4
-      unit: yr
+    final_time: {value: 1.9952623e4, unit: yr}
   mesh:
     grid_cells: 8192
     ghost_cells: 2
-    area:
-      value: 1.0
-      unit: cm**2
+    area: {value: 1.0, unit: cm**2}
   hydrodynamics:
     eos_type: isothermal
     gamma: 1.0
@@ -20,52 +16,32 @@ par:
   boundary:
     condition: OpenSph
   timestep:
-    dtmin:
-      value: 1.0e-08
-      unit: yr
-    dtmax:
-      value: 5.0e3
-      unit: yr
+    dtmin: {value: 1.0e-08, unit: yr}
+    dtmax: {value: 5.0e3, unit: yr}
   chemistry:
     hydrogen_mass_fraction: 1.0
     hydrogen_xHI_initial: 1.0
     hydrogen_xHI_inflow: 1.0
     hydrogen_xHI_outflow: 1.0
     hydrogen_update_mu: true
-    hydrogen_ngamma_initial:
-      value: 0.0
-      unit: 1/cm**3
+    hydrogen_ngamma_initial: {value: 0.0, unit: 1/cm**3}
   thermochemistry:
     hydrogen_chemistry: true
     hydrogen_source_CFL: 1000.0
-    hydrogen_source_dtmin:
-      value: 0.0
-      unit: yr
+    hydrogen_source_dtmin: {value: 0.0, unit: yr}
     hydrogen_thermal_coupling: false
     hydrogen_recombination: true
     hydrogen_collisional_ionization: false
-    hydrogen_alpha_B:
-      value: 2.6e-13
-      unit: cm**3/s
-    hydrogen_beta:
-      value: 0.0
-      unit: cm**3/s
-    hydrogen_epsilon_gamma:
-      value: 6.33
-      unit: eV
-    hydrogen_sigma_gamma:
-      value: 1.1e-18
-      unit: cm**2
+    hydrogen_alpha_B: {value: 2.6e-13, unit: cm**3/s}
+    hydrogen_beta: {value: 0.0, unit: cm**3/s}
+    hydrogen_epsilon_gamma: {value: 6.33, unit: eV}
+    hydrogen_sigma_gamma: {value: 1.1e-18, unit: cm**2}
     isothermal_ionized_fraction_threshold: 0.5
   radiation:
     radiative_transfer: true
     radiative_transfer_method: long_characteristics
-    radiative_transfer_boundary_flux:
-      value: 0.0
-      unit: 1/(cm**2*s)
-    radiative_transfer_source_photon_rate:
-      value: 5.0e49
-      unit: 1/s
+    radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
+    radiative_transfer_source_photon_rate: {value: 5.0e49, unit: 1/s}
     radiative_transfer_direction: 1
     hydrogen_radiation_field: false
     hydrogen_radiation_evolution: false
@@ -85,24 +61,12 @@ par:
     time_list_filename: output_times_w1p4.txt
 initial_condition:
   number_of_cells: 8192
-  boxsize:
-    value: 5.0
-    unit: pc
-  initial_temperature:
-    value: 100.0
-    unit: K
-  neutral_temperature:
-    value: 100.0
-    unit: K
-  ionized_temperature:
-    value: 1.0e4
-    unit: K
-  core_number_density:
-    value: 1.0e6
-    unit: 1/cm**3
-  core_radius:
-    value: 2.1e16
-    unit: cm
+  boxsize: {value: 5.0, unit: pc}
+  initial_temperature: {value: 100.0, unit: K}
+  neutral_temperature: {value: 100.0, unit: K}
+  ionized_temperature: {value: 1.0e4, unit: K}
+  core_number_density: {value: 1.0e6, unit: 1/cm**3}
+  core_radius: {value: 2.1e16, unit: cm}
   density_power_law_exponent: 1.4
 example:
   front_plot_filename: PowerLawHIIRegion1D_w1p4_RadHydroVsAnalytic.jpg

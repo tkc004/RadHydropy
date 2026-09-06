@@ -3,9 +3,7 @@ par:
     name: MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray
     initial_condition_filename: InitialCondition_C2Ray.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 100.0
-      unit: Myr
+    final_time: {value: 100.0, unit: Myr}
   mesh:
     grid_cells: 128
     ghost_cells: 2
@@ -46,9 +44,7 @@ par:
     radiative_transfer_c2ray_ode_max_iterations: 24
     radiative_transfer_c2ray_nonconvergence: raise
     radiative_transfer_c2ray_ode_tolerance: 1.0e-08
-    radiation_spectrum_total_photon_rate:
-      value: 5.0e48
-      unit: 1/s
+    radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
     radiative_transfer_temporal_scheme: c2ray
     radiative_transfer_direction: 1
     radiative_transfer: true
@@ -60,29 +56,15 @@ par:
     filename_prefix: Output_C2Ray
 initial_condition:
   number_of_cells: 128
-  box_size:
-    value: 10.0
-    unit: kpc
-  hydrogen_number_density:
-    value: 0.001
-    unit: 1/cm**3
-  initial_temperature:
-    value: 100.0
-    unit: K
+  box_size: {value: 10.0, unit: kpc}
+  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
+  initial_temperature: {value: 100.0, unit: K}
 example:
   outdir: .
   outfileprefix: Output_C2Ray
   savedir: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray.jpg
-  evolution_timestep:
-    value: 0.5
-    unit: Myr
-  initial_temperature:
-    value: 100.0
-    unit: K
-  hydrogen_number_density:
-    value: 0.001
-    unit: 1/cm**3
-  boxsize:
-    value: 10.0
-    unit: kpc
+  evolution_timestep: {value: 0.5, unit: Myr}
+  initial_temperature: {value: 100.0, unit: K}
+  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
+  boxsize: {value: 10.0, unit: kpc}

@@ -3,9 +3,7 @@ par:
     name: MultiFrequencyRadiativeTransferSph1D_C2Ray
     initial_condition_filename: InitialCondition_C2Ray.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 100.0
-      unit: Myr
+    final_time: {value: 100.0, unit: Myr}
   mesh:
     grid_cells: 512
     ghost_cells: 2
@@ -37,17 +35,15 @@ par:
     hydrogen_collisional_ionization: true
   thermochemistry:
     hydrogen_initial_collisional_equilibrium: true
-    hydrogen_alpha_B: null
-    hydrogen_beta: null
+    hydrogen_alpha_B:
+    hydrogen_beta:
     hydrogen_thermal_coupling: true
     relative_tolerance: 0.001
     absolute_tolerance: 1.0e-10
     explicit_tolerance: 0.1
   radiation:
     radiative_transfer_c2ray_nonconvergence: warn
-    radiation_spectrum_total_photon_rate:
-      value: 5.0e48
-      unit: 1/s
+    radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
     radiative_transfer_temporal_scheme: c2ray
     radiative_transfer_c2ray_tolerance: 1.0e-06
     radiative_transfer_c2ray_relaxation: 1.0
@@ -62,34 +58,18 @@ par:
     filename_prefix: Output_C2Ray
 initial_condition:
   grid_cells: 512
-  box_size:
-    value: 10.0
-    unit: kpc
-  hydrogen_number_density:
-    value: 0.001
-    unit: 1/cm**3
-  initial_temperature:
-    value: 100.0
-    unit: K
+  box_size: {value: 10.0, unit: kpc}
+  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
+  initial_temperature: {value: 100.0, unit: K}
 example:
   outdir: .
   outfileprefix: Output_C2Ray
   savedir: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg
-  reference_radius_unit:
-    value: 5.4
-    unit: kpc
+  reference_radius_unit: {value: 5.4, unit: kpc}
   temperature_reference_filename: TTT1D_Stromgren100Myr.txt
   neutral_fraction_reference_filename: xTT1D_Stromgren100Myr.txt
-  evolution_timestep:
-    value: 0.5
-    unit: Myr
-  initial_temperature:
-    value: 100.0
-    unit: K
-  hydrogen_number_density:
-    value: 0.001
-    unit: 1/cm**3
-  box_size:
-    value: 10.0
-    unit: kpc
+  evolution_timestep: {value: 0.5, unit: Myr}
+  initial_temperature: {value: 100.0, unit: K}
+  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
+  box_size: {value: 10.0, unit: kpc}

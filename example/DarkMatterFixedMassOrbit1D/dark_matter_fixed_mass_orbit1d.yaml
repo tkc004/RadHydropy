@@ -1,9 +1,12 @@
 par:
-  simulation: {name: DarkMatterFixedMassOrbit1D, final_time: 0.2}
+  simulation:
+    name: DarkMatterFixedMassOrbit1D
+    final_time: 0.2
   output:
     directory: .
     savedir: .
-  timestep: {output_interval: 0.0005}
+  timestep:
+    output_interval: 0.0005
   units:
     CodeUnits:
       name: dark_matter_orbit_unit_system

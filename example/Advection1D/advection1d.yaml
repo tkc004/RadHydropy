@@ -3,9 +3,7 @@ par:
     name: advection1d
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
-    final_time:
-      value: 2.0
-      unit: s
+    final_time: {value: 2.0, unit: s}
   mesh:
     ghost_cells: 5
     grid_cells: 100
@@ -18,18 +16,12 @@ par:
   boundary:
     condition: Periodic
   timestep:
-    dtmin:
-      value: 2.0e-8
-      unit: s
-    dtmax:
-      value: 0.2
-      unit: s
+    dtmin: {value: 2.0e-8, unit: s}
+    dtmax: {value: 0.2, unit: s}
   output:
     directory: .
     filename_prefix: Output
-    cadence:
-      value: 0.2
-      unit: s
+    cadence: {value: 0.2, unit: s}
   diagnostics:
     verbose: 0
   units:
@@ -45,21 +37,11 @@ par:
 initial_condition:
   grid_cells: 100
   coordinate_system: cartesian
-  box_size:
-    value: 1.0
-    unit: cm
-  current_time:
-    value: 0.0
-    unit: s
-  initial_density:
-    value: 1.0
-    unit: g/cm**3
-  initial_velocity:
-    value: 1.0
-    unit: cm/s
-  initial_temperature:
-    value: 1.0e-10
-    unit: K
+  box_size: {value: 1.0, unit: cm}
+  current_time: {value: 0.0, unit: s}
+  initial_density: {value: 1.0, unit: g/cm**3}
+  initial_velocity: {value: 1.0, unit: cm/s}
+  initial_temperature: {value: 1.0e-10, unit: K}
   mean_molecular_weight: 1.0
 
 example:

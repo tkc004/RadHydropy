@@ -3,9 +3,7 @@ par:
     name: NFWVirialShock1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 1000.0
-      unit: Myr
+    final_time: {value: 1000.0, unit: Myr}
   mesh:
     grid_cells: 192
     ghost_cells: 2
@@ -17,12 +15,8 @@ par:
   boundary:
     condition: OutflowSph
   timestep:
-    dtmin:
-      value: 1.0e2
-      unit: yr
-    dtmax:
-      value: 2.0
-      unit: Myr
+    dtmin: {value: 1.0e2, unit: yr}
+    dtmax: {value: 2.0, unit: Myr}
   output:
     directory: .
     savedir: .
@@ -40,36 +34,20 @@ par:
   diagnostics:
     verbose: 0
 initial_condition:
-  boxsize:
-    value: 19.2
-    unit: kpc
-  time:
-    value: 0.0
-    unit: Myr
-  rmin:
-    value: 0.2
-    unit: kpc
-  rmax:
-    value: 19.2
-    unit: kpc
-  halo_mass:
-    value: 1.0e8
-    unit: Msun
+  boxsize: {value: 19.2, unit: kpc}
+  time: {value: 0.0, unit: Myr}
+  rmin: {value: 0.2, unit: kpc}
+  rmax: {value: 19.2, unit: kpc}
+  halo_mass: {value: 1.0e8, unit: Msun}
   concentration: 10.0
   redshift: 0.0
   overdensity: 200.0
-  h0:
-    value: 70.0
-    unit: km/(s*Mpc)
+  h0: {value: 70.0, unit: km/(s*Mpc)}
   omega_b: 0.049
   omega_m: 0.3
   omega_lambda: 0.7
   initial_redshift: 10.0
   mu: 0.59
-  cmb_temperature_0:
-    value: 2.7255
-    unit: K
-  initial_temperature:
-    value: 2.7255
-    unit: K
+  cmb_temperature_0: {value: 2.7255, unit: K}
+  initial_temperature: {value: 2.7255, unit: K}
 example: {}

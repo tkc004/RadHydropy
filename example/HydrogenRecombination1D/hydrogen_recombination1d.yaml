@@ -3,9 +3,7 @@ par:
     name: HydrogenRecombination1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
-    final_time:
-      value: 5.0e5
-      unit: yr
+    final_time: {value: 5.0e5, unit: yr}
   mesh:
     ghost_cells: 2
   hydrodynamics:
@@ -58,18 +56,10 @@ par:
 initial_condition:
   grid_cells: 16
   coordinate_system: cartesian
-  box_size:
-    value: 1.0
-    unit: kpc
-  current_time:
-    value: 0.0
-    unit: yr
-  hydrogen_number_density:
-    value: 100.0
-    unit: 1/cm**3
-  temperature:
-    value: 2.0e4
-    unit: K
+  box_size: {value: 1.0, unit: kpc}
+  current_time: {value: 0.0, unit: yr}
+  hydrogen_number_density: {value: 100.0, unit: 1/cm**3}
+  temperature: {value: 2.0e4, unit: K}
   neutral_fraction: 0.0
   mean_molecular_weight: 0.5
 

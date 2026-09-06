@@ -4,7 +4,9 @@ par:
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
     final_time: {value: 5000.0, unit: Myr}
-  mesh: {grid_cells: 512, ghost_cells: 2}
+  mesh:
+    grid_cells: 512
+    ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666666667
@@ -30,7 +32,8 @@ par:
     cooling_safety_factor: 0.05
     cooling_temperature_floor: {value: 100.0, unit: K}
     runaway_density_factor: 100.0
-  radiation: {radiative_transfer: false}
+  radiation:
+    radiative_transfer: false
   output:
     directory: outputs
     savedir: .

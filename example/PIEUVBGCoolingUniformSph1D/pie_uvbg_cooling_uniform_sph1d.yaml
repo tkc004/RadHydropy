@@ -3,9 +3,7 @@ par:
     name: PIEUVBGCoolingUniformSph1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
-    final_time:
-      value: 1.0e-05
-      unit: yr
+    final_time: {value: 1.0e-05, unit: yr}
   mesh:
     grid_cells: 48
     ghost_cells: 2
@@ -20,9 +18,7 @@ par:
     directory: outputs
     savedir: outputs
     filename_prefix: Output
-    time_interval:
-      value: 5.0e-06
-      unit: yr
+    time_interval: {value: 5.0e-06, unit: yr}
   units:
     CodeUnits:
       name: cgs_unit_system
@@ -42,25 +38,15 @@ par:
     metallicity: 1.0
     hydrogen_mass_fraction: 0.7
     cooling_safety_factor: 0.1
-    cooling_temperature_floor:
-      value: 100.0
-      unit: K
+    cooling_temperature_floor: {value: 100.0, unit: K}
   radiation:
     radiative_transfer: false
 initial_condition:
   nogrid: 48
   coordsys: spherical
-  boxsize:
-    value: 0.001
-    unit: pc
-  time:
-    value: 0.0
-    unit: yr
-  tempini:
-    value: 10000.0
-    unit: K
+  boxsize: {value: 0.001, unit: pc}
+  time: {value: 0.0, unit: yr}
+  tempini: {value: 10000.0, unit: K}
   muini: 0.62
-  nHini:
-    value: 1.0
-    unit: 1/cm**3
+  nHini: {value: 1.0, unit: 1/cm**3}
 example: {}

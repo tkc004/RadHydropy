@@ -37,9 +37,11 @@ def _radiation_impulse(sim, source_result, dt):
     if absorbed.ndim == 1:
         absorbed = absorbed[None, :]
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = et.interior_slice(sim.par)
     code = CodeUnits.from_mapping(sim.par.CodeUnits)
-    volume_cgs_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(
+        sim.mesh.volume_proper_code[interior], dtype=float
+    ) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
     dt_s = float(np.asarray(dt)) * float((1.0 * code.time_unit).to_value(unyt.s))
@@ -52,7 +54,7 @@ def _radiation_impulse(sim, source_result, dt):
 
 
 def _total_radial_momentum(sim):
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = et.interior_slice(sim.par)
     code = CodeUnits.from_mapping(sim.par.CodeUnits)
     momentum_cgs = float((1.0 * code.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s))
     return float(np.sum(np.asarray(sim.fluid.Mom_code[interior], dtype=float)) * momentum_cgs)
@@ -65,12 +67,16 @@ def _pressure_diagnostics(sim, source_result):
     the ionization front and by ``c``.  The gas pressure is volume-weighted
     over the ionized region, using ``1 - xHI`` as the ionization weight.
     """
-    interior = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    interior = et.interior_slice(sim.par)
     code = CodeUnits.from_mapping(sim.par.CodeUnits)
-    volume_cgs_cm3 = np.asarray(sim.mesh.vol[interior], dtype=float) * float(
+    volume_cgs_cm3 = np.asarray(
+        sim.mesh.volume_proper_code[interior], dtype=float
+    ) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
-    pressure_cgs = et._to_pressure(sim.fluid.pre_code[interior], sim.par)
+    pressure_cgs = et._to_pressure(
+        sim.fluid.pre_proper_code[interior], sim.par
+    )
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
     weighted_volume = float(np.sum(volume_cgs_cm3 * ionized_weight))
     gas_pressure = (
@@ -103,6 +109,9 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     par = config['par']
     output = par['output']
+    config['_code_units'] = CodeUnits.from_mapping(
+        par['units']['CodeUnits']
+    )
     eu.clean_previous_outputs(output)
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
@@ -141,7 +150,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 sim.last_source_dt,
             )
         code = CodeUnits.from_mapping(sim.par.CodeUnits)
-        time_s = float(np.asarray(sim.fluid.time_code)) * float(
+        time_s = float(np.asarray(sim.fluid.time_proper_code)) * float(
             (1.0 * code.time_unit).to_value(unyt.s)
         )
         momentum_history["time_s"].append(time_s)

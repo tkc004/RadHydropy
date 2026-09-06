@@ -3,9 +3,7 @@ par:
     name: HydrogenPhotoionization1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
-    final_time:
-      value: 2.0e4
-      unit: yr
+    final_time: {value: 2.0e4, unit: yr}
   mesh:
     ghost_cells: 2
   hydrodynamics:
@@ -15,41 +13,23 @@ par:
     order: 0
   boundary:
     condition: Periodic
-    inflow_velocity:
-      value: 0.0
-      unit: cm/s
-    inflow_density:
-      value: 1.0
-      unit: mp/cm**3
-    inflow_temperature:
-      value: 0.0
-      unit: K
+    inflow_velocity: {value: 0.0, unit: cm/s}
+    inflow_density: {value: 1.0, unit: mp/cm**3}
+    inflow_temperature: {value: 0.0, unit: K}
     inflow_mu: 1.0
-    outflow_velocity:
-      value: 0.0
-      unit: cm/s
-    outflow_density:
-      value: 1.0
-      unit: mp/cm**3
-    outflow_temperature:
-      value: 0.0
-      unit: K
+    outflow_velocity: {value: 0.0, unit: cm/s}
+    outflow_density: {value: 1.0, unit: mp/cm**3}
+    outflow_temperature: {value: 0.0, unit: K}
     outflow_mu: 1.0
   timestep:
-    dtmin:
-      value: 1.0e-6
-      unit: yr
-    dtmax:
-      value: 2.0e1
-      unit: yr
+    dtmin: {value: 1.0e-6, unit: yr}
+    dtmax: {value: 2.0e1, unit: yr}
     hydrogen_source_CFL: 0.1
   output:
     directory: .
     savedir: .
     filename_prefix: Output
-    cadence:
-      value: 5.0e2
-      unit: yr
+    cadence: {value: 5.0e2, unit: yr}
   diagnostics:
     verbose: 0
   chemistry:
@@ -65,21 +45,11 @@ par:
   radiation:
     hydrogen_radiation_field: true
     hydrogen_radiation_evolution: false
-    hydrogen_ngamma_initial:
-      value: 1.0e-3
-      unit: 1/cm**3
-    hydrogen_ngamma_inflow:
-      value: 1.0e-3
-      unit: 1/cm**3
-    hydrogen_ngamma_outflow:
-      value: 1.0e-3
-      unit: 1/cm**3
-    hydrogen_sigma_gamma:
-      value: 6.3e-18
-      unit: cm**2
-    hydrogen_epsilon_gamma:
-      value: 0.0
-      unit: erg
+    hydrogen_ngamma_initial: {value: 1.0e-3, unit: 1/cm**3}
+    hydrogen_ngamma_inflow: {value: 1.0e-3, unit: 1/cm**3}
+    hydrogen_ngamma_outflow: {value: 1.0e-3, unit: 1/cm**3}
+    hydrogen_sigma_gamma: {value: 6.3e-18, unit: cm**2}
+    hydrogen_epsilon_gamma: {value: 0.0, unit: erg}
   units:
     CodeUnits:
       name: cgs_unit_system
@@ -93,22 +63,12 @@ par:
 initial_condition:
   grid_cells: 16
   coordinate_system: cartesian
-  box_size:
-    value: 1.0
-    unit: kpc
-  current_time:
-    value: 0.0
-    unit: yr
-  hydrogen_number_density:
-    value: 1.0
-    unit: 1/cm**3
-  temperature:
-    value: 2.0e4
-    unit: K
+  box_size: {value: 1.0, unit: kpc}
+  current_time: {value: 0.0, unit: yr}
+  hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
+  temperature: {value: 2.0e4, unit: K}
   neutral_fraction: 1.0
-  photon_number_density:
-    value: 1.0e-3
-    unit: 1/cm**3
+  photon_number_density: {value: 1.0e-3, unit: 1/cm**3}
   mean_molecular_weight: 1.0
 
 example:

@@ -78,7 +78,7 @@ def build_problem(config):
         hydrogen_epsilon_gamma=radiation['hydrogen_epsilon_gamma'],
         radiative_transfer=radiation.get('radiative_transfer', True),
         radiative_transfer_method=radiation.get('method', 'long_characteristics'),
-        radiative_transfer_temporal_scheme=radiation.get('temporal_scheme', 'instantaneous'),
+        radiative_transfer_temporal_scheme=radiation.get('temporal_scheme', 'c2ray'),
         radiative_transfer_c2ray_max_iterations=radiation.get('c2ray_max_iterations', 32),
         radiative_transfer_c2ray_tolerance=radiation.get('c2ray_tolerance', 1.0e-6),
         radiative_transfer_c2ray_relaxation=radiation.get('c2ray_relaxation', 1.0),

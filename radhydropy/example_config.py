@@ -113,7 +113,7 @@ def load_example_parameters(config_filename, rundir=None):
         runparams.setdefault(
             'radiative_transfer_temporal_scheme',
             nested_par.get('radiation', {}).get(
-                'radiative_transfer_temporal_scheme', 'instantaneous'
+                'radiative_transfer_temporal_scheme', 'c2ray'
             ),
         )
         for alias, source in (

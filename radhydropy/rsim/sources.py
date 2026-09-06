@@ -82,7 +82,7 @@ def FinalizeHydroStep(
 def ApplyThermochemistrySources(sim, dt):
     """Apply radiative transport and thermo-chemistry source updates."""
     transport_result = None
-    if getattr(sim.par, 'radiative_transfer_temporal_scheme', 'instantaneous') != 'c2ray':
+    if getattr(sim.par, 'radiative_transfer_temporal_scheme', 'c2ray') != 'c2ray':
         transport_result = sim.solver.ApplyRadiativeTransfer(
             sim.mesh,
             sim.fluid,

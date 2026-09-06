@@ -6,52 +6,77 @@ keeping its configuration and generated outputs separate.
 """
 
 import argparse
-import importlib.util
+import os
 import sys
+import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE_ROOT = REPO_ROOT / 'example'
-TEMPLATE_DIR = EXAMPLE_ROOT / 'DynamicStromgrenSpherePhotoheating1D'
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-if str(EXAMPLE_ROOT) not in sys.path:
-    sys.path.insert(0, str(EXAMPLE_ROOT))
+repo_root = Path(__file__).resolve().parents[2]
+example_root = Path(__file__).resolve().parents[1]
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+if str(example_root) not in sys.path:
+    sys.path.insert(0, str(example_root))
 
+cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
+mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+os.makedirs(cache_dir, exist_ok=True)
+os.makedirs(mplconfig_dir, exist_ok=True)
+os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
+os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 import example_utils as eu
+import tools as et
 
 
-def _load_template_runner():
-    module_name = '_radhydropy_dynamic_stromgren_template'
-    spec = importlib.util.spec_from_file_location(
-        module_name,
-        TEMPLATE_DIR / 'dynamic_stromgren_sphere_photoheating1d.py',
-    )
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
+DEFAULT_CONFIG = Path(__file__).resolve().with_name(
+    'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
+)
 
 
 def main(config_filename=None):
-    template = _load_template_runner()
     if config_filename is None:
-        config_filename = Path(__file__).resolve().with_name(
-            'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
-        )
-    template.main(config_filename)
-
-    config_filename = Path(config_filename).resolve()
+        config_filename = DEFAULT_CONFIG
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    output_dir = Path(runparams['output']['directory'])
-    output_files = sorted(output_dir.glob(f"{runparams['output'].get('filename_prefix', 'Output')}_*.hdf5"))
-    if not output_files:
-        raise FileNotFoundError(f'No output HDF5 files found in {output_dir}')
-    rhd_csv_filename = output_dir / 'radial_profile_rhd.csv'
-    eu.write_radial_profile_csv(output_files[-1], rhd_csv_filename)
+    runtime_params = config['par']
+    output = runtime_params['output']
+    config['_code_units'] = CodeUnits.from_mapping(
+        runtime_params['units']['CodeUnits']
+    )
+
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
+    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
+    et.write_initial_condition(config)
+
+    sim = Rsim(runtime_params)
+    sim.RunAll(outputtime=0)
+
+    outputfilenames = et.output_files(
+        output['directory'], output['filename_prefix']
+    )
+    history = et.load_history_from_outputs(outputfilenames, config)
+    out_par, out_mesh, out_fluid = et.load_output_state(
+        outputfilenames[-1], config
+    )
+    figure_stem = 'DynamicStromgrenSpherePhotoheating20pc1D'
+    if runtime_params['radiation'].get(
+        'radiative_transfer_temporal_scheme'
+    ) == 'c2ray':
+        figure_stem += '_C2Ray'
+    figure_filename = Path(output['savedir']) / f'{figure_stem}.jpg'
+    front_figure_filename = Path(output['savedir']) / f'{figure_stem}_IFront.jpg'
+    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
+    et.save_front_plot(history, config, front_figure_filename)
+
+    rhd_csv_filename = Path(output['directory']) / 'radial_profile_rhd.csv'
+    eu.write_radial_profile_csv(outputfilenames[-1], rhd_csv_filename)
+    print('output files = %d' % len(outputfilenames))
+    print('final front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('RHD profile CSV = %s' % rhd_csv_filename)
+    print('figure = %s' % figure_filename)
+    print('front figure = %s' % front_figure_filename)
 
 
 def parse_args():
@@ -60,9 +85,7 @@ def parse_args():
     )
     parser.add_argument(
         '--config',
-        default=Path(__file__).resolve().with_name(
-            'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
-        ),
+        default=DEFAULT_CONFIG,
         help='YAML file containing runparams and ICparams.',
     )
     return parser.parse_args()

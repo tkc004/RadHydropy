@@ -26,7 +26,8 @@ par:
     savedir: .
     filename_prefix: Output_C2Ray
     time_list_filename: output_times_early.txt
-  diagnostics: {verbose: 0}
+  diagnostics:
+    verbose: 0
   chemistry:
     hydrogen_mass_fraction: 1.0
     hydrogen_xHI_initial: 1.0
@@ -81,11 +82,15 @@ initial_condition:
 
 example:
   output_snapshots:
-    - {time: {value: 0.0, unit: Myr}}
-    - {time: {value: 0.005, unit: Myr}, label: 0p005}
-    - {time: {value: 0.010, unit: Myr}}
-    - {time: {value: 0.020, unit: Myr}, label: 0p020}
-    - {time: {value: 0.040, unit: Myr}}
-    - {time: {value: 0.080, unit: Myr}, label: 0p080}
-    - {time: {value: 0.120, unit: Myr}}
-    - {time: {value: 0.140, unit: Myr}, label: 0p140}
+  - time: {value: 0.0, unit: Myr}
+  - time: {value: 0.005, unit: Myr}
+    label: 0p005
+  - time: {value: 0.010, unit: Myr}
+  - time: {value: 0.020, unit: Myr}
+    label: 0p020
+  - time: {value: 0.040, unit: Myr}
+  - time: {value: 0.080, unit: Myr}
+    label: 0p080
+  - time: {value: 0.120, unit: Myr}
+  - time: {value: 0.140, unit: Myr}
+    label: 0p140

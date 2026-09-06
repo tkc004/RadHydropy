@@ -3,9 +3,7 @@ par:
     name: PIEUVBGPhotoionizationTimescale1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
-    final_time:
-      value: 1.1e5
-      unit: yr
+    final_time: {value: 1.1e5, unit: yr}
   mesh:
     grid_cells: 1
     ghost_cells: 2
@@ -17,20 +15,14 @@ par:
   boundary:
     condition: Periodic
   timestep:
-    dtmin:
-      value: 1.0e-06
-      unit: yr
-    dtmax:
-      value: 1.0e6
-      unit: yr
+    dtmin: {value: 1.0e-06, unit: yr}
+    dtmax: {value: 1.0e6, unit: yr}
   output:
     directory: outputs
     savedir: outputs
     filename_prefix: Output
     time_list_filename: pie_uvbg_photoionization_timescale_1d_output_times.txt
-    time_interval:
-      value: 1.0e4
-      unit: yr
+    time_interval: {value: 1.0e4, unit: yr}
   units:
     CodeUnits:
       name: cgs_unit_system
@@ -49,32 +41,20 @@ par:
     metal_pie_photoheating_max_density_cgs_cm3: 50.0
     metallicity: 1.0
     hydrogen_mass_fraction: 0.7
-    cooling_temperature_floor:
-      value: 100.0
-      unit: K
+    cooling_temperature_floor: {value: 100.0, unit: K}
     pie_uvbg_implicit_tolerance: 0.001
-    pie_uvbg_photoionization_timescale:
-      value: 1.0e4
-      unit: yr
+    pie_uvbg_photoionization_timescale: {value: 1.0e4, unit: yr}
   radiation:
     radiative_transfer: false
 initial_condition:
   nogrid: 1
   coordsys: cartesian
-  boxsize:
-    value: 1.0
-    unit: pc
-  time:
-    value: 0.0
-    unit: yr
-  tempini:
-    value: 2.0e4
-    unit: K
+  boxsize: {value: 1.0, unit: pc}
+  time: {value: 0.0, unit: yr}
+  tempini: {value: 2.0e4, unit: K}
   muini: 0.62
   hydrogen_mass_fraction: 0.7
   proton_mass_g: 1.67262192369e-24
   nHini: 1.0
-  vini:
-    value: 0.0
-    unit: cm/s
+  vini: {value: 0.0, unit: cm/s}
 example: {}

@@ -4,7 +4,9 @@ par:
     coordinate_system: cartesian
     initial_condition_filename: InitialCondition_lambda_cdm.hdf5
     final_time: {value: 0.4, unit: s}
-  mesh: {grid_cells: 800, ghost_cells: 2}
+  mesh:
+    grid_cells: 800
+    ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.4
@@ -22,8 +24,9 @@ par:
     cosmology_a_ref: 1.0
     cosmology_omega_m: 0.3
     cosmology_omega_lambda: 0.7
-    cosmology_hubble_ref: null
-  boundary: {condition: Periodic}
+    cosmology_hubble_ref:
+  boundary:
+    condition: Periodic
   output:
     directory: outputs_lambda_cdm
     savedir: outputs_lambda_cdm

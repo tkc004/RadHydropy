@@ -25,9 +25,7 @@ par:
   output:
     directory: .
     filename_prefix: Output
-    cadence:
-      value: 0.2
-      unit: s
+    cadence: {value: 0.2, unit: s}
   diagnostics:
     verbose: 0
   units:
@@ -43,23 +41,14 @@ par:
 initial_condition:
   grid_cells: 1000
   coordinate_system: cartesian
-  box_size:
-    value: 2.0
-    unit: cm
-  current_time:
-    value: 0.0
-    unit: s
-  initial_temperature:
-    value: 0.0
-    unit: K
+  box_size: {value: 2.0, unit: cm}
+  current_time: {value: 0.0, unit: s}
+  initial_temperature: {value: 0.0, unit: K}
   mean_molecular_weight: 1.0
-  initial_velocity:
-    value: 1.0
-    unit: cm/s
-  initial_density:
-    value: 0.001
-    unit: g/cm**3
+  initial_velocity: {value: 1.0, unit: cm/s}
+  initial_density: {value: 0.001, unit: g/cm**3
 
+}
 example:
   plot:
     filename: Outflow1D.jpg

@@ -1,8 +1,13 @@
 par:
-  simulation: {name: CosmologicalResidualIonization1D}
-  output: {directory: outputs, savedir: outputs}
-  hydrodynamics: {gamma: 1.6666666666666667}
-  chemistry: {hydrogen_mass_fraction: 1.0}
+  simulation:
+    name: CosmologicalResidualIonization1D
+  output:
+    directory: outputs
+    savedir: outputs
+  hydrodynamics:
+    gamma: 1.6666666666666667
+  chemistry:
+    hydrogen_mass_fraction: 1.0
   thermochemistry:
     hydrogen_recombination: true
     hydrogen_collisional_ionization: false
@@ -14,7 +19,12 @@ par:
   units:
     CodeUnits:
       name: residual_ionization_cgs_units
-      InternalUnitSystem: {UnitMass_in_cgs: 1.0, UnitLength_in_cgs: 1.0, UnitVelocity_in_cgs: 1.0, UnitCurrent_in_cgs: 1.0, UnitTemp_in_cgs: 1.0}
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
 initial_condition:
   initial_redshift: 100.0
   final_redshift: 4.9

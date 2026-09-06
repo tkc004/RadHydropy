@@ -4,7 +4,9 @@ par:
     coordinate_system: spherical
     initial_condition_filename: InitialCondition.hdf5
     final_time: 0.20
-  mesh: {grid_cells: 64, ghost_cells: 2}
+  mesh:
+    grid_cells: 64
+    ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.6666666666666667
@@ -18,9 +20,15 @@ par:
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: 1.0
     cosmology_a_ref: 1.0
-  boundary: {condition: Reflecting}
-  timestep: {dtmin: 1.0e-8, dtmax: 0.01}
-  output: {directory: ., savedir: ., filename_prefix: Output}
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: 1.0e-8
+    dtmax: 0.01
+  output:
+    directory: .
+    savedir: .
+    filename_prefix: Output
   units:
     CodeUnits:
       name: einstein_de_sitter_top_hat_growth_unit_system

@@ -19,12 +19,8 @@ par:
   boundary:
     condition: InflowSph
   timestep:
-    dtmin:
-      value: 1.0e-12
-      unit: Myr
-    dtmax:
-      value: 200.0
-      unit: Myr
+    dtmin: {value: 1.0e-12, unit: Myr}
+    dtmax: {value: 200.0, unit: Myr}
   cosmological_background_boundary_reconstruction: true
   dark_matter_crossing_batch_fraction: 0.1
   dark_matter_crossing_safety_factor: 0.5
@@ -56,9 +52,7 @@ par:
     cie_cooling: false
     metal_pie_enabled: false
     compton_cmb_enabled: false
-    cmb_temperature_0:
-      value: 2.7255
-      unit: K
+    cmb_temperature_0: {value: 2.7255, unit: K}
     hydrogen_mass_fraction: 0.76
   output:
     directory: outputs_correlation_gas_lcdm
@@ -99,7 +93,5 @@ example:
   dm_density_bins: 128
   gas_profile_cadence: 0.10
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
-  minimum_temperature: null
-  temperature_plot_ymin:
-    value: 1.0
-    unit: K
+  minimum_temperature:
+  temperature_plot_ymin: {value: 1.0, unit: K}

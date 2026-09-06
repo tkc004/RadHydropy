@@ -13,7 +13,7 @@ par:
     riemann_solver: Rusanov
     dual_energy: true
     positivity_preserving: true
-    temperature_jump_error_threshold: null
+    temperature_jump_error_threshold:
   boundary:
     condition: InflowSph
     inflow_density: {value: 1.0, unit: g/cm**3}

@@ -17,7 +17,7 @@ par:
     dual_energy_eta1: 1.0e-3
     dual_energy_eta2: 1.0e-1
     dual_energy_pressure_floor: 1.0e-20
-    hydro_temperature_floor: null
+    hydro_temperature_floor:
     positivity_preserving: true
   boundary:
     condition: Periodic

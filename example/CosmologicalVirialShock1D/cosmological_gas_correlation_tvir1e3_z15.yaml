@@ -29,12 +29,8 @@ par:
   boundary:
     condition: InflowSph
   timestep:
-    dtmin:
-      value: 1.0e-12
-      unit: Myr
-    dtmax:
-      value: 200.0
-      unit: Myr
+    dtmin: {value: 1.0e-12, unit: Myr}
+    dtmax: {value: 200.0, unit: Myr}
   dark_matter_crossing_safety_factor: 0.5
   cosmological_background_boundary_reconstruction: true
   dark_matter_crossing_batch_fraction: 0.1
@@ -63,9 +59,7 @@ par:
   thermochemistry:
     hydrogen_collisional_ionization: false
     compton_cmb_enabled: false
-    cmb_temperature_0:
-      value: 2.7255
-      unit: K
+    cmb_temperature_0: {value: 2.7255, unit: K}
     hydrogen_recombination: false
     metal_pie_enabled: false
     hydrogen_mass_fraction: 0.76
@@ -97,10 +91,8 @@ initial_condition:
 example:
   figure_prefix: CosmologicalGasCorrelationTvir1e3Z15
   dm_density_bins: 128
-  temperature_plot_ymin:
-    value: 1.0
-    unit: K
+  temperature_plot_ymin: {value: 1.0, unit: K}
   plot_exclude_outer_cells: 2
   gas_profile_cadence: 0.05
   linear_correlation_table_filename: outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5
-  minimum_temperature: null
+  minimum_temperature:

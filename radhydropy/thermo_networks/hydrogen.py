@@ -2117,7 +2117,7 @@ def _split_implicit_source_state_update(state, dt_s, par):
                     getattr(par, 'radiative_transfer', False)
                     and getattr(
                         par, 'radiative_transfer_temporal_scheme',
-                        'instantaneous',
+                        'c2ray',
                     ) != 'c2ray'
                 ):
                     # Reuse the shared transport conversion/path rather than
