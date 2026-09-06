@@ -7,65 +7,68 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 import time
-from types import SimpleNamespace
 
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
+from radhydropy.arrays import as_named_array
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value, time_seconds
 import hydrogen_photoheating_reference as hpr
 
 
 start_time = time.time()
 
 
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
-
-
 def build_initial_condition(config):
-    icparams = config['initial_condition']
-    code_units = config['_code_units']
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    if code_units is not None:
-        sim.par.unit_system = code_units.unit_system
-    grid_cells = icparams['grid_cells']
-    box_size = np.ones(1) * icparams['box_size']
-    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system=icparams['coordinate_system'],
-        time_code=np.ones(1) * icparams['current_time'],
-        box_size=box_size,
+    initial = config['initial_condition']
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    result = Rsim(config['par'])
+    grid_cells = int(initial['grid_cells'])
+    result.par.simulation.coordinate_system = initial['coordinate_system']
+    result.par.simulation.time_code = initial['current_time'].to_value(code_units.time_unit)
+    result.par.simulation.box_size = initial['box_size'].to_value(code_units.length_unit)
+    result.par.mesh.ghost_cells = 1
+    result.mesh.boundary_proper_code = as_named_array(np.linspace(
+        0.0, result.par.simulation.box_size, grid_cells + 1
+    ))
+    result.fluid.rho_proper_code = as_named_array(
+        (np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp)
+        .to_value(code_units.density_unit)
     )
-
-    sim.mesh.boundary = np.linspace(
-        0.0 * box_size[0], box_size[0], grid_cells + 1,
+    result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
+    result.fluid.temp_proper_code = as_named_array(
+        (np.ones(grid_cells) * initial['temperature']).to_value(code_units.temperature_unit)
     )
-
-    sim.fluid.rho_code = (
-        np.ones(grid_cells)
-        * icparams['hydrogen_number_density']
-        * unyt.mp
-    ).to(unyt.g / unyt.cm**3)
-    sim.fluid.vel_code = np.zeros(grid_cells, dtype=float)
-    sim.fluid.temp_code = np.ones(grid_cells) * icparams['temperature']
-    sim.fluid.xHI = np.ones(grid_cells) * icparams['neutral_fraction']
-    sim.fluid.ngamma_code = np.ones(grid_cells) * icparams['photon_number_density']
-    sim.fluid.mu = np.ones(grid_cells) * icparams['mean_molecular_weight']
-
-
-    return sim
+    result.fluid.xHI = as_named_array(np.ones(grid_cells) * initial['neutral_fraction'])
+    result.fluid.ngamma_code = as_named_array(
+        (np.ones(grid_cells) * initial['photon_number_density']).to_value(
+            code_units.number_density_unit
+        )
+    )
+    result.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mean_molecular_weight'])
+    result.SetMesh()
+    result.fluid.SetUpFluid(result.par, result.mesh)
+    first, last = 1, 1 + grid_cells
+    result.mesh.boundary_proper_code = as_named_array(
+        result.mesh.boundary_proper_code[first:last + 1]
+    )
+    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'xHI', 'mu', 'ngamma_code'):
+        setattr(result.fluid, field, as_named_array(getattr(result.fluid, field)[first:last]))
+    result.par.mesh.ghost_cells = 0
+    boundary = result.mesh.boundary_proper_code
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=0.5 * (boundary[1:] + boundary[:-1]),
+        boundary=boundary,
+        width=np.diff(boundary),
+        area=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, code_units.area_unit),
+        volume=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, code_units.area_unit) * np.diff(boundary),
+    )
+    result.fluid.SetPressure()
+    result.fluid.SetFluidTime(result.par.simulation.time_code)
+    result.fluid.SetEnergyDensity()
+    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
+    return result
 def reference_values(
     photon_flux,
     hydrogen_number_density,
@@ -113,7 +116,7 @@ def mean_temperature(sim):
     return (
         np.mean(
             code_quantity_to_cgs(
-                sim.fluid.temp_code[interior],
+                sim.fluid.temp_proper_code[interior],
                 code_units_obj,
                 'temperature_cgs_K',
             )
@@ -143,29 +146,28 @@ def mean_photon_number_density(sim):
 
 def time_value(sim, units):
     code = getattr(sim.par.units, 'CodeUnits', None)
-    time_s = time_seconds(sim.fluid.time_code, code)
+    time_s = time_seconds(sim.fluid.time_proper_code, code)
     unit_seconds = float((1.0 * units).to_value(unyt.s))
     return float(time_s / unit_seconds)
 
 
 def load_history_from_outputs(outputfiles, config):
     history = {'time_yr': [], 'temperature_cgs_K': [], 'xHI': [], 'ngamma_cgs_cm3': []}
-    icparams = config['initial_condition']
-    runparams = config['par']
-    interior = slice(0, icparams['grid_cells'])
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    initial = config['initial_condition']
+    par_config = config['par']
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
     for outfilename in sorted(outputfiles):
-        nested_config = dict(config)
-        nested_config['_code_units'] = code_units_obj
-        rout = build_initial_condition(nested_config)
+        rout = Rsim(config['par'])
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+        first = int(rout.par.mesh.ghost_cells)
+        interior = slice(first, first + int(rout.par.mesh.grid_cells))
         history['time_yr'].append(time_value(rout, unyt.yr))
         history['temperature_cgs_K'].append(
             np.mean(
                 code_quantity_to_cgs(
-                    rout.fluid.temp_code[interior],
+                    rout.fluid.temp_proper_code[interior],
                     code_units_obj,
                     'temperature_cgs_K',
                 )
@@ -195,7 +197,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
     print("--- %s seconds ---" % (time.time() - start_time))
     rio.write_numbered_hdf5(sim, 0)
 
-    time_unit = getattr(sim.fluid.time_code, 'units', unyt.s)
+    time_unit = sim.par.units.CodeUnits.time_unit
 
     def _as_time_quantity(value, unit=time_unit):
         if hasattr(value, 'to'):
@@ -209,7 +211,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
 
     final_time = _as_time_quantity(sim.par.simulation.final_time)
     source_switch_time = _as_time_quantity(source_switch_time, final_time.units)
-    sim.fluid.time_code = _as_time_quantity(sim.fluid.time_code, final_time.units)
+    sim.fluid.time_proper_code = float(sim.fluid.time_proper_code)
     output_times = rio.load_output_time_list(
         getattr(sim.par.output, 'time_list_filename', None)
     )
@@ -221,7 +223,7 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         output_times = [
             value * target_unit
             for value in output_times
-            if value * target_unit > sim.fluid.time_code and value * target_unit <= final_time
+            if value * target_unit > sim.fluid.time_proper_code * time_unit and value * target_unit <= final_time
         ]
     else:
         output_interval = getattr(sim.par.output, 'cadence', None)
@@ -230,12 +232,12 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
             if output_interval is not None
             else None
         )
-    last_output_time = sim.fluid.time_code.copy()
+    last_output_time = sim.fluid.time_proper_code * time_unit
     outindex = 1
     next_output_index = 0
 
-    while sim.fluid.time_code < final_time:
-        current_time = sim.fluid.time_code
+    while sim.fluid.time_proper_code * time_unit < final_time:
+        current_time = sim.fluid.time_proper_code * time_unit
         dt = final_time - current_time
         if output_times is not None and next_output_index < len(output_times):
             target_output_time = output_times[next_output_index]
@@ -260,27 +262,27 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         ).to_value(sim.par.units.CodeUnits.number_density_unit)
 
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
-        sim.fluid.time_code += dt
+        sim.fluid.time_proper_code += dt.to_value(time_unit)
 
         if getattr(sim.par, 'verbose', 0) >= 1:
-            print("time, dt", sim.fluid.time_code, dt)
+            print("time, dt", sim.fluid.time_proper_code * time_unit, dt)
 
         if output_times is not None:
             while (
                 next_output_index < len(output_times)
-                and sim.fluid.time_code >= output_times[next_output_index]
+                and sim.fluid.time_proper_code * time_unit >= output_times[next_output_index]
             ):
                 rio.write_numbered_hdf5(sim, outindex)
-                last_output_time = sim.fluid.time_code.copy()
+                last_output_time = sim.fluid.time_proper_code * time_unit
                 outindex += 1
                 next_output_index += 1
-        elif next_output_time is not None and sim.fluid.time_code >= next_output_time:
+        elif next_output_time is not None and sim.fluid.time_proper_code * time_unit >= next_output_time:
             rio.write_numbered_hdf5(sim, outindex)
-            last_output_time = sim.fluid.time_code.copy()
+            last_output_time = sim.fluid.time_proper_code * time_unit
             outindex += 1
             next_output_time += output_interval
 
-    if sim.fluid.time_code != last_output_time:
+    if sim.fluid.time_proper_code * time_unit != last_output_time:
         rio.write_numbered_hdf5(sim, outindex)
 
     print("--- Simulation finished. ---")

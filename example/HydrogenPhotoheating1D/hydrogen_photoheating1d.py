@@ -42,26 +42,24 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    ICparams = config['initial_condition']
+    par_config = config['par']
+    initial_condition = config['initial_condition']
     exampleparams = config['example']
-    output = runparams['output']
+    output = par_config['output']
     eu.clean_previous_outputs(output)
 
     reference = et.reference_values(
         exampleparams['photon_flux'],
-        ICparams['hydrogen_number_density'],
+        initial_condition['hydrogen_number_density'],
         exampleparams['excess_photoionization_energy'],
         exampleparams['sigma_gamma'],
         exampleparams['thermal_equilibrium_timescale'],
     )
 
-    code_units = et.CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    config['_code_units'] = code_units
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
+    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
@@ -131,7 +129,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file containing runparams and ICparams.',
+        help='YAML file containing nested par, initial_condition, and example sections.',
     )
     return parser.parse_args()
 
@@ -139,4 +137,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

@@ -43,17 +43,15 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    ICparams = config['initial_condition']
+    par_config = config['par']
+    initial_condition = config['initial_condition']
     exampleparams = config['example']
-    output = runparams['output']
+    output = par_config['output']
     eu.clean_previous_outputs(output)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
+    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     et.run_hydrogen_recombination(
         sim, exampleparams['target_neutral_fraction'], outputtime=0
     )
@@ -71,7 +69,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.save_history_plot(
         history,
         str(figure_filename),
-        ICparams,
+        config,
         exampleparams['target_neutral_fraction'],
     )
 
@@ -90,7 +88,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file containing runparams, ICparams, and target_neutral_fraction.',
+        help='YAML file containing nested par, initial_condition, and example sections.',
     )
     return parser.parse_args()
 
@@ -98,4 +96,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-
