@@ -59,12 +59,12 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-            sim.mesh.coordinate,
+            sim.mesh.geometry_state.x_proper_code,
             halo['scale_density'],
             halo['scale_radius'],
             code_units=code_units,
         ),
-        coordinate=sim.mesh.coordinate.copy(),
+        coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
         code_units=code_units,
     )
     sim.Run(mode='hydro')
@@ -115,6 +115,5 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-
 
 

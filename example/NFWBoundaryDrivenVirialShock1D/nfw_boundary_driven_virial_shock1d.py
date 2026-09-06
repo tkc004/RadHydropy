@@ -49,11 +49,11 @@ class BoundaryAccretionSolver(Solver):
         left = self._boundary_state(fluid, first)
         # Negative velocity points through the inner boundary and out of the
         # domain. Suppress only a positive velocity that would inject gas.
-        left['vel_code'] = min(float(fluid.vel_code[first]), 0.0)
+        left['vel_proper_code'] = min(float(fluid.vel_proper_code[first]), 0.0)
         right = {
-            'rho_code': par.boundary.inflow_density,
-            'vel_code': par.boundary.inflow_velocity,
-            'pre_code': fluid.eos.pressure(
+            'rho_proper_code': par.boundary.inflow_density,
+            'vel_proper_code': par.boundary.inflow_velocity,
+            'pre_proper_code': fluid.eos.pressure(
                 par.boundary.inflow_density,
                 par.boundary.inflow_temperature,
                 par.boundary.inflow_mu,
@@ -78,11 +78,11 @@ def _strip_snapshot_ghosts(sim):
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
     total = count + 2 * first
-    if len(sim.mesh.boundary) == count + 1:
+    if len(sim.mesh.boundary_proper_code) == count + 1:
         return
-    if len(sim.mesh.boundary) != total + 1:
+    if len(sim.mesh.boundary_proper_code) != total + 1:
         raise ValueError('restart snapshot has an unexpected mesh size')
-    sim.mesh.boundary = sim.mesh.boundary[first:first + count + 1].copy()
+    sim.mesh.boundary_proper_code = sim.mesh.boundary_proper_code[first:first + count + 1].copy()
     for name, value in vars(sim.fluid).items():
         if name in {'eos', 'time'}:
             continue
@@ -107,10 +107,10 @@ def _run_stage(par_config, halo, mode, restart=False):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-            sim.mesh.coordinate, halo['scale_density'], halo['scale_radius'],
+            sim.mesh.geometry_state.x_proper_code, halo['scale_density'], halo['scale_radius'],
             code_units=sim.par.units.CodeUnits,
         ),
-        coordinate=sim.mesh.coordinate.copy(),
+        coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
         code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode=mode)
@@ -130,13 +130,13 @@ def _write_adiabatic_energy_audit(files, code_units, filename):
             data = handle['Data']
             first = int(header.attrs.get('GhostCells', 2))
             count = int(header.attrs['GridCells'])
-            energy = np.asarray(data['Energy'][first:first + count], dtype=float)
-            energy_unit = unyt.Unit(data['Energy'].attrs['units'])
+            energy = np.asarray(data['Energy_code'][first:first + count], dtype=float)
+            energy_unit = code_units.energy_unit
             energy_scale = (1.0 * energy_unit).to_value(unyt.erg)
             total_energy = float(np.sum(energy) * energy_scale)
             time = (
-                float(np.asarray(header['time_code'][()]))
-                * unyt.Unit(header['time_code'].attrs['units'])
+                float(np.asarray(header['time_proper_code'][()]))
+                * code_units.time_unit
             ).to_value(unyt.Myr)
             boundary = float(header.attrs.get('CumulativeHydroBoundaryEnergyCode', 0.0))
             gravity = float(header.attrs.get('CumulativeGravityWorkCode', 0.0))

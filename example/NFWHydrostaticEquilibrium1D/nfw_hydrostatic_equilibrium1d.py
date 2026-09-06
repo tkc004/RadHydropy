@@ -53,7 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
     temperature = et.virial_temperature(halo, icparams['mu'])
 
     config['_code_units'] = code_units
-    initial_condition = et.build_initial_condition(config, code_units=code_units)
+    initial_condition = et.build_initial_condition(config)
     rio.writehdf5(initial_condition, par['simulation']['initial_condition_filename'])
 
     sim = Rsim(par)
@@ -110,4 +110,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

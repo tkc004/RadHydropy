@@ -10,7 +10,9 @@ from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 def make_initial_condition(config, boundary, rho, velocity, temperature, mu, area=None):
     """Build a physical-cell IC through the current runtime startup contract."""
     sim = Rsim(config["par"])
-    grid_cells = int(config["initial_condition"]["grid_cells"])
+    grid_cells = int(config["initial_condition"].get(
+        "grid_cells", config["par"]["mesh"]["grid_cells"]
+    ))
     sim.par.mesh.grid_cells = grid_cells
     boundary = np.asarray(boundary, dtype=float)
     sim.mesh.boundary_proper_code = as_named_array(boundary)
@@ -19,6 +21,32 @@ def make_initial_condition(config, boundary, rho, velocity, temperature, mu, are
     sim.fluid.temp_proper_code = as_named_array(np.asarray(temperature, dtype=float))
     sim.fluid.mu = as_named_array(np.asarray(mu, dtype=float))
     sim.SetMesh()
+    if area is not None:
+        area_proper_code = np.asarray(area, dtype=float)
+        if area_proper_code.size != grid_cells:
+            raise ValueError(
+                "custom area must contain one proper-code value per physical cell"
+            )
+        ghost_cells = int(sim.par.mesh.ghost_cells)
+        area_with_ghosts = np.concatenate(
+            (
+                np.full(ghost_cells, area_proper_code[0]),
+                area_proper_code,
+                np.full(ghost_cells, area_proper_code[-1]),
+            )
+        )
+        sim.mesh.area_proper_code = as_named_array(area_with_ghosts)
+        sim.mesh.volume_proper_code = as_named_array(
+            area_with_ghosts * np.asarray(sim.mesh.width_proper_code, dtype=float)
+        )
+        sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            coordinate=sim.mesh.x_proper_code,
+            boundary=sim.mesh.boundary_proper_code,
+            width=sim.mesh.width_proper_code,
+            area=sim.mesh.area_proper_code,
+            volume=sim.mesh.volume_proper_code,
+        )
     sim.fluid.SetUpFluid(sim.par, sim.mesh)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     first = int(sim.par.mesh.ghost_cells)

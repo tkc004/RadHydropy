@@ -2,7 +2,6 @@
 
 import importlib.util
 from pathlib import Path
-from types import SimpleNamespace
 
 import h5py
 import matplotlib
@@ -12,6 +11,8 @@ import numpy as np
 import unyt
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.units import quantity_to_value
+from basic_hydro_utils import make_initial_condition
 
 
 NFW_TOOLS = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
@@ -96,11 +97,6 @@ def build_initial_condition(config):
     par_config = config['par']
     code_units = config['_code_units']
     table = config['_pie_table']
-    sim = SimpleNamespace(
-        par=SimpleNamespace(units=SimpleNamespace(CodeUnits=code_units)),
-        mesh=SimpleNamespace(),
-        fluid=SimpleNamespace(),
-    )
     grid_cells = int(par_config['mesh']['grid_cells'])
     halo = nfw_halo_parameters(
         icparams['halo_mass'], icparams['concentration'],
@@ -109,16 +105,10 @@ def build_initial_condition(config):
     r200 = halo['virial_radius']
     inner = float(icparams['inner_radius_over_R200']) * r200
     outer = float(icparams['outer_radius_over_R200']) * r200
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system='spherical', time_code=icparams['current_time'], box_size=outer,
-    )
-    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     boundary_proper_cgs_cm_unyt = np.geomspace(
         inner.to_value(unyt.kpc), outer.to_value(unyt.kpc), grid_cells + 1
     ) * unyt.kpc
-    sim.mesh.boundary = boundary_proper_cgs_cm_unyt
-    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
-    radius = sim.mesh.coordinate
+    radius = spherical_cell_centers(boundary_proper_cgs_cm_unyt)
     inflow_velocity = (-float(icparams['inflow_velocity_over_V200']) * halo['virial_velocity']).to(unyt.cm / unyt.s)
     mdot = icparams['baryon_accretion_rate']
     rho_cold = inflow_density(mdot, radius, inflow_velocity)
@@ -148,15 +138,18 @@ def build_initial_condition(config):
         + weight * np.log(rho_cold.to_value(unyt.g / unyt.cm**3))
     )
     density_proper_cgs_g_cm3_unyt = np.exp(log_density) * unyt.g / unyt.cm**3
-    sim.fluid.rho_code = density_proper_cgs_g_cm3_unyt
-    sim.fluid.vel_code = weight * inflow_velocity
-    sim.fluid.temp_code = (
+    temperature_proper_cgs_K_unyt = (
         (1.0 - weight) * hot_temperature.to_value(unyt.K)
         + weight * temperature_cold.to_value(unyt.K)
     ) * unyt.K
-    sim.fluid.mu = np.ones(grid_cells) * float(icparams['mu'])
-    sim.fluid.xHI = np.ones(grid_cells)
-    return sim
+    return make_initial_condition(
+        config,
+        quantity_to_value(boundary_proper_cgs_cm_unyt, code_units.length_unit),
+        quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
+        quantity_to_value(weight * inflow_velocity, code_units.velocity_unit),
+        quantity_to_value(temperature_proper_cgs_K_unyt, code_units.temperature_unit),
+        np.full(grid_cells, float(icparams['mu'])),
+    )
 
 def load_snapshot(filename):
     """Load physical cells from a RadHydropy snapshot in CGS units."""
@@ -165,18 +158,18 @@ def load_snapshot(filename):
         header_group = handle['Header']
         data = handle['Data']
         nogrid = int(header['GridCells'])
-        noghost = int(header.get('GhostCells', (len(data['rho_code']) - nogrid) // 2))
+        noghost = int(header.get('GhostCells', (len(data['rho_proper_code']) - nogrid) // 2))
         physical = slice(noghost, noghost + nogrid)
-        boundary = np.asarray(data['boundary'])[noghost:noghost + nogrid + 1]
+        boundary = np.asarray(data['boundary_proper_code'])[noghost:noghost + nogrid + 1]
         centers = 0.75 * (
             boundary[1:]**4 - boundary[:-1]**4
         ) / (boundary[1:]**3 - boundary[:-1]**3)
         return {
-            'time_Myr': float(header_group['time_code'][()]) / SECONDS_PER_MYR,
+            'time_Myr': float(header_group['time_proper_code'][()]) / SECONDS_PER_MYR,
             'radius_kpc': centers / KPC_CM,
-            'density_cgs_g_cm3': np.asarray(data['rho_code'])[physical],
-            'velocity_km_s': np.asarray(data['vel_code'])[physical] / 1.0e5,
-            'temperature_cgs_K': np.asarray(data['temp_code'])[physical],
+            'density_cgs_g_cm3': np.asarray(data['rho_proper_code'])[physical],
+            'velocity_km_s': np.asarray(data['vel_proper_code'])[physical] / 1.0e5,
+            'temperature_cgs_K': np.asarray(data['temp_proper_code'])[physical],
         }
 
 

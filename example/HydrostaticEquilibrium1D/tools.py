@@ -5,9 +5,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from types import SimpleNamespace
-
-from radhydropy.analysis import rplot1d
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
 from radhydropy.units import (
@@ -16,7 +13,7 @@ from radhydropy.units import (
     code_unit_scales,
     quantity_to_value,
 )
-from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
+from basic_hydro_utils import make_initial_condition
 
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
@@ -33,18 +30,6 @@ def _physical_value(value, unit, name):
         raise ValueError(
             '%s must have units equivalent to %s' % (name, unit)
         ) from error
-
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
 
 
 def sound_speed_squared(temp, mu, code_units=None):
@@ -117,77 +102,28 @@ def constant_gravity_acceleration(gravity_strength, code_units=None):
 def build_initial_condition(config):
     icparams = config['initial_condition']
     code_units = config['_code_units']
-    grid_cells = config['par']['mesh']['grid_cells']
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.CodeUnits = code_units
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    sim.par.unit_system = code_units.unit_system
-
-    sim.par.nogrid = int(icparams.get('nogrid', grid_cells))
-    sim.par.coordsys = 'cartesian'
+    grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size = _physical_value(
         icparams['box_size'], unyt.cm, 'box_size'
     ) * unyt.cm
     current_time = _physical_value(
         icparams['current_time'], unyt.s, 'current_time'
     ) * unyt.s
-    sim.par.boxsize = np.ones(1) * box_size
-    sim.par.time_code = np.ones(1) * current_time
-    sim.par.simulation = SimpleNamespace(
-        time_code=sim.par.time_code,
-        box_size=sim.par.boxsize,
-        coordinate_system='cartesian',
-    )
-    sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=0)
-
-    sim.mesh.boundary = np.linspace(
-        0.0,
-        1.0,
-        sim.par.nogrid + 1,
-    ) * box_size
-    sim.mesh.coordinate = 0.5 * (
-        sim.mesh.boundary[:-1] + sim.mesh.boundary[1:]
-    )
-    dx = sim.mesh.boundary[1] - sim.mesh.boundary[0]
-    area_proper_cgs_cm2_unyt = np.ones(sim.par.nogrid) * (1.0 * unyt.cm**2)
-    sim.mesh.area = area_proper_cgs_cm2_unyt
-    sim.mesh.vol = sim.mesh.area * dx
-
-    sim.fluid.temp_code = np.ones(sim.par.nogrid) * icparams['initial_temperature']
-    sim.fluid.mu = np.ones(sim.par.nogrid) * icparams['mean_molecular_weight']
-    sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
-    sim.fluid.rho_code = hydrostatic_density_profile(
-        sim.mesh.coordinate,
+    boundary_proper_code = np.linspace(0.0, 1.0, grid_cells + 1) * quantity_to_value(box_size, code_units.length_unit)
+    coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
+    density_proper_code = quantity_to_value(hydrostatic_density_profile(
+        coordinate_proper_code * code_units.length_unit,
         icparams['reference_density'],
         icparams['initial_temperature'],
         icparams['mean_molecular_weight'],
         icparams['gravity_strength'],
         code_units=code_units,
-    )
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=quantity_to_value(sim.mesh.coordinate, code_units.length_unit),
-        boundary=quantity_to_value(sim.mesh.boundary, code_units.length_unit),
-        width=np.diff(quantity_to_value(sim.mesh.boundary, code_units.length_unit)),
-        area=np.ones(sim.par.nogrid),
-        volume=np.diff(quantity_to_value(sim.mesh.boundary, code_units.length_unit)),
-    )
-    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_code, code_units.density_unit)
-    sim.fluid.vel_proper_code = np.zeros(sim.par.nogrid)
-    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_code, code_units.temperature_unit)
-    sim.fluid.pre_proper_code = sim.fluid.rho_proper_code * sim.fluid.temp_proper_code
-    sim.fluid.time_proper_code = 0.0
-    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, density=sim.fluid.rho_proper_code,
-        velocity=sim.fluid.vel_proper_code, pressure=sim.fluid.pre_proper_code,
-        temperature=sim.fluid.temp_proper_code, time=0.0, mu=sim.fluid.mu,
-    )
-
-
-    return sim
+    ), code_units.density_unit)
+    temperature_proper_code = np.full(grid_cells, quantity_to_value(icparams['initial_temperature'], code_units.temperature_unit))
+    return make_initial_condition(config, boundary_proper_code, density_proper_code,
+        np.zeros(grid_cells), temperature_proper_code,
+        np.full(grid_cells, icparams['mean_molecular_weight']),
+        area=np.ones(grid_cells))
 def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     icparams = config['initial_condition']

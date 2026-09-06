@@ -6,10 +6,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from types import SimpleNamespace
 
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds, quantity_to_value
+from radhydropy.rsim import Rsim
+from basic_hydro_utils import make_initial_condition
 
 
 NFW_TOOLS_PATH = (
@@ -22,18 +23,6 @@ NFW_SPEC = importlib.util.spec_from_file_location('nfw_halo_tools', NFW_TOOLS_PA
 NFW = importlib.util.module_from_spec(NFW_SPEC)
 assert NFW_SPEC.loader is not None
 NFW_SPEC.loader.exec_module(NFW)
-
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
 
 
 def cosmic_mean_baryon_density(h0, omega_b, redshift):
@@ -55,32 +44,16 @@ def hubble_rate(h0, omega_m, omega_lambda, redshift):
     )
 
 
-def build_initial_condition(config, code_units=None):
-    sim = SimpleNamespace()
+def build_initial_condition(config):
     icparams = config['initial_condition']
+    code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    box_size = np.ones(1) * icparams['boxsize']
-    sim.par.time_code = np.ones(1) * icparams['time']
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system='spherical',
-        time_code=sim.par.time_code,
-        box_size=box_size,
-    )
-    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-    sim.mesh.boundary = np.linspace(
+    boundary_unyt = np.linspace(
         icparams['rmin'],
         icparams['rmax'],
         grid_cells + 1,
     )
-    sim.mesh.coordinate = NFW.spherical_cell_centers(sim.mesh.boundary)
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
-        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
-    )
+    coordinate_unyt = NFW.spherical_cell_centers(boundary_unyt)
     mean_density = cosmic_mean_baryon_density(
         icparams['h0'],
         icparams['omega_b'],
@@ -93,44 +66,45 @@ def build_initial_condition(config, code_units=None):
         icparams['initial_redshift'],
     )
     cmb_temperature = icparams.get('cmb_temperature_0', icparams['initial_temperature'])
-    sim.fluid.temp_code = np.ones(grid_cells) * cmb_temperature * (
-        1.0 + float(icparams['initial_redshift'])
-    )
-    sim.fluid.mu = np.ones(grid_cells) * icparams['mu']
-    sim.fluid.vel_code = expansion_rate * sim.mesh.coordinate
-    sim.fluid.rho_code = np.ones(grid_cells) * mean_density
-
-
-    return sim
+    temperature = cmb_temperature * (1.0 + float(icparams['initial_redshift']))
+    return make_initial_condition(config,
+        quantity_to_value(boundary_unyt, code_units.length_unit),
+        np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
+        quantity_to_value(expansion_rate * coordinate_unyt, code_units.velocity_unit),
+        np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
+        np.full(grid_cells, float(icparams['mu'])))
 
 def _snapshot_profiles(filename, config):
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    rout = build_initial_condition(config, code_units=code_units)
+    config['_code_units'] = code_units
+    rout = Rsim(config['par'])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, filename)
     boundary_cgs_cm = code_quantity_to_cgs(
-        rout.mesh.boundary,
+        rout.mesh.boundary_proper_code,
         code_units,
         'length_cgs_cm',
     ) * unyt.cm
     radius = NFW.spherical_cell_centers(boundary_cgs_cm)
     nghost = int(config['par']['mesh']['ghost_cells'])
     radius = radius[nghost:-nghost]
+    first = nghost
+    last = first + int(config['par']['mesh']['grid_cells'])
     density = code_quantity_to_cgs(
-        rout.fluid.rho_code[nghost:-nghost],
+        rout.fluid.rho_proper_code[first:last],
         code_units,
         'density_cgs_g_cm3',
     )
     temperature = code_quantity_to_cgs(
-        rout.fluid.temp_code[nghost:-nghost],
+        rout.fluid.temp_proper_code[first:last],
         code_units,
         'temperature_cgs_K',
     )
     velocity_km_s = code_quantity_to_cgs(
-        rout.fluid.vel_code[nghost:-nghost],
+        rout.fluid.vel_proper_code[first:last],
         code_units,
         'velocity_cgs_cm_s',
     ) / 1.0e5
-    time_myr = time_seconds(rout.fluid.time_code, code_units) / float(
+    time_myr = time_seconds(rout.fluid.time_proper_code, code_units) / float(
         (1.0 * unyt.Myr).to_value(unyt.s)
     )
     radius_kpc = radius.to_value(unyt.kpc)
@@ -279,7 +253,3 @@ def plot_snapshots(filenames, config, _unused, figure_filename):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
-
-
-
-
