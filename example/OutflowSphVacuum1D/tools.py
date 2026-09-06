@@ -1,27 +1,18 @@
 """Initial condition and plotting helpers for outflow into vacuum."""
 
-from types import SimpleNamespace
-
 import numpy as np
+from radhydropy.arrays import as_named_array
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import quantity_to_value
 
 
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
-
-
-def analytic_density_profile(radius, time, icparams, runparams, cell_faces=None):
+def analytic_density_profile(radius, time, config, cell_faces=None):
     """Cold spherical outflow profile, sampled as cell averages when given."""
     radius = np.asarray(radius, dtype=float)
-    injection_radius = float(icparams['injection_radius'])
-    boundary = runparams['boundary']
+    initial = config['initial_condition']
+    boundary = config['par']['boundary']
+    injection_radius = float(initial['injection_radius'])
     density_outflow = float(boundary['outflow_density'])
     velocity_outflow = float(boundary['outflow_velocity'])
     front = injection_radius + velocity_outflow * float(time)
@@ -43,31 +34,37 @@ def analytic_density_profile(radius, time, icparams, runparams, cell_faces=None)
 
 
 def build_initial_condition(config):
-    icparams = config['initial_condition']
+    initial = config['initial_condition']
     code_units = config['_code_units']
-    sim = SimpleNamespace()
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    sim.par.unit_system = code_units.unit_system
-    grid_cells = int(icparams['grid_cells'])
-    box_size = icparams['box_size'] * np.ones(1)
-    sim.par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=grid_cells)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system=icparams['coordinate_system'],
-        box_size=box_size,
-        time_code=icparams['current_time'] * np.ones(1),
+    sim = Rsim(config['par'])
+    grid_cells = int(initial['grid_cells'])
+    sim.par.mesh.grid_cells = grid_cells
+    injection_radius_code = quantity_to_value(initial['injection_radius'], code_units.length_unit)
+    box_size_code = quantity_to_value(initial['box_size'], code_units.length_unit)
+    sim.mesh.boundary_proper_code = as_named_array(np.linspace(
+        injection_radius_code, injection_radius_code + box_size_code, grid_cells + 1
+    ))
+    sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
+    sim.fluid.temp_proper_code = as_named_array(np.zeros(grid_cells))
+    sim.fluid.rho_proper_code = as_named_array(np.zeros(grid_cells))
+    sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
+    sim.SetMesh()
+    sim.fluid.SetUpFluid(sim.par, sim.mesh)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + grid_cells
+    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
+    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'mu', 'Energy_code', 'InternalEnergy_code'):
+        if hasattr(sim.fluid, field):
+            setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
+    sim.par.mesh.ghost_cells = 0
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=sim.mesh.x_proper_code[first:last],
+        boundary=sim.mesh.boundary_proper_code,
+        width=sim.mesh.width_proper_code[first:last],
+        area=sim.mesh.area_proper_code[first:last],
+        volume=sim.mesh.volume_proper_code[first:last],
     )
-    sim.mesh.boundary = np.linspace(
-        float(icparams['injection_radius']),
-        float(icparams['injection_radius'] + icparams['box_size']),
-        grid_cells + 1,
-    )
-    sim.fluid.vel_code = icparams['initial_velocity'] * np.ones(grid_cells)
-    sim.fluid.temp_code = icparams['initial_temperature'] * np.ones(grid_cells)
-    sim.fluid.rho_code = icparams['initial_density'] * np.ones(grid_cells)
-    sim.fluid.mu = icparams['mean_molecular_weight'] * np.ones(grid_cells)
-
-
+    sim.fluid._refresh_runtime_state()
     return sim

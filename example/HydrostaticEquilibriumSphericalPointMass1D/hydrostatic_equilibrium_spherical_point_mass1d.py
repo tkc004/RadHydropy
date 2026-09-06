@@ -42,7 +42,7 @@ def main(config_filename=DEFAULT_CONFIG):
     code_units_obj = CodeUnits.from_mapping(par['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
-    ric = et.build_initial_condition(config)
+    ric = et.build_initial_condition(config, code_units=code_units_obj)
     initial_filename = Path(par['simulation']['initial_condition_filename'])
     rio.writehdf5(ric, initial_filename)
 
@@ -56,11 +56,11 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         potential=point_mass_potential(
-            mainrun.mesh.coordinate,
+            mainrun.mesh.geometry_state.x_proper_code,
             initial_condition['point_mass'],
             code_units=code_units_obj,
         ),
-        coordinate=mainrun.mesh.coordinate.copy(),
+        coordinate=mainrun.mesh.geometry_state.x_proper_code.copy(),
         code_units=code_units_obj,
     )
     mainrun.Run(mode='hydro')
@@ -108,4 +108,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-

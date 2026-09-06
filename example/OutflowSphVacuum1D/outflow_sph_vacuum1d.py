@@ -4,7 +4,6 @@ import argparse
 import os
 from pathlib import Path
 import sys
-from types import SimpleNamespace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -29,50 +28,45 @@ DEFAULT_CONFIG = Path(__file__).with_name('outflow_sph_vacuum1d.yaml')
 def run(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    icparams = config['initial_condition']
+    par_config = config['par']
+    initial_config = config['initial_condition']
     exampleparams = config['example']
-    eu.clean_previous_outputs(runparams['output'])
-    units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    eu.clean_previous_outputs(par_config['output'])
+    units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     config['_code_units'] = units
     initial = tools.build_initial_condition(config)
     rio.writehdf5(
         initial,
-        rundir / runparams['simulation']['initial_condition_filename'],
+        rundir / par_config['simulation']['initial_condition_filename'],
     )
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.RunAll(outputtime=0)
 
     profiles = []
-    first = int(runparams['mesh']['ghost_cells'])
-    active_count = int(icparams['grid_cells'])
-    output = runparams['output']
+    first = int(par_config['mesh']['ghost_cells'])
+    active_count = int(initial_config['grid_cells'])
+    output = par_config['output']
     output_files = sorted(
         Path(output['directory']).glob(f"{output['filename_prefix']}_*.hdf5")
     )
     for filename in output_files:
-        par, mesh, fluid = tools.Par(), tools.Mesh(), tools.Fluid()
-        par.units = SimpleNamespace(CodeUnits=units)
-        par.mesh = SimpleNamespace(ghost_cells=first, grid_cells=active_count)
-        par.simulation = SimpleNamespace(coordinate_system='spherical')
-        rio.readhdf5(par, mesh, fluid, filename)
-        rho_code = np.asarray(fluid.rho_code, dtype=float)
-        temp_code = np.asarray(getattr(fluid, 'temp_code', np.zeros_like(rho_code)), dtype=float)
-        energy = np.asarray(
-            getattr(fluid, 'Energy_code', np.zeros_like(rho_code)), dtype=float
-        )
-        if not (np.all(np.isfinite(rho_code)) and np.all(rho_code >= 0.0)):
+        snapshot = Rsim(par_config)
+        rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, filename)
+        rho_proper_code = np.asarray(snapshot.fluid.rho_proper_code, dtype=float)
+        temp_proper_code = np.asarray(snapshot.fluid.temp_proper_code, dtype=float)
+        energy_code = np.asarray(snapshot.fluid.Energy_code, dtype=float)
+        if not (np.all(np.isfinite(rho_proper_code)) and np.all(rho_proper_code >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid density')
-        if not (np.all(np.isfinite(energy)) and np.all(energy >= 0.0)):
+        if not (np.all(np.isfinite(energy_code)) and np.all(energy_code >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid energy')
-        profiles.append((float(fluid.time_code), rho_code, temp_code, np.asarray(mesh.boundary)))
+        profiles.append((float(snapshot.fluid.time_proper_code), rho_proper_code, temp_proper_code, np.asarray(snapshot.mesh.boundary_proper_code)))
 
     if not profiles:
         raise RuntimeError('vacuum outflow produced no output snapshots')
     filled = [
         np.count_nonzero(
-            rho[first:first + active_count] > runparams['cfl_density_floor']
+            rho[first:first + active_count] > par_config['cfl_density_floor']
         )
         for _, rho, _, _ in profiles
     ]
@@ -90,7 +84,7 @@ def run(config_filename=DEFAULT_CONFIG):
                 radius[positive], rho[positive], label=f't={time:.2f} s'
             )
             analytic, front = tools.analytic_density_profile(
-                radius, time, icparams, runparams,
+                radius, time, config,
                 cell_faces=boundary[first:first + active_count + 1],
             )
             label = 'cold analytic profile' if not analytic_label_used else None

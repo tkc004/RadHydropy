@@ -11,6 +11,7 @@ from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.gravity import nfw_potential
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 
 
 GRAVITATIONAL_CONSTANT = unyt.physical_constants.gravitational_constant
@@ -172,6 +173,24 @@ def build_initial_condition(config, code_units=None):
         icparams['mu'],
         icparams['gas_fraction'],
     )
+    boundary_code = quantity_to_value(sim.mesh.boundary, code_units.length_unit)
+    coordinate_code = quantity_to_value(sim.mesh.coordinate, code_units.length_unit)
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=coordinate_code, boundary=boundary_code,
+        width=np.diff(boundary_code), area=quantity_to_value(sim.mesh.area, code_units.area_unit),
+        volume=quantity_to_value(sim.mesh.vol, code_units.volume_unit),
+    )
+    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_code, code_units.density_unit)
+    sim.fluid.vel_proper_code = np.zeros(grid_cells)
+    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_code, code_units.temperature_unit)
+    sim.fluid.pre_proper_code = sim.fluid.rho_proper_code * sim.fluid.temp_proper_code
+    sim.fluid.time_proper_code = 0.0
+    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, density=sim.fluid.rho_proper_code,
+        velocity=sim.fluid.vel_proper_code, pressure=sim.fluid.pre_proper_code,
+        temperature=sim.fluid.temp_proper_code, time=0.0, mu=sim.fluid.mu,
+    )
 
 
     return sim
@@ -223,7 +242,6 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
     return np.max(np.abs((rho_cgs - rho_expected_cgs) / rho_expected_cgs))
-
 
 
 

@@ -10,6 +10,7 @@ from radhydropy.constants import (
     PROTON_MASS_CGS,
 )
 from radhydropy.units import code_unit_scales, quantity_to_value
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 
 
 def spherical_cell_centers(boundary):
@@ -99,6 +100,22 @@ class InitialCondition:
         )
         self.fluid.mu = np.full(self.par.nogrid, float(initial_condition["mean_molecular_weight"]))
         self.fluid.vel_code = np.zeros(self.par.nogrid)
+        self.mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS, coordinate=self.mesh.coordinate,
+            boundary=self.mesh.boundary, width=np.diff(self.mesh.boundary),
+            area=self.mesh.area, volume=self.mesh.vol,
+        )
+        self.fluid.rho_proper_code = self.fluid.rho_code
+        self.fluid.vel_proper_code = self.fluid.vel_code
+        self.fluid.temp_proper_code = self.fluid.temp_code
+        self.fluid.pre_proper_code = self.fluid.rho_code * self.fluid.temp_code
+        self.fluid.time_proper_code = 0.0
+        self.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+        self.fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS, density=self.fluid.rho_proper_code,
+            velocity=self.fluid.vel_proper_code, pressure=self.fluid.pre_proper_code,
+            temperature=self.fluid.temp_proper_code, time=0.0, mu=self.fluid.mu,
+        )
 
 
 def analytic_density_code(radius_code, config, code_units):

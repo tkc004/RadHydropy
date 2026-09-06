@@ -16,6 +16,7 @@ from radhydropy.units import (
     code_unit_scales,
     quantity_to_value,
 )
+from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
@@ -166,6 +167,24 @@ def build_initial_condition(config):
         icparams['gravity_strength'],
         code_units=code_units,
     )
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, coordinate=quantity_to_value(sim.mesh.coordinate, code_units.length_unit),
+        boundary=quantity_to_value(sim.mesh.boundary, code_units.length_unit),
+        width=np.diff(quantity_to_value(sim.mesh.boundary, code_units.length_unit)),
+        area=np.ones(sim.par.nogrid),
+        volume=np.diff(quantity_to_value(sim.mesh.boundary, code_units.length_unit)),
+    )
+    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_code, code_units.density_unit)
+    sim.fluid.vel_proper_code = np.zeros(sim.par.nogrid)
+    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_code, code_units.temperature_unit)
+    sim.fluid.pre_proper_code = sim.fluid.rho_proper_code * sim.fluid.temp_proper_code
+    sim.fluid.time_proper_code = 0.0
+    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, density=sim.fluid.rho_proper_code,
+        velocity=sim.fluid.vel_proper_code, pressure=sim.fluid.pre_proper_code,
+        temperature=sim.fluid.temp_proper_code, time=0.0, mu=sim.fluid.mu,
+    )
 
 
     return sim
@@ -193,15 +212,18 @@ def ReadandPlot(outfilename, config, **kwargs):
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(runparams.get('mesh', {}).get('ghost_cells', 0))
-    xall = 0.5 * (rout.mesh.boundary[1:] + rout.mesh.boundary[:-1])
+    boundary_proper_code = rout.mesh.geometry_state.boundary_proper_code
+    xall = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     if nghost > 0:
-        xcoord = xall[nghost:-nghost]
-        rho_num = rout.fluid.rho_code[nghost:-nghost]
-        vel_code_num = rout.fluid.vel_code[nghost:-nghost]
+        # The typed mesh geometry stores physical cell boundaries; ghost
+        # cells are present only in the fluid arrays returned by the reader.
+        xcoord = xall
+        rho_num = rout.fluid.rho_proper_code[nghost:-nghost]
+        vel_code_num = rout.fluid.vel_proper_code[nghost:-nghost]
     else:
         xcoord = xall
-        rho_num = rout.fluid.rho_code
-        vel_code_num = rout.fluid.vel_code
+        rho_num = rout.fluid.rho_proper_code
+        vel_code_num = rout.fluid.vel_proper_code
     rho_analytic = hydrostatic_density_profile(
         xcoord,
         icparams['reference_density'],
