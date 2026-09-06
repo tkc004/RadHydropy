@@ -52,7 +52,11 @@ def make_initial_condition(config, boundary, rho, velocity, temperature, mu, are
     first = int(sim.par.mesh.ghost_cells)
     last = first + grid_cells
     sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
-    for field in ("rho_proper_code", "vel_proper_code", "temp_proper_code", "mu", "Energy_code", "InternalEnergy_code"):
+    for field in (
+        "rho_proper_code", "vel_proper_code", "temp_proper_code", "mu",
+        "Mass_code", "Mom_code", "AngularMomentum_code", "Energy_code",
+        "InternalEnergy_code",
+    ):
         if hasattr(sim.fluid, field):
             setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
     sim.par.mesh.ghost_cells = 0

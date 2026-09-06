@@ -2014,18 +2014,35 @@ def _split_implicit_source_state_update(state, dt_s, par):
         state.get('active', np.asarray(state['rho_cgs_g_cm3']) > 0.0),
         dtype=bool,
     )
+    # Bring a state restored after a chemistry-only update onto the current
+    # ionization-dependent EOS/floor before measuring source changes.  This
+    # one-time normalization is part of state synchronization, not the trial
+    # source increment.
+    if state['hydrogen_update_mu']:
+        state['mu'] = rh.mean_molecular_weight_mu(
+            state['xHI'],
+            hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
+        )
+    if state['thermal_coupling']:
+        _fast_update_temperature_from_energy(state)
     while remaining_s > 0.0:
         candidate_dt_s = min(trial_dt_s, remaining_s)
         while True:
             before = _copy_fast_source_state(state)
-            trial = _copy_fast_source_state(state)
-            if trial['hydrogen_update_mu']:
-                trial['mu'] = rh.mean_molecular_weight_mu(
-                    trial['xHI'],
-                    hydrogen_mass_fraction=trial['hydrogen_mass_fraction'],
+            # Normalize the comparison state before taking the trial.  A
+            # preceding chemistry update may have changed xHI (and hence mu)
+            # while leaving the conserved thermal energy unchanged.  Applying
+            # the temperature floor with the new mu then changes the stored
+            # energy once, but that normalization is not source evolution and
+            # must not be counted against the 10% trial limiter.
+            if before['hydrogen_update_mu']:
+                before['mu'] = rh.mean_molecular_weight_mu(
+                    before['xHI'],
+                    hydrogen_mass_fraction=before['hydrogen_mass_fraction'],
                 )
-            if trial['thermal_coupling']:
-                _fast_update_temperature_from_energy(trial)
+            if before['thermal_coupling']:
+                _fast_update_temperature_from_energy(before)
+            trial = _copy_fast_source_state(before)
             thermal_rate_value = None
             if trial['thermal_coupling']:
                 thermal_rate_value = thermal_rate(
@@ -2057,9 +2074,32 @@ def _split_implicit_source_state_update(state, dt_s, par):
                 trial.get('specific_energy_cgs_erg_g', trial['specific_total_energy_cgs_erg_g']),
                 dtype=float,
             )
+            # Ionization changes mu.  If that change would put a cell below
+            # the configured temperature floor, the post-chemistry
+            # synchronization injects the minimum floor energy.  That one-time
+            # EOS/floor normalization is not thermal source evolution and
+            # must not be rejected as a >10% source step.
+            limiter_baseline_energy = old_energy.copy()
+            temperature_floor = float(
+                trial.get('temperature_floor_cgs_K', 0.0) or 0.0
+            )
+            if trial['thermal_coupling'] and temperature_floor > 0.0:
+                floor_energy = (
+                    BOLTZMANN_CONSTANT_CGS * temperature_floor
+                    / (
+                        (trial['gamma'] - 1.0)
+                        * np.maximum(trial['mu'], 1.0e-99)
+                        * PROTON_MASS_CGS
+                    )
+                )
+                limiter_baseline_energy = np.maximum(
+                    limiter_baseline_energy, floor_energy
+                )
             with np.errstate(divide='ignore', invalid='ignore'):
-                relative_energy_change = np.abs(new_energy - old_energy) / np.maximum(
-                    np.abs(old_energy), 1.0e-30
+                relative_energy_change = np.abs(
+                    new_energy - limiter_baseline_energy
+                ) / np.maximum(
+                    np.abs(limiter_baseline_energy), 1.0e-30
                 )
             max_energy_change = float(
                 np.max(relative_energy_change[active]) if np.any(active) else 0.0
@@ -2073,6 +2113,18 @@ def _split_implicit_source_state_update(state, dt_s, par):
                 )
                 remaining_s -= candidate_dt_s
                 source_steps += 1
+                if (
+                    getattr(par, 'radiative_transfer', False)
+                    and getattr(
+                        par, 'radiative_transfer_temporal_scheme',
+                        'instantaneous',
+                    ) != 'c2ray'
+                ):
+                    # Reuse the shared transport conversion/path rather than
+                    # rebuilding photon-density units and boundary rates here.
+                    state['ngamma_cgs_cm3'] = rrt.trace_photon_density(
+                        state, par
+                    )
                 if source_steps > max_subcycles:
                     raise RuntimeError(
                         'split-implicit hydrogen source update exceeded '

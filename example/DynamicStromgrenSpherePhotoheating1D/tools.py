@@ -3,7 +3,6 @@
 import glob
 import os
 from pathlib import Path
-from types import SimpleNamespace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -12,17 +11,15 @@ import numpy as np
 import unyt
 import example_utils as eu
 
-from radhydropy.eos import EOS
-from radhydropy.fluid import Fluid
 import radhydropy.io as rio
-from radhydropy.mesh import Mesh
-from radhydropy.solver import Solver
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     MeshGeometryState,
     PROPER_RUNTIME_FIELDS,
 )
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
+from radhydropy.rsim import Rsim
+from basic_hydro_utils import make_initial_condition
 
 IONIZATION_FRONT_NEUTRAL_FRACTION = 0.5
 
@@ -30,7 +27,7 @@ IONIZATION_FRONT_NEUTRAL_FRACTION = 0.5
 def _to_kpc(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.kpc), dtype=float)
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
@@ -42,7 +39,7 @@ def _to_kpc(values, par):
 def _to_myr(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.Myr), dtype=float)
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
@@ -54,7 +51,7 @@ def _to_myr(values, par):
 def _to_km_s(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.km / unyt.s), dtype=float)
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
@@ -67,7 +64,7 @@ def _to_number_density(values, par):
     if hasattr(values, 'to_value'):
         density = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
         return density / (1.0 * unyt.mp).to_value(unyt.g)
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(
@@ -79,7 +76,7 @@ def _to_number_density(values, par):
 def _to_pressure(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.g / unyt.cm / unyt.s**2), dtype=float)
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(code_quantity_to_cgs(values, code, 'pressure_cgs_erg_cm3'), dtype=float)
@@ -88,7 +85,7 @@ def _to_pressure(values, par):
 def _to_temperature(values, par):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.K), dtype=float)
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
     return np.asarray(code_quantity_to_cgs(values, code, 'temperature_cgs_K'), dtype=float)
@@ -135,6 +132,51 @@ def _attach_proper_runtime_states(par, mesh, fluid):
 
 
 def build_static_problem(config):
+    """Build the proper-code IC using the configured ``Rsim`` object."""
+    par_config = config['par']
+    initial = config['initial_condition']
+    units = config['_code_units']
+    grid_cells = int(par_config['mesh']['grid_cells'])
+    box_size_proper_code = quantity_to_value(
+        initial['box_size'], units.length_unit
+    )
+    boundary_proper_code = np.linspace(0.0, box_size_proper_code, grid_cells + 1)
+    density_proper_code = np.full(
+        grid_cells,
+        quantity_to_value(
+            initial['hydrogen_number_density'] * unyt.mp,
+            units.density_unit,
+        ),
+    )
+    temperature_proper_code = np.full(
+        grid_cells,
+        quantity_to_value(initial['initial_temperature'], units.temperature_unit),
+    )
+    sim = make_initial_condition(
+        config, boundary_proper_code, density_proper_code,
+        np.zeros(grid_cells), temperature_proper_code,
+        np.ones(grid_cells),
+    )
+    radiation = par_config['radiation']
+    sim.fluid.xHI = np.ones(grid_cells)
+    sim.fluid.ngamma_code = np.full(
+        grid_cells,
+        quantity_to_value(radiation['hydrogen_ngamma_initial'], units.number_density_unit),
+    )
+    sim.fluid.SetFluidTime(0.0)
+    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        density=sim.fluid.rho_proper_code,
+        velocity=sim.fluid.vel_proper_code,
+        pressure=sim.fluid.pre_proper_code,
+        temperature=sim.fluid.temp_proper_code,
+        time=sim.fluid.time_proper_code,
+        mu=sim.fluid.mu,
+        xHI=sim.fluid.xHI,
+    )
+    return sim
+
+    # Retained below only as historical context; unreachable legacy setup.
     par_config = config['par']
     simulation = par_config['simulation']
     mesh_config = par_config['mesh']
@@ -254,33 +296,42 @@ build_problem = build_static_problem
 
 def write_initial_condition(config):
     """Build and write the initial-condition snapshot."""
-    par, mesh, fluid, _ = build_static_problem(config)
-    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    sim = build_static_problem(config)
     filename = config['par']['simulation']['initial_condition_filename']
     Path(filename).unlink(missing_ok=True)
     rio.writehdf5(sim, filename)
 
 
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_static_problem(config)
-    rio.readhdf5(par, mesh, fluid, outputfilename)
-    if getattr(par, 'noghost', 0) > 0:
-        mesh.boundary_proper_code = np.asarray(
-            mesh.boundary_proper_code[par.noghost : -par.noghost], dtype=float
-        )
-    mesh.SetUpMesh(par)
-    fluid.SetPressure()
-    return par, mesh, fluid
+    sim = Rsim(config['par'])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, outputfilename)
+    # Output snapshots contain the canonical ghosted boundary array.  Rebuild
+    # the typed mesh geometry from its physical boundaries for diagnostics and
+    # plotting; the runtime runner performs this step during RunAll.
+    ghost_cells = int(sim.par.mesh.ghost_cells)
+    grid_cells = int(sim.par.mesh.grid_cells)
+    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    if boundary.size == grid_cells + 1 + 2 * ghost_cells:
+        sim.mesh.boundary_proper_code = boundary[ghost_cells:-ghost_cells]
+        sim.SetMesh()
+    sim.fluid.SetPressure()
+    return sim.par, sim.mesh, sim.fluid
 
 
 def output_files(outdir, outfileprefix):
     pattern = os.path.join(outdir, f'{outfileprefix}_*.hdf5')
-    return sorted(glob.glob(pattern))
+    filenames = []
+    for filename in glob.glob(pattern):
+        stem = Path(filename).stem
+        suffix = stem[len(outfileprefix) + 1:]
+        if suffix.isdigit():
+            filenames.append(filename)
+    return sorted(filenames)
 
 
 def interior_slice(par):
-    first = par.noghost
-    return slice(first, first + par.nogrid)
+    first = int(par.mesh.ghost_cells)
+    return slice(first, first + int(par.mesh.grid_cells))
 
 
 def ionization_front_position(

@@ -137,10 +137,15 @@ def check_conserved_energy_admissibility(
     kinetic[positive_mass] = (
         0.5 * momentum[positive_mass]**2 / mass[positive_mass]
     )
-    scale = np.maximum(
-        np.maximum(kinetic, np.abs(energy)), np.finfo(float).tiny
+    configured_energy_floor = max(
+        0.0, float(np.asarray(getattr(par, 'positivity_energy_floor', 0.0)))
     )
-    deficit = kinetic - energy
+    energy_floor = configured_energy_floor * np.maximum(volume, 0.0)
+    admissible_energy = np.maximum(energy, energy_floor)
+    scale = np.maximum(
+        np.maximum(kinetic, np.abs(admissible_energy)), np.finfo(float).tiny
+    )
+    deficit = kinetic - admissible_energy
     invalid = positive_mass & (
         deficit > float(relative_tolerance) * scale
     )

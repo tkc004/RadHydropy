@@ -26,6 +26,7 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 import example_utils as eu
 import tools as et
 
@@ -42,6 +43,9 @@ def main(config_filename=DEFAULT_CONFIG):
     runtime_params = config['par']
     output = runtime_params['output']
     example = config.get('example', {})
+    config['_code_units'] = CodeUnits.from_mapping(
+        runtime_params['units']['CodeUnits']
+    )
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)

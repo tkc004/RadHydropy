@@ -624,6 +624,7 @@ class Par:
                 'flux_limiter': 'flux_limiter',
                 'positivity_preserving': 'positivity_preserving',
                 'positivity_density_floor': 'positivity_density_floor',
+                'positivity_energy_floor': 'positivity_energy_floor',
                 'dual_energy': 'dual_energy',
                 'boundary_mass_loading_timestep': 'boundary_mass_loading_timestep',
                 'dual_energy_eta1': 'dual_energy_eta1',
