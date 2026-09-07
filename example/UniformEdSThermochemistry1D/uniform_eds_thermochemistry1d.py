@@ -49,7 +49,7 @@ def run_case(config, units, cosmology, atomic_cooling):
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()
-    sim.fluid.SetFluidTime(sim.par.time_code)
+    sim.fluid.SetFluidTime(sim.par.time_proper_code)
     sim.SetInitFluid()
     sim.par.cosmology = cosmology
 
@@ -59,7 +59,7 @@ def run_case(config, units, cosmology, atomic_cooling):
     def fixed_step_time(dt=None, final_time=None):
         if dt is not None:
             return float(dt)
-        remaining = float(final_time) - float(np.asarray(sim.fluid.time_code).flat[0])
+        remaining = float(final_time) - float(np.asarray(sim.fluid.time_proper_code).flat[0])
         return min(source_dt, remaining)
 
     sim.GetStepTime = fixed_step_time
@@ -86,29 +86,29 @@ def run_case(config, units, cosmology, atomic_cooling):
         sim.solver.SetConserved(sim.mesh, sim.fluid)
 
     def step_backend(**kwargs):
-        cosmic_time = float(np.asarray(sim.fluid.time_code).flat[0])
+        cosmic_time = float(np.asarray(sim.fluid.time_proper_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         reset_conserved_from_temperature()
         result = sim.Step(**kwargs)
-        cosmic_time = float(np.asarray(sim.fluid.time_code).flat[0])
+        cosmic_time = float(np.asarray(sim.fluid.time_proper_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         history["time_s"].append(
             cosmic_time * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
         )
         history["scale_factor"].append(scale_factor)
         history["temperature_cgs_K"].append(
-            float(np.mean(sim.fluid.temp_code[physical]))
+            float(np.mean(sim.fluid.temp_supercomoving_code[physical]))
         )
         history["source_solver"].append(result.get("source_solver", "explicit"))
         history["relative_change"].append(
             float(result.get("relative_change", 0.0))
         )
-        if not np.all(np.isfinite(sim.fluid.temp_code[physical])):
+        if not np.all(np.isfinite(sim.fluid.temp_supercomoving_code[physical])):
             raise RuntimeError(
                 f"non-finite temperature at cosmic time {cosmic_time:.8g}, "
                 f"redshift {sim.par.compton_cmb_redshift:.8g}; "
-                f"temperature={sim.fluid.temp_code[physical]}"
+                f"temperature={sim.fluid.temp_supercomoving_code[physical]}"
             )
         return result
 

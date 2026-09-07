@@ -60,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     numerical = sim.par.gravity.acceleration_on_mesh(
         sim.mesh,
-        rho_code=sim.fluid.rho_code,
+        rho=sim.fluid.rho_proper_code,
         par=sim.par,
     )
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
@@ -127,4 +127,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

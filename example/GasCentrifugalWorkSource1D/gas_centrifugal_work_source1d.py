@@ -36,10 +36,7 @@ def prepare_initial_condition(initial):
         area=4.0 * np.pi * boundary[:-1]**2,
         volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
     )
-    initial.fluid.rho_proper_code = initial.fluid.rho_code
-    initial.fluid.vel_proper_code = initial.fluid.vel_code
-    initial.fluid.temp_proper_code = initial.fluid.temp_code
-    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.pre_proper_code = initial.fluid.temp_proper_code * 0.4
     initial.fluid.time_proper_code = 0.0
     initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -50,33 +47,32 @@ def prepare_initial_condition(initial):
     )
 
 
-class InitialCondition:
-    def __init__(self, radius, density, velocity, temperature, specific_j,
-                 code_units):
-        self.par = SimpleNamespace(
-            CodeUnits=code_units, nogrid=1, noghost=2, coordsys='spherical',
-            time=0.0, boxsize=np.asarray([radius]),
-        )
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius]), coordinate_system='spherical')
-        self.par.mesh = SimpleNamespace(grid_cells=1, ghost_cells=0)
-        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
-        self.mesh = SimpleNamespace(
-            boundary=np.asarray([radius - 0.5, radius + 0.5]),
-            coordinate=np.asarray([radius]),
-        )
-        self.fluid = SimpleNamespace(
-            rho_code=np.asarray([density]), vel_code=np.asarray([velocity]),
-            temp_code=np.asarray([temperature]), mu=np.ones(1),
-            specific_angular_momentum_code=np.asarray([specific_j]),
-        )
+class InitialCondition(Rsim):
+    def __init__(self, par_config, radius, density, velocity, temperature,
+                 specific_j, code_units):
+        super().__init__(par_config)
+        self.par.mesh.grid_cells = 1
+        self.par.mesh.ghost_cells = 0
+        self.par.simulation.coordinate_system = 'spherical'
+        self.par.simulation.time_proper_code = 0.0
+        self.par.simulation.box_size = np.asarray([radius])
+        self.mesh.boundary_proper_code = np.asarray([radius - 0.5, radius + 0.5])
+        self.mesh.x_proper_code = np.asarray([radius])
+        self.mesh.width_proper_code = np.asarray([1.0])
+        self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1] ** 2
+        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code ** 3)
+        self.fluid.rho_proper_code = np.asarray([density])
+        self.fluid.vel_proper_code = np.asarray([velocity])
+        self.fluid.temp_proper_code = np.asarray([temperature])
+        self.fluid.mu = np.ones(1)
+        self.fluid.specific_angular_momentum_code = np.asarray([specific_j])
 
 
 def run_simulation(par, initial_condition, example_config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     radius = float(initial_condition['radius'])
     initial = InitialCondition(
-        radius, float(initial_condition['density']), float(initial_condition['radial_velocity']),
+        par, radius, float(initial_condition['density']), float(initial_condition['radial_velocity']),
         float(example_config['temperature']),
         float(initial_condition['specific_angular_momentum']), units,
     )

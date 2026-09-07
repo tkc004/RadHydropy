@@ -86,7 +86,7 @@ def build_static_problem(config):
     sim.par.simulation.box_size = quantity_to_value(
         initial['box_size'], code_units_obj.length_unit
     )
-    sim.par.simulation.time_code = quantity_to_value(
+    sim.par.simulation.time_proper_code = quantity_to_value(
         initial.get('time', 0.0 * unyt.Myr), code_units_obj.time_unit
     )
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
@@ -163,7 +163,7 @@ def build_static_problem(config):
             photon_number_density_cgs_cm3_unyt,
             code_units_obj.number_density_unit,
         ))
-    sim.fluid.SetFluidTime(sim.par.simulation.time_code)
+    sim.fluid.SetFluidTime(sim.par.simulation.time_proper_code)
     _attach_proper_runtime_states(sim.mesh, sim.fluid)
     return sim.par, sim.mesh, sim.fluid, sim.solver
 

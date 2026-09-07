@@ -64,8 +64,8 @@ def ReadandPlot(outfilename, config, **kwargs):
     x_physical = x_proper_code[first:last]
     box_size = quantity_to_value(initial['box_size'], code_units_obj.length_unit)
     velocity = quantity_to_value(initial['initial_velocity'], code_units_obj.velocity_unit)
-    time_code = float(np.asarray(rout.fluid.time_proper_code).flat[0])
-    launch = np.mod(x_physical - velocity * time_code, box_size)
+    time_proper_code = float(np.asarray(rout.fluid.time_proper_code).flat[0])
+    launch = np.mod(x_physical - velocity * time_proper_code, box_size)
     high_density = quantity_to_value(initial['initial_density'], code_units_obj.density_unit)
     analytic_density = np.where(
         (launch >= 0.25 * box_size) & (launch <= 0.75 * box_size),
@@ -82,4 +82,3 @@ def ReadandPlot(outfilename, config, **kwargs):
         linestyle='--',
         label='analytic',
     )
-

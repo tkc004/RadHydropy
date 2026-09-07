@@ -56,12 +56,12 @@ def ReadandPlot(filename, config, **kwargs):
     x = spherical_cell_centers(boundary)[first:last]
     rho = np.asarray(sim.fluid.rho_proper_code)[first:last]
     vel = np.asarray(sim.fluid.vel_proper_code)[first:last]
-    time_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
+    time_proper_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
     analytic_rho = ballistic_density_profile(
         x, quantity_to_value(ic["reference_density"], units.density_unit)
     )
     analytic_vel = ballistic_velocity_profile(
-        x, ic["point_mass"], time_code, code_units=units
+        x, ic["point_mass"], time_proper_code, code_units=units
     ).to_value(unyt.cm / unyt.s) / units.velocity_in_cgs
     plt.subplot(1, 2, 1)
     plt.plot(x, rho, label="numerical", **kwargs)

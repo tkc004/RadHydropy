@@ -45,7 +45,7 @@ def _build_initial_condition(config):
     sim.par.simulation.box_size = quantity_to_value(
         initial['box_size'], code.length_unit
     )
-    sim.par.simulation.time_code = 0.0
+    sim.par.simulation.time_proper_code = 0.0
     boundary = as_named_array(quantity_to_value(
         np.array([0.0, initial['box_size'].to_value(unyt.cm)]) * unyt.cm,
         code.length_unit,

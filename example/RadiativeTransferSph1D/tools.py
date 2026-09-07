@@ -28,7 +28,7 @@ def build_static_problem(config):
     sim.par.simulation.box_size = quantity_to_value(
         initial['boxsize'], code_units.length_unit
     )
-    sim.par.simulation.time_code = 0.0
+    sim.par.simulation.time_proper_code = 0.0
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(0.0, initial['boxsize'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units.length_unit,

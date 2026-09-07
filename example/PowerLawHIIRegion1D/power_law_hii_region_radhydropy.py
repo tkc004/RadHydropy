@@ -67,7 +67,7 @@ def build_initial_condition(config):
         CodeUnits=code,
         simulation=SimpleNamespace(
             coordinate_system="spherical",
-            time_code=0.0 * unyt.yr,
+            time_proper_code=0.0 * unyt.yr,
             box_size=boxsize,
         ),
         mesh=SimpleNamespace(
@@ -83,9 +83,9 @@ def build_initial_condition(config):
     fluid = Fluid()
     fluid.eos = EOS(par_config['hydrodynamics']['eos_type'], par_config['hydrodynamics']['gamma'], code)
     density_proper_cgs_g_cm3_unyt = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
-    fluid.rho_code = density_proper_cgs_g_cm3_unyt
-    fluid.vel_code = np.zeros(ncell, dtype=float)
-    fluid.temp_code = np.ones(ncell) * initial['initial_temperature']
+    fluid.rho_proper_code = density_proper_cgs_g_cm3_unyt
+    fluid.vel_proper_code = np.zeros(ncell, dtype=float)
+    fluid.temp_proper_code = np.ones(ncell) * initial['initial_temperature']
     fluid.xHI = np.ones(ncell)
     fluid.mu = np.ones(ncell)
     photon_number_density_cgs_cm3_unyt = np.zeros(ncell) / unyt.cm**3
@@ -158,7 +158,7 @@ def shock_radius_cgs_cm(
         dtype=float,
     )
     rho_cgs = np.asarray(
-        code_quantity_to_cgs(fluid.rho_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"),
+        code_quantity_to_cgs(fluid.rho_proper_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -236,13 +236,13 @@ def save_profile_plot(snapshots, output, exponent):
         radius_pc = radius_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
         rho_cgs = np.asarray(
             code_quantity_to_cgs(
-                fluid.rho_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"
+                fluid.rho_proper_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"
             ),
             dtype=float,
         )
         velocity_cgs_cm_s = np.asarray(
             code_quantity_to_cgs(
-                fluid.vel_code[interior], par.units.CodeUnits, "velocity_cgs_cm_s"
+                fluid.vel_proper_code[interior], par.units.CodeUnits, "velocity_cgs_cm_s"
             ),
             dtype=float,
         )
@@ -312,7 +312,7 @@ def main(config_filename=DEFAULT_CONFIG):
     exponent = float(initial['density_power_law_exponent'])
     for filename in output_files(outdir, output_config['filename_prefix']):
         par, mesh, fluid = load_snapshot(filename, runtime)
-        time_s = code_quantity_to_cgs(fluid.time_code, par.units.CodeUnits, "time_s")
+        time_s = code_quantity_to_cgs(fluid.time_proper_code, par.units.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
         radii_cm.append(front_radius_cgs_cm(mesh, fluid, par))

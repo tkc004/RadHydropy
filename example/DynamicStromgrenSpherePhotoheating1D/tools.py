@@ -248,7 +248,7 @@ def build_static_problem(config):
         unit_system=code_units_obj.unit_system,
     )
     par.simulation = SimpleNamespace(
-        time_code=0.0 * unyt.Myr,
+        time_proper_code=0.0 * unyt.Myr,
         box_size=initial['box_size'],
         coordinate_system=par.coordsys,
     )

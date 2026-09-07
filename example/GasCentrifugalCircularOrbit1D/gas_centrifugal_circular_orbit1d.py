@@ -39,10 +39,7 @@ def prepare_initial_condition(initial):
         area=4.0 * np.pi * boundary[:-1]**2,
         volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
     )
-    initial.fluid.rho_proper_code = initial.fluid.rho_code
-    initial.fluid.vel_proper_code = initial.fluid.vel_code
-    initial.fluid.temp_proper_code = initial.fluid.temp_code
-    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.pre_proper_code = initial.fluid.temp_proper_code * 0.4
     initial.fluid.time_proper_code = 0.0
     initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -65,42 +62,32 @@ class FixedCentralGravity:
         return -self.central_mass / radius**2
 
 
-class CircularInitialCondition:
+class CircularInitialCondition(Rsim):
     """HDF5-compatible spherical circular-orbit initial condition."""
 
-    def __init__(self, count, radius_min, radius_max, density, pressure,
+    def __init__(self, par_config, count, radius_min, radius_max, density, pressure,
                  central_mass, code_units):
-        self.par = SimpleNamespace(
-            CodeUnits=code_units,
-            nogrid=count,
-            noghost=2,
-            coordsys='spherical',
-            time=0.0,
-            boxsize=np.asarray([radius_max]),
-        )
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
-        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
-        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
-        self.mesh = SimpleNamespace()
-        self.fluid = SimpleNamespace()
-        self.mesh.boundary = np.linspace(radius_min, radius_max, count + 1)
-        self.mesh.coordinate = 0.75 * (
-            self.mesh.boundary[1:]**4 - self.mesh.boundary[:-1]**4
-        ) / (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-        self.fluid.rho_code = np.full(count, density)
-        self.fluid.vel_code = np.zeros(count)
-        self.fluid.temp_code = np.full(count, pressure * 0.4)
+        super().__init__(par_config)
+        self.mesh.boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
+        self.mesh.x_proper_code = 0.75 * (
+            self.mesh.boundary_proper_code[1:]**4 - self.mesh.boundary_proper_code[:-1]**4
+        ) / (self.mesh.boundary_proper_code[1:]**3 - self.mesh.boundary_proper_code[:-1]**3)
+        self.mesh.width_proper_code = np.diff(self.mesh.boundary_proper_code)
+        self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1]**2
+        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code**3)
+        self.fluid.rho_proper_code = np.full(count, density)
+        self.fluid.vel_proper_code = np.zeros(count)
+        self.fluid.temp_proper_code = np.full(count, pressure * 0.4)
         self.fluid.mu = np.ones(count)
         self.fluid.specific_angular_momentum_code = np.sqrt(
-            central_mass * self.mesh.coordinate
+            central_mass * self.mesh.x_proper_code
         )
 
 
 def run_rsim(par, initial_condition, runtime):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial = CircularInitialCondition(
-        int(par['mesh']['grid_cells']), float(initial_condition['radius_min']), float(initial_condition['radius_max']),
+        par, int(par['mesh']['grid_cells']), float(initial_condition['radius_min']), float(initial_condition['radius_max']),
         float(initial_condition['density']), float(initial_condition['pressure']),
         float(initial_condition['central_mass']), units,
     )
@@ -174,7 +161,7 @@ def main(config_filename=CONFIG):
     par = mesh._par
     par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=count)
     fluid = SimpleNamespace(
-        rho_code=np.ones(count) * float(initial_condition['density']),
+        rho_proper_code=np.ones(count) * float(initial_condition['density']),
         Mass_code=mass.copy(),
         Mom_code=momentum.copy(),
         Energy_code=thermal_energy + rotational_energy,
@@ -310,7 +297,7 @@ def main(config_filename=CONFIG):
     )
     shell_par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=1)
     shell_fluid = SimpleNamespace(
-        rho_code=np.asarray([1.0]), Mass_code=np.asarray([1.0]),
+        rho_proper_code=np.asarray([1.0]), Mass_code=np.asarray([1.0]),
         Mom_code=np.asarray([0.0]), AngularMomentum_code=np.asarray([eccentric_j]),
         Energy_code=np.asarray([1.0 + 0.5 * eccentric_j**2 / radius**2]),
     )

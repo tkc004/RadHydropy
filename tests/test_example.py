@@ -1135,7 +1135,7 @@ class Testing(unittest.TestCase):
         # Rebuild the explicit numeric runtime clock after flattening the
         # example parameter namespace; the nested simulation group is not
         # copied by parameter_namespace.
-        par.simulation.time_code = 0.0
+        par.simulation.time_proper_code = 0.0
         modified_boundary = np.asarray(mesh.boundary, dtype=float).copy() * 1.25
         mesh.boundary = modified_boundary * unyt.cm
         boundary_proper_code = np.asarray(
@@ -1151,22 +1151,22 @@ class Testing(unittest.TestCase):
             volume=width_proper_code,
         )
         density_proper_code = np.asarray(
-            fluid.rho_code.to_value(par.CodeUnits.density_unit)
-            if hasattr(fluid.rho_code, "to_value") else fluid.rho_code,
+            fluid.rho_proper_code.to_value(par.CodeUnits.density_unit)
+            if hasattr(fluid.rho_proper_code, "to_value") else fluid.rho_proper_code,
             dtype=float,
         )
         velocity_proper_code = np.asarray(
-            fluid.vel_code.to_value(par.CodeUnits.velocity_unit)
-            if hasattr(fluid.vel_code, "to_value") else fluid.vel_code,
+            fluid.vel_proper_code.to_value(par.CodeUnits.velocity_unit)
+            if hasattr(fluid.vel_proper_code, "to_value") else fluid.vel_proper_code,
             dtype=float,
         )
         temperature_proper_code = np.asarray(
-            fluid.temp_code.to_value(par.CodeUnits.temperature_unit)
-            if hasattr(fluid.temp_code, "to_value") else fluid.temp_code,
+            fluid.temp_proper_code.to_value(par.CodeUnits.temperature_unit)
+            if hasattr(fluid.temp_proper_code, "to_value") else fluid.temp_proper_code,
             dtype=float,
         )
         pressure_value = fluid.eos.pressure(
-            fluid.rho_code, fluid.temp_code, fluid.mu
+            fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
         )
         pressure_proper_code = np.asarray(
             pressure_value.to_value(par.CodeUnits.pressure_unit)

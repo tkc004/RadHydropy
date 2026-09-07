@@ -13,6 +13,7 @@ from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import quantity_to_value
+from basic_hydro_utils import finalize_initial_condition
 
 BASE_PATH = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
 SPEC = importlib.util.spec_from_file_location('nfw_hydrostatic_tools_for_pie', BASE_PATH)
@@ -69,6 +70,7 @@ def build_initial_condition(config):
     sim.fluid.SetEnergyDensity()
     sim.mesh._par = sim.par
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
+    finalize_initial_condition(sim, grid_cells)
     sim.ConvertParametersToCodeUnits()
     return sim
 
@@ -89,10 +91,10 @@ def load_snapshot(filename, config):
         temperature = np.asarray(data['temp_proper_code'][()])[noghost:noghost + nogrid]
         velocity = (np.asarray(data['vel_proper_code'][()])[noghost:noghost + nogrid]
                     / 1.0e5)
-        time = float(header.attrs.get('time_code', 0.0))
+        time_proper_code = float(header.attrs.get('time_proper_code', 0.0))
         # Fixed output-time files store the physical time in the fluid state;
         # the header time is retained as a fallback for older snapshots.
-        return time, radius, density, temperature, velocity
+        return time_proper_code, radius, density, temperature, velocity
 
 
 def analyze_snapshot(filename, config, halo, temperature):

@@ -75,11 +75,11 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         density_history.append(density)
         temperature_history.append(temperature)
         history.append({
-            "time": float(np.asarray(state.par.simulation.time_code).flat[0]),
+            "time": float(np.asarray(state.par.simulation.time_proper_code).flat[0]),
             **et.energy_components(state),
         })
     if not history:
-        history = [{"time": float(sim.fluid.time_code), **et.energy_components(sim)}]
+        history = [{"time": float(sim.fluid.time_proper_code), **et.energy_components(sim)}]
 
     data = output / "HighMachAdvection1D_EnergyHistory.npz"
     np.savez(

@@ -47,10 +47,10 @@ def prepare_initial_condition(initial):
         area=4.0 * np.pi * boundary[:-1]**2,
         volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
     )
-    initial.fluid.rho_comoving_code = initial.fluid.rho_code
-    initial.fluid.vel_supercomoving_code = initial.fluid.vel_code
-    initial.fluid.temp_supercomoving_code = initial.fluid.temp_code
-    initial.fluid.pre_supercomoving_code = initial.fluid.temp_code * 0.4
+    initial.fluid.rho_comoving_code = initial.fluid.rho_comoving_code
+    initial.fluid.vel_supercomoving_code = initial.fluid.vel_supercomoving_code
+    initial.fluid.temp_supercomoving_code = initial.fluid.temp_supercomoving_code
+    initial.fluid.pre_supercomoving_code = initial.fluid.temp_supercomoving_code * 0.4
     initial.fluid.tau_supercomoving_code = 0.0
     initial.fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -62,28 +62,20 @@ def prepare_initial_condition(initial):
     )
 
 
-class CosmologicalInitialCondition:
-    def __init__(self, count, radius_min, radius_max, density, temperature,
+class CosmologicalInitialCondition(Rsim):
+    def __init__(self, par_config, count, radius_min, radius_max, density, temperature,
                  specific_j, code_units):
-        self.par = SimpleNamespace(
-            CodeUnits=code_units, nogrid=count, noghost=2,
-            coordsys='spherical', time=0.0,
-            boxsize=np.asarray([radius_max]),
-        )
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
-        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
-        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
-        self.par.unit_system = code_units.unit_system
-        self.mesh = type('Mesh', (), {})()
-        self.fluid = type('Fluid', (), {})()
-        self.mesh.boundary = np.linspace(radius_min, radius_max, count + 1)
-        self.mesh.coordinate = 0.75 * (
-            self.mesh.boundary[1:]**4 - self.mesh.boundary[:-1]**4
-        ) / (self.mesh.boundary[1:]**3 - self.mesh.boundary[:-1]**3)
-        self.fluid.rho_code = np.full(count, density)
-        self.fluid.vel_code = np.zeros(count)
-        self.fluid.temp_code = np.full(count, temperature)
+        super().__init__(par_config)
+        self.mesh.boundary_comoving_code = np.linspace(radius_min, radius_max, count + 1)
+        self.mesh.x_comoving_code = 0.75 * (
+            self.mesh.boundary_comoving_code[1:]**4 - self.mesh.boundary_comoving_code[:-1]**4
+        ) / (self.mesh.boundary_comoving_code[1:]**3 - self.mesh.boundary_comoving_code[:-1]**3)
+        self.mesh.width_comoving_code = np.diff(self.mesh.boundary_comoving_code)
+        self.mesh.area_comoving_code = 4.0 * np.pi * self.mesh.boundary_comoving_code[:-1]**2
+        self.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_comoving_code**3)
+        self.fluid.rho_comoving_code = np.full(count, density)
+        self.fluid.vel_supercomoving_code = np.zeros(count)
+        self.fluid.temp_supercomoving_code = np.full(count, temperature)
         self.fluid.mu = np.ones(count)
         self.fluid.specific_angular_momentum_code = np.asarray(specific_j, dtype=float)
 
@@ -99,7 +91,7 @@ class CosmologicalCentralGravity:
 
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
         tau = float(np.asarray(
-            getattr(getattr(par, 'simulation', None), 'time_code', self.tau)
+            getattr(getattr(par, 'simulation', None), 'time_proper_code', self.tau)
         )) if par is not None else self.tau
         scale_factor = self.cosmology.scale_factor_from_supercomoving(tau)
         radius = np.asarray(mesh.x_comoving_code, dtype=float)
@@ -115,7 +107,7 @@ def run_rsim(par, initial_condition, example_config, cosmology, j):
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
     circular_j_profile = np.full(count, float(j))
     initial = CosmologicalInitialCondition(
-        count, 0.5, 1.5, 1.0, float(example_config['temperature']),
+        par, count, 0.5, 1.5, 1.0, float(example_config['temperature']),
         circular_j_profile, units
     )
     prepare_initial_condition(initial)

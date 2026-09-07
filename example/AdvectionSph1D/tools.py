@@ -33,10 +33,10 @@ def ReadandPlot(filename, config, **kwargs):
     boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
     x = .5 * (boundary[:-1] + boundary[1:])
     units = config["_code_units"]
-    time_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
+    time_proper_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
     analytic_density = asa.top_hat_density_profile(
         x[first:last],
-        time_code,
+        time_proper_code,
         quantity_to_value(config["initial_condition"]["initial_velocity"], units.velocity_unit),
         quantity_to_value(config["initial_condition"]["box_size"], units.length_unit),
         quantity_to_value(config["initial_condition"]["initial_density"], units.density_unit),

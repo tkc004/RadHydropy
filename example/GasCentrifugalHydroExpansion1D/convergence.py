@@ -33,7 +33,7 @@ def measure(par, initial_condition, example_config):
     saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
-    final_time = float(sim.fluid.time_code)
+    final_time = float(sim.fluid.time_proper_code)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,
@@ -45,7 +45,7 @@ def measure(par, initial_condition, example_config):
     )
     ode_velocity = reference['velocity']
     ode_j = reference['specific_angular_momentum']
-    saved_velocity = np.asarray(saved.vel_code[active], dtype=float)
+    saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_energy = np.asarray(saved.Energy_code[active], dtype=float)

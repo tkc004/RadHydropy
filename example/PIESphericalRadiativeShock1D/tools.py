@@ -7,6 +7,7 @@ from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import quantity_to_value
+from basic_hydro_utils import finalize_initial_condition
 
 
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
@@ -26,7 +27,7 @@ def build_initial_condition(config):
         par = dict(par)
         par['units'] = {'CodeUnits': code_units.to_dict()}
     result = Rsim(par)
-    result.par.simulation.time_code = quantity_to_value(initial['time'], code_units.time_unit)
+    result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
     result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
     result.par.simulation.coordinate_system = 'spherical'
     result.par.mesh.grid_cells = grid_cells
@@ -67,6 +68,7 @@ def build_initial_condition(config):
     result.fluid._refresh_runtime_state()
     result.mesh._par = result.par
     result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
+    finalize_initial_condition(result, grid_cells)
     result.ConvertParametersToCodeUnits()
     return result
 

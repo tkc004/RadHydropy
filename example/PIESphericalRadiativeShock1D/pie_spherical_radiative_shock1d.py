@@ -102,7 +102,12 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     )
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
 
-    sim = initial_state
+    sim = Rsim(case)
+    sim.Callreadhdf5()
+    sim.par.metal_pie_table = table
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
     sim.solver = CollidingStreamsSolver()
     # Maintain an outward inner stream and inward outer stream so the shock
     # forms near the initial midpoint instead of at a reflecting wall.

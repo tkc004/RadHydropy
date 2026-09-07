@@ -48,19 +48,19 @@ def _snapshot_energy(snapshot, config, tools):
     volume_cgs_cm3 = np.asarray(mesh.vol[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
-    pressure_cgs_erg_cm3 = np.asarray(fluid.pre_code[interior], dtype=float) * float(
+    pressure_cgs_erg_cm3 = np.asarray(fluid.pre_proper_code[interior], dtype=float) * float(
         (1.0 * code.pressure_unit).to_value(unyt.erg / unyt.cm**3)
     )
-    density_cgs_g_cm3 = np.asarray(fluid.rho_code[interior], dtype=float) * float(
+    density_cgs_g_cm3 = np.asarray(fluid.rho_proper_code[interior], dtype=float) * float(
         (1.0 * code.density_unit).to_value(unyt.g / unyt.cm**3)
     )
-    velocity_cgs_cm_s = np.asarray(fluid.vel_code[interior], dtype=float) * float(
+    velocity_cgs_cm_s = np.asarray(fluid.vel_proper_code[interior], dtype=float) * float(
         (1.0 * code.velocity_unit).to_value(unyt.cm / unyt.s)
     )
     thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.gamma - 1.0) * volume_cgs_cm3))
     kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
     time_myr = float(
-        np.asarray(fluid.time_code) * (1.0 * code.time_unit).to_value(unyt.Myr)
+        np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr)
     )
     return time_myr, thermal, kinetic, thermal + kinetic
 

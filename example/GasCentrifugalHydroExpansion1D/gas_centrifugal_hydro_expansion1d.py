@@ -37,10 +37,7 @@ def prepare_initial_condition(initial):
         area=4.0 * np.pi * boundary[:-1]**2,
         volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
     )
-    initial.fluid.rho_proper_code = initial.fluid.rho_code
-    initial.fluid.vel_proper_code = initial.fluid.vel_code
-    initial.fluid.temp_proper_code = initial.fluid.temp_code
-    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
+    initial.fluid.pre_proper_code = initial.fluid.temp_proper_code * 0.4
     initial.fluid.time_proper_code = 0.0
     initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -57,28 +54,27 @@ def spherical_centers(boundary):
     ) / (boundary[1:]**3 - boundary[:-1]**3)
 
 
-class InitialCondition:
-    def __init__(self, count, radius_min, radius_max, density, temperature,
+class InitialCondition(Rsim):
+    def __init__(self, par_config, count, radius_min, radius_max, density, temperature,
                  central_mass, rotation_factor, code_units):
+        super().__init__(par_config)
+        self.par.mesh.ghost_cells = 0
         boundary = np.linspace(radius_min, radius_max, count + 1)
         radius = spherical_centers(boundary)
-        self.par = SimpleNamespace(
-            CodeUnits=code_units, nogrid=count, noghost=2,
-            coordsys='spherical', time=0.0, boxsize=np.asarray([radius_max]),
-        )
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.simulation = SimpleNamespace(time_code=0.0, box_size=np.asarray([radius_max]), coordinate_system='spherical')
-        self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
-        self.par.hydrodynamics = SimpleNamespace(gamma=1.4)
-        self.mesh = SimpleNamespace(
-            boundary=boundary, coordinate=radius,
-        )
-        self.fluid = SimpleNamespace(
-            rho_code=np.full(count, density), vel_code=np.zeros(count),
-            temp_code=np.full(count, temperature), mu=np.ones(count),
-            specific_angular_momentum_code=rotation_factor * np.sqrt(
-                central_mass * radius
-            ),
+        self.mesh.boundary_proper_code = boundary
+        self.mesh.x_proper_code = radius
+        self.mesh.width_proper_code = np.diff(boundary)
+        self.mesh.area_proper_code = 4.0 * np.pi * boundary[:-1] ** 2
+        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary ** 3)
+        self.fluid.rho_proper_code = np.full(count, density)
+        self.fluid.vel_proper_code = np.zeros(count)
+        self.fluid.temp_proper_code = np.full(count, temperature)
+        self.fluid.mu = np.ones(count)
+        self.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(central_mass * radius)
+        self.mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS, coordinate=radius, boundary=boundary,
+            width=self.mesh.width_proper_code, area=self.mesh.area_proper_code,
+            volume=self.mesh.volume_proper_code,
         )
 
 
@@ -111,7 +107,7 @@ def run_simulation(par, initial_condition, example_config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
     initial = InitialCondition(
-        count, float(initial_condition['radius_min']), float(initial_condition['radius_max']),
+        par, count, float(initial_condition['radius_min']), float(initial_condition['radius_max']),
         float(initial_condition['density']), float(example_config['temperature']),
         float(initial_condition['central_mass']), float(initial_condition['rotation_factor']),
         units,

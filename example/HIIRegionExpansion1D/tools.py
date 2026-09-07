@@ -94,7 +94,7 @@ def build_problem(config):
         coordinate_system=par.coordsys,
         final_time=par.timesim,
         initial_condition_filename=simulation['initial_condition_filename'],
-        time_code=initial.get('current_time', 0.0 * unyt.Myr),
+        time_proper_code=initial.get('current_time', 0.0 * unyt.Myr),
         box_size=box_size,
     )
     par.hydrodynamics = SimpleNamespace(
@@ -123,9 +123,9 @@ def build_problem(config):
     mesh.boundary = boundary_proper_cgs_cm_unyt
     fluid = Fluid()
     fluid.eos = EOS(par.EOStype, par.gamma, code_units)
-    fluid.rho_code = np.ones(grid_cells) * initial['rho_initial']
-    fluid.vel_code = np.zeros(grid_cells, dtype=float)
-    fluid.temp_code = np.ones(grid_cells) * initial['neutral_temperature']
+    fluid.rho_proper_code = np.ones(grid_cells) * initial['rho_initial']
+    fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
+    fluid.temp_proper_code = np.ones(grid_cells) * initial['neutral_temperature']
     fluid.mu = np.ones(grid_cells)
     fluid.xHI = np.ones(grid_cells)
     fluid.SetFluidTime(initial.get('current_time', 0.0 * unyt.Myr))
@@ -157,9 +157,9 @@ def load_output_state(outputfilename, config):
     mesh.boundary_proper_code = np.asarray(
         mesh.boundary_proper_code, dtype=float
     ) * code_units_obj.length_unit
-    fluid.rho_code = np.asarray(fluid.rho_code, dtype=float) * code_units_obj.density_unit
-    fluid.vel_code = np.asarray(fluid.vel_code, dtype=float) * code_units_obj.velocity_unit
-    fluid.temp_code = np.asarray(fluid.temp_code, dtype=float) * code_units_obj.temperature_unit
+    fluid.rho_proper_code = np.asarray(fluid.rho_proper_code, dtype=float) * code_units_obj.density_unit
+    fluid.vel_proper_code = np.asarray(fluid.vel_proper_code, dtype=float) * code_units_obj.velocity_unit
+    fluid.temp_proper_code = np.asarray(fluid.temp_proper_code, dtype=float) * code_units_obj.temperature_unit
     if hasattr(fluid, 'ngamma_code'):
         if not hasattr(fluid.ngamma_code, 'units'):
             fluid.ngamma_code = (
@@ -253,14 +253,14 @@ def print_startup_diagnostics(sim, config, initial_condition):
     """Print the main physical scales before the long run starts."""
     initial_condition = config['initial_condition']
     interior = interior_slice(sim.par)
-    rho_code = np.asarray(sim.fluid.rho_code[interior], dtype=float)
-    vel_code = np.asarray(sim.fluid.vel_code[interior], dtype=float)
-    temp_code = np.asarray(sim.fluid.temp_code[interior], dtype=float)
+    rho_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
+    vel_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
+    temp_proper_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma_code = np.asarray(sim.fluid.ngamma_code[interior], dtype=float) if hasattr(sim.fluid, 'ngamma_code') else None
     code_units_obj = sim.par.units.CodeUnits
     rho_cgs = code_quantity_to_cgs(
-        rho_code,
+        rho_proper_code,
         code_units_obj,
         'density_cgs_g_cm3',
     )
@@ -270,10 +270,10 @@ def print_startup_diagnostics(sim, config, initial_condition):
 
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.mesh.grid_cells)
-    print('time = %.6e Myr' % time_myr(sim.fluid.time_code, code_units_obj))
+    print('time = %.6e Myr' % time_myr(sim.fluid.time_proper_code, code_units_obj))
     print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_cgs), np.max(rho_cgs)))
-    print('vel max abs = %.3e km/s' % (np.max(np.abs(vel_code)) / 1.0e5))
-    print('temperature range = [%.3e, %.3e] K' % (np.min(temp_code), np.max(temp_code)))
+    print('vel max abs = %.3e km/s' % (np.max(np.abs(vel_proper_code)) / 1.0e5))
+    print('temperature range = [%.3e, %.3e] K' % (np.min(temp_proper_code), np.max(temp_proper_code)))
     print('neutral fraction range = [%.3e, %.3e]' % (np.min(xHI), np.max(xHI)))
     if ngamma_code is not None:
         print('ngamma_cgs_cm3 range = [%.3e, %.3e] code units' % (np.min(ngamma_code), np.max(ngamma_code)))
@@ -347,7 +347,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         if should_log:
             print(
                 '--- step %d begin: time=%.6e Myr dt=%s mode=%s ---'
-                % (step_index + 1, time_myr(sim.fluid.time_code, code_units_obj), dt, mode)
+                % (step_index + 1, time_myr(sim.fluid.time_proper_code, code_units_obj), dt, mode)
             )
         result = base_step_backend(
             dt=dt,
@@ -355,22 +355,22 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
             advect_chemistry=advect_chemistry,
         )
         if should_log:
-            vel_code = np.asarray(sim.fluid.vel_code[interior], dtype=float)
-            rho_code = np.asarray(sim.fluid.rho_code[interior], dtype=float)
+            vel_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
+            rho_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
             xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
-            vmax = np.max(np.abs(vel_code)) / 1.0e5
+            vmax = np.max(np.abs(vel_proper_code)) / 1.0e5
             front_radius = ionization_front_position(sim.mesh, sim.fluid, sim.par)
             print(
                 '--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
                 % (
                     step_index + 1,
-                    time_myr(sim.fluid.time_code, code_units_obj),
+                    time_myr(sim.fluid.time_proper_code, code_units_obj),
                     result['hydro_steps'],
                     result['source_steps'],
                     front_radius,
                     vmax,
-                    np.min(rho_code),
-                    np.max(rho_code),
+                    np.min(rho_proper_code),
+                    np.max(rho_proper_code),
                     np.min(xHI),
                     np.max(xHI),
                 )
@@ -435,7 +435,7 @@ def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
 
 
 def append_history(history, mesh, fluid, par):
-    history['time_Myr'].append(_scalar_in_unit(fluid.time_code, unyt.Myr))
+    history['time_Myr'].append(_scalar_in_unit(fluid.time_proper_code, unyt.Myr))
     history['front_radius_pc'].append(ionization_front_position(mesh, fluid, par))
 
 
@@ -456,9 +456,9 @@ def density_snapshot(mesh, fluid, par):
     if ngamma_code.ndim > 1:
         ngamma_code = np.sum(ngamma_code, axis=0)
     return {
-        'time_Myr': _scalar_in_unit(fluid.time_code, unyt.Myr),
+        'time_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
         'radius_pc': _value_in_unit(mesh.coordinate[interior], unyt.pc).copy(),
-        'density_cgs_g_cm3': _value_in_unit(fluid.rho_code[interior], unyt.g / unyt.cm**3).copy(),
+        'density_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
         'radiation_density_cgs_cm3': _value_in_unit(
             ngamma_code[interior], 1.0 / unyt.cm**3
         ).copy(),

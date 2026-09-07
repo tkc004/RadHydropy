@@ -7,6 +7,7 @@ from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import quantity_to_value
+from basic_hydro_utils import finalize_initial_condition
 
 
 def build_initial_condition(config):
@@ -15,7 +16,7 @@ def build_initial_condition(config):
     grid_cells = int(par['mesh']['grid_cells'])
     result = Rsim(par)
     code_units = result.par.units.CodeUnits
-    result.par.simulation.time_code = quantity_to_value(initial['time'], code_units.time_unit)
+    result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
     result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
     result.par.simulation.coordinate_system = initial['coordsys']
     result.par.mesh.grid_cells = grid_cells
@@ -59,5 +60,6 @@ def build_initial_condition(config):
     result.fluid._refresh_runtime_state()
     result.mesh._par = result.par
     result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
+    finalize_initial_condition(result, grid_cells)
     result.ConvertParametersToCodeUnits()
     return result

@@ -119,7 +119,12 @@ def _run_case(config, label, density, temperature, table):
     # The canonical IC builder already returned a fully initialized Rsim.  Keep
     # its loaded PIE table instead of reconstructing Par from the mutated
     # nested mapping (which serializes the table object as a plain dict).
-    sim = initial_state
+    sim = Rsim(case)
+    sim.Callreadhdf5()
+    sim.par.metal_pie_table = table
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
     # This is a one-cell isochoric parcel.  Use the dedicated source-only
     # mode so no hydro flux gradient is evaluated on the single active cell.
     sim.Run(outputtime=0, mode='sources')

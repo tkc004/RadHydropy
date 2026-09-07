@@ -19,6 +19,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 import radhydropy.io as rio
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.rsim import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
@@ -57,7 +58,14 @@ def main(config_filename=DEFAULT_CONFIG):
         'initial_temperature', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
-    sim = initial
+    sim = Rsim(par)
+    sim.Callreadhdf5()
+    sim.par.metal_pie_table = MetalPIETable(
+        par['thermochemistry']['metal_pie_table_filename']
+    )
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
     nghost = int(par['mesh']['ghost_cells'])
     interior = slice(nghost, -nghost if nghost else None)
     initial_density_max = float(np.max(np.asarray(sim.fluid.rho_proper_code[interior])))

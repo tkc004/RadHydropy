@@ -2,23 +2,11 @@
 
 import numpy as np
 import unyt
-from types import SimpleNamespace
-
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
-from radhydropy.units import CodeUnits
-
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def spherical_cell_centers(boundary):
@@ -44,41 +32,44 @@ def uniform_sphere_acceleration(radius, rho0):
 def build_initial_condition(config, code_units=None):
     if code_units is None:
         code_units = config['_code_units']
-    sim = SimpleNamespace()
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.CodeUnits = code_units
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    sim.par.unit_system = code_units.unit_system
-    sim.par.nogrid = grid_cells
-    sim.par.coordsys = initial_condition['coordsys']
-    sim.par.boxsize = np.ones(1) * initial_condition['boxsize']
-    sim.par.time_code = np.ones(1) * initial_condition['time']
-    sim.par.simulation = SimpleNamespace(time_code=sim.par.time_code, box_size=sim.par.boxsize, coordinate_system='spherical')
-    sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=0)
-    sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    sim = Rsim(config['par'])
+    sim.par.mesh.grid_cells = grid_cells
+    sim.par.mesh.ghost_cells = 0
+    sim.par.simulation.coordinate_system = initial_condition['coordsys']
+    sim.par.simulation.box_size = np.ones(1) * quantity_to_value(initial_condition['boxsize'], code_units.length_unit)
+    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time'], code_units.time_unit)
 
-    sim.mesh.boundary = np.linspace(
-        initial_condition['rmin'],
-        initial_condition['rmax'],
-        sim.par.nogrid + 1,
+    boundary_proper_code = np.linspace(
+        quantity_to_value(initial_condition['rmin'], code_units.length_unit),
+        quantity_to_value(initial_condition['rmax'], code_units.length_unit),
+        grid_cells + 1,
     )
-    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
-        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    sim.mesh.boundary_proper_code = boundary_proper_code
+    sim.mesh.x_proper_code = spherical_cell_centers(boundary_proper_code)
+    sim.mesh.width_proper_code = np.diff(boundary_proper_code)
+    sim.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1]**2
+    sim.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * (
+        boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
+    )
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=sim.mesh.x_proper_code,
+        boundary=sim.mesh.boundary_proper_code,
+        width=sim.mesh.width_proper_code,
+        area=sim.mesh.area_proper_code,
+        volume=sim.mesh.volume_proper_code,
     )
 
-    sim.fluid.rho_code = np.ones(sim.par.nogrid) * initial_condition['rho0']
-    sim.fluid.temp_code = np.ones(sim.par.nogrid) * initial_condition['tempini']
-    sim.fluid.mu = np.ones(sim.par.nogrid) * initial_condition['muini']
-    sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
+    sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho0'], code_units.density_unit)
+    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['tempini'], code_units.temperature_unit)
+    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
+    sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
+    sim.fluid.SetUpFluid(sim.par, sim.mesh)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
 
-
-    return sim
+    return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 def read_code_units(par_config):
     return CodeUnits.from_mapping(par_config['CodeUnits'])
@@ -102,5 +93,3 @@ def read_snapshot(filename, par_config):
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
-

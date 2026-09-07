@@ -66,7 +66,12 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
         'current_time', 'grid_cells', 'initial_temperature',
         'mean_molecular_weight',
     }
-    sim = ric
+    sim = Rsim(case)
+    sim.Callreadhdf5()
+    sim.par.metal_pie_table = table
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
     sim.Run(outputtime=0, mode="hydro")
     snapshots = sorted(output_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"))
     if len(snapshots) < 2:

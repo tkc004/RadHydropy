@@ -165,7 +165,7 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     first = nghost
     last = first + int(par['mesh']['grid_cells'])
     radius = radius_all[first:last]
-    rho_code = rout.fluid.rho_proper_code[first:last]
+    rho_proper_code = rout.fluid.rho_proper_code[first:last]
     velocity = rout.fluid.vel_proper_code[first:last]
     rho_expected = hydrostatic_density_profile(
         radius_all,
@@ -176,7 +176,7 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
         initial_condition['gas_fraction'],
     )[first:last]
     radius_kpc = quantity_to_value(radius, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
-    rho_cgs = code_quantity_to_cgs(rho_code, code_units, 'density_cgs_g_cm3')
+    rho_cgs = code_quantity_to_cgs(rho_proper_code, code_units, 'density_cgs_g_cm3')
     rho_expected_cgs = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
     velocity_km_s = code_quantity_to_cgs(velocity, code_units, 'velocity_cgs_cm_s') / 1.0e5
 

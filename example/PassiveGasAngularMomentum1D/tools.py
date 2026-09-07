@@ -23,7 +23,7 @@ def build_initial_condition(config):
         initial['box_size'], code_units.length_unit
     )
     sim.par.simulation.box_size = box_size_proper_code
-    sim.par.simulation.time_code = quantity_to_value(
+    sim.par.simulation.time_proper_code = quantity_to_value(
         initial['current_time'], code_units.time_unit
     )
     boundary_proper_code = as_named_array(
@@ -73,7 +73,7 @@ def build_initial_condition(config):
             + angular_momentum_amplitude_code * np.sin(phase_dimensionless)
         )
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    sim.fluid.SetFluidTime(sim.par.simulation.time_code)
+    sim.fluid.SetFluidTime(sim.par.simulation.time_proper_code)
     sim.fluid.SetPressure()
     sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,

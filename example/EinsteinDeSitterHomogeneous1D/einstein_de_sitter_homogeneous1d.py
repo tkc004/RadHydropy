@@ -13,6 +13,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
@@ -26,21 +27,14 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     t1 = float(par_config['simulation']['final_time'])
     initial_condition = config['initial_condition']
     tau0 = cosmology.supercomoving_time(t0)
-    class EOS:
-        gamma = 5.0 / 3.0
-        is_isothermal = False
-
-        def total_energy_density(self, rho, vel, pressure):
-            return 0.5 * rho * vel**2 + pressure / (self.gamma - 1.0)
-
-    class Fluid:
-        tau_supercomoving_code = tau0
-        rho_comoving_code = np.array([initial_condition['density']])
-        vel_supercomoving_code = np.array([initial_condition['velocity']])
-        pre_supercomoving_code = np.array([initial_condition['pressure']])
-        eos = EOS()
-
-    fluid = Fluid()
+    sim = Rsim(par_config)
+    sim.par.tau_supercomoving_code = tau0
+    sim.par.simulation.tau_supercomoving_code = tau0
+    sim.fluid.tau_supercomoving_code = tau0
+    sim.fluid.rho_comoving_code = np.array([initial_condition['density']])
+    sim.fluid.vel_supercomoving_code = np.array([initial_condition['velocity']])
+    sim.fluid.pre_supercomoving_code = np.array([initial_condition['pressure']])
+    fluid = sim.fluid
     initial = (
         fluid.rho_comoving_code.copy(),
         fluid.vel_supercomoving_code.copy(),

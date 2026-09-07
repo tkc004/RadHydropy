@@ -2,7 +2,6 @@
 
 import numpy as np
 import unyt
-from types import SimpleNamespace
 
 from radhydropy.constants import (
     BOLTZMANN_CONSTANT_CGS,
@@ -11,6 +10,7 @@ from radhydropy.constants import (
 )
 from radhydropy.units import code_unit_scales, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
+from radhydropy.rsim import Rsim
 
 
 def spherical_cell_centers(boundary):
@@ -45,35 +45,24 @@ def point_mass_density(
     )
 
 
-class InitialCondition:
+class InitialCondition(Rsim):
     """Minimal HDF5-compatible analytic initial-condition container."""
 
     def __init__(self, config, code_units):
         initial_condition = config["initial_condition"]
         grid_cells = int(config["par"]["mesh"]["grid_cells"])
-        self.par = type("Par", (), {})()
-        self.mesh = type("Mesh", (), {})()
-        self.fluid = type("Fluid", (), {})()
-        self.par.CodeUnits = code_units
-        self.par.units = SimpleNamespace(CodeUnits=code_units)
-        self.par.nogrid = grid_cells
-        self.par.noghost = 2
-        self.par.coordsys = "spherical"
-        self.par.time_code = 0.0
-        self.par.boxsize = np.asarray(
+        super().__init__(config["par"])
+        self.par.mesh.grid_cells = grid_cells
+        self.par.simulation.coordinate_system = "spherical"
+        self.par.simulation.time_proper_code = 0.0
+        self.par.simulation.box_size = np.asarray(
             [float(initial_condition["outer_radius"].to_value(code_units.length_unit))]
-        )
-        self.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
-        self.par.simulation = SimpleNamespace(
-            coordinate_system="spherical",
-            time_code=self.par.time_code,
-            box_size=self.par.boxsize,
         )
 
         self.mesh.boundary = np.linspace(
             float(initial_condition["inner_radius"].to_value(code_units.length_unit)),
             float(initial_condition["outer_radius"].to_value(code_units.length_unit)),
-            self.par.nogrid + 1,
+            grid_cells + 1,
         )
         self.mesh.coordinate = spherical_cell_centers(self.mesh.boundary)
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1] ** 2
@@ -81,7 +70,7 @@ class InitialCondition:
             (self.mesh.boundary[1:] ** 3 - self.mesh.boundary[:-1] ** 3)
             * 4.0 * np.pi / 3.0
         )
-        self.fluid.rho_code = point_mass_density(
+        self.fluid.rho_proper_code = point_mass_density(
             self.mesh.coordinate * code_units.length_unit,
             initial_condition["reference_density"],
             initial_condition["initial_temperature"],
@@ -90,25 +79,22 @@ class InitialCondition:
             self.mesh.coordinate[0] * code_units.length_unit,
         )
         scales = code_unit_scales(code_units)
-        self.fluid.rho_code = quantity_to_value(
-            self.fluid.rho_code, code_units.density_unit
+        self.fluid.rho_proper_code = quantity_to_value(
+            self.fluid.rho_proper_code, code_units.density_unit
         )
-        self.fluid.temp_code = np.full(
-            self.par.nogrid,
+        self.fluid.temp_proper_code = np.full(
+            grid_cells,
             float(initial_condition["initial_temperature"].to_value(unyt.K))
             / scales["temperature_cgs_K"],
         )
-        self.fluid.mu = np.full(self.par.nogrid, float(initial_condition["mean_molecular_weight"]))
-        self.fluid.vel_code = np.zeros(self.par.nogrid)
+        self.fluid.mu = np.full(grid_cells, float(initial_condition["mean_molecular_weight"]))
+        self.fluid.vel_proper_code = np.zeros(grid_cells)
         self.mesh.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS, coordinate=self.mesh.coordinate,
             boundary=self.mesh.boundary, width=np.diff(self.mesh.boundary),
             area=self.mesh.area, volume=self.mesh.vol,
         )
-        self.fluid.rho_proper_code = self.fluid.rho_code
-        self.fluid.vel_proper_code = self.fluid.vel_code
-        self.fluid.temp_proper_code = self.fluid.temp_code
-        self.fluid.pre_proper_code = self.fluid.rho_code * self.fluid.temp_code
+        self.fluid.pre_proper_code = self.fluid.rho_proper_code * self.fluid.temp_proper_code
         self.fluid.time_proper_code = 0.0
         self.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
         self.fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -116,6 +102,7 @@ class InitialCondition:
             velocity=self.fluid.vel_proper_code, pressure=self.fluid.pre_proper_code,
             temperature=self.fluid.temp_proper_code, time=0.0, mu=self.fluid.mu,
         )
+        self.solver.SetConserved(self.mesh, self.fluid, verbose=0)
 
 
 def analytic_density_code(radius_code, config, code_units):

@@ -100,6 +100,36 @@ def make_initial_condition(
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 
+def finalize_initial_condition(sim, grid_cells, extra_fields=()):
+    """Remove setup ghosts before serializing a canonical proper-code IC."""
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(grid_cells)
+    sim.mesh.boundary_proper_code = as_named_array(
+        sim.mesh.boundary_proper_code[first:last + 1]
+    )
+    fields = (
+        "rho_proper_code", "vel_proper_code", "temp_proper_code", "pre_proper_code", "mu",
+        "Mass_code", "Mom_code", "AngularMomentum_code", "Energy_code",
+        "InternalEnergy_code", *extra_fields,
+    )
+    for field in fields:
+        if hasattr(sim.fluid, field):
+            values = getattr(sim.fluid, field)
+            if values is not None and np.ndim(values) >= 1 and len(values) >= last:
+                setattr(sim.fluid, field, as_named_array(values[first:last]))
+    sim.par.mesh.ghost_cells = 0
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        coordinate=sim.mesh.x_proper_code[first:last],
+        boundary=sim.mesh.boundary_proper_code,
+        width=sim.mesh.width_proper_code[first:last],
+        area=sim.mesh.area_proper_code[first:last],
+        volume=sim.mesh.volume_proper_code[first:last],
+    )
+    sim.fluid._refresh_runtime_state()
+    return sim
+
+
 def physical_snapshot(config, filename):
     sim = Rsim(config["par"])
     import radhydropy.io as rio

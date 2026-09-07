@@ -46,7 +46,7 @@ def build_initial_condition(config):
     sim.par.simulation.box_size = quantity_to_value(
         initial['box_size'], code_units.length_unit
     )
-    sim.par.simulation.time_code = quantity_to_value(
+    sim.par.simulation.time_proper_code = quantity_to_value(
         initial.get('current_time', 0.0 * unyt.s), code_units.time_unit
     )
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
@@ -81,7 +81,7 @@ def build_initial_condition(config):
     sim.fluid.xHI = np.ones(
         grid_cells
     ) * par_config['chemistry']['hydrogen_xHI_initial']
-    sim.fluid.SetFluidTime(sim.par.simulation.time_code)
+    sim.fluid.SetFluidTime(sim.par.simulation.time_proper_code)
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     sim.fluid.SetPressure()
     sim.fluid._refresh_runtime_state()

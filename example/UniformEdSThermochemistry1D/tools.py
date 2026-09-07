@@ -24,13 +24,12 @@ class UniformEdSInitialCondition:
         rmax = quantity_to_value(initial_condition["outer_radius"], units.length_unit)
         initial_time = float(initial_condition["initial_cosmic_time"])
 
-        self.par.CodeUnits = units
         self.par.units = SimpleNamespace(CodeUnits=units)
         self.par.unit_system = units.unit_system
         self.par.nogrid = count
         self.par.coordsys = "spherical"
         self.par.boxsize = np.asarray([rmax])
-        self.par.time_code = np.asarray([initial_time], dtype=float)
+        self.par.time_proper_code = np.asarray([initial_time], dtype=float)
         self.par.cosmological_expansion = True
         self.par.supercomoving_coordinates = False
         self.par.cosmological_gravity = False
@@ -47,7 +46,7 @@ class UniformEdSInitialCondition:
         self.par.pressure_representation = "physical"
         self.par.temperature_representation = "physical"
         self.par.simulation = SimpleNamespace(
-            time_code=initial_time,
+            time_proper_code=initial_time,
             box_size=np.asarray([rmax]),
             coordinate_system="spherical",
         )
@@ -66,16 +65,16 @@ class UniformEdSInitialCondition:
         nH = float(initial_condition["hydrogen_density_cgs_cm3"])
         hydrogen_fraction = float(initial_condition["hydrogen_mass_fraction"])
         rho_physical = nH * PROTON_MASS_CGS / hydrogen_fraction
-        rho_code = rho_physical / float(units.density_unit.to_value("g/cm**3"))
+        rho_comoving_code = rho_physical / float(units.density_unit.to_value("g/cm**3"))
 
         temperature = float(initial_condition["temperature_cgs_K"])
         xHI = float(initial_condition["xHI"])
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))
 
-        self.fluid.rho_code = np.full(count, rho_code)
-        self.fluid.vel_code = np.zeros(count)
+        self.fluid.rho_comoving_code = np.full(count, rho_comoving_code)
+        self.fluid.vel_supercomoving_code = np.zeros(count)
         temperature_unit_cgs_K = float(units.temperature_unit.to_value("K"))
-        self.fluid.temp_code = np.full(count, temperature / temperature_unit_cgs_K)
+        self.fluid.temp_supercomoving_code = np.full(count, temperature / temperature_unit_cgs_K)
         self.fluid.xHI = np.full(count, xHI)
         self.fluid.mu = np.full(count, mu)
 
@@ -120,8 +119,8 @@ def analytic_compton_temperature(
     final_time_s = float(np.max(cosmic_times_s))
 
     def rhs(time_s, values):
-        time_code = time_s / time_unit_s
-        scale_factor = float(cosmology.scale_factor(time_code))
+        time_proper_code = time_s / time_unit_s
+        scale_factor = float(cosmology.scale_factor(time_proper_code))
         cmb_temperature = cmb_temperature_0_cgs_K / scale_factor
         return [temperature_coefficient * scale_factor ** -4 * (cmb_temperature - values[0])]
 

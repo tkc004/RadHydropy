@@ -117,7 +117,12 @@ def main(config_filename=DEFAULT_CONFIG):
                                       'tempini': initial_temperature * unyt.K},
                 'example': config['example']}
             ric = _write_initial_condition(case_config, case_dir)
-            sim = ric
+            sim = Rsim(case_config['par'])
+            sim.Callreadhdf5()
+            sim.par.metal_pie_table = table
+            sim.SetMesh()
+            sim.SetFluid()
+            sim.SetInitFluid()
             # This is a one-cell source-only parcel; a hydro gradient cannot
             # be evaluated on its single active cell.
             sim.Run(outputtime=0, mode="sources")

@@ -73,7 +73,12 @@ def _run_case(
     eu.clean_previous_outputs(case_config)
     initial = build_initial_condition(case_config)
     rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
-    sim = initial
+    sim = Rsim(case)
+    sim.Callreadhdf5()
+    sim.par.metal_pie_table = table
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
     sim.Run(outputtime=0, mode='hydro' if adiabatic else 'hydro_sources')
     snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
     if len(snapshots) < 2:

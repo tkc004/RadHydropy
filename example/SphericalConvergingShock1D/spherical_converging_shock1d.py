@@ -46,30 +46,41 @@ def _read_profile(filename, units):
     boundary = np.asarray(mesh.boundary, dtype=float)
     coordinate = 0.5 * (boundary[1:] + boundary[:-1])
     volume = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
-    rho_code = np.asarray(fluid.rho_code[first:first + count], dtype=float)
-    velocity = np.asarray(fluid.vel_code[first:first + count], dtype=float)
-    temp_code = np.asarray(fluid.temp_code[first:first + count], dtype=float)
+    rho_proper_code = np.asarray(fluid.rho_proper_code[first:first + count], dtype=float)
+    velocity_proper_code = np.asarray(fluid.vel_proper_code[first:first + count], dtype=float)
+    temp_proper_code = np.asarray(fluid.temp_proper_code[first:first + count], dtype=float)
     mu = np.asarray(fluid.mu[first:first + count], dtype=float)
-    rho = rho_code
-    temp = temp_code
+    rho_proper = rho_proper_code
+    temp_proper = temp_proper_code
     eos = EOS("polytropic", gamma=1.4, code_units=units)
-    pressure = eos.pressure(rho, temp, mu)
+    pressure_proper_code = eos.pressure(
+        rho_proper_code, temp_proper_code, mu
+    )
     mass = float(
         np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))
         if hasattr(fluid, "Mass_code")
-        else np.sum(rho * volume[first:first + count])
+        else np.sum(rho_proper_code * volume[first:first + count])
     )
     energy = float(
         np.sum(np.asarray(fluid.Energy_code[first:first + count], dtype=float))
         if hasattr(fluid, "Energy_code")
-        else np.sum(eos.total_energy_density(rho, velocity, pressure) * volume[first:first + count])
+        else np.sum(
+            eos.total_energy_density(
+                rho_proper_code, velocity_proper_code, pressure_proper_code
+            ) * volume[first:first + count]
+        )
     )
-    thermal = float(np.sum(eos.thermal_energy_density(pressure) * volume[first:first + count]))
+    thermal = float(
+        np.sum(
+            eos.thermal_energy_density(pressure_proper_code)
+            * volume[first:first + count]
+        )
+    )
     return (
         coordinate[first:first + count],
-        rho,
-        velocity,
-        temp,
+        rho_proper_code,
+        velocity_proper_code,
+        temp_proper_code,
         mass,
         energy,
         thermal,

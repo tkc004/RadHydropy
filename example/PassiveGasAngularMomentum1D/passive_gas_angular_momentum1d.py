@@ -106,19 +106,16 @@ def main(config_filename=DEFAULT_CONFIG):
     radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     figure = Path(par_config['output']['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
-    initial_rho_code = initial_density_proper_code
-    initial_vel_code = initial_velocity_proper_code
-    initial_temp_code = initial_temperature_proper_code
-    final_rho_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
-    final_vel_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
-    final_temp_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
+    final_density_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
+    final_velocity_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
+    final_temperature_proper_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
     conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     hydro_plots = (
-        (axes[0, 0], initial_rho_code, final_rho_code, 'density [proper code]'),
-        (axes[0, 1], initial_vel_code, final_vel_code, 'velocity [proper code]'),
-        (axes[1, 0], initial_temp_code, final_temp_code, 'temperature [proper code]'),
+        (axes[0, 0], initial_density_proper_code, final_density_proper_code, 'density [proper code]'),
+        (axes[0, 1], initial_velocity_proper_code, final_velocity_proper_code, 'velocity [proper code]'),
+        (axes[1, 0], initial_temperature_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
     )
     for axis, initial_values, final_values, ylabel in hydro_plots:
         axis.plot(radius, initial_values, '--', label='initial')
@@ -165,12 +162,12 @@ def main(config_filename=DEFAULT_CONFIG):
     if snapshot_times.size > 1 and np.allclose(snapshot_times, snapshot_times[0]):
         final_time = par_config['simulation']['final_time']
         units = initial.par.units.CodeUnits
-        final_time_code = float(
+        final_time_proper_code = float(
             final_time.to_value(units.time_unit)
             if hasattr(final_time, 'to_value')
             else final_time
         )
-        snapshot_times = np.linspace(0.0, final_time_code, snapshot_times.size)
+        snapshot_times = np.linspace(0.0, final_time_proper_code, snapshot_times.size)
     snapshot_total_j = np.asarray(snapshot_total_j)
     relative_conservation_error = (
         snapshot_total_j - initial_total_j

@@ -13,7 +13,7 @@ par:
     CFL: 0.2
     order: 0
   boundary:
-    condition: InflowOutflowSph
+    condition: InflowSph
     inflow_velocity: {value: -100.0, unit: km/s}
     inflow_density: {value: 4.402e-27, unit: g/cm**3}
     inflow_temperature: {value: 10000.0, unit: K}

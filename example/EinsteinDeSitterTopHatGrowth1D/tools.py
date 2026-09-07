@@ -1,10 +1,10 @@
 """Helpers for the Einstein--de Sitter linear-growth benchmark."""
 
 import numpy as np
-from types import SimpleNamespace
 import unyt
 
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
@@ -12,11 +12,6 @@ from radhydropy.runtime_fields import (
     SUPERCOMOVING_RUNTIME_FIELDS,
 )
 import radhydropy.io as rio
-
-
-class Par: pass
-class Mesh: pass
-class Fluid: pass
 
 
 def spherical_cell_centers(boundary):
@@ -43,28 +38,19 @@ def linear_overdensity(delta_initial, scale_factor, initial_scale_factor):
 def build_initial_condition(config):
     code_units = config['_code_units']
     cosmology = config['_cosmology']
-    sim = SimpleNamespace()
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim.par, sim.mesh, sim.fluid = Par(), Mesh(), Fluid()
-    sim.par.CodeUnits = code_units
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    sim.par.unit_system = code_units.unit_system
-    sim.par.nogrid = grid_cells
-    sim.par.coordsys = 'spherical'
-    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
-    sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    sim = Rsim(config['par'])
+    sim.par.mesh.grid_cells = grid_cells
+    sim.par.mesh.ghost_cells = 0
     boxsize_code = quantity_to_value(initial_condition['boxsize'], code_units.length_unit)
-    sim.par.boxsize = np.ones(1) * boxsize_code
     cosmic_time = float(initial_condition['cosmic_time'])
-    sim.par.simulation = SimpleNamespace(
-        tau_supercomoving_code=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
-        box_size=np.ones(1) * boxsize_code,
-        coordinate_system='spherical',
-    )
+    sim.par.simulation.box_size = np.ones(1) * boxsize_code
+    sim.par.simulation.coordinate_system = 'spherical'
     scale_factor = cosmology.scale_factor(cosmic_time)
     hubble = cosmology.hubble(cosmic_time)
     sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
+    sim.par.simulation.tau_supercomoving_code = sim.par.tau_supercomoving_code
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True
@@ -84,7 +70,7 @@ def build_initial_condition(config):
     rmin_code = quantity_to_value(initial_condition['rmin'], code_units.length_unit)
     rmax_code = quantity_to_value(initial_condition['rmax'], code_units.length_unit)
     sim.mesh.boundary_comoving_code = np.linspace(
-        rmin_code, rmax_code, sim.par.nogrid + 1,
+        rmin_code, rmax_code, grid_cells + 1,
     )
     sim.mesh.x_comoving_code = spherical_cell_centers(sim.mesh.boundary_comoving_code)
     sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
@@ -96,21 +82,22 @@ def build_initial_condition(config):
     rho_comoving = rho_background * scale_factor**3
     delta = float(initial_condition['overdensity'])
     inside = sim.mesh.x_comoving_code < float(initial_condition['top_hat_radius'])
-    sim.fluid.rho_comoving_code = rho_comoving * (1.0 + delta * inside) * np.ones(sim.par.nogrid)
+    sim.fluid.rho_comoving_code = rho_comoving * (1.0 + delta * inside) * np.ones(grid_cells)
     sim.fluid.vel_supercomoving_code = growing_mode_velocity(
         sim.mesh.x_comoving_code, delta, scale_factor, hubble,
     )
-    sim.fluid.temp_supercomoving_code = np.ones(sim.par.nogrid) * quantity_to_value(
+    sim.fluid.temp_supercomoving_code = np.ones(grid_cells) * quantity_to_value(
         initial_condition['tempini'], code_units.temperature_unit,
     ) * scale_factor**2
-    sim.fluid.mu = np.ones(sim.par.nogrid) * float(initial_condition['muini'])
+    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
     sim.mesh.width_comoving_code = np.diff(sim.mesh.boundary_comoving_code)
-    sim.mesh.geometry_state = MeshGeometryState(
-        x_comoving_code=sim.mesh.x_comoving_code,
-        boundary_comoving_code=sim.mesh.boundary_comoving_code,
-        width_comoving_code=sim.mesh.width_comoving_code,
-        area_comoving_code=sim.mesh.area_comoving_code,
-        volume_comoving_code=sim.mesh.volume_comoving_code,
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        coordinate=sim.mesh.x_comoving_code,
+        boundary=sim.mesh.boundary_comoving_code,
+        width=sim.mesh.width_comoving_code,
+        area=sim.mesh.area_comoving_code,
+        volume=sim.mesh.volume_comoving_code,
     )
     sim.fluid.tau_supercomoving_code = float(
         np.asarray(sim.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
@@ -126,7 +113,7 @@ def build_initial_condition(config):
     )
 
 
-    return sim
+    return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 def read_snapshot(filename, par_config):
     units = CodeUnits.from_mapping(par_config['CodeUnits'])

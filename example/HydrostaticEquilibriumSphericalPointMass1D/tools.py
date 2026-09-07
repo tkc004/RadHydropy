@@ -5,10 +5,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from types import SimpleNamespace
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, GRAVITATIONAL_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
+from radhydropy.rsim import Rsim
 from radhydropy.units import (
     CodeUnits,
     code_quantity_to_cgs,
@@ -20,18 +20,6 @@ from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROP
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
-
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
 
 
 def sound_speed_squared(temp, mu, code_units=None):
@@ -134,30 +122,19 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
 
 
 def build_initial_condition(config, code_units=None):
-    sim = SimpleNamespace()
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.CodeUnits = code_units
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-
-    sim.par.nogrid = grid_cells
-    sim.par.coordsys = initial_condition['coordinate_system']
-    sim.par.boxsize = np.ones(1) * initial_condition['box_size']
-    sim.par.time_code = np.ones(1) * initial_condition['current_time']
-    sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=2)
-    sim.par.simulation = SimpleNamespace(
-        coordinate_system='spherical',
-        time_code=sim.par.time_code,
-        box_size=sim.par.boxsize,
-    )
+    sim = Rsim(config['par'])
+    sim.par.mesh.grid_cells = grid_cells
+    sim.par.mesh.ghost_cells = 0
+    sim.par.simulation.coordinate_system = initial_condition['coordinate_system']
+    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['current_time'], code_units.time_unit)
+    sim.par.simulation.box_size = quantity_to_value(initial_condition['box_size'], code_units.length_unit)
 
     sim.mesh.boundary = np.linspace(
         initial_condition['inner_radius'],
         initial_condition['outer_radius'],
-        sim.par.nogrid + 1,
+        grid_cells + 1,
     )
     sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
     dx = sim.mesh.boundary[1] - sim.mesh.boundary[0]
@@ -169,10 +146,10 @@ def build_initial_condition(config, code_units=None):
         / 3.0
     )
 
-    sim.fluid.temp_code = np.ones(sim.par.nogrid) * initial_condition['initial_temperature']
-    sim.fluid.mu = np.ones(sim.par.nogrid) * initial_condition['mean_molecular_weight']
-    sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
-    sim.fluid.rho_code = point_mass_hydrostatic_density_profile(
+    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['initial_temperature'], code_units.temperature_unit)
+    sim.fluid.mu = np.ones(grid_cells) * initial_condition['mean_molecular_weight']
+    sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
+    sim.fluid.rho_proper_code = point_mass_hydrostatic_density_profile(
         sim.mesh.coordinate,
         initial_condition['reference_density'],
         initial_condition['initial_temperature'],
@@ -187,9 +164,9 @@ def build_initial_condition(config, code_units=None):
         PROPER_RUNTIME_FIELDS, coordinate=coordinate_code, boundary=boundary_code,
         width=np.diff(boundary_code), area=sim.mesh.area, volume=sim.mesh.vol,
     )
-    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_code, code_units.density_unit)
-    sim.fluid.vel_proper_code = np.zeros(sim.par.nogrid)
-    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_code, code_units.temperature_unit)
+    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_proper_code, code_units.density_unit)
+    sim.fluid.vel_proper_code = np.zeros(grid_cells)
+    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_proper_code, code_units.temperature_unit)
     sim.fluid.pre_proper_code = sim.fluid.rho_proper_code * sim.fluid.temp_proper_code
     sim.fluid.time_proper_code = 0.0
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
@@ -200,7 +177,9 @@ def build_initial_condition(config, code_units=None):
     )
 
 
-    return sim
+    sim.fluid.SetUpFluid(sim.par, sim.mesh)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
+    return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = config['par']['units']['CodeUnits']

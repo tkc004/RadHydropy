@@ -49,9 +49,9 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = Path(par_config['output']['savedir']) / 'GasHydroControl1D.jpg'
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True)
     for axis, initial_values, final_values, ylabel in (
-        (axes[0], initial.fluid.rho_code, sim.fluid.rho_code[interior], 'density [code units]'),
-        (axes[1], initial.fluid.vel_code, sim.fluid.vel_code[interior], 'radial velocity [code units]'),
-        (axes[2], initial.fluid.temp_code, sim.fluid.temp_code[interior], 'temperature [code units]'),
+        (axes[0], initial.fluid.rho_proper_code, sim.fluid.rho_proper_code[interior], 'density [code units]'),
+        (axes[1], initial.fluid.vel_proper_code, sim.fluid.vel_proper_code[interior], 'radial velocity [code units]'),
+        (axes[2], initial.fluid.temp_proper_code, sim.fluid.temp_proper_code[interior], 'temperature [code units]'),
     ):
         axis.plot(radius, initial_values, '--', label='initial')
         axis.plot(radius, final_values, 'o', ms=3, label='final')

@@ -25,7 +25,7 @@ def build_initial_condition(config):
     result = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
     result.par.simulation.coordinate_system = initial['coordinate_system']
-    result.par.simulation.time_code = initial['current_time'].to_value(code_units.time_unit)
+    result.par.simulation.time_proper_code = initial['current_time'].to_value(code_units.time_unit)
     result.par.simulation.box_size = initial['box_size'].to_value(code_units.length_unit)
     result.par.mesh.ghost_cells = 1
     result.mesh.boundary_proper_code = as_named_array(np.linspace(
@@ -65,7 +65,7 @@ def build_initial_condition(config):
         volume=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, code_units.area_unit) * np.diff(boundary),
     )
     result.fluid.SetPressure()
-    result.fluid.SetFluidTime(result.par.simulation.time_code)
+    result.fluid.SetFluidTime(result.par.simulation.time_proper_code)
     result.fluid.SetEnergyDensity()
     result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
     return result

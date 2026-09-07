@@ -63,7 +63,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
-    tau = float(np.asarray(sim.par.time_code).flat[0])
+    tau = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     a = sim.par.cosmology.scale_factor_from_supercomoving(tau)
     cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
     rho_background = sim.par.cosmology.background_density(cosmic_time)
