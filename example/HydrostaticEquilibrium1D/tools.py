@@ -32,14 +32,14 @@ def _physical_value(value, unit, name):
         ) from error
 
 
-def sound_speed_squared(temp, mu, code_units=None):
+def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
     """Return the isothermal sound speed squared."""
-    if hasattr(temp, "to_value"):
-        temp_value = float(temp.to_value(unyt.K))
-    elif code_units is not None:
-        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_cgs_K"]
+    if hasattr(temperature_proper_code, "to_value"):
+        temp_value = float(temperature_proper_code.to_value(unyt.K))
+    elif code_unit_system is not None:
+        temp_value = float(np.asarray(temperature_proper_code, dtype=float)) * code_unit_scales(code_unit_system)["temperature_cgs_K"]
     else:
-        temp_value = float(temp)
+        temp_value = float(temperature_proper_code)
     mu_value = float(np.asarray(mu, dtype=float))
     return (
         BOLTZMANN_CONSTANT_CGS
@@ -51,30 +51,30 @@ def sound_speed_squared(temp, mu, code_units=None):
 def hydrostatic_density_profile(
     coordinate,
     rho_ref,
-    temp,
+    temperature_proper_code,
     mu,
     gravity_strength,
-    code_units=None,
+    code_unit_system=None,
 ):
     """Return the exact isothermal hydrostatic density profile."""
-    c_s2 = sound_speed_squared(temp, mu, code_units=code_units)
+    c_s2 = sound_speed_squared(temperature_proper_code, mu, code_unit_system=code_unit_system)
     c_s2_value = c_s2.to_value(unyt.cm**2 / unyt.s**2)
     if hasattr(coordinate, "to_value"):
         coord_value = coordinate.to_value(unyt.cm)
-    elif code_units is not None:
-        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
+    elif code_unit_system is not None:
+        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
         coord_value = np.asarray(coordinate, dtype=float)
     if hasattr(rho_ref, "to_value"):
         rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
-    elif code_units is not None:
-        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_cgs_g_cm3"]
+    elif code_unit_system is not None:
+        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
     else:
         rho_value = float(rho_ref)
     if hasattr(gravity_strength, "to_value"):
         gravity_value = gravity_strength.to_value(unyt.cm / unyt.s**2)
-    elif code_units is not None:
-        gravity_value = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cgs_cm_s2"]
+    elif code_unit_system is not None:
+        gravity_value = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_unit_system)["acceleration_cgs_cm_s2"]
     else:
         gravity_value = float(gravity_strength)
     scale_height = c_s2_value / gravity_value
@@ -82,12 +82,12 @@ def hydrostatic_density_profile(
     return profile * DENSITY_UNIT
 
 
-def constant_gravity_acceleration(gravity_strength, code_units=None):
+def constant_gravity_acceleration(gravity_strength, code_unit_system=None):
     """Return a callable for a uniform downward acceleration field."""
     if hasattr(gravity_strength, "to_value"):
         gravity_strength = gravity_strength.to_value(unyt.cm / unyt.s**2)
-    elif code_units is not None:
-        gravity_strength = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_units)["acceleration_cgs_cm_s2"]
+    elif code_unit_system is not None:
+        gravity_strength = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_unit_system)["acceleration_cgs_cm_s2"]
     else:
         gravity_strength = float(gravity_strength)
     gravity_strength = float(np.asarray(gravity_strength, dtype=float))
@@ -117,7 +117,7 @@ def build_initial_condition(config):
         initial_condition['initial_temperature'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],
-        code_units=code_units,
+        code_unit_system=code_units,
     ), code_units.density_unit)
     temperature_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['initial_temperature'], code_units.temperature_unit))
     return make_initial_condition(
@@ -171,7 +171,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         initial_condition['initial_temperature'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],
-        code_units=code_units_obj,
+        code_unit_system=code_units_obj,
     )
     if code_units_obj is not None:
         x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)

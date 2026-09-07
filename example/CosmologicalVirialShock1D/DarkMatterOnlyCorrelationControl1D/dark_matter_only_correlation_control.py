@@ -36,10 +36,11 @@ def main(config_filename=CONFIG):
     table_path = config["example"]["correlation_table_filename"]
     table_path = (config_filename.parent / table_path).resolve()
     table = et.load_lcdm_correlation_table(table_path)
-    shells = et.make_dark_matter(
-        ic, units, cosmology, correlation_table=table,
-        softening=float(par["dark_matter"]["softening"]),
-    )
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_correlation_table"] = table
+    config["_dark_matter_softening"] = float(par["dark_matter"]["softening"])
+    shells = et.make_dark_matter(config)
 
     initial = float(ic["initial_cosmic_time"])
     final = float(par["simulation"]["final_time"])

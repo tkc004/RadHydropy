@@ -40,13 +40,15 @@ generate_lcdm_correlation_table = _LCDM_TOOLS.generate_lcdm_correlation_table
 load_lcdm_correlation_table = _LCDM_TOOLS.load_lcdm_correlation_table
 
 
-def cell_centres(boundary):
-    inner, outer = boundary[:-1], boundary[1:]
+def cell_centres(boundary_comoving_code):
+    inner, outer = boundary_comoving_code[:-1], boundary_comoving_code[1:]
     return 0.75 * (outer**4 - inner**4) / np.maximum(outer**3 - inner**3, 1.0e-300)
 
 
-def perturbation_radius(ic, cosmology):
+def perturbation_radius(config):
     """Return the comoving top-hat radius for the requested halo mass."""
+    ic = config["initial_condition"]
+    cosmology = config["_cosmology"]
     if ic.get("target_halo_mass") is None:
         return float(ic["perturbation_radius"])
     t = float(ic["initial_cosmic_time"])
@@ -118,9 +120,7 @@ def _correlation_profile(radius, table, length_unit_mpc_h):
     return xi, mean_xi
 
 
-def density_contrast_profile(
-    radius, ic, cosmology, correlation_table=None, length_unit_mpc_h=1.0
-):
+def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
     """Return ``(delta, mean_delta)`` for the configured growing mode.
 
     ``linear_correlation`` uses the supplied tabulated linear-theory
@@ -128,7 +128,10 @@ def density_contrast_profile(
     overdensity inside the target Lagrangian radius.
     """
     radius = np.asarray(radius, dtype=float)
-    target_radius = perturbation_radius(ic, cosmology)
+    ic = config["initial_condition"]
+    cosmology = config["_cosmology"]
+    correlation_table = config.get("_correlation_table")
+    target_radius = perturbation_radius(config)
     overdensity = float(ic["initial_overdensity"])
     profile = str(ic.get("initial_density_profile", "top_hat")).lower()
     if profile == "top_hat":
@@ -172,10 +175,11 @@ def density_contrast_profile(
     return amplitude * xi, amplitude * mean_xi
 
 
-def refresh_typed_initial_condition(result, units):
+def refresh_typed_initial_condition(result):
     """Synchronize typed runtime states after an IC array update."""
+    code_unit_system = result.par.CodeUnits
     result.fluid.pre_supercomoving_code = EOS(
-        "polytropic", 5.0 / 3.0, units
+        "polytropic", 5.0 / 3.0, code_unit_system
     ).pressure(
         result.fluid.rho_comoving_code,
         result.fluid.temp_supercomoving_code,
@@ -201,8 +205,12 @@ def refresh_typed_initial_condition(result, units):
     )
 
 
-def build_initial_condition(config, units, cosmology, pie_table=None, correlation_table=None):
+def build_initial_condition(config):
     """Build the cosmological gas state from nested configuration mappings."""
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
+    pie_table = config.get("_pie_table")
+    correlation_table = config.get("_correlation_table")
     ic = config['initial_condition']
     par = config['par']
     grid_cells = int(par['mesh']['grid_cells'])
@@ -239,9 +247,17 @@ def build_initial_condition(config, units, cosmology, pie_table=None, correlatio
     rho_total = float(cosmology.background_density(cosmic_time))
     rho_comoving = rho_total * a**3
     fb = float(ic['baryon_fraction'])
-    delta, mean_delta = density_contrast_profile(result.mesh.x_comoving_code, ic, cosmology, correlation_table=correlation_table, length_unit_mpc_h=float(units.length_in_cgs) / float((1.0 * unyt.Mpc).to_value('cm')) * float(ic.get('correlation_h', 0.674)))
+    delta, mean_delta = density_contrast_profile(
+        result.mesh.x_comoving_code,
+        config,
+        length_unit_mpc_h=(
+            float(code_unit_system.length_in_cgs)
+            / float((1.0 * unyt.Mpc).to_value('cm'))
+            * float(ic.get('correlation_h', 0.674))
+        ),
+    )
     result.fluid.rho_comoving_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
-    rho_total_cgs = rho_total * units.mass_in_cgs / units.length_in_cgs**3
+    rho_total_cgs = rho_total * code_unit_system.mass_in_cgs / code_unit_system.length_in_cgs**3
     n_h = rho_total_cgs * fb * float(ic['hydrogen_mass_fraction']) * (1.0 + delta) / PROTON_MASS_CGS
     redshift = 1.0 / a - 1.0
     if bool(ic.get('cmb_equilibrium_initial', False)):
@@ -259,7 +275,7 @@ def build_initial_condition(config, units, cosmology, pie_table=None, correlatio
     result.fluid.vel_supercomoving_code = -a**2 * hubble * mean_delta * result.mesh.x_comoving_code / 3.0
     if 'gas_specific_angular_momentum' in ic:
         result.fluid.specific_angular_momentum_code = np.full(grid_cells, float(ic['gas_specific_angular_momentum']))
-    refresh_typed_initial_condition(result, units)
+    refresh_typed_initial_condition(result)
     return result
 
 
@@ -300,9 +316,12 @@ def cmb_equilibrium_electron_fraction(ic):
 
 
 
-def make_dark_matter(
-    ic, units, cosmology, correlation_table=None, softening=None
-):
+def make_dark_matter(config):
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
+    correlation_table = config.get("_correlation_table")
+    ic = config["initial_condition"]
+    softening = config.get("_dark_matter_softening")
     count = int(ic["dark_matter_shells"])
     dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
     central_core_model = DEFAULT_CENTRAL_CORE_MODEL
@@ -325,11 +344,9 @@ def make_dark_matter(
     dm_fraction = 1.0 - float(ic["baryon_fraction"])
     delta, mean_delta = density_contrast_profile(
         radius,
-        ic,
-        cosmology,
-        correlation_table=correlation_table,
+        config,
         length_unit_mpc_h=(
-            float(units.length_in_cgs)
+            float(code_unit_system.length_in_cgs)
             / float((1.0 * unyt.Mpc).to_value("cm"))
             * float(ic.get("correlation_h", 0.674))
         ),
@@ -341,11 +358,9 @@ def make_dark_matter(
         core_radius = central_core_radius
         _, core_mean_delta = density_contrast_profile(
             np.asarray([core_radius]),
-            ic,
-            cosmology,
-            correlation_table=correlation_table,
+            config,
             length_unit_mpc_h=(
-                float(units.length_in_cgs)
+                float(code_unit_system.length_in_cgs)
                 / float((1.0 * unyt.Mpc).to_value("cm"))
                 * float(ic.get("correlation_h", 0.674))
             ),
@@ -366,7 +381,7 @@ def make_dark_matter(
         angular_momentum=np.full(
             count, float(ic.get("dm_specific_angular_momentum", 0.0))
         ),
-        softening=shell_softening, code_units=units,
+        softening=shell_softening, code_units=code_unit_system,
         fixed_enclosed_mass=central_core_mass,
         central_core_radius=(
             float(ic.get("dm_central_core_radius", dm_inner))

@@ -85,6 +85,35 @@ def SetInitFluid(sim):
         time.time() - getattr(sim, "_start_time", time.time())
     ))
     sim.ConvertParametersToCodeUnits()
+    if getattr(sim.par, "supercomoving_coordinates", False):
+        # The IC header is authoritative for cosmological startup time.  Keep
+        # the parameter and fluid clocks aligned before boundary/conserved
+        # initialization; otherwise SetFluid()'s default zero time can make
+        # gravity and source terms use the wrong background scale factor.
+        initial_tau = float(
+            np.asarray(
+                getattr(sim.par, "tau_supercomoving_code"), dtype=float
+            ).reshape(-1)[0]
+        )
+        simulation_tau_value = getattr(
+            sim.par.simulation, "tau_supercomoving_code", initial_tau
+        )
+        simulation_tau = float(
+            np.asarray(simulation_tau_value, dtype=float).reshape(-1)[0]
+        )
+        if not np.isclose(initial_tau, simulation_tau, rtol=0.0, atol=1.0e-12):
+            raise ValueError(
+                "cosmological startup time mismatch: par.tau_supercomoving_code "
+                f"={initial_tau} but par.simulation.tau_supercomoving_code="
+                f"{simulation_tau}"
+            )
+        sim.fluid.SetFluidTime(initial_tau)
+        fluid_tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float))
+        if not np.isclose(initial_tau, fluid_tau, rtol=0.0, atol=1.0e-12):
+            raise ValueError(
+                "cosmological startup time mismatch after fluid synchronization: "
+                f"initial_tau={initial_tau}, fluid_tau={fluid_tau}"
+            )
     sim.mesh._par = sim.par
     sim.solver.InitializeHydrostaticCore(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetBoundary(sim.mesh,sim.fluid,sim.par)

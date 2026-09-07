@@ -6,13 +6,18 @@ import numpy as np
 import unyt
 
 from radhydropy.constants import PROTON_MASS_CGS
+from radhydropy.runtime_fields import (
+    FluidRuntimeState,
+    MeshGeometryState,
+    PROPER_RUNTIME_FIELDS,
+)
 from radhydropy.units import quantity_to_value
 
 
 class UniformEdSInitialCondition:
     """Build a few-cell uniform supercomoving initial condition."""
 
-    def __init__(self, config, units, cosmology):
+    def __init__(self, config, code_unit_system, cosmology):
         initial_condition = config["initial_condition"]
         mesh_config = config["par"]["mesh"]
         self.par = SimpleNamespace()
@@ -20,17 +25,19 @@ class UniformEdSInitialCondition:
         self.fluid = SimpleNamespace()
 
         count = int(mesh_config["grid_cells"])
-        rmin = quantity_to_value(initial_condition["inner_radius"], units.length_unit)
-        rmax = quantity_to_value(initial_condition["outer_radius"], units.length_unit)
+        rmin = quantity_to_value(initial_condition["inner_radius"], code_unit_system.length_unit)
+        rmax = quantity_to_value(initial_condition["outer_radius"], code_unit_system.length_unit)
         initial_time = float(initial_condition["initial_cosmic_time"])
 
-        self.par.units = SimpleNamespace(CodeUnits=units)
-        self.par.unit_system = units.unit_system
+        self.par.code_unit_system = SimpleNamespace(CodeUnits=code_unit_system)
+        self.par.CodeUnits = code_unit_system
+        self.par.units = SimpleNamespace(CodeUnits=code_unit_system)
+        self.par.unit_system = code_unit_system.unit_system
         self.par.nogrid = count
         self.par.coordsys = "spherical"
         self.par.boxsize = np.asarray([rmax])
         self.par.time_proper_code = np.asarray([initial_time], dtype=float)
-        self.par.cosmological_expansion = True
+        self.par.cosmological_expansion = False
         self.par.supercomoving_coordinates = False
         self.par.cosmological_gravity = False
         self.par.selfgravity = False
@@ -52,31 +59,55 @@ class UniformEdSInitialCondition:
         )
         self.par.mesh = SimpleNamespace(grid_cells=count, ghost_cells=0)
 
-        self.mesh.boundary = np.linspace(rmin, rmax, count + 1)
-        self.mesh.coordinate = 0.75 * (
-            self.mesh.boundary[1:] ** 4 - self.mesh.boundary[:-1] ** 4
+        self.mesh.boundary_proper_code = np.linspace(rmin, rmax, count + 1)
+        self.mesh.x_proper_code = 0.75 * (
+            self.mesh.boundary_proper_code[1:] ** 4 - self.mesh.boundary_proper_code[:-1] ** 4
         ) / np.maximum(
-            self.mesh.boundary[1:] ** 3 - self.mesh.boundary[:-1] ** 3,
+            self.mesh.boundary_proper_code[1:] ** 3 - self.mesh.boundary_proper_code[:-1] ** 3,
             1.0e-300,
         )
-        self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1] ** 2
-        self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary ** 3)
+        self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1] ** 2
+        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(
+            self.mesh.boundary_proper_code ** 3
+        )
 
         nH = float(initial_condition["hydrogen_density_cgs_cm3"])
         hydrogen_fraction = float(initial_condition["hydrogen_mass_fraction"])
         rho_physical = nH * PROTON_MASS_CGS / hydrogen_fraction
-        rho_comoving_code = rho_physical / float(units.density_unit.to_value("g/cm**3"))
+        rho_proper_code = rho_physical / float(code_unit_system.density_unit.to_value("g/cm**3"))
 
         temperature = float(initial_condition["temperature_cgs_K"])
         xHI = float(initial_condition["xHI"])
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))
 
-        self.fluid.rho_comoving_code = np.full(count, rho_comoving_code)
-        self.fluid.vel_supercomoving_code = np.zeros(count)
-        temperature_unit_cgs_K = float(units.temperature_unit.to_value("K"))
-        self.fluid.temp_supercomoving_code = np.full(count, temperature / temperature_unit_cgs_K)
+        self.fluid.rho_proper_code = np.full(count, rho_proper_code)
+        self.fluid.vel_proper_code = np.zeros(count)
+        temperature_unit_cgs_K = float(code_unit_system.temperature_unit.to_value("K"))
+        self.fluid.temp_proper_code = np.full(count, temperature / temperature_unit_cgs_K)
         self.fluid.xHI = np.full(count, xHI)
         self.fluid.mu = np.full(count, mu)
+        self.fluid.pre_proper_code = (
+            self.fluid.rho_proper_code * self.fluid.temp_proper_code
+        )
+        self.fluid.time_proper_code = initial_time
+        self.mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            coordinate=self.mesh.x_proper_code,
+            boundary=self.mesh.boundary_proper_code,
+            width=np.diff(self.mesh.boundary_proper_code),
+            area=self.mesh.area_proper_code,
+            volume=self.mesh.volume_proper_code,
+        )
+        self.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+        self.fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            density=self.fluid.rho_proper_code,
+            velocity=self.fluid.vel_proper_code,
+            pressure=self.fluid.pre_proper_code,
+            temperature=self.fluid.temp_proper_code,
+            time=self.fluid.time_proper_code,
+            mu=self.fluid.mu,
+        )
 
 
 def analytic_compton_temperature(

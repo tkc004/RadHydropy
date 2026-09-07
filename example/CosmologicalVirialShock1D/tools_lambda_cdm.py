@@ -32,13 +32,15 @@ generate_lcdm_correlation_table = _LCDM_TOOLS.generate_lcdm_correlation_table
 load_lcdm_correlation_table = _LCDM_TOOLS.load_lcdm_correlation_table
 
 
-def cell_centres(boundary):
-    inner, outer = boundary[:-1], boundary[1:]
+def cell_centres(boundary_comoving_code):
+    inner, outer = boundary_comoving_code[:-1], boundary_comoving_code[1:]
     return 0.75 * (outer**4 - inner**4) / np.maximum(outer**3 - inner**3, 1.0e-300)
 
 
-def perturbation_radius(ic, cosmology):
+def perturbation_radius(config):
     """Return the comoving top-hat radius for the requested halo mass."""
+    ic = config["initial_condition"]
+    cosmology = config["_cosmology"]
     if ic.get("target_halo_mass") is None:
         return float(ic["perturbation_radius"])
     t = float(ic["initial_cosmic_time"])
@@ -110,17 +112,18 @@ def _correlation_profile(radius, table, length_unit_mpc_h):
     return xi, mean_xi
 
 
-def density_contrast_profile(
-    radius, ic, cosmology, correlation_table=None, length_unit_mpc_h=1.0
-):
+def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
     """Return ``(delta, mean_delta)`` for the configured growing mode.
 
     ``linear_correlation`` uses the supplied tabulated linear-theory
     correlation function.  Its amplitude is fixed by the requested mean
     overdensity inside the target Lagrangian radius.
     """
+    ic = config["initial_condition"]
+    cosmology = config["_cosmology"]
+    correlation_table = config.get("_correlation_table")
     radius = np.asarray(radius, dtype=float)
-    target_radius = perturbation_radius(ic, cosmology)
+    target_radius = perturbation_radius(config)
     overdensity = float(ic["initial_overdensity"])
     profile = str(ic.get("initial_density_profile", "top_hat")).lower()
     if profile == "top_hat":
@@ -201,7 +204,10 @@ def cmb_equilibrium_electron_fraction(ic):
 
 
 
-def make_dark_matter(ic, units, cosmology, correlation_table=None):
+def make_dark_matter(config):
+    ic = config["initial_condition"]
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
     count = int(ic["dark_matter_shells"])
     dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
     central_core_model = DEFAULT_CENTRAL_CORE_MODEL
@@ -224,11 +230,9 @@ def make_dark_matter(ic, units, cosmology, correlation_table=None):
     dm_fraction = 1.0 - float(ic["baryon_fraction"])
     delta, mean_delta = density_contrast_profile(
         radius,
-        ic,
-        cosmology,
-        correlation_table=correlation_table,
+        config,
         length_unit_mpc_h=(
-            float(units.length_in_cgs)
+            float(code_unit_system.length_in_cgs)
             / float((1.0 * unyt.Mpc).to_value("cm"))
             * float(ic.get("correlation_h", 0.674))
         ),
@@ -240,11 +244,9 @@ def make_dark_matter(ic, units, cosmology, correlation_table=None):
         core_radius = central_core_radius
         _, core_mean_delta = density_contrast_profile(
             np.asarray([core_radius]),
-            ic,
-            cosmology,
-            correlation_table=correlation_table,
+            config,
             length_unit_mpc_h=(
-                float(units.length_in_cgs)
+                float(code_unit_system.length_in_cgs)
                 / float((1.0 * unyt.Mpc).to_value("cm"))
                 * float(ic.get("correlation_h", 0.674))
             ),
@@ -262,7 +264,7 @@ def make_dark_matter(ic, units, cosmology, correlation_table=None):
         angular_momentum=np.full(
             count, float(ic.get("dm_specific_angular_momentum", 0.0))
         ),
-        softening=float(ic["softening"]), code_units=units,
+        softening=float(ic["softening"]), code_units=code_unit_system,
         fixed_enclosed_mass=central_core_mass,
         central_core_radius=(
             float(ic.get("dm_central_core_radius", dm_inner))

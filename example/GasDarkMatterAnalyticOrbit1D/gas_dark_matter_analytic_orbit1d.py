@@ -49,7 +49,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_radius = float(initial_condition['initial_radius'])
     initial_velocity = float(initial_condition['initial_velocity'])
 
-    def rhs(time, state):
+    def rhs(time_proper_code, state):
         radius, velocity = state
         radius_safe = max(radius, np.finfo(float).tiny)
         enclosed = central_mass + 4.0 * np.pi / 3.0 * gas_density * radius**3

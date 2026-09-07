@@ -23,7 +23,7 @@ def shocktubecal(gamma, rho1, rho5, p1, p5):
 
 
 
-def shocktubeanalyticgraph(gamma, rho1, rho2, rho3, rho5, p1, p2, p5, v2, vt, vs, time, xcor, xint):
+def shocktubeanalyticgraph(gamma, rho1, rho2, rho3, rho5, p1, p2, p5, v2, vt, vs, time_proper_code, xcor, xint):
     # p5 and rho5 are higher than p1 and rho1
     # assume the initial interface located at xint
     mu2 = (gamma-1.)/(gamma+1.)
@@ -33,24 +33,24 @@ def shocktubeanalyticgraph(gamma, rho1, rho2, rho3, rho5, p1, p2, p5, v2, vt, vs
     rho_ana=np.zeros(len(xnor))
     p_ana=np.zeros(len(xnor))
     v_ana=np.zeros(len(xnor))
-    logical5 = xnor<-c5*time
-    logical4 = np.logical_and(xnor>-c5*time, xnor<-vt*time)
-    logical3 = np.logical_and(xnor>-vt*time, xnor<v2*time)
-    logical2 = np.logical_and(xnor>v2*time, xnor<vs*time)
-    logical1 = xnor>vs*time
+    logical5 = xnor<-c5*time_proper_code
+    logical4 = np.logical_and(xnor>-c5*time_proper_code, xnor<-vt*time_proper_code)
+    logical3 = np.logical_and(xnor>-vt*time_proper_code, xnor<v2*time_proper_code)
+    logical2 = np.logical_and(xnor>v2*time_proper_code, xnor<vs*time_proper_code)
+    logical1 = xnor>vs*time_proper_code
     xnor4=xnor[logical4]
     rho_ana[logical5]=rho5
-    rho_ana[logical4]=rho5*np.power(-mu2*xnor4/c5/time+(1.-mu2), 2./(gamma-1.))
+    rho_ana[logical4]=rho5*np.power(-mu2*xnor4/c5/time_proper_code+(1.-mu2), 2./(gamma-1.))
     rho_ana[logical3]=rho3
     rho_ana[logical2]=rho2
     rho_ana[logical1]=rho1
     p_ana[logical5]=p5
-    p_ana[logical4]=p5*np.power(-mu2*xnor4/c5/time+(1.-mu2), 2.*gamma/(gamma-1.))
+    p_ana[logical4]=p5*np.power(-mu2*xnor4/c5/time_proper_code+(1.-mu2), 2.*gamma/(gamma-1.))
     p_ana[logical3]=p2
     p_ana[logical2]=p2
     p_ana[logical1]=p1
     v_ana[logical5]=0.0
-    v_ana[logical4]=(1.0-mu2)*(xnor4/time+c5)
+    v_ana[logical4]=(1.0-mu2)*(xnor4/time_proper_code+c5)
     v_ana[logical3]=v2
     v_ana[logical2]=v2
     v_ana[logical1]=0.0

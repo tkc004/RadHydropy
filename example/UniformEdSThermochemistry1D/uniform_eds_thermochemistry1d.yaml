@@ -15,7 +15,7 @@ par:
   boundary:
     condition: Reflecting
   gravity:
-    cosmological_expansion: true
+    cosmological_expansion: false
     supercomoving_coordinates: false
     cosmological_gravity: false
     selfgravity: false

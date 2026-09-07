@@ -144,10 +144,10 @@ def mean_photon_number_density(sim):
     )
 
 
-def time_value(sim, units):
-    code = getattr(sim.par.units, 'CodeUnits', None)
+def time_value(sim, code_unit_system):
+    code = getattr(sim.par.code_unit_system, 'CodeUnits', None)
     time_s = time_seconds(sim.fluid.time_proper_code, code)
-    unit_seconds = float((1.0 * units).to_value(unyt.s))
+    unit_seconds = float((1.0 * code_unit_system).to_value(unyt.s))
     return float(time_s / unit_seconds)
 
 

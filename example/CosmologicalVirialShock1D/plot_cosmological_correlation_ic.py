@@ -44,6 +44,9 @@ def main(config_filename=DEFAULT_CONFIG):
     if not table_filename.is_absolute():
         table_filename = config_filename.parent / table_filename
     table = et.load_lcdm_correlation_table(table_filename)
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_correlation_table"] = table
 
     filename = Path(par["simulation"]["initial_condition_filename"])
     if not filename.is_absolute():
@@ -67,8 +70,7 @@ def main(config_filename=DEFAULT_CONFIG):
         * float(initial_condition.get("correlation_h", 0.674))
     )
     expected_delta, expected_mean_delta = et.density_contrast_profile(
-        radius, initial_condition, cosmology,
-        correlation_table=table,
+        radius, config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     rho_background = float(cosmology.background_density(initial_time))
@@ -83,7 +85,7 @@ def main(config_filename=DEFAULT_CONFIG):
     else:
         expected_temperature = float(initial_condition.get("cie_initial_temperature", 10.0))
 
-    target_radius = et.perturbation_radius(initial_condition, cosmology)
+    target_radius = et.perturbation_radius(config)
     clipped_edges = np.clip(boundary, 0.0, target_radius)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(clipped_edges**3)
     target_volume = 4.0 * np.pi / 3.0 * target_radius**3

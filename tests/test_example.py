@@ -214,7 +214,7 @@ class Testing(unittest.TestCase):
         radius = np.array([0.5, 1.5, 3.0], dtype=float)
         density = advection_sph_analytic.top_hat_density_profile(
             radius,
-            time=1.0,
+            time_proper_code=1.0,
             velocity=1.0,
             boxsize=4.0,
             density_high=10.0,

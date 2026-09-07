@@ -148,11 +148,11 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
                 roots.append(float(branch['time_of_radius'](radius)))
         return roots
 
-    def rhs(time, state):
+    def rhs(time_cosmic_code, state):
         radius, radial_velocity = state
         radius = max(float(radius), centre_match_lambda)
         roots = branch_roots(radius)
-        roots.append(float(time))
+        roots.append(float(time_cosmic_code))
         roots.sort()
         mass = turnaround_mass_normalization * sum(
             (-1.0) ** index
@@ -162,12 +162,12 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
                 -7.0 / 9.0 * radial_velocity + 8.0 / 81.0 * radius
                 - 2.0 / 9.0 * mass / radius**2]
 
-    def centre_event(time, state):
+    def centre_event(time_cosmic_code, state):
         return state[0] - centre_match_lambda
     centre_event.terminal = True
     centre_event.direction = -1
 
-    def apocentre_event(time, state):
+    def apocentre_event(time_cosmic_code, state):
         return state[1]
     apocentre_event.terminal = True
     apocentre_event.direction = -1

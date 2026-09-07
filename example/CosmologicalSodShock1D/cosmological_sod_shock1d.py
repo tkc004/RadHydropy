@@ -34,11 +34,11 @@ class State:
     pass
 
 
-def _read_profile(filename, units):
+def _read_profile(filename, code_unit_system):
     par, mesh, fluid = State(), State(), State()
-    par.CodeUnits = units
-    par.units = State()
-    par.units.CodeUnits = units
+    par.CodeUnits = code_unit_system
+    par.code_unit_system = State()
+    par.code_unit_system.CodeUnits = code_unit_system
     par.simulation = State()
     par.simulation.coordinate_system = "cartesian"
     par.mesh = State()

@@ -244,9 +244,9 @@ def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
     refresh_state(mesh, fluid, par, solver)
 
 
-def time_myr(value, code_units):
+def time_myr(value, code_unit_system):
     myr_in_s = (1.0 * unyt.Myr).to_value(unyt.s)
-    return float(code_quantity_to_cgs(value, code_units, 'time_s') / myr_in_s)
+    return float(code_quantity_to_cgs(value, code_unit_system, 'time_s') / myr_in_s)
 
 
 def print_startup_diagnostics(sim, config, initial_condition):
@@ -280,7 +280,9 @@ def print_startup_diagnostics(sim, config, initial_condition):
         if ngamma_cgs is not None:
             print('ngamma_cgs_cm3 range = [%.3e, %.3e] cm^-3' % (np.min(ngamma_cgs), np.max(ngamma_cgs)))
             boundary_cgs_cm = code_quantity_to_cgs(
-                sim.mesh.boundary[interior.start : interior.start + 2],
+                sim.mesh.boundary_proper_code[
+                    interior.start : interior.start + 2
+                ],
                 code_units_obj,
                 'length_cgs_cm',
             )
@@ -465,10 +467,10 @@ def density_snapshot(mesh, fluid, par):
     }
 
 
-def front_radius_at_time(history, time):
+def front_radius_at_time(history, time_proper_code):
     time_myr = np.asarray(history['time_Myr'])
     front_radius_pc = np.asarray(history['front_radius_pc'])
-    target_time_myr = time.to_value(unyt.Myr)
+    target_time_myr = time_proper_code.to_value(unyt.Myr)
     if time_myr.size == 0:
         raise ValueError('history is empty')
     tol = max(1.0e-12 * max(1.0, np.max(np.abs(time_myr)), abs(target_time_myr)), 1.0e-30)
@@ -509,7 +511,7 @@ def stagnation_radius(config):
     ).to(unyt.pc)
 
 
-def spitzer_radius(time, config):
+def spitzer_radius(time_proper_code, config):
     initial_condition = config['initial_condition']
     radius_stromgren = stromgren_radius(config)
     ionized_sound_speed = initial_condition['ionized_sound_speed'].to(unyt.cm / unyt.s)
@@ -517,13 +519,13 @@ def spitzer_radius(time, config):
         1.0
         + 7.0
         * ionized_sound_speed
-        * time.to(unyt.s)
+        * time_proper_code.to(unyt.s)
         / (4.0 * radius_stromgren.to(unyt.cm))
     )
     return (radius_stromgren * factor**(4.0 / 7.0)).to(unyt.pc)
 
 
-def hosokawa_inutsuka_radius(time, config):
+def hosokawa_inutsuka_radius(time_proper_code, config):
     initial_condition = config['initial_condition']
     radius_stromgren = stromgren_radius(config)
     ionized_sound_speed = initial_condition['ionized_sound_speed'].to(unyt.cm / unyt.s)
@@ -532,7 +534,7 @@ def hosokawa_inutsuka_radius(time, config):
         + 7.0
         * np.sqrt(4.0 / 3.0)
         * ionized_sound_speed
-        * time.to(unyt.s)
+        * time_proper_code.to(unyt.s)
         / (4.0 * radius_stromgren.to(unyt.cm))
     )
     return (radius_stromgren * factor**(4.0 / 7.0)).to(unyt.pc)

@@ -10,7 +10,7 @@ def load_units(par_config):
     return CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
 
-def make_shell(initial_condition, code_units):
+def make_shell(initial_condition, code_unit_system):
     central_mass = float(initial_condition['central_dark_matter_mass'])
     gas_density = float(initial_condition['uniform_gas_density'])
 
@@ -25,7 +25,7 @@ def make_shell(initial_condition, code_units):
         angular_momentum=[initial_condition['specific_angular_momentum']],
         softening=initial_condition['softening'],
         fixed_enclosed_mass=enclosed_mass,
-        code_units=code_units,
+        code_unit_system=code_unit_system,
     )
 
 

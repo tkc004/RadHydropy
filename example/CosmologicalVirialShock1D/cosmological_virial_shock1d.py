@@ -42,10 +42,12 @@ def load_correlation_table(config_filename, config):
     return et.load_lcdm_correlation_table(filename)
 
 
-def run_case(
-    par, initial_condition, units, cosmology, table, radiative,
-    correlation_table=None,
-):
+def run_case(config, radiative):
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
+    table = config.get("_pie_table")
     case = "radiative" if radiative else "adiabatic"
     output = par["output"]
     case_dir = Path(output["savedir"]) / case
@@ -62,18 +64,12 @@ def run_case(
         "cie_cooling": bool(radiative),
         "thermochemistry_network": "cie_cooling" if radiative else "hydrogen",
     })
-    initial = et.build_initial_condition(
-        {"par": local, "initial_condition": initial_condition}, units, cosmology, table,
-        correlation_table=correlation_table,
-    )
+    case_config = dict(config)
+    case_config["par"] = local
+    initial = et.build_initial_condition(case_config)
     rio.writehdf5(initial, local["simulation"]["initial_condition_filename"])
-    dm = et.make_dark_matter(
-        initial_condition,
-        units,
-        cosmology,
-        correlation_table=correlation_table,
-        softening=local.get("dark_matter", {}).get("softening", 0.0),
-    )
+    case_config["_dark_matter_softening"] = local.get("dark_matter", {}).get("softening", 0.0)
+    dm = et.make_dark_matter(case_config)
 
     sim = Rsim.FromComponents(
         initial.par, initial.mesh, initial.fluid, initial.solver
@@ -217,15 +213,13 @@ def main(config_filename=DEFAULT_CONFIG):
     table = MetalPIETable(table_path)
     par["thermochemistry"]["metal_pie_table_filename"] = str(table_path.resolve())
     correlation_table = load_correlation_table(config_filename, config)
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_pie_table"] = table
+    config["_correlation_table"] = correlation_table
     outputs = {
-        "adiabatic": run_case(
-            par, initial_condition, units, cosmology, table, False,
-            correlation_table=correlation_table,
-        ),
-        "radiative": run_case(
-            par, initial_condition, units, cosmology, table, True,
-            correlation_table=correlation_table,
-        ),
+        "adiabatic": run_case(config, False),
+        "radiative": run_case(config, True),
     }
     histories = {key: value[0] for key, value in outputs.items()}
     density_profiles = {key: value[1] for key, value in outputs.items()}

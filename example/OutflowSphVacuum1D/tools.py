@@ -7,7 +7,7 @@ from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import quantity_to_value
 
 
-def analytic_density_profile(radius, time, config, cell_faces=None):
+def analytic_density_profile(radius, time_proper_code, config, cell_faces=None):
     """Cold spherical outflow profile, sampled as cell averages when given."""
     radius = np.asarray(radius, dtype=float)
     initial = config['initial_condition']
@@ -15,7 +15,7 @@ def analytic_density_profile(radius, time, config, cell_faces=None):
     injection_radius = float(initial['injection_radius'])
     density_outflow = float(boundary['outflow_density'])
     velocity_outflow = float(boundary['outflow_velocity'])
-    front = injection_radius + velocity_outflow * float(time)
+    front = injection_radius + velocity_outflow * float(time_proper_code)
     profile = np.full_like(radius, np.nan, dtype=float)
     if cell_faces is None:
         inside = (radius >= injection_radius) & (radius <= front)

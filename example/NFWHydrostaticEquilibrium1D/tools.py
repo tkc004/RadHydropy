@@ -60,10 +60,10 @@ def virial_temperature(halo, mu=0.59):
     return temperature
 
 
-def spherical_cell_centers(boundary):
+def spherical_cell_centers(boundary_proper_code):
     """Return volume-weighted radial centers for spherical cells."""
-    inner = boundary[:-1]
-    outer = boundary[1:]
+    inner = boundary_proper_code[:-1]
+    outer = boundary_proper_code[1:]
     denominator = outer**3 - inner**3
     return 0.75 * (outer**4 - inner**4) / denominator
 

@@ -20,10 +20,10 @@ def _signed_norm(values):
     return SymLogNorm(linthresh=scale * 1.0e-5, vmin=-scale, vmax=scale)
 
 
-def _plot(fields, time, radius, filename, title, ylabel):
+def _plot(fields, time_cosmic_code, radius, filename, title, ylabel):
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=True)
     radius = np.asarray(radius, dtype=float)
-    time_grid = np.broadcast_to(np.asarray(time, dtype=float)[:, None], radius.shape)
+    time_grid = np.broadcast_to(np.asarray(time_cosmic_code, dtype=float)[:, None], radius.shape)
     radius_grid = radius
     for axis, (key, label) in zip(axes.flat, fields):
         values = np.asarray(key, dtype=float)

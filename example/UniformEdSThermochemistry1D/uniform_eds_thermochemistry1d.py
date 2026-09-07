@@ -27,7 +27,7 @@ import example_utils as eu
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
 
-def run_case(config, units, cosmology, atomic_cooling):
+def run_case(config, code_unit_system, cosmology, atomic_cooling):
     case = copy.deepcopy(config["par"])
     initial_condition = config["initial_condition"]
     label = "atomic_compton" if atomic_cooling else "compton_only"
@@ -41,7 +41,7 @@ def run_case(config, units, cosmology, atomic_cooling):
     source_dt = float(case["_example"].get("source_timestep", 2.0))
     case.pop("_example", None)
 
-    initial = UniformEdSInitialCondition(config, units, cosmology)
+    initial = UniformEdSInitialCondition(config, code_unit_system, cosmology)
     rio.writehdf5(initial, case["simulation"]["initial_condition_filename"])
 
     sim = Rsim(case)
@@ -94,21 +94,21 @@ def run_case(config, units, cosmology, atomic_cooling):
         cosmic_time = float(np.asarray(sim.fluid.time_proper_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         history["time_s"].append(
-            cosmic_time * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
+            cosmic_time * float(sim.par.CodeUnits.time_unit.to_value("s"))
         )
         history["scale_factor"].append(scale_factor)
         history["temperature_cgs_K"].append(
-            float(np.mean(sim.fluid.temp_supercomoving_code[physical]))
+            float(np.mean(sim.fluid.temp_proper_code[physical]))
         )
         history["source_solver"].append(result.get("source_solver", "explicit"))
         history["relative_change"].append(
             float(result.get("relative_change", 0.0))
         )
-        if not np.all(np.isfinite(sim.fluid.temp_supercomoving_code[physical])):
+        if not np.all(np.isfinite(sim.fluid.temp_proper_code[physical])):
             raise RuntimeError(
                 f"non-finite temperature at cosmic time {cosmic_time:.8g}, "
                 f"redshift {sim.par.compton_cmb_redshift:.8g}; "
-                f"temperature={sim.fluid.temp_supercomoving_code[physical]}"
+                f"temperature={sim.fluid.temp_proper_code[physical]}"
             )
         return result
 

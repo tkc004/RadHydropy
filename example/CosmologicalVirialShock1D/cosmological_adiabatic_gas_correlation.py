@@ -60,19 +60,17 @@ def run(config_filename=DEFAULT_CONFIG):
         a_ref=float(gravity["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, par)
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_correlation_table"] = correlation_table
 
     output_dir = Path(par["output"]["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial = et.build_initial_condition(
-        config, units, cosmology, correlation_table=correlation_table,
-    )
+    initial = et.build_initial_condition(config)
     rio.writehdf5(initial, ic_filename)
-    dm = et.make_dark_matter(
-        initial_condition, units, cosmology,
-        correlation_table=correlation_table,
-    )
+    dm = et.make_dark_matter(config)
 
     # The initial density is split explicitly into f_b and 1-f_b.  This
     # check is intentionally printed for this experiment because using the

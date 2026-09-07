@@ -15,9 +15,9 @@ from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
-def spherical_cell_centers(boundary):
-    inner = boundary[:-1]
-    outer = boundary[1:]
+def spherical_cell_centers(boundary_proper_code):
+    inner = boundary_proper_code[:-1]
+    outer = boundary_proper_code[1:]
     return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
@@ -109,7 +109,9 @@ def read_output(filename, config):
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     result = Rsim(config["par"])
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
-    result.mesh.coordinate = spherical_cell_centers(result.mesh.boundary)
+    result.mesh.x_proper_code = spherical_cell_centers(
+        result.mesh.boundary_proper_code
+    )
     result.fluid.eos = EOS(
         result.par.hydrodynamics.eos_type,
         result.par.hydrodynamics.gamma,

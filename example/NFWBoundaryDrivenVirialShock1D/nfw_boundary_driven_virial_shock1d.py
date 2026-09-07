@@ -120,7 +120,7 @@ def _run_stage(config, halo, mode, restart=False):
     ))
 
 
-def _write_adiabatic_energy_audit(files, code_units, filename):
+def _write_adiabatic_energy_audit(files, code_unit_system, filename):
     """Write the open-boundary total-energy budget for an adiabatic stage."""
     if len(files) < 2:
         raise RuntimeError('energy audit requires at least two snapshots')
@@ -132,12 +132,12 @@ def _write_adiabatic_energy_audit(files, code_units, filename):
             first = int(header.attrs.get('GhostCells', 2))
             count = int(header.attrs['GridCells'])
             energy = np.asarray(data['Energy_code'][first:first + count], dtype=float)
-            energy_unit = code_units.energy_unit
+            energy_unit = code_unit_system.energy_unit
             energy_scale = (1.0 * energy_unit).to_value(unyt.erg)
             total_energy = float(np.sum(energy) * energy_scale)
             time = (
                 float(np.asarray(header['time_proper_code'][()]))
-                * code_units.time_unit
+                * code_unit_system.time_unit
             ).to_value(unyt.Myr)
             boundary = float(header.attrs.get('CumulativeHydroBoundaryEnergyCode', 0.0))
             gravity = float(header.attrs.get('CumulativeGravityWorkCode', 0.0))
@@ -145,7 +145,7 @@ def _write_adiabatic_energy_audit(files, code_units, filename):
 
     initial = snapshot_energy(files[0])
     final = snapshot_energy(files[-1])
-    energy_scale = code_units.energy_unit.to_value(unyt.erg)
+    energy_scale = code_unit_system.energy_unit.to_value(unyt.erg)
     delta_energy = final[1] - initial[1]
     boundary_work = (final[2] - initial[2]) * energy_scale
     gravity_work = (final[3] - initial[3]) * energy_scale

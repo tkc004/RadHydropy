@@ -35,8 +35,13 @@ def load_correlation_table(config_filename, example):
     return et.load_lcdm_correlation_table(filename)
 
 
-def run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmology):
+def run_lagrangian_top_hat(config):
     """Calibrate one finite top-hat mass before shell crossing."""
+    par_config = config["par"]
+    example = config["example"]
+    initial_condition = config["initial_condition"]
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
     target_mass = float(initial_condition["target_halo_mass"])
     delta_i = float(initial_condition["initial_overdensity"])
     initial = float(initial_condition["initial_cosmic_time"])
@@ -44,10 +49,10 @@ def run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmol
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
-    radius = et.perturbation_radius(initial_condition, cosmology)
+    radius = et.perturbation_radius(config)
     velocity = -a_initial**2 * h_initial * delta_i * radius / 3.0
     angular_momentum = float(initial_condition.get("dm_specific_angular_momentum", 0.0))
-    g_code = _gravitational_constant_code(units)
+    g_code = _gravitational_constant_code(code_unit_system)
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(
@@ -127,7 +132,7 @@ def run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmol
     plt.savefig(figure, dpi=200)
     plt.close()
     print("Lagrangian top-hat DM-only calibration passed")
-    print("target halo mass = %.8g code masses (%.8g Msun)" % (target_mass, target_mass * units.mass_in_cgs / 1.98847e33))
+    print("target halo mass = %.8g code masses (%.8g Msun)" % (target_mass, target_mass * code_unit_system.mass_in_cgs / 1.98847e33))
     print("analytic turnaround: t=%.8g, r=%.8g kpc" % (turnaround_time, analytic_rta))
     print("analytic virial: t=%.8g, r=%.8g kpc" % (collapse_time, analytic_rvir))
     if turnaround is None:
@@ -141,10 +146,13 @@ def run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmol
     print("figure = %s" % figure)
 
 
-def run_live_shell_density_profiles(
-    par_config, example, initial_condition, units, cosmology, correlation_table=None
-):
+def run_live_shell_density_profiles(config):
     """Evolve a gas-free full-matter top-hat and save density snapshots."""
+    par_config = config["par"]
+    example = config["example"]
+    initial_condition = config["initial_condition"]
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
     dm_ic = copy.deepcopy(initial_condition)
     # With gas removed, the collisionless shells represent the full matter
     # density.  Keeping the configured baryon fraction here would weaken the
@@ -153,10 +161,10 @@ def run_live_shell_density_profiles(
     dm_ic["dark_matter_shells"] = int(
         example.get("dm_only_shells", max(1024, int(initial_condition["dark_matter_shells"])))
     )
-    shells = et.make_dark_matter(
-        dm_ic, units, cosmology, correlation_table=correlation_table,
-        softening=par_config["dark_matter"]["softening"],
-    )
+    shell_config = dict(config)
+    shell_config["initial_condition"] = dm_ic
+    shell_config["_dark_matter_softening"] = par_config["dark_matter"]["softening"]
+    shells = et.make_dark_matter(shell_config)
     target_times = np.asarray(
         example.get(
             "dm_only_density_times",
@@ -381,17 +389,21 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
         a_ref=float(par_config["gravity"]["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, example)
-    run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmology)
-    run_live_shell_density_profiles(
-        par_config, example, initial_condition, units, cosmology,
-        correlation_table=correlation_table,
-    )
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_correlation_table"] = correlation_table
+    run_lagrangian_top_hat(config)
+    run_live_shell_density_profiles(config)
     return
     dm_ic = copy.deepcopy(initial_condition)
     dm_ic["dark_matter_shells"] = int(
         example.get("dm_only_shells", max(1024, int(initial_condition["dark_matter_shells"])))
     )
-    shells = et.make_dark_matter(dm_ic, units, cosmology)
+    dead_config = dict(config)
+    dead_config["initial_condition"] = dm_ic
+    dead_config["_code_unit_system"] = units
+    dead_config["_cosmology"] = cosmology
+    shells = et.make_dark_matter(dead_config)
     dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     initial = float(initial_condition["initial_cosmic_time"])
     final = float(par_config["final_cosmic_time"])

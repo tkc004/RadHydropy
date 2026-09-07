@@ -92,9 +92,9 @@ class BertschingerBoundarySolver(Solver):
         fluid.pre_supercomoving_code[right] = 0.0
 
 
-def _spherical_centers(boundary):
-    return 0.75 * (boundary[1:]**4 - boundary[:-1]**4) / (
-        boundary[1:]**3 - boundary[:-1]**3
+def _spherical_centers(boundary_comoving_code):
+    return 0.75 * (boundary_comoving_code[1:]**4 - boundary_comoving_code[:-1]**4) / (
+        boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
     )
 
 

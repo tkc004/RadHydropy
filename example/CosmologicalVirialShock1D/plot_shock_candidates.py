@@ -35,14 +35,14 @@ def _edges(values):
     return edges
 
 
-def _plot_indicator(axis, time, radius, values, title, label, signed=True):
-    finite = np.isfinite(time) & np.isfinite(radius) & np.isfinite(values)
+def _plot_indicator(axis, time_cosmic_code, radius, values, title, label, signed=True):
+    finite = np.isfinite(time_cosmic_code) & np.isfinite(radius) & np.isfinite(values)
     if not np.any(finite):
         return
-    time_edges = _edges(time[finite])
+    time_edges = _edges(time_cosmic_code[finite])
     radius_edges = _edges(radius[finite])
     count, _, _ = np.histogram2d(
-        time[finite], radius[finite], bins=(time_edges, radius_edges)
+        time_cosmic_code[finite], radius[finite], bins=(time_edges, radius_edges)
     )
     if signed:
         scale = max(float(np.nanmax(np.abs(values[finite]), initial=0.0)), 1.0e-30)
@@ -57,7 +57,7 @@ def _plot_indicator(axis, time, radius, values, title, label, signed=True):
         cmap = "magma"
         finite &= values > 0.0
     weighted, _, _ = np.histogram2d(
-        time[finite], radius[finite], bins=(time_edges, radius_edges),
+        time_cosmic_code[finite], radius[finite], bins=(time_edges, radius_edges),
         weights=values[finite],
     )
     mean = np.divide(weighted, count, out=np.full_like(weighted, np.nan), where=count > 0)

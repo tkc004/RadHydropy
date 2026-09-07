@@ -34,14 +34,15 @@ from cosmological_initial_condition import build_initial_condition
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_rotating_collapse1d.yaml")
 
 
-def spherical_centers(boundary):
+def spherical_centers(boundary_comoving_code):
     return 0.75 * (
-        boundary[1:]**4 - boundary[:-1]**4
-    ) / (boundary[1:]**3 - boundary[:-1]**3)
+        boundary_comoving_code[1:]**4 - boundary_comoving_code[:-1]**4
+    ) / (boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3)
 
 
-def integrate_shell_reference(initial, cosmology, scale_factors):
+def integrate_shell_reference(initial, config, scale_factors):
     """Integrate pressureless physical shell orbits for comparison only."""
+    cosmology = config["_code_cosmology"]
     radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     mass = np.cumsum(
         np.asarray(initial.fluid.rho_comoving_code, dtype=float)
@@ -62,7 +63,7 @@ def integrate_shell_reference(initial, cosmology, scale_factors):
     cosmic_times = np.unique(requested_times)
     reference = np.empty((len(cosmic_times), len(radius)), dtype=float)
     for shell, shell_mass in enumerate(mass):
-        def rhs(time, state):
+        def rhs(time_cosmic_code, state):
             shell_radius, shell_velocity = state
             if shell_radius <= 0.0:
                 return shell_velocity, 0.0
@@ -94,8 +95,9 @@ def integrate_shell_reference(initial, cosmology, scale_factors):
     ])
 
 
-def integrate_shell_density_reference(initial, cosmology, scale_factors):
+def integrate_shell_density_reference(initial, config, scale_factors):
     """Return conservative Eulerian density from pressureless shell ODEs."""
+    cosmology = config["_code_cosmology"]
     boundary = np.asarray(initial.mesh.boundary_comoving_code, dtype=float)
     radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     volume = np.asarray(initial.mesh.volume_comoving_code, dtype=float)
@@ -125,7 +127,7 @@ def integrate_shell_density_reference(initial, cosmology, scale_factors):
     cosmic_times = np.unique(requested_times)
     physical_edges = np.empty((len(cosmic_times), len(boundary)), dtype=float)
     for edge, enclosed_mass in enumerate(edge_mass):
-        def rhs(time, state):
+        def rhs(time_cosmic_code, state):
             shell_radius, shell_velocity = state
             if shell_radius <= 0.0 or enclosed_mass <= 0.0:
                 return shell_velocity, 0.0
@@ -185,17 +187,21 @@ def integrate_shell_density_reference(initial, cosmology, scale_factors):
     return reference
 
 
-def enclosed_radii(boundary, mass_density, volume, target_mass):
+def enclosed_radii(boundary_comoving_code, mass_density, volume_comoving_code, target_mass):
     cumulative = np.concatenate(([0.0], np.cumsum(
-        np.asarray(mass_density, dtype=float) * np.asarray(volume, dtype=float)
+        np.asarray(mass_density, dtype=float) * np.asarray(volume_comoving_code, dtype=float)
     )))
     return np.interp(
         np.asarray(target_mass, dtype=float), cumulative,
-        np.asarray(boundary, dtype=float),
+        np.asarray(boundary_comoving_code, dtype=float),
     )
 
 
-def run_case(base_par, initial_condition, label, rotation_factor, units, cosmology):
+def run_case(config, label, rotation_factor):
+    base_par = config["par"]
+    initial_condition = config["initial_condition"]
+    code_unit_system = config["_code_units"]
+    cosmology = config["_code_cosmology"]
     output_dir = ROOT / base_par["output"]["directory"] / label
     output_dir.mkdir(parents=True, exist_ok=True)
     par = copy.deepcopy(base_par)
@@ -208,8 +214,8 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     boundary_comoving_code = np.linspace(
-        float(initial_condition["rmin"].to_value(units.length_unit)),
-        float(initial_condition["rmax"].to_value(units.length_unit)),
+        float(initial_condition["rmin"].to_value(code_unit_system.length_unit)),
+        float(initial_condition["rmax"].to_value(code_unit_system.length_unit)),
         count + 1,
     )
     x_comoving_code = spherical_centers(boundary_comoving_code)
@@ -218,7 +224,7 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     )
     rho_background = float(cosmology.background_density(cosmic_time))
     inside = x_comoving_code < float(
-        initial_condition["top_hat_radius"].to_value(units.length_unit)
+        initial_condition["top_hat_radius"].to_value(code_unit_system.length_unit)
     )
     rho_comoving_code = rho_background * (
         1.0 + float(initial_condition["overdensity"]) * inside
@@ -233,7 +239,7 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
         "initial_condition": {
             **initial_condition,
             "boxsize": initial_condition["rmax"],
-            "time": cosmic_time * units.time_unit,
+            "time": cosmic_time * code_unit_system.time_unit,
         },
         "example": {},
         "_code_cosmology": cosmology,
@@ -249,7 +255,7 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
         ) * x_comoving_code,
         "_temp_supercomoving_code": np.full(
             count,
-            float(initial_condition["tempini"].to_value(units.temperature_unit))
+            float(initial_condition["tempini"].to_value(code_unit_system.temperature_unit))
             * scale_factor**2,
         ),
         "_mu_dimensionless": np.full(count, float(initial_condition["muini"])),
@@ -260,7 +266,7 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     }
     initial = build_initial_condition(case_config)
     rio.writehdf5(initial, par["simulation"]["initial_condition_filename"])
-    sim = Rsim(config["par"])
+    sim = Rsim(case_config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
@@ -311,12 +317,8 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     final_tau = float(cosmology.supercomoving_time(float(base_par["simulation"]["final_time"])))
     sim.Evolve(final_time=final_tau, mode="hydro", history_callback=record)
     scale_factors = np.asarray(history["a"], dtype=float)
-    reference_shell_radius = integrate_shell_reference(
-        initial, cosmology, scale_factors
-    )
-    reference_density = integrate_shell_density_reference(
-        initial, cosmology, scale_factors
-    )
+    reference_shell_radius = integrate_shell_reference(initial, case_config, scale_factors)
+    reference_density = integrate_shell_density_reference(initial, case_config, scale_factors)
     final_filename = output_dir / "Output_final.hdf5"
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
@@ -362,10 +364,11 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         ("moderate", float(initial_condition["moderate_rotation_factor"])),
         ("high", float(initial_condition["high_rotation_factor"])),
     ]
-    results = [
-        run_case(par, initial_condition, label, factor, units, cosmology)
-        for label, factor in cases
-    ]
+    config = dict(config)
+    config["par"] = par
+    config["_code_units"] = units
+    config["_code_cosmology"] = cosmology
+    results = [run_case(config, label, factor) for label, factor in cases]
     by_label = {label: (sim, history, directory) for label, sim, history, directory in results}
     final_density = {
         label: history["maximum_density"][-1]

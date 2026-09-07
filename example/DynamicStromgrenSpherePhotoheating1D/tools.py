@@ -441,20 +441,20 @@ def ionized_sound_speed_from_history(history, gamma):
     )
 
 
-def spitzer_radius(time, config, ci):
+def spitzer_radius(time_proper_code, config, ci):
     radius_stromgren = stromgren_radius(config)
     factor = (
         1.0
         + 7.0
         * ci.to(unyt.cm / unyt.s)
-        * time.to(unyt.s)
+        * time_proper_code.to(unyt.s)
         / (4.0 * radius_stromgren.to(unyt.cm))
     )
     return (radius_stromgren * factor**(4.0 / 7.0)).to(unyt.kpc)
 
 
-def shifted_spitzer_radius(time, config, ci):
-    time_since_recombination = time - recombination_time(config)
+def shifted_spitzer_radius(time_proper_code, config, ci):
+    time_since_recombination = time_proper_code - recombination_time(config)
     return spitzer_radius(time_since_recombination, config, ci)
 
 

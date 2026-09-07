@@ -14,13 +14,13 @@ def recombination_rate(temperature, hydrogen_number_density):
     return alpha_B * nH / unyt.s
 
 
-def ionized_fraction(time, initial_neutral_fraction, temperature, hydrogen_number_density):
+def ionized_fraction(time_proper_code, initial_neutral_fraction, temperature, hydrogen_number_density):
     """Return the pure case-B ionized fraction."""
 
-    time = np.asarray(time) * unyt.yr
+    time_proper_code = np.asarray(time_proper_code) * unyt.yr
     rate_time = (
         recombination_rate(temperature, hydrogen_number_density)
-        * time
+        * time_proper_code
     ).value
     y0 = 1.0 - initial_neutral_fraction
     return y0 / (1.0 + y0 * rate_time)

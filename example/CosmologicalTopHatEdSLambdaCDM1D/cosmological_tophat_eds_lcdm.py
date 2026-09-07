@@ -87,11 +87,11 @@ def analytic_turnaround(t_initial, radius, velocity, cosmology, g_code, mass):
     hubble_ref = float(cosmology.hubble(cosmology.t_ref))
     lambda_acceleration = float(getattr(cosmology, "omega_lambda", 0.0)) * hubble_ref**2
 
-    def rhs(time, state):
+    def rhs(time_cosmic_code, state):
         r, v = state
         return v, -g_code * mass / max(r**2, 1.0e-30) + lambda_acceleration * r
 
-    def turnaround_event(time, state):
+    def turnaround_event(time_cosmic_code, state):
         return state[1]
 
     turnaround_event.direction = -1.0

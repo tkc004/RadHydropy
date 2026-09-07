@@ -942,6 +942,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             a_ref=float(gravity["cosmology_a_ref"]),
         )
     correlation_table = load_correlation_table(config_filename, example)
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_correlation_table"] = correlation_table
     output_dir = Path(output["savedir"])
     figure_prefix = str(
         example.get("figure_prefix", "CosmologicalGasCorrelationZ100")
@@ -952,10 +955,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial = et.build_initial_condition(
-        config,
-        units, cosmology, correlation_table=correlation_table
-    )
+    initial = et.build_initial_condition(config)
     if bool(hydro.get("gas_angular_momentum", False)):
         initial.par.gas_angular_momentum = True
         initial.fluid.specific_angular_momentum_code = np.full(
@@ -963,10 +963,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             float(hydro.get("gas_specific_angular_momentum", 0.0)),
         )
     rio.writehdf5(initial, ic_filename)
-    dm = et.make_dark_matter(
-        initial_condition, units, cosmology, correlation_table=correlation_table,
-        softening=par_config["dark_matter"]["softening"],
-    )
+    config["_dark_matter_softening"] = par_config["dark_matter"]["softening"]
+    dm = et.make_dark_matter(config)
 
     baryon_fraction = float(initial_condition["baryon_fraction"])
     gas_mass = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
@@ -1024,7 +1022,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     initial_time = float(initial_condition["initial_cosmic_time"])
     initial_a = float(cosmology.scale_factor(initial_time))
-    sim.par.mu_inflow = float(initial_condition.get("mu", 0.59))
     minimum_temperature = configured_minimum_temperature
     if minimum_temperature is not None:
         if hasattr(minimum_temperature, "to_value"):
@@ -1096,9 +1093,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         # the hydro representation.  For this gamma=5/3 supercomoving case,
         # rho_comoving_code = rho_phys*a^3 and T_code = T_phys*a^2; both happen to be
         # constant for a homogeneous adiabatic background, as they should.
-        sim.par.rho_inflow = baryon_fraction * background_physical * scale_factor**3
-        sim.par.vel_inflow = 0.0
-        sim.par.temp_inflow = temperature_physical * scale_factor**2
+        sim.par.boundary.inflow_density = (
+            baryon_fraction * background_physical * scale_factor**3
+        )
+        sim.par.boundary.inflow_velocity = 0.0
+        sim.par.boundary.inflow_temperature = temperature_physical * scale_factor**2
+        sim.par.boundary.inflow_mu = float(initial_condition.get("mu", 0.59))
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         # Hydro stores supercomoving temperature; keep the physical floor at
         # the configured value as the scale factor changes.
@@ -1114,10 +1114,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         index = first + int(sim.par.mesh.grid_cells) - 1
         old_mass = float(np.asarray(sim.fluid.Mass_code, dtype=float)[index])
         old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
-        rho = float(np.asarray(sim.par.rho_inflow, dtype=float))
-        velocity = float(np.asarray(sim.par.vel_inflow, dtype=float))
-        temperature = float(np.asarray(sim.par.temp_inflow, dtype=float))
-        mu = float(np.asarray(sim.par.mu_inflow, dtype=float))
+        rho = float(np.asarray(sim.par.boundary.inflow_density, dtype=float))
+        velocity = float(np.asarray(sim.par.boundary.inflow_velocity, dtype=float))
+        temperature = float(np.asarray(sim.par.boundary.inflow_temperature, dtype=float))
+        mu = float(np.asarray(sim.par.boundary.inflow_mu, dtype=float))
         volume = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
         pressure = float(np.asarray(
             sim.fluid.eos.pressure(rho, temperature, mu), dtype=float

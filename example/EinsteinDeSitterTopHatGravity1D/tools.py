@@ -10,9 +10,9 @@ from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, SUPERCOMOVING_RUNTIME_FIELDS
 
 
-def spherical_cell_centers(boundary):
-    inner = boundary[:-1]
-    outer = boundary[1:]
+def spherical_cell_centers(boundary_comoving_code):
+    inner = boundary_comoving_code[:-1]
+    outer = boundary_comoving_code[1:]
     return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
@@ -62,18 +62,18 @@ def build_initial_condition(config):
     sim.par.pressure_representation = 'supercomoving'
     sim.par.temperature_representation = 'supercomoving'
 
-    sim.mesh.boundary = np.linspace(
+    sim.mesh.boundary_comoving_code = np.linspace(
         initial_condition['rmin'], initial_condition['rmax'], grid_cells + 1,
     )
-    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = 4.0 * np.pi / 3.0 * (
-        sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
+    sim.mesh.x_comoving_code = spherical_cell_centers(sim.mesh.boundary_comoving_code)
+    sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
+    sim.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * (
+        sim.mesh.boundary_comoving_code[1:]**3 - sim.mesh.boundary_comoving_code[:-1]**3
     )
 
     background = cosmology.background_density(cosmic_time)
     background_comoving = background * cosmology.scale_factor(cosmic_time)**3
-    inside = sim.mesh.coordinate < float(initial_condition['top_hat_radius'])
+    inside = sim.mesh.x_comoving_code < float(initial_condition['top_hat_radius'])
     sim.fluid.rho_comoving_code = background_comoving * (
         1.0 + float(initial_condition['overdensity']) * inside
     ) * np.ones(grid_cells)
@@ -84,11 +84,13 @@ def build_initial_condition(config):
     sim.fluid.temp_supercomoving_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(grid_cells)
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
     sim.fluid.vel_supercomoving_code = np.zeros(grid_cells)
-    sim.mesh.boundary_comoving_code = sim.mesh.boundary
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, coordinate=sim.mesh.coordinate,
-        boundary=sim.mesh.boundary, width=np.diff(sim.mesh.boundary),
-        area=sim.mesh.area, volume=sim.mesh.vol,
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        coordinate=sim.mesh.x_comoving_code,
+        boundary=sim.mesh.boundary_comoving_code,
+        width=np.diff(sim.mesh.boundary_comoving_code),
+        area=sim.mesh.area_comoving_code,
+        volume=sim.mesh.volume_comoving_code,
     )
     sim.fluid.pre_supercomoving_code = sim.fluid.rho_comoving_code * sim.fluid.temp_supercomoving_code
     sim.fluid.tau_supercomoving_code = float(sim.par.simulation.tau_supercomoving_code[0])

@@ -167,7 +167,9 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         a_ref=float(example['cosmology_a_ref']),
     )
     Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
-    shells, _ = example_tools.make_scale_free_shells(config, units, cosmology)
+    config["_code_units"] = units
+    config["_cosmology"] = cosmology
+    shells, _ = example_tools.make_scale_free_shells(config)
     initial_q = shells.radius.copy()
     tracker = ShellOrbitTracker(
         initial_q, cosmology,

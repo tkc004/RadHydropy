@@ -46,33 +46,33 @@ class InnerWallSolver(Solver):
         self._copy_boundary_state(fluid, slice(last + 1, last + 1 + ng), right)
 
 
-def make_initial_condition(ic, units):
+def make_initial_condition(ic, code_unit_system):
     state = State()
     state.par, state.mesh, state.fluid = State(), State(), State()
-    state.par.units = type('Units', (), {'CodeUnits': units})()
-    state.par.unit_system = units.unit_system
+    state.par.code_unit_system = type('Units', (), {'CodeUnits': code_unit_system})()
+    state.par.unit_system = code_unit_system.unit_system
     state.par.simulation = type('Simulation', (), {})()
     state.par.nogrid = int(ic["grid_cells"])
     state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': state.par.nogrid})()
     state.par.coordsys = "spherical"
-    state.par.boxsize = np.asarray([float(ic["outer_radius"].to_value(units.length_unit))]) * units.length_unit
-    state.par.time_proper_code = np.asarray([0.0]) * units.time_unit
+    state.par.boxsize = np.asarray([float(ic["outer_radius"].to_value(code_unit_system.length_unit))]) * code_unit_system.length_unit
+    state.par.time_proper_code = np.asarray([0.0]) * code_unit_system.time_unit
     state.par.simulation.time_proper_code = state.par.time_proper_code
     state.par.simulation.coordinate_system = 'spherical'
     state.par.simulation.box_size = state.par.boxsize
-    rmin = float(ic["inner_radius"].to_value(units.length_unit))
-    rmax = float(ic["outer_radius"].to_value(units.length_unit))
+    rmin = float(ic["inner_radius"].to_value(code_unit_system.length_unit))
+    rmax = float(ic["outer_radius"].to_value(code_unit_system.length_unit))
     boundary = np.linspace(rmin, rmax, state.par.nogrid + 1)
-    state.mesh.boundary = boundary * units.length_unit
-    state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1]) * units.length_unit
-    state.mesh.xdelta = np.diff(boundary) * units.length_unit
-    state.mesh.area = 4.0 * np.pi * boundary[:-1] ** 2 * units.area_unit
-    state.mesh.vol = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3) * units.volume_unit
-    radius = np.asarray(state.mesh.coordinate.to_value(units.length_unit))
-    shell = (radius >= float(ic["shell_inner"].to_value(units.length_unit))) & (radius <= float(ic["shell_outer"].to_value(units.length_unit)))
+    state.mesh.boundary = boundary * code_unit_system.length_unit
+    state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1]) * code_unit_system.length_unit
+    state.mesh.xdelta = np.diff(boundary) * code_unit_system.length_unit
+    state.mesh.area = 4.0 * np.pi * boundary[:-1] ** 2 * code_unit_system.area_unit
+    state.mesh.vol = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3) * code_unit_system.volume_unit
+    radius = np.asarray(state.mesh.coordinate.to_value(code_unit_system.length_unit))
+    shell = (radius >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
     state.fluid.rho_proper_code = np.where(shell, float(ic["shell_density"]), 0.0)
     state.fluid.temp_proper_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
-    state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(units.velocity_unit)), 0.0)
+    state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(code_unit_system.velocity_unit)), 0.0)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
     return state
 

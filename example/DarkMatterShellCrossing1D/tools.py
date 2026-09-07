@@ -6,7 +6,7 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits
 
 
-def make_shells(initial_condition, code_units):
+def make_shells(initial_condition, code_unit_system):
     number = int(initial_condition['number_of_shells'])
     radius = np.linspace(
         initial_condition['inner_radius'], initial_condition['outer_radius'], number
@@ -23,7 +23,7 @@ def make_shells(initial_condition, code_units):
         mass,
         angular_momentum=angular_momentum,
         softening=initial_condition['softening'],
-        code_units=code_units,
+        code_unit_system=code_unit_system,
     )
 
 

@@ -52,7 +52,17 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
+    # ``SetInitFluid`` initializes the hydro state at the solver default time.
+    # Restore the non-zero supercomoving IC time before evaluating cosmological
+    # gravity, otherwise the background scale factor is evaluated at a=1.
+    initial_tau = np.asarray(initial.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.SetInitFluid()
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.par.set_cosmology_model(cosmology)
     sim.par.gravity = Gravity(
         selfgravity=True, externalgravity=False, cosmological=True,

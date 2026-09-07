@@ -14,8 +14,8 @@ from radhydropy.runtime_fields import (
 import radhydropy.io as rio
 
 
-def spherical_cell_centers(boundary):
-    inner, outer = boundary[:-1], boundary[1:]
+def spherical_cell_centers(boundary_comoving_code):
+    inner, outer = boundary_comoving_code[:-1], boundary_comoving_code[1:]
     return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
@@ -24,11 +24,11 @@ def growing_mode_velocity(radius, overdensity, scale_factor, hubble):
     return -(scale_factor**2 * hubble * overdensity / 3.0) * np.asarray(radius)
 
 
-def enclosed_mass_radius(boundary, density, cell_volume, target_mass):
+def enclosed_mass_radius(boundary_comoving_code, density, cell_volume, target_mass):
     """Interpolate the radius enclosing ``target_mass`` from cell masses."""
     cumulative = np.concatenate(([0.0], np.cumsum(np.asarray(density) * cell_volume)))
     target_mass = float(np.clip(target_mass, cumulative[0], cumulative[-1]))
-    return float(np.interp(target_mass, cumulative, np.asarray(boundary)))
+    return float(np.interp(target_mass, cumulative, np.asarray(boundary_comoving_code)))
 
 
 def linear_overdensity(delta_initial, scale_factor, initial_scale_factor):

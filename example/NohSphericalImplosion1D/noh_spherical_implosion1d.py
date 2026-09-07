@@ -29,21 +29,21 @@ from basic_hydro_utils import make_initial_condition as make_canonical_initial_c
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
 
-def make_initial_condition(config, units):
+def make_initial_condition(config, code_unit_system):
     ic = config['initial_condition']
-    n = int(ic["grid_cells"]); rmax = float(ic["box_size"].to_value(units.length_unit))
+    n = int(ic["grid_cells"]); rmax = float(ic["box_size"].to_value(code_unit_system.length_unit))
     boundary = np.linspace(0.0, rmax, n + 1)
     return make_canonical_initial_condition(
         config,
         boundary_proper_code=boundary,
         rho_proper_code=np.full(n, float(ic["initial_density"].to_value("g/cm**3"))),
-        vel_proper_code=np.full(n, float(ic["velocity"].to_value(units.velocity_unit))),
+        vel_proper_code=np.full(n, float(ic["velocity"].to_value(code_unit_system.velocity_unit))),
         temp_proper_code=np.full(n, float(ic["temperature"].to_value("K"))),
         mu_dimensionless=np.full(n, float(ic["mean_molecular_weight"])),
     )
 
 
-def read_profile(filename, units, gamma, runtime):
+def read_profile(filename, code_unit_system, gamma, runtime):
     sim = Rsim(runtime)
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)
@@ -55,7 +55,7 @@ def read_profile(filename, units, gamma, runtime):
     velocity = np.asarray(sim.fluid.vel_proper_code, dtype=float)[first:last]
     temperature = np.asarray(sim.fluid.temp_proper_code, dtype=float)[first:last]
     mu = np.asarray(sim.fluid.mu, dtype=float)[first:last]
-    eos = EOS("polytropic", gamma=gamma, code_units=units)
+    eos = EOS("polytropic", gamma=gamma, code_units=code_unit_system)
     pressure = np.asarray(eos.pressure(rho, temperature, mu), dtype=float)
     kinetic = 0.5 * rho * velocity**2 * volume[first:last]
     thermal = np.asarray(eos.thermal_energy_density(pressure), dtype=float) * volume[first:last]

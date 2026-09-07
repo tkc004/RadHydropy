@@ -29,13 +29,17 @@ from shell_remap import centrifugal_shell_reference
 CONFIG = ROOT / 'gas_centrifugal_hydro_expansion1d.yaml'
 
 def prepare_initial_condition(initial):
-    boundary = np.asarray(initial.mesh.boundary, dtype=float)
-    initial.mesh.boundary_proper_code = boundary
+    boundary_proper_code = np.asarray(
+        initial.mesh.boundary_proper_code, dtype=float
+    )
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
-        boundary=boundary, width=np.diff(boundary),
-        area=4.0 * np.pi * boundary[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
+        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.x_proper_code,
+        boundary=boundary_proper_code,
+        width=np.diff(boundary_proper_code),
+        area=4.0 * np.pi * boundary_proper_code[:-1]**2,
+        volume=4.0 * np.pi / 3.0 * (
+            boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
+        ),
     )
     initial.fluid.pre_proper_code = initial.fluid.temp_proper_code * 0.4
     initial.fluid.time_proper_code = 0.0
@@ -48,15 +52,15 @@ def prepare_initial_condition(initial):
     )
 
 
-def spherical_centers(boundary):
+def spherical_centers(boundary_proper_code):
     return 0.75 * (
-        boundary[1:]**4 - boundary[:-1]**4
-    ) / (boundary[1:]**3 - boundary[:-1]**3)
+        boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4
+    ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
 
 
 class InitialCondition(Rsim):
     def __init__(self, par_config, count, radius_min, radius_max, density, temperature,
-                 central_mass, rotation_factor, code_units):
+                 central_mass, rotation_factor, code_unit_system):
         super().__init__(par_config)
         self.par.mesh.ghost_cells = 0
         boundary = np.linspace(radius_min, radius_max, count + 1)

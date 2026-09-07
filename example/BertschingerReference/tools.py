@@ -17,7 +17,7 @@ def load_reference_config(filename):
     return eu.load_nested_example_config(filename)
 
 
-def make_scale_free_shells(config, units, cosmology):
+def make_scale_free_shells(config):
     """Create the EdS epsilon=1 scale-free radial shell perturbation.
 
     For epsilon=1, Delta M/M is proportional to M^{-1}, hence Delta M is
@@ -26,6 +26,8 @@ def make_scale_free_shells(config, units, cosmology):
     radial secondary-infall construction before shell crossing.
     """
     initial_condition = config['initial_condition']
+    code_unit_system = config['_code_units']
+    cosmology = config['_cosmology']
     number = int(initial_condition['number_of_shells'])
     qmin = float(initial_condition['inner_radius'])
     qmax = float(initial_condition['outer_radius'])
@@ -48,7 +50,7 @@ def make_scale_free_shells(config, units, cosmology):
         shell_id=np.arange(number),
         fixed_enclosed_mass=delta_mass,
         softening=float(initial_condition['softening']),
-        code_units=units,
+        code_units=code_unit_system,
     )
     return shells, delta_mass
 

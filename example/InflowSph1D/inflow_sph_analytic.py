@@ -7,7 +7,7 @@ def density_profile(radius, density_inflow, reference_radius):
     return density_inflow * reference_radius**2 / radius**2
 
 
-def front_position(reference_radius, time, velocity_inflow):
+def front_position(reference_radius, time_proper_code, velocity_inflow):
     """Return the reference inflow-front position."""
 
-    return reference_radius + time * velocity_inflow
+    return reference_radius + time_proper_code * velocity_inflow

@@ -56,7 +56,7 @@ def main(config_filename=DEFAULT_CONFIG):
         initial_radius, central_mass, angular_momentum, softening, g_code
     )
 
-    def rhs(time, state):
+    def rhs(time_proper_code, state):
         radius, velocity = state
         radius_safe = max(radius, np.finfo(float).tiny)
         acceleration = (
@@ -65,7 +65,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         return velocity, acceleration
 
-    def event_radius_floor(time, state):
+    def event_radius_floor(time_proper_code, state):
         return state[0] - 0.02
 
     event_radius_floor.terminal = True

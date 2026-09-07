@@ -16,7 +16,7 @@ def volume_midpoint_boundaries(rmin, rmax, number):
     return boundaries**(1.0 / 3.0)
 
 
-def make_shells(initial_condition, code_units, cosmology, overdensity=None):
+def make_shells(initial_condition, code_unit_system, cosmology, overdensity=None):
     default_number = int(initial_condition.get('number_of_shells', 2))
     number_inner = int(initial_condition.get('number_of_inner_shells', default_number // 2))
     number_outer = int(initial_condition.get('number_of_outer_shells', number_inner))
@@ -44,13 +44,13 @@ def make_shells(initial_condition, code_units, cosmology, overdensity=None):
     return DarkMatterShells(
         radius, velocity, mass,
         softening=float(initial_condition['softening']),
-        code_units=code_units,
+        code_unit_system=code_unit_system,
     ), boundaries
 
 
 def lagrangian_boundary_acceleration(radius, enclosed_mass, background_density,
-                                     scale_factor, code_units):
-    g_code = _gravitational_constant_code(code_units)
+                                     scale_factor, code_unit_system):
+    g_code = _gravitational_constant_code(code_unit_system)
     background_mass = 4.0 * np.pi / 3.0 * background_density * radius**3
     return -g_code * scale_factor * (enclosed_mass - background_mass) / radius**2
 
@@ -62,15 +62,15 @@ def overdensity_inside(radius, target_mass, background_density):
 
 def step_lagrangian_boundary(radius, velocity, dt, enclosed_mass,
                              background_density_start, background_density_end,
-                             scale_factor_start, scale_factor_end, code_units):
+                             scale_factor_start, scale_factor_end, code_unit_system):
     acceleration = lagrangian_boundary_acceleration(
         radius, enclosed_mass, background_density_start, scale_factor_start,
-        code_units,
+        code_unit_system,
     )
     velocity_half = velocity + 0.5 * dt * acceleration
     radius_new = radius + dt * velocity_half
     acceleration_new = lagrangian_boundary_acceleration(
         radius_new, enclosed_mass, background_density_end, scale_factor_end,
-        code_units,
+        code_unit_system,
     )
     return radius_new, velocity_half + 0.5 * dt * acceleration_new

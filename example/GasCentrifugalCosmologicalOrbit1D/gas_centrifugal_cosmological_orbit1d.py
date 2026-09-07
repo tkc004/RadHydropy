@@ -34,18 +34,22 @@ import example_utils as eu
 CONFIG = ROOT / 'gas_centrifugal_cosmological_orbit1d.yaml'
 
 def prepare_initial_condition(initial):
-    boundary = np.asarray(initial.mesh.boundary, dtype=float)
+    boundary_comoving_code = np.asarray(
+        initial.mesh.boundary_comoving_code, dtype=float
+    )
     initial.par.cosmological_expansion = True
     initial.par.supercomoving_coordinates = True
     initial.par.coordinate_frame = 'comoving'
     initial.par.time_coordinate = 'supercomoving'
     initial.par.velocity_representation = 'supercomoving_peculiar'
-    initial.mesh.boundary_comoving_code = boundary
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
-        boundary=boundary, width=np.diff(boundary),
-        area=4.0 * np.pi * boundary[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
+        SUPERCOMOVING_RUNTIME_FIELDS, coordinate=initial.mesh.x_comoving_code,
+        boundary=boundary_comoving_code,
+        width=np.diff(boundary_comoving_code),
+        area=4.0 * np.pi * boundary_comoving_code[:-1]**2,
+        volume=4.0 * np.pi / 3.0 * (
+            boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
+        ),
     )
     initial.fluid.rho_comoving_code = initial.fluid.rho_comoving_code
     initial.fluid.vel_supercomoving_code = initial.fluid.vel_supercomoving_code
@@ -64,7 +68,7 @@ def prepare_initial_condition(initial):
 
 class CosmologicalInitialCondition(Rsim):
     def __init__(self, par_config, count, radius_min, radius_max, density, temperature,
-                 specific_j, code_units):
+                 specific_j, code_unit_system):
         super().__init__(par_config)
         self.mesh.boundary_comoving_code = np.linspace(radius_min, radius_max, count + 1)
         self.mesh.x_comoving_code = 0.75 * (

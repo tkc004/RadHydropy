@@ -31,7 +31,7 @@ def photoionization_rate(photon_number_density, sigma_gamma):
 
 
 def neutral_fraction(
-    time,
+    time_proper_code,
     initial_neutral_fraction,
     temperature,
     hydrogen_number_density,
@@ -40,7 +40,7 @@ def neutral_fraction(
 ):
     """Return the fixed-radiation neutral fraction including recombinations."""
 
-    time = np.asarray(time) * unyt.yr
+    time_proper_code = np.asarray(time_proper_code) * unyt.yr
     rate_rec = recombination_rate(
         temperature,
         hydrogen_number_density,
@@ -49,7 +49,7 @@ def neutral_fraction(
         photon_number_density,
         sigma_gamma,
     ).to_value(1.0 / unyt.s)
-    time_s = time.to_value(unyt.s)
+    time_s = time_proper_code.to_value(unyt.s)
     x0 = initial_neutral_fraction
 
     if rate_rec == 0.0:

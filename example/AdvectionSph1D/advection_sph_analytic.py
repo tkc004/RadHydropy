@@ -9,18 +9,18 @@ def gaussian(radius, inverse_width, center):
     return np.exp(-np.power(inverse_width * (radius - center), 2.0))
 
 
-def expanding_quantity(geometry_index, alpha, time, radius, inverse_width, center):
+def expanding_quantity(geometry_index, alpha, time_proper_code, radius, inverse_width, center):
     """Return the analytic homologous-expansion profile."""
 
     return (
-        np.exp(-(geometry_index + 1.0) * alpha * time)
-        * gaussian(radius * np.exp(-alpha * time), inverse_width, center)
+        np.exp(-(geometry_index + 1.0) * alpha * time_proper_code)
+        * gaussian(radius * np.exp(-alpha * time_proper_code), inverse_width, center)
     )
 
 
 def top_hat_density_profile(
     radius,
-    time,
+    time_proper_code,
     velocity,
     boxsize,
     density_high,
@@ -39,13 +39,13 @@ def top_hat_density_profile(
     if hasattr(radius, "to_value"):
         radius = radius.to_value()
     radius = np.asarray(radius, dtype=float)
-    if hasattr(time, "to_value"):
-        time = time.to_value()
+    if hasattr(time_proper_code, "to_value"):
+        time_proper_code = time_proper_code.to_value()
     if hasattr(velocity, "to_value"):
         velocity = velocity.to_value()
     if hasattr(boxsize, "to_value"):
         boxsize = boxsize.to_value()
-    launch_radius = radius - time * velocity
+    launch_radius = radius - time_proper_code * velocity
     initial_density = density_low_factor * density_high * np.ones_like(radius)
 
     inside = np.logical_and(launch_radius >= 0.0, launch_radius <= boxsize)

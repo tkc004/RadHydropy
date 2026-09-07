@@ -37,12 +37,12 @@ def recombination_time(hydrogen_number_density, alpha_B):
     return (1.0 / (alpha_B * hydrogen_number_density)).to(unyt.Myr)
 
 
-def ionization_front_radius(time, source_photon_rate, hydrogen_number_density, alpha_B):
+def ionization_front_radius(time_proper_code, source_photon_rate, hydrogen_number_density, alpha_B):
     """Return ``R_I(t) = R_S [1 - exp(-t / tau_r)]^(1/3)``."""
 
     radius = stromgren_radius(source_photon_rate, hydrogen_number_density, alpha_B)
     time_rec = recombination_time(hydrogen_number_density, alpha_B)
-    value = 1.0 - np.exp(-(time / time_rec).to_value(''))
+    value = 1.0 - np.exp(-(time_proper_code / time_rec).to_value(''))
     return radius * value**(1.0 / 3.0)
 
 

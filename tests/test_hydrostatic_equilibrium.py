@@ -153,7 +153,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
             externalgravity=True,
             acceleration=module.constant_gravity_acceleration(
                 initial_condition["gravity_strength"],
-                code_units=code_units,
+                    code_unit_system=code_units,
             ),
             code_units=code_units,
         ),

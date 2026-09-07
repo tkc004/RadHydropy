@@ -28,10 +28,10 @@ def wind_luminosity(rho_outflow, vel_outflow, injection_radius):
     return unyt.unyt_array(luminosity, unyt.erg / unyt.s)
 
 
-def shock_radius(time, rho_ambient, rho_outflow, vel_outflow, injection_radius):
+def shock_radius(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius):
     """Return the Weaver forward-shock radius."""
 
-    t = _to_value(time, unyt.s)
+    t = _to_value(time_proper_code, unyt.s)
     density = _to_value(rho_ambient, unyt.g / unyt.cm**3)
     luminosity = wind_luminosity(rho_outflow, vel_outflow, injection_radius).to_value(
         unyt.erg / unyt.s
@@ -40,19 +40,19 @@ def shock_radius(time, rho_ambient, rho_outflow, vel_outflow, injection_radius):
     return unyt.unyt_array(radius, unyt.cm)
 
 
-def shock_velocity(time, rho_ambient, rho_outflow, vel_outflow, injection_radius):
+def shock_velocity(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius):
     """Return the Weaver forward-shock velocity."""
 
-    radius = shock_radius(time, rho_ambient, rho_outflow, vel_outflow, injection_radius)
-    t = _to_value(time, unyt.s)
+    radius = shock_radius(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius)
+    t = _to_value(time_proper_code, unyt.s)
     velocity = 0.6 * radius.to_value(unyt.cm) / t
     return unyt.unyt_array(velocity, unyt.cm / unyt.s)
 
 
-def bubble_pressure(time, rho_ambient, rho_outflow, vel_outflow, injection_radius):
+def bubble_pressure(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius):
     """Return the interior pressure of the energy-driven bubble."""
 
-    t = _to_value(time, unyt.s)
+    t = _to_value(time_proper_code, unyt.s)
     density = _to_value(rho_ambient, unyt.g / unyt.cm**3)
     luminosity = wind_luminosity(rho_outflow, vel_outflow, injection_radius).to_value(
         unyt.erg / unyt.s
@@ -61,11 +61,11 @@ def bubble_pressure(time, rho_ambient, rho_outflow, vel_outflow, injection_radiu
     return unyt.unyt_array(pressure, unyt.dyn / unyt.cm**2)
 
 
-def weaver_solution(time, rho_ambient, rho_outflow, vel_outflow, injection_radius):
+def weaver_solution(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius):
     """Return the Weaver radius, velocity, and pressure."""
 
     return (
-        shock_radius(time, rho_ambient, rho_outflow, vel_outflow, injection_radius),
-        shock_velocity(time, rho_ambient, rho_outflow, vel_outflow, injection_radius),
-        bubble_pressure(time, rho_ambient, rho_outflow, vel_outflow, injection_radius),
+        shock_radius(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius),
+        shock_velocity(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius),
+        bubble_pressure(time_proper_code, rho_ambient, rho_outflow, vel_outflow, injection_radius),
     )

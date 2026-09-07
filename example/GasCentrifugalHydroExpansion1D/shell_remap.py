@@ -4,7 +4,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 
-def shell_quadrature(boundary, samples_per_cell, density, central_mass,
+def shell_quadrature(boundary_proper_code, samples_per_cell, density, central_mass,
                      rotation_factor):
     """Construct equal-mass quadrature shells for spherical cells.
 
@@ -13,17 +13,17 @@ def shell_quadrature(boundary, samples_per_cell, density, central_mass,
     shell masses explicitly keeps the analytic reference independent of the
     target Eulerian resolution.
     """
-    boundary = np.asarray(boundary, dtype=float)
+    boundary_proper_code = np.asarray(boundary_proper_code, dtype=float)
     samples_per_cell = int(samples_per_cell)
     if samples_per_cell < 1:
         raise ValueError('samples_per_cell must be positive')
-    if boundary.ndim != 1 or len(boundary) < 2:
+    if boundary_proper_code.ndim != 1 or len(boundary_proper_code) < 2:
         raise ValueError('boundary must contain at least one cell')
-    if np.any(np.diff(boundary) <= 0.0):
+    if np.any(np.diff(boundary_proper_code) <= 0.0):
         raise ValueError('boundary must be strictly increasing')
 
-    lower = boundary[:-1, None]
-    upper = boundary[1:, None]
+    lower = boundary_proper_code[:-1, None]
+    upper = boundary_proper_code[1:, None]
     fraction = (np.arange(samples_per_cell, dtype=float) + 0.5) / samples_per_cell
     lower_volume = lower**3
     upper_volume = upper**3

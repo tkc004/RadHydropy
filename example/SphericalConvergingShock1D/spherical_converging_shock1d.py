@@ -32,14 +32,14 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
 
-def _read_profile(filename, units):
+def _read_profile(filename, code_unit_system):
     par = et.Par()
     mesh = et.Mesh()
     fluid = et.Fluid()
-    par.units = type('Units', (), {'CodeUnits': units})()
+    par.code_unit_system = type('Units', (), {'CodeUnits': code_unit_system})()
     par.simulation = type('Simulation', (), {'coordinate_system': 'spherical'})()
     par.mesh = type('MeshParameters', (), {'ghost_cells': 2, 'grid_cells': 512})()
-    par.CodeUnits = units
+    par.CodeUnits = code_unit_system
     rio.readhdf5(par, mesh, fluid, filename)
     first = int(getattr(par, "noghost", 2))
     count = int(getattr(par, "nogrid"))
@@ -52,7 +52,7 @@ def _read_profile(filename, units):
     mu = np.asarray(fluid.mu[first:first + count], dtype=float)
     rho_proper = rho_proper_code
     temp_proper = temp_proper_code
-    eos = EOS("polytropic", gamma=1.4, code_units=units)
+    eos = EOS("polytropic", gamma=1.4, code_units=code_unit_system)
     pressure_proper_code = eos.pressure(
         rho_proper_code, temp_proper_code, mu
     )

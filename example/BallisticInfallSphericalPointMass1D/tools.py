@@ -12,19 +12,19 @@ from basic_hydro_utils import make_initial_condition
 
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
-def spherical_cell_centers(boundary):
-    coordinate = .5 * (boundary[1:] + boundary[:-1])
-    denom = boundary[1:]**3 - boundary[:-1]**3
+def spherical_cell_centers(boundary_proper_code):
+    coordinate = .5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    denom = boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
     mask = denom != 0
-    coordinate[mask] = .75 * (boundary[1:][mask]**4 - boundary[:-1][mask]**4) / denom[mask]
+    coordinate[mask] = .75 * (boundary_proper_code[1:][mask]**4 - boundary_proper_code[:-1][mask]**4) / denom[mask]
     return coordinate
 
-def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
-    scales = code_unit_scales(code_units) if code_units is not None else None
+def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
+    scales = code_unit_scales(code_unit_system) if code_unit_system is not None else None
     mass = point_mass.to_value(unyt.g) if hasattr(point_mass, "to_value") else float(point_mass) * (scales["mass_g"] if scales else 1)
     soft = softening.to_value(unyt.cm) if hasattr(softening, "to_value") else float(softening) * (scales["length_cgs_cm"] if scales else 1)
     def acceleration(coordinate):
-        radius = coordinate.to_value(code_units.length_unit) if hasattr(coordinate, "to_value") and code_units is not None else np.asarray(coordinate, dtype=float)
+        radius = coordinate.to_value(code_unit_system.length_unit) if hasattr(coordinate, "to_value") and code_unit_system is not None else np.asarray(coordinate, dtype=float)
         if scales is not None: radius = radius * scales["length_cgs_cm"]
         radius = np.maximum(radius, soft)
         return (-GRAVITATIONAL_CONSTANT_CGS * mass / radius**2) * ACCELERATION_UNIT
@@ -33,9 +33,9 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
 def ballistic_density_profile(coordinate, rho_ref):
     return np.ones(np.shape(coordinate), dtype=float) * rho_ref
 
-def ballistic_velocity_profile(coordinate, point_mass, time, softening=0.0, code_units=None):
-    t = time_seconds(time, code_units) * unyt.s if code_units is not None else float(time) * unyt.s
-    return point_mass_acceleration(point_mass, softening, code_units)(coordinate) * t
+def ballistic_velocity_profile(coordinate, point_mass, time_proper_code, softening=0.0, code_unit_system=None):
+    t = time_seconds(time_proper_code, code_unit_system) * unyt.s if code_unit_system is not None else float(time_proper_code) * unyt.s
+    return point_mass_acceleration(point_mass, softening, code_unit_system)(coordinate) * t
 
 def build_initial_condition(config):
     ic = config["initial_condition"]

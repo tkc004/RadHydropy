@@ -43,7 +43,9 @@ def main(config_filename=DEFAULT_CONFIG):
         units, t_ref=float(example['cosmology_t_ref']),
         a_ref=float(example['cosmology_a_ref']),
     )
-    shells, delta_mass = et.make_scale_free_shells(config, units, cosmology)
+    config["_code_units"] = units
+    config["_cosmology"] = cosmology
+    shells, delta_mass = et.make_scale_free_shells(config)
     initial_time = float(initial_condition['initial_cosmic_time'])
     final_time = float(example['final_cosmic_time'])
     tau = float(cosmology.supercomoving_time(initial_time))

@@ -114,31 +114,34 @@ def _load_correlation_table(config_filename, example):
     return et.load_lcdm_correlation_table(filename)
 
 
-def _set_background_state(sim, cosmology, cosmic_time, baryon_fraction,
+def _set_background_state(sim, config, cosmic_time, baryon_fraction,
                           initial_temperature_code, mu):
     """Synchronize the analytic EdS outer reservoir and its active cell."""
+    cosmology = config["_cosmology"]
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     background_comoving = (
         float(cosmology.background_density(cosmic_time)) * scale_factor**3
     )
-    sim.par.rho_inflow = baryon_fraction * background_comoving
-    sim.par.vel_inflow = 0.0
-    sim.par.temp_inflow = initial_temperature_code
-    sim.par.mu_inflow = mu
+    sim.par.boundary.inflow_density = baryon_fraction * background_comoving
+    sim.par.boundary.inflow_velocity = 0.0
+    sim.par.boundary.inflow_temperature = initial_temperature_code
+    sim.par.boundary.inflow_mu = mu
 
     first = int(sim.par.mesh.ghost_cells)
     index = first + int(sim.par.mesh.grid_cells) - 1
-    rho = float(sim.par.rho_inflow)
-    velocity = 0.0
+    rho = float(sim.par.boundary.inflow_density)
+    velocity = float(sim.par.boundary.inflow_velocity)
+    temperature = float(sim.par.boundary.inflow_temperature)
+    boundary_mu = float(sim.par.boundary.inflow_mu)
     pressure = float(np.asarray(
-        sim.fluid.eos.pressure(rho, initial_temperature_code, mu),
+        sim.fluid.eos.pressure(rho, temperature, boundary_mu),
         dtype=float,
     ))
     volume = float(np.asarray(sim.mesh.volume_comoving_code[index], dtype=float))
     sim.fluid.rho_comoving_code[index] = rho
     sim.fluid.vel_supercomoving_code[index] = velocity
-    sim.fluid.temp_supercomoving_code[index] = initial_temperature_code
-    sim.fluid.mu[index] = mu
+    sim.fluid.temp_supercomoving_code[index] = temperature
+    sim.fluid.mu[index] = boundary_mu
     sim.fluid.pre_supercomoving_code[index] = pressure
     sim.fluid.Mass_code[index] = rho * volume
     sim.fluid.Mom_code[index] = 0.0
@@ -191,14 +194,13 @@ def _matched_shell_mass(target_enclosed_mass):
     return mass
 
 
-def _make_matched_initial_state(config, units, cosmology,
-                                correlation_table):
+def _make_matched_initial_state(config):
     """Build gas cells and one volume-centred DM shell per identical cell."""
+    code_unit_system = config["_code_unit_system"]
+    cosmology = config["_cosmology"]
     initial_condition = config["initial_condition"]
     par = config["par"]
-    initial = et.build_initial_condition(
-        config, units, cosmology, correlation_table=correlation_table
-    )
+    initial = et.build_initial_condition(config)
     # A uniform origin-centred mesh avoids allowing logarithmic innermost-cell
     # truncation error to dominate a deliberately tiny growing-mode signal.
     boundaries = np.linspace(
@@ -217,12 +219,11 @@ def _make_matched_initial_state(config, units, cosmology,
     )
     baryon_fraction = float(initial_condition["baryon_fraction"])
     length_unit_mpc_h = (
-        float(units.length_in_cgs) / 3.0856775814913673e24
+        float(code_unit_system.length_in_cgs) / 3.0856775814913673e24
         * float(initial_condition.get("correlation_h", 0.674))
     )
     _, mean_delta = et.density_contrast_profile(
-        coordinates, initial_condition, cosmology,
-        correlation_table=correlation_table,
+        coordinates, config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     enclosed_volume = 4.0 * np.pi / 3.0 * coordinates**3
@@ -239,7 +240,7 @@ def _make_matched_initial_state(config, units, cosmology,
         int(par["mesh"]["grid_cells"]),
         float(initial_condition["cie_initial_temperature"]) * scale_factor**2,
     )
-    et.refresh_typed_initial_condition(initial, units)
+    et.refresh_typed_initial_condition(initial)
 
     shell_radius = coordinates.copy()
     shells = DarkMatterShells(
@@ -250,13 +251,15 @@ def _make_matched_initial_state(config, units, cosmology,
         ),
         angular_momentum=np.zeros_like(shell_radius),
         softening=float(par.get("dark_matter", {}).get("softening", 0.0)),
-        code_units=units,
+        code_units=code_unit_system,
     )
     return initial, shells
 
 
-def _snapshot(sim, dm, cosmic_time, cosmology, initial_condition, correlation_table,
+def _snapshot(sim, dm, cosmic_time, config,
               initial_scale_factor, diagnostic_min, diagnostic_max):
+    cosmology = config["_cosmology"]
+    initial_condition = config["initial_condition"]
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
@@ -290,10 +293,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, initial_condition, correlation_ta
         * float(initial_condition.get("correlation_h", 0.674))
     )
     _, mean_delta_initial = et.density_contrast_profile(
-        x,
-        initial_condition,
-        cosmology,
-        correlation_table=correlation_table,
+        x, config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     delta_analytic = growth * mean_delta_initial
@@ -304,10 +304,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, initial_condition, correlation_ta
     )
 
     _, dm_mean_delta_initial = et.density_contrast_profile(
-        dm_x,
-        initial_condition,
-        cosmology,
-        correlation_table=correlation_table,
+        dm_x, config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     dm_velocity = np.asarray(dm.velocity, dtype=float) / scale_factor
@@ -511,10 +508,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial, dm = _make_matched_initial_state(
-        {"par": par, "initial_condition": initial_condition},
-        units, cosmology, correlation_table
-    )
+    config = copy.deepcopy(config)
+    config["par"] = par
+    config["initial_condition"] = initial_condition
+    config["_code_unit_system"] = units
+    config["_cosmology"] = cosmology
+    config["_correlation_table"] = correlation_table
+    initial, dm = _make_matched_initial_state(config)
     rio.writehdf5(initial, ic_filename)
     initial_shell_mass_order = np.asarray(dm.mass, dtype=float).copy()
     if np.unique(initial_shell_mass_order).size != dm.number_of_shells:
@@ -525,7 +525,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     local["output"].update({
         "directory": str(output_dir), "savedir": str(output_dir),
     })
-    config = copy.deepcopy(config)
     config["par"] = local
     sim = Rsim(config["par"])
     diagnostic_solver = LinearGrowthDiagnosticSolver()
@@ -565,14 +564,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     snapshot_taus = np.asarray(cosmology.supercomoving_time(snapshot_times), dtype=float)
 
     _set_background_state(
-        sim, cosmology, initial_time, baryon_fraction,
+        sim, config, initial_time, baryon_fraction,
             initial_temperature_code, float(initial_condition["mu"]),
     )
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid)
 
     history = [_snapshot(
-        sim, dm, initial_time, cosmology, initial_condition, correlation_table,
+        sim, dm, initial_time, config,
         initial_scale_factor, diagnostic_min, diagnostic_max,
     )]
     steps = 0
@@ -582,7 +581,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
             )
             _set_background_state(
-                sim, cosmology, cosmic_time, baryon_fraction,
+                sim, config, cosmic_time, baryon_fraction,
                 initial_temperature_code, float(initial_condition["mu"]),
             )
             sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
@@ -605,11 +604,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
         _set_background_state(
-            sim, cosmology, cosmic_time, baryon_fraction,
+            sim, config, cosmic_time, baryon_fraction,
             initial_temperature_code, float(initial_condition["mu"]),
         )
         history.append(_snapshot(
-            sim, dm, cosmic_time, cosmology, initial_condition, correlation_table,
+            sim, dm, cosmic_time, config,
             initial_scale_factor, diagnostic_min, diagnostic_max,
         ))
 

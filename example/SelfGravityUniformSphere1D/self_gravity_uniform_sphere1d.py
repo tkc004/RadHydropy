@@ -43,8 +43,8 @@ def main(config_filename=DEFAULT_CONFIG):
     code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
     config['_code_units'] = code_units
-    initial_condition = et.build_initial_condition(config)
-    rio.writehdf5(initial_condition, runtime['simulation']['initial_condition_filename'])
+    initial_state = et.build_initial_condition(config)
+    rio.writehdf5(initial_state, runtime['simulation']['initial_condition_filename'])
 
     runtime = {**runtime, 'simulation': {**runtime['simulation'], 'initial_condition_filename': runtime['simulation']['initial_condition_filename']}}
     sim = Rsim(runtime)
@@ -64,7 +64,7 @@ def main(config_filename=DEFAULT_CONFIG):
         par=sim.par,
     )
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    radius = sim.mesh.coordinate[interior]
+    radius = sim.mesh.x_proper_code[interior]
     rho0 = initial_condition['rho0']
     radius_quantity = np.asarray(radius, dtype=float) * sim.par.CodeUnits.length_unit
     analytic = et.uniform_sphere_acceleration(radius_quantity, rho0)

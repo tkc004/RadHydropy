@@ -22,14 +22,14 @@ DENSITY_UNIT = unyt.g / unyt.cm**3
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
 
-def sound_speed_squared(temp, mu, code_units=None):
+def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
     """Return the isothermal sound speed squared."""
-    if hasattr(temp, "to_value"):
-        temp_value = float(temp.to_value(unyt.K))
-    elif code_units is not None:
-        temp_value = float(np.asarray(temp, dtype=float)) * code_unit_scales(code_units)["temperature_cgs_K"]
+    if hasattr(temperature_proper_code, "to_value"):
+        temp_value = float(temperature_proper_code.to_value(unyt.K))
+    elif code_unit_system is not None:
+        temp_value = float(np.asarray(temperature_proper_code, dtype=float)) * code_unit_scales(code_unit_system)["temperature_cgs_K"]
     else:
-        temp_value = float(temp)
+        temp_value = float(temperature_proper_code)
     mu_value = float(np.asarray(mu, dtype=float))
     return (
         BOLTZMANN_CONSTANT_CGS
@@ -38,13 +38,13 @@ def sound_speed_squared(temp, mu, code_units=None):
     ) * SPEED_SQUARED_UNIT
 
 
-def spherical_cell_centers(boundary):
+def spherical_cell_centers(boundary_proper_code):
     """Return spherical cell centers consistent with the mesh geometry."""
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    vol_denom = boundary[1:]**3 - boundary[:-1]**3
+    coordinate = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    vol_denom = boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
     nonzero = vol_denom != 0.0
     coordinate[nonzero] = 0.75 * (
-        boundary[1:][nonzero]**4 - boundary[:-1][nonzero]**4
+        boundary_proper_code[1:][nonzero]**4 - boundary_proper_code[:-1][nonzero]**4
     ) / vol_denom[nonzero]
     return coordinate
 
@@ -52,37 +52,37 @@ def spherical_cell_centers(boundary):
 def point_mass_hydrostatic_density_profile(
     coordinate,
     rho_ref,
-    temp,
+    temperature_proper_code,
     mu,
     point_mass,
     reference_radius,
-    code_units=None,
+    code_unit_system=None,
 ):
     """Return the exact isothermal hydrostatic density profile."""
-    c_s2 = sound_speed_squared(temp, mu, code_units=code_units)
+    c_s2 = sound_speed_squared(temperature_proper_code, mu, code_unit_system=code_unit_system)
     c_s2_value = c_s2.to_value(unyt.cm**2 / unyt.s**2)
     if hasattr(coordinate, "to_value"):
         coord_value = coordinate.to_value(unyt.cm)
-    elif code_units is not None:
-        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
+    elif code_unit_system is not None:
+        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
         coord_value = np.asarray(coordinate, dtype=float)
     if hasattr(reference_radius, "to_value"):
         reference_radius_value = reference_radius.to_value(unyt.cm)
-    elif code_units is not None:
-        reference_radius_value = np.asarray(reference_radius, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
+    elif code_unit_system is not None:
+        reference_radius_value = np.asarray(reference_radius, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
         reference_radius_value = float(reference_radius)
     if hasattr(point_mass, "to_value"):
         point_mass_value = point_mass.to_value(unyt.g)
-    elif code_units is not None:
-        point_mass_value = np.asarray(point_mass, dtype=float) * code_unit_scales(code_units)["mass_g"]
+    elif code_unit_system is not None:
+        point_mass_value = np.asarray(point_mass, dtype=float) * code_unit_scales(code_unit_system)["mass_g"]
     else:
         point_mass_value = float(point_mass)
     if hasattr(rho_ref, "to_value"):
         rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
-    elif code_units is not None:
-        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_units)["density_cgs_g_cm3"]
+    elif code_unit_system is not None:
+        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
     else:
         rho_value = float(rho_ref)
     phi_ref = -GRAVITATIONAL_CONSTANT_CGS * point_mass_value / reference_radius_value
@@ -91,26 +91,26 @@ def point_mass_hydrostatic_density_profile(
     return rho_value * np.exp(exponent) * DENSITY_UNIT
 
 
-def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
+def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
     """Return a callable for a point-mass gravitational acceleration field."""
     if hasattr(point_mass, "to_value"):
         point_mass = point_mass.to_value(unyt.g)
-    elif code_units is not None:
-        point_mass = np.asarray(point_mass, dtype=float) * code_unit_scales(code_units)["mass_g"]
+    elif code_unit_system is not None:
+        point_mass = np.asarray(point_mass, dtype=float) * code_unit_scales(code_unit_system)["mass_g"]
     else:
         point_mass = float(point_mass)
     if hasattr(softening, "to_value"):
         softening = softening.to_value(unyt.cm)
-    elif code_units is not None:
-        softening = np.asarray(softening, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
+    elif code_unit_system is not None:
+        softening = np.asarray(softening, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
         softening = float(softening)
 
     def _acceleration(coordinate):
         if hasattr(coordinate, "to_value"):
             radius = coordinate.to_value(unyt.cm)
-        elif code_units is not None:
-            radius = np.asarray(coordinate, dtype=float) * code_unit_scales(code_units)["length_cgs_cm"]
+        elif code_unit_system is not None:
+            radius = np.asarray(coordinate, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
         else:
             radius = np.asarray(coordinate, dtype=float)
         radius = np.maximum(radius, softening)
@@ -121,52 +121,60 @@ def point_mass_acceleration(point_mass, softening=0.0, code_units=None):
     return _acceleration
 
 
-def build_initial_condition(config, code_units=None):
+def build_initial_condition(config, code_unit_system=None):
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     sim = Rsim(config['par'])
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     sim.par.simulation.coordinate_system = initial_condition['coordinate_system']
-    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['current_time'], code_units.time_unit)
-    sim.par.simulation.box_size = quantity_to_value(initial_condition['box_size'], code_units.length_unit)
+    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['current_time'], code_unit_system.time_unit)
+    sim.par.simulation.box_size = quantity_to_value(initial_condition['box_size'], code_unit_system.length_unit)
 
-    sim.mesh.boundary = np.linspace(
+    sim.mesh.boundary_proper_code = np.linspace(
         initial_condition['inner_radius'],
         initial_condition['outer_radius'],
         grid_cells + 1,
     )
-    sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
-    dx = sim.mesh.boundary[1] - sim.mesh.boundary[0]
-    sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
-    sim.mesh.vol = (
-        np.absolute(sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3)
+    sim.mesh.x_proper_code = spherical_cell_centers(sim.mesh.boundary_proper_code)
+    dx = sim.mesh.boundary_proper_code[1] - sim.mesh.boundary_proper_code[0]
+    sim.mesh.area_proper_code = 4.0 * np.pi * sim.mesh.boundary_proper_code[:-1]**2
+    sim.mesh.volume_proper_code = (
+        np.absolute(sim.mesh.boundary_proper_code[1:]**3 - sim.mesh.boundary_proper_code[:-1]**3)
         * 4.0
         * np.pi
         / 3.0
     )
 
-    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['initial_temperature'], code_units.temperature_unit)
+    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['initial_temperature'], code_unit_system.temperature_unit)
     sim.fluid.mu = np.ones(grid_cells) * initial_condition['mean_molecular_weight']
     sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_proper_code = point_mass_hydrostatic_density_profile(
-        sim.mesh.coordinate,
+        sim.mesh.x_proper_code,
         initial_condition['reference_density'],
         initial_condition['initial_temperature'],
         initial_condition['mean_molecular_weight'],
         initial_condition['point_mass'],
-        reference_radius=sim.mesh.coordinate[0],
-        code_units=code_units,
+        reference_radius=sim.mesh.x_proper_code[0],
+        code_unit_system=code_unit_system,
     )
-    boundary_code = quantity_to_value(sim.mesh.boundary, code_units.length_unit)
-    coordinate_code = quantity_to_value(sim.mesh.coordinate, code_units.length_unit)
+    boundary_proper_code = quantity_to_value(
+        sim.mesh.boundary_proper_code, code_unit_system.length_unit
+    )
+    coordinate_proper_code = quantity_to_value(
+        sim.mesh.x_proper_code, code_unit_system.length_unit
+    )
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate_code, boundary=boundary_code,
-        width=np.diff(boundary_code), area=sim.mesh.area, volume=sim.mesh.vol,
+        PROPER_RUNTIME_FIELDS,
+        coordinate=coordinate_proper_code,
+        boundary=boundary_proper_code,
+        width=np.diff(boundary_proper_code),
+        area=sim.mesh.area_proper_code,
+        volume=sim.mesh.volume_proper_code,
     )
-    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_proper_code, code_units.density_unit)
+    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_proper_code, code_unit_system.density_unit)
     sim.fluid.vel_proper_code = np.zeros(grid_cells)
-    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_proper_code, code_units.temperature_unit)
+    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_proper_code, code_unit_system.temperature_unit)
     sim.fluid.pre_proper_code = sim.fluid.rho_proper_code * sim.fluid.temp_proper_code
     sim.fluid.time_proper_code = 0.0
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
@@ -184,7 +192,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = config['par']['units']['CodeUnits']
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = build_initial_condition(config, code_units=code_units_obj)
+    rout = build_initial_condition(config, code_unit_system=code_units_obj)
     if code_units_obj is not None:
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
@@ -209,7 +217,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         config['initial_condition']['mean_molecular_weight'],
         config['initial_condition']['point_mass'],
         reference_radius=xcoord[0],
-        code_units=code_units_obj,
+        code_unit_system=code_units_obj,
     )
     zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
     x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units if code_units_obj is not None else unyt.cm)

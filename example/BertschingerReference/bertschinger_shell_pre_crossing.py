@@ -28,10 +28,12 @@ from bertschinger_ode import solve_eq41_self_similar
 DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_reference.yaml')
 
 
-def make_turnaround_shells(config, units, cosmology):
+def make_turnaround_shells(config):
     """Create background interior shells and one tracked shell at ``r_a``."""
     # Isolate the Lagrangian turnaround shell for the pre-crossing benchmark.
     initial_condition = config['initial_condition']
+    code_unit_system = config['_code_units']
+    cosmology = config['_cosmology']
     turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
     time = float(initial_condition['initial_cosmic_time'])
     scale_factor = float(cosmology.scale_factor(time))
@@ -44,7 +46,7 @@ def make_turnaround_shells(config, units, cosmology):
                               mass=np.asarray([1.0e-12]),
                               fixed_enclosed_mass=fixed_total_mass,
                               softening=float(initial_condition.get('pre_crossing_softening', 1.0e-3)),
-                              code_units=units)
+                              code_units=code_unit_system)
     return shells, 0
 def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     config = example_tools.load_reference_config(config_filename)
@@ -57,7 +59,9 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
         t_ref=float(example['cosmology_t_ref']),
         a_ref=float(example['cosmology_a_ref']),
     )
-    shells, tracked = make_turnaround_shells(config, units, cosmology)
+    config['_code_units'] = units
+    config['_cosmology'] = cosmology
+    shells, tracked = make_turnaround_shells(config)
     initial_time = float(initial_condition['initial_cosmic_time'])
     final_xi = float(example.get('pre_crossing_final_xi', 0.9))
     match_lambda = float(example.get('pre_crossing_match_lambda', 0.002))

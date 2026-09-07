@@ -7,7 +7,7 @@ def density_profile(radius, density_outflow, injection_radius):
     return density_outflow * injection_radius**2 / radius**2
 
 
-def front_position(time, velocity_outflow):
+def front_position(time_proper_code, velocity_outflow):
     """Return the reference outflow-front position."""
 
-    return time * velocity_outflow
+    return time_proper_code * velocity_outflow

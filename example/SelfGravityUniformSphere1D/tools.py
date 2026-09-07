@@ -9,10 +9,10 @@ from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
-def spherical_cell_centers(boundary):
+def spherical_cell_centers(boundary_proper_code):
     """Return volume-weighted centers for spherical cells."""
-    inner = boundary[:-1]
-    outer = boundary[1:]
+    inner = boundary_proper_code[:-1]
+    outer = boundary_proper_code[1:]
     denominator = outer**3 - inner**3
     return 0.75 * (outer**4 - inner**4) / denominator
 
@@ -29,21 +29,21 @@ def uniform_sphere_acceleration(radius, rho0):
     ).to(unyt.cm / unyt.s**2)
 
 
-def build_initial_condition(config, code_units=None):
-    if code_units is None:
-        code_units = config['_code_units']
+def build_initial_condition(config, code_unit_system=None):
+    if code_unit_system is None:
+        code_unit_system = config['_code_units']
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     sim = Rsim(config['par'])
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     sim.par.simulation.coordinate_system = initial_condition['coordsys']
-    sim.par.simulation.box_size = np.ones(1) * quantity_to_value(initial_condition['boxsize'], code_units.length_unit)
-    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time'], code_units.time_unit)
+    sim.par.simulation.box_size = np.ones(1) * quantity_to_value(initial_condition['boxsize'], code_unit_system.length_unit)
+    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time'], code_unit_system.time_unit)
 
     boundary_proper_code = np.linspace(
-        quantity_to_value(initial_condition['rmin'], code_units.length_unit),
-        quantity_to_value(initial_condition['rmax'], code_units.length_unit),
+        quantity_to_value(initial_condition['rmin'], code_unit_system.length_unit),
+        quantity_to_value(initial_condition['rmax'], code_unit_system.length_unit),
         grid_cells + 1,
     )
     sim.mesh.boundary_proper_code = boundary_proper_code
@@ -62,8 +62,8 @@ def build_initial_condition(config, code_units=None):
         volume=sim.mesh.volume_proper_code,
     )
 
-    sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho0'], code_units.density_unit)
-    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['tempini'], code_units.temperature_unit)
+    sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho0'], code_unit_system.density_unit)
+    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['tempini'], code_unit_system.temperature_unit)
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
     sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.SetUpFluid(sim.par, sim.mesh)

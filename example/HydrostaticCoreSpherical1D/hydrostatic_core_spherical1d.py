@@ -67,8 +67,8 @@ def run(config_filename=DEFAULT_CONFIG):
 
     sim.Run(mode="hydro", step_backend=step_backend)
 
-    first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
     radius = np.asarray(sim.mesh.geometry_state.x_proper_code[first:last], dtype=float)
     density = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     analytic = et.analytic_density_code(radius, config, units)

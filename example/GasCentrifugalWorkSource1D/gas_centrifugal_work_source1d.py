@@ -49,7 +49,7 @@ def prepare_initial_condition(initial):
 
 class InitialCondition(Rsim):
     def __init__(self, par_config, radius, density, velocity, temperature,
-                 specific_j, code_units):
+                 specific_j, code_unit_system):
         super().__init__(par_config)
         self.par.mesh.grid_cells = 1
         self.par.mesh.ghost_cells = 0
