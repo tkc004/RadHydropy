@@ -19,6 +19,12 @@ def build_initial_condition(config):
     par = config['par']
     code_units = config['_code_units']
     grid_cells = int(par['mesh']['grid_cells'])
+    # Component-level callers may provide the already-resolved private unit
+    # object without repeating the YAML ``units`` group.  Keep the runtime
+    # object nested and canonical by adding that group only at this boundary.
+    if 'units' not in par:
+        par = dict(par)
+        par['units'] = {'CodeUnits': code_units.to_dict()}
     result = Rsim(par)
     result.par.simulation.time_code = quantity_to_value(initial['time'], code_units.time_unit)
     result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
@@ -37,10 +43,20 @@ def build_initial_condition(config):
     )
     rho = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho, code_units.density_unit))
-    midpoint = 0.5 * (initial['rmin'] + initial['rmax'])
-    result.fluid.vel_proper_code = as_named_array(quantity_to_value(np.where(
-        coordinate < midpoint, initial['outflow_velocity'], initial['inflow_velocity']
-    ), code_units.velocity_unit))
+    midpoint_proper_code = quantity_to_value(
+        0.5 * (initial['rmin'] + initial['rmax']), code_units.length_unit
+    )
+    outflow_velocity_proper_code = quantity_to_value(
+        initial['outflow_velocity'], code_units.velocity_unit
+    )
+    inflow_velocity_proper_code = quantity_to_value(
+        initial['inflow_velocity'], code_units.velocity_unit
+    )
+    result.fluid.vel_proper_code = as_named_array(np.where(
+        coordinate < midpoint_proper_code,
+        outflow_velocity_proper_code,
+        inflow_velocity_proper_code,
+    ))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * initial['inflow_temperature'], code_units.temperature_unit))
     result.fluid.mu = np.ones(grid_cells) * initial['muini']
     result.fluid.time_proper_code = 0.0
@@ -48,6 +64,7 @@ def build_initial_condition(config):
     result.fluid.SetUpFluid(result.par, result.mesh)
     result.fluid.SetFluidTime(0.0)
     result.fluid.SetEnergyDensity()
+    result.fluid._refresh_runtime_state()
     result.mesh._par = result.par
     result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
     result.ConvertParametersToCodeUnits()

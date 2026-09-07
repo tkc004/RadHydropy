@@ -63,6 +63,6 @@ def test_spherical_ic_density_is_mass_density():
         '_code_units': code_units,
     })
     assert np.isclose(
-        initial.fluid.rho_code[0].to_value('g/cm**3'),
+        (initial.fluid.rho_proper_code[0] * code_units.density_unit).to_value('g/cm**3'),
         1.0e-3 * TOOLS.PROTON_MASS_G / 0.76,
     )

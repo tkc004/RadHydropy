@@ -9,7 +9,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -93,7 +92,12 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
 
     initial_state = build_initial_condition(
-        {'par': case, 'initial_condition': initial, '_code_units': code_units}
+        {
+            'par': case,
+            'initial_condition': initial,
+            'example': {},
+            '_code_units': code_units,
+        }
     )
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
 
@@ -101,8 +105,6 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     sim.solver = CollidingStreamsSolver()
     # Maintain an outward inner stream and inward outer stream so the shock
     # forms near the initial midpoint instead of at a reflecting wall.
-    sim.solver = CollidingStreamsSolver()
-    sim.par.boundary = SimpleNamespace(**case['boundary'])
     sim.Run(outputtime=0, mode='hydro_sources' if pie_enabled else 'hydro')
 
     output_files = sorted(

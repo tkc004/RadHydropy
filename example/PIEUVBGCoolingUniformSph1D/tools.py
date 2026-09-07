@@ -32,13 +32,21 @@ def build_initial_condition(config):
         PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
         width=width, area=np.ones(grid_cells), volume=width,
     )
+    initial_velocity = initial.get('vini', 0.0 * unyt.cm / unyt.s)
     result.fluid.vel_proper_code = as_named_array(quantity_to_value(
-        np.zeros(grid_cells) * initial['vini'], code_units.velocity_unit
+        np.zeros(grid_cells) * initial_velocity, code_units.velocity_unit
     ))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * initial['tempini'], code_units.temperature_unit
     ))
-    rho = config['initial_condition']['hydrogen_density_cgs_cm3'] * float(initial['proton_mass_g']) / float(initial['hydrogen_mass_fraction'])
+    hydrogen_density_cgs_cm3 = initial.get('hydrogen_density_cgs_cm3', initial['nHini'])
+    proton_mass_g = float(initial.get('proton_mass_g', unyt.mp.to_value(unyt.g)))
+    hydrogen_mass_fraction = float(initial.get(
+        'hydrogen_mass_fraction', par['thermochemistry']['hydrogen_mass_fraction']
+    ))
+    if hasattr(hydrogen_density_cgs_cm3, 'to_value'):
+        hydrogen_density_cgs_cm3 = hydrogen_density_cgs_cm3.to_value(1 / unyt.cm**3)
+    rho = float(hydrogen_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * rho * unyt.g / unyt.cm**3, code_units.density_unit
     ))

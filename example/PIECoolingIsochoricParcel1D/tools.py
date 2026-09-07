@@ -12,8 +12,8 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     thermochemistry = config['par']['thermochemistry']
     code_units = config['_code_units']
-    density_cgs_cm3 = initial['hydrogen_density_cgs_cm3']
-    temperature_unyt = initial['temperature_unyt']
+    density_cgs_cm3 = initial.get('hydrogen_density_cgs_cm3', 1.0)
+    temperature_unyt = initial.get('temperature_unyt', initial['initial_temperature'])
     hydrogen_mass_fraction = float(thermochemistry['hydrogen_mass_fraction'])
     grid_cells = int(config['par']['mesh']['grid_cells'])
     result = Rsim(config['par'])

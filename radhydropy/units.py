@@ -89,6 +89,7 @@ _CODE_UNIT_GROUPS = (
             ('relaxation_damping_time', 'time'),
             ('outdeltatime', 'time'),
             ('hydrogen_source_dtmin', 'time'),
+            ('pie_uvbg_photoionization_timescale', 'time'),
             ('boxsize', 'length'),
             ('area', 'area'),
             ('selfgravity_softening', 'length'),

@@ -78,5 +78,5 @@ example:
   source_switch_time: {value: 5.0e7, unit: yr}
   excess_photoionization_energy: {value: 6.33, unit: eV}
   sigma_gamma: {value: 6.3e-18, unit: cm**2}
-  thermal_equilibrium_timescale: {value: 1.99526231496887e9, unit: yr}
+  thermal_equilibrium_timescale: {value: 1.99526231496888e9, unit: yr}
   plot_filename: HydrogenPhotoheating1D.jpg

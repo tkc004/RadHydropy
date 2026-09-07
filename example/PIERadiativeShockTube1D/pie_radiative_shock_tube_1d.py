@@ -65,7 +65,12 @@ def _run_case(
     case_initial['hydrogen_density'] = hydrogen_density * unyt.cm**-3
     eu.clean_previous_outputs(case)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
-    case_config = {'par': case, 'initial_condition': case_initial, '_code_units': code_units}
+    case_config = {
+        'par': case,
+        'initial_condition': case_initial,
+        'example': config['example'],
+        '_code_units': code_units,
+    }
     initial = build_initial_condition(case_config)
     rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
     sim = initial

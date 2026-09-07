@@ -30,6 +30,7 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
+import example_utils as eu
 from example_utils import load_nested_example_config
 from radhydropy.rsim import Rsim
 import radhydropy.io as rio
@@ -142,7 +143,8 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     axes[1].set_yscale("log")
     axes[1].set_ylabel("Temperature [K]")
     axes[1].grid(True, which="both", alpha=0.25)
-    axes[1].legend(frameon=False)
+    if temperature_reference is not None:
+        axes[1].legend(frameon=False)
     photon_axis = axes[2]
     for group, values in enumerate(ngamma_cgs_cm3):
         photon_axis.plot(radius_kpc, values, label=f"group {group + 1}")
@@ -153,7 +155,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.legend(frameon=False)
     network_name = config["par"].get("thermochemistry", {}).get("thermochemistry_network", "hydrogen")
     title = "H/He" if network_name == "hydrogen_helium" else "Pure-H"
-    if config["par"].get("thermochemistry", {}).get("metal_pie_enabled", False):
+    if config["par"].get("radiation", {}).get("metal_pie_enabled", False):
         title += " + metal PIE"
     radiation_temperature = float(
         config["example"].get("stellar_spectrum_blackbody_temperature_cgs_K", 1.0e5)
@@ -178,14 +180,15 @@ def main(config_filename=DEFAULT_CONFIG):
     output['savedir'] = str(output_dir)
     output['directory'] = str(output_dir)
     par['simulation']['initial_condition_filename'] = str(ic_filename)
-    tools.write_initial_condition(config)
-    sim = Rsim(par)
-    sim.Callreadhdf5()
+    eu.clean_previous_outputs(par)
+    par_obj, mesh, fluid, solver = tools.build_static_problem(config)
+    sim = Rsim.FromComponents(par_obj, mesh, fluid, solver)
+    rio.writehdf5(sim, ic_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     sim.EvolveStaticThermochemistry(
-        par['simulation']['final_time'],
+        par_obj.simulation.final_time,
         par['timestep']['evolution_timestep'],
     )
     output_filename = output_dir / (
