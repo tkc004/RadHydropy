@@ -35,7 +35,7 @@ def main(config_filename=DEFAULT_CONFIG):
     par_config = config['par']
     Path(par_config['output']['directory']).mkdir(parents=True, exist_ok=True)
     Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(par_config)
+    eu.clean_previous_outputs(config)
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
     initial_j = np.asarray(

@@ -22,7 +22,7 @@ def build_initial_condition(config):
     pressure = (par["hydrodynamics"]["gamma"]-1) * energy / volume[cut]
     probe = Rsim(par).fluid.eos.temperature(rho[cut], pressure, mu[cut])
     temp[cut] = float(np.asarray(probe))
-    return make_initial_condition(config, boundary, rho, np.zeros(n), temp, mu, area=np.full(n, quantity_to_value(par["mesh"]["area"], units.area_unit)))
+    return make_initial_condition(config, boundary_proper_code=boundary, rho_proper_code=rho, vel_proper_code=np.zeros(n), temp_proper_code=temp, mu_dimensionless=mu, area_proper_code=np.full(n, quantity_to_value(par["mesh"]["area"], units.area_unit)))
 
 def ReadandPlot(filename, config, **kwargs):
     sim = Rsim(config["par"]); import radhydropy.io as rio; rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)

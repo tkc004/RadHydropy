@@ -38,7 +38,7 @@ def main(config_filename=DEFAULT_CONFIG):
     thermochemistry = par['thermochemistry']
     table_filename = str((config_filename.parent / thermochemistry['metal_pie_table_filename']).resolve())
     thermochemistry['metal_pie_table_filename'] = table_filename
-    eu.clean_previous_outputs(par['output'])
+    eu.clean_previous_outputs(config)
     Path(par['output']['directory']).mkdir(parents=True, exist_ok=True)
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     halo = et.nfw_halo_parameters(

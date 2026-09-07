@@ -120,10 +120,15 @@ def build_initial_condition(config):
         code_units=code_units,
     ), code_units.density_unit)
     temperature_proper_code = np.full(grid_cells, quantity_to_value(icparams['initial_temperature'], code_units.temperature_unit))
-    return make_initial_condition(config, boundary_proper_code, density_proper_code,
-        np.zeros(grid_cells), temperature_proper_code,
-        np.full(grid_cells, icparams['mean_molecular_weight']),
-        area=np.ones(grid_cells))
+    return make_initial_condition(
+        config,
+        boundary_proper_code=boundary_proper_code,
+        rho_proper_code=density_proper_code,
+        vel_proper_code=np.zeros(grid_cells),
+        temp_proper_code=temperature_proper_code,
+        mu_dimensionless=np.full(grid_cells, icparams['mean_molecular_weight']),
+        area_proper_code=np.ones(grid_cells),
+    )
 def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     icparams = config['initial_condition']

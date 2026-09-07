@@ -49,3 +49,4 @@ initial_condition:
   current_time: {value: 0.0, unit: Myr}
   initial_temperature: {value: 10000.0, unit: K}
   mean_molecular_weight: 0.62
+example: {}

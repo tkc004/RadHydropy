@@ -140,11 +140,11 @@ def build_initial_condition(config):
     )
     return make_initial_condition(
         config,
-        quantity_to_value(boundary_unyt, code_units.length_unit),
-        quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
-        np.zeros(grid_cells),
-        np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
-        np.full(grid_cells, icparams['mu']),
+        boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
+        rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
+        vel_proper_code=np.zeros(grid_cells),
+        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
+        mu_dimensionless=np.full(grid_cells, icparams['mu']),
     )
 
 def read_and_plot(outfilename, config, halo, temperature, figure_filename):

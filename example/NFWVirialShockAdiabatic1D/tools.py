@@ -72,11 +72,11 @@ def build_initial_condition(config):
     )
     temperature = cmb_temperature * (1.0 + float(icparams['initial_redshift']))
     return make_initial_condition(config,
-        quantity_to_value(boundary_unyt, code_units.length_unit),
-        np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
-        quantity_to_value(expansion_rate * coordinate_unyt, code_units.velocity_unit),
-        np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
-        np.full(grid_cells, float(icparams['mu'])))
+        boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
+        rho_proper_code=np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
+        vel_proper_code=quantity_to_value(expansion_rate * coordinate_unyt, code_units.velocity_unit),
+        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
+        mu_dimensionless=np.full(grid_cells, float(icparams['mu'])))
 
 def _snapshot_profiles(filename, config):
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])

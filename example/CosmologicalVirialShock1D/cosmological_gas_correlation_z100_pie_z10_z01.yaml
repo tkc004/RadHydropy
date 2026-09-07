@@ -1,6 +1,9 @@
 par:
   dark_matter:
     softening: 0.1
+    crossing_batch_fraction: 0.0
+    crossing_safety_factor: 0.5
+    global_timestep_limit: false
   simulation:
     name: CosmologicalGasCorrelationZ100PIEZ10Z01
     initial_condition_filename: outputs_correlation_gas_pie_z10_z01/InitialCondition.hdf5
@@ -22,9 +25,6 @@ par:
   timestep:
     dtmin: {value: 1.0e-12, unit: Myr}
     dtmax: {value: 200.0, unit: Myr}
-  dark_matter_crossing_batch_fraction: 0.0
-  dark_matter_crossing_safety_factor: 0.5
-  dark_matter_global_timestep_limit: false
   output:
     directory: outputs_correlation_gas_pie_z10_z01
     savedir: outputs_correlation_gas_pie_z10_z01

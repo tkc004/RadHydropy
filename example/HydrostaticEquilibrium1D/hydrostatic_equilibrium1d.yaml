@@ -4,12 +4,12 @@ par:
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: cartesian
     final_time: {value: 1.0e-6, unit: Myr}
-  temperature: {value: 1.0e4, unit: K}
   mesh:
     grid_cells: 256
     ghost_cells: 2
   hydrodynamics:
     eos_type: isothermal
+    temperature: {value: 1.0e4, unit: K}
     gamma: 1.0
     CFL: 0.2
     order: 1
@@ -44,3 +44,4 @@ initial_condition:
   initial_temperature: {value: 1.0e4, unit: K}
   mean_molecular_weight: 1.0
   gravity_strength: {value: 1.0e-7, unit: cm/s**2}
+example: {}

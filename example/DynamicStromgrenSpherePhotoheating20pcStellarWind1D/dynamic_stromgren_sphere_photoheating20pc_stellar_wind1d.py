@@ -142,7 +142,7 @@ def main(config_filename=None):
     output = par['output']
     config['_code_units'] = CodeUnits.from_mapping(par['units']['CodeUnits'])
     output_dir = Path(output['directory'])
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     output_dir.mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)

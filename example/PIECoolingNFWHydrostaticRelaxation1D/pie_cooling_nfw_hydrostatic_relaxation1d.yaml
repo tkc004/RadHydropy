@@ -65,3 +65,4 @@ initial_condition:
   mu: 0.59
   reference_density: {value: 1.0e-27, unit: g/cm**3}
   initial_temperature: {value: 1.0, unit: K}
+example: {}

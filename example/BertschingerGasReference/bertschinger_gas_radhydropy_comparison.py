@@ -355,7 +355,7 @@ def main(config_filename=DEFAULT_CONFIG):
     runparams = config['par']
     icparams = config['initial_condition']
     output = runparams['output']
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     reference = solve_bertschinger_gas()
     config['_reference_solution'] = reference
     initial = build_initial_condition(config)

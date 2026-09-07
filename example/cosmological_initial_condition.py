@@ -20,18 +20,18 @@ def build_initial_condition(config):
     ``*_comoving_code`` and ``*_supercomoving_code`` private inputs; Sod cases
     use the physical left/right values in ``initial_condition`` directly.
     """
-    par_config = config["par"]
+    par = config["par"]
     initial_condition = config["initial_condition"]
     code_cosmology = config["_code_cosmology"]
-    result = Rsim(par_config)
-    grid_cells = int(par_config["mesh"]["grid_cells"])
+    result = Rsim(config["par"])
+    grid_cells = int(par["mesh"]["grid_cells"])
     boxsize_code = float(
         initial_condition.get(
-            "boxsize", par_config["simulation"].get("box_size", 1.0)
+            "boxsize", par["simulation"].get("box_size", 1.0)
         ).to_value(result.par.CodeUnits.length_unit)
         if hasattr(
             initial_condition.get(
-                "boxsize", par_config["simulation"].get("box_size", 1.0)
+                "boxsize", par["simulation"].get("box_size", 1.0)
             ),
             "to_value",
         )
@@ -56,13 +56,13 @@ def build_initial_condition(config):
     )
     result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
     result.par.simulation.box_size = boxsize_code
-    result.par.simulation.coordinate_system = par_config["simulation"].get(
+    result.par.simulation.coordinate_system = par["simulation"].get(
         "coordinate_system", "cartesian"
     )
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True
     result.par.cosmological_gravity = bool(
-        par_config.get("gravity", {}).get("cosmological_gravity", False)
+        par.get("gravity", {}).get("cosmological_gravity", False)
     )
     result.par.cosmology = code_cosmology
     result.par.cosmology_type = code_cosmology.type_name
@@ -90,7 +90,7 @@ def build_initial_condition(config):
         dtype=float,
     )
     result.mesh.width_comoving_code = np.diff(boundary)
-    if par_config["simulation"].get("coordinate_system") == "spherical":
+    if par["simulation"].get("coordinate_system") == "spherical":
         result.mesh.area_comoving_code = np.asarray(
             config.get("_area_comoving_code", 4.0 * np.pi * boundary[:-1] ** 2),
             dtype=float,
@@ -170,4 +170,4 @@ def build_initial_condition(config):
         time=result.fluid.tau_supercomoving_code,
         mu=mu,
     )
-    return result
+    return Rsim.FromComponents(result.par, result.mesh, result.fluid, result.solver)

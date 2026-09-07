@@ -39,3 +39,4 @@ initial_condition:
   initial_radius: {value: 0.2, unit: pc}
   shell_mass: {value: 1.482077e32, unit: g}
   temperature: {value: 1.0, unit: K}
+example: {}

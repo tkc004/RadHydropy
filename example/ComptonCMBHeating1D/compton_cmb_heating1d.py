@@ -221,7 +221,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runparams = config['par']
     cases = config['example']['cases']
-    eu.clean_previous_outputs(runparams['output'])
+    eu.clean_previous_outputs(config)
 
     histories = {}
     for label, initial_temperature in cases.items():

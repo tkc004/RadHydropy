@@ -71,7 +71,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     output = runtime["output"]
     output_dir = Path(output["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(runtime["units"]["CodeUnits"])
     gravity = runtime.get("gravity", {})
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):

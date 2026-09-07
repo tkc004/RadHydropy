@@ -21,10 +21,6 @@ par:
   timestep:
     dtmin: {value: 1.0e-12, unit: Myr}
     dtmax: {value: 200.0, unit: Myr}
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.01
-  dark_matter_crossing_safety_factor: 0.5
-  dark_matter_global_timestep_limit: false
   gravity:
     selfgravity: true
     cosmological_expansion: true

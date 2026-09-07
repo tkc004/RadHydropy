@@ -144,11 +144,11 @@ def build_initial_condition(config):
     ) * unyt.K
     return make_initial_condition(
         config,
-        quantity_to_value(boundary_proper_cgs_cm_unyt, code_units.length_unit),
-        quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
-        quantity_to_value(weight * inflow_velocity, code_units.velocity_unit),
-        quantity_to_value(temperature_proper_cgs_K_unyt, code_units.temperature_unit),
-        np.full(grid_cells, float(icparams['mu'])),
+        boundary_proper_code=quantity_to_value(boundary_proper_cgs_cm_unyt, code_units.length_unit),
+        rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
+        vel_proper_code=quantity_to_value(weight * inflow_velocity, code_units.velocity_unit),
+        temp_proper_code=quantity_to_value(temperature_proper_cgs_K_unyt, code_units.temperature_unit),
+        mu_dimensionless=np.full(grid_cells, float(icparams['mu'])),
     )
 
 def load_snapshot(filename):

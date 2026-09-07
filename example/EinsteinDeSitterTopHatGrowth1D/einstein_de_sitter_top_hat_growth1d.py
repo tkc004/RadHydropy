@@ -33,7 +33,7 @@ def main(config_filename=DEFAULT_CONFIG):
     runtime = config['par']
     icparams = config['initial_condition']
     example = config.get('example', {})
-    eu.clean_previous_outputs(runtime['output'])
+    eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
     cosmology = et.EinsteinDeSitter.from_code_units(
         units, t_ref=float(runtime['gravity']['cosmology_t_ref']),

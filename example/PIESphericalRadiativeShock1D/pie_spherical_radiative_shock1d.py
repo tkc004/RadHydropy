@@ -88,16 +88,17 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     if not pie_enabled:
         case['thermochemistry']['thermochemistry_network'] = 'hydrogen'
 
-    eu.clean_previous_outputs(case)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
 
+    case_config = {
+        'par': case,
+        'initial_condition': initial,
+        'example': {},
+        '_code_units': code_units,
+    }
+    eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(
-        {
-            'par': case,
-            'initial_condition': initial,
-            'example': {},
-            '_code_units': code_units,
-        }
+        case_config
     )
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
 

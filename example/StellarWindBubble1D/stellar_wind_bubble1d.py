@@ -53,7 +53,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     par_config = config['par']
     example_config = config['example']
     output_config = par_config['output']
-    eu.clean_previous_outputs(output_config)
+    eu.clean_previous_outputs(config)
 
     if not plot_only:
         code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
@@ -115,4 +115,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config, plot_only=args.plot_only)
-

@@ -38,7 +38,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
     ICparams = nested['initial_condition']
-    eu.clean_previous_outputs(runtime['output'])
+    eu.clean_previous_outputs(nested)
     code_units_obj = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
     nested['_code_units'] = code_units_obj
@@ -98,4 +98,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-

@@ -73,3 +73,4 @@ initial_condition:
   velocity: {value: 0.0, unit: cm/s}
   temperature: {value: 100.0, unit: K}
   mean_molecular_weight: 1.0
+example: {}

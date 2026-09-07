@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_condition = config['initial_condition']
     exampleparams = config['example']
     output = par_config['output']
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
 
     reference = et.reference_values(
         exampleparams['photon_flux'],

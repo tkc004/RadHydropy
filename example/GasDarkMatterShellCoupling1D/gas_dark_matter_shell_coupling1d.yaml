@@ -47,3 +47,4 @@ initial_condition:
   dark_matter_velocity_scale: 0.0
   dark_matter_angular_momentum: 0.02
   dark_matter_softening: {value: 0.01, unit: pc}
+example: {}

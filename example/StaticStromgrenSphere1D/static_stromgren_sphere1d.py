@@ -47,7 +47,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = nested
     initial = config['initial_condition']
     example = config.get('example', {})
-    eu.clean_previous_outputs(runtime['output'])
+    eu.clean_previous_outputs(config)
     Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
     Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)
 

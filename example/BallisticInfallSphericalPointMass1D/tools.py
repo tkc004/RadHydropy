@@ -43,10 +43,10 @@ def build_initial_condition(config):
     n = int(ic["grid_cells"])
     boundary = np.linspace(quantity_to_value(ic["inner_radius"], units.length_unit), quantity_to_value(ic["outer_radius"], units.length_unit), n + 1)
     center = spherical_cell_centers(boundary)
-    return make_initial_condition(config, boundary,
-        ballistic_density_profile(center, quantity_to_value(ic["reference_density"], units.density_unit)),
-        np.zeros(n), np.full(n, quantity_to_value(ic["initial_temperature"], units.temperature_unit)),
-        np.full(n, ic["mean_molecular_weight"]), area=4*np.pi*boundary[:-1]**2)
+    return make_initial_condition(config, boundary_proper_code=boundary,
+        rho_proper_code=ballistic_density_profile(center, quantity_to_value(ic["reference_density"], units.density_unit)),
+        vel_proper_code=np.zeros(n), temp_proper_code=np.full(n, quantity_to_value(ic["initial_temperature"], units.temperature_unit)),
+        mu_dimensionless=np.full(n, ic["mean_molecular_weight"]), area_proper_code=4*np.pi*boundary[:-1]**2)
 
 def ReadandPlot(filename, config, **kwargs):
     ic, units = config["initial_condition"], config["_code_units"]

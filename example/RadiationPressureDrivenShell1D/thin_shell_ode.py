@@ -117,7 +117,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
     initial = config['initial_condition']
-    eu.clean_previous_outputs(runtime)
+    eu.clean_previous_outputs(config)
     Path(runtime["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     _write_initial_condition(config)
 

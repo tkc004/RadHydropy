@@ -43,3 +43,4 @@ initial_condition:
   mean_molecular_weight: 1.0
   angular_momentum_amplitude: {value: 0.2, unit: cm**2/s}
   angular_momentum_offset: {value: 0.5, unit: cm**2/s}
+example: {}

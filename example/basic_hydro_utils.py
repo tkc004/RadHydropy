@@ -7,22 +7,50 @@ from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 
 
-def make_initial_condition(config, boundary, rho, velocity, temperature, mu, area=None):
-    """Build a physical-cell IC through the current runtime startup contract."""
+def make_initial_condition(
+    config,
+    *,
+    boundary_proper_code,
+    rho_proper_code,
+    vel_proper_code,
+    temp_proper_code,
+    mu_dimensionless,
+    area_proper_code=None,
+):
+    """Build a proper-code IC from a complete nested example configuration.
+
+    The profile arrays are already in the configured proper-code system.  The
+    helper owns ghost-cell setup and returns a runner built from the same
+    components that are serialized to HDF5.
+    """
     sim = Rsim(config["par"])
-    grid_cells = int(config["initial_condition"].get(
-        "grid_cells", config["par"]["mesh"]["grid_cells"]
-    ))
+    grid_cells = int(config["par"]["mesh"]["grid_cells"])
     sim.par.mesh.grid_cells = grid_cells
-    boundary = np.asarray(boundary, dtype=float)
-    sim.mesh.boundary_proper_code = as_named_array(boundary)
-    sim.fluid.rho_proper_code = as_named_array(np.asarray(rho, dtype=float))
-    sim.fluid.vel_proper_code = as_named_array(np.asarray(velocity, dtype=float))
-    sim.fluid.temp_proper_code = as_named_array(np.asarray(temperature, dtype=float))
-    sim.fluid.mu = as_named_array(np.asarray(mu, dtype=float))
+    boundary_proper_code = np.asarray(boundary_proper_code, dtype=float)
+    rho_proper_code = np.asarray(rho_proper_code, dtype=float)
+    vel_proper_code = np.asarray(vel_proper_code, dtype=float)
+    temp_proper_code = np.asarray(temp_proper_code, dtype=float)
+    mu_dimensionless = np.asarray(mu_dimensionless, dtype=float)
+    if boundary_proper_code.size != grid_cells + 1:
+        raise ValueError("proper-code boundary must contain grid_cells + 1 values")
+    for field_name, field_values in (
+        ("rho_proper_code", rho_proper_code),
+        ("vel_proper_code", vel_proper_code),
+        ("temp_proper_code", temp_proper_code),
+        ("mu_dimensionless", mu_dimensionless),
+    ):
+        if field_values.size != grid_cells:
+            raise ValueError(f"{field_name} must contain one value per physical cell")
+        if not np.all(np.isfinite(field_values)):
+            raise ValueError(f"{field_name} contains non-finite values")
+    sim.mesh.boundary_proper_code = as_named_array(boundary_proper_code)
+    sim.fluid.rho_proper_code = as_named_array(rho_proper_code)
+    sim.fluid.vel_proper_code = as_named_array(vel_proper_code)
+    sim.fluid.temp_proper_code = as_named_array(temp_proper_code)
+    sim.fluid.mu = as_named_array(mu_dimensionless)
     sim.SetMesh()
-    if area is not None:
-        area_proper_code = np.asarray(area, dtype=float)
+    if area_proper_code is not None:
+        area_proper_code = np.asarray(area_proper_code, dtype=float)
         if area_proper_code.size != grid_cells:
             raise ValueError(
                 "custom area must contain one proper-code value per physical cell"
@@ -69,7 +97,7 @@ def make_initial_condition(config, boundary, rho, velocity, temperature, mu, are
         volume=sim.mesh.volume_proper_code[first:last],
     )
     sim.fluid._refresh_runtime_state()
-    return sim
+    return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 
 def physical_snapshot(config, filename):

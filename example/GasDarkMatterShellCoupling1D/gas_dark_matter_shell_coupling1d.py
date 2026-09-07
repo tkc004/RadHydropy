@@ -36,7 +36,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     par_config = config['par']
     initial_condition = config['initial_condition']
-    eu.clean_previous_outputs(par_config)
+    eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])

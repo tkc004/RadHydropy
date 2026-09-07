@@ -47,7 +47,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
     config = nested
-    eu.clean_previous_outputs(runtime['output'])
+    eu.clean_previous_outputs(nested)
 
     Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
     Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)

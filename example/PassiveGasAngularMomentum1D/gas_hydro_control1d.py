@@ -31,7 +31,7 @@ def main(config_filename=DEFAULT_CONFIG):
     runparams = config['par']
     Path(runparams['output']['directory']).mkdir(parents=True, exist_ok=True)
     Path(runparams['output']['savedir']).mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(runparams)
+    eu.clean_previous_outputs(config)
     config['_code_units'] = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])

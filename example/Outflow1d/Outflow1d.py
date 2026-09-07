@@ -37,7 +37,7 @@ def main(config_filename=DEFAULT_CONFIG):
     par_config = config['par']
     initial = config['initial_condition']
     exampleparams = config['example']
-    eu.clean_previous_outputs(par_config['output'])
+    eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj

@@ -1,7 +1,6 @@
 """Shared helpers for example scripts in this directory."""
 
 import csv
-import copy
 from numbers import Integral
 from pathlib import Path
 
@@ -34,10 +33,15 @@ def load_nested_example_config(config_filename):
     with config_filename.open(encoding='utf-8') as config_file:
         raw = yaml.safe_load(config_file)
     config = _load_yaml_value(raw)
-    if not isinstance(config, dict) or 'par' not in config:
-        raise ValueError("nested example configuration requires a 'par' section")
+    required_sections = {'par', 'initial_condition', 'example'}
+    if not isinstance(config, dict) or not required_sections.issubset(config):
+        raise ValueError(
+            "nested example configuration requires 'par', "
+            "'initial_condition', and 'example' sections"
+        )
     par = config['par']
-    initial_condition = config.get('initial_condition', {})
+    initial_condition = config['initial_condition']
+    example = config['example']
     if 'mesh' in par and 'grid_cells' not in par['mesh']:
         if 'grid_cells' in initial_condition:
             par['mesh']['grid_cells'] = initial_condition['grid_cells']
@@ -45,8 +49,7 @@ def load_nested_example_config(config_filename):
         par['simulation']['initial_condition_filename'] = _resolve_path(
             par['simulation']['initial_condition_filename'], config_filename.parent
         )
-    for section in ('par', 'example'):
-        values = config.get(section, {})
+    for values in (par, example):
         for key in ('output_directory', 'savedir', 'outputtimefilename'):
             if key in values:
                 values[key] = _resolve_path(values[key], config_filename.parent)
@@ -56,15 +59,14 @@ def load_nested_example_config(config_filename):
             par['thermochemistry']['metal_pie_table_filename'] = _resolve_path(
                 filename, config_filename.parent
             )
-        if section == 'par' and 'output' in values:
-            output = values['output']
-            for key in ('directory', 'savedir', 'time_list_filename'):
-                if key in output:
-                    output[key] = _resolve_path(output[key], config_filename.parent)
+        output = par.get('output', {})
+        for key in ('directory', 'savedir', 'time_list_filename'):
+            if key in output:
+                output[key] = _resolve_path(output[key], config_filename.parent)
     return {
         'par': par,
         'initial_condition': initial_condition,
-        'example': config.get('example', {}),
+        'example': example,
     }
 
 
@@ -129,15 +131,13 @@ def snapshot_physical_fields(hdf5_filename):
         }
 
 
-def clean_previous_outputs(runparams):
-    """Delete stale ``Output_*.hdf5`` files before running an example."""
-    if 'output' in runparams:
-        runparams = runparams['output']
-        outdir = Path(runparams.get('directory', '.'))
-        prefix = runparams.get('filename_prefix', 'Output')
-    else:
-        outdir = Path(runparams.get('outdir', '.'))
-        prefix = runparams.get('outfileprefix', 'Output')
+def clean_previous_outputs(config):
+    """Delete stale output files using a complete nested configuration."""
+    if not isinstance(config, dict) or 'par' not in config:
+        raise TypeError('clean_previous_outputs requires a complete example config')
+    output_config = config['par'].get('output', {})
+    outdir = Path(output_config.get('directory', '.'))
+    prefix = output_config.get('filename_prefix', 'Output')
     if not outdir.exists():
         return
     for path in outdir.glob(f'{prefix}_*.hdf5'):

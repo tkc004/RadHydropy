@@ -45,3 +45,4 @@ initial_condition:
   initial_temperature: {value: 1.0e4, unit: K}
   mean_molecular_weight: 1.0
   point_mass: {value: 1.0e38, unit: g}
+example: {}

@@ -1,6 +1,9 @@
 par:
   dark_matter:
     softening: 0.01
+    crossing_safety_factor: 0.5
+    crossing_batch_fraction: 0.01
+    global_timestep_limit: false
   simulation:
     name: CosmologicalGasCorrelationZ100
     initial_condition_filename: outputs_correlation_gas/InitialCondition.hdf5
@@ -34,10 +37,8 @@ par:
   timestep:
     dtmin: {value: 1.0e-12, unit: Myr}
     dtmax: {value: 200.0, unit: Myr}
-  dark_matter_crossing_safety_factor: 0.5
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.01
-  dark_matter_global_timestep_limit: false
+  gravity:
+    cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_correlation_gas
     savedir: outputs_correlation_gas

@@ -105,7 +105,6 @@ def _run_case(config, label, density, temperature, table):
         'temperature_unyt': temperature * unyt.K,
     })
     case['thermochemistry']['metallicity'] = thermo['metallicity']
-    eu.clean_previous_outputs(case)
     output_dir.mkdir(parents=True, exist_ok=True)
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
     case_config = {
@@ -114,6 +113,7 @@ def _run_case(config, label, density, temperature, table):
         'example': config['example'],
         '_code_units': code_units,
     }
+    eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(case_config)
     rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
     # The canonical IC builder already returned a fully initialized Rsim.  Keep

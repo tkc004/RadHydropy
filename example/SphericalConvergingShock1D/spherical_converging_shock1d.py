@@ -85,7 +85,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if dual_energy is not None:
         runparams["hydrodynamics"]["dual_energy"] = dual_energy
     output = runparams['output']
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
     config['_code_units'] = units
     initial = et.build_initial_condition(config)

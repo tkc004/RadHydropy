@@ -41,7 +41,7 @@ def main(config_filename=DEFAULT_CONFIG):
             Path(config_filename).resolve().parent / output_time_filename
         )
     output = par_config['output']
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj

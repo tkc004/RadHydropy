@@ -29,9 +29,10 @@ par:
     verbose: 0
   # Exact vacuum interfaces can leave roundoff mass in a cell.  Treat that
   # numerical debris as vacuum without flooring the conserved state.
-  cfl_density_floor: 1.0e-9
-  hydro_temperature_floor: {value: 2.0, unit: K}
-  temperature_jump_error_threshold: 1.0e8
+  hydrodynamics:
+    cfl_density_floor: 1.0e-9
+    hydro_temperature_floor: {value: 2.0, unit: K}
+    temperature_jump_error_threshold: 1.0e8
   units:
     CodeUnits:
       name: cgs_unit_system

@@ -58,7 +58,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_condition = config['initial_condition']
     exampleparams = config['example']
     output = par_config['output']
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     ric = et.build_initial_condition(config)
     rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
 
@@ -112,5 +112,4 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-
 

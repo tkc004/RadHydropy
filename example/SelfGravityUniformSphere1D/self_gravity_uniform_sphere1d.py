@@ -39,7 +39,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
     icparams = config['initial_condition']
-    eu.clean_previous_outputs(runtime['output'])
+    eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
     config['_code_units'] = code_units
@@ -127,6 +127,5 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-
 
 

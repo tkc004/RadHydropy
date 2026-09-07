@@ -42,3 +42,4 @@ initial_condition:
   temperature: {value: 1.0e-10, unit: K}
   mean_molecular_weight: 1.0
   include_angular_momentum: false
+example: {}

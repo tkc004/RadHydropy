@@ -51,3 +51,4 @@ initial_condition:
   collision_velocity: {value: 100.0, unit: km/s}
   initial_temperature: {value: 1.0e4, unit: K}
   mean_molecular_weight: 0.62
+example: {}

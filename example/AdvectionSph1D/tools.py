@@ -19,10 +19,10 @@ def build_initial_condition(config):
     center = 0.5 * (boundary[:-1] + boundary[1:])
     rho = np.full(n, quantity_to_value(initial["initial_density"], units.density_unit))
     rho[(center < .25 * size) | (center > .75 * size)] *= .01
-    return make_initial_condition(config, boundary, rho,
-        np.full(n, quantity_to_value(initial["initial_velocity"], units.velocity_unit)),
-        np.full(n, quantity_to_value(initial["initial_temperature"], units.temperature_unit)),
-        np.full(n, initial["mean_molecular_weight"]))
+    return make_initial_condition(config, boundary_proper_code=boundary, rho_proper_code=rho,
+        vel_proper_code=np.full(n, quantity_to_value(initial["initial_velocity"], units.velocity_unit)),
+        temp_proper_code=np.full(n, quantity_to_value(initial["initial_temperature"], units.temperature_unit)),
+        mu_dimensionless=np.full(n, initial["mean_molecular_weight"]))
 
 
 def ReadandPlot(filename, config, **kwargs):

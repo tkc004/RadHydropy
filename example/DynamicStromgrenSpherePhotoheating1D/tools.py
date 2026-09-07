@@ -153,9 +153,11 @@ def build_static_problem(config):
         quantity_to_value(initial['initial_temperature'], units.temperature_unit),
     )
     sim = make_initial_condition(
-        config, boundary_proper_code, density_proper_code,
-        np.zeros(grid_cells), temperature_proper_code,
-        np.ones(grid_cells),
+        config, boundary_proper_code=boundary_proper_code,
+        rho_proper_code=density_proper_code,
+        vel_proper_code=np.zeros(grid_cells),
+        temp_proper_code=temperature_proper_code,
+        mu_dimensionless=np.ones(grid_cells),
     )
     radiation = par_config['radiation']
     sim.fluid.xHI = np.ones(grid_cells)

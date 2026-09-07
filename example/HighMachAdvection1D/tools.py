@@ -19,7 +19,7 @@ def build_initial_condition(config):
     else: temp=np.full(n,quantity_to_value(initial["initial_temperature"],units.temperature_unit))
     temp=np.asarray([quantity_to_value(v,units.temperature_unit) if hasattr(v,"to_value") else float(v) for v in temp])
     rho=np.asarray([quantity_to_value(v,units.density_unit) if hasattr(v,"to_value") else float(v) for v in rho])
-    return make_initial_condition(config,boundary,rho,vel,temp,mu,area=np.ones(n)*quantity_to_value(par["mesh"]["area"],units.area_unit))
+    return make_initial_condition(config, boundary_proper_code=boundary, rho_proper_code=rho, vel_proper_code=vel, temp_proper_code=temp, mu_dimensionless=mu, area_proper_code=np.ones(n)*quantity_to_value(par["mesh"]["area"],units.area_unit))
 
 def _physical(state):
     first=int(state.par.mesh.ghost_cells); last=first+int(state.par.mesh.grid_cells); b=np.asarray(state.mesh.boundary_proper_code); return first,last,.5*(b[:-1]+b[1:])

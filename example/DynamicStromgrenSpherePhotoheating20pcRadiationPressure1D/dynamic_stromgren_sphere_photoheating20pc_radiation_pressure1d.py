@@ -112,7 +112,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config['_code_units'] = CodeUnits.from_mapping(
         par['units']['CodeUnits']
     )
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)

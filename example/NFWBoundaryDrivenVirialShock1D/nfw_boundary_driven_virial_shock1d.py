@@ -91,11 +91,12 @@ def _strip_snapshot_ghosts(sim):
             setattr(sim.fluid, name, array[..., first:first + count].copy())
 
 
-def _run_stage(par_config, halo, mode, restart=False):
-    par_config = copy.deepcopy(par_config)
+def _run_stage(config, halo, mode, restart=False):
+    stage_config = copy.deepcopy(config)
+    par_config = stage_config['par']
     outdir = Path(par_config['output']['directory'])
     outdir.mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(par_config['output'])
+    eu.clean_previous_outputs(stage_config)
     sim = Rsim(par_config)
     sim.solver = BoundaryAccretionSolver()
     sim.Callreadhdf5()
@@ -214,7 +215,9 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     adiabatic['simulation']['final_time'] = exampleparams['adiabatic_final_time']
     adiabatic['thermochemistry']['network'] = 'hydrogen'
     adiabatic['thermochemistry']['metal_pie_enabled'] = False
-    adiabatic_files = _run_stage(adiabatic, halo, 'hydro')
+    adiabatic_config = copy.deepcopy(config)
+    adiabatic_config['par'] = adiabatic
+    adiabatic_files = _run_stage(adiabatic_config, halo, 'hydro')
     if not adiabatic_files:
         raise RuntimeError('adiabatic stage produced no snapshots')
     adiabatic_audit = Path(adiabatic['output']['savedir']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
@@ -235,7 +238,9 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     )
     pie['thermochemistry']['network'] = 'pie_uvbg_cooling'
     pie['thermochemistry']['metal_pie_enabled'] = True
-    pie_files = _run_stage(pie, halo, 'hydro_sources', restart=True)
+    pie_config = copy.deepcopy(config)
+    pie_config['par'] = pie
+    pie_files = _run_stage(pie_config, halo, 'hydro_sources', restart=True)
     if not pie_files:
         raise RuntimeError('PIE stage produced no snapshots')
 

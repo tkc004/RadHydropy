@@ -52,7 +52,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = nested
     initial = config['initial_condition']
     example = config.get('example', {})
-    eu.clean_previous_outputs(runtime['output'])
+    eu.clean_previous_outputs(config)
     config_dir = Path(config_filename).resolve().parent
     for key in (
         'temperature_reference_filename',

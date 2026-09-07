@@ -31,7 +31,7 @@ def run(config_filename=DEFAULT_CONFIG):
     par_config = config['par']
     initial_config = config['initial_condition']
     exampleparams = config['example']
-    eu.clean_previous_outputs(par_config['output'])
+    eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     config['_code_units'] = units
     initial = tools.build_initial_condition(config)
@@ -66,7 +66,7 @@ def run(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('vacuum outflow produced no output snapshots')
     filled = [
         np.count_nonzero(
-            rho[first:first + active_count] > par_config['cfl_density_floor']
+            rho[first:first + active_count] > par_config['hydrodynamics']['cfl_density_floor']
         )
         for _, rho, _, _ in profiles
     ]

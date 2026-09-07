@@ -38,7 +38,7 @@ def main(config_filename=DEFAULT_CONFIG):
     runparams = config['par']
     exampleparams = config['example']
     output = runparams['output']
-    eu.clean_previous_outputs(output)
+    eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
@@ -78,6 +78,5 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-
 
 

@@ -1,6 +1,7 @@
 par:
   dark_matter:
     softening: 0.0
+    crossing_batch_fraction: 0.0
   simulation:
     name: CosmologicalGasDMLinearGrowth
     initial_condition_filename: outputs_linear_growth/InitialCondition.hdf5
@@ -24,8 +25,8 @@ par:
   timestep:
     dtmin: 1.0e-12
     dtmax: 1.0
-  cosmological_background_boundary_reconstruction: true
-  dark_matter_crossing_batch_fraction: 0.0
+  gravity:
+    cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_linear_growth
     savedir: outputs_linear_growth

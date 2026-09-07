@@ -180,7 +180,7 @@ def main(config_filename=DEFAULT_CONFIG):
     output['savedir'] = str(output_dir)
     output['directory'] = str(output_dir)
     par['simulation']['initial_condition_filename'] = str(ic_filename)
-    eu.clean_previous_outputs(par)
+    eu.clean_previous_outputs(config)
     par_obj, mesh, fluid, solver = tools.build_static_problem(config)
     sim = Rsim.FromComponents(par_obj, mesh, fluid, solver)
     rio.writehdf5(sim, ic_filename)

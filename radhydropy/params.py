@@ -682,6 +682,7 @@ class Par:
                 'cosmology_hubble_ref': 'cosmology_hubble_ref',
                 'cosmology_omega_m': 'cosmology_omega_m',
                 'cosmology_omega_lambda': 'cosmology_omega_lambda',
+                'cosmological_background_boundary_reconstruction': 'cosmological_background_boundary_reconstruction',
                 'gas_core_model': 'gas_core_model',
                 'gas_core_radius': 'gas_core_radius',
             },

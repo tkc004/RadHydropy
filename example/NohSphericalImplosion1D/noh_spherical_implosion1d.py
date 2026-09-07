@@ -29,11 +29,18 @@ from basic_hydro_utils import make_initial_condition as make_canonical_initial_c
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
 
-def make_initial_condition(ic, units, runtime):
+def make_initial_condition(config, units):
+    ic = config['initial_condition']
     n = int(ic["grid_cells"]); rmax = float(ic["box_size"].to_value(units.length_unit))
     boundary = np.linspace(0.0, rmax, n + 1)
-    config = {"par": runtime, "initial_condition": ic, "_code_units": units}
-    return make_canonical_initial_condition(config, boundary, np.full(n, float(ic["initial_density"].to_value("g/cm**3"))), np.full(n, float(ic["velocity"].to_value(units.velocity_unit))), np.full(n, float(ic["temperature"].to_value("K"))), np.full(n, float(ic["mean_molecular_weight"])))
+    return make_canonical_initial_condition(
+        config,
+        boundary_proper_code=boundary,
+        rho_proper_code=np.full(n, float(ic["initial_density"].to_value("g/cm**3"))),
+        vel_proper_code=np.full(n, float(ic["velocity"].to_value(units.velocity_unit))),
+        temp_proper_code=np.full(n, float(ic["temperature"].to_value("K"))),
+        mu_dimensionless=np.full(n, float(ic["mean_molecular_weight"])),
+    )
 
 
 def read_profile(filename, units, gamma, runtime):
@@ -93,7 +100,10 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         runparams["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
         icparams["grid_cells"] = resolution
         runparams["mesh"]["grid_cells"] = resolution
-        initial = make_initial_condition(icparams, units, runparams)
+        resolution_config = dict(config)
+        resolution_config["par"] = runparams
+        resolution_config["initial_condition"] = icparams
+        initial = make_initial_condition(resolution_config, units)
         rio.writehdf5(
             initial, runparams["simulation"]["initial_condition_filename"]
         )
