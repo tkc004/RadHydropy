@@ -47,7 +47,7 @@ par:
     cosmology_t_ref: 14.4
     cosmology_a_ref: 1.0
   thermochemistry:
-    metal_pie_table_filename: ../../../../metal_pie_table/metal_pie_hm12_total.h5
+    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
     hydrogen_update_mu: true
     hydrogen_collisional_ionization: true
     hydrogen_xHI_initial: 0.9998

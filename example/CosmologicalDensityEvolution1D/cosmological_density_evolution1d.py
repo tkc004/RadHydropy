@@ -19,12 +19,8 @@ from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-)
 import example_utils as eu
+from cosmological_initial_condition import build_initial_condition
 from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
 
@@ -58,82 +54,6 @@ def unit_mapping():
             "UnitTemp_in_cgs": 1.0,
         },
     }
-
-
-def make_initial_condition(
-    units, code_cosmology, initial_time, density_code, initial_scale_factor
-):
-    class State:
-        pass
-
-    state = State()
-    state.par = State()
-    state.mesh = State()
-    state.fluid = State()
-    count = 4
-    boxsize = 4.0
-    state.par.CodeUnits = units
-    state.par.units = State()
-    state.par.units.CodeUnits = units
-    state.par.unit_system = units.unit_system
-    state.par.nogrid = count
-    state.par.coordsys = "cartesian"
-    state.par.boxsize = np.asarray([boxsize])
-    initial_tau = float(code_cosmology.supercomoving_time(initial_time))
-    state.par.tau_supercomoving_code = np.asarray([initial_tau])
-    state.par.simulation = State()
-    state.par.simulation.tau_supercomoving_code = state.par.tau_supercomoving_code
-    state.par.simulation.box_size = state.par.boxsize
-    state.par.simulation.coordinate_system = "cartesian"
-    state.par.mesh = State()
-    state.par.mesh.grid_cells = count
-    state.par.mesh.ghost_cells = 0
-    state.par.hydrodynamics = State()
-    state.par.hydrodynamics.gamma = 5.0 / 3.0
-    state.par.cosmological_expansion = True
-    state.par.supercomoving_coordinates = True
-    state.par.cosmological_gravity = False
-    state.par.selfgravity = False
-    state.par.externalgravity = False
-    state.par.cosmology = code_cosmology
-    state.par.cosmology_type = code_cosmology.type_name
-    state.par.cosmology_t_ref = code_cosmology.t_ref
-    state.par.cosmology_a_ref = code_cosmology.a_ref
-    state.par.coordinate_frame = "comoving"
-    state.par.time_coordinate = "supercomoving"
-    state.par.velocity_representation = "supercomoving_peculiar"
-    state.par.density_representation = "comoving"
-    state.par.pressure_representation = "supercomoving"
-    state.par.temperature_representation = "supercomoving"
-
-    boundary = np.linspace(0.0, boxsize, count + 1)
-    state.mesh.boundary_comoving_code = boundary
-    state.mesh.x_comoving_code = 0.5 * (boundary[1:] + boundary[:-1])
-    state.mesh.width_comoving_code = np.full(count, boxsize / count)
-    state.mesh.area_comoving_code = np.ones(count)
-    state.mesh.volume_comoving_code = np.full(count, boxsize / count)
-    state.fluid.rho_comoving_code = np.full(count, density_code * initial_scale_factor**3)
-    state.fluid.vel_supercomoving_code = np.zeros(count)
-    state.fluid.temp_supercomoving_code = np.full(count, 1.0)
-    state.fluid.mu = np.ones(count)
-    state.fluid.tau_supercomoving_code = initial_tau
-    state.mesh.geometry_state = MeshGeometryState(
-        x_comoving_code=state.mesh.x_comoving_code,
-        boundary_comoving_code=state.mesh.boundary_comoving_code,
-        width_comoving_code=state.mesh.width_comoving_code,
-        area_comoving_code=state.mesh.area_comoving_code,
-        volume_comoving_code=state.mesh.volume_comoving_code,
-    )
-    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS,
-        density=state.fluid.rho_comoving_code,
-        velocity=state.fluid.vel_supercomoving_code,
-        pressure=np.zeros(count),
-        temperature=state.fluid.temp_supercomoving_code,
-        time=state.fluid.tau_supercomoving_code,
-        mu=state.fluid.mu,
-    )
-    return state
 
 
 def run():
@@ -179,28 +99,42 @@ def run():
             physical.critical_density(initial_time_gyr)
         )
         density_code = initial_density_cgs / density_unit
-        initial = make_initial_condition(
-            units, code_cosmology, initial_time, density_code, initial_scale_factor
+        case_config = copy.deepcopy(config)
+        case_config["_code_cosmology"] = code_cosmology
+        case_config["initial_condition"] = {
+            "boxsize": 4.0 * units.length_unit,
+            "time": initial_time * units.time_unit,
+        }
+        case_config["_rho_comoving_code"] = np.full(
+            int(base_runtime["mesh"]["grid_cells"]),
+            density_code * initial_scale_factor**3,
         )
+        case_config["_temp_supercomoving_code"] = np.ones(
+            int(base_runtime["mesh"]["grid_cells"])
+        )
+        case_config["_vel_supercomoving_code"] = np.zeros(
+            int(base_runtime["mesh"]["grid_cells"])
+        )
+        initial = build_initial_condition(case_config)
         output_dir = OUTPUT_ROOT / label
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        runparams = copy.deepcopy(base_runtime)
-        runparams["simulation"].update(
+        par_config = copy.deepcopy(base_runtime)
+        par_config["simulation"].update(
             name=f"CosmologicalDensityEvolution1D_{label}",
             initial_condition_filename=str(ic_filename),
             final_time=final_tau * units.time_unit,
         )
-        runparams["output"].update(directory=str(output_dir), savedir=str(output_dir))
-        runparams["gravity"].update(
+        par_config["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        par_config["gravity"].update(
             cosmology_type=cosmology_type,
             cosmology_t_ref=physical.age_0 / time_unit_gyr,
             cosmology_a_ref=1.0,
             **cosmology_parameters,
         )
-        runparams["output"]["cadence"] = (final_tau - initial_tau) / 2.0 * units.time_unit
-        sim = Rsim(runparams)
+        par_config["output"]["cadence"] = (final_tau - initial_tau) / 2.0 * units.time_unit
+        sim = Rsim(par_config)
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()

@@ -31,7 +31,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     config = load_nested_example_config(config_filename)
     par = config["par"]
-    icparams = config["initial_condition"]
+    initial_condition = config["initial_condition"]
     example = config["example"]
     gravity = par["gravity"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
@@ -55,7 +55,7 @@ def main(config_filename=DEFAULT_CONFIG):
     correlation_table = et.load_lcdm_correlation_table(table_filename)
 
     initial = et.build_initial_condition(
-        {"par": par, "initial_condition": icparams},
+        config,
         units,
         cosmology,
         correlation_table=correlation_table,
@@ -67,17 +67,17 @@ def main(config_filename=DEFAULT_CONFIG):
     length_unit_mpc_h = (
         float(units.length_in_cgs)
         / float((1.0 * unyt.Mpc).to_value("cm"))
-        * float(icparams.get("correlation_h", 0.674))
+        * float(initial_condition.get("correlation_h", 0.674))
     )
     radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     delta, mean_delta = et.density_contrast_profile(
         radius,
-        icparams,
+        initial_condition,
         cosmology,
         correlation_table=correlation_table,
         length_unit_mpc_h=length_unit_mpc_h,
     )
-    initial_time = float(icparams["initial_cosmic_time"])
+    initial_time = float(initial_condition["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(initial_time))
     peculiar_velocity = np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius
@@ -105,7 +105,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print("diagnostic figure = %s" % figure)
     print("initial scale factor = %.8g" % scale_factor)
     print("initial redshift = %.8g" % (1.0 / scale_factor - 1.0))
-    print("target enclosed overdensity = %.8g" % float(icparams["initial_overdensity"]))
+    print("target enclosed overdensity = %.8g" % float(initial_condition["initial_overdensity"]))
     print("mean overdensity at outermost cell = %.8g" % float(mean_delta[-1]))
 
 

@@ -31,7 +31,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     config = load_nested_example_config(config_filename)
     par = config["par"]
-    icparams = config["initial_condition"]
+    initial_condition = config["initial_condition"]
     example = config["example"]
     gravity = par["gravity"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
@@ -46,36 +46,44 @@ def main(config_filename=DEFAULT_CONFIG):
     table = et.load_lcdm_correlation_table(table_filename)
 
     filename = Path(par["simulation"]["initial_condition_filename"])
+    if not filename.is_absolute():
+        filename = config_filename.parent / filename
     with h5py.File(filename, "r") as handle:
-        boundary = handle["Data/Boundary"][:] / float(units.length_in_cgs)
-        density = handle["Data/Density"][:] / float(units.density_unit)
-        temperature = handle["Data/Temperature"][:] / float(units.temperature_unit)
-        velocity = handle["Data/Velocity"][:] / float(units.velocity_unit)
+        # The current IC writer stores native code-unit arrays with explicit
+        # snake_case names; the old capitalized paths were from the legacy
+        # HDF5 layout and no longer exist.
+        boundary = handle["Data/boundary_comoving_code"][:] / float(units.length_in_cgs)
+        density = handle["Data/rho_comoving_code"][:] / float(units.density_unit)
+        temperature = handle["Data/temp_supercomoving_code"][:] / float(units.temperature_unit)
+        velocity = handle["Data/vel_supercomoving_code"][:] / float(units.velocity_unit)
 
     radius = et.cell_centres(boundary)
-    initial_time = float(icparams["initial_cosmic_time"])
+    initial_time = float(initial_condition["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(initial_time))
     redshift = 1.0 / scale_factor - 1.0
     length_unit_mpc_h = (
         float(units.length_in_cgs)
         / float((1.0 * unyt.Mpc).to_value("cm"))
-        * float(icparams.get("correlation_h", 0.674))
+        * float(initial_condition.get("correlation_h", 0.674))
     )
     expected_delta, expected_mean_delta = et.density_contrast_profile(
-        radius, icparams, cosmology,
+        radius, initial_condition, cosmology,
         correlation_table=table,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     rho_background = float(cosmology.background_density(initial_time))
-    fb = float(icparams["baryon_fraction"])
+    fb = float(initial_condition["baryon_fraction"])
     actual_delta = density / (rho_background * scale_factor**3 * fb) - 1.0
     expected_velocity = (
         -scale_factor**2 * float(cosmology.hubble(initial_time))
         * expected_mean_delta * radius / 3.0
     )
-    expected_temperature = float(icparams.get("cie_initial_temperature", 10.0))
+    if bool(initial_condition.get("cmb_equilibrium_initial", False)):
+        expected_temperature = float(initial_condition.get("cmb_temperature_0", 2.7255)) / scale_factor
+    else:
+        expected_temperature = float(initial_condition.get("cie_initial_temperature", 10.0))
 
-    target_radius = et.perturbation_radius(icparams, cosmology)
+    target_radius = et.perturbation_radius(initial_condition, cosmology)
     clipped_edges = np.clip(boundary, 0.0, target_radius)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(clipped_edges**3)
     target_volume = 4.0 * np.pi / 3.0 * target_radius**3
@@ -102,7 +110,7 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("stored density or velocity does not match the IC construction")
     if temperature_error > 1.0e-10:
         raise RuntimeError("stored temperature does not match the requested cold IC")
-    if abs(target_mean_delta - float(icparams["initial_overdensity"])) > 2.0e-4:
+    if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:
         raise RuntimeError("stored target overdensity is inconsistent with the requested normalization")
 
     output = filename.with_name("CosmologicalCorrelationInitialCondition.jpg")
@@ -145,7 +153,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print("scale factor = %.12g, redshift = %.8g" % (scale_factor, redshift))
     print("target radius = %.8g code lengths" % target_radius)
     print("target enclosed overdensity = %.12g (requested %.12g)" % (
-        target_mean_delta, float(icparams["initial_overdensity"])
+        target_mean_delta, float(initial_condition["initial_overdensity"])
     ))
     print("max density-profile error = %.6e" % density_error)
     print("max peculiar-velocity error = %.6e code velocity" % velocity_error)

@@ -44,20 +44,24 @@ def build_initial_condition(config):
     return result
 
 
-def make_dark_matter(icparams, code_units):
-    count = int(icparams['dark_matter_shells'])
+def make_dark_matter(config):
+    """Build dark-matter shells from the complete nested configuration."""
+    initial_condition = config['initial_condition']
+    par_config = config['par']
+    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    count = int(initial_condition['dark_matter_shells'])
     radius = np.linspace(0.05, 0.95, count)
-    velocity = np.asarray(radius) * float(icparams['dark_matter_velocity_scale'])
-    angular_momentum = np.full(count, float(icparams['dark_matter_angular_momentum']))
+    velocity = np.asarray(radius) * float(
+        initial_condition['dark_matter_velocity_scale']
+    )
+    angular_momentum = np.full(
+        count, float(initial_condition['dark_matter_angular_momentum'])
+    )
     return DarkMatterShells(
         radius=radius,
         velocity=velocity,
-        mass=np.full(count, icparams['dark_matter_mass'] / count),
+        mass=np.full(count, initial_condition['dark_matter_mass'] / count),
         angular_momentum=angular_momentum,
-        softening=icparams['dark_matter_softening'],
+        softening=initial_condition['dark_matter_softening'],
         code_units=code_units,
     )
-
-
-def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['units']['CodeUnits'])

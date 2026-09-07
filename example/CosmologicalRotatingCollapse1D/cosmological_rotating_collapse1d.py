@@ -8,7 +8,6 @@ conserved signed specific angular momentum.
 import argparse
 import copy
 from pathlib import Path
-from types import SimpleNamespace
 import os
 import sys
 
@@ -27,13 +26,9 @@ from scipy.integrate import solve_ivp
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits, quantity_to_value
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-)
+from radhydropy.units import CodeUnits
 import example_utils as eu
+from cosmological_initial_condition import build_initial_condition
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_rotating_collapse1d.yaml")
@@ -200,105 +195,6 @@ def enclosed_radii(boundary, mass_density, volume, target_mass):
     )
 
 
-class InitialCondition:
-    def __init__(self, initial_condition, par, rotation_factor, units, cosmology):
-        count = int(par["mesh"]["grid_cells"])
-        icparams = initial_condition
-        cosmic_time = float(icparams["cosmic_time"])
-        scale_factor = float(cosmology.scale_factor(cosmic_time))
-        hubble = float(cosmology.hubble(cosmic_time))
-        tau = float(cosmology.supercomoving_time(cosmic_time))
-        boundary = np.linspace(
-            float(icparams["rmin"]), float(icparams["rmax"]), count + 1
-        )
-        radius = spherical_centers(boundary)
-        volume = 4.0 * np.pi / 3.0 * (
-            boundary[1:]**3 - boundary[:-1]**3
-        )
-        rho_background = float(cosmology.background_density(cosmic_time))
-        overdensity = float(icparams["overdensity"])
-        inside = radius < float(icparams["top_hat_radius"])
-        rho_physical = rho_background * (1.0 + overdensity * inside)
-        rho_comoving = rho_physical * scale_factor**3
-        enclosed_mass = np.cumsum(rho_comoving * volume)
-        physical_radius = scale_factor * radius
-        specific_j = rotation_factor * np.sqrt(
-            cosmology.gravitational_constant
-            * enclosed_mass * physical_radius
-        )
-        temperature = quantity_to_value(
-            icparams["tempini"], units.temperature_unit
-        ) * scale_factor**2
-
-        self.par = SimpleNamespace(
-            CodeUnits=units,
-            unit_system=units.unit_system,
-            nogrid=count,
-            noghost=int(par["mesh"]["ghost_cells"]),
-            coordsys="spherical",
-            tau_supercomoving_code=np.array(tau),
-            boxsize=np.array([float(icparams["rmax"])]),
-            cosmological_expansion=True,
-            supercomoving_coordinates=True,
-            cosmological_gravity=True,
-            selfgravity=True,
-            externalgravity=False,
-            cosmology=cosmology,
-            cosmology_type=cosmology.type_name,
-            cosmology_t_ref=cosmology.t_ref,
-            cosmology_a_ref=cosmology.a_ref,
-            coordinate_frame="comoving",
-            time_coordinate="supercomoving",
-            velocity_representation="supercomoving_peculiar",
-            density_representation="comoving",
-            pressure_representation="supercomoving",
-            temperature_representation="supercomoving",
-            gas_angular_momentum=True,
-            gas_rotational_energy=True,
-        )
-        self.par.units = SimpleNamespace(CodeUnits=units)
-        self.par.simulation = SimpleNamespace(
-            tau_supercomoving_code=np.array(tau), box_size=np.array([float(icparams["rmax"])]),
-            coordinate_system="spherical",
-        )
-        self.par.mesh = SimpleNamespace(
-            grid_cells=count,
-            ghost_cells=int(par["mesh"]["ghost_cells"]),
-        )
-        self.par.hydrodynamics = SimpleNamespace(gamma=float(par["hydrodynamics"]["gamma"]))
-        self.mesh = SimpleNamespace(
-            boundary_comoving_code=boundary,
-            x_comoving_code=radius,
-            area_comoving_code=4.0 * np.pi * boundary[:-1]**2,
-            volume_comoving_code=volume,
-            width_comoving_code=np.diff(boundary),
-        )
-        self.fluid = SimpleNamespace(
-            rho_comoving_code=rho_comoving,
-            vel_supercomoving_code=-(scale_factor**2 * hubble * overdensity / 3.0) * radius,
-            temp_supercomoving_code=np.full(count, temperature),
-            mu=np.full(count, float(icparams["muini"])),
-            specific_angular_momentum_code=specific_j,
-        )
-        self.mesh.geometry_state = MeshGeometryState(
-            x_comoving_code=self.mesh.x_comoving_code,
-            boundary_comoving_code=self.mesh.boundary_comoving_code,
-            width_comoving_code=self.mesh.width_comoving_code,
-            area_comoving_code=self.mesh.area_comoving_code,
-            volume_comoving_code=self.mesh.volume_comoving_code,
-        )
-        self.fluid.tau_supercomoving_code = float(tau)
-        self.fluid.runtime_state = FluidRuntimeState.from_arrays(
-            SUPERCOMOVING_RUNTIME_FIELDS,
-            density=self.fluid.rho_comoving_code,
-            velocity=self.fluid.vel_supercomoving_code,
-            pressure=np.zeros(count),
-            temperature=self.fluid.temp_supercomoving_code,
-            time=self.fluid.tau_supercomoving_code,
-            mu=self.fluid.mu,
-        )
-
-
 def run_case(base_par, initial_condition, label, rotation_factor, units, cosmology):
     output_dir = ROOT / base_par["output"]["directory"] / label
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -307,9 +203,62 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     par["simulation"]["initial_condition_filename"] = str(output_dir / "InitialCondition.hdf5")
     par["output"] = dict(par["output"])
     par["output"].update(directory=str(output_dir), savedir=str(output_dir), filename_prefix="Output")
-    initial = InitialCondition(
-        initial_condition, par, rotation_factor, units, cosmology
+    count = int(par["mesh"]["grid_cells"])
+    cosmic_time = float(initial_condition["cosmic_time"])
+    scale_factor = float(cosmology.scale_factor(cosmic_time))
+    hubble = float(cosmology.hubble(cosmic_time))
+    boundary_comoving_code = np.linspace(
+        float(initial_condition["rmin"].to_value(units.length_unit)),
+        float(initial_condition["rmax"].to_value(units.length_unit)),
+        count + 1,
     )
+    x_comoving_code = spherical_centers(boundary_comoving_code)
+    volume_comoving_code = 4.0 * np.pi / 3.0 * (
+        boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
+    )
+    rho_background = float(cosmology.background_density(cosmic_time))
+    inside = x_comoving_code < float(
+        initial_condition["top_hat_radius"].to_value(units.length_unit)
+    )
+    rho_comoving_code = rho_background * (
+        1.0 + float(initial_condition["overdensity"]) * inside
+    ) * scale_factor**3
+    enclosed_mass = np.cumsum(rho_comoving_code * volume_comoving_code)
+    physical_radius_code = scale_factor * x_comoving_code
+    specific_angular_momentum_code = rotation_factor * np.sqrt(
+        cosmology.gravitational_constant * enclosed_mass * physical_radius_code
+    )
+    case_config = {
+        "par": par,
+        "initial_condition": {
+            **initial_condition,
+            "boxsize": initial_condition["rmax"],
+            "time": cosmic_time * units.time_unit,
+        },
+        "example": {},
+        "_code_cosmology": cosmology,
+        "_boundary_comoving_code": boundary_comoving_code,
+        "_x_comoving_code": x_comoving_code,
+        "_volume_comoving_code": volume_comoving_code,
+        "_rho_comoving_code": rho_comoving_code,
+        "_vel_supercomoving_code": -(
+            scale_factor**2
+            * hubble
+            * float(initial_condition["overdensity"])
+            / 3.0
+        ) * x_comoving_code,
+        "_temp_supercomoving_code": np.full(
+            count,
+            float(initial_condition["tempini"].to_value(units.temperature_unit))
+            * scale_factor**2,
+        ),
+        "_mu_dimensionless": np.full(count, float(initial_condition["muini"])),
+        "_specific_angular_momentum_code": specific_angular_momentum_code,
+        "_initial_tau_supercomoving_code": float(
+            cosmology.supercomoving_time(cosmic_time)
+        ),
+    }
+    initial = build_initial_condition(case_config)
     rio.writehdf5(initial, par["simulation"]["initial_condition_filename"])
     sim = Rsim(par)
     sim.Callreadhdf5()
@@ -393,7 +342,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     config = eu.load_nested_example_config(config_filename)
     runtime = config["par"]
     par = copy.deepcopy(config["par"])
-    icparams = config["initial_condition"]
+    initial_condition = config["initial_condition"]
     if nogrid_override is not None:
         par["mesh"] = {**par["mesh"], "grid_cells": int(nogrid_override)}
     if output_root_override is not None:
@@ -410,11 +359,11 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     )
     cases = [
         ("nonrotating", 0.0),
-        ("moderate", float(icparams["moderate_rotation_factor"])),
-        ("high", float(icparams["high_rotation_factor"])),
+        ("moderate", float(initial_condition["moderate_rotation_factor"])),
+        ("high", float(initial_condition["high_rotation_factor"])),
     ]
     results = [
-        run_case(par, icparams, label, factor, units, cosmology)
+        run_case(par, initial_condition, label, factor, units, cosmology)
         for label, factor in cases
     ]
     by_label = {label: (sim, history, directory) for label, sim, history, directory in results}

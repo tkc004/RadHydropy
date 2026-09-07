@@ -35,18 +35,18 @@ def load_correlation_table(config_filename, example):
     return et.load_lcdm_correlation_table(filename)
 
 
-def run_lagrangian_top_hat(runparams, example, icparams, units, cosmology):
+def run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmology):
     """Calibrate one finite top-hat mass before shell crossing."""
-    target_mass = float(icparams["target_halo_mass"])
-    delta_i = float(icparams["initial_overdensity"])
-    initial = float(icparams["initial_cosmic_time"])
-    final = float(runparams["simulation"]["final_time"])
+    target_mass = float(initial_condition["target_halo_mass"])
+    delta_i = float(initial_condition["initial_overdensity"])
+    initial = float(initial_condition["initial_cosmic_time"])
+    final = float(par_config["simulation"]["final_time"])
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
-    radius = et.perturbation_radius(icparams, cosmology)
+    radius = et.perturbation_radius(initial_condition, cosmology)
     velocity = -a_initial**2 * h_initial * delta_i * radius / 3.0
-    angular_momentum = float(icparams.get("dm_specific_angular_momentum", 0.0))
+    angular_momentum = float(initial_condition.get("dm_specific_angular_momentum", 0.0))
     g_code = _gravitational_constant_code(units)
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
@@ -112,7 +112,7 @@ def run_lagrangian_top_hat(runparams, example, icparams, units, cosmology):
         history_time.append(cosmic_end)
         history_radius.append(physical_radius)
 
-    savedir = Path(runparams["output"]["savedir"])
+    savedir = Path(par_config["output"]["savedir"])
     figure = savedir / "CosmologicalTopHatDarkMatterOnly.jpg"
     savedir.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7, 4))
@@ -142,30 +142,30 @@ def run_lagrangian_top_hat(runparams, example, icparams, units, cosmology):
 
 
 def run_live_shell_density_profiles(
-    runparams, example, icparams, units, cosmology, correlation_table=None
+    par_config, example, initial_condition, units, cosmology, correlation_table=None
 ):
     """Evolve a gas-free full-matter top-hat and save density snapshots."""
-    dm_ic = copy.deepcopy(icparams)
+    dm_ic = copy.deepcopy(initial_condition)
     # With gas removed, the collisionless shells represent the full matter
     # density.  Keeping the configured baryon fraction here would weaken the
     # gravitational normalization by f_DM.
     dm_ic["baryon_fraction"] = 0.0
     dm_ic["dark_matter_shells"] = int(
-        example.get("dm_only_shells", max(1024, int(icparams["dark_matter_shells"])))
+        example.get("dm_only_shells", max(1024, int(initial_condition["dark_matter_shells"])))
     )
     shells = et.make_dark_matter(
         dm_ic, units, cosmology, correlation_table=correlation_table,
-        softening=runparams["dark_matter"]["softening"],
+        softening=par_config["dark_matter"]["softening"],
     )
     target_times = np.asarray(
         example.get(
             "dm_only_density_times",
-            [float(icparams["initial_cosmic_time"]), 4.0, 8.0, 10.0, 12.0, 14.0, 16.0],
+            [float(initial_condition["initial_cosmic_time"]), 4.0, 8.0, 10.0, 12.0, 14.0, 16.0],
         ),
         dtype=float,
     )
-    initial = float(icparams["initial_cosmic_time"])
-    final = float(runparams["simulation"]["final_time"])
+    initial = float(initial_condition["initial_cosmic_time"])
+    final = float(par_config["simulation"]["final_time"])
     target_times = np.unique(np.clip(target_times, initial, final))
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
@@ -262,14 +262,14 @@ def run_live_shell_density_profiles(
     virial_radii = np.asarray(virial_radii)
     scale_factors = np.asarray([float(cosmology.scale_factor(time)) for time in times])
     comoving_bin_radii = bin_radii[None, :] / scale_factors[:, None]
-    target_mass = float(icparams["target_halo_mass"])
+    target_mass = float(initial_condition["target_halo_mass"])
     virial_overdensity = 18.0 * np.pi**2
     analytic_rvir = (
         target_mass
         / ((4.0 * np.pi / 3.0) * virial_overdensity
            * np.asarray([float(cosmology.background_density(time)) for time in times]))
     ) ** (1.0 / 3.0)
-    output_dir = Path(runparams["output"]["savedir"])
+    output_dir = Path(par_config["output"]["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     data_file = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.npz"
     figure = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.jpg"
@@ -368,39 +368,39 @@ def run_live_shell_density_profiles(
 
 def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     config = load_nested_example_config(config_filename)
-    runparams = config["par"]
-    icparams = config["initial_condition"]
+    par_config = config["par"]
+    initial_condition = config["initial_condition"]
     example = config["example"]
     if final_time_override is not None:
-        runparams["simulation"] = dict(runparams["simulation"])
-        runparams["simulation"]["final_time"] = float(final_time_override)
-    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
+        par_config["simulation"] = dict(par_config["simulation"])
+        par_config["simulation"]["final_time"] = float(final_time_override)
+    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["gravity"]["cosmology_t_ref"]),
-        a_ref=float(runparams["gravity"]["cosmology_a_ref"]),
+        t_ref=float(par_config["gravity"]["cosmology_t_ref"]),
+        a_ref=float(par_config["gravity"]["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, example)
-    run_lagrangian_top_hat(runparams, example, icparams, units, cosmology)
+    run_lagrangian_top_hat(par_config, example, initial_condition, units, cosmology)
     run_live_shell_density_profiles(
-        runparams, example, icparams, units, cosmology,
+        par_config, example, initial_condition, units, cosmology,
         correlation_table=correlation_table,
     )
     return
-    dm_ic = copy.deepcopy(icparams)
+    dm_ic = copy.deepcopy(initial_condition)
     dm_ic["dark_matter_shells"] = int(
-        example.get("dm_only_shells", max(1024, int(icparams["dark_matter_shells"])))
+        example.get("dm_only_shells", max(1024, int(initial_condition["dark_matter_shells"])))
     )
     shells = et.make_dark_matter(dm_ic, units, cosmology)
-    dm_fraction = 1.0 - float(icparams["baryon_fraction"])
-    initial = float(icparams["initial_cosmic_time"])
-    final = float(runparams["final_cosmic_time"])
+    dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
+    initial = float(initial_condition["initial_cosmic_time"])
+    final = float(par_config["final_cosmic_time"])
     time = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))
-    target_mass = float(icparams["target_halo_mass"])
-    target_dm_mass = target_mass * (1.0 - float(icparams["baryon_fraction"]))
-    delta_i = float(icparams["initial_overdensity"])
+    target_mass = float(initial_condition["target_halo_mass"])
+    target_dm_mass = target_mass * (1.0 - float(initial_condition["baryon_fraction"]))
+    delta_i = float(initial_condition["initial_overdensity"])
     delta_c = 1.686
     collapse_time = initial * (delta_c / delta_i) ** 1.5
     turnaround_time = 0.5 * collapse_time
@@ -493,7 +493,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
 
     if not np.all(np.isfinite(shells.radius)) or np.any(np.diff(shells.radius) < 0.0):
         raise RuntimeError("dark-matter-only shells became invalid or unsorted")
-    savedir = Path(runparams["output"]["savedir"])
+    savedir = Path(par_config["output"]["savedir"])
     savedir.mkdir(parents=True, exist_ok=True)
     figure = savedir / "CosmologicalDarkMatterOnly.jpg"
     plt.figure(figsize=(6, 4))

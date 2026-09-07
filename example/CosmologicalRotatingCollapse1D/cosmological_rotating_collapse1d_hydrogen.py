@@ -7,7 +7,6 @@ thermal chemistry source is applied.
 
 from pathlib import Path
 import copy
-from types import SimpleNamespace
 import sys
 
 import numpy as np
@@ -22,14 +21,15 @@ from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
+from cosmological_initial_condition import build_initial_condition
 
-from cosmological_rotating_collapse1d import InitialCondition, DEFAULT_CONFIG
+from cosmological_rotating_collapse1d import spherical_centers, DEFAULT_CONFIG
 
 
 def main(output_root=None):
     config = eu.load_nested_example_config(DEFAULT_CONFIG)
     runtime = config["par"]
-    icparams = config["initial_condition"]
+    initial_condition = config["initial_condition"]
     runtime = copy.deepcopy(runtime)
     runtime["thermochemistry"] = {
         **runtime.get("thermochemistry", {}),
@@ -57,10 +57,55 @@ def main(output_root=None):
     runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': str(output_dir / 'InitialCondition.hdf5')}
     runtime['output'] = {**runtime['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': 'Output'}
 
-    initial = InitialCondition(
-        icparams, runtime, float(icparams['high_rotation_factor']),
-        units, cosmology,
+    count = int(runtime["mesh"]["grid_cells"])
+    cosmic_time = float(initial_condition["cosmic_time"])
+    scale_factor = float(cosmology.scale_factor(cosmic_time))
+    hubble = float(cosmology.hubble(cosmic_time))
+    boundary_comoving_code = np.linspace(
+        float(initial_condition["rmin"].to_value(units.length_unit)),
+        float(initial_condition["rmax"].to_value(units.length_unit)),
+        count + 1,
     )
+    x_comoving_code = spherical_centers(boundary_comoving_code)
+    volume_comoving_code = 4.0 * np.pi / 3.0 * (
+        boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
+    )
+    rho_background = float(cosmology.background_density(cosmic_time))
+    overdensity = float(initial_condition["overdensity"])
+    inside = x_comoving_code < float(
+        initial_condition["top_hat_radius"].to_value(units.length_unit)
+    )
+    rho_comoving_code = rho_background * (1.0 + overdensity * inside) * scale_factor**3
+    enclosed_mass = np.cumsum(rho_comoving_code * volume_comoving_code)
+    physical_radius_code = scale_factor * x_comoving_code
+    specific_angular_momentum_code = float(initial_condition["high_rotation_factor"]) * np.sqrt(
+        cosmology.gravitational_constant * enclosed_mass * physical_radius_code
+    )
+    initial_config = {
+        "par": runtime,
+        "initial_condition": {
+            **initial_condition,
+            "boxsize": initial_condition["rmax"],
+            "time": cosmic_time * units.time_unit,
+        },
+        "example": {},
+        "_code_cosmology": cosmology,
+        "_boundary_comoving_code": boundary_comoving_code,
+        "_x_comoving_code": x_comoving_code,
+        "_volume_comoving_code": volume_comoving_code,
+        "_rho_comoving_code": rho_comoving_code,
+        "_vel_supercomoving_code": -scale_factor**2 * hubble * overdensity * x_comoving_code / 3.0,
+        "_temp_supercomoving_code": np.full(
+            count,
+            float(initial_condition["tempini"].to_value(units.temperature_unit)) * scale_factor**2,
+        ),
+        "_mu_dimensionless": np.full(count, float(initial_condition["muini"])),
+        "_specific_angular_momentum_code": specific_angular_momentum_code,
+        "_initial_tau_supercomoving_code": float(
+            cosmology.supercomoving_time(cosmic_time)
+        ),
+    }
+    initial = build_initial_condition(initial_config)
     rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
     sim = Rsim(runtime)
     sim.Callreadhdf5()

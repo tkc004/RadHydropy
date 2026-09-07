@@ -41,9 +41,9 @@ def load_correlation_table(config_filename, par):
     return et.load_lcdm_correlation_table(filename)
 
 
-def _snapshot(sim, dm, cosmic_time, cosmology, icparams):
+def _snapshot(sim, dm, cosmic_time, cosmology, initial_condition):
     gas = et.gas_density_profile(sim, cosmic_time, cosmology)
-    radii = et.profiles(sim, dm, cosmic_time, cosmology, icparams)
+    radii = et.profiles(sim, dm, cosmic_time, cosmology, initial_condition)
     return gas, radii
 
 

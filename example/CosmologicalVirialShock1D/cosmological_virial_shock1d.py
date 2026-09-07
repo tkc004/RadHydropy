@@ -25,11 +25,15 @@ from radhydropy.units import CodeUnits
 import tools as et
 
 
-DEFAULT_CONFIG = Path(__file__).with_name("cosmological_virial_shock1d.yaml")
+DEFAULT_CONFIG = Path(__file__).with_name(
+    "cosmological_virial_shock1d_smoke.yaml"
+)
 
 
-def load_correlation_table(config_filename, par):
-    filename = par.get("linear_correlation_table_filename")
+def load_correlation_table(config_filename, config):
+    filename = config.get("example", {}).get("linear_correlation_table_filename")
+    if filename is None:
+        filename = config.get("par", {}).get("linear_correlation_table_filename")
     if not filename:
         return None
     filename = Path(filename)
@@ -62,13 +66,18 @@ def run_case(
         {"par": local, "initial_condition": initial_condition}, units, cosmology, table,
         correlation_table=correlation_table,
     )
-    rio.writehdf5(initial, local["ICfilename"])
+    rio.writehdf5(initial, local["simulation"]["initial_condition_filename"])
     dm = et.make_dark_matter(
-        initial_condition, units, cosmology, correlation_table=correlation_table
+        initial_condition,
+        units,
+        cosmology,
+        correlation_table=correlation_table,
+        softening=local.get("dark_matter", {}).get("softening", 0.0),
     )
 
-    sim = Rsim(local)
-    sim.Callreadhdf5()
+    sim = Rsim.FromComponents(
+        initial.par, initial.mesh, initial.fluid, initial.solver
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -207,7 +216,7 @@ def main(config_filename=DEFAULT_CONFIG):
         table_path = Path(config_filename).parent / table_path
     table = MetalPIETable(table_path)
     par["thermochemistry"]["metal_pie_table_filename"] = str(table_path.resolve())
-    correlation_table = load_correlation_table(config_filename, par)
+    correlation_table = load_correlation_table(config_filename, config)
     outputs = {
         "adiabatic": run_case(
             par, initial_condition, units, cosmology, table, False,

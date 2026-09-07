@@ -20,12 +20,10 @@ import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-)
 import example_utils as eu
+from cosmological_initial_condition import (
+    build_initial_condition as build_cosmological_initial_condition,
+)
 from sodshock_analytic import shocktubecal, shocktubeanalyticgraph
 
 
@@ -34,87 +32,6 @@ DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
 class State:
     pass
-
-
-def make_initial_condition(ic, units, par):
-    state = State()
-    state.par = State()
-    state.mesh = State()
-    state.fluid = State()
-    state.par.CodeUnits = units
-    state.par.units = State()
-    state.par.units.CodeUnits = units
-    state.par.unit_system = units.unit_system
-    state.par.nogrid = int(par["mesh"]["grid_cells"])
-    state.par.mesh = State()
-    state.par.mesh.grid_cells = int(par["mesh"]["grid_cells"])
-    state.par.mesh.ghost_cells = 0
-    state.par.hydrodynamics = State()
-    state.par.hydrodynamics.gamma = float(par["hydrodynamics"]["gamma"])
-    state.par.simulation = State()
-    state.par.simulation.tau_supercomoving_code = np.asarray([0.0])
-    state.par.simulation.box_size = np.asarray([float(ic["boxsize"].to_value(units.length_unit))]) * units.length_unit
-    state.par.simulation.coordinate_system = "cartesian"
-    state.par.coordsys = "cartesian"
-    boxsize = float(ic["boxsize"].to_value(units.length_unit))
-    state.par.boxsize = np.asarray([boxsize]) * units.length_unit
-    state.par.tau_supercomoving_code = np.asarray([0.0])
-    state.par.cosmological_expansion = True
-    state.par.supercomoving_coordinates = True
-    state.par.coordinate_frame = "comoving"
-    state.par.time_coordinate = "supercomoving"
-    state.par.density_representation = "comoving"
-    state.par.temperature_representation = "supercomoving"
-    state.par.velocity_representation = "supercomoving_peculiar"
-    gravity = par.get("gravity", {})
-    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
-        state.par.cosmology = LambdaCDM.from_code_units(
-            units,
-            t_ref=float(gravity["cosmology_t_ref"]),
-            a_ref=float(gravity["cosmology_a_ref"]),
-            omega_m=float(gravity["cosmology_omega_m"]),
-            omega_lambda=float(gravity["cosmology_omega_lambda"]),
-            hubble_ref=gravity.get("cosmology_hubble_ref"),
-        )
-    else:
-        state.par.cosmology = EinsteinDeSitter.from_code_units(
-            units, t_ref=1.0, a_ref=1.0
-        )
-    dx = boxsize / state.par.nogrid
-    boundary = np.linspace(-dx, boxsize + dx, state.par.nogrid + 1)
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    state.mesh.boundary_comoving_code = boundary
-    state.mesh.x_comoving_code = coordinate
-    state.mesh.width_comoving_code = np.full(state.par.nogrid, dx)
-    state.mesh.area_comoving_code = np.ones(state.par.nogrid + 0)
-    state.mesh.volume_comoving_code = np.full(state.par.nogrid, dx)
-    left = coordinate < 0.5 * boxsize
-    state.fluid.rho_comoving_code = np.where(left, float(ic["rho_left"]), float(ic["rho_right"]))
-    state.fluid.temp_supercomoving_code = np.where(
-        left,
-        float(ic["temp_left"].to_value("K")),
-        float(ic["temp_right"].to_value("K")),
-    )
-    state.fluid.vel_supercomoving_code = np.zeros(state.par.nogrid)
-    state.fluid.mu = np.full(state.par.nogrid, float(ic["mu"]))
-    state.fluid.tau_supercomoving_code = 0.0
-    state.mesh.geometry_state = MeshGeometryState(
-        x_comoving_code=state.mesh.x_comoving_code,
-        boundary_comoving_code=state.mesh.boundary_comoving_code,
-        width_comoving_code=state.mesh.width_comoving_code,
-        area_comoving_code=state.mesh.area_comoving_code,
-        volume_comoving_code=state.mesh.volume_comoving_code,
-    )
-    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS,
-        density=state.fluid.rho_comoving_code,
-        velocity=state.fluid.vel_supercomoving_code,
-        pressure=np.zeros(state.par.nogrid),
-        temperature=state.fluid.temp_supercomoving_code,
-        time=state.fluid.tau_supercomoving_code,
-        mu=state.fluid.mu,
-    )
-    return state
 
 
 def _read_profile(filename, units):
@@ -129,7 +46,7 @@ def _read_profile(filename, units):
     par.mesh.ghost_cells = 2
     rio.readhdf5(par, mesh, fluid, filename)
     first = int(getattr(par, "noghost", 2))
-    count = int(par.nogrid)
+    count = int(par.mesh.grid_cells)
     return (
         0.5 * np.asarray(
             mesh.boundary_comoving_code[first:first + count + 1], dtype=float
@@ -146,7 +63,7 @@ def _read_profile(filename, units):
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
     runtime = config["par"]
-    icparams = config["initial_condition"]
+    initial_condition = config["initial_condition"]
     if riemann_solver is not None:
         runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "riemann_solver": riemann_solver}}
     if dual_energy is not None:
@@ -156,7 +73,31 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(output)
     units = CodeUnits.from_mapping(runtime["units"]["CodeUnits"])
-    initial = make_initial_condition(icparams, units, runtime)
+    gravity = runtime.get("gravity", {})
+    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+        code_cosmology = LambdaCDM.from_code_units(
+            units,
+            t_ref=float(gravity["cosmology_t_ref"]),
+            a_ref=float(gravity["cosmology_a_ref"]),
+            omega_m=float(gravity["cosmology_omega_m"]),
+            omega_lambda=float(gravity["cosmology_omega_lambda"]),
+            hubble_ref=gravity.get("cosmology_hubble_ref"),
+        )
+    else:
+        code_cosmology = EinsteinDeSitter.from_code_units(
+            units,
+            t_ref=float(gravity.get("cosmology_t_ref", 1.0)),
+            a_ref=float(gravity.get("cosmology_a_ref", 1.0)),
+        )
+    case_config = dict(config)
+    case_config["par"] = runtime
+    case_config["_code_cosmology"] = code_cosmology
+    case_config["_initial_tau_supercomoving_code"] = 0.0
+    boxsize_code = float(initial_condition["boxsize"].to_value(units.length_unit))
+    case_config["_boundary_start_code"] = -boxsize_code / int(
+        runtime["mesh"]["grid_cells"]
+    )
+    initial = build_cosmological_initial_condition(case_config)
     ic_filename = output_dir / "InitialCondition.hdf5"
     rio.writehdf5(initial, ic_filename)
     runtime = {key: (dict(value) if isinstance(value, dict) else value)
@@ -190,16 +131,16 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     radius, density, temperature, _, _ = profiles[-1]
     gamma = float(runtime["hydrodynamics"]["gamma"])
     pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
-    pressure_left = float(icparams["rho_left"]) * float(
-        icparams["temp_left"].to_value("K")
+    pressure_left = float(initial_condition["rho_left"]) * float(
+        initial_condition["temp_left"].to_value("K")
     ) * pressure_factor
-    pressure_right = float(icparams["rho_right"]) * float(
-        icparams["temp_right"].to_value("K")
+    pressure_right = float(initial_condition["rho_right"]) * float(
+        initial_condition["temp_right"].to_value("K")
     ) * pressure_factor
     rho2, rho3, pressure2, velocity2, velocity_tail, velocity_shock, _ = shocktubecal(
         gamma,
-        float(icparams["rho_right"]),
-        float(icparams["rho_left"]),
+        float(initial_condition["rho_right"]),
+        float(initial_condition["rho_left"]),
         pressure_right,
         pressure_left,
     )
@@ -207,10 +148,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"final supercomoving time = {final_tau:.8g}")
     rho_exact, pressure_exact, _ = shocktubeanalyticgraph(
         gamma,
-        float(icparams["rho_right"]),
+        float(initial_condition["rho_right"]),
         rho2,
         rho3,
-        float(icparams["rho_left"]),
+        float(initial_condition["rho_left"]),
         pressure_right,
         pressure2,
         pressure_left,
@@ -219,9 +160,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         velocity_shock,
         final_tau,
         radius,
-        0.5 * float(icparams["boxsize"].to_value(units.length_unit)),
+        0.5 * float(initial_condition["boxsize"].to_value(units.length_unit)),
     )
-    interface = 0.5 * float(icparams["boxsize"].to_value(units.length_unit))
+    interface = 0.5 * float(initial_condition["boxsize"].to_value(units.length_unit))
     central = (radius > interface - 2.0) & (radius < interface + 2.0)
     density_l1 = float(np.mean(np.abs(density[central] - rho_exact[central])))
     if density_l1 > 0.04:

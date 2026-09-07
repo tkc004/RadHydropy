@@ -23,6 +23,7 @@ from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
+from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import tools as et
 from example_utils import load_nested_example_config
@@ -892,21 +893,21 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         dual_energy_entropy_limiter=None, dual_energy=None, cfl=None):
     config_filename = Path(config_filename).resolve()
     config = load_nested_example_config(config_filename)
-    runparams = config["par"]
-    icparams = config["initial_condition"]
+    par_config = config["par"]
+    initial_condition = config["initial_condition"]
     example = config["example"]
-    simulation = runparams["simulation"]
-    hydro = runparams.setdefault("hydrodynamics", {})
-    gravity = runparams["gravity"]
-    output = runparams["output"]
-    thermo = runparams.setdefault("thermochemistry", {})
+    simulation = par_config["simulation"]
+    hydro = par_config.setdefault("hydrodynamics", {})
+    gravity = par_config["gravity"]
+    output = par_config["output"]
+    thermo = par_config.setdefault("thermochemistry", {})
     # These are plot/source-driver settings consumed by this workflow, not
     # Rsim runtime parameters.  Keep them out of the object passed to Rsim.
     configured_minimum_temperature = example.get("minimum_temperature")
     configured_temperature_plot_ymin = example.get("temperature_plot_ymin")
     # This workflow always produces energy-balance plots and per-cell energy
     # histories, so make the required diagnostics the example default.
-    runparams.setdefault("energy_diagnostics", True)
+    par_config.setdefault("energy_diagnostics", True)
     if riemann_solver is not None:
         hydro["riemann_solver"] = riemann_solver
     if dual_energy_entropy_limiter is not None:
@@ -924,7 +925,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "hydrogen_atomic_cooling": False,
             "compton_cmb_enabled": True,
         })
-    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units,
@@ -952,7 +953,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     ic_filename = output_dir / "InitialCondition.hdf5"
 
     initial = et.build_initial_condition(
-        {"par": runparams, "initial_condition": icparams},
+        config,
         units, cosmology, correlation_table=correlation_table
     )
     if bool(hydro.get("gas_angular_momentum", False)):
@@ -963,11 +964,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
     rio.writehdf5(initial, ic_filename)
     dm = et.make_dark_matter(
-        icparams, units, cosmology, correlation_table=correlation_table,
-        softening=runparams["dark_matter"]["softening"],
+        initial_condition, units, cosmology, correlation_table=correlation_table,
+        softening=par_config["dark_matter"]["softening"],
     )
 
-    baryon_fraction = float(icparams["baryon_fraction"])
+    baryon_fraction = float(initial_condition["baryon_fraction"])
     gas_mass = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
     dm_mass = float(np.sum(dm.mass))
     measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
@@ -976,17 +977,17 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "initial gas/total mass fraction does not match baryon_fraction"
         )
     initial_temperature = float(np.median(initial.fluid.temp_supercomoving_code)) / float(
-        cosmology.scale_factor(float(icparams["initial_cosmic_time"]))
+        cosmology.scale_factor(float(initial_condition["initial_cosmic_time"]))
     ) ** 2
-    expected_temperature = float(icparams["cmb_temperature_0"]) * (
-        1.0 / float(cosmology.scale_factor(float(icparams["initial_cosmic_time"])))
+    expected_temperature = float(initial_condition["cmb_temperature_0"]) * (
+        1.0 / float(cosmology.scale_factor(float(initial_condition["initial_cosmic_time"])))
     )
     if not np.isclose(initial_temperature, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
 
-    local = dict(runparams)
-    local["simulation"] = dict(runparams["simulation"])
-    local["output"] = dict(runparams["output"])
+    local = dict(par_config)
+    local["simulation"] = dict(par_config["simulation"])
+    local["output"] = dict(par_config["output"])
     local["simulation"]["initial_condition_filename"] = str(ic_filename)
     local["output"]["directory"] = str(output_dir)
     local["output"]["savedir"] = str(output_dir)
@@ -995,6 +996,16 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    # IC/HDF5 restoration serializes the PIE table as metadata.  Rehydrate
+    # the interpolation object before the run switches to the PIE network.
+    metal_table = getattr(sim.par, "metal_pie_table", None)
+    if isinstance(metal_table, dict):
+        table_filename = Path(thermo["metal_pie_table_filename"])
+        if not table_filename.is_absolute():
+            table_filename = config_filename.parent / table_filename
+        sim.par.metal_pie_table = MetalPIETable(table_filename)
+        if hasattr(sim.par, "radiation"):
+            sim.par.radiation.metal_pie_table = sim.par.metal_pie_table
     sim.fluid.tau_supercomoving_code = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     dm_for_gas = (
         et.VolumeSmoothedDarkMatter(dm)
@@ -1009,9 +1020,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(icparams["initial_cosmic_time"])
+    initial_time = float(initial_condition["initial_cosmic_time"])
     initial_a = float(cosmology.scale_factor(initial_time))
-    sim.par.mu_inflow = float(icparams.get("mu", 0.59))
+    sim.par.mu_inflow = float(initial_condition.get("mu", 0.59))
     minimum_temperature = configured_minimum_temperature
     if minimum_temperature is not None:
         if hasattr(minimum_temperature, "to_value"):
@@ -1019,7 +1030,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         else:
             minimum_temperature = float(minimum_temperature)
 
-    transition_redshift = thermo.get("thermochemistry_transition_redshift")
+    transition_redshift = example.get(
+        "thermochemistry_transition_redshift",
+        thermo.get("thermochemistry_transition_redshift"),
+    )
     transition_tau = None
     if transition_redshift is not None:
         transition_redshift = float(transition_redshift)
@@ -1071,7 +1085,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         # The IC is initialized in CMB equilibrium at the starting redshift,
         # so its physical temperature is T_CMB,0 / a_initial.  Evolve that
         # state adiabatically (T proportional to a^-2) for the outer gas.
-        temperature_initial = float(icparams["cmb_temperature_0"]) / initial_a
+        temperature_initial = float(initial_condition["cmb_temperature_0"]) / initial_a
         temperature_physical = temperature_initial * (
             initial_a / scale_factor
         ) ** 2
@@ -1183,7 +1197,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
         gas_profile.update(_instantaneous_source_diagnostics(sim, gas_profile))
         radius_record = et.profiles(
-            sim, dm, cosmic_time, cosmology, icparams,
+            sim, dm, cosmic_time, cosmology, initial_condition,
             density_bin_count=example.get("dm_density_bins", 128),
         )
         gas_radius = np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
@@ -1199,7 +1213,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             gas_inside = float(np.sum(gas_mass[gas_radius <= rvir]))
             radius_record["gas_mass_rvir"] = gas_inside
             radius_record["normalized_baryon_fraction"] = gas_inside / (
-                float(icparams["baryon_fraction"]) * mvir
+                float(initial_condition["baryon_fraction"]) * mvir
             )
         else:
             radius_record["gas_mass_rvir"] = np.nan
@@ -1522,7 +1536,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ]) * float(sim.par.CodeUnits.mass_in_cgs) / 1.98847e33,
         scale_factors,
         baryon_fraction_figure,
-        float(icparams["baryon_fraction"]),
+        float(initial_condition["baryon_fraction"]),
     )
     entropy_plotter.main(
         output_dir,
@@ -1666,8 +1680,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         virial_temperature,
         temperature_figure,
         minimum_temperature=temperature_plot_ymin,
-        inner_radius=float(icparams.get("inner_wall_radius_comoving", icparams["rmin"])),
-        box_boundary=float(icparams["rmax"]),
+        inner_radius=float(initial_condition.get("inner_wall_radius_comoving", initial_condition["rmin"])),
+        box_boundary=float(initial_condition["rmax"]),
     )
     specific_angular_momentum_figure = output_dir / (
         figure_prefix + "_SpecificAngularMomentum.jpg"
@@ -1694,7 +1708,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         density_to_nH_cgs_cm3=(
             float(sim.par.CodeUnits.mass_in_cgs)
             / float(sim.par.CodeUnits.length_in_cgs) ** 3
-            * float(icparams["hydrogen_mass_fraction"])
+            * float(initial_condition["hydrogen_mass_fraction"])
             / PROTON_MASS_CGS
         ),
     )
@@ -1712,7 +1726,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         figure_prefix + "_GasDarkMatterBaryonNormalized.jpg"
     )
     plot_baryon_normalized_density_comparison(
-        plot_gas_profiles, dm_profiles, icparams["baryon_fraction"],
+        plot_gas_profiles, dm_profiles, initial_condition["baryon_fraction"],
         virial_radius,
         density_comparison_figure,
     )

@@ -20,8 +20,9 @@ Run with:
 python cosmological_virial_shock1d.py
 ```
 
-For a fast end-to-end check, use
-`cosmological_virial_shock1d_smoke.yaml`.
+The default command uses the short end-to-end smoke configuration
+`cosmological_virial_shock1d_smoke.yaml`. Production configurations are
+available alongside the other correlation-function YAML files.
 
 To calibrate the halo mass without gas or shell-crossing noise, run:
 

@@ -194,7 +194,7 @@ def _matched_shell_mass(target_enclosed_mass):
 def _make_matched_initial_state(config, units, cosmology,
                                 correlation_table):
     """Build gas cells and one volume-centred DM shell per identical cell."""
-    icparams = config["initial_condition"]
+    initial_condition = config["initial_condition"]
     par = config["par"]
     initial = et.build_initial_condition(
         config, units, cosmology, correlation_table=correlation_table
@@ -202,26 +202,26 @@ def _make_matched_initial_state(config, units, cosmology,
     # A uniform origin-centred mesh avoids allowing logarithmic innermost-cell
     # truncation error to dominate a deliberately tiny growing-mode signal.
     boundaries = np.linspace(
-        0.0, float(icparams["rmax"]), int(par["mesh"]["grid_cells"]) + 1
+        0.0, float(initial_condition["rmax"]), int(par["mesh"]["grid_cells"]) + 1
     )
     coordinates = et.cell_centres(boundaries)
     initial.mesh.boundary_comoving_code = boundaries
     initial.mesh.x_comoving_code = coordinates
     initial.mesh.area_comoving_code = 4.0 * np.pi * boundaries[:-1]**2
     initial.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = float(icparams["initial_cosmic_time"])
+    cosmic_time = float(initial_condition["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     background_comoving = (
         float(cosmology.background_density(cosmic_time)) * scale_factor**3
     )
-    baryon_fraction = float(icparams["baryon_fraction"])
+    baryon_fraction = float(initial_condition["baryon_fraction"])
     length_unit_mpc_h = (
         float(units.length_in_cgs) / 3.0856775814913673e24
-        * float(icparams.get("correlation_h", 0.674))
+        * float(initial_condition.get("correlation_h", 0.674))
     )
     _, mean_delta = et.density_contrast_profile(
-        coordinates, icparams, cosmology,
+        coordinates, initial_condition, cosmology,
         correlation_table=correlation_table,
         length_unit_mpc_h=length_unit_mpc_h,
     )
@@ -237,7 +237,7 @@ def _make_matched_initial_state(config, units, cosmology,
     )
     initial.fluid.temp_supercomoving_code = np.full(
         int(par["mesh"]["grid_cells"]),
-        float(icparams["cie_initial_temperature"]) * scale_factor**2,
+        float(initial_condition["cie_initial_temperature"]) * scale_factor**2,
     )
     et.refresh_typed_initial_condition(initial, units)
 
@@ -255,7 +255,7 @@ def _make_matched_initial_state(config, units, cosmology,
     return initial, shells
 
 
-def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
+def _snapshot(sim, dm, cosmic_time, cosmology, initial_condition, correlation_table,
               initial_scale_factor, diagnostic_min, diagnostic_max):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
@@ -267,7 +267,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     background_comoving = (
         float(cosmology.background_density(cosmic_time)) * scale_factor**3
     )
-    baryon_fraction = float(icparams["baryon_fraction"])
+    baryon_fraction = float(initial_condition["baryon_fraction"])
     dm_fraction = 1.0 - baryon_fraction
     volume = 4.0 * np.pi / 3.0 * x**3
 
@@ -287,11 +287,11 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
     length_unit_mpc_h = (
         float(sim.par.CodeUnits.length_in_cgs)
         / 3.0856775814913673e24
-        * float(icparams.get("correlation_h", 0.674))
+        * float(initial_condition.get("correlation_h", 0.674))
     )
     _, mean_delta_initial = et.density_contrast_profile(
         x,
-        icparams,
+        initial_condition,
         cosmology,
         correlation_table=correlation_table,
         length_unit_mpc_h=length_unit_mpc_h,
@@ -305,7 +305,7 @@ def _snapshot(sim, dm, cosmic_time, cosmology, icparams, correlation_table,
 
     _, dm_mean_delta_initial = et.density_contrast_profile(
         dm_x,
-        icparams,
+        initial_condition,
         cosmology,
         correlation_table=correlation_table,
         length_unit_mpc_h=length_unit_mpc_h,

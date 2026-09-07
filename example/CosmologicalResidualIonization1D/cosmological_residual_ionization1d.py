@@ -31,19 +31,21 @@ CONFIG = EXAMPLE_ROOT / "cosmological_residual_ionization1d.yaml"
 SECONDS_PER_GYR = 1.0e9 * 365.25 * 86400.0
 
 
-def evolve(runparams, icparams):
+def evolve(config):
     """Integrate xHI and temperature with the RadHydropy source equations."""
-    gamma = float(runparams["hydrodynamics"]["gamma"])
-    hydrogen_fraction = float(runparams["chemistry"]["hydrogen_mass_fraction"])
-    nH0 = float(icparams["present_hydrogen_density_cgs_cm3"])
-    t_ref_s = float(runparams["gravity"]["cosmology_t_ref"].to_value("s"))
-    cmb0 = float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K"))
-    z_initial = float(icparams["initial_redshift"])
-    z_final = float(icparams["final_redshift"])
+    par_config = config["par"]
+    initial_condition = config["initial_condition"]
+    gamma = float(par_config["hydrodynamics"]["gamma"])
+    hydrogen_fraction = float(par_config["chemistry"]["hydrogen_mass_fraction"])
+    nH0 = float(initial_condition["present_hydrogen_density_cgs_cm3"])
+    t_ref_s = float(par_config["gravity"]["cosmology_t_ref"].to_value("s"))
+    cmb0 = float(par_config["thermochemistry"]["cmb_temperature_0"].to_value("K"))
+    z_initial = float(initial_condition["initial_redshift"])
+    z_final = float(initial_condition["final_redshift"])
     t_initial = t_ref_s * (1.0 / (1.0 + z_initial)) ** 1.5
     t_final = t_ref_s * (1.0 / (1.0 + z_final)) ** 1.5
-    initial_xe = float(icparams["initial_xe"])
-    initial_temperature = float(icparams["initial_temperature"].to_value("K"))
+    initial_xe = float(initial_condition["initial_xe"])
+    initial_temperature = float(initial_condition["initial_temperature"].to_value("K"))
 
     def rates(time_s, values):
         xHI = float(np.clip(values[0], 1.0e-12, 1.0 - 1.0e-12))
@@ -80,7 +82,7 @@ def evolve(runparams, icparams):
         rates,
         (t_initial, t_final),
         [1.0 - initial_xe, initial_temperature],
-        t_eval=np.linspace(t_initial, t_final, int(icparams["output_points"])),
+        t_eval=np.linspace(t_initial, t_final, int(initial_condition["output_points"])),
         rtol=2.0e-9,
         atol=[1.0e-12, 1.0e-5],
         method="BDF",
@@ -98,13 +100,12 @@ def evolve(runparams, icparams):
 def main():
     from example import example_utils as eu
     config = eu.load_nested_example_config(CONFIG)
-    runparams, icparams = config['par'], config['initial_condition']
-    redshift, xe, temperature = evolve(runparams, icparams)
+    redshift, xe, temperature = evolve(config)
     # The integration proceeds from high to low redshift; retain that order
     # so the horizontal axis also reads forward in cosmic time.
     order = np.argsort(-redshift)
     redshift, xe, temperature = redshift[order], xe[order], temperature[order]
-    output = Path(runparams["output"]["savedir"])
+    output = Path(config["par"]["output"]["savedir"])
     output.mkdir(parents=True, exist_ok=True)
     np.savez(output / "CosmologicalResidualIonization1D_History.npz",
              redshift=redshift, xe=xe, temperature_cgs_K=temperature)

@@ -12,6 +12,7 @@ from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.eos import EOS
+from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     MeshGeometryState,
@@ -205,12 +206,12 @@ def build_initial_condition(config, units, cosmology, pie_table=None, correlatio
     ic = config['initial_condition']
     par = config['par']
     grid_cells = int(par['mesh']['grid_cells'])
-    result = SimpleNamespace(par=SimpleNamespace(), mesh=SimpleNamespace(), fluid=SimpleNamespace())
+    result = Rsim(par)
     cosmic_time = float(ic['initial_cosmic_time'])
     result.par.tau_supercomoving_code = np.array([cosmology.supercomoving_time(cosmic_time)])
-    result.par.simulation = SimpleNamespace(tau_supercomoving_code=result.par.tau_supercomoving_code, box_size=np.array([float(ic['rmax'])]), coordinate_system='spherical')
-    result.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=2)
-    result.par.units = SimpleNamespace(CodeUnits=units)
+    result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
+    result.par.simulation.box_size = float(ic['rmax'])
+    result.par.simulation.coordinate_system = 'spherical'
     result.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True

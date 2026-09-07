@@ -19,10 +19,11 @@ import example_utils as eu
 
 def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):
     config = eu.load_nested_example_config(config_filename)
-    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    par_config = config['par']
+    units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     cosmology = EinsteinDeSitter.from_code_units(units)
-    t0 = float(config['par']['simulation']['initial_time'])
-    t1 = float(config['par']['simulation']['final_time'])
+    t0 = float(par_config['simulation']['initial_time'])
+    t1 = float(par_config['simulation']['final_time'])
     initial_condition = config['initial_condition']
     tau0 = cosmology.supercomoving_time(t0)
     class EOS:
@@ -33,18 +34,22 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
             return 0.5 * rho * vel**2 + pressure / (self.gamma - 1.0)
 
     class Fluid:
-        time = tau0
-        rho_code = np.array([initial_condition['density']])
-        vel_code = np.array([initial_condition['velocity']])
-        pre_code = np.array([initial_condition['pressure']])
+        tau_supercomoving_code = tau0
+        rho_comoving_code = np.array([initial_condition['density']])
+        vel_supercomoving_code = np.array([initial_condition['velocity']])
+        pre_supercomoving_code = np.array([initial_condition['pressure']])
         eos = EOS()
 
     fluid = Fluid()
-    initial = (fluid.rho_code.copy(), fluid.vel_code.copy(), fluid.pre_code.copy())
+    initial = (
+        fluid.rho_comoving_code.copy(),
+        fluid.vel_supercomoving_code.copy(),
+        fluid.pre_supercomoving_code.copy(),
+    )
     # Supercomoving homogeneous Euler evolution has no expansion source.
-    assert np.allclose(fluid.rho_code, initial[0])
-    assert np.allclose(fluid.vel_code, initial[1])
-    assert np.allclose(fluid.pre_code, initial[2])
+    assert np.allclose(fluid.rho_comoving_code, initial[0])
+    assert np.allclose(fluid.vel_supercomoving_code, initial[1])
+    assert np.allclose(fluid.pre_supercomoving_code, initial[2])
     a_ratio = cosmology.scale_factor(t1) / cosmology.scale_factor(t0)
     assert np.isclose(a_ratio, 2.0**(2.0 / 3.0))
     print("Einstein-De Sitter homogeneous expansion passed")

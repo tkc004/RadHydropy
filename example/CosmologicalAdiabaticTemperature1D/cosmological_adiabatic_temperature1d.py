@@ -24,10 +24,10 @@ from cosmology import LambdaCDM as PhysicalLambdaCDM
 from cosmological_density_evolution1d import (
     CODE_TIME_S,
     SECONDS_PER_GYR,
-    make_initial_condition,
     make_units,
     unit_mapping,
 )
+from cosmological_initial_condition import build_initial_condition
 import example_utils as eu
 
 
@@ -74,32 +74,42 @@ def run():
             }
         initial_tau = float(code_cosmology.supercomoving_time(initial_time))
         final_tau = float(code_cosmology.supercomoving_time(final_time))
-        initial = make_initial_condition(
-            units, code_cosmology, initial_time, 1.0,
-            initial_scale_factor,
+        case_config = copy.deepcopy(config)
+        case_config["_code_cosmology"] = code_cosmology
+        grid_cells = int(base_runtime["mesh"]["grid_cells"])
+        case_config["initial_condition"] = {
+            "boxsize": 4.0 * units.length_unit,
+            "time": initial_time * units.time_unit,
+        }
+        case_config["_rho_comoving_code"] = np.full(
+            grid_cells, initial_scale_factor**3
         )
         # For gamma=5/3, T_tilde = T*a^2.  The stored temperature is therefore
         # constant for homogeneous adiabatic expansion.
-        initial.fluid.temp_supercomoving_code[:] = initial_temperature * initial_scale_factor**2
+        case_config["_temp_supercomoving_code"] = np.full(
+            grid_cells, initial_temperature * initial_scale_factor**2
+        )
+        case_config["_vel_supercomoving_code"] = np.zeros(grid_cells)
+        initial = build_initial_condition(case_config)
         output_dir = OUTPUT_ROOT / label
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        runparams = copy.deepcopy(base_runtime)
-        runparams["simulation"].update(
+        par_config = copy.deepcopy(base_runtime)
+        par_config["simulation"].update(
             name=f"CosmologicalAdiabaticTemperature1D_{label}",
             initial_condition_filename=str(ic_filename),
             final_time=final_tau * units.time_unit,
         )
-        runparams["output"].update(directory=str(output_dir), savedir=str(output_dir))
-        runparams["gravity"].update(
+        par_config["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        par_config["gravity"].update(
             cosmology_type=cosmology_type,
             cosmology_t_ref=physical.age_0 / time_unit_gyr,
             cosmology_a_ref=1.0,
             **cosmology_parameters,
         )
-        runparams["output"]["cadence"] = (final_tau - initial_tau) * units.time_unit
-        sim = Rsim(runparams)
+        par_config["output"]["cadence"] = (final_tau - initial_tau) * units.time_unit
+        sim = Rsim(par_config)
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()

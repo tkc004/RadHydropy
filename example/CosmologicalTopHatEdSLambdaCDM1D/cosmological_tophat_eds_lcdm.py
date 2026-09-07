@@ -54,8 +54,8 @@ def reproduce_reference():
     nested = copy.deepcopy(config["par"])
     nested["output"] = dict(nested["output"])
     nested["output"]["savedir"] = str(OUTPUT_ROOT / "reference")
-    example = config.get("example", {})
-    icparams = config["initial_condition"]
+    example = copy.deepcopy(config.get("example", {}))
+    initial_condition = config["initial_condition"]
     reference_units = CodeUnits.from_mapping(nested["units"]["CodeUnits"])
     cosmology = CodeEdS.from_code_units(
         reference_units,
@@ -63,7 +63,7 @@ def reproduce_reference():
         a_ref=float(nested["gravity"]["cosmology_a_ref"]),
     )
     reference_example.run_lagrangian_top_hat(
-        nested, icparams, reference_units, cosmology,
+        nested, example, initial_condition, reference_units, cosmology,
     )
 
 

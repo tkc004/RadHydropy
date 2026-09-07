@@ -41,27 +41,28 @@ def _load_raw_config(filename):
 def _case_config(base_config, case_name, final_time):
     case = CASES[case_name]
     config = deepcopy(base_config)
-    runparams = config["runparams"]
-    icparams = config["ICparams"]
+    par_config = config["par"]
+    initial_condition = config["initial_condition"]
 
     output_dir = EXAMPLE_DIR / (
         "outputs_short_%s_%s" % (case_name, case["label"])
     )
     figure_prefix = "CosmologicalGasCorrelationShort%s" % case_name
-    runparams.update({
-        "simname": figure_prefix,
-        "figure_prefix": figure_prefix,
-        "ICfilename": str(output_dir / "InitialCondition.hdf5"),
-        "outdir": str(output_dir),
+    par_config["simulation"]["name"] = figure_prefix
+    par_config["simulation"]["initial_condition_filename"] = str(
+        output_dir / "InitialCondition.hdf5"
+    )
+    par_config["simulation"]["final_time"] = float(final_time)
+    par_config["output"].update({
+        "directory": str(output_dir),
         "savedir": str(output_dir),
-        "final_cosmic_time": float(final_time),
         # Keep the shared correlation table resolvable after placing the
         # effective YAML inside the case output directory.
-        "linear_correlation_table_filename": str(
-            EXAMPLE_DIR / "outputs_correlation" / "lcdm_linear_correlation.h5"
-        ),
     })
-    icparams["inner_wall_radius_comoving"] = float(
+    config["example"]["linear_correlation_table_filename"] = str(
+        EXAMPLE_DIR / "outputs_correlation" / "lcdm_linear_correlation.h5"
+    )
+    initial_condition["inner_wall_radius_comoving"] = float(
         case["inner_wall_radius_comoving"]
     )
     return config, output_dir
@@ -78,7 +79,7 @@ def run_case(base_config, case_name, final_time):
         "short case %s: inner_wall=%g comoving kpc output=%s"
         % (
             case_name,
-            config["ICparams"]["inner_wall_radius_comoving"],
+            config["initial_condition"]["inner_wall_radius_comoving"],
             output_dir,
         ),
         flush=True,

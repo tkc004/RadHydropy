@@ -34,13 +34,12 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    icparams = config['initial_condition']
-    eu.clean_previous_outputs(runparams)
-    code_units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
-    config['_code_units'] = code_units
+    par_config = config['par']
+    initial_condition = config['initial_condition']
+    eu.clean_previous_outputs(par_config)
+    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
     initial_density = quantity_to_value(
         initial.fluid.rho_proper_code,
         'g/cm**3',
@@ -51,11 +50,16 @@ def main(config_filename=DEFAULT_CONFIG):
         density_cgs_g_cm3 * (4.0 * np.pi / 3.0)
         * (boundary_cgs_cm[1:]**3 - boundary_cgs_cm[:-1]**3)
     ))
-    dark_matter = et.make_dark_matter(icparams, code_units)
+    dark_matter = et.make_dark_matter(config)
     initial_dm_mass = dark_matter.total_mass * code_units.mass_in_cgs
 
-    sim = Rsim(runparams)
-    sim.Callreadhdf5()
+    sim = Rsim(par_config)
+    rio.readhdf5(
+        sim.par,
+        sim.mesh,
+        sim.fluid,
+        par_config['simulation']['initial_condition_filename'],
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -109,7 +113,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.set_yscale('log')
     axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['output']['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
+    figure = Path(par_config['output']['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('dark-matter shells = %d' % dark_matter.number_of_shells)

@@ -13,26 +13,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
-)
+from basic_hydro_utils import make_initial_condition
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_converging_shock1d.yaml")
-
-
-class State:
-    pass
 
 
 class InnerWallSolver(Solver):
@@ -49,53 +41,6 @@ class InnerWallSolver(Solver):
         self._copy_boundary_state(fluid, slice(0, ng), left)
         right = self._boundary_state(fluid, last)
         self._copy_boundary_state(fluid, slice(last + 1, last + 1 + ng), right)
-
-
-def make_initial_condition(ic, units):
-    state = State()
-    state.par, state.mesh, state.fluid = State(), State(), State()
-    state.par.CodeUnits = units
-    state.par.units = SimpleNamespace(CodeUnits=units)
-    state.par.unit_system = units.unit_system
-    state.par.nogrid = int(ic["grid_cells"])
-    state.par.coordsys = "spherical"
-    state.par.boxsize = np.asarray([float(ic["outer_radius"].to_value(units.length_unit))]) * units.length_unit
-    state.par.time_proper_code = np.asarray([0.0])
-    state.par.simulation = SimpleNamespace(time_proper_code=state.par.time_proper_code, box_size=state.par.boxsize, coordinate_system="spherical")
-    state.par.mesh = SimpleNamespace(grid_cells=state.par.nogrid, ghost_cells=0)
-    state.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
-    rmin = float(ic["inner_radius"].to_value(units.length_unit))
-    rmax = float(ic["outer_radius"].to_value(units.length_unit))
-    boundary = np.linspace(rmin, rmax, state.par.nogrid + 1)
-    state.mesh.boundary_proper_code = boundary
-    state.mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
-    state.mesh.width_proper_code = np.diff(boundary)
-    state.mesh.area_proper_code = 4.0 * np.pi * boundary[:-1] ** 2
-    state.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
-    radius = np.asarray(state.mesh.x_proper_code, dtype=float)
-    shell = (radius >= float(ic["shell_inner"].to_value(units.length_unit))) & (radius <= float(ic["shell_outer"].to_value(units.length_unit)))
-    state.fluid.rho_proper_code = np.where(shell, float(ic["rho_shell"]), 0.0)
-    state.fluid.temp_proper_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
-    state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(units.velocity_unit)), 0.0)
-    state.fluid.mu = np.full(state.par.nogrid, float(ic["mu"]))
-    state.fluid.time_proper_code = 0.0
-    state.mesh.geometry_state = MeshGeometryState(
-        x_proper_code=state.mesh.x_proper_code,
-        boundary_proper_code=state.mesh.boundary_proper_code,
-        width_proper_code=state.mesh.width_proper_code,
-        area_proper_code=state.mesh.area_proper_code,
-        volume_proper_code=state.mesh.volume_proper_code,
-    )
-    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        density=state.fluid.rho_proper_code,
-        velocity=state.fluid.vel_proper_code,
-        pressure=np.zeros(state.par.nogrid),
-        temperature=state.fluid.temp_proper_code,
-        time=state.fluid.time_proper_code,
-        mu=state.fluid.mu,
-    )
-    return state
 
 
 def _profile(sim):
@@ -118,19 +63,39 @@ def _profile(sim):
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     from example import example_utils as eu
     config = eu.load_nested_example_config(config_filename)
-    runparams, icparams = config['par'], config['initial_condition']
+    par_config, initial_condition = config['par'], config['initial_condition']
     if riemann_solver is not None:
-        runparams["hydrodynamics"]["riemann_solver"] = riemann_solver
-        runparams["output"]["directory"] = Path(runparams["output"]["directory"]).with_name(
-            Path(runparams["output"]["directory"]).name + "_" + riemann_solver
+        par_config["hydrodynamics"]["riemann_solver"] = riemann_solver
+        par_config["output"]["directory"] = Path(par_config["output"]["directory"]).with_name(
+            Path(par_config["output"]["directory"]).name + "_" + riemann_solver
         )
-        runparams["output"]["savedir"] = runparams["output"]["directory"]
-    outdir = Path(runparams["output"]["directory"])
+        par_config["output"]["savedir"] = par_config["output"]["directory"]
+    outdir = Path(par_config["output"]["directory"])
     outdir.mkdir(parents=True, exist_ok=True)
-    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
-    initial = make_initial_condition(icparams, units)
+    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+    grid_cells = int(initial_condition["grid_cells"])
+    rmin = float(initial_condition["inner_radius"].to_value(units.length_unit))
+    rmax = float(initial_condition["outer_radius"].to_value(units.length_unit))
+    boundary_proper_code = np.linspace(rmin, rmax, grid_cells + 1)
+    x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    shell = (
+        (x_proper_code >= float(initial_condition["shell_inner"].to_value(units.length_unit)))
+        & (x_proper_code <= float(initial_condition["shell_outer"].to_value(units.length_unit)))
+    )
+    initial_config = dict(config)
+    initial_config["par"] = par_config
+    initial_config["initial_condition"] = dict(initial_condition)
+    initial = make_initial_condition(
+        initial_config,
+        boundary_proper_code,
+        np.where(shell, float(initial_condition["rho_shell"]), 0.0),
+        np.where(shell, float(initial_condition["velocity"].to_value(units.velocity_unit)), 0.0),
+        np.where(shell, float(initial_condition["temperature"].to_value("K")), 0.0),
+        np.full(grid_cells, float(initial_condition["mu"])),
+        area=4.0 * np.pi * boundary_proper_code[:-1] ** 2,
+    )
     rio.writehdf5(initial, config['par']['simulation']['initial_condition_filename'])
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.solver = InnerWallSolver()
     sim.Callreadhdf5()
     sim.SetMesh()
@@ -140,8 +105,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     first = int(sim.par.mesh.ghost_cells)
     wall_face = first
     snapshots, fluxes = [], []
-    target = float(runparams["simulation"]["final_time"].to_value("s"))
-    output_dt = float(runparams["output"]["cadence"].to_value("s"))
+    target = float(par_config["simulation"]["final_time"].to_value("s"))
+    output_dt = float(par_config["output"]["cadence"].to_value("s"))
     next_output = 0.0
     while float(sim.fluid.time_proper_code) < target:
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
@@ -150,7 +115,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
         dt = sim.GetStepTime(final_time=target)
         sim.solver.SetInterFaceFlux(
             sim.mesh, sim.fluid, sim.par.boundary.condition,
-            method=runparams["hydrodynamics"]["riemann_solver"], order=0,
+            method=par_config["hydrodynamics"]["riemann_solver"], order=0,
         )
         fluxes.append([float(sim.fluid.time_proper_code), float(sim.fluid.Mass_code.flux[wall_face]), float(sim.fluid.Mom_code.flux[wall_face]), float(sim.fluid.Energy_code.flux[wall_face])])
         sim.Step(dt=dt, mode="hydro")
@@ -162,8 +127,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     snapshots.append((float(sim.fluid.time_proper_code),) + _profile(sim))
     final = snapshots[-1]
     r, rho, vel, pre, temp, entropy = final[1:]
-    active = rho > float(runparams["hydrodynamics"].get("cfl_density_floor", 0.0))
-    hot = active & (temp > 10.0 * float(icparams["temperature"].to_value("K")))
+    active = rho > float(par_config["hydrodynamics"].get("cfl_density_floor", 0.0))
+    hot = active & (temp > 10.0 * float(initial_condition["temperature"].to_value("K")))
     if not np.any(hot):
         raise RuntimeError("finite reflecting wall did not produce post-shock heating")
     data = {"time": np.array([s[0] for s in snapshots]), "radius": r, "rho": np.array([s[2] for s in snapshots]), "velocity": np.array([s[3] for s in snapshots]), "pressure": np.array([s[4] for s in snapshots]), "temperature": np.array([s[5] for s in snapshots]), "entropy": np.array([s[6] for s in snapshots]), "wall_flux": np.asarray(fluxes)}
@@ -186,7 +151,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     axes[0, 0].legend(fontsize=8)
     fig.suptitle(
         f"Cold spherical shell onto a finite reflecting wall "
-        f"({runparams['hydrodynamics']['riemann_solver']}, order 0)"
+        f"({par_config['hydrodynamics']['riemann_solver']}, order 0)"
     )
     fig.tight_layout()
     figure = outdir / "CosmologicalConvergingShock1D.jpg"

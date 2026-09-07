@@ -30,10 +30,10 @@ from cosmological_density_evolution1d import (
     CODE_VELOCITY_CM_S,
     SECONDS_PER_GYR,
     density_msun_mpc3_to_cgs,
-    make_initial_condition,
     make_units,
     unit_mapping,
 )
+from cosmological_initial_condition import build_initial_condition
 import example_utils as eu
 
 
@@ -95,41 +95,58 @@ def run():
         initial_density = density_msun_mpc3_to_cgs(
             physical.critical_density(initial_time_gyr)
         ) / density_unit
-        initial = make_initial_condition(
-            units, code_cosmology, initial_time, initial_density,
-            initial_scale_factor,
+        case_config = copy.deepcopy(config)
+        case_config["_code_cosmology"] = code_cosmology
+        case_config["initial_condition"] = {
+            "boxsize": 4.0 * units.length_unit,
+            "time": initial_time * units.time_unit,
+        }
+        case_config["_rho_comoving_code"] = np.full(
+            int(base_runtime["mesh"]["grid_cells"]),
+            initial_density * initial_scale_factor**3,
         )
+        case_config["_temp_supercomoving_code"] = np.ones(
+            int(base_runtime["mesh"]["grid_cells"])
+        )
+        case_config["_vel_supercomoving_code"] = np.zeros(
+            int(base_runtime["mesh"]["grid_cells"])
+        )
+        initial = build_initial_condition(case_config)
         output_dir = OUTPUT_ROOT / label
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        runparams = copy.deepcopy(base_runtime)
-        runparams["simulation"].update(
+        par_config = copy.deepcopy(base_runtime)
+        par_config["simulation"].update(
             name=f"CosmologicalHubbleFlow1D_{label}",
             initial_condition_filename=str(ic_filename),
             final_time=final_tau * units.time_unit,
         )
-        runparams["output"].update(directory=str(output_dir), savedir=str(output_dir))
-        runparams["gravity"].update(
+        par_config["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        par_config["gravity"].update(
             cosmology_type=cosmology_type,
             cosmology_t_ref=physical.age_0 / time_unit_gyr,
             cosmology_a_ref=1.0,
             **cosmology_parameters,
         )
-        runparams["output"]["cadence"] = (final_tau - initial_tau) * units.time_unit
-        sim = Rsim(runparams)
+        par_config["output"]["cadence"] = (final_tau - initial_tau) * units.time_unit
+        sim = Rsim(par_config)
         sim.Callreadhdf5()
         sim.SetMesh()
         sim.SetFluid()
-        sim.fluid.SetFluidTime(sim.par.time_code)
+        sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
         sim.SetInitFluid()
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
 
-        final_tau_sim = float(np.asarray(sim.fluid.time_code, dtype=float).flat[0])
+        final_tau_sim = float(
+            np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0]
+        )
         cosmic_time, final_a, final_hubble = code_cosmology.background_state_from_supercomoving(final_tau_sim)
-        coordinate = sim.mesh.coordinate[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]
-        velocity = sim.fluid.vel_code[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]
+        first = int(sim.par.mesh.ghost_cells)
+        last = first + int(sim.par.mesh.grid_cells)
+        coordinate = sim.mesh.x_comoving_code[first:last]
+        velocity = sim.fluid.vel_supercomoving_code[first:last]
         positions = code_values(coordinate, units.length_unit)
         peculiar = code_values(velocity, units.velocity_unit)
         proper_velocity_code = final_hubble * final_a * positions + peculiar / final_a
