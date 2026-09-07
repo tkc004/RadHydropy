@@ -266,30 +266,30 @@ def _restore_cosmology_from_header(par, header, code_units):
         par.cosmology = cosmology
 
 
-def _used_parameters_payload(runparams=None, icparams=None, existing=None):
+def _used_parameters_payload(par_config=None, initial_condition=None, existing=None):
     payload = {}
     if isinstance(existing, dict):
         payload.update(existing)
-    if runparams is not None:
-        payload["runparams"] = {
+    if par_config is not None:
+        payload["par"] = {
             key: _yaml_config_value(value)
-            for key, value in sorted(runparams.items())
+            for key, value in sorted(par_config.items())
             if not str(key).startswith("_")
         }
-    elif "runparams" not in payload:
-        payload["runparams"] = {}
-    if icparams is not None:
-        payload["ICparams"] = {
+    elif "par" not in payload:
+        payload["par"] = {}
+    if initial_condition is not None:
+        payload["initial_condition"] = {
             key: _yaml_config_value(value)
-            for key, value in sorted(icparams.items())
+            for key, value in sorted(initial_condition.items())
             if not str(key).startswith("_")
         }
-    elif "ICparams" not in payload:
-        payload["ICparams"] = {}
+    elif "initial_condition" not in payload:
+        payload["initial_condition"] = {}
     return payload
 
 
-def update_used_parameters_yaml(path, runparams=None, icparams=None):
+def update_used_parameters_yaml(path, par_config=None, initial_condition=None):
     """Create or update a config-style ``used_parameters.yaml`` file."""
     path = Path(path)
     existing = {}
@@ -302,8 +302,8 @@ def update_used_parameters_yaml(path, runparams=None, icparams=None):
         if isinstance(loaded, dict):
             existing = loaded
     payload = _used_parameters_payload(
-        runparams=runparams,
-        icparams=icparams,
+        par_config=par_config,
+        initial_condition=initial_condition,
         existing=existing,
     )
     with path.open("w", encoding="utf-8") as handle:
@@ -315,12 +315,14 @@ def write_used_parameters(path, par):
     """Write the active runtime parameters to a YAML file."""
     path = Path(path)
     payload = {
-        "runparams": {
+        "par": {
             key: parameter_tree(value)
             for key, value in sorted(vars(par).items())
-            if not key.startswith("_") and key not in {"runparams", "ICparams"}
+            if not key.startswith("_") and key not in {"par_config", "initial_condition"}
         },
-        "ICparams": parameter_tree(getattr(par, "ICparams", None)),
+        "initial_condition": parameter_tree(
+            getattr(par, "initial_condition", None)
+        ),
     }
     with path.open("w", encoding="utf-8") as handle:
         yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
@@ -707,7 +709,7 @@ def writehdf5(ric,ICfilename):
     ):
         update_used_parameters_yaml(
             Path.cwd() / "used_parameters.yaml",
-            icparams=vars(ric.par),
+            initial_condition=vars(ric.par),
         )
 
 

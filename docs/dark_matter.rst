@@ -68,7 +68,7 @@ For example, to use a batch fraction of 0.5 in an example configuration:
 
 .. code-block:: yaml
 
-   runparams:
+   par:
      dark_matter_crossing_batch_fraction: 0.5
 
 The value is also available as ``--crossing-batch-fraction`` in the

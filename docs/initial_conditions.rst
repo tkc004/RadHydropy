@@ -2,8 +2,8 @@ Initial-Condition Files
 =======================
 
 RadHydropy uses a compact HDF5 layout for initial-condition files. The
-bundled example scripts generate ``InitialCondition.hdf5`` from ``ICparams``
-before launching a run.
+bundled example scripts generate ``InitialCondition.hdf5`` from the nested
+``initial_condition`` section before launching a run.
 
 File Layout
 -----------

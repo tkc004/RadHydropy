@@ -29,7 +29,7 @@ def test_shock_radius_finds_density_jump():
 def test_spherical_ic_density_is_mass_density():
     import unyt
 
-    icparams = {
+    initial_condition = {
         'nogrid': 4,
         'boxsize': 19.0 * unyt.kpc,
         'time': 0.0 * unyt.Myr,
@@ -55,10 +55,10 @@ def test_spherical_ic_density_is_mass_density():
     })
     initial = TOOLS.build_initial_condition({
         'par': {
-            'mesh': {'grid_cells': icparams['nogrid']},
+            'mesh': {'grid_cells': initial_condition['nogrid']},
             'thermochemistry': {'hydrogen_mass_fraction': 0.76},
         },
-        'initial_condition': icparams,
+        'initial_condition': initial_condition,
         'example': {},
         '_code_units': code_units,
     })

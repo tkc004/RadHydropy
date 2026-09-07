@@ -581,7 +581,7 @@ class Par:
         params = self._validate_mapping(params)
         params = self._flatten_nested_parameters(params)
         self._validate_keys(params)
-        self.runparams = dict(params)
+        self.par_config = dict(params)
         self._parameter_values = {}
         missing_keys = self._apply_defaults(params)
         self._initialize_parameter_groups()
@@ -1241,7 +1241,7 @@ class Par:
             )
             for key, value in spectrum.items():
                 setattr(self, key, value)
-                self.runparams[key] = value
+                self.par_config[key] = value
             if self.radiation_group_sigma_gamma is not None:
                 self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
             if self.radiation_group_epsilon_gamma is not None:
@@ -1273,7 +1273,7 @@ class Par:
                     raise ValueError('radiation spectrum has no ionizing injection rate')
                 self.star_emission_rates = np.array(self.star_emission_rates, dtype=float)
                 self.star_emission_rates[1:] *= target_rate_s / current_rate_s
-                self.runparams['star_emission_rates'] = self.star_emission_rates
+                self.par_config['star_emission_rates'] = self.star_emission_rates
                 rates = self.star_emission_rates * power_unit
             self.radiative_transfer_source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
             self.radiative_transfer_boundary_flux_groups = np.zeros(

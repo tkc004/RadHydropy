@@ -16,6 +16,18 @@ from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 
 
+CODE_UNITS = {
+    'name': 'test_units',
+    'InternalUnitSystem': {
+        'UnitMass_in_cgs': 1.0,
+        'UnitLength_in_cgs': 1.0,
+        'UnitVelocity_in_cgs': 1.0,
+        'UnitCurrent_in_cgs': 1.0,
+        'UnitTemp_in_cgs': 1.0,
+    },
+}
+
+
 class Testing(unittest.TestCase):
     def test_load_output_time_list_reads_unit_from_first_line(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -163,12 +175,12 @@ class Testing(unittest.TestCase):
                 used_parameters = Path(tmpdir) / 'used_parameters.yaml'
                 self.assertTrue(used_parameters.exists())
                 payload = yaml.safe_load(used_parameters.read_text())
-                self.assertIn('runparams', payload)
-                self.assertIn('ICparams', payload)
-                self.assertEqual(payload['runparams']['simname'], 'test_run')
-                self.assertEqual(payload['runparams']['timesim']['value'], 0.0)
-                self.assertEqual(payload['runparams']['timesim']['unit'], 's')
-                self.assertIsNone(payload['ICparams'])
+                self.assertIn('par', payload)
+                self.assertIn('initial_condition', payload)
+                self.assertEqual(payload['par']['simname'], 'test_run')
+                self.assertEqual(payload['par']['timesim']['value'], 0.0)
+                self.assertEqual(payload['par']['timesim']['unit'], 's')
+                self.assertIsNone(payload['initial_condition'])
             finally:
                 os.chdir(cwd)
 
@@ -212,10 +224,11 @@ class Testing(unittest.TestCase):
                 'unused.hdf5',
                 {
                     'par': {
-                        'mesh': {'grid_cells': 5, 'ghost_cells': 2},
+                        'mesh': {'grid_cells': 3, 'ghost_cells': 2},
+                        'units': {'CodeUnits': CODE_UNITS},
                     },
                     'initial_condition': {
-                        'grid_cells': 5,
+                        'grid_cells': 3,
                         'coordinate_system': 'cartesian',
                         'box_size': 1.0 * unyt.pc,
                         'current_time': 0.0 * unyt.s,

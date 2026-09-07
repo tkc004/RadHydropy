@@ -135,10 +135,10 @@ import matplotlib.pyplot as plt
 config = Path("example/SodShock1D/sodshock1d.yaml")
 config_data = load_nested_example_config(config)
 par_config = config_data["par"]
-icparams = config_data["initial_condition"]
 code_units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
 
-ric = et.Simwrap(icparams, code_units=code_units)
+config_data["_code_units"] = code_units
+ric = et.build_initial_condition(config_data)
 rio.writehdf5(ric, par_config["simulation"]["initial_condition_filename"])
 
 sim = Rsim(par_config)
@@ -219,7 +219,7 @@ and API reference, plus standalone pages for the main simulation subsystems:
 
 - [Installation guide](docs/installation.rst)
 - [Quickstart](docs/quickstart.rst)
-- [Initial-condition and example parameters](docs/icparams.rst)
+- [Initial-condition parameters](docs/initial_conditions.rst)
 - [Hydrodynamics solver](docs/hydrodynamics.rst)
 - [Gravity](docs/gravity.rst)
 - [Thermo-chemistry solver](docs/thermo_chemistry.rst)

@@ -6,7 +6,7 @@ initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
 reads the initial condition, prepares mesh and fluid state, advances the
 solver, and writes HDF5 outputs.
 
-The runtime requires a ``CodeUnits`` block in ``runparams``. This is
+The runtime requires a ``CodeUnits`` block in the nested ``par`` section. This is
 mandatory: the current workflow does not fall back to cgs. Example
 configurations define an internal unit system with ``InternalUnitSystem`` and
 RadHydropy converts the mesh, fluid, gravity, and source-term inputs into that
@@ -23,26 +23,28 @@ Minimum Runner
    from pathlib import Path
 
    import radhydropy.io as rio
-   from radhydropy.example_config import load_example_parameters
+   from example_utils import load_nested_example_config
    from radhydropy.rsim import Rsim
    from radhydropy.units import CodeUnits
    import tools as et
 
    config = Path("example/SodShock1D/sodshock1d.yaml")
-   runparams, ICparams = load_example_parameters(config)
-   code_units = CodeUnits.from_mapping(runparams["CodeUnits"])
+   config_data = load_nested_example_config(config)
+   par_config = config_data["par"]
+   config_data["_code_units"] = CodeUnits.from_mapping(
+       par_config["units"]["CodeUnits"]
+   )
+   ric = et.build_initial_condition(config_data)
+   rio.writehdf5(ric, par_config["simulation"]["initial_condition_filename"])
 
-   ric = et.Simwrap(ICparams, code_units=code_units)
-   rio.writehdf5(ric, runparams["ICfilename"])
-
-   sim = Rsim(runparams)
+   sim = Rsim(par_config)
    sim.RunAll()
 
 This is the same pattern used by the bundled example scripts: load the YAML
-file, generate ``InitialCondition.hdf5`` from ``ICparams`` with the mandatory
-``CodeUnits`` attached, then launch the run with ``Rsim``. The helper resolves
-relative ``ICfilename``, ``outdir``,
-``outputtimefilename``, and ``savedir`` paths against the example directory.
+file, generate ``InitialCondition.hdf5`` from the nested
+``initial_condition`` section with the mandatory ``CodeUnits`` attached, then
+launch the run with ``Rsim``. The helper resolves paths against the example
+directory.
 Gravity examples such as the hydrostatic point-mass and ballistic-infall
 benchmarks follow the same pattern but also pass ``CodeUnits`` into their
 analytic gravity helpers so the internal math stays float-first.
@@ -50,8 +52,9 @@ analytic gravity helpers so the internal math stays float-first.
 Run Parameters
 --------------
 
-The ``runparams`` block controls how the runner loads the problem and writes
-outputs. The minimum keys used by the bundled examples are:
+The nested ``par`` block controls how the runner loads the problem and writes
+outputs. Its ``simulation`` and ``output`` sections contain the run controls
+used by the bundled examples:
 
 * ``simname``: label shown in logs and filenames.
 * ``ICfilename``: path to the HDF5 initial-condition file to read or write.
@@ -71,7 +74,7 @@ Units can be written inline in the YAML file using ``value`` and ``unit``
 fields, as in ``timesim`` and ``outdeltatime`` in the bundled examples. See
 :doc:`parameters` for the complete runtime parameter reference.
 
-See :doc:`icparams` for a standalone description of the initial-condition
+See :doc:`initial_conditions` for a standalone description of the initial-condition
 parameters used by the bundled YAML examples.
 
 To use explicit output times instead of a fixed cadence, set

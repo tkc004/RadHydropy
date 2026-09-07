@@ -109,7 +109,7 @@ def _load_hydrostatic_tools():
     return module
 
 
-def _hydrostatic_base_icparams(nogrid):
+def _hydrostatic_base_initial_condition(nogrid):
     return {
         "nogrid": nogrid,
         "coordsys": "cartesian",
@@ -124,13 +124,13 @@ def _hydrostatic_base_icparams(nogrid):
 
 def _build_hydrostatic_step_sim(nogrid, integrator=None):
     module = _load_hydrostatic_tools()
-    icparams = _hydrostatic_base_icparams(nogrid)
+    initial_condition = _hydrostatic_base_initial_condition(nogrid)
     code_units = _code_units()
 
     simwrap = _floatify_hydrostatic_simwrap(
         module.build_initial_condition({
             "par": {"mesh": {"grid_cells": nogrid}},
-            "initial_condition": icparams,
+            "initial_condition": initial_condition,
             "example": {},
             "_code_units": code_units,
         }),
@@ -138,7 +138,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
     )
     par = parameter_namespace(
         noghost=2,
-        nogrid=icparams["nogrid"],
+        nogrid=initial_condition["nogrid"],
         coordsys="cartesian",
         boundcond="Open",
         CFL=0.1,
@@ -149,7 +149,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
         gravity=Gravity(
             externalgravity=True,
             acceleration=module.constant_gravity_acceleration(
-                icparams["gravity_strength"],
+                initial_condition["gravity_strength"],
                 code_units=code_units,
             ),
             code_units=code_units,
@@ -279,14 +279,14 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
     solver.SetConserved(mesh, fluid)
     sim = Rsim.FromComponents(par, mesh, fluid, solver=solver)
     if integrator is not None:
-        return module, sim, par, icparams, code_units, fluid, integrator
-    return module, sim, par, icparams, code_units, fluid
+        return module, sim, par, initial_condition, code_units, fluid, integrator
+    return module, sim, par, initial_condition, code_units, fluid
 
 
 class Testing(unittest.TestCase):
     def test_hydrostatic_equilibrium_profile_balances_gravity(self):
         module = _load_hydrostatic_tools()
-        icparams = {
+        initial_condition = {
             "nogrid": 256,
             "coordsys": "cartesian",
             "box_size": 10.0 * unyt.pc,
@@ -300,8 +300,8 @@ class Testing(unittest.TestCase):
 
         sim = _floatify_hydrostatic_simwrap(
             module.build_initial_condition({
-                "par": {"mesh": {"grid_cells": icparams["nogrid"]}},
-                "initial_condition": icparams,
+                "par": {"mesh": {"grid_cells": initial_condition["nogrid"]}},
+                "initial_condition": initial_condition,
                 "example": {},
                 "_code_units": code_units,
             }),
@@ -314,7 +314,7 @@ class Testing(unittest.TestCase):
         coordinate = np.asarray(sim.mesh.coordinate, dtype=float)
         dPdx = np.gradient(pressure, coordinate)
         gravity_strength = _to_float(
-            icparams["gravity_strength"],
+            initial_condition["gravity_strength"],
             code_units.length_unit / code_units.time_unit**2,
         )
         expected = -np.asarray(sim.fluid.rho_code, dtype=float) * gravity_strength
@@ -333,7 +333,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_single_tiny_hydro_step_changes_state_only_slightly(self):
-        module, sim, par, icparams, _, fluid = _build_hydrostatic_step_sim(64)
+        module, sim, par, initial_condition, _, fluid = _build_hydrostatic_step_sim(64)
 
         rho_before = sim.fluid.rho_code.copy()
         vel_code_before = sim.fluid.vel_code.copy()
@@ -359,7 +359,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_single_tiny_hydro_step_with_ssprk2_changes_state_only_slightly(self):
-        module, sim, par, icparams, _, fluid = _build_hydrostatic_step_sim(64)
+        module, sim, par, initial_condition, _, fluid = _build_hydrostatic_step_sim(64)
 
         rho_before = sim.fluid.rho_code.copy()
         vel_code_before = sim.fluid.vel_code.copy()

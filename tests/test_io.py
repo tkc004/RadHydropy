@@ -433,7 +433,7 @@ class Testing(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-    def test_writehdf5_appends_icparams_to_used_parameters_yaml(self):
+    def test_writehdf5_appends_initial_condition_to_used_parameters_yaml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cwd = Path.cwd()
             try:
@@ -442,11 +442,11 @@ class Testing(unittest.TestCase):
                 Path('used_parameters.yaml').write_text(
                     yaml.safe_dump(
                         {
-                            'runparams': {
+                            'par': {
                                 'simname': 'preexisting',
                                 'timesim': {'value': 1.0, 'unit': 's'},
                             },
-                            'ICparams': {},
+                            'initial_condition': {},
                         }
                     )
                 )
@@ -473,12 +473,12 @@ class Testing(unittest.TestCase):
                 rio.writehdf5(sim, 'InitialCondition.hdf5')
 
                 payload = yaml.safe_load(Path('used_parameters.yaml').read_text())
-                self.assertEqual(payload['runparams']['simname'], 'preexisting')
-                self.assertEqual(payload['runparams']['timesim']['value'], 1.0)
-                self.assertEqual(payload['ICparams']['coordsys'], 'cartesian')
-                self.assertEqual(payload['ICparams']['nogrid'], 3)
-                self.assertEqual(payload['ICparams']['boxsize']['value'], 3.0)
-                self.assertEqual(payload['ICparams']['boxsize']['unit'], 'cm')
+                self.assertEqual(payload['par']['simname'], 'preexisting')
+                self.assertEqual(payload['par']['timesim']['value'], 1.0)
+                self.assertEqual(payload['initial_condition']['coordsys'], 'cartesian')
+                self.assertEqual(payload['initial_condition']['nogrid'], 3)
+                self.assertEqual(payload['initial_condition']['boxsize']['value'], 3.0)
+                self.assertEqual(payload['initial_condition']['boxsize']['unit'], 'cm')
             finally:
                 os.chdir(cwd)
 
@@ -487,7 +487,7 @@ class Testing(unittest.TestCase):
             cwd = Path.cwd()
             try:
                 os.chdir(tmpdir)
-                Path('used_parameters.yaml').write_text('runparams: [unclosed\n')
+                Path('used_parameters.yaml').write_text('par: [unclosed\n')
 
                 par = parameter_namespace(
                     coordsys='cartesian',
@@ -511,10 +511,10 @@ class Testing(unittest.TestCase):
                 rio.writehdf5(sim, 'InitialCondition.hdf5')
 
                 payload = yaml.safe_load(Path('used_parameters.yaml').read_text())
-                self.assertIn('runparams', payload)
-                self.assertIn('ICparams', payload)
-                self.assertEqual(payload['ICparams']['coordsys'], 'cartesian')
-                self.assertEqual(payload['ICparams']['nogrid'], 3)
+                self.assertIn('par', payload)
+                self.assertIn('initial_condition', payload)
+                self.assertEqual(payload['initial_condition']['coordsys'], 'cartesian')
+                self.assertEqual(payload['initial_condition']['nogrid'], 3)
             finally:
                 os.chdir(cwd)
 
