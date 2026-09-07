@@ -147,11 +147,6 @@ ADVECTION_SPH_ANALYTIC_SPEC.loader.exec_module(advection_sph_analytic)
 
 
 class Testing(unittest.TestCase):
-    _flat_config_tests_removed = unittest.skip(
-        'superseded by direct nested-configuration contract tests'
-    )
-
-    @_flat_config_tests_removed
     def test_inflow1d_uses_explicit_output_time_schedule(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -163,10 +158,10 @@ class Testing(unittest.TestCase):
         par_config = config['par']
 
         self.assertNotIn('outdeltatime', par_config)
-        self.assertIn('outputtimefilename', par_config)
-        self.assertTrue(par_config['outputtimefilename'].endswith('output_times.txt'))
+        self.assertIn('time_list_filename', par_config['output'])
+        self.assertTrue(par_config['output']['time_list_filename'].endswith('output_times.txt'))
 
-        outputtimepath = Path(par_config['outputtimefilename'])
+        outputtimepath = config_filename.parent / par_config['output']['time_list_filename']
         self.assertTrue(outputtimepath.exists())
 
         with outputtimepath.open() as handle:
@@ -190,7 +185,7 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(config['example']['target_neutral_fraction'], 0.01)
         self.assertEqual(par_config['output']['filename_prefix'], 'Output')
-        self.assertEqual(initial_condition['grid_cells'], 16)
+        self.assertEqual(par_config['mesh']['grid_cells'], 16)
         self.assertEqual(initial_condition['box_size'].to_value(unyt.kpc), 1.0)
 
     def test_hydrogen_photoionization1d_analytic_neutral_fraction_uses_units(self):
@@ -257,7 +252,6 @@ class Testing(unittest.TestCase):
             1.0,
         )
 
-    @_flat_config_tests_removed
     def test_hydrostatic_equilibrium1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -268,23 +262,22 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['outfileprefix'], 'Output')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output')
         self.assertTrue(
-            par_config['outputtimefilename'].endswith(
+            par_config['output']['time_list_filename'].endswith(
                 'hydrostatic_equilibrium1d_output_times.txt'
             )
         )
-        self.assertEqual(par_config['timesim'].to_value(unyt.Myr), 1.0e-6)
-        self.assertEqual(par_config['EOStype'], 'isothermal')
-        self.assertEqual(par_config['boundcond'], 'Reflecting')
-        self.assertEqual(initial_condition['nogrid'], 256)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 10.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 1.0e-6)
+        self.assertEqual(par_config['hydrodynamics']['eos_type'], 'isothermal')
+        self.assertEqual(par_config['boundary']['condition'], 'Reflecting')
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
+        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 10.0)
         self.assertAlmostEqual(
             initial_condition['gravity_strength'].to_value(unyt.cm / unyt.s**2),
             1.0e-7,
         )
 
-    @_flat_config_tests_removed
     def test_spherical_point_mass_hydrostatic_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -295,25 +288,24 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['outfileprefix'], 'Output')
-        self.assertEqual(par_config['coordsys'], 'spherical')
-        self.assertEqual(par_config['boundcond'], 'Reflecting')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output')
+        self.assertEqual(par_config['simulation']['coordinate_system'], 'spherical')
+        self.assertEqual(par_config['boundary']['condition'], 'Reflecting')
         self.assertTrue(
-            par_config['outputtimefilename'].endswith(
+            par_config['output']['time_list_filename'].endswith(
                 'hydrostatic_equilibrium_spherical_point_mass1d_output_times.txt'
             )
         )
         self.assertAlmostEqual(
-            par_config['timesim'].to_value(unyt.Myr),
+            par_config['simulation']['final_time'].to_value(unyt.Myr),
             3.168808781402895e-22,
         )
-        self.assertEqual(initial_condition['nogrid'], 256)
-        self.assertEqual(initial_condition['coordsys'], 'spherical')
-        self.assertEqual(initial_condition['rmin'].to_value(unyt.pc), 2.0)
-        self.assertEqual(initial_condition['rmax'].to_value(unyt.pc), 20.0)
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
+        self.assertEqual(initial_condition['coordinate_system'], 'spherical')
+        self.assertEqual(initial_condition['inner_radius'].to_value(unyt.pc), 2.0)
+        self.assertEqual(initial_condition['outer_radius'].to_value(unyt.pc), 20.0)
         self.assertEqual(initial_condition['point_mass'].to_value(unyt.g), 1.0e38)
 
-    @_flat_config_tests_removed
     def test_spherical_ballistic_infall_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -324,25 +316,24 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['outfileprefix'], 'Output')
-        self.assertEqual(par_config['coordsys'], 'spherical')
-        self.assertEqual(par_config['boundcond'], 'Reflecting')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output')
+        self.assertEqual(par_config['simulation']['coordinate_system'], 'spherical')
+        self.assertEqual(par_config['boundary']['condition'], 'Reflecting')
         self.assertTrue(
-            par_config['outputtimefilename'].endswith(
+            par_config['output']['time_list_filename'].endswith(
                 'ballistic_infall_spherical_point_mass1d_output_times.txt'
             )
         )
-        self.assertEqual(par_config['timesim'].to_value(unyt.Myr), 0.0001)
-        self.assertEqual(initial_condition['nogrid'], 256)
-        self.assertEqual(initial_condition['coordsys'], 'spherical')
-        self.assertEqual(initial_condition['rmin'].to_value(unyt.pc), 2.0)
-        self.assertEqual(initial_condition['rmax'].to_value(unyt.pc), 20.0)
-        self.assertEqual(par_config['EOStype'], 'polytropic')
-        self.assertEqual(par_config['gamma'], 1.4)
-        self.assertEqual(initial_condition['tempini'].to_value(unyt.K), 1.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 0.0001)
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
+        self.assertEqual(initial_condition['coordinate_system'], 'spherical')
+        self.assertEqual(initial_condition['inner_radius'].to_value(unyt.pc), 2.0)
+        self.assertEqual(initial_condition['outer_radius'].to_value(unyt.pc), 20.0)
+        self.assertEqual(par_config['hydrodynamics']['eos_type'], 'polytropic')
+        self.assertEqual(par_config['hydrodynamics']['gamma'], 1.4)
+        self.assertEqual(initial_condition['initial_temperature'].to_value(unyt.K), 1.0)
         self.assertEqual(initial_condition['point_mass'].to_value(unyt.g), 1.0e38)
 
-    @_flat_config_tests_removed
     def test_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -353,21 +344,20 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['outfileprefix'], 'Output')
-        self.assertEqual(par_config['coordsys'], 'spherical')
-        self.assertEqual(par_config['boundcond'], 'OpenSph')
-        self.assertEqual(par_config['noghost'], 2)
-        self.assertEqual(par_config['hydrogen_chemistry'], False)
-        self.assertEqual(par_config['radiative_transfer'], True)
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output')
+        self.assertEqual(par_config['simulation']['coordinate_system'], 'spherical')
+        self.assertEqual(par_config['boundary']['condition'], 'OpenSph')
+        self.assertEqual(par_config['mesh']['ghost_cells'], 2)
+        self.assertEqual(par_config['thermochemistry']['hydrogen_chemistry'], False)
+        self.assertEqual(par_config['radiation']['radiative_transfer'], True)
         self.assertEqual(
-            par_config['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
-        self.assertIn('CodeUnits', par_config)
-        self.assertEqual(initial_condition['number_of_cells'], 256)
+        self.assertIn('CodeUnits', par_config['units'])
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
         self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 1.0)
 
-    @_flat_config_tests_removed
     def test_radiative_transfer_sph1d_c2ray_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -378,16 +368,15 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertTrue(par_config['hydrogen_chemistry'])
-        self.assertEqual(par_config['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertTrue(par_config['thermochemistry']['hydrogen_chemistry'])
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_C2Ray')
         self.assertEqual(
-            par_config['radiative_transfer_c2ray_nonconvergence'],
+            par_config['radiation']['radiative_transfer_c2ray_nonconvergence'],
             'raise',
         )
-        self.assertEqual(initial_condition['number_of_cells'], 256)
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
 
-    @_flat_config_tests_removed
     def test_multifrequency_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -398,15 +387,15 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer'], True)
-        self.assertFalse(par_config['hydrogen_initial_collisional_equilibrium'])
-        self.assertEqual(par_config['hydrogen_xHI_initial'], 0.9988)
+        self.assertEqual(par_config['radiation']['radiative_transfer'], True)
+        self.assertFalse(par_config['thermochemistry']['hydrogen_initial_collisional_equilibrium'])
+        self.assertEqual(par_config['chemistry']['hydrogen_xHI_initial'], 0.9988)
         self.assertEqual(
-            par_config['radiation_spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['radiation_spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
         )
         spectrum_filename = (
-            config_filename.parent / par_config['radiation_spectrum_filename']
+            config_filename.parent / par_config['radiation']['radiation_spectrum_filename']
         )
         with h5py.File(spectrum_filename, 'r') as spectrum:
             group = spectrum['RadiationSpectrum']
@@ -422,9 +411,8 @@ class Testing(unittest.TestCase):
                 [13.6, 24.6, 35.5, 54.4, 75.0, 50000.0],
             )
             self.assertEqual(len(group['ionizing_photon_energy_cgs_erg']), 5)
-        self.assertEqual(initial_condition['number_of_cells'], 512)
+        self.assertEqual(par_config['mesh']['grid_cells'], 512)
 
-    @_flat_config_tests_removed
     def test_multifrequency_radiative_transfer_sph1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -435,17 +423,17 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(par_config['outfileprefix'], 'Output_C2Ray')
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_C2Ray')
         self.assertEqual(
-            Path(par_config['ICfilename']).name,
+            Path(par_config['simulation']['initial_condition_filename']).name,
             'InitialCondition_C2Ray.hdf5',
         )
         self.assertEqual(
-            par_config['figure_filename'],
+            config['example']['figure_filename'],
             'MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg',
         )
-        self.assertEqual(initial_condition['number_of_cells'], 512)
+        self.assertEqual(par_config['mesh']['grid_cells'], 512)
 
     def test_stellar_wind_bubble1d_uses_yaml_config(self):
         config_filename = (
@@ -471,7 +459,7 @@ class Testing(unittest.TestCase):
             1.0,
         )
         self.assertEqual(par_config['hydrodynamics']['order'], 1)
-        self.assertEqual(initial_condition['grid_cells'], 1024)
+        self.assertEqual(par_config['mesh']['grid_cells'], 1024)
         self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 25.0)
         self.assertEqual(initial_condition['injection_radius'].to_value(unyt.pc), 0.05)
         self.assertEqual(initial_condition['initial_density'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
@@ -584,7 +572,6 @@ class Testing(unittest.TestCase):
             places=12,
         )
 
-    @_flat_config_tests_removed
     def test_static_stromgren_sphere1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -595,37 +582,36 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['outfileprefix'], 'Output')
-        self.assertEqual(par_config['coordsys'], 'spherical')
-        self.assertEqual(par_config['boundcond'], 'OpenSph')
-        self.assertEqual(par_config['noghost'], 2)
-        self.assertEqual(par_config['EOStype'], 'polytropic')
-        self.assertEqual(par_config['gamma'], 1.6666666666666667)
-        self.assertEqual(par_config['timesim'].to_value(unyt.Myr), 500.0)
-        self.assertEqual(par_config['final_time'].to_value(unyt.Myr), 500.0)
-        self.assertEqual(par_config['chemistry_timestep'].to_value(unyt.Myr), 5.0)
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output')
+        self.assertEqual(par_config['simulation']['coordinate_system'], 'spherical')
+        self.assertEqual(par_config['boundary']['condition'], 'OpenSph')
+        self.assertEqual(par_config['mesh']['ghost_cells'], 2)
+        self.assertEqual(par_config['hydrodynamics']['eos_type'], 'polytropic')
+        self.assertEqual(par_config['hydrodynamics']['gamma'], 1.6666666666666667)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(par_config['timestep']['chemistry_timestep'].to_value(unyt.Myr), 5.0)
         self.assertEqual(
-            par_config['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
         )
         self.assertEqual(
-            par_config['hydrogen_alpha_B'].to_value(unyt.cm**3 / unyt.s),
+            par_config['thermochemistry']['hydrogen_alpha_B'].to_value(unyt.cm**3 / unyt.s),
             2.59e-13,
         )
         self.assertEqual(
-            par_config['hydrogen_sigma_gamma'].to_value(unyt.cm**2),
+            par_config['thermochemistry']['hydrogen_sigma_gamma'].to_value(unyt.cm**2),
             8.13e-18,
         )
         self.assertEqual(
-            par_config['hydrogen_source_dtmin'].to_value(unyt.Myr),
+            par_config['thermochemistry']['hydrogen_source_dtmin'].to_value(unyt.Myr),
             1.0e-3,
         )
-        self.assertEqual(par_config['plot_radius_max'].to_value(unyt.kpc), 7.5)
-        self.assertEqual(initial_condition['number_of_cells'], 256)
+        self.assertEqual(config['example']['plot_radius_max'].to_value(unyt.kpc), 7.5)
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
         self.assertEqual(initial_condition['boxsize'].to_value(unyt.kpc), 20.0)
         self.assertEqual(initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
 
-    @_flat_config_tests_removed
     def test_static_stromgren_c2ray_comparison_uses_256_cells_and_requested_steps(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -636,15 +622,14 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(initial_condition['number_of_cells'], 256)
-        self.assertEqual(par_config['comparison_c2ray_steps'], 100)
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
+        self.assertEqual(config['example']['comparison_c2ray_steps'], 100)
         self.assertEqual(
-            par_config['comparison_instantaneous_steps'],
+            config['example']['comparison_instantaneous_steps'],
             [100, 1000, 10000, 100000],
         )
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'instantaneous')
+        self.assertNotIn('radiative_transfer_temporal_scheme', par_config['radiation'])
 
-    @_flat_config_tests_removed
     def test_static_stromgren_sphere_photoheating1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -655,40 +640,39 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['outfileprefix'], 'Output')
-        self.assertEqual(par_config['coordsys'], 'spherical')
-        self.assertEqual(par_config['boundcond'], 'OpenSph')
-        self.assertEqual(par_config['noghost'], 2)
-        self.assertEqual(par_config['EOStype'], 'polytropic')
-        self.assertEqual(par_config['gamma'], 1.6666666666666667)
-        self.assertEqual(par_config['timesim'].to_value(unyt.Myr), 500.0)
-        self.assertEqual(par_config['final_time'].to_value(unyt.Myr), 500.0)
-        self.assertEqual(par_config['evolution_timestep'].to_value(unyt.Myr), 1.0)
-        self.assertEqual(par_config['reference_time'].to_value(unyt.Myr), 100.0)
-        self.assertEqual(par_config['source_photon_rate'].to_value(1.0 / unyt.s), 5.0e48)
-        self.assertIsNone(par_config['alpha_B_coefficient'])
-        self.assertIsNone(par_config['hydrogen_beta'])
-        self.assertTrue(par_config['hydrogen_collisional_ionization'])
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output')
+        self.assertEqual(par_config['simulation']['coordinate_system'], 'spherical')
+        self.assertEqual(par_config['boundary']['condition'], 'OpenSph')
+        self.assertEqual(par_config['mesh']['ghost_cells'], 2)
+        self.assertEqual(par_config['hydrodynamics']['eos_type'], 'polytropic')
+        self.assertEqual(par_config['hydrodynamics']['gamma'], 1.6666666666666667)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(par_config['timestep']['evolution_timestep'].to_value(unyt.Myr), 1.0)
+        self.assertEqual(config['example']['reference_time'].to_value(unyt.Myr), 100.0)
+        self.assertEqual(par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s), 5.0e48)
+        self.assertIsNone(par_config['thermochemistry']['hydrogen_alpha_B'])
+        self.assertIsNone(par_config['thermochemistry']['hydrogen_beta'])
+        self.assertTrue(par_config['thermochemistry']['hydrogen_collisional_ionization'])
         self.assertEqual(
-            par_config['temperature_reference_filename'].endswith(
+            config['example']['temperature_reference_filename'].endswith(
                 'TTT1Dthin_Stromgren100Myr.txt'
             ),
             True,
         )
         self.assertEqual(
-            par_config['neutral_fraction_reference_filename'].endswith(
+            config['example']['neutral_fraction_reference_filename'].endswith(
                 'xTT1Dthin_Stromgren100Myr.txt'
             ),
             True,
         )
-        self.assertEqual(initial_condition['number_of_cells'], 1024)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(par_config['mesh']['grid_cells'], 1024)
+        self.assertEqual(initial_condition['box_size'].to_value(unyt.kpc), 20.0)
         self.assertEqual(initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
         self.assertEqual(initial_condition['initial_temperature'].to_value(unyt.K), 100.0)
         self.assertEqual(initial_condition['time'].to_value(unyt.Myr), 0.0)
-        self.assertEqual(initial_condition['analytic_inner_radius'].to_value(unyt.kpc), 0.1)
+        self.assertEqual(config['example']['analytic_inner_radius'].to_value(unyt.kpc), 0.1)
 
-    @_flat_config_tests_removed
     def test_static_stromgren_sphere_photoheating1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -699,11 +683,11 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(par_config['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
-        self.assertEqual(par_config['outfileprefix'], 'Output_C2Ray')
-        self.assertEqual(par_config['radiative_transfer_c2ray_nonconvergence'], 'raise')
-        self.assertEqual(initial_condition['number_of_cells'], 1024)
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(par_config['simulation']['initial_condition_filename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_C2Ray')
+        self.assertEqual(par_config['radiation']['radiative_transfer_c2ray_nonconvergence'], 'raise')
+        self.assertEqual(par_config['mesh']['grid_cells'], 1024)
 
     def test_static_stromgren_sphere_photoheating1d_static_evolution_runs(self):
         config_filename = (
@@ -834,7 +818,6 @@ class Testing(unittest.TestCase):
             0.0,
         )
 
-    @_flat_config_tests_removed
     def test_dynamic_stromgren_sphere_photoheating1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -845,13 +828,12 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(par_config['outfileprefix'], 'Output_C2Ray')
-        self.assertEqual(par_config['ICfilename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
-        self.assertEqual(par_config['radiative_transfer_c2ray_nonconvergence'], 'raise')
-        self.assertEqual(initial_condition['number_of_cells'], 1024)
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_C2Ray')
+        self.assertEqual(par_config['simulation']['initial_condition_filename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
+        self.assertEqual(par_config['radiation']['radiative_transfer_c2ray_nonconvergence'], 'raise')
+        self.assertEqual(par_config['mesh']['grid_cells'], 1024)
 
-    @_flat_config_tests_removed
     def test_dynamic_stromgren_sphere_high_density_uses_requested_parameters(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -862,19 +844,18 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['timesim'].to_value(unyt.Myr), 1.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 1.0)
         self.assertEqual(
-            par_config['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 20.0)
-        self.assertEqual(initial_condition['number_of_cells'], 512)
+        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 20.0)
+        self.assertEqual(par_config['mesh']['grid_cells'], 512)
         self.assertEqual(
             initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3),
             100.0,
         )
 
-    @_flat_config_tests_removed
     def test_powerlaw_hii_w1_c2ray_uses_distinct_outputs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -885,17 +866,16 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(par_config['outfileprefix'], 'Output_PowerLawHIIRegion1D_C2Ray')
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_PowerLawHIIRegion1D_C2Ray')
         self.assertEqual(
-            par_config['ICfilename'].split('/')[-1],
+            par_config['simulation']['initial_condition_filename'].split('/')[-1],
             'InitialCondition_PowerLawHIIRegion1D_C2Ray.hdf5',
         )
-        self.assertEqual(par_config['front_plot_filename'], 'PowerLawHIIRegion1D_C2Ray_RadHydroVsAnalytic.jpg')
+        self.assertEqual(config['example']['front_plot_filename'], 'PowerLawHIIRegion1D_C2Ray_RadHydroVsAnalytic.jpg')
         self.assertEqual(initial_condition['density_power_law_exponent'], 1.0)
-        self.assertEqual(initial_condition['number_of_cells'], 256)
+        self.assertEqual(par_config['mesh']['grid_cells'], 256)
 
-    @_flat_config_tests_removed
     def test_powerlaw_hii_w1p4_c2ray_uses_distinct_outputs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -906,12 +886,11 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(par_config['outfileprefix'], 'Output_PowerLawHIIRegion1D_w1p4_C2Ray')
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_PowerLawHIIRegion1D_w1p4_C2Ray')
         self.assertEqual(initial_condition['density_power_law_exponent'], 1.4)
-        self.assertEqual(initial_condition['number_of_cells'], 1024)
+        self.assertEqual(par_config['mesh']['grid_cells'], 1024)
 
-    @_flat_config_tests_removed
     def test_powerlaw_hii_w1p5_c2ray_uses_distinct_outputs(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -922,12 +901,11 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(par_config['radiative_transfer_temporal_scheme'], 'c2ray')
-        self.assertEqual(par_config['outfileprefix'], 'Output_PowerLawHIIRegion1D_w1p5_C2Ray')
+        self.assertEqual(par_config['radiation']['radiative_transfer_temporal_scheme'], 'c2ray')
+        self.assertEqual(par_config['output']['filename_prefix'], 'Output_PowerLawHIIRegion1D_w1p5_C2Ray')
         self.assertEqual(initial_condition['density_power_law_exponent'], 1.5)
-        self.assertEqual(initial_condition['number_of_cells'], 1024)
+        self.assertEqual(par_config['mesh']['grid_cells'], 1024)
 
-    @_flat_config_tests_removed
     def test_dynamic_stromgren_sphere_stellar_wind_uses_requested_wind(self):
         config_filename = (
             Path(__file__).resolve().parents[1]
@@ -938,18 +916,18 @@ class Testing(unittest.TestCase):
         config = example_utils.load_nested_example_config(config_filename)
         par_config, initial_condition = config['par'], config['initial_condition']
 
-        self.assertEqual(initial_condition['number_of_cells'], 512)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 20.0)
+        self.assertEqual(par_config['mesh']['grid_cells'], 128)
+        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 20.0)
         self.assertEqual(
-            par_config['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
         self.assertEqual(
-            par_config['wind_mass_loss_rate'].to_value(unyt.Msun / unyt.yr),
+            config['example']['wind_mass_loss_rate'].to_value(unyt.Msun / unyt.yr),
             1.0e-6,
         )
         self.assertEqual(
-            par_config['wind_velocity'].to_value(unyt.km / unyt.s),
+            config['example']['wind_velocity'].to_value(unyt.km / unyt.s),
             1000.0,
         )
 
@@ -1041,7 +1019,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['hydrodynamics']['CFL'], 0.5)
         self.assertEqual(par_config['hydrodynamics']['order'], 1)
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 0.14)
-        self.assertEqual(initial_condition['grid_cells'], 2048)
+        self.assertEqual(par_config['mesh']['grid_cells'], 2048)
 
     def test_early_hii_region_expansion1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
@@ -1058,7 +1036,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['output']['filename_prefix'], 'Output_C2Ray')
         self.assertEqual(par_config['simulation']['initial_condition_filename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
         self.assertEqual(par_config['radiation']['c2ray_nonconvergence'], 'warn')
-        self.assertEqual(initial_condition['grid_cells'], 2048)
+        self.assertEqual(par_config['mesh']['grid_cells'], 2048)
         self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 2.0)
         self.assertEqual(initial_condition['final_time'].to_value(unyt.Myr), 0.14)
         self.assertTrue(Path(par_config['output']['time_list_filename']).exists())
@@ -1087,7 +1065,7 @@ class Testing(unittest.TestCase):
         self.assertTrue(
             par_config['simulation']['initial_condition_filename'].endswith('InitialCondition_lateHII.hdf5')
         )
-        self.assertEqual(initial_condition['grid_cells'], 512)
+        self.assertEqual(par_config['mesh']['grid_cells'], 512)
 
     def test_late_hii_region_expansion1d_c2ray_uses_distinct_outputs(self):
         config_filename = (
@@ -1107,7 +1085,7 @@ class Testing(unittest.TestCase):
             'InitialCondition_lateHII_C2Ray.hdf5',
         )
         self.assertEqual(par_config['radiation']['c2ray_nonconvergence'], 'warn')
-        self.assertEqual(initial_condition['grid_cells'], 512)
+        self.assertEqual(par_config['mesh']['grid_cells'], 512)
         self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 7.0)
         self.assertEqual(initial_condition['final_time'].to_value(unyt.Myr), 3.0)
         self.assertEqual(par_config['timestep']['hydrogen_source_CFL'], 10000.0)
@@ -1120,19 +1098,26 @@ class Testing(unittest.TestCase):
             '3p00',
         )
 
-    @_flat_config_tests_removed
     def test_late_hii_initial_condition_file_is_replaced(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             icfilename = Path(tmpdir) / 'InitialCondition_lateHII.hdf5'
             icfilename.write_text('stale')
-            par_config = {'ICfilename': str(icfilename)}
+            config = {
+                'par': {'simulation': {'initial_condition_filename': str(icfilename)}},
+                'initial_condition': {},
+                'example': {},
+            }
             sim = SimpleNamespace(name='dummy')
 
-            with mock.patch.object(rio, 'writehdf5') as write_mock:
-                late_hii.write_initial_condition(sim, par_config)
+            with mock.patch.object(
+                hii_tools,
+                'build_problem',
+                return_value=(sim, SimpleNamespace(), SimpleNamespace(), None),
+            ), mock.patch.object(hii_tools.rio, 'writehdf5') as write_mock:
+                hii_tools.write_initial_condition(config)
 
             self.assertFalse(icfilename.exists())
-            write_mock.assert_called_once_with(sim, str(icfilename))
+            write_mock.assert_called_once()
 
     def test_late_hii_region_snapshot_reload_recomputes_geometry(self):
         config_filename = (
