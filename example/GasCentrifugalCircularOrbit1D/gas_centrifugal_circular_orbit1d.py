@@ -48,27 +48,6 @@ def prepare_initial_condition(initial):
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
         velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
-        temperature=initial.fluid.temp_proper_code, time=0.0, mu=initial.fluid.mu,
-    )
-
-def prepare_initial_condition(initial):
-    boundary = np.asarray(initial.mesh.boundary, dtype=float)
-    initial.mesh.boundary_proper_code = boundary
-    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
-        boundary=boundary, width=np.diff(boundary),
-        area=4.0 * np.pi * boundary[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
-    )
-    initial.fluid.rho_proper_code = initial.fluid.rho_code
-    initial.fluid.vel_proper_code = initial.fluid.vel_code
-    initial.fluid.temp_proper_code = initial.fluid.temp_code
-    initial.fluid.pre_proper_code = initial.fluid.temp_code * 0.4
-    initial.fluid.time_proper_code = 0.0
-    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
-        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
         temperature=initial.fluid.temp_proper_code, time=0.0,
         mu=initial.fluid.mu,
     )
@@ -131,7 +110,7 @@ def run_rsim(par, initial_condition, runtime):
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
     sim = Rsim(runtime)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(ic_filename))
     sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']), 0.0)
     sim.SetMesh()
     sim.SetFluid()

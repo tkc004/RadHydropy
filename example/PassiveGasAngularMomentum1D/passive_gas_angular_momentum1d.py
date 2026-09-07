@@ -13,7 +13,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +21,6 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
 import example_utils as eu
 import tools as et
 
@@ -38,18 +36,39 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(par_config['output']['directory']).mkdir(parents=True, exist_ok=True)
     Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(par_config)
-    config['_code_units'] = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
-
-    sim = Rsim(par_config)
-    sim.RunAll(outputtime=0, mode='hydro')
+    initial_j = np.asarray(
+        initial.fluid.specific_angular_momentum_code, dtype=float
+    ).copy()
+    initial_density_proper_code = np.asarray(
+        initial.fluid.rho_proper_code, dtype=float
+    ).copy()
+    initial_velocity_proper_code = np.asarray(
+        initial.fluid.vel_proper_code, dtype=float
+    ).copy()
+    initial_temperature_proper_code = np.asarray(
+        initial.fluid.temp_proper_code, dtype=float
+    ).copy()
+    initial_total_j = np.sum(
+        initial_density_proper_code * initial_j
+        * float(np.asarray(
+            initial.mesh.boundary_proper_code[1]
+            - initial.mesh.boundary_proper_code[0]
+        ))
+    )
+    sim = Rsim.FromComponents(
+        initial.par, initial.mesh, initial.fluid, initial.solver
+    )
+    sim.SetMesh()
+    sim.SetFluid()
+    sim.SetInitFluid()
+    sim.Run(outputtime=0, mode='hydro')
     interior = slice(
         sim.par.mesh.ghost_cells,
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
     )
 
-    initial_j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
     final_j = np.asarray(sim.fluid.specific_angular_momentum_code[interior], dtype=float)
     final_j_from_conserved = np.asarray(
         sim.fluid.AngularMomentum_code[interior] / sim.fluid.Mass_code[interior],
@@ -59,58 +78,47 @@ def main(config_filename=DEFAULT_CONFIG):
         final_j_from_conserved, final_j, rtol=1.0e-12, atol=1.0e-14
     ):
         raise RuntimeError('AngularMomentum/Mass does not reconstruct final j')
-    dx = float(np.asarray(initial.mesh.boundary[1] - initial.mesh.boundary[0]))
-    initial_total_j = np.sum(
-        np.asarray(initial.fluid.rho_code, dtype=float) * initial_j * dx
-    )
     final_total_j = np.sum(np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float))
     if not np.isclose(final_total_j, initial_total_j, rtol=1.0e-12, atol=1.0e-14):
         raise RuntimeError('periodic angular-momentum transport failed conservation')
 
-    outputs = sorted(Path(runparams['output']['directory']).glob('Output_*.hdf5'))
+    outputs = sorted(Path(par_config['output']['directory']).glob('Output_*.hdf5'))
     if not outputs:
         raise FileNotFoundError('no output snapshot was written')
-    restart_par = type(
-        'RestartPar', (), {
-            'CodeUnits': units,
-            'units': SimpleNamespace(CodeUnits=units),
-            'simulation': SimpleNamespace(coordinate_system='cartesian'),
-            'mesh': SimpleNamespace(grid_cells=runparams['mesh']['grid_cells'], ghost_cells=runparams['mesh']['ghost_cells']),
-        }
-    )()
-    restart_mesh = type('RestartMesh', (), {})()
-    restart_fluid = type('RestartFluid', (), {})()
-    rio.readhdf5(restart_par, restart_mesh, restart_fluid, str(outputs[-1]))
-    if not hasattr(restart_fluid, 'AngularMomentum_code'):
+    restart = Rsim.FromComponents(
+        initial.par, initial.mesh, initial.fluid, initial.solver
+    )
+    rio.readhdf5(restart.par, restart.mesh, restart.fluid, str(outputs[-1]))
+    if not hasattr(restart.fluid, 'AngularMomentum_code'):
         raise RuntimeError('restart snapshot is missing AngularMomentum')
     restarted_j = np.asarray(
-        (restart_fluid.AngularMomentum_code / restart_fluid.Mass_code)[interior],
+        (restart.fluid.AngularMomentum_code / restart.fluid.Mass_code)[interior],
         dtype=float,
     )
     restarted_specific_j = np.asarray(
-        restart_fluid.specific_angular_momentum_code[interior], dtype=float
+        restart.fluid.specific_angular_momentum_code[interior], dtype=float
     )
     if not np.allclose(
         restarted_j, restarted_specific_j, rtol=1.0e-12, atol=1.0e-14
     ):
         raise RuntimeError('HDF5 restart changed J/M')
 
-    radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
-    figure = Path(runparams['output']['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
+    radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
+    figure = Path(par_config['output']['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
-    initial_rho_code = np.asarray(initial.fluid.rho_code, dtype=float)
-    initial_vel_code = np.asarray(initial.fluid.vel_code, dtype=float)
-    initial_temp_code = np.asarray(initial.fluid.temp_code, dtype=float)
-    final_rho_code = np.asarray(sim.fluid.rho_code[interior], dtype=float)
-    final_vel_code = np.asarray(sim.fluid.vel_code[interior], dtype=float)
-    final_temp_code = np.asarray(sim.fluid.temp_code[interior], dtype=float)
+    initial_rho_code = initial_density_proper_code
+    initial_vel_code = initial_velocity_proper_code
+    initial_temp_code = initial_temperature_proper_code
+    final_rho_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
+    final_vel_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
+    final_temp_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
     conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     hydro_plots = (
-        (axes[0, 0], initial_rho, final_rho, 'density [code units]'),
-        (axes[0, 1], initial_vel, final_vel, 'radial velocity [code units]'),
-        (axes[1, 0], initial_temp, final_temp, 'temperature [code units]'),
+        (axes[0, 0], initial_rho_code, final_rho_code, 'density [proper code]'),
+        (axes[0, 1], initial_vel_code, final_vel_code, 'velocity [proper code]'),
+        (axes[1, 0], initial_temp_code, final_temp_code, 'temperature [proper code]'),
     )
     for axis, initial_values, final_values, ylabel in hydro_plots:
         axis.plot(radius, initial_values, '--', label='initial')
@@ -140,26 +148,14 @@ def main(config_filename=DEFAULT_CONFIG):
     snapshot_times = []
     snapshot_total_j = []
     for output in outputs:
-        snapshot_par = type(
-            'SnapshotPar', (), {
-                'CodeUnits': units,
-                'units': SimpleNamespace(CodeUnits=units),
-                'simulation': SimpleNamespace(coordinate_system='cartesian'),
-                'mesh': SimpleNamespace(grid_cells=runparams['mesh']['grid_cells'], ghost_cells=runparams['mesh']['ghost_cells']),
-            }
-        )()
-        snapshot_mesh = type('SnapshotMesh', (), {})()
-        snapshot_fluid = type('SnapshotFluid', (), {})()
-        rio.readhdf5(
-            snapshot_par,
-            snapshot_mesh,
-            snapshot_fluid,
-            str(output),
+        snapshot = Rsim.FromComponents(
+            initial.par, initial.mesh, initial.fluid, initial.solver
         )
-        snapshot_times.append(float(np.asarray(snapshot_par.time_code)))
+        rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(output))
+        snapshot_times.append(float(np.asarray(snapshot.fluid.time_proper_code)))
         snapshot_total_j.append(
             np.sum(
-                np.asarray(snapshot_fluid.AngularMomentum_code[interior], dtype=float)
+                np.asarray(snapshot.fluid.AngularMomentum_code[interior], dtype=float)
             )
         )
     snapshot_times = np.asarray(snapshot_times)
@@ -167,7 +163,8 @@ def main(config_filename=DEFAULT_CONFIG):
     # Do not plot duplicate timestamps as a vertical line; reconstruct the
     # configured output timeline in code units for that diagnostic only.
     if snapshot_times.size > 1 and np.allclose(snapshot_times, snapshot_times[0]):
-        final_time = runparams['simulation']['final_time']
+        final_time = par_config['simulation']['final_time']
+        units = initial.par.units.CodeUnits
         final_time_code = float(
             final_time.to_value(units.time_unit)
             if hasattr(final_time, 'to_value')
@@ -179,7 +176,7 @@ def main(config_filename=DEFAULT_CONFIG):
         snapshot_total_j - initial_total_j
     ) / max(abs(initial_total_j), np.finfo(float).tiny)
     conservation_figure = (
-        Path(runparams['output']['savedir']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
+        Path(par_config['output']['savedir']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
     )
     conservation_fig, conservation_axes = plt.subplots(1, 2, figsize=(10, 4))
     conservation_axes[0].plot(snapshot_times, snapshot_total_j, 'o-')
