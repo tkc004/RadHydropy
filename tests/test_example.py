@@ -723,6 +723,8 @@ class Testing(unittest.TestCase):
         state = {
             'xHI': np.array([1.0, 0.0, 1.0], dtype=float),
             'nH_cgs_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
+            'rho_cgs_g_cm3': np.array([1.0, 1.0, 1.0], dtype=float) * 1.67262192369e-24,
+            'boundary_cgs_cm': np.array([0.0, 1.0, 2.0, 3.0]) * 1.0e21,
             'volume_cgs_cm3': np.array([1.0, 1.0, 1.0], dtype=float),
             'temperature_cgs_K': np.array([100.0, 200.0, 150.0], dtype=float),
             'radius_kpc': np.array([0.1, 0.2, 0.3], dtype=float),
@@ -742,7 +744,7 @@ class Testing(unittest.TestCase):
                 reference_time=None,
             )
 
-        self.assertEqual(refresh_calls, [1])
+        self.assertEqual(refresh_calls, [])
         self.assertEqual(history['evolution_steps'], 1)
         self.assertIn('mean_ionized_temp_cgs_K', history)
 
@@ -776,6 +778,8 @@ class Testing(unittest.TestCase):
         state = {
             'xHI': np.array([1.0], dtype=float),
             'nH_cgs_cm3': np.array([1.0], dtype=float),
+            'rho_cgs_g_cm3': np.array([1.0], dtype=float) * 1.67262192369e-24,
+            'boundary_cgs_cm': np.array([0.0, 1.0]) * 1.0e21,
             'volume_cgs_cm3': np.array([1.0], dtype=float),
             'temperature_cgs_K': np.array([1.0], dtype=float),
             'radius_kpc': np.array([1.0], dtype=float),
@@ -966,7 +970,7 @@ class Testing(unittest.TestCase):
 
         par = parameter_namespace(noghost=0, nogrid=5, CodeUnits=None)
         mesh = SimpleNamespace(
-            coordinate=np.arange(1.0, 6.0) * unyt.kpc,
+            x_proper_code=np.arange(1.0, 6.0) * unyt.kpc,
         )
         fluid = SimpleNamespace(
             xHI=np.array([0.1, 0.2, 0.8, 0.2, 0.9]),
@@ -985,22 +989,22 @@ class Testing(unittest.TestCase):
                 header.attrs['noghost'] = 1
                 data = hdf5.create_group('Data')
                 boundary = data.create_dataset(
-                    'boundary',
+                    'boundary_proper_code',
                     data=np.array([-1.0, 0.0, 1.0, 2.0, 3.0, 4.0]) * 1.0e18,
                 )
                 boundary.attrs['units'] = 'cm'
                 velocity = data.create_dataset(
-                    'vel_code',
+                    'vel_proper_code',
                     data=np.array([0.0, 1.0, 2.0, 3.0, 4.0]) * 1.0e5,
                 )
                 velocity.attrs['units'] = 'cm/s'
                 density = data.create_dataset(
-                    'rho_code',
+                    'rho_proper_code',
                     data=np.arange(5.0) * (1.0 * unyt.mp).to_value(unyt.g),
                 )
                 density.attrs['units'] = 'g/cm**3'
                 temperature = data.create_dataset(
-                    'temp_code',
+                    'temp_proper_code',
                     data=np.arange(5.0) * 100.0,
                 )
                 temperature.attrs['units'] = 'K'
