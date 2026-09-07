@@ -26,36 +26,36 @@ DEFAULT_CONFIG = HERE / "high_mach_advection1d.yaml"
 
 def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=None):
     config = eu.load_nested_example_config(config_filename)
-    runparams = config["par"]
-    icparams = config["initial_condition"]
+    par_config = config["par"]
+    initial_condition = config["initial_condition"]
     exampleparams = config["example"]
     if dual_energy is not None:
-        runparams["hydrodynamics"]["dual_energy"] = bool(dual_energy)
+        par_config["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            runparams["output"]["savedir"] = str(
-                Path(runparams["output"]["savedir"]).with_name(
-                    Path(runparams["output"]["savedir"]).name + "_no_dual_energy"
+            par_config["output"]["savedir"] = str(
+                Path(par_config["output"]["savedir"]).with_name(
+                    Path(par_config["output"]["savedir"]).name + "_no_dual_energy"
                 )
             )
-            runparams["output"]["directory"] = runparams["output"]["savedir"]
+            par_config["output"]["directory"] = par_config["output"]["savedir"]
     if pressure_selection is not None:
-        runparams["hydrodynamics"]["dual_energy"] = True
-        runparams["hydrodynamics"]["dual_energy_pressure_selection"] = pressure_selection
-        runparams["output"]["savedir"] = str(
-            Path(runparams["output"]["savedir"]).with_name(
-                Path(runparams["output"]["savedir"]).name + "_conservative_pressure"
+        par_config["hydrodynamics"]["dual_energy"] = True
+        par_config["hydrodynamics"]["dual_energy_pressure_selection"] = pressure_selection
+        par_config["output"]["savedir"] = str(
+            Path(par_config["output"]["savedir"]).with_name(
+                Path(par_config["output"]["savedir"]).name + "_conservative_pressure"
             )
         )
-        runparams["output"]["directory"] = runparams["output"]["savedir"]
-    output = Path(runparams["output"]["directory"])
+        par_config["output"]["directory"] = par_config["output"]["savedir"]
+    output = Path(par_config["output"]["directory"])
     output.mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
+    code_units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
     config['_code_units'] = code_units
     initial = et.build_initial_condition(config)
     initial.fluid.eos = None
-    rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
+    rio.writehdf5(initial, par_config["simulation"]["initial_condition_filename"])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.RunAll()
 
     snapshots = sorted(output.glob("Output_*.hdf5"))
@@ -104,7 +104,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         temperature=np.asarray(temperature_history),
     )
     times = np.asarray([item["time"] for item in history])
-    radius_scale = max(float(np.asarray(icparams["box_size"])), 1.0)
+    radius_scale = max(float(np.asarray(initial_condition["box_size"])), 1.0)
 
     def save_profile_map(values, filename, title, colorbar_label, **image_kwargs):
         values = np.asarray(values)

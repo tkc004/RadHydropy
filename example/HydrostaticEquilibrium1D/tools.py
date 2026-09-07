@@ -100,40 +100,40 @@ def constant_gravity_acceleration(gravity_strength, code_units=None):
 
 
 def build_initial_condition(config):
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size = _physical_value(
-        icparams['box_size'], unyt.cm, 'box_size'
+        initial_condition['box_size'], unyt.cm, 'box_size'
     ) * unyt.cm
     current_time = _physical_value(
-        icparams['current_time'], unyt.s, 'current_time'
+        initial_condition['current_time'], unyt.s, 'current_time'
     ) * unyt.s
     boundary_proper_code = np.linspace(0.0, 1.0, grid_cells + 1) * quantity_to_value(box_size, code_units.length_unit)
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
     density_proper_code = quantity_to_value(hydrostatic_density_profile(
         coordinate_proper_code * code_units.length_unit,
-        icparams['reference_density'],
-        icparams['initial_temperature'],
-        icparams['mean_molecular_weight'],
-        icparams['gravity_strength'],
+        initial_condition['reference_density'],
+        initial_condition['initial_temperature'],
+        initial_condition['mean_molecular_weight'],
+        initial_condition['gravity_strength'],
         code_units=code_units,
     ), code_units.density_unit)
-    temperature_proper_code = np.full(grid_cells, quantity_to_value(icparams['initial_temperature'], code_units.temperature_unit))
+    temperature_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['initial_temperature'], code_units.temperature_unit))
     return make_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
         rho_proper_code=density_proper_code,
         vel_proper_code=np.zeros(grid_cells),
         temp_proper_code=temperature_proper_code,
-        mu_dimensionless=np.full(grid_cells, icparams['mean_molecular_weight']),
+        mu_dimensionless=np.full(grid_cells, initial_condition['mean_molecular_weight']),
         area_proper_code=np.ones(grid_cells),
     )
 def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
-    icparams = config['initial_condition']
-    runparams = config['par']
-    code_units_mapping = runparams.get('units', {}).get('CodeUnits')
+    initial_condition = config['initial_condition']
+    par_config = config['par']
+    code_units_mapping = par_config.get('units', {}).get('CodeUnits')
     code_units_obj = (
         CodeUnits.from_mapping(code_units_mapping)
         if code_units_mapping is not None
@@ -152,7 +152,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
-    nghost = int(runparams.get('mesh', {}).get('ghost_cells', 0))
+    nghost = int(par_config.get('mesh', {}).get('ghost_cells', 0))
     boundary_proper_code = rout.mesh.geometry_state.boundary_proper_code
     xall = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     if nghost > 0:
@@ -167,10 +167,10 @@ def ReadandPlot(outfilename, config, **kwargs):
         vel_code_num = rout.fluid.vel_proper_code
     rho_analytic = hydrostatic_density_profile(
         xcoord,
-        icparams['reference_density'],
-        icparams['initial_temperature'],
-        icparams['mean_molecular_weight'],
-        icparams['gravity_strength'],
+        initial_condition['reference_density'],
+        initial_condition['initial_temperature'],
+        initial_condition['mean_molecular_weight'],
+        initial_condition['gravity_strength'],
         code_units=code_units_obj,
     )
     if code_units_obj is not None:

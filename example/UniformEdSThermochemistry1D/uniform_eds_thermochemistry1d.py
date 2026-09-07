@@ -27,8 +27,9 @@ import example_utils as eu
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
 
-def run_case(runparams, icparams, units, cosmology, atomic_cooling):
-    case = copy.deepcopy(runparams)
+def run_case(config, units, cosmology, atomic_cooling):
+    case = copy.deepcopy(config["par"])
+    initial_condition = config["initial_condition"]
     label = "atomic_compton" if atomic_cooling else "compton_only"
     case["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
     case["simulation"]["initial_condition_filename"] = str(EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5")
@@ -40,7 +41,7 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
     source_dt = float(case["_example"].get("source_timestep", 2.0))
     case.pop("_example", None)
 
-    initial = UniformEdSInitialCondition(icparams, case["mesh"], units, cosmology)
+    initial = UniformEdSInitialCondition(config, units, cosmology)
     rio.writehdf5(initial, case["simulation"]["initial_condition_filename"])
 
     sim = Rsim(case)
@@ -119,25 +120,25 @@ def run_case(runparams, icparams, units, cosmology, atomic_cooling):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    runparams = config['par']
-    icparams = config["initial_condition"]
-    runparams["_example"] = config["example"]
-    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
+    par_config = config['par']
+    initial_condition = config["initial_condition"]
+    par_config["_example"] = config["example"]
+    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams["gravity"]["cosmology_t_ref"]),
-        a_ref=float(runparams["gravity"]["cosmology_a_ref"]),
+        t_ref=float(par_config["gravity"]["cosmology_t_ref"]),
+        a_ref=float(par_config["gravity"]["cosmology_a_ref"]),
     )
 
     compton, sim, physical = run_case(
-        runparams, icparams, units, cosmology, atomic_cooling=False
+        config, units, cosmology, atomic_cooling=False
     )
     atomic, _, _ = run_case(
-        runparams, icparams, units, cosmology, atomic_cooling=True
+        config, units, cosmology, atomic_cooling=True
     )
 
     initial_time_s = (
-        float(icparams["initial_cosmic_time"])
+        float(initial_condition["initial_cosmic_time"])
         * float(units.time_unit.to_value("s"))
     )
     plot_time_s = np.linspace(
@@ -145,29 +146,29 @@ def main():
     )
     analytic = analytic_compton_temperature(
         compton["time_s"],
-        float(icparams["temperature_cgs_K"]),
-        float(icparams["initial_cosmic_time"]),
+        float(initial_condition["temperature_cgs_K"]),
+        float(initial_condition["initial_cosmic_time"]),
         cosmology,
         float(units.time_unit.to_value("s")),
-        float(icparams["hydrogen_density_cgs_cm3"]),
-        float(icparams["hydrogen_mass_fraction"]),
-        float(icparams["xHI"]),
-        float(runparams["hydrodynamics"]["gamma"]),
-        float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K")),
-        1.0 / (float(icparams["hydrogen_mass_fraction"]) * (2.0 - float(icparams["xHI"]))),
+        float(initial_condition["hydrogen_density_cgs_cm3"]),
+        float(initial_condition["hydrogen_mass_fraction"]),
+        float(initial_condition["xHI"]),
+        float(par_config["hydrodynamics"]["gamma"]),
+        float(par_config["thermochemistry"]["cmb_temperature_0"].to_value("K")),
+        1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
     )
     analytic_plot = analytic_compton_temperature(
         plot_time_s,
-        float(icparams["temperature_cgs_K"]),
-        float(icparams["initial_cosmic_time"]),
+        float(initial_condition["temperature_cgs_K"]),
+        float(initial_condition["initial_cosmic_time"]),
         cosmology,
         float(units.time_unit.to_value("s")),
-        float(icparams["hydrogen_density_cgs_cm3"]),
-        float(icparams["hydrogen_mass_fraction"]),
-        float(icparams["xHI"]),
-        float(runparams["hydrodynamics"]["gamma"]),
-        float(runparams["thermochemistry"]["cmb_temperature_0"].to_value("K")),
-        1.0 / (float(icparams["hydrogen_mass_fraction"]) * (2.0 - float(icparams["xHI"]))),
+        float(initial_condition["hydrogen_density_cgs_cm3"]),
+        float(initial_condition["hydrogen_mass_fraction"]),
+        float(initial_condition["xHI"]),
+        float(par_config["hydrodynamics"]["gamma"]),
+        float(par_config["thermochemistry"]["cmb_temperature_0"].to_value("K")),
+        1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
     )
     error = np.max(np.abs(compton["temperature_cgs_K"] - analytic) / analytic)
     print(f"Compton-only maximum relative error: {error:.6e}")
@@ -184,7 +185,7 @@ def main():
     if atomic["temperature_cgs_K"][-1] >= compton["temperature_cgs_K"][-1]:
         raise RuntimeError("atomic cooling did not cool below Compton-only run")
 
-    figure = Path(runparams["output"]["savedir"]) / "UniformEdSThermochemistry1D.jpg"
+    figure = Path(par_config["output"]["savedir"]) / "UniformEdSThermochemistry1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton")

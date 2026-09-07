@@ -128,7 +128,7 @@ def _interpolate_profile(solution, radius):
 
 def build_initial_condition(config):
     sim = SimpleNamespace()
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     runtime = config['par']
     solution = config['_reference_solution']
     simulation = runtime['simulation']
@@ -140,7 +140,7 @@ def build_initial_condition(config):
     sim.par.units = SimpleNamespace(CodeUnits=code_units)
     sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
     grid_cells = int(mesh['grid_cells'])
-    initial_time = float(icparams['initial_cosmic_time'])
+    initial_time = float(initial_condition['initial_cosmic_time'])
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True
@@ -157,21 +157,21 @@ def build_initial_condition(config):
     sim.par.density_representation = 'comoving'
     sim.par.pressure_representation = 'supercomoving'
     sim.par.temperature_representation = 'supercomoving'
-    sim.par.perturbation_amplitude = float(icparams['perturbation_amplitude'])
+    sim.par.perturbation_amplitude = float(initial_condition['perturbation_amplitude'])
     sim.par.simulation = SimpleNamespace(
         # The runtime and HDF5 state use supercomoving time.  The IC profile
         # itself is evaluated at this cosmic time, but the serialized state
         # must start at the corresponding tau (zero at t_ref here).
         tau_supercomoving_code=sim.par.tau_supercomoving_code.copy(),
-        box_size=icparams['box_size'],
+        box_size=initial_condition['box_size'],
         coordinate_system=simulation['coordinate_system'],
     )
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     inner_radius_code = float(
-        icparams['inner_radius'].to_value(code_units.length_unit)
+        initial_condition['inner_radius'].to_value(code_units.length_unit)
     )
     outer_radius_code = float(
-        icparams['outer_radius'].to_value(code_units.length_unit)
+        initial_condition['outer_radius'].to_value(code_units.length_unit)
     )
     sim.mesh.boundary_comoving_code = np.linspace(
         inner_radius_code, outer_radius_code, grid_cells + 1
@@ -186,7 +186,7 @@ def build_initial_condition(config):
     cosmology = sim.par.cosmology
     scale_factor = float(cosmology.scale_factor(initial_time))
     rho_background = float(cosmology.background_density(initial_time)) * scale_factor**3
-    amplitude = float(icparams['perturbation_amplitude'])
+    amplitude = float(initial_condition['perturbation_amplitude'])
     rta = scale_factor * (
         amplitude / solution.mass_out[np.argmin(
             np.abs(solution.lambda_out - 1.0)
@@ -218,18 +218,18 @@ def build_initial_condition(config):
         similarity_radius[interior], solution.lambda_in, solution.pressure_in
     )
     pressure = pressure_profile * rho_background * (rta / initial_time) ** 2
-    mean_molecular_weight = float(icparams['mean_molecular_weight'])
+    mean_molecular_weight = float(initial_condition['mean_molecular_weight'])
     temperature_code = pressure * mean_molecular_weight / (
         np.maximum(density, 1.0e-300)
         * code_units.boltzmann_code / code_units.proton_mass_code
     )
     temperature_code = np.maximum(temperature_code, 0.0)
     sim.par.initial_temperature_code = float(np.max(temperature_code))
-    sim.par.mu_outflow = float(icparams['mean_molecular_weight'])
+    sim.par.mu_outflow = float(initial_condition['mean_molecular_weight'])
     sim.fluid.rho_comoving_code = density
     sim.fluid.vel_supercomoving_code = velocity
     sim.fluid.temp_supercomoving_code = temperature_code
-    sim.fluid.mu = np.ones(grid_cells) * float(icparams['mean_molecular_weight'])
+    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
     sim.mesh.geometry_state = MeshGeometryState(
         x_comoving_code=sim.mesh.x_comoving_code,
         boundary_comoving_code=sim.mesh.boundary_comoving_code,
@@ -251,7 +251,7 @@ def build_initial_condition(config):
     )
 
     sim.dark_matter = DarkMatterShells(
-        radius=np.array([float(icparams['outer_radius'].to_value(unyt.kpc)) * 2.0]),
+        radius=np.array([float(initial_condition['outer_radius'].to_value(unyt.kpc)) * 2.0]),
         velocity=np.zeros(1),
         mass=np.full(1, 1.0e-30) * code_units.mass_unit,
         code_units=code_units,
@@ -352,16 +352,16 @@ def _plot_comparison(numerical, reference, output, numerical_label):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    icparams = config['initial_condition']
-    output = runparams['output']
+    par_config = config['par']
+    initial_condition = config['initial_condition']
+    output = par_config['output']
     eu.clean_previous_outputs(config)
     reference = solve_bertschinger_gas()
     config['_reference_solution'] = reference
     initial = build_initial_condition(config)
-    rio.writehdf5(initial, runparams['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.Callreadhdf5()
     sim.SetMesh()
     sim.SetFluid()

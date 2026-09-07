@@ -31,7 +31,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     example = config.get('example', {})
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
@@ -58,12 +58,12 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))
-    top_hat_radius = float(icparams['top_hat_radius'])
+    top_hat_radius = float(initial_condition['top_hat_radius'])
     initial_inside = sim.mesh.x_comoving_code[physical] < top_hat_radius
     target_mass = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
     initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])
     initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)
-    initial_delta = float(icparams['overdensity'])
+    initial_delta = float(initial_condition['overdensity'])
     history = {'a': [], 'delta': [], 'time': []}
 
     def record(state):

@@ -34,18 +34,18 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runparams, ICparams = config['par'], config['initial_condition']
+    par_config, initial_condition = config['par'], config['initial_condition']
     exampleparams = config['example']
     if riemann_solver is not None:
-        runparams['hydrodynamics']['riemann_solver'] = riemann_solver
-    output = runparams['output']
+        par_config['hydrodynamics']['riemann_solver'] = riemann_solver
+    output = par_config['output']
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
-    mainrun = Rsim(runparams)
+    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
+    mainrun = Rsim(par_config)
     mainrun.RunAll()
     outindex = exampleparams['output_index']
     outfilename = os.path.join(
@@ -69,7 +69,7 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run the Sod shock example.')
-    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with runparams and ICparams.')
+    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with par_config and initial_condition.')
     parser.add_argument('--riemann-solver', choices=('Rusanov', 'HLLC'))
     return parser.parse_args()
 
@@ -77,5 +77,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config, riemann_solver=args.riemann_solver)
-
 

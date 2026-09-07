@@ -47,7 +47,7 @@ CONFIGS = (
 def _case_diagnostics(config_filename):
     config = eu.load_nested_example_config(config_filename)
     par_config = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     exampleparams = config['example']
     pie_table_filename = (
         config_filename.parent
@@ -64,12 +64,12 @@ def _case_diagnostics(config_filename):
     if len(files) != len(times):
         raise RuntimeError(f'{config_filename.name}: output count does not match schedule')
     halo = nfw_halo_parameters(
-        icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
-        icparams['overdensity'], icparams['h0'],
+        initial_condition['halo_mass'], initial_condition['concentration'], initial_condition['redshift'],
+        initial_condition['overdensity'], initial_condition['h0'],
     )
     table = MetalPIETable(pie_table_filename)
     stability = pie_stability_diagnostics(
-        files, times, halo, table, par_config, icparams['mu']
+        files, times, halo, table, config, initial_condition['mu']
     )
     stability_by_time = {row['time_Myr']: row for row in stability}
     shock_radius = []

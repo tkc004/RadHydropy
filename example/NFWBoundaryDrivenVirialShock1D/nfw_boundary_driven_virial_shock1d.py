@@ -178,7 +178,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
     par_config = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     exampleparams = config['example']
     par_config['simulation']['initial_condition_filename'] = str(
         (config_filename.parent / par_config['simulation']['initial_condition_filename']).resolve()
@@ -200,12 +200,14 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
         par_config['thermochemistry']['metal_pie_table_filename']
     )
     halo = nfw_halo_parameters(
-        icparams['halo_mass'], icparams['concentration'], icparams['redshift'],
-        icparams['overdensity'], icparams['h0'],
+        initial_condition['halo_mass'], initial_condition['concentration'], initial_condition['redshift'],
+        initial_condition['overdensity'], initial_condition['h0'],
     )
-    nested_config = {'par': par_config, 'initial_condition': icparams, '_code_units': code_units, '_pie_table': pie_table}
+    nested_config = dict(config)
+    nested_config['_code_units'] = code_units
+    nested_config['_pie_table'] = pie_table
     initial = build_initial_condition(nested_config)
-    inflow = boundary_inflow_state(icparams, halo, pie_table, par_config)
+    inflow = boundary_inflow_state(nested_config, halo, pie_table)
     par_config['boundary'].update(inflow)
     initial_filename = par_config['simulation']['initial_condition_filename']
     Path(initial_filename).parent.mkdir(parents=True, exist_ok=True)
@@ -267,14 +269,14 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
         adiabatic_times_myr=adiabatic_times, pie_times_myr=pie_times,
     )
     stability = pie_stability_diagnostics(
-        pie_files, pie_times, halo, pie_table, pie, icparams['mu']
+        pie_files, pie_times, halo, pie_table, pie_config, initial_condition['mu']
     )
     write_stability_report(stability, stability_report)
     plot_stability_diagnostics(stability, stability_figure)
 
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
-    print('Tvir = %.6g K' % virial_temperature(halo, icparams['mu']).to_value(unyt.K))
+    print('Tvir = %.6g K' % virial_temperature(halo, initial_condition['mu']).to_value(unyt.K))
     print('outer PIE temperature = %.6g K' % inflow['inflow_temperature'].to_value(unyt.K))
     print('adiabatic snapshots = %d; PIE snapshots = %d' % (
         len(adiabatic_files), len(pie_files)))

@@ -70,13 +70,15 @@ def inflow_density(mass_accretion_rate, radius, velocity):
     return mdot / (4.0 * np.pi * radius_cgs_cm**2 * speed) * unyt.g / unyt.cm**3
 
 
-def boundary_inflow_state(icparams, halo, table, par_config):
+def boundary_inflow_state(config, halo, table):
     """Return the maintained outer-boundary state in physical units."""
-    radius = float(icparams['outer_radius_over_R200']) * halo['virial_radius']
+    initial_condition = config['initial_condition']
+    par_config = config['par']
+    radius = float(initial_condition['outer_radius_over_R200']) * halo['virial_radius']
     velocity = (
-        -float(icparams['inflow_velocity_over_V200']) * halo['virial_velocity']
+        -float(initial_condition['inflow_velocity_over_V200']) * halo['virial_velocity']
     ).to(unyt.km / unyt.s)
-    density = inflow_density(icparams['baryon_accretion_rate'], radius, velocity)
+    density = inflow_density(initial_condition['baryon_accretion_rate'], radius, velocity)
     temperature = pie_equilibrium_temperature(
         [density.to_value(unyt.g / unyt.cm**3)], table,
         float(par_config['chemistry']['hydrogen_mass_fraction']),
@@ -87,30 +89,30 @@ def boundary_inflow_state(icparams, halo, table, par_config):
         'inflow_density': density,
         'inflow_velocity': velocity,
         'inflow_temperature': temperature,
-        'inflow_mu': float(icparams['mu']),
+        'inflow_mu': float(initial_condition['mu']),
     }
 
 
 def build_initial_condition(config):
     """Build a hot NFW atmosphere with a steady cold PIE inflow."""
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     par_config = config['par']
     code_units = config['_code_units']
     table = config['_pie_table']
     grid_cells = int(par_config['mesh']['grid_cells'])
     halo = nfw_halo_parameters(
-        icparams['halo_mass'], icparams['concentration'],
-        icparams['redshift'], icparams['overdensity'], icparams['h0'],
+        initial_condition['halo_mass'], initial_condition['concentration'],
+        initial_condition['redshift'], initial_condition['overdensity'], initial_condition['h0'],
     )
     r200 = halo['virial_radius']
-    inner = float(icparams['inner_radius_over_R200']) * r200
-    outer = float(icparams['outer_radius_over_R200']) * r200
+    inner = float(initial_condition['inner_radius_over_R200']) * r200
+    outer = float(initial_condition['outer_radius_over_R200']) * r200
     boundary_proper_cgs_cm_unyt = np.geomspace(
         inner.to_value(unyt.kpc), outer.to_value(unyt.kpc), grid_cells + 1
     ) * unyt.kpc
     radius = spherical_cell_centers(boundary_proper_cgs_cm_unyt)
-    inflow_velocity = (-float(icparams['inflow_velocity_over_V200']) * halo['virial_velocity']).to(unyt.cm / unyt.s)
-    mdot = icparams['baryon_accretion_rate']
+    inflow_velocity = (-float(initial_condition['inflow_velocity_over_V200']) * halo['virial_velocity']).to(unyt.cm / unyt.s)
+    mdot = initial_condition['baryon_accretion_rate']
     rho_cold = inflow_density(mdot, radius, inflow_velocity)
     temperature_cold = pie_equilibrium_temperature(
         rho_cold.to_value(unyt.g / unyt.cm**3), table,
@@ -118,20 +120,20 @@ def build_initial_condition(config):
         float(par_config['thermochemistry']['metallicity']),
         float(par_config['thermochemistry']['metal_pie_redshift']),
     ) * unyt.K
-    transition = float(icparams['atmosphere_radius_over_R200']) * r200
+    transition = float(initial_condition['atmosphere_radius_over_R200']) * r200
     transition_density = inflow_density(mdot, transition, inflow_velocity)
     ram_pressure = transition_density * inflow_velocity**2
-    hot_pressure = float(icparams['atmosphere_ram_pressure_fraction']) * ram_pressure
-    hot_temperature = virial_temperature(halo, float(icparams['mu']))
+    hot_pressure = float(initial_condition['atmosphere_ram_pressure_fraction']) * ram_pressure
+    hot_temperature = virial_temperature(halo, float(initial_condition['mu']))
     rho_transition = (
-        hot_pressure.to_value(unyt.erg / unyt.cm**3) * float(icparams['mu']) * PROTON_MASS_CGS
+        hot_pressure.to_value(unyt.erg / unyt.cm**3) * float(initial_condition['mu']) * PROTON_MASS_CGS
         / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
     ) * unyt.g / unyt.cm**3
     potential = NFW.nfw_potential(radius, halo['scale_density'], halo['scale_radius']).to_value(unyt.cm**2 / unyt.s**2)
     potential_transition = NFW.nfw_potential(transition, halo['scale_density'], halo['scale_radius']).to_value(unyt.cm**2 / unyt.s**2)
-    beta = float(icparams['mu']) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
+    beta = float(initial_condition['mu']) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * hot_temperature.to_value(unyt.K))
     rho_hot = rho_transition * np.exp(-beta * (potential - potential_transition))
-    width = float(icparams['transition_width_over_R200']) * r200
+    width = float(initial_condition['transition_width_over_R200']) * r200
     weight = 0.5 * (1.0 + np.tanh(((radius - transition) / width).to_value(unyt.dimensionless)))
     log_density = (
         (1.0 - weight) * np.log(rho_hot.to_value(unyt.g / unyt.cm**3))
@@ -148,7 +150,7 @@ def build_initial_condition(config):
         rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
         vel_proper_code=quantity_to_value(weight * inflow_velocity, code_units.velocity_unit),
         temp_proper_code=quantity_to_value(temperature_proper_cgs_K_unyt, code_units.temperature_unit),
-        mu_dimensionless=np.full(grid_cells, float(icparams['mu'])),
+        mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])),
     )
 
 def load_snapshot(filename):
@@ -256,20 +258,22 @@ def _gas_pressure(density, temperature, mu):
     return density * BOLTZMANN_CONSTANT_CGS * temperature / (mu * PROTON_MASS_CGS)
 
 
-def _pie_net_rate(table, density, temperature, runparams):
-    n_h = float(runparams['chemistry']['hydrogen_mass_fraction']) * density / PROTON_MASS_CGS
+def _pie_net_rate(table, density, temperature, config):
+    par_config = config['par']
+    n_h = float(par_config['chemistry']['hydrogen_mass_fraction']) * density / PROTON_MASS_CGS
     heating, cooling = table.rates(
         temperature, n_h,
-        metallicity=float(runparams['thermochemistry']['metallicity']),
-        redshift=float(runparams['thermochemistry']['metal_pie_redshift']),
+        metallicity=float(par_config['thermochemistry']['metallicity']),
+        redshift=float(par_config['thermochemistry']['metal_pie_redshift']),
     )
     return float(np.asarray(cooling)) - float(np.asarray(heating))
 
 
 def pie_stability_diagnostics(
-    filenames, times_myr, halo, table, runparams, mu,
+    filenames, times_myr, halo, table, config, mu,
 ):
     """Compare simulated post-shock states with finite-Mach estimates."""
+    par_config = config['par']
     profiles = [load_snapshot(name) for name in filenames]
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     indices = [locate_shock(profile, r200) for profile in profiles]
@@ -277,7 +281,7 @@ def pie_stability_diagnostics(
         None if index is None else profile['radius_kpc'][index]
         for profile, index in zip(profiles, indices)
     ]
-    gamma = float(runparams['hydrodynamics']['gamma'])
+    gamma = float(par_config['hydrodynamics']['gamma'])
     downstream = []
     for profile, index in zip(profiles, indices):
         if index is None or index < 8 or index + 5 >= len(profile['radius_kpc']):
@@ -330,9 +334,9 @@ def pie_stability_diagnostics(
         ram_pressure = rho0 * (relative_speed * KM_S_TO_CM_S)**2
 
         rho1, temp1, pressure1 = downstream[i]
-        net_rate = _pie_net_rate(table, rho1, temp1, runparams)
+        net_rate = _pie_net_rate(table, rho1, temp1, config)
         analytic_net_rate = _pie_net_rate(
-            table, rho_analytic, temp_analytic, runparams
+            table, rho_analytic, temp_analytic, config
         )
         energy1 = pressure1 / (gamma - 1.0)
         energy_analytic = pressure_analytic / (gamma - 1.0)

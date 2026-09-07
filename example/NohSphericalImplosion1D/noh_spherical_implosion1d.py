@@ -73,47 +73,47 @@ def read_profile(filename, units, gamma, runtime):
 
 def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
-    base_runparams, base_icparams = config['par'], config['initial_condition']
+    base_par_config, base_initial_condition = config['par'], config['initial_condition']
     exampleparams = config['example']
     resolutions = [int(value) for value in exampleparams.get("resolutions", [256])]
     if dual_energy is not None:
-        base_runparams["hydrodynamics"]["dual_energy"] = bool(dual_energy)
+        base_par_config["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            base_runparams["output"]["savedir"] = str(
-                Path(base_runparams["output"]["savedir"]).with_name(
-                    Path(base_runparams["output"]["savedir"]).name + "_no_dual_energy"
+            base_par_config["output"]["savedir"] = str(
+                Path(base_par_config["output"]["savedir"]).with_name(
+                    Path(base_par_config["output"]["savedir"]).name + "_no_dual_energy"
                 )
             )
-            base_runparams["output"]["directory"] = base_runparams["output"]["savedir"]
-    root = Path(base_runparams["output"]["savedir"])
+            base_par_config["output"]["directory"] = base_par_config["output"]["savedir"]
+    root = Path(base_par_config["output"]["savedir"])
     root.mkdir(parents=True, exist_ok=True)
-    units = CodeUnits.from_mapping(base_runparams["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(base_par_config["units"]["CodeUnits"])
     all_profiles = {}
 
     for resolution in resolutions:
-        runparams = dict(base_runparams)
-        icparams = dict(base_icparams)
+        par_config = dict(base_par_config)
+        initial_condition = dict(base_initial_condition)
         output = root / f"resolution_{resolution}"
         output.mkdir(parents=True, exist_ok=True)
-        runparams["output"]["directory"] = str(output)
-        runparams["output"]["savedir"] = str(output)
-        runparams["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
-        icparams["grid_cells"] = resolution
-        runparams["mesh"]["grid_cells"] = resolution
+        par_config["output"]["directory"] = str(output)
+        par_config["output"]["savedir"] = str(output)
+        par_config["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
+        initial_condition["grid_cells"] = resolution
+        par_config["mesh"]["grid_cells"] = resolution
         resolution_config = dict(config)
-        resolution_config["par"] = runparams
-        resolution_config["initial_condition"] = icparams
+        resolution_config["par"] = par_config
+        resolution_config["initial_condition"] = initial_condition
         initial = make_initial_condition(resolution_config, units)
         rio.writehdf5(
-            initial, runparams["simulation"]["initial_condition_filename"]
+            initial, par_config["simulation"]["initial_condition_filename"]
         )
 
-        sim = Rsim(runparams)
+        sim = Rsim(par_config)
         sim.RunAll(outputtime=0)
         snapshots = sorted(output.glob("Output_*.hdf5"))
         if len(snapshots) < 2:
             raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
-        profiles = [read_profile(filename, units, runparams["hydrodynamics"]["gamma"], runparams) for filename in snapshots]
+        profiles = [read_profile(filename, units, par_config["hydrodynamics"]["gamma"], par_config) for filename in snapshots]
         all_profiles[resolution] = profiles
         initial_profile, final_profile = profiles[0], profiles[-1]
         if not final_profile["thermal"] > initial_profile["thermal"]:
@@ -133,7 +133,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
 
     selected = sorted(all_profiles)
     final = {resolution: all_profiles[resolution][-1] for resolution in selected}
-    rmax = float(base_icparams["box_size"].to_value(units.length_unit))
+    rmax = float(base_initial_condition["box_size"].to_value(units.length_unit))
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex="col")
     for resolution in selected:
         profile = final[resolution]

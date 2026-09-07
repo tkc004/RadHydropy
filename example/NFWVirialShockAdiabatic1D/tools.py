@@ -49,34 +49,34 @@ def hubble_rate(h0, omega_m, omega_lambda, redshift):
 
 
 def build_initial_condition(config):
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    box_size = icparams['boxsize']
-    time_value = icparams['time']
-    radius_min = icparams['rmin']
-    radius_max = icparams['rmax']
+    box_size = initial_condition['boxsize']
+    time_value = initial_condition['time']
+    radius_min = initial_condition['rmin']
+    radius_max = initial_condition['rmax']
     boundary_unyt = np.linspace(
         radius_min, radius_max, grid_cells + 1
     )
     coordinate_unyt = NFW.spherical_cell_centers(boundary_unyt)
     mean_density = cosmic_mean_baryon_density(
-        icparams['h0'], icparams['omega_b'], icparams['initial_redshift']
+        initial_condition['h0'], initial_condition['omega_b'], initial_condition['initial_redshift']
     )
     expansion_rate = hubble_rate(
-        icparams['h0'], icparams['omega_m'], icparams['omega_lambda'],
-        icparams['initial_redshift']
+        initial_condition['h0'], initial_condition['omega_m'], initial_condition['omega_lambda'],
+        initial_condition['initial_redshift']
     )
-    cmb_temperature = icparams.get(
-        'cmb_temperature_0', icparams['initial_temperature']
+    cmb_temperature = initial_condition.get(
+        'cmb_temperature_0', initial_condition['initial_temperature']
     )
-    temperature = cmb_temperature * (1.0 + float(icparams['initial_redshift']))
+    temperature = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
     return make_initial_condition(config,
         boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
         rho_proper_code=np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
         vel_proper_code=quantity_to_value(expansion_rate * coordinate_unyt, code_units.velocity_unit),
         temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
-        mu_dimensionless=np.full(grid_cells, float(icparams['mu'])))
+        mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])))
 
 def _snapshot_profiles(filename, config):
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
@@ -207,12 +207,12 @@ def write_rankine_hugoniot_report(rows, filename):
 
 
 def plot_snapshots(filenames, config, _unused, halo, figure_filename):
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(filenames)))
     virial_radius = halo['virial_radius'].to_value(unyt.kpc)
     virial_temperature = NFW.virial_temperature(
-        halo, icparams['mu']
+        halo, initial_condition['mu']
     ).to_value(unyt.K)
     for color, filename in zip(colors, filenames):
         time_myr, radius, density, temperature, _ = _snapshot_profiles(

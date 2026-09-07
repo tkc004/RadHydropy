@@ -156,27 +156,30 @@ def _density_slope_profile(shells, cosmic_time, cosmology, turnaround, bins=192,
 
 
 def run_comparison(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = example_tools.load_reference_parameters(config_filename)
-    units = example_tools.load_units(runparams)
+    config = example_tools.load_reference_config(config_filename)
+    par_config = config['par']
+    initial_condition = config['initial_condition']
+    example = config['example']
+    units = example_tools.load_units(config)
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams['cosmology_t_ref']),
-        a_ref=float(runparams['cosmology_a_ref']),
+        t_ref=float(example['cosmology_t_ref']),
+        a_ref=float(example['cosmology_a_ref']),
     )
-    Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
-    shells, _ = example_tools.make_scale_free_shells(icparams, units, cosmology)
+    Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    shells, _ = example_tools.make_scale_free_shells(config, units, cosmology)
     initial_q = shells.radius.copy()
     tracker = ShellOrbitTracker(
         initial_q, cosmology,
-        recent_window_fraction=float(runparams.get(
+        recent_window_fraction=float(example.get(
             'recent_accretion_window_fraction', 0.5)))
-    initial_time = float(icparams['initial_cosmic_time'])
-    final_time = float(runparams.get(
+    initial_time = float(initial_condition['initial_cosmic_time'])
+    final_time = float(example.get(
         'comparison_final_cosmic_time',
-        initial_time * np.exp(float(runparams['ode_xi_end']))))
-    timestep = float(runparams.get('comparison_timestep', 0.002))
-    snapshot_stride = int(runparams.get('comparison_snapshot_stride', 5))
-    shell_stride = int(runparams.get('comparison_shell_stride', 16))
+        initial_time * np.exp(float(example['ode_xi_end']))))
+    timestep = float(example.get('comparison_timestep', 0.002))
+    snapshot_stride = int(example.get('comparison_snapshot_stride', 5))
+    shell_stride = int(example.get('comparison_shell_stride', 16))
     if final_time <= initial_time or timestep <= 0.0:
         raise ValueError('invalid shell comparison time configuration')
 
@@ -193,7 +196,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     slope_profiles = []
     profile_targets = np.asarray([1.5, 2.0, 2.5, 3.0, 4.0, 5.0])
     next_profile = 0
-    caustic_smoothing = float(runparams.get('caustic_smoothing_bins', 2.0))
+    caustic_smoothing = float(example.get('caustic_smoothing_bins', 2.0))
     tracker.observe(initial_time, float(cosmology.scale_factor(initial_time)),
                     shells.radius, shells.velocity, shells.mass,
                     shells.shell_id)
@@ -208,7 +211,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         tau_start = tau
         actual_dt = shells.step(
             dt,
-            crossing_safety_factor=float(runparams['crossing_safety_factor']),
+            crossing_safety_factor=float(example['crossing_safety_factor']),
             background_enclosed_mass=background,
             scale_factor=a_start,
             scale_factor_end=a_end,
@@ -222,9 +225,9 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         )
         # Radial shells have no centrifugal barrier. Match the ODE's
         # controlled centre treatment after a finite leapfrog step.
-        central_shell = shells.radius <= float(icparams['softening'])
+        central_shell = shells.radius <= float(initial_condition['softening'])
         if np.any(central_shell):
-            shells.radius[central_shell] = float(icparams['softening'])
+            shells.radius[central_shell] = float(initial_condition['softening'])
             shells.velocity[central_shell] = np.abs(
                 shells.velocity[central_shell])
             shells.sort_by_radius()
@@ -253,8 +256,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                 xi >= profile_targets[next_profile]):
             profile = _density_slope_profile(
                 shells, cosmic_time, cosmology, turnaround,
-                bins=int(runparams.get('slope_profile_bins', 192)),
-                smoothing_bins=float(runparams.get(
+                bins=int(example.get('slope_profile_bins', 192)),
+                smoothing_bins=float(example.get(
                     'slope_smoothing_bins', 3.0)))
             if profile is not None:
                 profile['xi'] = xi
@@ -266,20 +269,20 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     if not xi_values:
         raise RuntimeError('the shell simulation produced no turnaround samples')
     ode = solve_eq41_self_similar(
-        xi_end=float(runparams['ode_xi_end']),
-        points=int(runparams['ode_points']),
-        similarity_exponent=float(runparams['ode_similarity_exponent']),
-        centre_match_lambda=float(runparams['ode_centre_match_lambda']),
-        centre_matching_velocity=float(runparams['ode_centre_matching_velocity']),
+        xi_end=float(example['ode_xi_end']),
+        points=int(example['ode_points']),
+        similarity_exponent=float(example['ode_similarity_exponent']),
+        centre_match_lambda=float(example['ode_centre_match_lambda']),
+        centre_matching_velocity=float(example['ode_centre_matching_velocity']),
     )
     splashback_xi, splashback_lambda = first_post_centre_apocentre(ode)
     caustic_xi, caustic_lambda = first_outer_caustic(ode)
     xi_values = np.asarray(xi_values)
     lambda_values = np.asarray(lambda_values)
     finite = np.isfinite(xi_values) & np.isfinite(lambda_values) & (lambda_values > 0.0)
-    lambda_max = float(runparams.get('comparison_lambda_max', 2.0))
+    lambda_max = float(example.get('comparison_lambda_max', 2.0))
     finite &= lambda_values <= lambda_max
-    figure = Path(runparams['savedir']) / 'BertschingerDarkMatterShellsVsODE.jpg'
+    figure = Path(par_config['output']['savedir']) / 'BertschingerDarkMatterShellsVsODE.jpg'
     fig, axis = plt.subplots(figsize=(8, 5))
     axis.scatter(xi_values[finite], lambda_values[finite], s=1.0, alpha=0.12,
                  label='RadHydropy DarkMatterShells')
@@ -298,7 +301,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                      linewidth=1.5,
                      label='ODE fixed-time outer caustic')
         np.savez(
-            Path(runparams['savedir']) / 'BertschingerDarkMatterCaustic.npz',
+            Path(par_config['output']['savedir']) / 'BertschingerDarkMatterCaustic.npz',
             xi=caustic_values[:, 0], lambda_caustic=caustic_values[:, 1],
             ode_splashback_xi=splashback_xi,
             ode_splashback_lambda=splashback_lambda,
@@ -309,7 +312,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         # Overwrite stale products when the current run has no resolved,
         # phase-space-consistent Lagrangian fold.
         np.savez(
-            Path(runparams['savedir']) / 'BertschingerDarkMatterCaustic.npz',
+            Path(par_config['output']['savedir']) / 'BertschingerDarkMatterCaustic.npz',
             xi=np.empty(0), lambda_caustic=np.empty(0),
             ode_splashback_xi=splashback_xi,
             ode_splashback_lambda=splashback_lambda,
@@ -341,7 +344,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         apocentre_values = np.asarray(bins)
     if len(apocentre_values):
         np.savez(
-            Path(runparams['savedir']) / 'BertschingerRecentApocenters.npz',
+            Path(par_config['output']['savedir']) / 'BertschingerRecentApocenters.npz',
             xi=apocentre_values[:, 0],
             radius_median=apocentre_values[:, 1],
             radius_p16=apocentre_values[:, 2],
@@ -369,7 +372,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         orbit_axis.legend(fontsize=8)
         orbit_figure.tight_layout()
         orbit_figure.savefig(
-            Path(runparams['savedir']) /
+            Path(par_config['output']['savedir']) /
             'BertschingerRecentApocenters.jpg', dpi=200)
         plt.close(orbit_figure)
     if slope_profiles:
@@ -391,7 +394,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         density_axis.legend(fontsize=8)
         density_figure.tight_layout()
         density_figure.savefig(
-            Path(runparams['savedir']) /
+            Path(par_config['output']['savedir']) /
             'BertschingerDarkMatterDensityProfile.jpg', dpi=200)
         plt.close(density_figure)
 
@@ -418,11 +421,11 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         slope_axis.legend(fontsize=8)
         slope_figure.tight_layout()
         slope_figure.savefig(
-            Path(runparams['savedir']) /
+            Path(par_config['output']['savedir']) /
             'BertschingerDarkMatterDensitySlope.jpg', dpi=200)
         plt.close(slope_figure)
         np.savez(
-            Path(runparams['savedir']) /
+            Path(par_config['output']['savedir']) /
             'BertschingerDarkMatterDensitySlope.npz',
             xi=np.asarray([p['xi'] for p in slope_profiles]),
             radius=np.asarray([p['radius'] for p in slope_profiles], dtype=object),
@@ -503,12 +506,12 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         comparison_axis.legend(fontsize=8)
         comparison_figure.tight_layout()
         comparison_figure.savefig(
-            Path(runparams['savedir']) /
+            Path(par_config['output']['savedir']) /
             'BertschingerSplashbackComparison.jpg', dpi=200)
         plt.close(comparison_figure)
-        np.savez(Path(runparams['savedir']) /
+        np.savez(Path(par_config['output']['savedir']) /
                  'BertschingerSplashbackComparison.npz', **comparison_data)
-    axis.set_xlim(0.0, float(runparams['ode_xi_end']))
+    axis.set_xlim(0.0, float(example['ode_xi_end']))
     axis.set_ylim(0.0, lambda_max)
     axis.set_xlabel(r'$\xi=\ln(t/t_{\rm ref})$')
     axis.set_ylabel(r'$\lambda=r/r_{\rm ta}(t)$')

@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file containing runparams and ICparams.',
+        help='YAML file containing par_config and initial_condition.',
     )
     return parser.parse_args()
 

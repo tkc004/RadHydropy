@@ -32,7 +32,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     example = config.get('example', {})
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
@@ -68,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG):
     cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
     rho_background = sim.par.cosmology.background_density(cosmic_time)
     analytic = et.top_hat_acceleration(
-        radius, float(icparams['top_hat_radius']), float(icparams['overdensity']),
+        radius, float(initial_condition['top_hat_radius']), float(initial_condition['overdensity']),
         rho_background * a**3, a, sim.par.cosmology.gravitational_constant,
     )
     comparison = slice(1, None)

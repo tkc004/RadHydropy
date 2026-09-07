@@ -45,7 +45,7 @@ def build_initial_condition(config, code_units=None):
     if code_units is None:
         code_units = config['_code_units']
     sim = SimpleNamespace()
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     sim.par = Par()
     sim.mesh = Mesh()
@@ -54,16 +54,16 @@ def build_initial_condition(config, code_units=None):
     sim.par.units = SimpleNamespace(CodeUnits=code_units)
     sim.par.unit_system = code_units.unit_system
     sim.par.nogrid = grid_cells
-    sim.par.coordsys = icparams['coordsys']
-    sim.par.boxsize = np.ones(1) * icparams['boxsize']
-    sim.par.time_code = np.ones(1) * icparams['time']
+    sim.par.coordsys = initial_condition['coordsys']
+    sim.par.boxsize = np.ones(1) * initial_condition['boxsize']
+    sim.par.time_code = np.ones(1) * initial_condition['time']
     sim.par.simulation = SimpleNamespace(time_code=sim.par.time_code, box_size=sim.par.boxsize, coordinate_system='spherical')
     sim.par.mesh = SimpleNamespace(grid_cells=sim.par.nogrid, ghost_cells=0)
     sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
 
     sim.mesh.boundary = np.linspace(
-        icparams['rmin'],
-        icparams['rmax'],
+        initial_condition['rmin'],
+        initial_condition['rmax'],
         sim.par.nogrid + 1,
     )
     sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
@@ -72,20 +72,20 @@ def build_initial_condition(config, code_units=None):
         sim.mesh.boundary[1:]**3 - sim.mesh.boundary[:-1]**3
     )
 
-    sim.fluid.rho_code = np.ones(sim.par.nogrid) * icparams['rho0']
-    sim.fluid.temp_code = np.ones(sim.par.nogrid) * icparams['tempini']
-    sim.fluid.mu = np.ones(sim.par.nogrid) * icparams['muini']
+    sim.fluid.rho_code = np.ones(sim.par.nogrid) * initial_condition['rho0']
+    sim.fluid.temp_code = np.ones(sim.par.nogrid) * initial_condition['tempini']
+    sim.fluid.mu = np.ones(sim.par.nogrid) * initial_condition['muini']
     sim.fluid.vel_code = np.zeros(sim.par.nogrid, dtype=float)
 
 
     return sim
 
-def read_code_units(runparams):
-    return CodeUnits.from_mapping(runparams['CodeUnits'])
+def read_code_units(par_config):
+    return CodeUnits.from_mapping(par_config['CodeUnits'])
 
 
-def read_snapshot(filename, runparams):
-    code_units = read_code_units(runparams)
+def read_snapshot(filename, par_config):
+    code_units = read_code_units(par_config)
     result = build_initial_condition(
         {
             'nogrid': 1,
@@ -102,6 +102,5 @@ def read_snapshot(filename, runparams):
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
 
 

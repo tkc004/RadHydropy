@@ -28,11 +28,12 @@ from bertschinger_ode import solve_eq41_self_similar
 DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_reference.yaml')
 
 
-def make_turnaround_shells(icparams, units, cosmology):
+def make_turnaround_shells(config, units, cosmology):
     """Create background interior shells and one tracked shell at ``r_a``."""
     # Isolate the Lagrangian turnaround shell for the pre-crossing benchmark.
-    turnaround_radius = float(icparams.get('pre_crossing_turnaround_radius', 1.0))
-    time = float(icparams['initial_cosmic_time'])
+    initial_condition = config['initial_condition']
+    turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
+    time = float(initial_condition['initial_cosmic_time'])
     scale_factor = float(cosmology.scale_factor(time))
     hubble = float(cosmology.hubble(time))
     background_coefficient = 2.0 / (9.0 * cosmology.gravitational_constant)
@@ -42,28 +43,31 @@ def make_turnaround_shells(icparams, units, cosmology):
                               velocity=np.asarray([-scale_factor * scale_factor * hubble * turnaround_radius]),
                               mass=np.asarray([1.0e-12]),
                               fixed_enclosed_mass=fixed_total_mass,
-                              softening=float(icparams.get('pre_crossing_softening', 1.0e-3)),
+                              softening=float(initial_condition.get('pre_crossing_softening', 1.0e-3)),
                               code_units=units)
     return shells, 0
 def run_pre_crossing(config_filename=DEFAULT_CONFIG):
-    runparams, icparams = example_tools.load_reference_parameters(config_filename)
-    units = example_tools.load_units(runparams)
+    config = example_tools.load_reference_config(config_filename)
+    par_config = config['par']
+    initial_condition = config['initial_condition']
+    example = config['example']
+    units = example_tools.load_units(config)
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runparams['cosmology_t_ref']),
-        a_ref=float(runparams['cosmology_a_ref']),
+        t_ref=float(example['cosmology_t_ref']),
+        a_ref=float(example['cosmology_a_ref']),
     )
-    shells, tracked = make_turnaround_shells(icparams, units, cosmology)
-    initial_time = float(icparams['initial_cosmic_time'])
-    final_xi = float(runparams.get('pre_crossing_final_xi', 0.9))
-    match_lambda = float(runparams.get('pre_crossing_match_lambda', 0.002))
+    shells, tracked = make_turnaround_shells(config, units, cosmology)
+    initial_time = float(initial_condition['initial_cosmic_time'])
+    final_xi = float(example.get('pre_crossing_final_xi', 0.9))
+    match_lambda = float(example.get('pre_crossing_match_lambda', 0.002))
     final_time = initial_time * np.exp(final_xi)
-    timestep = float(runparams.get('pre_crossing_timestep', 2.0e-4))
+    timestep = float(example.get('pre_crossing_timestep', 2.0e-4))
     tau = float(cosmology.supercomoving_time(initial_time))
     final_tau = float(cosmology.supercomoving_time(final_time))
     xi_history = [0.0]
     lambda_history = [1.0]
-    turnaround_radius = float(icparams.get('pre_crossing_turnaround_radius', 1.0))
+    turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
     while tau < final_tau - 1.0e-12:
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
         scale_factor = float(cosmology.scale_factor(cosmic_time))
@@ -80,7 +84,7 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
         next_time = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
         actual_dt = shells.step(
             dt,
-            crossing_safety_factor=float(runparams['crossing_safety_factor']),
+            crossing_safety_factor=float(example['crossing_safety_factor']),
             background_enclosed_mass=background,
             scale_factor=scale_factor,
             scale_factor_end=float(cosmology.scale_factor(next_time)),
@@ -101,12 +105,12 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
             break
     ode = solve_eq41_self_similar(
         xi_end=max(final_xi, 0.9),
-        points=int(runparams['ode_points']),
-        similarity_exponent=float(runparams['ode_similarity_exponent']),
+        points=int(example['ode_points']),
+        similarity_exponent=float(example['ode_similarity_exponent']),
         centre_match_lambda=match_lambda,
-        centre_matching_velocity=float(runparams['ode_centre_matching_velocity']),
+        centre_matching_velocity=float(example['ode_centre_matching_velocity']),
     )
-    figure = Path(runparams['savedir']) / 'BertschingerDarkMatterShellPreCrossingVsODE.jpg'
+    figure = Path(par_config['output']['savedir']) / 'BertschingerDarkMatterShellPreCrossingVsODE.jpg'
     fig, axis = plt.subplots(figsize=(8, 5))
     axis.plot(xi_history, lambda_history, linestyle='None', marker='s',
               markersize=2.5, color='tab:blue', markevery=8,

@@ -7,8 +7,8 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits, _gravitational_constant_code
 
 
-def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+def load_units(par_config):
+    return CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
 
 def volume_midpoint_boundaries(rmin, rmax, number):
@@ -16,23 +16,23 @@ def volume_midpoint_boundaries(rmin, rmax, number):
     return boundaries**(1.0 / 3.0)
 
 
-def make_shells(icparams, code_units, cosmology, overdensity=None):
-    default_number = int(icparams.get('number_of_shells', 2))
-    number_inner = int(icparams.get('number_of_inner_shells', default_number // 2))
-    number_outer = int(icparams.get('number_of_outer_shells', number_inner))
-    rmin = float(icparams['inner_radius'])
-    rmax = float(icparams['outer_radius'])
-    top_hat_radius = float(icparams['top_hat_radius'])
+def make_shells(initial_condition, code_units, cosmology, overdensity=None):
+    default_number = int(initial_condition.get('number_of_shells', 2))
+    number_inner = int(initial_condition.get('number_of_inner_shells', default_number // 2))
+    number_outer = int(initial_condition.get('number_of_outer_shells', number_inner))
+    rmin = float(initial_condition['inner_radius'])
+    rmax = float(initial_condition['outer_radius'])
+    top_hat_radius = float(initial_condition['top_hat_radius'])
     inner_boundaries = volume_midpoint_boundaries(rmin, top_hat_radius, number_inner)
     outer_boundaries = volume_midpoint_boundaries(top_hat_radius, rmax, number_outer)
     boundaries = np.concatenate((inner_boundaries, outer_boundaries[1:]))
     radius = ((boundaries[:-1]**3 + boundaries[1:]**3) / 2.0)**(1.0 / 3.0)
     volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = float(icparams['cosmic_time'])
+    cosmic_time = float(initial_condition['cosmic_time'])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     rho_comoving = float(cosmology.background_density(cosmic_time)) * scale_factor**3
-    delta = float(icparams['overdensity'] if overdensity is None else overdensity)
-    inside = radius < float(icparams['top_hat_radius'])
+    delta = float(initial_condition['overdensity'] if overdensity is None else overdensity)
+    inside = radius < float(initial_condition['top_hat_radius'])
     mass = rho_comoving * volume * (1.0 + delta * inside)
     hubble = float(cosmology.hubble(cosmic_time))
     velocity = np.zeros_like(radius)
@@ -43,7 +43,7 @@ def make_shells(icparams, code_units, cosmology, overdensity=None):
     )
     return DarkMatterShells(
         radius, velocity, mass,
-        softening=float(icparams['softening']),
+        softening=float(initial_condition['softening']),
         code_units=code_units,
     ), boundaries
 

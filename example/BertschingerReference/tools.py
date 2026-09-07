@@ -8,24 +8,16 @@ from radhydropy.units import CodeUnits
 from example import example_utils as eu
 
 
-def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['CodeUnits'])
+def load_units(config):
+    return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 
-def load_reference_parameters(filename):
-    """Return the analytic settings and IC section from nested YAML."""
-    config = eu.load_nested_example_config(filename)
-    par = config['par']
-    settings = dict(config['example'])
-    settings.update({
-        'simname': par['simulation']['name'],
-        'savedir': par['output']['savedir'],
-        'CodeUnits': par['units']['CodeUnits'],
-    })
-    return settings, config['initial_condition']
+def load_reference_config(filename):
+    """Load the complete nested Bertschinger example configuration."""
+    return eu.load_nested_example_config(filename)
 
 
-def make_scale_free_shells(icparams, units, cosmology):
+def make_scale_free_shells(config, units, cosmology):
     """Create the EdS epsilon=1 scale-free radial shell perturbation.
 
     For epsilon=1, Delta M/M is proportional to M^{-1}, hence Delta M is
@@ -33,18 +25,19 @@ def make_scale_free_shells(icparams, units, cosmology):
     shells sample the homogeneous background. This is the standard cold,
     radial secondary-infall construction before shell crossing.
     """
-    number = int(icparams['number_of_shells'])
-    qmin = float(icparams['inner_radius'])
-    qmax = float(icparams['outer_radius'])
+    initial_condition = config['initial_condition']
+    number = int(initial_condition['number_of_shells'])
+    qmin = float(initial_condition['inner_radius'])
+    qmax = float(initial_condition['outer_radius'])
     boundaries = np.linspace(qmin**3, qmax**3, number + 1)**(1.0 / 3.0)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = float(icparams['initial_cosmic_time'])
+    cosmic_time = float(initial_condition['initial_cosmic_time'])
     a = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     rho_comoving = float(cosmology.background_density(cosmic_time)) * a**3
     mass = rho_comoving * volume
-    perturbation_amplitude = float(icparams['perturbation_amplitude'])
+    perturbation_amplitude = float(initial_condition['perturbation_amplitude'])
     delta_mass = 4.0 * np.pi / 3.0 * rho_comoving * perturbation_amplitude
     delta = perturbation_amplitude / radius**3
     velocity = -a**2 * hubble * delta * radius / 3.0
@@ -54,7 +47,7 @@ def make_scale_free_shells(icparams, units, cosmology):
         mass=mass,
         shell_id=np.arange(number),
         fixed_enclosed_mass=delta_mass,
-        softening=float(icparams['softening']),
+        softening=float(initial_condition['softening']),
         code_units=units,
     )
     return shells, delta_mass

@@ -52,23 +52,24 @@ def build_initial_condition(config):
     return result
 
 
-def read_output(filename, runparams):
+def read_output(filename, config):
     """Read one output with the metadata needed by the HDF5 reader."""
-    code_units = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    par_config = config['par']
+    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     result = SimpleNamespace(par=Par(), mesh=Mesh(), fluid=Fluid())
     result.par.CodeUnits = code_units
     result.par.units = SimpleNamespace(CodeUnits=code_units)
     result.par.simulation = SimpleNamespace(coordinate_system='spherical')
     result.par.mesh = SimpleNamespace(
-        grid_cells=int(runparams['mesh']['grid_cells']),
-        ghost_cells=int(runparams['mesh']['ghost_cells']),
+        grid_cells=int(par_config['mesh']['grid_cells']),
+        ghost_cells=int(par_config['mesh']['ghost_cells']),
     )
     result.par.hydrodynamics = SimpleNamespace(
-        gamma=float(runparams['hydrodynamics']['gamma']),
+        gamma=float(par_config['hydrodynamics']['gamma']),
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.fluid.eos = EOS(
-        runparams['hydrodynamics']['eos_type'],
+        par_config['hydrodynamics']['eos_type'],
         result.par.hydrodynamics.gamma,
         code_units,
     )

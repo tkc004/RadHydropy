@@ -33,21 +33,21 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    icparams = config['initial_condition']
+    par_config = config['par']
+    initial_condition = config['initial_condition']
     example = config['example']
-    code_units = et.load_units(runparams)
-    shell = et.make_shell(icparams, code_units)
+    code_units = et.load_units(par_config)
+    shell = et.make_shell(initial_condition, code_units)
     g_code = (
         GRAVITATIONAL_CONSTANT_CGS * code_units.mass_in_cgs
         / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
     )
-    central_mass = float(icparams['central_dark_matter_mass'])
-    gas_density = float(icparams['uniform_gas_density'])
-    softening = float(icparams['softening'])
-    angular_momentum = float(icparams['specific_angular_momentum'])
-    initial_radius = float(icparams['initial_radius'])
-    initial_velocity = float(icparams['initial_velocity'])
+    central_mass = float(initial_condition['central_dark_matter_mass'])
+    gas_density = float(initial_condition['uniform_gas_density'])
+    softening = float(initial_condition['softening'])
+    angular_momentum = float(initial_condition['specific_angular_momentum'])
+    initial_radius = float(initial_condition['initial_radius'])
+    initial_velocity = float(initial_condition['initial_velocity'])
 
     def rhs(time, state):
         radius, velocity = state
@@ -61,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     reference = solve_ivp(
         rhs,
-        (0.0, float(runparams['simulation']['final_time'])),
+        (0.0, float(par_config['simulation']['final_time'])),
         [initial_radius, initial_velocity],
         rtol=1.0e-11,
         atol=1.0e-13,
@@ -107,7 +107,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['output']['savedir']) / 'GasDarkMatterAnalyticOrbit1D.jpg'
+    figure = Path(par_config['output']['savedir']) / 'GasDarkMatterAnalyticOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

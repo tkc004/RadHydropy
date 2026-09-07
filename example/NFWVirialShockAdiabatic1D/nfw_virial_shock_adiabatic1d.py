@@ -39,15 +39,15 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']; icparams = config['initial_condition']
+    par = config['par']; initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     halo = et.nfw_halo_parameters(
-        icparams['halo_mass'],
-        icparams['concentration'],
-        icparams['redshift'],
-        icparams['overdensity'],
-        icparams['h0'],
+        initial_condition['halo_mass'],
+        initial_condition['concentration'],
+        initial_condition['redshift'],
+        initial_condition['overdensity'],
+        initial_condition['h0'],
     )
 
     config['_code_units'] = code_units
@@ -99,7 +99,7 @@ def main(config_filename=DEFAULT_CONFIG):
     virial_velocity = halo['virial_velocity'].to_value(unyt.km / unyt.s)
     virial_temperature = et.virial_temperature(
         halo,
-        icparams['mu'],
+        initial_condition['mu'],
     ).to_value(unyt.K)
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % virial_radius)

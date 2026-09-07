@@ -99,8 +99,8 @@ def _run_case(config, label, density, temperature, table):
         'filename_prefix': f'Output_{label}',
     })
     output_prefix = case['output']['filename_prefix']
-    case_icparams = dict(initial_condition)
-    case_icparams.update({
+    case_initial_condition = dict(initial_condition)
+    case_initial_condition.update({
         'hydrogen_density_cgs_cm3': density,
         'temperature_unyt': temperature * unyt.K,
     })
@@ -109,7 +109,7 @@ def _run_case(config, label, density, temperature, table):
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
     case_config = {
         'par': case,
-        'initial_condition': case_icparams,
+        'initial_condition': case_initial_condition,
         'example': config['example'],
         '_code_units': code_units,
     }

@@ -40,18 +40,18 @@ def effective_potential(radius, mass, angular_momentum, softening, g_code):
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     code_units = et.load_units(runtime)
-    shell = et.make_shell(icparams, code_units)
+    shell = et.make_shell(initial_condition, code_units)
     g_code = (
         6.67430e-8 * code_units.mass_in_cgs
         / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
     )
-    central_mass = float(icparams['central_mass'])
-    softening = float(icparams['softening'])
-    angular_momentum = float(icparams['specific_angular_momentum'])
-    initial_radius = float(icparams['initial_radius'])
-    initial_velocity = float(icparams['initial_velocity'])
+    central_mass = float(initial_condition['central_mass'])
+    softening = float(initial_condition['softening'])
+    angular_momentum = float(initial_condition['specific_angular_momentum'])
+    initial_radius = float(initial_condition['initial_radius'])
+    initial_velocity = float(initial_condition['initial_velocity'])
     energy = 0.5 * initial_velocity**2 + effective_potential(
         initial_radius, central_mass, angular_momentum, softening, g_code
     )
@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
     time = 0.0
     while time < reference.t[-1]:
         dt = min(
-            float(runparams['output_interval']) / 4.0,
+            float(par_config['output_interval']) / 4.0,
             reference.t[-1] - time,
         )
         time += shell.step(dt)
@@ -119,7 +119,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runparams['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
+    figure = Path(par_config['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

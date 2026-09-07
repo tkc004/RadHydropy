@@ -34,22 +34,21 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    ICparams = config['initial_condition']
+    par_config = config['par']
     exampleparams = config['example']
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
-    mainrun = Rsim(runparams)
+    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
+    mainrun = Rsim(par_config)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
     for outindex in exampleparams['output_indices']:
         outfilename = os.path.join(
-            runparams['output']['directory'],
-            runparams['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
+            par_config['output']['directory'],
+            par_config['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
         )
         et.ReadandPlot(
             outfilename,
@@ -61,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
             color=next(ax._get_lines.prop_cycler)['color'],
         )
     figure_filename = os.path.join(
-        runparams['output']['directory'], exampleparams['plot']['filename']
+        par_config['output']['directory'], exampleparams['plot']['filename']
     )
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
@@ -71,12 +70,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run the spherical advection example.')
-    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with runparams and ICparams.')
+    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with nested runtime and initial-condition settings.')
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-
 

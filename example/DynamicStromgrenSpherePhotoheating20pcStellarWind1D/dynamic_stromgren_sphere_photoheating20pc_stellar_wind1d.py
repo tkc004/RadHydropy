@@ -223,7 +223,7 @@ def parse_args():
         default=Path(__file__).resolve().with_name(
             'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
         ),
-        help='YAML file containing runparams and ICparams.',
+        help='YAML file containing par_config and initial_condition.',
     )
     return parser.parse_args()
 

@@ -40,17 +40,17 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     par = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     halo = et.nfw_halo_parameters(
-        icparams['halo_mass'],
-        icparams['concentration'],
-        icparams['redshift'],
-        icparams['overdensity'],
-        icparams['h0'],
+        initial_condition['halo_mass'],
+        initial_condition['concentration'],
+        initial_condition['redshift'],
+        initial_condition['overdensity'],
+        initial_condition['h0'],
     )
-    temperature = et.virial_temperature(halo, icparams['mu'])
+    temperature = et.virial_temperature(halo, initial_condition['mu'])
 
     config['_code_units'] = code_units
     initial_condition = et.build_initial_condition(config)

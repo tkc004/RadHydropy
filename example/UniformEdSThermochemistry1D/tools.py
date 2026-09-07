@@ -12,15 +12,17 @@ from radhydropy.units import quantity_to_value
 class UniformEdSInitialCondition:
     """Build a few-cell uniform supercomoving initial condition."""
 
-    def __init__(self, icparams, mesh_config, units, cosmology):
+    def __init__(self, config, units, cosmology):
+        initial_condition = config["initial_condition"]
+        mesh_config = config["par"]["mesh"]
         self.par = SimpleNamespace()
         self.mesh = SimpleNamespace()
         self.fluid = SimpleNamespace()
 
         count = int(mesh_config["grid_cells"])
-        rmin = quantity_to_value(icparams["inner_radius"], units.length_unit)
-        rmax = quantity_to_value(icparams["outer_radius"], units.length_unit)
-        initial_time = float(icparams["initial_cosmic_time"])
+        rmin = quantity_to_value(initial_condition["inner_radius"], units.length_unit)
+        rmax = quantity_to_value(initial_condition["outer_radius"], units.length_unit)
+        initial_time = float(initial_condition["initial_cosmic_time"])
 
         self.par.CodeUnits = units
         self.par.units = SimpleNamespace(CodeUnits=units)
@@ -61,13 +63,13 @@ class UniformEdSInitialCondition:
         self.mesh.area = 4.0 * np.pi * self.mesh.boundary[:-1] ** 2
         self.mesh.vol = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary ** 3)
 
-        nH = float(icparams["hydrogen_density_cgs_cm3"])
-        hydrogen_fraction = float(icparams["hydrogen_mass_fraction"])
+        nH = float(initial_condition["hydrogen_density_cgs_cm3"])
+        hydrogen_fraction = float(initial_condition["hydrogen_mass_fraction"])
         rho_physical = nH * PROTON_MASS_CGS / hydrogen_fraction
         rho_code = rho_physical / float(units.density_unit.to_value("g/cm**3"))
 
-        temperature = float(icparams["temperature_cgs_K"])
-        xHI = float(icparams["xHI"])
+        temperature = float(initial_condition["temperature_cgs_K"])
+        xHI = float(initial_condition["xHI"])
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))
 
         self.fluid.rho_code = np.full(count, rho_code)

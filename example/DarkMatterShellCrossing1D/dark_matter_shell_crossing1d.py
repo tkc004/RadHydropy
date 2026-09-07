@@ -32,11 +32,11 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     timestep = runtime['timestep']
     output = runtime['output']
     code_units = et.load_units(runtime)
-    shells = et.make_shells(icparams, code_units)
+    shells = et.make_shells(initial_condition, code_units)
     time = 0.0
     history_time = [time]
     history_radius = [shells.radius.copy()]
@@ -68,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('dark-matter shell radii became non-finite')
     if not np.all(np.diff(history_radius, axis=1) >= 0.0):
         raise RuntimeError('dark-matter shells are not sorted after evolution')
-    if not np.isclose(np.sum(shells.mass), float(icparams['total_mass'])):
+    if not np.isclose(np.sum(shells.mass), float(initial_condition['total_mass'])):
         raise RuntimeError('dark-matter shell mass was not conserved')
 
     radius_unit = code_units.length_unit

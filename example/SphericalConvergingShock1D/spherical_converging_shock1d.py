@@ -78,20 +78,19 @@ def _read_profile(filename, units):
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
-    icparams = config['initial_condition']
+    par_config = config['par']
     if riemann_solver is not None:
-        runparams["hydrodynamics"]["riemann_solver"] = riemann_solver
+        par_config["hydrodynamics"]["riemann_solver"] = riemann_solver
     if dual_energy is not None:
-        runparams["hydrodynamics"]["dual_energy"] = dual_energy
-    output = runparams['output']
+        par_config["hydrodynamics"]["dual_energy"] = dual_energy
+    output = par_config['output']
     eu.clean_previous_outputs(config)
-    units = CodeUnits.from_mapping(runparams["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
     config['_code_units'] = units
     initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, runparams["simulation"]["initial_condition_filename"])
+    rio.writehdf5(initial, par_config["simulation"]["initial_condition_filename"])
 
-    sim = Rsim(runparams)
+    sim = Rsim(par_config)
     sim.RunAll(outputtime=0)
     outputs = sorted(Path(output["directory"]).glob("Output_*.hdf5"))
     if len(outputs) < 2:

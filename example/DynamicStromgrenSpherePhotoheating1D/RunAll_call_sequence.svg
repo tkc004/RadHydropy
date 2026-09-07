@@ -31,7 +31,7 @@
   <path class="arrow" d="M 800 212 L 800 248"/>
 
   <rect class="box" x="190" y="250" width="1220" height="82"/>
-  <text class="step" x="220" y="284">2. Rsim(runparams)</text>
+  <text class="step" x="220" y="284">2. Rsim(par_config)</text>
   <text class="body" x="220" y="310">Build Par, Mesh, Fluid, Solver, and EOS objects.</text>
 
   <path class="arrow" d="M 800 332 L 800 368"/>

@@ -35,16 +35,16 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runparams = config['par']
+    par_config = config['par']
     exampleparams = config['example']
-    output = runparams['output']
+    output = par_config['output']
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, runparams['simulation']['initial_condition_filename'])
-    mainrun = Rsim(runparams)
+    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
+    mainrun = Rsim(par_config)
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
     for outindex in exampleparams['output_indices']:
@@ -71,12 +71,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run the 1D Sedov-Taylor example.')
-    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with runparams and ICparams.')
+    parser.add_argument('--config', default=DEFAULT_CONFIG, help='YAML file with par_config and initial_condition.')
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-
 

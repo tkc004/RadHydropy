@@ -47,7 +47,7 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     cosmology = config['_cosmology']
     sim = SimpleNamespace()
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     sim.par = Par()
     sim.mesh = Mesh()
@@ -59,11 +59,11 @@ def build_initial_condition(config):
     sim.par.coordsys = 'spherical'
     sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
     sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
-    sim.par.boxsize = np.ones(1) * icparams['boxsize']
-    cosmic_time = float(icparams['cosmic_time'])
+    sim.par.boxsize = np.ones(1) * initial_condition['boxsize']
+    cosmic_time = float(initial_condition['cosmic_time'])
     sim.par.simulation = SimpleNamespace(
         time_code=np.ones(1) * cosmology.supercomoving_time(cosmic_time),
-        box_size=np.ones(1) * icparams['boxsize'],
+        box_size=np.ones(1) * initial_condition['boxsize'],
         coordinate_system='spherical',
     )
     sim.par.time_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
@@ -84,7 +84,7 @@ def build_initial_condition(config):
     sim.par.temperature_representation = 'supercomoving'
 
     sim.mesh.boundary = np.linspace(
-        icparams['rmin'], icparams['rmax'], sim.par.nogrid + 1,
+        initial_condition['rmin'], initial_condition['rmax'], sim.par.nogrid + 1,
     )
     sim.mesh.coordinate = spherical_cell_centers(sim.mesh.boundary)
     sim.mesh.area = 4.0 * np.pi * sim.mesh.boundary[:-1]**2
@@ -94,16 +94,16 @@ def build_initial_condition(config):
 
     background = cosmology.background_density(cosmic_time)
     background_comoving = background * cosmology.scale_factor(cosmic_time)**3
-    inside = sim.mesh.coordinate < float(icparams['top_hat_radius'])
+    inside = sim.mesh.coordinate < float(initial_condition['top_hat_radius'])
     sim.fluid.rho_code = background_comoving * (
-        1.0 + float(icparams['overdensity']) * inside
+        1.0 + float(initial_condition['overdensity']) * inside
     ) * np.ones(sim.par.nogrid)
     gamma = 5.0 / 3.0
     temperature = quantity_to_value(
-        icparams['tempini'], code_units.temperature_unit
+        initial_condition['tempini'], code_units.temperature_unit
     )
     sim.fluid.temp_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(sim.par.nogrid)
-    sim.fluid.mu = np.ones(sim.par.nogrid) * float(icparams['muini'])
+    sim.fluid.mu = np.ones(sim.par.nogrid) * float(initial_condition['muini'])
     sim.fluid.vel_code = np.zeros(sim.par.nogrid)
     sim.mesh.boundary_comoving_code = sim.mesh.boundary
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
@@ -127,12 +127,12 @@ def build_initial_condition(config):
 
     return sim
 
-def read_code_units(runparams):
-    return CodeUnits.from_mapping(runparams['CodeUnits'])
+def read_code_units(par_config):
+    return CodeUnits.from_mapping(par_config['CodeUnits'])
 
 
-def read_snapshot(filename, runparams):
-    code_units = read_code_units(runparams)
+def read_snapshot(filename, par_config):
+    code_units = read_code_units(par_config)
     cosmology = EinsteinDeSitter.from_code_units(code_units)
     result = build_initial_condition({
         'par': {'mesh': {'grid_cells': 1}},
@@ -148,6 +148,5 @@ def read_snapshot(filename, runparams):
     })
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result
-
 
 

@@ -37,7 +37,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
     runtime = nested['par']
-    ICparams = nested['initial_condition']
+    initial_condition = nested['initial_condition']
     eu.clean_previous_outputs(nested)
     code_units_obj = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
@@ -53,7 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         acceleration=et.point_mass_acceleration(
-            ICparams['point_mass'],
+            initial_condition['point_mass'],
             code_units=code_units_obj,
         ),
         code_units=code_units_obj,
@@ -90,7 +90,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file with runparams and ICparams.',
+        help='YAML file with par_config and initial_condition.',
     )
     return parser.parse_args()
 

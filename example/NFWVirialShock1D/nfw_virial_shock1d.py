@@ -37,15 +37,15 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('nfw_virial_shock1d.yaml')
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']; icparams = config['initial_condition']
+    par = config['par']; initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     halo = et.NFW.nfw_halo_parameters(
-        icparams['halo_mass'],
-        icparams['concentration'],
-        icparams['redshift'],
-        icparams['overdensity'],
-        icparams['h0'],
+        initial_condition['halo_mass'],
+        initial_condition['concentration'],
+        initial_condition['redshift'],
+        initial_condition['overdensity'],
+        initial_condition['h0'],
     )
     config['_code_units'] = code_units
     initial_condition = et.build_initial_condition(config)
@@ -92,7 +92,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.write_rankine_hugoniot_report(rh_rows, rh_filename)
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
-    print('Tvir = %.6g K' % et.NFW.virial_temperature(halo, icparams['mu']).to_value(unyt.K))
+    print('Tvir = %.6g K' % et.NFW.virial_temperature(halo, initial_condition['mu']).to_value(unyt.K))
     print('snapshots = %d' % len(output_files))
     print('Rankine-Hugoniot checks = %d' % len(rh_rows))
     for row in rh_rows:
@@ -115,4 +115,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

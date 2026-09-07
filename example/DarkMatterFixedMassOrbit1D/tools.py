@@ -4,17 +4,17 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits
 
 
-def load_units(runparams):
-    return CodeUnits.from_mapping(runparams['units']['CodeUnits'])
+def load_units(par_config):
+    return CodeUnits.from_mapping(par_config['units']['CodeUnits'])
 
 
-def make_shell(icparams, code_units):
+def make_shell(initial_condition, code_units):
     return DarkMatterShells(
-        radius=[icparams['initial_radius']],
-        velocity=[icparams['initial_velocity']],
-        mass=[icparams['shell_mass']],
-        angular_momentum=[icparams['specific_angular_momentum']],
-        softening=icparams['softening'],
-        fixed_enclosed_mass=icparams['central_mass'],
+        radius=[initial_condition['initial_radius']],
+        velocity=[initial_condition['initial_velocity']],
+        mass=[initial_condition['shell_mass']],
+        angular_momentum=[initial_condition['specific_angular_momentum']],
+        softening=initial_condition['softening'],
+        fixed_enclosed_mass=initial_condition['central_mass'],
         code_units=code_units,
     )

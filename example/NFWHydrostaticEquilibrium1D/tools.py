@@ -113,30 +113,30 @@ def hydrostatic_density_profile(
 
 
 def build_initial_condition(config):
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    box_size = icparams['boxsize'] if 'boxsize' in icparams else icparams['box_size']
-    time_value = icparams['time'] if 'time' in icparams else icparams['current_time']
-    radius_min = icparams['rmin'] if 'rmin' in icparams else icparams['inner_radius']
-    radius_max = icparams['rmax'] if 'rmax' in icparams else icparams['outer_radius']
+    box_size = initial_condition['boxsize'] if 'boxsize' in initial_condition else initial_condition['box_size']
+    time_value = initial_condition['time'] if 'time' in initial_condition else initial_condition['current_time']
+    radius_min = initial_condition['rmin'] if 'rmin' in initial_condition else initial_condition['inner_radius']
+    radius_max = initial_condition['rmax'] if 'rmax' in initial_condition else initial_condition['outer_radius']
     boundary_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * (radius_max - radius_min) + radius_min
     coordinate_unyt = spherical_cell_centers(boundary_unyt)
     halo = nfw_halo_parameters(
-        icparams['halo_mass'],
-        icparams['concentration'],
-        icparams['redshift'],
-        icparams['overdensity'],
-        icparams['h0'],
+        initial_condition['halo_mass'],
+        initial_condition['concentration'],
+        initial_condition['redshift'],
+        initial_condition['overdensity'],
+        initial_condition['h0'],
     )
-    temperature = virial_temperature(halo, icparams['mu'])
+    temperature = virial_temperature(halo, initial_condition['mu'])
     density_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
         coordinate_unyt,
         boundary_unyt,
         halo,
         temperature,
-        icparams['mu'],
-        icparams['gas_fraction'],
+        initial_condition['mu'],
+        initial_condition['gas_fraction'],
     )
     return make_initial_condition(
         config,
@@ -144,12 +144,12 @@ def build_initial_condition(config):
         rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
         vel_proper_code=np.zeros(grid_cells),
         temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
-        mu_dimensionless=np.full(grid_cells, icparams['mu']),
+        mu_dimensionless=np.full(grid_cells, initial_condition['mu']),
     )
 
 def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     """Read the evolved snapshot and plot its NFW hydrostatic residuals."""
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     par = config['par']
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     config['_code_units'] = code_units
@@ -172,8 +172,8 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
         boundary_cgs,
         halo,
         temperature,
-        icparams['mu'],
-        icparams['gas_fraction'],
+        initial_condition['mu'],
+        initial_condition['gas_fraction'],
     )[first:last]
     radius_kpc = quantity_to_value(radius, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
     rho_cgs = code_quantity_to_cgs(rho_code, code_units, 'density_cgs_g_cm3')

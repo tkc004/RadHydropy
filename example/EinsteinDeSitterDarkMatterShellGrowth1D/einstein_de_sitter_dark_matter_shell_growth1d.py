@@ -28,7 +28,7 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_dark_matter_shell_
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     units = et.load_units(runtime)
     gravity = runtime['gravity']
     timestep = runtime['timestep']
@@ -39,10 +39,10 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     # First verify that the discretized homogeneous background has no peculiar force.
-    homogeneous, _ = et.make_shells(icparams, units, cosmology, overdensity=0.0)
-    tau = cosmology.supercomoving_time(float(icparams['cosmic_time']))
+    homogeneous, _ = et.make_shells(initial_condition, units, cosmology, overdensity=0.0)
+    tau = cosmology.supercomoving_time(float(initial_condition['cosmic_time']))
     a_initial = float(cosmology.scale_factor_from_supercomoving(tau))
-    rho_comoving = float(cosmology.background_density(float(icparams['cosmic_time']))) * a_initial**3
+    rho_comoving = float(cosmology.background_density(float(initial_condition['cosmic_time']))) * a_initial**3
     background_mass = 4.0 * np.pi / 3.0 * rho_comoving * homogeneous.radius**3
     homogeneous_acceleration = homogeneous.acceleration(
         background_enclosed_mass=background_mass,
@@ -53,14 +53,14 @@ def main(config_filename=DEFAULT_CONFIG):
     if homogeneous_error > float(example['homogeneous_acceleration_tolerance']):
         raise RuntimeError('homogeneous shell acceleration %.6g is nonzero' % homogeneous_error)
 
-    shells, boundaries = et.make_shells(icparams, units, cosmology)
-    top_hat_radius = float(icparams['top_hat_radius'])
+    shells, boundaries = et.make_shells(initial_condition, units, cosmology)
+    top_hat_radius = float(initial_condition['top_hat_radius'])
     inside = shells.radius < top_hat_radius
     target_mass = float(np.sum(shells.mass[inside]))
     # The top-hat is an exact equal-volume boundary, so this is the actual
     # discretized initial perturbation used by the shell masses.
     lagrangian_radius = top_hat_radius
-    lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(float(icparams['cosmic_time']))) * float(icparams['overdensity']) * lagrangian_radius / 3.0
+    lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(float(initial_condition['cosmic_time']))) * float(initial_condition['overdensity']) * lagrangian_radius / 3.0
     initial_delta = et.overdensity_inside(lagrangian_radius, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]

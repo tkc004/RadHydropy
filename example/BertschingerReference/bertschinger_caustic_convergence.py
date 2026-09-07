@@ -27,40 +27,42 @@ CASES = {
 }
 
 
-def _config(runparams, icparams, filename):
-    example = {key: value for key, value in runparams.items()
-               if key not in {'simname', 'savedir', 'CodeUnits'}}
+def _config(par_config, initial_condition, example, filename):
     with filename.open('w') as handle:
-        yaml.safe_dump({'par': {'simulation': {'name': runparams['simname']},
-                                'output': {'directory': '.', 'savedir': runparams['savedir']},
-                                'units': {'CodeUnits': runparams['CodeUnits']}},
-                        'initial_condition': icparams, 'example': example}, handle,
+        yaml.safe_dump({'par': {'simulation': {'name': par_config['simulation']['name']},
+                                'output': {'directory': '.', 'savedir': par_config['output']['savedir']},
+                                'units': {'CodeUnits': par_config['units']['CodeUnits']}},
+                        'initial_condition': initial_condition, 'example': example}, handle,
                        sort_keys=False)
 
 
 def main():
-    base_runparams, base_icparams = example_tools.load_reference_parameters(CONFIG)
+    base_config = example_tools.load_reference_config(CONFIG)
+    base_par_config = base_config['par']
+    base_initial_condition = base_config['initial_condition']
+    base_example = base_config['example']
     OUTPUT.mkdir(parents=True, exist_ok=True)
     rows = []
     with tempfile.TemporaryDirectory(prefix='radhydropy-caustic-') as temp:
         temp = Path(temp)
         for parameter, values in CASES.items():
             for value in values:
-                runparams = deepcopy(base_runparams)
-                icparams = deepcopy(base_icparams)
+                par_config = deepcopy(base_par_config)
+                initial_condition = deepcopy(base_initial_condition)
+                example = deepcopy(base_example)
                 if parameter == 'shells':
-                    icparams['number_of_shells'] = value
+                    initial_condition['number_of_shells'] = value
                 elif parameter == 'smoothing':
-                    runparams['caustic_smoothing_bins'] = value
+                    example['caustic_smoothing_bins'] = value
                 else:
-                    icparams[parameter] = value
+                    initial_condition[parameter] = value
                 label = '%s_%s' % (parameter, str(value).replace('.', 'p'))
-                runparams['savedir'] = str(OUTPUT / label)
-                Path(runparams['savedir']).mkdir(parents=True, exist_ok=True)
+                par_config['output']['savedir'] = str(OUTPUT / label)
+                Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
                 config = temp / (label + '.yaml')
-                _config(runparams, icparams, config)
+                _config(par_config, initial_condition, example, config)
                 run_comparison(config)
-                data = np.load(Path(runparams['savedir']) /
+                data = np.load(Path(par_config['output']['savedir']) /
                                 'BertschingerDarkMatterCaustic.npz')
                 selected = data['lambda_caustic'][data['xi'] >= 3.0]
                 rows.append((parameter, float(value), selected.size,

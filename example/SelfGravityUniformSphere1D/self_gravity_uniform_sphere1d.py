@@ -38,7 +38,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
-    icparams = config['initial_condition']
+    initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
 
@@ -65,7 +65,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = sim.mesh.coordinate[interior]
-    rho0 = icparams['rho0']
+    rho0 = initial_condition['rho0']
     radius_quantity = np.asarray(radius, dtype=float) * sim.par.CodeUnits.length_unit
     analytic = et.uniform_sphere_acceleration(radius_quantity, rho0)
     numerical_cgs = quantity_to_value(
@@ -127,5 +127,4 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-
 
