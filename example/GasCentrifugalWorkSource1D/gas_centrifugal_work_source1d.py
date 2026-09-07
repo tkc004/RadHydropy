@@ -19,7 +19,7 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
@@ -28,10 +28,10 @@ import example_utils as eu
 CONFIG = ROOT / 'gas_centrifugal_work_source1d.yaml'
 
 def prepare_initial_condition(initial):
-    boundary = np.asarray(initial.mesh.boundary, dtype=float)
+    boundary = np.asarray(initial.mesh.boundary_proper_code, dtype=float)
     initial.mesh.boundary_proper_code = boundary
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.coordinate,
+        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.x_proper_code,
         boundary=boundary, width=np.diff(boundary),
         area=4.0 * np.pi * boundary[:-1]**2,
         volume=4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3),
@@ -70,11 +70,16 @@ class InitialCondition(Rsim):
 
 def run_simulation(par, initial_condition, example_config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    radius = float(initial_condition['radius'])
+    radius = quantity_to_value(initial_condition['radius'], units.length_unit)
     initial = InitialCondition(
-        par, radius, float(initial_condition['density']), float(initial_condition['radial_velocity']),
-        float(example_config['temperature']),
-        float(initial_condition['specific_angular_momentum']), units,
+        par, radius,
+        quantity_to_value(initial_condition['density'], units.density_unit),
+        quantity_to_value(initial_condition['radial_velocity'], units.velocity_unit),
+        quantity_to_value(example_config['temperature'], units.temperature_unit),
+        quantity_to_value(
+            initial_condition['specific_angular_momentum'],
+            units.length_unit * units.velocity_unit,
+        ), units,
     )
     prepare_initial_condition(initial)
     prepare_initial_condition(initial)
@@ -94,10 +99,11 @@ def run_simulation(par, initial_condition, example_config):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    initial_mass = float(sim.fluid.Mass_code[sim.par.noghost])
-    initial_momentum = float(sim.fluid.Mom_code[sim.par.noghost])
-    initial_energy = float(sim.fluid.Energy_code[sim.par.noghost])
-    initial_internal = float(sim.fluid.InternalEnergy_code[sim.par.noghost])
+    first = int(sim.par.mesh.ghost_cells)
+    initial_mass = float(sim.fluid.Mass_code[first])
+    initial_momentum = float(sim.fluid.Mom_code[first])
+    initial_energy = float(sim.fluid.Energy_code[first])
+    initial_internal = float(sim.fluid.InternalEnergy_code[first])
     source_times = [0.0]
     source_momenta = [initial_momentum]
     source_energies = [initial_energy]
@@ -105,8 +111,8 @@ def run_simulation(par, initial_condition, example_config):
 
     def record_source_state(dt):
         source_times.append(float(sim.fluid.time_proper_code))
-        source_momenta.append(float(sim.fluid.Mom_code[sim.par.noghost]))
-        source_energies.append(float(sim.fluid.Energy_code[sim.par.noghost]))
+        source_momenta.append(float(sim.fluid.Mom_code[first]))
+        source_energies.append(float(sim.fluid.Energy_code[first]))
         source_works.append(source_works[-1] + sim.solver.last_centrifugal_work)
 
     source_backend.record_source_state = record_source_state
@@ -130,14 +136,19 @@ def run_simulation(par, initial_condition, example_config):
 def main(config_filename=CONFIG):
     config = eu.load_nested_example_config(config_filename)
     par = config['par']
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial_condition = config['initial_condition']
     example_config = config['example']
     (sim, saved, mass, initial_momentum, initial_energy,
      initial_internal, source_times, source_momenta, source_energies,
      source_works) = run_simulation(par, initial_condition, example_config)
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
-    j = float(initial_condition['specific_angular_momentum'])
-    radius = float(sim.mesh.x_proper_code[sim.par.noghost])
+    first = int(sim.par.mesh.ghost_cells)
+    active = slice(first, first + int(sim.par.mesh.grid_cells))
+    j = quantity_to_value(
+        initial_condition['specific_angular_momentum'],
+        units.length_unit * units.velocity_unit,
+    )
+    radius = float(sim.mesh.x_proper_code[first])
     acceleration = j**2 / radius**3
     # The generic HDF5 header stores the initial IC time for this non-cosmology
     # source driver; use the live Rsim clock for the exact source interval.

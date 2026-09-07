@@ -24,11 +24,12 @@ def build_initial_condition(config):
     initial_condition = config["initial_condition"]
     code_cosmology = config["_code_cosmology"]
     result = Rsim(config["par"])
+    code_units = result.par.units.CodeUnits
     grid_cells = int(par["mesh"]["grid_cells"])
     boxsize_code = float(
         initial_condition.get(
             "boxsize", par["simulation"].get("box_size", 1.0)
-        ).to_value(result.par.CodeUnits.length_unit)
+        ).to_value(code_units.length_unit)
         if hasattr(
             initial_condition.get(
                 "boxsize", par["simulation"].get("box_size", 1.0)
@@ -36,11 +37,11 @@ def build_initial_condition(config):
             "to_value",
         )
         else initial_condition.get(
-            "boxsize", par_config["simulation"].get("box_size", 1.0)
+            "boxsize", par["simulation"].get("box_size", 1.0)
         )
     )
     initial_time_code = float(
-        initial_condition.get("time", 0.0).to_value(result.par.CodeUnits.time_unit)
+        initial_condition.get("time", 0.0).to_value(code_units.time_unit)
         if hasattr(initial_condition.get("time", 0.0), "to_value")
         else initial_condition.get("time", 0.0)
     )
@@ -147,7 +148,7 @@ def build_initial_condition(config):
     result.fluid.eos = EOS(
         result.par.hydrodynamics.eos_type,
         result.par.hydrodynamics.gamma,
-        result.par.CodeUnits,
+        code_units,
     )
     pre_supercomoving_code = result.fluid.eos.pressure(
         rho_comoving_code, temp_supercomoving_code, mu

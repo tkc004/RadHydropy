@@ -458,7 +458,7 @@ class Testing(unittest.TestCase):
             config['example']['shell_edge_density_threshold_factor'],
             1.0,
         )
-        self.assertEqual(par_config['hydrodynamics']['order'], 1)
+        self.assertEqual(par_config['hydrodynamics']['order'], 0)
         self.assertEqual(par_config['mesh']['grid_cells'], 1024)
         self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 25.0)
         self.assertEqual(initial_condition['injection_radius'].to_value(unyt.pc), 0.05)

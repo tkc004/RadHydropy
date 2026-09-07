@@ -10,7 +10,7 @@ par:
     eos_type: polytropic
     gamma: 1.6666666666666667
     CFL: 0.1
-    order: 1
+    order: 0
     dual_energy: true
   boundary:
     condition: OutflowSph

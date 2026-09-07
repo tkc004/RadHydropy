@@ -14,7 +14,7 @@ import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 
 
@@ -23,17 +23,27 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     par_config = config['par']
     units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     cosmology = EinsteinDeSitter.from_code_units(units)
-    t0 = float(par_config['simulation']['initial_time'])
-    t1 = float(par_config['simulation']['final_time'])
+    t0 = quantity_to_value(
+        par_config['simulation']['initial_time'], units.time_unit
+    )
+    t1 = quantity_to_value(
+        par_config['simulation']['final_time'], units.time_unit
+    )
     initial_condition = config['initial_condition']
     tau0 = cosmology.supercomoving_time(t0)
     sim = Rsim(par_config)
     sim.par.tau_supercomoving_code = tau0
     sim.par.simulation.tau_supercomoving_code = tau0
     sim.fluid.tau_supercomoving_code = tau0
-    sim.fluid.rho_comoving_code = np.array([initial_condition['density']])
-    sim.fluid.vel_supercomoving_code = np.array([initial_condition['velocity']])
-    sim.fluid.pre_supercomoving_code = np.array([initial_condition['pressure']])
+    sim.fluid.rho_comoving_code = np.array([
+        quantity_to_value(initial_condition['density'], units.density_unit)
+    ])
+    sim.fluid.vel_supercomoving_code = np.array([
+        quantity_to_value(initial_condition['velocity'], units.velocity_unit)
+    ])
+    sim.fluid.pre_supercomoving_code = np.array([
+        quantity_to_value(initial_condition['pressure'], units.pressure_unit)
+    ])
     fluid = sim.fluid
     initial = (
         fluid.rho_comoving_code.copy(),
