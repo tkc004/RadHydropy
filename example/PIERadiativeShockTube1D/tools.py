@@ -20,7 +20,7 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     par = config['par']
     code_units = config['_code_units']
-    result = Rsim(par)
+    result = Rsim(config["par"])
     result.par.simulation.coordinate_system = initial['coordinate_system']
     result.par.simulation.time_proper_code = quantity_to_value(initial['current_time'], code_units.time_unit)
     result.par.simulation.box_size = quantity_to_value(initial['box_size'], code_units.length_unit)

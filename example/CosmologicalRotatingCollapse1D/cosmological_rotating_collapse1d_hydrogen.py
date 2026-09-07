@@ -108,7 +108,7 @@ def main(output_root=None):
     initial = build_initial_condition(initial_config)
     rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
     sim = Rsim(runtime)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)

@@ -67,7 +67,7 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
         'mean_molecular_weight',
     }
     sim = Rsim(case)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
     sim.SetFluid()

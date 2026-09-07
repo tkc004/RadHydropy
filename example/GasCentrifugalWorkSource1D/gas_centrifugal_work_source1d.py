@@ -86,7 +86,7 @@ def run_simulation(par, initial_condition, example_config):
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)
-    sim = Rsim(par)
+    sim = Rsim(config["par"])
 
     def source_backend(dt, mode='sources', **kwargs):
         sim.solver.ApplyGravity(dt, sim.mesh, sim.fluid, sim.par)

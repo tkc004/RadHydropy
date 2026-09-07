@@ -58,8 +58,8 @@ def main(config_filename=DEFAULT_CONFIG):
         'initial_temperature', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
-    sim = Rsim(par)
-    sim.Callreadhdf5()
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = MetalPIETable(
         par['thermochemistry']['metal_pie_table_filename']
     )

@@ -102,7 +102,7 @@ def _run_case(
     rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
 
     sim = Rsim(case_params)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

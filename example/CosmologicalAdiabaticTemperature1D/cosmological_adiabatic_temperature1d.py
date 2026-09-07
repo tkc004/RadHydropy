@@ -110,7 +110,7 @@ def run():
         )
         par_config["output"]["cadence"] = (final_tau - initial_tau) * units.time_unit
         sim = Rsim(par_config)
-        sim.Callreadhdf5()
+        rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
         sim.SetMesh()
         sim.SetFluid()
         sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)

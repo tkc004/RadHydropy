@@ -991,8 +991,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     local["simulation"]["initial_condition_filename"] = str(ic_filename)
     local["output"]["directory"] = str(output_dir)
     local["output"]["savedir"] = str(output_dir)
-    sim = Rsim(local)
-    sim.Callreadhdf5()
+    config = dict(config)
+    config["par"] = local
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

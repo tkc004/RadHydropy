@@ -20,7 +20,7 @@ def build_initial_condition(config):
     temp = np.zeros(n); volume = np.full(n, quantity_to_value(par["mesh"]["area"], units.area_unit) * np.diff(boundary)); cut = 1
     energy = quantity_to_value(ic["explosion_energy"], units.energy_unit)
     pressure = (par["hydrodynamics"]["gamma"]-1) * energy / volume[cut]
-    probe = Rsim(par).fluid.eos.temperature(rho[cut], pressure, mu[cut])
+    probe = Rsim(config["par"]).fluid.eos.temperature(rho[cut], pressure, mu[cut])
     temp[cut] = float(np.asarray(probe))
     return make_initial_condition(config, boundary_proper_code=boundary, rho_proper_code=rho, vel_proper_code=np.zeros(n), temp_proper_code=temp, mu_dimensionless=mu, area_proper_code=np.full(n, quantity_to_value(par["mesh"]["area"], units.area_unit)))
 

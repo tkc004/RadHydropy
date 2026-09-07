@@ -107,7 +107,7 @@ def build_initial_condition(config):
 def read_output(filename, config):
     par = config['par']
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    result = Rsim(par)
+    result = Rsim(config["par"])
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.mesh.coordinate = spherical_cell_centers(result.mesh.boundary)
     result.fluid.eos = EOS(

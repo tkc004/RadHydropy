@@ -260,8 +260,8 @@ def run_case(base_par, initial_condition, label, rotation_factor, units, cosmolo
     }
     initial = build_initial_condition(case_config)
     rio.writehdf5(initial, par["simulation"]["initial_condition_filename"])
-    sim = Rsim(par)
-    sim.Callreadhdf5()
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)

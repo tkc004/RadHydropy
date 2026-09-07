@@ -99,7 +99,7 @@ def _run_stage(config, halo, mode, restart=False):
     eu.clean_previous_outputs(stage_config)
     sim = Rsim(par_config)
     sim.solver = BoundaryAccretionSolver()
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     if restart:
         _strip_snapshot_ghosts(sim)
     sim.SetMesh()

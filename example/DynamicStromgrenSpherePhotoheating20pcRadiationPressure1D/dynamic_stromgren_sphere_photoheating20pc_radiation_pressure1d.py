@@ -17,6 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -117,8 +118,8 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
 
-    sim = Rsim(par)
-    sim.Callreadhdf5()
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

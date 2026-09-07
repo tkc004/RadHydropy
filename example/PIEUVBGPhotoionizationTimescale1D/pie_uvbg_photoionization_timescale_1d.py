@@ -118,7 +118,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 'example': config['example']}
             ric = _write_initial_condition(case_config, case_dir)
             sim = Rsim(case_config['par'])
-            sim.Callreadhdf5()
+            rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
             sim.par.metal_pie_table = table
             sim.SetMesh()
             sim.SetFluid()

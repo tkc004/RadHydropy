@@ -39,6 +39,7 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import unyt
 
+import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 import example_utils as eu
 import tools as et
@@ -61,8 +62,8 @@ def main(config_filename=DEFAULT_CONFIG):
 
     et.write_initial_condition(config)
 
-    sim = Rsim(par)
-    sim.Callreadhdf5()
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

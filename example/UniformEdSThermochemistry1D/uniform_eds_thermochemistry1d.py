@@ -46,7 +46,7 @@ def run_case(config, units, cosmology, atomic_cooling):
 
     sim = Rsim(case)
     sim.par.cosmology = cosmology
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.time_proper_code)

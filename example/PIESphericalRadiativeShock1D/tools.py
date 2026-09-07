@@ -21,12 +21,12 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     grid_cells = int(par['mesh']['grid_cells'])
     # Component-level callers may provide the already-resolved private unit
-    # object without repeating the YAML ``units`` group.  Keep the runtime
-    # object nested and canonical by adding that group only at this boundary.
-    if 'units' not in par:
-        par = dict(par)
-        par['units'] = {'CodeUnits': code_units.to_dict()}
-    result = Rsim(par)
+    # object without repeating the YAML ``units`` group. Complete the nested
+    # runtime mapping at this boundary before constructing Rsim.
+    if 'units' not in config['par']:
+        config['par'] = dict(config['par'])
+        config['par']['units'] = {'CodeUnits': code_units.to_dict()}
+    result = Rsim(config["par"])
     result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
     result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
     result.par.simulation.coordinate_system = 'spherical'

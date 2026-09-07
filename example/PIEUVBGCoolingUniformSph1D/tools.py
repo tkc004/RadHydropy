@@ -14,7 +14,7 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     par = config['par']
     grid_cells = int(par['mesh']['grid_cells'])
-    result = Rsim(par)
+    result = Rsim(config["par"])
     code_units = result.par.units.CodeUnits
     result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
     result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)

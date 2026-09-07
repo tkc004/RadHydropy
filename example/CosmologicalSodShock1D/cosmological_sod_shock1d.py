@@ -105,7 +105,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": str(ic_filename)}
     sim = Rsim(runtime)
     sim.par.set_cosmology_model(initial.par.cosmology)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

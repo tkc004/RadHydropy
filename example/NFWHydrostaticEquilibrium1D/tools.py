@@ -153,7 +153,7 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
     par = config['par']
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     config['_code_units'] = code_units
-    rout = Rsim(par)
+    rout = Rsim(config["par"])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     nghost = int(par['mesh']['ghost_cells'])
     boundary_cgs = code_quantity_to_cgs(

@@ -68,7 +68,7 @@ def _run_case(base_runtime, initial_condition, tools, label, scheme, steps, root
     tools.write_initial_condition(case_config)
 
     sim = Rsim(par_case)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

@@ -120,7 +120,7 @@ def _run_case(config, label, density, temperature, table):
     # its loaded PIE table instead of reconstructing Par from the mutated
     # nested mapping (which serializes the table object as a plain dict).
     sim = Rsim(case)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
     sim.SetFluid()

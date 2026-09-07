@@ -146,7 +146,7 @@ def main(config_filename=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
-    sim = Rsim(par)
+    sim = Rsim(config["par"])
     sim.RunAll(outputtime=0)
 
     output_files = et.output_files(output['directory'], output['filename_prefix'])

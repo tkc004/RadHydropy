@@ -115,7 +115,7 @@ def run_rsim(par, initial_condition, example_config, cosmology, j):
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(par)
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
     gravity = CosmologicalCentralGravity(float(initial_condition['central_excess_mass']), cosmology)
     sim.par.gravity = gravity

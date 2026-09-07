@@ -525,10 +525,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     local["output"].update({
         "directory": str(output_dir), "savedir": str(output_dir),
     })
-    sim = Rsim(local)
+    config = copy.deepcopy(config)
+    config["par"] = local
+    sim = Rsim(config["par"])
     diagnostic_solver = LinearGrowthDiagnosticSolver()
     sim.solver = diagnostic_solver
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

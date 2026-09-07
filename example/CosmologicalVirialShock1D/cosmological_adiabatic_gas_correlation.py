@@ -66,8 +66,7 @@ def run(config_filename=DEFAULT_CONFIG):
     ic_filename = output_dir / "InitialCondition.hdf5"
 
     initial = et.build_initial_condition(
-        {"par": par, "initial_condition": initial_condition}, units, cosmology,
-        correlation_table=correlation_table,
+        config, units, cosmology, correlation_table=correlation_table,
     )
     rio.writehdf5(initial, ic_filename)
     dm = et.make_dark_matter(
@@ -114,8 +113,10 @@ def run(config_filename=DEFAULT_CONFIG):
         "cie_cooling": False,
         "thermochemistry_network": "hydrogen",
     })
-    sim = Rsim(local)
-    sim.Callreadhdf5()
+    config = dict(config)
+    config["par"] = local
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

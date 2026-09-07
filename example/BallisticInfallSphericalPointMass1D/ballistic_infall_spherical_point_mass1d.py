@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(ric, runtime['simulation']['initial_condition_filename'])
 
     mainrun = Rsim(runtime)
-    mainrun.Callreadhdf5()
+    rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()

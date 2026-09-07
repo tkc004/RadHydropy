@@ -78,7 +78,7 @@ def main(config_filename=DEFAULT_CONFIG):
     runtime = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(initial_filename)}}
     runtime['relaxation_damping_time'] = config['example']['relaxation_damping_time']
     sim = Rsim(runtime)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

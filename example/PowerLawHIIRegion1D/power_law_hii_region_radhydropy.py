@@ -292,7 +292,7 @@ def main(config_filename=DEFAULT_CONFIG):
     write_initial_condition(config, runtime['simulation']['initial_condition_filename'])
 
     sim = Rsim(runtime)
-    sim.Callreadhdf5()
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
