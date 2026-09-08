@@ -36,12 +36,12 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   box_size_proper: {value: 1.0, unit: pc}
-  rmin: {value: 0.0, unit: pc}
-  rmax: {value: 1.0, unit: pc}
+  radius_inner_proper: {value: 0.0, unit: pc}
+  radius_outer_proper: {value: 1.0, unit: pc}
   time_proper: {value: 0.0, unit: s}
-  central_density: {value: 1.0e-20, unit: g/cm**3}
-  polytropic_radius: {value: 0.318309886, unit: pc}
-  velocity_perturbation: 0.01
-  mu: 1.0
+  rho_central_proper: {value: 1.0e-20, unit: g/cm**3}
+  radius_polytropic_proper: {value: 0.318309886, unit: pc}
+  vel_perturbation_dimensionless: 0.01
+  mu_dimensionless: 1.0
 example:
   relaxation_damping_time: {value: 0.02, unit: Myr}

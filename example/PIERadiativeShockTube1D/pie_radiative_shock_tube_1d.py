@@ -106,30 +106,30 @@ def _shock_diagnostics(result, table, config):
     # output here made the report and cooling-length overlays describe the
     # barely developed initial transient rather than the displayed shock.
     shock_snapshot = snapshot
-    density = shock_snapshot['density_cgs_g_cm3']
-    temperature = shock_snapshot['temperature_cgs_K']
-    velocity = shock_snapshot['velocity_cgs_cm_s']
-    boundary = shock_snapshot['boundary_cgs_cm']
-    centers = 0.5 * (boundary[1:] + boundary[:-1])
-    center = 0.5 * np.max(boundary)
-    right = (centers > center) & (centers < center + 0.45 * np.max(boundary))
-    gradient = np.abs(np.gradient(np.log(np.maximum(density, 1.0e-99)), centers))
+    rho_proper_cgs_g_cm3 = shock_snapshot['density_cgs_g_cm3']
+    temperature_proper_cgs_K = shock_snapshot['temperature_cgs_K']
+    vel_proper_cgs_cm_s = shock_snapshot['velocity_cgs_cm_s']
+    boundary_proper_cgs_cm = shock_snapshot['boundary_cgs_cm']
+    centers_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[1:] + boundary_proper_cgs_cm[:-1])
+    center_proper_cgs_cm = 0.5 * np.max(boundary_proper_cgs_cm)
+    right = (centers_proper_cgs_cm > center_proper_cgs_cm) & (centers_proper_cgs_cm < center_proper_cgs_cm + 0.45 * np.max(boundary_proper_cgs_cm))
+    gradient = np.abs(np.gradient(np.log(np.maximum(rho_proper_cgs_g_cm3, 1.0e-99)), centers_proper_cgs_cm))
     shock_index = np.flatnonzero(right)[np.argmax(gradient[right])]
-    buffer_cm = 3.0 * (boundary[1] - boundary[0])
-    upstream_slice = right & (centers > centers[shock_index] + buffer_cm)
+    buffer_proper_cgs_cm = 3.0 * (boundary_proper_cgs_cm[1] - boundary_proper_cgs_cm[0])
+    upstream_slice = right & (centers_proper_cgs_cm > centers_proper_cgs_cm[shock_index] + buffer_proper_cgs_cm)
     post_slice = (
-        centers > center
-    ) & (centers < centers[shock_index] - buffer_cm)
+        centers_proper_cgs_cm > center_proper_cgs_cm
+    ) & (centers_proper_cgs_cm < centers_proper_cgs_cm[shock_index] - buffer_proper_cgs_cm)
     if not np.any(post_slice):
-        post_slice = (centers > center) & (centers < centers[shock_index])
-    upstream_density = float(np.median(density[upstream_slice]))
-    upstream_velocity = float(np.median(np.abs(velocity[upstream_slice])))
+        post_slice = (centers_proper_cgs_cm > center_proper_cgs_cm) & (centers_proper_cgs_cm < centers_proper_cgs_cm[shock_index])
+    upstream_density = float(np.median(rho_proper_cgs_g_cm3[upstream_slice]))
+    upstream_velocity = float(np.median(np.abs(vel_proper_cgs_cm_s[upstream_slice])))
     immediate_start = max(0, shock_index - 3)
     immediate_stop = shock_index
     immediate_slice = np.zeros_like(right, dtype=bool)
     immediate_slice[immediate_start:immediate_stop] = True
-    post_density = float(np.median(density[immediate_slice]))
-    post_temperature = float(np.median(temperature[immediate_slice]))
+    post_density = float(np.median(rho_proper_cgs_g_cm3[immediate_slice]))
+    post_temperature = float(np.median(temperature_proper_cgs_K[immediate_slice]))
     compression = post_density / upstream_density
     expected_compression, post_velocity, expected_temperature = strong_shock_expectation(
         gamma, upstream_velocity, mu
@@ -144,21 +144,21 @@ def _shock_diagnostics(result, table, config):
             gamma, result['metallicity'], float(thermo['metal_pie_redshift']),
             post_velocity,
         )
-    final_boundary = snapshot['boundary_cgs_cm']
-    final_centers = 0.5 * (final_boundary[1:] + final_boundary[:-1])
-    final_centers -= center
+    final_boundary_proper_cgs_cm = snapshot['boundary_cgs_cm']
+    final_centers_proper_cgs_cm = 0.5 * (final_boundary_proper_cgs_cm[1:] + final_boundary_proper_cgs_cm[:-1])
+    final_centers_proper_cgs_cm -= center_proper_cgs_cm
     hot_layer = (
-        (final_centers > 0.0)
-        & (final_centers < centers[shock_index] - center)
+        (final_centers_proper_cgs_cm > 0.0)
+        & (final_centers_proper_cgs_cm < centers_proper_cgs_cm[shock_index] - center_proper_cgs_cm)
         & (snapshot['temperature_cgs_K'] > 0.9 * post_temperature)
     )
     measured_length = (
-        centers[shock_index] - np.min(final_centers[hot_layer])
+        centers_proper_cgs_cm[shock_index] - np.min(final_centers_proper_cgs_cm[hot_layer])
         if np.any(hot_layer) else np.nan
     )
     result.update({
         'snapshot': snapshot,
-        'shock_radius_cgs_cm': centers[shock_index] - 0.5 * np.max(boundary),
+        'shock_radius_cgs_cm': centers_proper_cgs_cm[shock_index] - 0.5 * np.max(boundary_proper_cgs_cm),
         'upstream_density_cgs_g_cm3': upstream_density,
         'upstream_velocity_cgs_cm_s': upstream_velocity,
         'post_density_cgs_g_cm3': post_density,

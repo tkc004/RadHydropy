@@ -30,11 +30,11 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     radius_pc = _to_kpc(
         mesh.x_proper_code[interior], par
     ) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho_proper_code[interior], par)
-    velocity = _to_km_s(fluid.vel_proper_code[interior], par)
+    number_density_cgs_cm3 = _to_number_density(fluid.rho_proper_code[interior], par)
+    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], par)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure = _to_pressure(fluid.pre_proper_code[interior], par)
-    temperature = _to_temperature(fluid.temp_proper_code[interior], par)
+    pre_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], par)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
     example_config = config['example']
     plot_radius_max = example_config['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example_config.get('reference_radius_unit', 15.0 * unyt.kpc)
@@ -61,13 +61,13 @@ def save_plot(mesh, fluid, par, config, figure_filename):
             reference['radius_kpc'] *= reference_radius_scale
 
     fig, axes = plt.subplots(5, 1, figsize=(7.4, 11.0), sharex=True)
-    axes[0].plot(radius_pc, number_density, color='tab:blue', lw=1.8, label='RadHydropy')
+    axes[0].plot(radius_pc, number_density_cgs_cm3, color='tab:blue', lw=1.8, label='RadHydropy')
     scatter_reference(axes[0], density_reference)
     axes[0].set_yscale('log')
     axes[0].set_ylabel(r'$n$ [cm$^{-3}$]')
     axes[0].legend(frameon=False, loc='best')
 
-    axes[1].plot(radius_pc, velocity, color='tab:orange', lw=1.8, label='RadHydropy')
+    axes[1].plot(radius_pc, vel_peculiar_proper_km_s, color='tab:orange', lw=1.8, label='RadHydropy')
     scatter_reference(axes[1], velocity_reference)
     axes[1].set_yscale('linear')
     axes[1].set_ylabel(r'$v_r$ [km s$^{-1}$]')
@@ -85,13 +85,13 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     axes[2].set_ylabel(r'$x_{\rm HI}$')
     axes[2].legend(frameon=False, loc='best')
 
-    axes[3].plot(radius_pc, pressure, color='tab:red', lw=1.8, label='RadHydropy')
+    axes[3].plot(radius_pc, pre_proper_cgs_erg_cm3, color='tab:red', lw=1.8, label='RadHydropy')
     scatter_reference(axes[3], pressure_reference)
     axes[3].set_yscale('log')
     axes[3].set_ylabel(r'$P$ [g cm$^{-1}$ s$^{-2}$]')
     axes[3].legend(frameon=False, loc='best')
 
-    axes[4].plot(radius_pc, temperature, color='tab:purple', lw=1.8, label='RadHydropy')
+    axes[4].plot(radius_pc, temperature_proper_cgs_K, color='tab:purple', lw=1.8, label='RadHydropy')
     axes[4].set_yscale('log')
     axes[4].set_ylabel(r'$T$ [K]')
     axes[4].set_xlabel('Radius [pc]')

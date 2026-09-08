@@ -136,5 +136,5 @@ def physical_snapshot(config, filename):
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
-    return sim, boundary[first:last + 1], slice(first, last)
+    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    return sim, boundary_proper_code[first:last + 1], slice(first, last)

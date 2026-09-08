@@ -53,13 +53,13 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size_proper_unyt = initial_condition['box_size_proper']
-    time_value = initial_condition['time_proper']
-    radius_min = initial_condition['rmin']
-    radius_max = initial_condition['rmax']
-    boundary_unyt = np.linspace(
-        radius_min, radius_max, grid_cells + 1
+    time_proper_unyt = initial_condition['time_proper']
+    radius_inner_proper_unyt = initial_condition['rmin']
+    radius_outer_proper_unyt = initial_condition['rmax']
+    boundary_proper_unyt = np.linspace(
+        radius_inner_proper_unyt, radius_outer_proper_unyt, grid_cells + 1
     )
-    coordinate_unyt = NFW.spherical_cell_centers(boundary_unyt)
+    x_proper_unyt = NFW.spherical_cell_centers(boundary_proper_unyt)
     mean_density = cosmic_mean_baryon_density(
         initial_condition['h0'], initial_condition['omega_b'], initial_condition['initial_redshift']
     )
@@ -70,12 +70,12 @@ def build_initial_condition(config):
     cmb_temperature = initial_condition.get(
         'cmb_temperature_0', initial_condition['temperature_proper']
     )
-    temperature = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
+    temperature_proper_unyt = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
     return make_initial_condition(config,
-        boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
+        boundary_proper_code=quantity_to_value(boundary_proper_unyt, code_units.length_unit),
         rho_proper_code=np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
-        vel_proper_code=quantity_to_value(expansion_rate * coordinate_unyt, code_units.velocity_unit),
-        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
+        vel_proper_code=quantity_to_value(expansion_rate * x_proper_unyt, code_units.velocity_unit),
+        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature_proper_unyt, code_units.temperature_unit)),
         mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])))
 
 def _snapshot_profiles(filename, config):
@@ -86,20 +86,20 @@ def _snapshot_profiles(filename, config):
     boundary_cgs_cm = code_quantity_to_cgs(
         rout.mesh.boundary_proper_code, code_units, 'length_cgs_cm'
     ) * unyt.cm
-    radius = NFW.spherical_cell_centers(boundary_cgs_cm)
+    radius_proper_cgs_cm_unyt = NFW.spherical_cell_centers(boundary_cgs_cm)
     nghost = int(config['par']['mesh']['ghost_cells'])
-    radius = radius[nghost:-nghost]
-    density = code_quantity_to_cgs(
+    radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_unyt[nghost:-nghost]
+    rho_proper_cgs_g_cm3_unyt = code_quantity_to_cgs(
         rout.fluid.rho_proper_code[nghost:-nghost], code_units, 'density_cgs_g_cm3'
     )
-    temperature = code_quantity_to_cgs(
+    temperature_proper_cgs_K_unyt = code_quantity_to_cgs(
         rout.fluid.temp_proper_code[nghost:-nghost], code_units, 'temperature_cgs_K'
     )
-    velocity = code_quantity_to_cgs(
+    vel_peculiar_proper_cgs_cm_s_unyt = code_quantity_to_cgs(
         rout.fluid.vel_proper_code[nghost:-nghost], code_units, 'velocity_cgs_cm_s'
     ) / 1.0e5
-    time_myr = time_seconds(rout.fluid.time_proper_code, code_units) / (1.0e6 * 365.25 * 86400.0)
-    return time_myr, radius.to_value(unyt.kpc), density, temperature, velocity
+    time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / (1.0e6 * 365.25 * 86400.0)
+    return time_proper_Myr, radius_proper_cgs_cm_unyt.to_value(unyt.kpc), rho_proper_cgs_g_cm3_unyt, temperature_proper_cgs_K_unyt, vel_peculiar_proper_cgs_cm_s_unyt
 
 
 def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
@@ -113,19 +113,19 @@ def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
     return density_ratio, pressure_ratio / density_ratio
 
 
-def _locate_shock(radius, temperature, virial_radius_kpc):
+def _locate_shock(radius_proper_kpc, temperature_proper_cgs_K, virial_radius_kpc):
     gradient = np.abs(
-        np.diff(np.log(np.maximum(temperature, 1.0))) / np.diff(radius)
+        np.diff(np.log(np.maximum(temperature_proper_cgs_K, 1.0))) / np.diff(radius_proper_kpc)
     )
     candidate = (
-        (radius[:-1] > 0.5 * virial_radius_kpc)
-        & (radius[:-1] < 3.5 * virial_radius_kpc)
+        (radius_proper_kpc[:-1] > 0.5 * virial_radius_kpc)
+        & (radius_proper_kpc[:-1] < 3.5 * virial_radius_kpc)
     )
     if not np.any(candidate):
         raise RuntimeError('No shock candidate found in virial region')
     indices = np.flatnonzero(candidate)
     index = indices[np.argmax(gradient[candidate])]
-    return int(index), float(radius[index])
+    return int(index), float(radius_proper_kpc[index])
 
 
 def rankine_hugoniot_diagnostics(filenames, config, _unused, halo):

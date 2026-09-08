@@ -70,34 +70,31 @@ def load_output_state(outputfilename, config):
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's
     # actual coordinates instead of the constructor-time placeholders.
-    boundary = np.asarray(mesh.boundary_proper_code, dtype=float)
+    boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
     if par.simulation.coordinate_system == 'cartesian':
-        mesh.width_proper_code = boundary[1:] - boundary[:-1]
+        mesh.width_proper_code = boundary_proper_code[1:] - boundary_proper_code[:-1]
         mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
-        mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
-        if hasattr(par.mesh, 'area'):
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * float(
-                np.asarray(par.mesh.area_proper, dtype=float)
-            )
-        else:
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
+        mesh.x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+        mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * float(
+            np.asarray(par.mesh.area_proper, dtype=float)
+        )
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
     elif par.simulation.coordinate_system == 'spherical':
-        mesh.width_proper_code = boundary[1:] - boundary[:-1]
+        mesh.width_proper_code = boundary_proper_code[1:] - boundary_proper_code[:-1]
         mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
-        mesh.area_proper_code = (boundary[:-1] ** 2) * 4.0 * np.pi
-        mesh.volume_proper_code = np.absolute((boundary[1:] ** 3 - boundary[:-1] ** 3)) * 4.0 * np.pi / 3.0
-        vol_denom = boundary[1:] ** 3 - boundary[:-1] ** 3
-        mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
-        nonzero_vol_denom = vol_denom != 0.0
-        mesh.x_proper_code[nonzero_vol_denom] = 0.75 * (
-            boundary[1:][nonzero_vol_denom] ** 4 - boundary[:-1][nonzero_vol_denom] ** 4
-        ) / vol_denom[nonzero_vol_denom]
-        if np.any((boundary[:-1] < 0.0) & (boundary[1:] > 0.0)):
-            crossing = np.where((boundary[:-1] < 0.0) & (boundary[1:] > 0.0))[0]
+        mesh.area_proper_code = (boundary_proper_code[:-1] ** 2) * 4.0 * np.pi
+        mesh.volume_proper_code = np.absolute((boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)) * 4.0 * np.pi / 3.0
+        volume_difference_proper_code = boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
+        mesh.x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+        nonzero_volume_difference = volume_difference_proper_code != 0.0
+        mesh.x_proper_code[nonzero_volume_difference] = 0.75 * (
+            boundary_proper_code[1:][nonzero_volume_difference] ** 4 - boundary_proper_code[:-1][nonzero_volume_difference] ** 4
+        ) / volume_difference_proper_code[nonzero_volume_difference]
+        if np.any((boundary_proper_code[:-1] < 0.0) & (boundary_proper_code[1:] > 0.0)):
+            crossing = np.where((boundary_proper_code[:-1] < 0.0) & (boundary_proper_code[1:] > 0.0))[0]
             for ig in crossing:
-                mesh.volume_proper_code[ig] = (boundary[ig + 1] ** 3) * 4.0 * np.pi / 3.0
-                mesh.x_proper_code[ig] = 0.75 * boundary[ig + 1]
+                mesh.volume_proper_code[ig] = (boundary_proper_code[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.x_proper_code[ig] = 0.75 * boundary_proper_code[ig + 1]
                 mesh.area_proper_code[ig] = 0.0
     return par, mesh, fluid
 

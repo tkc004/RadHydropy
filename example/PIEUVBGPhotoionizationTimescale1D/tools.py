@@ -22,15 +22,15 @@ def build_initial_condition(config):
     result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
     result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     result.par.mesh.grid_cells = grid_cells
-    boundary = as_named_array(quantity_to_value(
+    boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(0.0 * initial['box_size_proper'], initial['box_size_proper'], grid_cells + 1),
         code_units.length_unit,
     ))
-    result.mesh.boundary_proper_code = boundary
+    result.mesh.boundary_proper_code = boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=0.5 * (boundary[1:] + boundary[:-1]),
-        boundary_proper_code=boundary, width_proper_code=np.diff(boundary), area_proper_code=np.ones(grid_cells),
-        volume_proper_code=np.diff(boundary),
+        PROPER_RUNTIME_FIELDS, x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+        boundary_proper_code=boundary_proper_code, width_proper_code=np.diff(boundary_proper_code), area_proper_code=np.ones(grid_cells),
+        volume_proper_code=np.diff(boundary_proper_code),
     )
     result.fluid.vel_proper_code = as_named_array(quantity_to_value(
         np.zeros(grid_cells) * initial['vini'], code_units.velocity_unit

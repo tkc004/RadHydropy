@@ -55,12 +55,12 @@ def main(config_filename=DEFAULT_CONFIG):
         # The current IC writer stores native code-unit arrays with explicit
         # snake_case names; the old capitalized paths were from the legacy
         # HDF5 layout and no longer exist.
-        boundary = handle["Data/boundary_comoving_code"][:] / float(units.length_in_cgs)
-        density = handle["Data/rho_comoving_code"][:] / float(units.density_unit)
-        temperature = handle["Data/temp_supercomoving_code"][:] / float(units.temperature_unit)
-        velocity = handle["Data/vel_supercomoving_code"][:] / float(units.velocity_unit)
+        boundary_comoving_code = handle["Data/boundary_comoving_code"][:] / float(units.length_in_cgs)
+        rho_comoving_code = handle["Data/rho_comoving_code"][:] / float(units.density_unit)
+        temp_supercomoving_code = handle["Data/temp_supercomoving_code"][:] / float(units.temperature_unit)
+        vel_supercomoving_code = handle["Data/vel_supercomoving_code"][:] / float(units.velocity_unit)
 
-    radius = et.cell_centres(boundary)
+    radius_comoving_code = et.cell_centres(boundary_comoving_code)
     initial_time = float(initial_condition["initial_cosmic_time"])
     scale_factor = float(cosmology.scale_factor(initial_time))
     redshift = 1.0 / scale_factor - 1.0
@@ -70,15 +70,15 @@ def main(config_filename=DEFAULT_CONFIG):
         * float(initial_condition.get("correlation_h", 0.674))
     )
     expected_delta, expected_mean_delta = et.density_contrast_profile(
-        radius, config,
+        radius_comoving_code, config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     rho_background = float(cosmology.background_density(initial_time))
     fb = float(initial_condition["baryon_fraction"])
-    actual_delta = density / (rho_background * scale_factor**3 * fb) - 1.0
+    actual_delta = rho_comoving_code / (rho_background * scale_factor**3 * fb) - 1.0
     expected_velocity = (
         -scale_factor**2 * float(cosmology.hubble(initial_time))
-        * expected_mean_delta * radius / 3.0
+        * expected_mean_delta * radius_comoving_code / 3.0
     )
     if bool(initial_condition.get("cmb_equilibrium_initial", False)):
         expected_temperature = float(initial_condition.get("cmb_temperature_0", 2.7255)) / scale_factor
@@ -86,28 +86,29 @@ def main(config_filename=DEFAULT_CONFIG):
         expected_temperature = float(initial_condition.get("cie_temperature_proper", 10.0))
 
     target_radius = et.perturbation_radius(config)
-    clipped_edges = np.clip(boundary, 0.0, target_radius)
+    clipped_edges = np.clip(boundary_comoving_code, 0.0, target_radius)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(clipped_edges**3)
     target_volume = 4.0 * np.pi / 3.0 * target_radius**3
     target_mean_delta = np.sum(
-        (density - rho_background * scale_factor**3 * fb) * shell_volume
+        (rho_comoving_code - rho_background * scale_factor**3 * fb) * shell_volume
     ) / (rho_background * scale_factor**3 * fb * target_volume)
 
-    density_physical = density * float(units.density_unit) / scale_factor**3
-    temperature_physical = (
-        temperature * float(units.temperature_unit) / scale_factor**2
+    rho_proper_cgs_g_cm3 = rho_comoving_code * float(units.density_unit) / scale_factor**3
+    temperature_proper_cgs_K = (
+        temp_supercomoving_code * float(units.temperature_unit) / scale_factor**2
     )
-    hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius
-    total_velocity = hubble_velocity + velocity / scale_factor
+    hubble_vel_proper_cgs_cm_s = float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code
+    vel_peculiar_proper_cgs_cm_s = vel_supercomoving_code / scale_factor
+    vel_radial_proper_cgs_cm_s = hubble_vel_proper_cgs_cm_s + vel_peculiar_proper_cgs_cm_s
     velocity_to_km_s = float(units.velocity_in_cgs) / 1.0e5
     proper_radius_kpc = (
-        scale_factor * radius * float(units.length_in_cgs)
+        scale_factor * radius_comoving_code * float(units.length_in_cgs)
         / float((1.0 * unyt.kpc).to_value("cm"))
     )
 
     density_error = np.max(np.abs(actual_delta - expected_delta))
-    velocity_error = np.max(np.abs(velocity - expected_velocity))
-    temperature_error = np.max(np.abs(temperature_physical - expected_temperature))
+    velocity_error = np.max(np.abs(vel_supercomoving_code - expected_velocity))
+    temperature_error = np.max(np.abs(temperature_proper_cgs_K - expected_temperature))
     if density_error > 1.0e-10 or velocity_error > 1.0e-10:
         raise RuntimeError("stored density or velocity does not match the IC construction")
     if temperature_error > 1.0e-10:
@@ -117,28 +118,28 @@ def main(config_filename=DEFAULT_CONFIG):
 
     output = filename.with_name("CosmologicalCorrelationInitialCondition.jpg")
     fig, axes = plt.subplots(2, 2, figsize=(11.0, 8.0))
-    axes[0, 0].semilogx(radius, actual_delta, label="stored IC")
-    axes[0, 0].semilogx(radius, expected_delta, "--", label="correlation table")
+    axes[0, 0].semilogx(radius_comoving_code, actual_delta, label="stored IC")
+    axes[0, 0].semilogx(radius_comoving_code, expected_delta, "--", label="correlation table")
     axes[0, 0].set_ylabel(r"$\delta(r)$")
     axes[0, 0].set_xlabel("comoving radius [code length]")
     axes[0, 0].legend(fontsize=8)
-    axes[0, 1].loglog(proper_radius_kpc, density_physical)
+    axes[0, 1].loglog(proper_radius_kpc, rho_proper_cgs_g_cm3)
     axes[0, 1].set_ylabel(r"gas density [g cm$^{-3}$]")
     axes[0, 1].set_xlabel("proper radius [kpc]")
-    axes[1, 0].loglog(proper_radius_kpc, temperature_physical)
+    axes[1, 0].loglog(proper_radius_kpc, temperature_proper_cgs_K)
     axes[1, 0].axhline(expected_temperature, color="black", ls="--", lw=1.0)
     axes[1, 0].set_ylabel("gas temperature [K]")
     axes[1, 0].set_xlabel("proper radius [kpc]")
     axes[1, 1].semilogx(
-        proper_radius_kpc, hubble_velocity * velocity_to_km_s,
+        proper_radius_kpc, hubble_vel_proper_cgs_cm_s * velocity_to_km_s,
         label="Hubble flow",
     )
     axes[1, 1].semilogx(
-        proper_radius_kpc, velocity / scale_factor * velocity_to_km_s,
+        proper_radius_kpc, vel_peculiar_proper_cgs_cm_s / scale_factor * velocity_to_km_s,
         label="peculiar",
     )
     axes[1, 1].semilogx(
-        proper_radius_kpc, total_velocity * velocity_to_km_s,
+        proper_radius_kpc, vel_radial_proper_cgs_cm_s * velocity_to_km_s,
         label="total physical",
     )
     axes[1, 1].set_ylabel("radial velocity [km/s]")

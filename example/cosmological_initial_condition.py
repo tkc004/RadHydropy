@@ -79,27 +79,27 @@ def build_initial_condition(config):
     boundary_override = config.get("_boundary_comoving_code")
     if boundary_override is None:
         boundary_start_code = float(config.get("_boundary_start_code", 0.0))
-        boundary = np.linspace(
+        boundary_comoving_code = np.linspace(
             boundary_start_code, boundary_start_code + box_size_comoving_code,
             grid_cells + 1,
         )
     else:
-        boundary = np.asarray(boundary_override, dtype=float)
-    result.mesh.boundary_comoving_code = boundary
+        boundary_comoving_code = np.asarray(boundary_override, dtype=float)
+    result.mesh.boundary_comoving_code = boundary_comoving_code
     result.mesh.x_comoving_code = np.asarray(
-        config.get("_x_comoving_code", 0.5 * (boundary[1:] + boundary[:-1])),
+        config.get("_x_comoving_code", 0.5 * (boundary_comoving_code[1:] + boundary_comoving_code[:-1])),
         dtype=float,
     )
-    result.mesh.width_comoving_code = np.diff(boundary)
+    result.mesh.width_comoving_code = np.diff(boundary_comoving_code)
     if par["simulation"].get("coordinate_system") == "spherical":
         result.mesh.area_comoving_code = np.asarray(
-            config.get("_area_comoving_code", 4.0 * np.pi * boundary[:-1] ** 2),
+            config.get("_area_comoving_code", 4.0 * np.pi * boundary_comoving_code[:-1] ** 2),
             dtype=float,
         )
         result.mesh.volume_comoving_code = np.asarray(
             config.get(
                 "_volume_comoving_code",
-                4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3),
+                4.0 * np.pi / 3.0 * (boundary_comoving_code[1:] ** 3 - boundary_comoving_code[:-1] ** 3),
             ),
             dtype=float,
         )
@@ -108,7 +108,7 @@ def build_initial_condition(config):
             config.get("_area_comoving_code", np.ones(grid_cells)), dtype=float
         )
         result.mesh.volume_comoving_code = np.asarray(
-            config.get("_volume_comoving_code", np.diff(boundary)), dtype=float
+            config.get("_volume_comoving_code", np.diff(boundary_comoving_code)), dtype=float
         )
 
     if "rho_left" in initial_condition:

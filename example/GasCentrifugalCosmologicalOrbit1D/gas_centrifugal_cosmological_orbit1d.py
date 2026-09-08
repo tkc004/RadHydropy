@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/radhydropy-matplotlib')
 ROOT = Path(__file__).resolve().parent
@@ -74,8 +73,8 @@ class CosmologicalInitialCondition(Rsim):
         count = int(par_config['mesh']['grid_cells'])
         radius_min = float(initial_condition['radius_min'])
         radius_max = float(initial_condition['radius_max'])
-        density = float(initial_condition['rho_proper'])
-        temperature = float(initial_condition['temperature_supercomoving_code'])
+        rho_comoving_code = float(initial_condition['rho_proper'])
+        temp_supercomoving_code = float(initial_condition['temperature_supercomoving_code'])
         super().__init__(par_config)
         self.mesh.boundary_comoving_code = np.linspace(radius_min, radius_max, count + 1)
         self.mesh.x_comoving_code = 0.75 * (
@@ -84,9 +83,9 @@ class CosmologicalInitialCondition(Rsim):
         self.mesh.width_comoving_code = np.diff(self.mesh.boundary_comoving_code)
         self.mesh.area_comoving_code = 4.0 * np.pi * self.mesh.boundary_comoving_code[:-1]**2
         self.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_comoving_code**3)
-        self.fluid.rho_comoving_code = np.full(count, density)
+        self.fluid.rho_comoving_code = np.full(count, rho_comoving_code)
         self.fluid.vel_supercomoving_code = np.zeros(count)
-        self.fluid.temp_supercomoving_code = np.full(count, temperature)
+        self.fluid.temp_supercomoving_code = np.full(count, temp_supercomoving_code)
         self.fluid.mu = np.ones(count)
         self.fluid.specific_angular_momentum_code = np.asarray(specific_j, dtype=float)
 
@@ -105,8 +104,8 @@ class CosmologicalCentralGravity:
             getattr(getattr(par, 'simulation', None), 'time_proper_code', self.tau)
         )) if par is not None else self.tau
         scale_factor = self.cosmology.scale_factor_from_supercomoving(tau)
-        radius = np.asarray(mesh.x_comoving_code, dtype=float)
-        return -scale_factor * self.mass / radius**2
+        radius_comoving_code = np.asarray(mesh.x_comoving_code, dtype=float)
+        return -scale_factor * self.mass / radius_comoving_code**2
 
 
 def run_rsim(config):
@@ -148,11 +147,14 @@ def run_rsim(config):
     final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
-    final_par = sim.par
-    final_mesh = type('Mesh', (), {})()
-    final_fluid = type('Fluid', (), {})()
-    rio.readhdf5(final_par, final_mesh, final_fluid, final_filename)
-    return initial, sim, final_fluid
+    final_state = Rsim(config["par"])
+    rio.readhdf5(
+        final_state.par,
+        final_state.mesh,
+        final_state.fluid,
+        final_filename,
+    )
+    return initial, sim, final_state.fluid
 
 
 def main(config_filename=CONFIG):
@@ -184,10 +186,14 @@ def main(config_filename=CONFIG):
         raise RuntimeError('cosmological Rsim produced invalid specific angular momentum')
 
     def rhs(tau, state):
-        x, velocity = state
-        radius_safe = max(x, np.finfo(float).tiny)
+        radius_comoving_code, vel_supercomoving_code = state
+        radius_safe_comoving_code = max(radius_comoving_code, np.finfo(float).tiny)
         scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
-        return velocity, -scale_factor * central_mass / radius_safe**2 + j**2 / radius_safe**3
+        return (
+            vel_supercomoving_code,
+            -scale_factor * central_mass / radius_safe_comoving_code**2
+            + j**2 / radius_safe_comoving_code**3,
+        )
 
     reference = solve_ivp(
         rhs,
@@ -256,42 +262,44 @@ def main(config_filename=CONFIG):
         int(simulation.par.mesh.ghost_cells),
         int(simulation.par.mesh.ghost_cells) + int(simulation.par.mesh.grid_cells),
     )
-    sim_radius = np.asarray(simulation.mesh.x_comoving_code[sim_active], dtype=float)
+    sim_radius_comoving_code = np.asarray(simulation.mesh.x_comoving_code[sim_active], dtype=float)
     # Use the live Rsim mesh and fluid together.  Mixing live mesh coordinates
     # with fields from a separately reloaded HDF5 object can pair different
     # code/cgs representations after serialization.
-    sim_velocity = np.asarray(simulation.fluid.vel_supercomoving_code[sim_active], dtype=float)
+    sim_vel_supercomoving_code = np.asarray(simulation.fluid.vel_supercomoving_code[sim_active], dtype=float)
     sim_j = np.asarray(simulation.fluid.specific_angular_momentum_code[sim_active], dtype=float)
     sim_energy = np.asarray(simulation.fluid.Energy_code[sim_active], dtype=float)
     # Map the analytic shell ensemble back to the fixed Eulerian grid.
-    ode_final = np.empty((2, len(sim_radius)))
-    for index, initial_radius in enumerate(sim_radius):
+    ode_final = np.empty((2, len(sim_radius_comoving_code)))
+    for index, initial_radius_comoving_code in enumerate(sim_radius_comoving_code):
         # The IC assigns the same specific angular momentum j to every shell.
         # Using sqrt(GM/x) here would compare the simulation with a different
         # circular-angular-momentum profile and produces the apparent mismatch.
         shell_j = j
 
         def shell_rhs(tau, state):
-            shell_radius, shell_velocity = state
-            radius_safe = max(shell_radius, np.finfo(float).tiny)
+            shell_radius_comoving_code, shell_vel_supercomoving_code = state
+            radius_safe_comoving_code = max(shell_radius_comoving_code, np.finfo(float).tiny)
             scale_factor = float(
                 cosmology.scale_factor_from_supercomoving(tau)
             )
             return (
-                shell_velocity,
-                -scale_factor * central_mass / radius_safe**2
-                + shell_j**2 / radius_safe**3,
+                shell_vel_supercomoving_code,
+                -scale_factor * central_mass / radius_safe_comoving_code**2
+                + shell_j**2 / radius_safe_comoving_code**3,
             )
 
         shell_reference = solve_ivp(
-            shell_rhs, (0.0, final_tau), (initial_radius, v0),
+            shell_rhs, (0.0, final_tau), (initial_radius_comoving_code, v0),
             rtol=1.0e-10, atol=1.0e-12,
         )
         ode_final[:, index] = shell_reference.y[:, -1]
     order = np.argsort(ode_final[0])
-    ode_velocity = np.interp(sim_radius, ode_final[0, order], ode_final[1, order])
+    ode_vel_supercomoving_code = np.interp(
+        sim_radius_comoving_code, ode_final[0, order], ode_final[1, order]
+    )
     simulation_velocity_error = float(
-        np.max(np.abs(sim_velocity - ode_velocity))
+        np.max(np.abs(sim_vel_supercomoving_code - ode_vel_supercomoving_code))
     )
     simulation_j_error = float(
         np.max(np.abs(sim_j - j))
@@ -308,35 +316,35 @@ def main(config_filename=CONFIG):
             'saved cosmological Rsim J/M drifted from the initialized profile: '
             'max error = %.6g' % simulation_j_error
         )
-    sim_temperature = np.asarray(simulation.fluid.temp_supercomoving_code[sim_active], dtype=float)
-    sim_density = np.asarray(simulation.fluid.rho_comoving_code[sim_active], dtype=float)
+    sim_temp_supercomoving_code = np.asarray(simulation.fluid.temp_supercomoving_code[sim_active], dtype=float)
+    sim_rho_comoving_code = np.asarray(simulation.fluid.rho_comoving_code[sim_active], dtype=float)
     sim_mu = np.asarray(simulation.fluid.mu[sim_active], dtype=float)
-    sim_pressure = np.asarray(
-        simulation.fluid.eos.pressure(sim_density, sim_temperature, sim_mu),
+    sim_pre_supercomoving_code = np.asarray(
+        simulation.fluid.eos.pressure(sim_rho_comoving_code, sim_temp_supercomoving_code, sim_mu),
         dtype=float,
     )
     # This is the local thermal-pressure scale divided by the circular
     # centrifugal scale.  It is a diagnostic, not an extra source term.
     pressure_support_ratio = np.divide(
-        sim_pressure / np.maximum(sim_density, np.finfo(float).tiny),
-        central_mass / np.maximum(sim_radius, np.finfo(float).tiny),
+        sim_pre_supercomoving_code / np.maximum(sim_rho_comoving_code, np.finfo(float).tiny),
+        central_mass / np.maximum(sim_radius_comoving_code, np.finfo(float).tiny),
     )
     simulation_figure = savedir / 'GasCentrifugalCosmologicalOrbit1D_simulation.jpg'
     sim_fig, sim_axes = plt.subplots(2, 2, figsize=(11, 7))
     sim_axes = sim_axes.flat
-    sim_axes[0].plot(sim_radius, sim_velocity, 'o-', label='Rsim Eulerian state')
+    sim_axes[0].plot(sim_radius_comoving_code, sim_vel_supercomoving_code, 'o-', label='Rsim Eulerian state')
     sim_axes[0].set_ylabel('supercomoving radial velocity')
     sim_axes[0].set_title('Eulerian profile; ODE check is in the time-history figure')
     sim_axes[1].plot(sim_radius, sim_j, 'o-', label='saved $J/M$')
     sim_axes[1].plot(
-        sim_radius, np.full_like(sim_radius, j), '--',
+        sim_radius_comoving_code, np.full_like(sim_radius_comoving_code, j), '--',
         label='initial constant $j$',
     )
     sim_axes[1].set_ylabel('specific angular momentum')
-    sim_axes[2].plot(sim_radius, sim_energy, 'o-', label='saved total energy')
+    sim_axes[2].plot(sim_radius_comoving_code, sim_energy, 'o-', label='saved total energy')
     sim_axes[2].set_ylabel('total energy')
     sim_axes[3].semilogy(
-        sim_radius, np.maximum(pressure_support_ratio, np.finfo(float).tiny),
+        sim_radius_comoving_code, np.maximum(pressure_support_ratio, np.finfo(float).tiny),
         'o-', label=r'$p/\rho\,/\,(GM/x)$',
     )
     sim_axes[3].axhline(1.0, color='k', linestyle=':', linewidth=1.0)

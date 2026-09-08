@@ -41,9 +41,9 @@ def _snapshot(filename):
         nogrid = int(header.attrs["GridCells"])
         first = noghost
         last = first + nogrid
-        boundary = np.asarray(data["boundary_proper_code"][()])[first : last + 1]
+        boundary_proper_code = np.asarray(data["boundary_proper_code"][()])[first : last + 1]
         return {
-            "radius": 0.5 * (boundary[:-1] + boundary[1:]),
+            "radius": 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:]),
             "density": np.asarray(data["rho_proper_code"][()])[first:last],
             "temperature": np.asarray(data["temp_proper_code"][()])[first:last],
         }

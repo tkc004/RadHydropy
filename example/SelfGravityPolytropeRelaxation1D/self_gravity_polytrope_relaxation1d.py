@@ -45,36 +45,36 @@ class PolytropeSolver(Solver):
         fluid.SetPressure()
 
 
-def _profile(sim, rho, pressure):
+def _profile(sim, rho_proper_code, pre_proper_code):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
+    radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     code = sim.par.CodeUnits
-    radius_q = radius * code.length_unit
+    radius_proper_cgs_cm_unyt = radius_proper_code * code.length_unit
     gravity = sim.par.gravity.acceleration_on_mesh(
-        sim.mesh, rho=rho, par=sim.par
+        sim.mesh, rho=rho_proper_code, par=sim.par
     )[interior]
     gravity_cgs = quantity_to_value(
         gravity * code.length_unit / code.time_unit**2,
         'cm/s**2',
     )
-    if hasattr(pressure, 'to_value'):
-        pressure_cgs = quantity_to_value(pressure, 'erg/cm**3')
+    if hasattr(pre_proper_code, 'to_value'):
+        pre_proper_cgs_erg_cm3 = quantity_to_value(pre_proper_code, 'erg/cm**3')
     else:
-        pressure_cgs = quantity_to_value(
-            np.asarray(pressure, dtype=float) * code.pressure_unit,
+        pre_proper_cgs_erg_cm3 = quantity_to_value(
+            np.asarray(pre_proper_code, dtype=float) * code.pressure_unit,
             'erg/cm**3',
         )
-    rho_cgs = quantity_to_value(
-        np.asarray(rho[interior], dtype=float) * code.density_unit,
+    rho_proper_cgs_g_cm3 = quantity_to_value(
+        np.asarray(rho_proper_code[interior], dtype=float) * code.density_unit,
         'g/cm**3',
     )
     residual = et.hydrostatic_residual(
-        quantity_to_value(radius_q, 'cm'),
-        rho_cgs,
-        pressure_cgs,
+        quantity_to_value(radius_proper_cgs_cm_unyt, 'cm'),
+        rho_proper_cgs_g_cm3,
+        pre_proper_cgs_erg_cm3,
         gravity_cgs,
     )
-    return radius_q, gravity_cgs, residual
+    return radius_proper_cgs_cm_unyt, gravity_cgs, residual
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -137,23 +137,25 @@ def main(config_filename=DEFAULT_CONFIG):
         raise FileNotFoundError('no output snapshots were written')
     final = et.read_output(output, config)
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    k_poly = et.polytropic_constant(initial_mapping['polytropic_radius'])
-    radius = np.asarray(final.mesh.x_proper_code[interior], dtype=float) * sim.par.CodeUnits.length_unit
+    k_poly_cgs = et.polytropic_constant(initial_mapping['radius_polytropic_proper'])
+    radius_proper_cgs_cm_unyt = np.asarray(final.mesh.x_proper_code[interior], dtype=float) * sim.par.CodeUnits.length_unit
     rho_final = np.asarray(final.fluid.rho_proper_code[interior], dtype=float) * sim.par.CodeUnits.density_unit
     pressure_final = np.asarray(final.fluid.pre_proper_code[interior], dtype=float) * sim.par.CodeUnits.pressure_unit
-    rho_expected = et.equilibrium_density(
-        radius, initial_mapping['central_density'], initial_mapping['polytropic_radius']
+    rho_expected_proper_cgs_g_cm3_unyt = et.equilibrium_density(
+        radius_proper_cgs_cm_unyt,
+        initial_mapping['rho_central_proper'],
+        initial_mapping['radius_polytropic_proper'],
     )
-    radius_q, gravity_cgs, residual = _profile(sim, final.fluid.rho_proper_code, pressure_final)
-    rho_error = np.max(np.abs((rho_final - rho_expected) / rho_expected))
+    radius_proper_cgs_cm_unyt, gravity_cgs, residual = _profile(sim, final.fluid.rho_proper_code, pressure_final)
+    rho_error = np.max(np.abs((rho_final - rho_expected_proper_cgs_g_cm3_unyt) / rho_expected_proper_cgs_g_cm3_unyt))
     residual_scale = np.max(np.abs(rho_final * gravity_cgs))
     residual_norm = np.max(np.abs(residual)) / max(residual_scale, np.finfo(float).tiny)
     print('maximum density relative error = %.6g' % rho_error)
     print('maximum normalized hydrostatic residual = %.6g' % residual_norm)
 
-    radius_pc = quantity_to_value(radius_q, 'pc')
+    radius_pc = quantity_to_value(radius_proper_cgs_cm_unyt, 'pc')
     rho_final_cgs = quantity_to_value(rho_final, 'g/cm**3')
-    rho_expected_cgs = quantity_to_value(rho_expected, 'g/cm**3')
+    rho_expected_cgs = quantity_to_value(rho_expected_proper_cgs_g_cm3_unyt, 'g/cm**3')
     velocity_cgs = quantity_to_value(
         np.asarray(final.fluid.vel_proper_code[interior], dtype=float) * sim.par.CodeUnits.velocity_unit,
         'cm/s',

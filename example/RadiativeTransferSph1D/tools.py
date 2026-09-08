@@ -82,10 +82,9 @@ def _refresh_mesh_geometry(mesh, par):
     mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
     if par.simulation.coordinate_system == 'cartesian':
         mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
-        if getattr(par.mesh, 'area', None) is not None:
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(par.mesh.area_proper, par.units.CodeUnits.area_unit)
-        else:
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
+        mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(
+            par.mesh.area_proper, par.units.CodeUnits.area_unit
+        )
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
     elif par.simulation.coordinate_system == 'spherical':
         mesh.area_proper_code = (mesh.boundary_proper_code[:-1] ** 2) * 4.0 * np.pi
