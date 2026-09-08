@@ -63,6 +63,6 @@ initial_condition:
   gas_fraction: 0.157
   mean_molecular_weight: 0.59
   mu: 0.59
-  reference_density: {value: 1.0e-27, unit: g/cm**3}
+  rho_reference_proper: {value: 1.0e-27, unit: g/cm**3}
   temperature_proper: {value: 1.0, unit: K}
 example: {}

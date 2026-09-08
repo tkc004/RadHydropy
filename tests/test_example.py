@@ -533,25 +533,25 @@ class Testing(unittest.TestCase):
         )
 
         self.assertIsNotNone(diagnostics)
-        self.assertEqual(diagnostics['times'].to_value(unyt.Myr).tolist(), [1.0, 2.0])
+        self.assertEqual(diagnostics['times_proper_Myr'].to_value(unyt.Myr).tolist(), [1.0, 2.0])
         self.assertAlmostEqual(
-            diagnostics['radii'][0].to_value(unyt.pc),
+            diagnostics['radii_shell_proper_pc'][0].to_value(unyt.pc),
             2.4833333333333334,
             places=12,
         )
         self.assertAlmostEqual(
-            diagnostics['radii'][1].to_value(unyt.pc),
+            diagnostics['radii_shell_proper_pc'][1].to_value(unyt.pc),
             2.5833333333333335,
             places=12,
         )
         expected_velocity = (0.1 * unyt.pc / unyt.Myr).to_value(unyt.km / unyt.s)
         self.assertAlmostEqual(
-            diagnostics['velocities'][0].to_value(unyt.km / unyt.s),
+            diagnostics['vel_shell_proper_km_s'][0].to_value(unyt.km / unyt.s),
             expected_velocity,
             places=6,
         )
         self.assertAlmostEqual(
-            diagnostics['velocities'][1].to_value(unyt.km / unyt.s),
+            diagnostics['vel_shell_proper_km_s'][1].to_value(unyt.km / unyt.s),
             expected_velocity,
             places=6,
         )
@@ -562,12 +562,12 @@ class Testing(unittest.TestCase):
             * 2.0e6 * unyt.K
         ).to_value(unyt.dyn / unyt.cm**2)
         self.assertAlmostEqual(
-            diagnostics['pressures'][0].to_value(unyt.dyn / unyt.cm**2),
+            diagnostics['pressures_bubble_proper_cgs_dyn_cm2'][0].to_value(unyt.dyn / unyt.cm**2),
             expected_pressure,
             places=12,
         )
         self.assertAlmostEqual(
-            diagnostics['pressures'][1].to_value(unyt.dyn / unyt.cm**2),
+            diagnostics['pressures_bubble_proper_cgs_dyn_cm2'][1].to_value(unyt.dyn / unyt.cm**2),
             expected_pressure,
             places=12,
         )

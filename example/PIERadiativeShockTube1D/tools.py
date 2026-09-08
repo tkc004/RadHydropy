@@ -43,7 +43,7 @@ def build_initial_condition(config):
         width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
     )
     collision_velocity_proper_code = quantity_to_value(
-        initial['collision_velocity'], code_units.velocity_unit
+        initial['vel_collision_proper'], code_units.velocity_unit
     )
     result.fluid.vel_proper_code = as_named_array(np.where(
         x_proper_code < midpoint_proper_code,

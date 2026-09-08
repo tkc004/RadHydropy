@@ -163,7 +163,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
     """Estimate the forward-shock radius from the steepest pressure drop."""
 
     x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
-    pressure = (
+    pressure_bubble_proper_unyt = (
         rout.fluid.rho_proper_code
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
@@ -171,7 +171,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
     ).to(unyt.dyn / unyt.cm**2)
 
     coordinate_values = x_proper_code.to_value(x_proper_code.units)
-    pressure_values = pressure.to_value(pressure.units)
+    pressure_values = pressure_bubble_proper_unyt.to_value(pressure_bubble_proper_unyt.units)
 
     if pressure_values.size < 3:
         return None
@@ -218,33 +218,33 @@ def shell_inner_edge_radius(
     """
 
     x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
-    density = rout.fluid.rho_proper_code
+    rho_proper_unyt = rout.fluid.rho_proper_code
 
     coordinate_values = x_proper_code.to_value(x_proper_code.units)
-    density_values = density.to_value(density.units)
+    rho_proper_values = rho_proper_unyt.to_value(rho_proper_unyt.units)
     mask = coordinate_values >= 0.0
     coordinate_values = coordinate_values[mask]
-    density_values = density_values[mask]
+    rho_proper_values = rho_proper_values[mask]
     x_proper_code = x_proper_code[mask]
 
     if minimum_radius is not None:
         minimum_radius_value = minimum_radius.to_value(x_proper_code.units)
         keep = coordinate_values >= minimum_radius_value
         coordinate_values = coordinate_values[keep]
-        density_values = density_values[keep]
+        rho_proper_values = rho_proper_values[keep]
         x_proper_code = x_proper_code[keep]
 
-    if density_values.size < 2:
+    if rho_proper_values.size < 2:
         return None
 
     threshold = (
-        ambient_density.to_value(density.units)
+        ambient_density.to_value(rho_proper_unyt.units)
         * float(np.asarray(threshold_factor).reshape(-1)[0])
     )
     # Equality is the ambient state itself, not shell compression.  Using
     # ``>=`` makes an unperturbed ambient profile look like a shell beginning
     # at the first active cell when the threshold factor is 1.
-    above = density_values > threshold
+    above = rho_proper_values > threshold
     if not np.any(above):
         return None
 
@@ -272,15 +272,15 @@ def shell_inner_edge_radius(
 
     x0 = coordinate_values[edge_index - 1]
     x1 = coordinate_values[edge_index]
-    y0 = density_values[edge_index - 1]
-    y1 = density_values[edge_index]
+    y0 = rho_proper_values[edge_index - 1]
+    y1 = rho_proper_values[edge_index]
     if y1 == y0:
         return x_proper_code[edge_index]
 
     fraction = (threshold - y0) / (y1 - y0)
     fraction = np.clip(fraction, 0.0, 1.0)
-    radius = x0 + fraction * (x1 - x0)
-    return radius * x_proper_code.units
+    shell_radius_proper_code = x0 + fraction * (x1 - x0)
+    return shell_radius_proper_code * x_proper_code.units
 
 
 def weaver_forward_shock_radius(rout, config):
@@ -309,8 +309,8 @@ def plot_density_snapshot(ax, rout, **kwargs):
 
     plt.sca(ax)
     x_proper_code, coordinate_values = _snapshot_coordinate(rout)
-    density = rout.fluid.rho_proper_code.to(unyt.g / unyt.cm**3)
-    ax.plot(coordinate_values, density.to_value(unyt.g / unyt.cm**3), **kwargs)
+    rho_proper_unyt = rout.fluid.rho_proper_code.to(unyt.g / unyt.cm**3)
+    ax.plot(coordinate_values, rho_proper_unyt.to_value(unyt.g / unyt.cm**3), **kwargs)
     ax.set_yscale('log')
 
 
@@ -319,8 +319,8 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
 
     plt.sca(ax)
     x_proper_code, coordinate_values = _snapshot_coordinate(rout)
-    temperature = rout.fluid.temp_proper_code.to(unyt.K)
-    ax.plot(coordinate_values, temperature.to_value(unyt.K), **kwargs)
+    temperature_proper_unyt = rout.fluid.temp_proper_code.to(unyt.K)
+    ax.plot(coordinate_values, temperature_proper_unyt.to_value(unyt.K), **kwargs)
     ax.set_yscale('log')
 
 
@@ -462,13 +462,13 @@ def numerical_bubble_pressure(rout, shell_radius):
     nonnegative = coordinate_values >= 0.0
     coordinate_values = coordinate_values[nonnegative]
     shell_radius_value = shell_radius.to_value(unyt.pc)
-    pressure = (
+    pressure_bubble_proper_unyt = (
         rout.fluid.rho_proper_code
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
         * rout.fluid.temp_proper_code
     ).to(unyt.dyn / unyt.cm**2)
-    pressure_values = pressure.to_value(pressure.units)[nonnegative]
+    pressure_values = pressure_bubble_proper_unyt.to_value(pressure_bubble_proper_unyt.units)[nonnegative]
 
     if pressure_values.size < 2:
         return None
@@ -480,7 +480,7 @@ def numerical_bubble_pressure(rout, shell_radius):
     if not np.any(cavity_band):
         return None
 
-    return unyt.unyt_quantity(np.median(pressure_values[cavity_band]), pressure.units)
+    return unyt.unyt_quantity(np.median(pressure_values[cavity_band]), pressure_bubble_proper_unyt.units)
 
 
 def collect_shell_diagnostics(snapshots, config):
@@ -488,9 +488,9 @@ def collect_shell_diagnostics(snapshots, config):
 
     initial_config = config['initial_condition']
     shell_threshold_factor = config['example'].get('shell_edge_density_threshold_factor', 1.0)
-    times = []
-    radii = []
-    pressures = []
+    times_proper_unyt = []
+    radii_shell_proper_unyt = []
+    pressures_bubble_proper_unyt = []
 
     for rout in snapshots:
         if _time_proper(rout) <= 0 * _time_proper(rout).units:
@@ -505,49 +505,49 @@ def collect_shell_diagnostics(snapshots, config):
         bubble_pressure = numerical_bubble_pressure(rout, shell_radius)
         if bubble_pressure is None:
             continue
-        times.append(_time_proper(rout))
-        radii.append(shell_radius)
-        pressures.append(bubble_pressure)
+        times_proper_unyt.append(_time_proper(rout))
+        radii_shell_proper_unyt.append(shell_radius)
+        pressures_bubble_proper_unyt.append(bubble_pressure)
 
-    if not times:
+    if not times_proper_unyt:
         return None
 
-    times = unyt.unyt_array([time.to_value(unyt.Myr) for time in times], unyt.Myr)
-    radii = unyt.unyt_array([radius.to_value(unyt.pc) for radius in radii], unyt.pc)
-    pressures = unyt.unyt_array(
-        [pressure.to_value(unyt.dyn / unyt.cm**2) for pressure in pressures],
+    times_proper_unyt = unyt.unyt_array([time_proper_unyt.to_value(unyt.Myr) for time_proper_unyt in times_proper_unyt], unyt.Myr)
+    radii_shell_proper_unyt = unyt.unyt_array([radius_shell_proper_unyt.to_value(unyt.pc) for radius_shell_proper_unyt in radii_shell_proper_unyt], unyt.pc)
+    pressures_bubble_proper_unyt = unyt.unyt_array(
+        [pressure_bubble_proper_unyt.to_value(unyt.dyn / unyt.cm**2) for pressure_bubble_proper_unyt in pressures_bubble_proper_unyt],
         unyt.dyn / unyt.cm**2,
     )
-    time_values = np.array([float(time.to_value(unyt.Myr)) for time in times], dtype=float)
-    radius_values = np.array(
-        [float(radius.to_value(unyt.pc)) for radius in radii],
+    time_proper_Myr = np.array([float(time_proper_unyt.to_value(unyt.Myr)) for time_proper_unyt in times_proper_unyt], dtype=float)
+    radius_shell_proper_pc = np.array(
+        [float(radius_shell_proper_unyt.to_value(unyt.pc)) for radius_shell_proper_unyt in radii_shell_proper_unyt],
         dtype=float,
     )
-    velocities = np.gradient(radius_values, time_values)
-    velocities = unyt.unyt_array(velocities, unyt.pc / unyt.Myr).to(unyt.km / unyt.s)
+    vel_shell_proper_km_s = np.gradient(radius_shell_proper_pc, time_proper_Myr)
+    vel_shell_proper_km_s = unyt.unyt_array(vel_shell_proper_km_s, unyt.pc / unyt.Myr).to(unyt.km / unyt.s)
     weaver_radii = []
     weaver_velocities = []
     weaver_pressures = []
-    for time in times:
-        radius, velocity, pressure = wa.weaver_solution(
-            time,
+    for time_proper_unyt in times_proper_unyt:
+        radius_shock_proper_unyt, vel_shock_proper_unyt, pressure_bubble_proper_unyt = wa.weaver_solution(
+            time_proper_unyt,
             initial_config['rho_proper'],
             config['par']['boundary']['rho_outflow_proper'],
             config['par']['boundary']['vel_outflow_proper'],
             initial_config['radius_injection_proper'],
         )
-        weaver_radii.append(radius.to_value(unyt.pc))
-        weaver_velocities.append(velocity.to_value(unyt.km / unyt.s))
-        weaver_pressures.append(pressure.to_value(unyt.dyn / unyt.cm**2))
+        weaver_radii.append(radius_shock_proper_unyt.to_value(unyt.pc))
+        weaver_velocities.append(vel_shock_proper_unyt.to_value(unyt.km / unyt.s))
+        weaver_pressures.append(pressure_bubble_proper_unyt.to_value(unyt.dyn / unyt.cm**2))
 
     return {
-        'times': times.to(unyt.Myr),
-        'radii': radii.to(unyt.pc),
-        'velocities': velocities,
-        'pressures': pressures,
-        'weaver_radii': unyt.unyt_array(weaver_radii, unyt.pc),
-        'weaver_velocities': unyt.unyt_array(weaver_velocities, unyt.km / unyt.s),
-        'weaver_pressures': unyt.unyt_array(weaver_pressures, unyt.dyn / unyt.cm**2),
+        'times_proper_Myr': times_proper_unyt.to(unyt.Myr),
+        'radii_shell_proper_pc': radii_shell_proper_unyt.to(unyt.pc),
+        'vel_shell_proper_km_s': vel_shell_proper_km_s,
+        'pressures_bubble_proper_cgs_dyn_cm2': pressures_bubble_proper_unyt,
+        'weaver_radius_shock_proper_pc': unyt.unyt_array(weaver_radii, unyt.pc),
+        'weaver_vel_shock_proper_km_s': unyt.unyt_array(weaver_velocities, unyt.km / unyt.s),
+        'weaver_pressure_bubble_proper_cgs_dyn_cm2': unyt.unyt_array(weaver_pressures, unyt.dyn / unyt.cm**2),
     }
 
 
@@ -560,16 +560,16 @@ def make_velocity_figure(snapshots, config):
 
     figure, ax = plt.subplots(1, 1, figsize=(8.5, 6.0))
     ax.plot(
-        diagnostics['times'].to_value(unyt.Myr),
-        diagnostics['velocities'].to_value(unyt.km / unyt.s),
+        diagnostics['times_proper_Myr'].to_value(unyt.Myr),
+        diagnostics['vel_shell_proper_km_s'].to_value(unyt.km / unyt.s),
         color='k',
         lw=2.0,
         marker='o',
         label='simulation',
     )
     ax.plot(
-        diagnostics['times'].to_value(unyt.Myr),
-        diagnostics['weaver_velocities'].to_value(unyt.km / unyt.s),
+        diagnostics['times_proper_Myr'].to_value(unyt.Myr),
+        diagnostics['weaver_vel_shock_proper_km_s'].to_value(unyt.km / unyt.s),
         color='k',
         lw=2.0,
         ls='--',
@@ -594,16 +594,16 @@ def make_pressure_figure(snapshots, config):
 
     figure, ax = plt.subplots(1, 1, figsize=(8.5, 6.0))
     ax.plot(
-        diagnostics['times'].to_value(unyt.Myr),
-        diagnostics['pressures'].to_value(unyt.dyn / unyt.cm**2),
+        diagnostics['times_proper_Myr'].to_value(unyt.Myr),
+        diagnostics['pressures_bubble_proper_cgs_dyn_cm2'].to_value(unyt.dyn / unyt.cm**2),
         color='k',
         lw=2.0,
         marker='o',
         label='simulation',
     )
     ax.plot(
-        diagnostics['times'].to_value(unyt.Myr),
-        diagnostics['weaver_pressures'].to_value(unyt.dyn / unyt.cm**2),
+        diagnostics['times_proper_Myr'].to_value(unyt.Myr),
+        diagnostics['weaver_pressure_bubble_proper_cgs_dyn_cm2'].to_value(unyt.dyn / unyt.cm**2),
         color='k',
         lw=2.0,
         ls='--',

@@ -113,7 +113,7 @@ def build_initial_condition(config):
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
     density_proper_code = quantity_to_value(hydrostatic_density_profile(
         coordinate_proper_code * code_units.length_unit,
-        initial_condition['reference_density'],
+        initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],
@@ -167,7 +167,7 @@ def plot_snapshot(outfilename, config, **kwargs):
         vel_code_num = rout.fluid.vel_proper_code
     rho_analytic = hydrostatic_density_profile(
         xcoord,
-        initial_condition['reference_density'],
+        initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],

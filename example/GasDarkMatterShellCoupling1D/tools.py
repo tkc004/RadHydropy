@@ -50,16 +50,16 @@ def make_dark_matter(config):
 
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     count = int(initial_condition['dark_matter_shells'])
-    radius = np.linspace(0.05, 0.95, count)
-    velocity = np.asarray(radius) * float(
+    radius_proper_code = np.linspace(0.05, 0.95, count)
+    vel_radial_proper_code = np.asarray(radius_proper_code) * float(
         initial_condition['dark_matter_velocity_scale']
     )
     angular_momentum = np.full(
         count, float(initial_condition['dark_matter_angular_momentum'])
     )
     return DarkMatterShells(
-        radius=radius,
-        velocity=velocity,
+        radius=radius_proper_code,
+        velocity=vel_radial_proper_code,
         mass=np.full(count, initial_condition['dark_matter_mass'] / count),
         angular_momentum=angular_momentum,
         softening=initial_condition['dark_matter_softening'],

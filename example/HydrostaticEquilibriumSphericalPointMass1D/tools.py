@@ -154,7 +154,7 @@ def build_initial_condition(config):
     sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_proper_code = point_mass_hydrostatic_density_profile(
         sim.mesh.x_proper_code,
-        initial_condition['reference_density'],
+        initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['point_mass'],
@@ -215,7 +215,7 @@ def plot_snapshot(outfilename, config, **kwargs):
         vel_code_num = rout.fluid.vel_proper_code
     rho_analytic = point_mass_hydrostatic_density_profile(
         xcoord,
-        config['initial_condition']['reference_density'],
+        config['initial_condition']['rho_reference_proper'],
         config['initial_condition']['temperature_proper'],
         config['initial_condition']['mean_molecular_weight'],
         config['initial_condition']['point_mass'],

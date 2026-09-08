@@ -39,7 +39,7 @@ initial_condition:
   time_proper: {value: 0.0, unit: s}
   rho_proper: {value: 1.0, unit: g/cm**3}
   explosion_energy: {value: 1.0e-4, unit: erg}
-  explosion_radius: {value: 0.5, unit: cm}
+  radius_explosion_proper: {value: 0.5, unit: cm}
   radius_injection_proper: {value: 0.0, unit: cm}
   mean_molecular_weight: 1.0
 example:

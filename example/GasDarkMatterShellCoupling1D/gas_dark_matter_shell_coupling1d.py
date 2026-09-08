@@ -79,7 +79,7 @@ def main(config_filename=DEFAULT_CONFIG):
         np.asarray(sim.mesh.x_proper_code[interior]) * sim.par.CodeUnits.length_unit,
         'pc',
     )
-    density = quantity_to_value(
+    rho_gas_proper_cgs_g_cm3 = quantity_to_value(
         np.asarray(sim.fluid.rho_proper_code[interior]) * sim.par.CodeUnits.density_unit,
         'g/cm**3',
     )
@@ -106,7 +106,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
     fig, axis = plt.subplots(figsize=(5, 4))
     axis.plot(radius_pc, rho_proper, '--', label='initial')
-    axis.plot(radius_pc, density, label='final')
+    axis.plot(radius_pc, rho_gas_proper_cgs_g_cm3, label='final')
     axis.set_xlabel('radius [pc]')
     axis.set_ylabel(r'gas density [g cm$^{-3}$]')
     axis.legend()

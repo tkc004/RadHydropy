@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
         initial_mapping['halo_mass'], initial_mapping['concentration'], initial_mapping['redshift'],
         initial_mapping['overdensity'], initial_mapping['h0'],
     )
-    temperature = et.virial_temperature(halo, initial_mapping['mu'])
+    temperature_virial_unyt = et.virial_temperature(halo, initial_mapping['mu'])
     config['_code_units'] = code_units
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
@@ -54,7 +54,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'box_size_proper', 'coordinate_system', 'time_proper', 'grid_cells',
         'number_of_cells', 'radius_inner_proper', 'radius_outer_proper', 'halo_mass',
         'concentration', 'redshift', 'overdensity', 'h0', 'gas_fraction',
-        'mean_molecular_weight', 'mu', 'reference_density',
+        'mean_molecular_weight', 'mu', 'rho_reference_proper',
         'temperature_proper', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
@@ -73,9 +73,9 @@ def main(config_filename=DEFAULT_CONFIG):
     runaway_factor = float(thermochemistry.get('runaway_density_factor', 100.0))
 
     def stop_on_runaway(runner):
-        density = np.asarray(runner.fluid.rho_proper_code[interior])
+        rho_proper_code = np.asarray(runner.fluid.rho_proper_code[interior])
         temperature_state = np.asarray(runner.fluid.temp_proper_code[interior])
-        runaway = np.max(density) >= runaway_factor * rho_proper_max
+        runaway = np.max(rho_proper_code) >= runaway_factor * rho_proper_max
         # Do not terminate because a tenuous outer cell reaches the imposed
         # floor.  The relevant runaway is central loss of pressure support.
         ncentral = max(8, int(0.1 * temperature_state.size))
@@ -105,7 +105,7 @@ def main(config_filename=DEFAULT_CONFIG):
     outputs = all_outputs[:len(scheduled_times)]
     if len(outputs) < 2:
         raise RuntimeError('expected at least two saved snapshots')
-    results = [et.analyze_snapshot(name, config, halo, temperature)
+    results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt)
                for name in outputs]
     for result, scheduled_time in zip(results, scheduled_times):
         result['time_Myr'] = scheduled_time
@@ -116,7 +116,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.plot_results(results, halo, figure)
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
-    print('Tvir = %.6g K' % temperature.to_value(unyt.K))
+    print('Tvir = %.6g K' % temperature_virial_unyt.to_value(unyt.K))
     print('central T final = %.6g K' % results[-1]['central_temperature_cgs_K'])
     print('central density final = %.6g g/cm^3' % results[-1]['central_density_cgs_g_cm3'])
     print('temperature floor reached = %s' % (results[-1]['minimum_temperature_cgs_K'] <= 1.01 * floor))

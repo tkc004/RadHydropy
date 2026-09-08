@@ -32,21 +32,21 @@ def make_scale_free_shells(config):
     qmin = float(initial_condition['radius_inner_dimensionless'])
     qmax = float(initial_condition['radius_outer_dimensionless'])
     boundaries = np.linspace(qmin**3, qmax**3, number + 1)**(1.0 / 3.0)
-    radius = 0.5 * (boundaries[:-1] + boundaries[1:])
-    volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = float(initial_condition['time_cosmic'])
-    a = float(cosmology.scale_factor(cosmic_time))
-    hubble = float(cosmology.hubble(cosmic_time))
-    rho_comoving = float(cosmology.background_density(cosmic_time)) * a**3
-    mass = rho_comoving * volume
+    radius_comoving_code = 0.5 * (boundaries[:-1] + boundaries[1:])
+    volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
+    time_cosmic_code = float(initial_condition['time_cosmic'])
+    scale_factor_dimensionless = float(cosmology.scale_factor(time_cosmic_code))
+    hubble_code = float(cosmology.hubble(time_cosmic_code))
+    rho_comoving_code = float(cosmology.background_density(time_cosmic_code)) * scale_factor_dimensionless**3
+    mass_comoving_code = rho_comoving_code * volume_comoving_code
     perturbation_amplitude = float(initial_condition['perturbation_amplitude'])
     delta_mass = 4.0 * np.pi / 3.0 * rho_comoving * perturbation_amplitude
-    delta = perturbation_amplitude / radius**3
-    velocity = -a**2 * hubble * delta * radius / 3.0
+    delta = perturbation_amplitude / radius_comoving_code**3
+    vel_supercomoving_code = -scale_factor_dimensionless**2 * hubble_code * delta * radius_comoving_code / 3.0
     shells = DarkMatterShells(
-        radius=radius,
-        velocity=velocity,
-        mass=mass,
+        radius=radius_comoving_code,
+        velocity=vel_supercomoving_code,
+        mass=mass_comoving_code,
         shell_id=np.arange(number),
         fixed_enclosed_mass=delta_mass,
         softening=float(initial_condition['softening']),
@@ -63,17 +63,17 @@ def physical_velocity(shells, cosmic_time, cosmology):
 
 def turnaround_radius(shells, cosmic_time, cosmology):
     """Interpolate the physical radius where the radial velocity vanishes."""
-    proper_radius = float(cosmology.scale_factor(cosmic_time)) * shells.radius
-    velocity = physical_velocity(shells, cosmic_time, cosmology)
+    radius_proper_code = float(cosmology.scale_factor(cosmic_time)) * shells.radius
+    vel_peculiar_proper_code = physical_velocity(shells, cosmic_time, cosmology)
     # The sorted shell array is ordered from the collapsed/infalling region to
     # the expanding background, so the first turnaround interface is usually
     # a negative-to-positive velocity transition after shell crossing.
-    crossing = np.flatnonzero(velocity[:-1] * velocity[1:] <= 0.0)
+    crossing = np.flatnonzero(vel_peculiar_proper_code[:-1] * vel_peculiar_proper_code[1:] <= 0.0)
     if crossing.size == 0:
         raise RuntimeError('no turnaround shell in the requested output')
     i = int(crossing[0])
-    fraction = velocity[i] / (velocity[i] - velocity[i + 1])
-    return float(proper_radius[i] + fraction * (proper_radius[i + 1] - proper_radius[i]))
+    fraction = vel_peculiar_proper_code[i] / (vel_peculiar_proper_code[i] - vel_peculiar_proper_code[i + 1])
+    return float(radius_proper_code[i] + fraction * (radius_proper_code[i + 1] - radius_proper_code[i]))
 
 
 def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
@@ -81,12 +81,12 @@ def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
     rta = turnaround_radius(shells, cosmic_time, cosmology)
     a = float(cosmology.scale_factor(cosmic_time))
     rho_background = float(cosmology.background_density(cosmic_time))
-    proper_radius = a * shells.radius
-    velocity = physical_velocity(shells, cosmic_time, cosmology)
-    lam_edges = np.geomspace(max(proper_radius.min() / rta, 1.0e-5),
-                             proper_radius.max() / rta, bins + 1)
+    radius_proper_code = a * shells.radius
+    vel_peculiar_proper_code = physical_velocity(shells, cosmic_time, cosmology)
+    lam_edges = np.geomspace(max(radius_proper_code.min() / rta, 1.0e-5),
+                             radius_proper_code.max() / rta, bins + 1)
     lam = np.sqrt(lam_edges[:-1] * lam_edges[1:])
-    shell_index = np.clip(np.searchsorted(lam_edges, proper_radius / rta) - 1, 0, bins - 1)
+    shell_index = np.clip(np.searchsorted(lam_edges, radius_proper_code / rta) - 1, 0, bins - 1)
     shell_mass = np.bincount(shell_index, weights=shells.mass, minlength=bins)
     shell_volume = 4.0 * np.pi / 3.0 * rta**3 * np.diff(lam_edges**3)
     density_contrast = shell_mass / shell_volume / rho_background
@@ -95,7 +95,7 @@ def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
         selected = shell_index == index
         if np.any(selected):
             velocity_scaled[index] = np.average(
-                velocity[selected] / (rta / cosmic_time),
+                vel_peculiar_proper_code[selected] / (rta / cosmic_time),
                 weights=shells.mass[selected],
             )
     cumulative = np.cumsum(shell_mass)

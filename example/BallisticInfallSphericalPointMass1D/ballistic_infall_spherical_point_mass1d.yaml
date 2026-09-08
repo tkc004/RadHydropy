@@ -40,7 +40,7 @@ initial_condition:
   time_proper: {value: 0.0, unit: s}
   radius_inner_proper: {value: 2.0, unit: pc}
   radius_outer_proper: {value: 20.0, unit: pc}
-  reference_density: {value: 1.0e-24, unit: g/cm**3}
+  rho_reference_proper: {value: 1.0e-24, unit: g/cm**3}
   temperature_proper: {value: 1.0, unit: K}
   mean_molecular_weight: 1.0
   point_mass: {value: 1.0e38, unit: g}

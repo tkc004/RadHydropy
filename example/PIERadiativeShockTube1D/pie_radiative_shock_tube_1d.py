@@ -92,7 +92,7 @@ def _run_case(
             case_initial['hydrogen_number_density'].to_value('cm**-3')
             * PROTON_MASS_G / case_config['par']['thermochemistry']['hydrogen_mass_fraction']
         ),
-        'upstream_velocity_cgs_cm_s': case_initial['collision_velocity'],
+        'upstream_velocity_cgs_cm_s': case_initial['vel_collision_proper'],
         'mu': case_initial['mean_molecular_weight'],
     }
 

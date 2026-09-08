@@ -314,14 +314,14 @@ def _scalar_in_unit(value, unit):
 
 def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
     interior = interior_slice(par)
-    radius = _value_in_unit(mesh.x_proper_code[interior], unyt.pc)
+    radius_proper_pc = _value_in_unit(mesh.x_proper_code[interior], unyt.pc)
     xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
 
     ionized = xHII >= ionized_fraction
     if not np.any(ionized):
         return 0.0
     if np.all(ionized):
-        return radius[-1]
+        return radius_proper_pc[-1]
 
     outer_ionized_index = np.where(ionized)[0][-1]
     left = outer_ionized_index
@@ -329,10 +329,10 @@ def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
     x_left = xHII[left]
     x_right = xHII[right]
     if x_right == x_left:
-        return radius[left]
+        return radius_proper_pc[left]
 
     weight = (ionized_fraction - x_left) / (x_right - x_left)
-    return radius[left] + weight * (radius[right] - radius[left])
+    return radius_proper_pc[left] + weight * (radius_proper_pc[right] - radius_proper_pc[left])
 
 
 def append_history(history, mesh, fluid, par):
@@ -385,12 +385,12 @@ def stromgren_radius(config):
         config['rho_initial'].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
     ) * (1.0 / unyt.cm**3)
-    radius = (
+    radius_stromgren_proper_unyt = (
         3.0
         * config['source_photon_rate']
         / (4.0 * np.pi * config['alpha_B_coefficient'] * nH**2)
     ) ** (1.0 / 3.0)
-    return radius.to(unyt.pc)
+    return radius_stromgren_proper_unyt.to(unyt.pc)
 
 
 def neutral_sound_speed(config):
@@ -441,13 +441,13 @@ def hosokawa_inutsuka_radius(time_proper_code, config):
 
 def save_front_plot(history, config, figure_filename):
     initial_condition = config['initial_condition']
-    time = np.asarray(history['time_Myr']) * unyt.Myr
-    time_myr = time.to_value(unyt.Myr)
+    time_proper_unyt = np.asarray(history['time_Myr']) * unyt.Myr
+    time_proper_Myr = time_proper_unyt.to_value(unyt.Myr)
     front_radius_pc = np.asarray(history['front_radius_pc'])
     stromgren_radius_pc = stromgren_radius(config).to_value(unyt.pc)
-    radius_spitzer_pc = spitzer_radius(time, config).to_value(unyt.pc)
+    radius_spitzer_pc = spitzer_radius(time_proper_unyt, config).to_value(unyt.pc)
     radius_hosokawa_inutsuka_pc = hosokawa_inutsuka_radius(
-        time,
+        time_proper_unyt,
         config,
     ).to_value(unyt.pc)
     show_stagnation_radius = config.get('show_stagnation_radius', False)
@@ -456,14 +456,14 @@ def save_front_plot(history, config, figure_filename):
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
-        time_myr,
+        time_proper_Myr,
         front_radius_pc,
         color='tab:blue',
         lw=2.0,
         label=r'RadHydropy $x_{\rm HII}=0.5$',
     )
     ax.plot(
-        time_myr,
+        time_proper_Myr,
         radius_spitzer_pc,
         color='tab:orange',
         lw=1.8,
@@ -516,13 +516,13 @@ def save_front_plot(history, config, figure_filename):
 
 
 def save_density_profile_plot(snapshot, config, figure_filename):
-    time = snapshot['time_Myr'] * unyt.Myr
+    time_proper_unyt = snapshot['time_Myr'] * unyt.Myr
     radius_pc = np.asarray(snapshot['radius_pc'])
     density_cgs_g_cm3 = np.asarray(snapshot['density_cgs_g_cm3'])
     radiation_density_cgs_cm3 = np.asarray(snapshot['radiation_density_cgs_cm3'])
-    spitzer_radius_pc = spitzer_radius(time, config).to_value(unyt.pc)
+    spitzer_radius_pc = spitzer_radius(time_proper_unyt, config).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = hosokawa_inutsuka_radius(
-        time,
+        time_proper_unyt,
         config,
     ).to_value(unyt.pc)
     show_stagnation_radius = config.get('show_stagnation_radius', False)

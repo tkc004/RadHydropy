@@ -44,7 +44,7 @@ def build_initial_condition(config):
     boundary_proper_code = np.linspace(quantity_to_value(ic["radius_inner_proper"], units.length_unit), quantity_to_value(ic["radius_outer_proper"], units.length_unit), n + 1)
     coordinate_proper_code = spherical_cell_centers(boundary_proper_code)
     return make_initial_condition(config, boundary_proper_code=boundary_proper_code,
-        rho_proper_code=ballistic_density_profile(coordinate_proper_code, quantity_to_value(ic["reference_density"], units.density_unit)),
+        rho_proper_code=ballistic_density_profile(coordinate_proper_code, quantity_to_value(ic["rho_reference_proper"], units.density_unit)),
         vel_proper_code=np.zeros(n), temp_proper_code=np.full(n, quantity_to_value(ic["temperature_proper"], units.temperature_unit)),
         mu_dimensionless=np.full(n, ic["mean_molecular_weight"]), area_proper_code=4*np.pi*boundary_proper_code[:-1]**2)
 
@@ -58,7 +58,7 @@ def plot_snapshot(filename, config, **kwargs):
     vel_proper_code = np.asarray(sim.fluid.vel_proper_code)[first:last]
     time_proper_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
     analytic_rho = ballistic_density_profile(
-        coordinate_proper_code, quantity_to_value(ic["reference_density"], units.density_unit)
+        coordinate_proper_code, quantity_to_value(ic["rho_reference_proper"], units.density_unit)
     )
     analytic_vel = ballistic_velocity_profile(
         coordinate_proper_code, ic["point_mass"], time_proper_code,

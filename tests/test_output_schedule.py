@@ -232,7 +232,7 @@ class Testing(unittest.TestCase):
                         'coordinate_system': 'cartesian',
                         'box_size_proper': 1.0 * unyt.cm,
                         'time_proper': 0.0 * unyt.s,
-                        'reference_density': 1.0 * (unyt.g / unyt.cm**3),
+                        'rho_reference_proper': 1.0 * (unyt.g / unyt.cm**3),
                         'temperature_proper': 1.0 * unyt.K,
                         'mean_molecular_weight': 1.0,
                         'gravity_strength': 1.0 * (unyt.cm / unyt.s**2),

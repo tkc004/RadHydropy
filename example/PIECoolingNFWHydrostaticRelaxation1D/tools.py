@@ -3,16 +3,16 @@
 import importlib.util
 from pathlib import Path
 
-import h5py
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 from radhydropy.arrays import as_named_array
+import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value
 from basic_hydro_utils import finalize_initial_condition
 
 BASE_PATH = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
@@ -53,15 +53,15 @@ def build_initial_condition(config):
         initial['halo_mass'], initial['concentration'], initial['redshift'],
         initial['overdensity'], initial['h0'],
     )
-    temperature = virial_temperature(halo, initial['mu'])
-    radius = spherical_cell_centers(np.asarray(boundary_proper_code) * code_units.length_unit)
-    density = hydrostatic_density_profile(
-        radius, np.asarray(boundary_proper_code) * code_units.length_unit, halo, temperature,
+    temperature_virial_unyt = virial_temperature(halo, initial['mu'])
+    radius_proper_unyt = spherical_cell_centers(np.asarray(boundary_proper_code) * code_units.length_unit)
+    rho_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
+        radius_proper_unyt, np.asarray(boundary_proper_code) * code_units.length_unit, halo, temperature_virial_unyt,
         initial['mu'], initial['gas_fraction'],
     )
-    sim.fluid.rho_proper_code = as_named_array(quantity_to_value(density, code_units.density_unit))
+    sim.fluid.rho_proper_code = as_named_array(quantity_to_value(rho_proper_cgs_g_cm3_unyt, code_units.density_unit))
     sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
-    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * temperature, code_units.temperature_unit))
+    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * temperature_virial_unyt, code_units.temperature_unit))
     sim.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mu'])
     sim.fluid.time_proper_code = 0.0
     sim.SetMesh()
@@ -76,57 +76,77 @@ def build_initial_condition(config):
 
 
 def load_output_state(filename, config):
-    with h5py.File(filename, 'r') as handle:
-        data = handle['Data']
-        header = handle['Header']
-        noghost = int(config['par']['mesh']['ghost_cells'])
-        nogrid = int(header.attrs['GridCells'])
-        boundary_proper_code = np.asarray(data['boundary_proper_code'][()])
-        boundary_proper_code = boundary_proper_code[noghost:noghost + nogrid + 1]
-        # Raw output datasets are written in their physical units (cm, g cm^-3,
-        # K, and cm s^-1).  The CodeUnits metadata describes the runtime state,
-        # but must not be applied a second time to these HDF5 values.
-        radius = spherical_cell_centers(boundary_proper_code * unyt.cm).to_value(unyt.kpc)
-        density = np.asarray(data['rho_proper_code'][()])[noghost:noghost + nogrid]
-        temperature = np.asarray(data['temp_proper_code'][()])[noghost:noghost + nogrid]
-        velocity = (np.asarray(data['vel_proper_code'][()])[noghost:noghost + nogrid]
-                    / 1.0e5)
-        time_proper_code = float(header.attrs.get('time_proper_code', 0.0))
-        # Fixed output-time files store the physical time in the fluid state;
-        # the header time is retained as a fallback for older snapshots.
-        return time_proper_code, radius, density, temperature, velocity
+    code_units = config.get('_code_units')
+    if code_units is None:
+        code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    count = int(snapshot.par.mesh.grid_cells)
+    physical = slice(first, first + count)
+    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
+        first:first + count + 1
+    ]
+    radius_proper_kpc = spherical_cell_centers(
+        boundary_proper_code * code_units.length_unit
+    ).to_value(unyt.kpc)
+    rho_proper_cgs_g_cm3 = (
+        np.asarray(snapshot.fluid.rho_proper_code)[physical]
+        * code_units.density_unit
+    ).to_value(unyt.g / unyt.cm**3)
+    temperature_proper_cgs_K = (
+        np.asarray(snapshot.fluid.temp_proper_code)[physical]
+        * code_units.temperature_unit
+    ).to_value(unyt.K)
+    vel_peculiar_proper_km_s = (
+        np.asarray(snapshot.fluid.vel_proper_code)[physical]
+        * code_units.velocity_unit
+    ).to_value(unyt.km / unyt.s)
+    time_proper_code = float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
+    return {
+        'time_proper_code': time_proper_code,
+        'radius_proper_kpc': radius_proper_kpc,
+        'rho_proper_cgs_g_cm3': rho_proper_cgs_g_cm3,
+        'temperature_proper_cgs_K': temperature_proper_cgs_K,
+        'vel_peculiar_proper_km_s': vel_peculiar_proper_km_s,
+    }
 
 
-def analyze_snapshot(filename, config, halo, temperature):
-    time, radius, density, temp, velocity = load_output_state(filename, config)
-    radius_cgs_cm = radius * (1.0 * unyt.kpc).to_value(unyt.cm)
+def analyze_snapshot(filename, config, halo, temperature_virial_unyt):
+    snapshot = load_output_state(filename, config)
+    time_proper_code = snapshot['time_proper_code']
+    radius_proper_kpc = snapshot['radius_proper_kpc']
+    rho_proper_cgs_g_cm3 = snapshot['rho_proper_cgs_g_cm3']
+    temperature_proper_cgs_K = snapshot['temperature_proper_cgs_K']
+    vel_peculiar_proper_km_s = snapshot['vel_peculiar_proper_km_s']
+    radius_proper_cgs_cm = radius_proper_kpc * (1.0 * unyt.kpc).to_value(unyt.cm)
     mu = float(config['initial_condition']['mu'])
-    pressure = density * BOLTZMANN_CONSTANT_CGS * temp / (mu * PROTON_MASS_CGS)
-    mass = nfw_enclosed_mass(radius_cgs_cm * unyt.cm, halo).to_value(unyt.g)
+    pre_proper_cgs_erg_cm3 = rho_proper_cgs_g_cm3 * BOLTZMANN_CONSTANT_CGS * temperature_proper_cgs_K / (mu * PROTON_MASS_CGS)
+    mass_proper_cgs_g = nfw_enclosed_mass(radius_proper_cgs_cm * unyt.cm, halo).to_value(unyt.g)
     gravity = unyt.physical_constants.gravitational_constant.to_value(
         unyt.cm**3 / unyt.g / unyt.s**2
-    ) * mass / np.maximum(radius_cgs_cm, 1.0) ** 2
-    dpdr = np.gradient(pressure, radius_cgs_cm)
-    force_residual = (dpdr + density * gravity) / np.maximum(density * gravity, 1.0e-99)
+    ) * mass_proper_cgs_g / np.maximum(radius_proper_cgs_cm, 1.0) ** 2
+    dpdr_proper_cgs = np.gradient(pre_proper_cgs_erg_cm3, radius_proper_cgs_cm)
+    force_residual = (dpdr_proper_cgs + rho_proper_cgs_g_cm3 * gravity) / np.maximum(rho_proper_cgs_g_cm3 * gravity, 1.0e-99)
     r200 = halo['virial_radius'].to_value(unyt.kpc)
-    inside = radius <= r200
-    shell_edges = np.gradient(radius_cgs_cm)
-    atmosphere_mass = float(np.sum(4.0 * np.pi * radius_cgs_cm[inside]**2
-                                   * shell_edges[inside] * density[inside]))
-    central = radius < 0.1 * r200
+    inside = radius_proper_kpc <= r200
+    shell_width_proper_cgs_cm = np.gradient(radius_proper_cgs_cm)
+    atmosphere_mass = float(np.sum(4.0 * np.pi * radius_proper_cgs_cm[inside]**2
+                                   * shell_width_proper_cgs_cm[inside] * rho_proper_cgs_g_cm3[inside]))
+    central = radius_proper_kpc < 0.1 * r200
     return {
-        'time_Myr': time,
-        'radius_kpc': radius,
-        'density_cgs_g_cm3': density,
-        'temperature_cgs_K': temp,
-        'velocity_km_s': velocity,
-        'pressure_cgs_erg_cm3': pressure,
+        'time_Myr': time_proper_code,
+        'radius_kpc': radius_proper_kpc,
+        'density_cgs_g_cm3': rho_proper_cgs_g_cm3,
+        'temperature_cgs_K': temperature_proper_cgs_K,
+        'velocity_km_s': vel_peculiar_proper_km_s,
+        'pressure_cgs_erg_cm3': pre_proper_cgs_erg_cm3,
         'force_residual': force_residual,
         'atmosphere_mass_Msun': atmosphere_mass / unyt.Msun.to_value(unyt.g),
-        'central_density_cgs_g_cm3': float(np.median(density[central])),
-        'central_temperature_cgs_K': float(np.median(temp[central])),
-        'minimum_temperature_cgs_K': float(np.min(temp)),
-        'temperature': temperature.to_value(unyt.K),
+        'central_density_cgs_g_cm3': float(np.median(rho_proper_cgs_g_cm3[central])),
+        'central_temperature_cgs_K': float(np.median(temperature_proper_cgs_K[central])),
+        'minimum_temperature_cgs_K': float(np.min(temperature_proper_cgs_K)),
+        'temperature_virial_K': temperature_virial_unyt.to_value(unyt.K),
     }
 
 

@@ -58,9 +58,9 @@ initial_condition:
   overdensity: 200.0
   h0: {value: 70.0, unit: km/(s*Mpc)}
   mu: 0.59
-  inner_radius_over_R200: 0.02
-  outer_radius_over_R200: 4.0
-  atmosphere_radius_over_R200: 0.8
+  radius_inner_over_R200_dimensionless: 0.02
+  radius_outer_over_R200_dimensionless: 4.0
+  radius_atmosphere_over_R200_dimensionless: 0.8
   transition_width_over_R200: 0.05
   inflow_velocity_over_V200: 1.25
   baryon_accretion_rate: {value: 30.0, unit: Msun/yr}
