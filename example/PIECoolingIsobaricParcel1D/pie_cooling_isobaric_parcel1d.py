@@ -38,13 +38,13 @@ def _plot(results, filename):
     for result in results:
         label = result['label']
         color = result['color']
-        axes[0, 0].plot(result['time_Myr'], result['temperature_cgs_K'], color=color, label=label)
-        axes[0, 1].plot(result['time_Myr'], result['density_nH_cgs_cm3'], color=color, label=label)
+        axes[0, 0].plot(result['time_proper_Myr'], result['temperature_proper_cgs_K'], color=color, label=label)
+        axes[0, 1].plot(result['time_proper_Myr'], result['density_nH_cgs_cm3'], color=color, label=label)
         axes[1, 0].plot(
-            result['time_Myr'], result['gamma_eff'], color=color, label=label
+            result['time_proper_Myr'], result['gamma_eff'], color=color, label=label
         )
         axes[1, 1].plot(
-            result['time_Myr'], result['growth_rate_Myr_inv'], color=color, label=label
+            result['time_proper_Myr'], result['growth_rate_proper_Myr_inv'], color=color, label=label
         )
     axes[0, 0].set_ylabel(r'$T$ [K]')
     axes[0, 0].set_yscale('log')
@@ -74,9 +74,9 @@ def _plot_rate(results, table, metallicity, redshift, filename):
         + [result for result in results if not result['label'].endswith('_cold')]
     )
     for result in rate_results:
-        density = result['density_nH_cgs_cm3'][0] * result['temperature_cgs_K'][0] / temperatures
-        rate = net_rate(table, temperatures, density, metallicity, redshift)
-        rate_per_nh2 = rate / density ** 2
+        density_nH_cgs_cm3 = result['density_nH_cgs_cm3'][0] * result['temperature_proper_cgs_K'][0] / temperatures
+        rate = net_rate(table, temperatures, density_nH_cgs_cm3, metallicity, redshift)
+        rate_per_nh2 = rate / density_nH_cgs_cm3 ** 2
         magnitude = np.maximum(np.abs(rate_per_nh2), 1.0e-99)
         heating = np.where(rate_per_nh2 >= 0.0, magnitude, np.nan)
         cooling = np.where(rate_per_nh2 < 0.0, magnitude, np.nan)
@@ -129,16 +129,16 @@ def main(config_filename=DEFAULT_CONFIG):
     output_dir.mkdir(exist_ok=True)
     for stale_csv in output_dir.glob('*.csv'):
         stale_csv.unlink()
-    for index, (label, density, temperature) in enumerate(thermo['cases']):
-        density = float(density)
-        temperature = float(temperature)
+    for index, (label, density_initial_cgs_cm3, temperature_initial_cgs_K) in enumerate(thermo['cases']):
+        density_initial_cgs_cm3 = float(density_initial_cgs_cm3)
+        temperature_initial_cgs_K = float(temperature_initial_cgs_K)
         result = integrate_isobaric_case(
-            table, density, temperature, time_final, output_count,
+            table, density_initial_cgs_cm3, temperature_initial_cgs_K, time_final, output_count,
             hydrogen_mass_fraction, mu, gamma, metallicity, redshift,
             temperature_floor,
         )
-        result['growth_rate_Myr_inv'] = isobaric_growth_rate(
-            table, result['temperature_cgs_K'], density, temperature,
+        result['growth_rate_proper_Myr_inv'] = isobaric_growth_rate(
+            table, result['temperature_proper_cgs_K'], density_initial_cgs_cm3, temperature_initial_cgs_K,
             hydrogen_mass_fraction, mu, gamma, metallicity, redshift,
             temperature_floor,
         )
@@ -146,27 +146,27 @@ def main(config_filename=DEFAULT_CONFIG):
         # effective EOS is gamma_eff=dlnP/dlnrho=0.  A finite-difference
         # estimate becomes undefined after a case reaches the temperature
         # floor and its density stops changing.
-        result['gamma_eff'] = np.zeros_like(result['temperature_cgs_K'])
+        result['gamma_eff'] = np.zeros_like(result['temperature_proper_cgs_K'])
         result['label'] = str(label)
         result['color'] = colors[index % len(colors)]
         csv_result = {
             key: result[key]
             for key in (
-                'time_Myr', 'temperature_cgs_K', 'density_nH_cgs_cm3',
-                'pressure_cgs_erg_cm3', 'gamma_eff', 'growth_rate_Myr_inv',
+                'time_proper_Myr', 'temperature_proper_cgs_K', 'density_nH_cgs_cm3',
+                'pressure_proper_cgs_erg_cm3', 'gamma_eff', 'growth_rate_proper_Myr_inv',
             )
         }
         _write_case_csv(csv_result, output_dir / f'{label}.csv')
         results.append(result)
         report_rows.append((
-            label, density, temperature,
-            float(result['temperature_cgs_K'][-1]),
+            label, density_initial_cgs_cm3, temperature_initial_cgs_K,
+            float(result['temperature_proper_cgs_K'][-1]),
             float(result['density_nH_cgs_cm3'][-1]),
-            float(np.max(result['growth_rate_Myr_inv'])),
-            float(np.min(result['growth_rate_Myr_inv'])),
+            float(np.max(result['growth_rate_proper_Myr_inv'])),
+            float(np.min(result['growth_rate_proper_Myr_inv'])),
             float(np.max(np.abs(result['gamma_eff']))),
             float(np.max(np.abs(
-                result['pressure_cgs_erg_cm3'] / result['pressure_cgs_erg_cm3'][0] - 1.0
+                result['pressure_proper_cgs_erg_cm3'] / result['pressure_proper_cgs_erg_cm3'][0] - 1.0
             ))),
         ))
     report = EXAMPLE_DIR / 'PIECoolingIsobaricParcel1D_ThermalReport.txt'
