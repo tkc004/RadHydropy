@@ -28,31 +28,31 @@ def build_initial_condition(config):
     result.par.mesh.grid_cells = grid_cells
     result.par.mesh.ghost_cells = int(par['mesh']['ghost_cells'])
     boxsize = initial['box_size']
-    boundary = as_named_array(quantity_to_value(
+    boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(0.0 * boxsize, boxsize, grid_cells + 1), code_units.length_unit
     ))
-    width = np.diff(boundary)
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+    width = np.diff(boundary_proper_code)
+    x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     midpoint_proper_code = quantity_to_value(
         0.5 * boxsize, code_units.length_unit
     )
-    result.mesh.boundary_proper_code = boundary
+    result.mesh.boundary_proper_code = boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
+        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
         width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
     )
     collision_velocity_proper_code = quantity_to_value(
         initial['collision_velocity'], code_units.velocity_unit
     )
     result.fluid.vel_proper_code = as_named_array(np.where(
-        coordinate < midpoint_proper_code,
+        x_proper_code < midpoint_proper_code,
         collision_velocity_proper_code,
         -collision_velocity_proper_code,
     ))
     hydrogen_mass_fraction = float(par['thermochemistry']['hydrogen_mass_fraction'])
-    rho = initial['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
+    rho_proper_code = initial['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * rho, code_units.density_unit
+        np.ones(grid_cells) * rho_proper_code, code_units.density_unit
     ))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * initial['initial_temperature'], code_units.temperature_unit
@@ -86,10 +86,10 @@ def load_snapshot(filename):
         physical = _physical_cells(data, header)
         noghost = int(header.attrs.get('GhostCells', 0))
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(data['boundary_proper_code'][()])[noghost:noghost + nogrid + 1]
+        boundary_proper_code = np.asarray(data['boundary_proper_code'][()])[noghost:noghost + nogrid + 1]
         return {
             'time_Myr': float(header['time_proper_code'][()]) / SECONDS_PER_MYR,
-            'boundary_cgs_cm': boundary,
+            'boundary_cgs_cm': boundary_proper_code,
             'density_cgs_g_cm3': np.asarray(data['rho_proper_code'][()])[physical],
             'velocity_cgs_cm_s': np.asarray(data['vel_proper_code'][()])[physical],
             'temperature_cgs_K': np.asarray(data['temp_proper_code'][()])[physical],

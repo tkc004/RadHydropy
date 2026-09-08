@@ -62,18 +62,18 @@ def _read_profile(filename, code_unit_system):
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
-    runtime = config["par"]
+    case_config = copy.deepcopy(config)
     initial_condition = config["initial_condition"]
     if riemann_solver is not None:
-        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "riemann_solver": riemann_solver}}
+        case_config["par"] = {**case_config["par"], "hydrodynamics": {**case_config["par"]["hydrodynamics"], "riemann_solver": riemann_solver}}
     if dual_energy is not None:
-        runtime = {**runtime, "hydrodynamics": {**runtime["hydrodynamics"], "dual_energy": dual_energy}}
-    output = runtime["output"]
+        case_config["par"] = {**case_config["par"], "hydrodynamics": {**case_config["par"]["hydrodynamics"], "dual_energy": dual_energy}}
+    output = case_config["par"]["output"]
     output_dir = Path(output["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
-    units = CodeUnits.from_mapping(runtime["units"]["CodeUnits"])
-    gravity = runtime.get("gravity", {})
+    units = CodeUnits.from_mapping(case_config["par"]["units"]["CodeUnits"])
+    gravity = case_config["par"].get("gravity", {})
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         code_cosmology = LambdaCDM.from_code_units(
             units,
@@ -89,21 +89,22 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
             t_ref=float(gravity.get("cosmology_t_ref", 1.0)),
             a_ref=float(gravity.get("cosmology_a_ref", 1.0)),
         )
-    case_config = dict(config)
-    case_config["par"] = runtime
     case_config["_code_cosmology"] = code_cosmology
     case_config["_initial_tau_supercomoving_code"] = 0.0
     boxsize_code = float(initial_condition["boxsize"].to_value(units.length_unit))
     case_config["_boundary_start_code"] = -boxsize_code / int(
-        runtime["mesh"]["grid_cells"]
+        case_config["par"]["mesh"]["grid_cells"]
     )
     initial = build_cosmological_initial_condition(case_config)
     ic_filename = output_dir / "InitialCondition.hdf5"
     rio.writehdf5(initial, ic_filename)
-    runtime = {key: (dict(value) if isinstance(value, dict) else value)
-               for key, value in runtime.items()}
-    runtime["simulation"] = {**runtime["simulation"], "initial_condition_filename": str(ic_filename)}
-    sim = Rsim(runtime)
+    case_config["par"] = {key: (dict(value) if isinstance(value, dict) else value)
+                           for key, value in case_config["par"].items()}
+    case_config["par"]["simulation"] = {
+        **case_config["par"]["simulation"],
+        "initial_condition_filename": str(ic_filename),
+    }
+    sim = Rsim(case_config["par"])
     sim.par.set_cosmology_model(initial.par.cosmology)
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()

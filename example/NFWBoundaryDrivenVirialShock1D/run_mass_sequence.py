@@ -46,12 +46,12 @@ CONFIGS = (
 
 def _case_diagnostics(config_filename):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     exampleparams = config['example']
     pie_table_filename = (
         config_filename.parent
-        / par_config['thermochemistry']['metal_pie_table_filename']
+        / config["par"]['thermochemistry']['metal_pie_table_filename']
     ).resolve()
     pie_outdir = (config_filename.parent / exampleparams['pie_outdir']).resolve()
     pie_schedule = (

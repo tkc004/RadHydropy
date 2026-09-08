@@ -27,5 +27,5 @@ def make_shells(initial_condition, code_unit_system):
     )
 
 
-def load_units(config):
+def code_units_from_config(config):
     return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])

@@ -11,10 +11,10 @@ from radhydropy.units import CodeUnits, quantity_to_value
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-    runtime = config['par']
+
     code_units = config['_code_units']
-    result = Rsim(runtime)
-    result.par.mesh.grid_cells = int(runtime['mesh']['grid_cells'])
+    result = Rsim(config["par"])
+    result.par.mesh.grid_cells = int(config["par"]['mesh']['grid_cells'])
     result.par.mesh.ghost_cells = 0
     rmin = quantity_to_value(initial['rmin'], code_units.length_unit)
     rmax = quantity_to_value(initial['rmax'], code_units.length_unit)
@@ -42,12 +42,12 @@ def build_initial_condition(config):
 
 def read_output(filename, config):
     """Read one output with the metadata needed by the HDF5 reader."""
-    par_config = config['par']
-    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
-    result = Rsim(par_config)
+
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    result = Rsim(config["par"])
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     result.fluid.eos = EOS(
-        par_config['hydrodynamics']['eos_type'],
+        config["par"]['hydrodynamics']['eos_type'],
         result.par.hydrodynamics.gamma,
         code_units,
     )

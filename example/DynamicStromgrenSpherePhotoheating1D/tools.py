@@ -133,10 +133,10 @@ def _attach_proper_runtime_states(par, mesh, fluid):
 
 def build_static_problem(config):
     """Build the proper-code IC using the configured ``Rsim`` object."""
-    par_config = config['par']
+
     initial = config['initial_condition']
     units = config['_code_units']
-    grid_cells = int(par_config['mesh']['grid_cells'])
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
     box_size_proper_code = quantity_to_value(
         initial['box_size'], units.length_unit
     )
@@ -159,7 +159,7 @@ def build_static_problem(config):
         temp_proper_code=temperature_proper_code,
         mu_dimensionless=np.ones(grid_cells),
     )
-    radiation = par_config['radiation']
+    radiation = config["par"]['radiation']
     sim.fluid.xHI = np.ones(grid_cells)
     sim.fluid.ngamma_code = np.full(
         grid_cells,
@@ -179,25 +179,25 @@ def build_static_problem(config):
     return sim
 
     # Retained below only as historical context; unreachable legacy setup.
-    par_config = config['par']
-    simulation = par_config['simulation']
-    mesh_config = par_config['mesh']
-    hydro = par_config['hydrodynamics']
-    boundary = par_config['boundary']
-    timestep = par_config['timestep']
-    output = par_config['output']
-    chemistry = par_config['chemistry']
-    thermo = par_config['thermochemistry']
-    radiation = par_config['radiation']
+
+    simulation = config["par"]['simulation']
+    mesh_config = config["par"]['mesh']
+    hydro = config["par"]['hydrodynamics']
+    boundary = config["par"]['boundary']
+    timestep = config["par"]['timestep']
+    output = config["par"]['output']
+    chemistry = config["par"]['chemistry']
+    thermo = config["par"]['thermochemistry']
+    radiation = config["par"]['radiation']
     initial = config['initial_condition']
-    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     par = SimpleNamespace(
         coordsys=simulation.get('coordinate_system', 'spherical'),
         boundcond=boundary.get('condition', 'OpenSph'),
         nogrid=mesh_config['grid_cells'],
         noghost=mesh_config.get('ghost_cells', 2),
         boxsize=initial['box_size'],
-        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        verbose=config["par"].get('diagnostics', {}).get('verbose', 0),
         area=mesh_config.get('area', 1.0 * unyt.cm**2),
         EOStype=hydro.get('eos_type', 'polytropic'),
         gamma=hydro.get('gamma', 5.0 / 3.0),
@@ -312,9 +312,9 @@ def load_output_state(outputfilename, config):
     # plotting; the runtime runner performs this step during RunAll.
     ghost_cells = int(sim.par.mesh.ghost_cells)
     grid_cells = int(sim.par.mesh.grid_cells)
-    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
-    if boundary.size == grid_cells + 1 + 2 * ghost_cells:
-        sim.mesh.boundary_proper_code = boundary[ghost_cells:-ghost_cells]
+    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    if boundary_proper_code.size == grid_cells + 1 + 2 * ghost_cells:
+        sim.mesh.boundary_proper_code = boundary_proper_code[ghost_cells:-ghost_cells]
         sim.SetMesh()
     sim.fluid.SetPressure()
     return sim.par, sim.mesh, sim.fluid

@@ -39,9 +39,9 @@ def effective_potential(radius, mass, angular_momentum, softening, g_code):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
+
     initial_condition = config['initial_condition']
-    code_units = et.load_units(config)
+    code_units = et.code_units_from_config(config)
     shell = et.make_shell(initial_condition, code_units)
     g_code = (
         6.67430e-8 * code_units.mass_in_cgs
@@ -72,11 +72,11 @@ def main(config_filename=DEFAULT_CONFIG):
     event_radius_floor.direction = -1
     reference = solve_ivp(
         rhs,
-        (0.0, float(runtime['simulation']['final_time'])),
+        (0.0, float(config["par"]['simulation']['final_time'])),
         [initial_radius, initial_velocity],
         rtol=1.0e-11,
         atol=1.0e-13,
-        max_step=float(runtime['timestep']['output_interval']) / 4.0,
+        max_step=float(config["par"]['timestep']['output_interval']) / 4.0,
         events=event_radius_floor,
         dense_output=True,
     )
@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
     time = 0.0
     while time < reference.t[-1]:
         dt = min(
-            float(runtime['timestep']['output_interval']) / 4.0,
+            float(config["par"]['timestep']['output_interval']) / 4.0,
             reference.t[-1] - time,
         )
         time += shell.step(dt)
@@ -119,7 +119,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(runtime['output']['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
+    figure = Path(config["par"]['output']['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

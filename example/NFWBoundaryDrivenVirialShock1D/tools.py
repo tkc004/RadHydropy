@@ -73,7 +73,7 @@ def inflow_density(mass_accretion_rate, radius, velocity):
 def boundary_inflow_state(config, halo, table):
     """Return the maintained outer-boundary state in physical units."""
     initial_condition = config['initial_condition']
-    par_config = config['par']
+
     radius = float(initial_condition['outer_radius_over_R200']) * halo['virial_radius']
     velocity = (
         -float(initial_condition['inflow_velocity_over_V200']) * halo['virial_velocity']
@@ -81,9 +81,9 @@ def boundary_inflow_state(config, halo, table):
     density = inflow_density(initial_condition['baryon_accretion_rate'], radius, velocity)
     temperature = pie_equilibrium_temperature(
         [density.to_value(unyt.g / unyt.cm**3)], table,
-        float(par_config['chemistry']['hydrogen_mass_fraction']),
-        float(par_config['thermochemistry']['metallicity']),
-        float(par_config['thermochemistry']['metal_pie_redshift']),
+        float(config["par"]['chemistry']['hydrogen_mass_fraction']),
+        float(config["par"]['thermochemistry']['metallicity']),
+        float(config["par"]['thermochemistry']['metal_pie_redshift']),
     )[0] * unyt.K
     return {
         'inflow_density': density,
@@ -96,10 +96,10 @@ def boundary_inflow_state(config, halo, table):
 def build_initial_condition(config):
     """Build a hot NFW atmosphere with a steady cold PIE inflow."""
     initial_condition = config['initial_condition']
-    par_config = config['par']
+
     code_units = config['_code_units']
     table = config['_pie_table']
-    grid_cells = int(par_config['mesh']['grid_cells'])
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
     halo = nfw_halo_parameters(
         initial_condition['halo_mass'], initial_condition['concentration'],
         initial_condition['redshift'], initial_condition['overdensity'], initial_condition['h0'],
@@ -116,9 +116,9 @@ def build_initial_condition(config):
     rho_cold = inflow_density(mdot, radius, inflow_velocity)
     temperature_cold = pie_equilibrium_temperature(
         rho_cold.to_value(unyt.g / unyt.cm**3), table,
-        float(par_config['chemistry']['hydrogen_mass_fraction']),
-        float(par_config['thermochemistry']['metallicity']),
-        float(par_config['thermochemistry']['metal_pie_redshift']),
+        float(config["par"]['chemistry']['hydrogen_mass_fraction']),
+        float(config["par"]['thermochemistry']['metallicity']),
+        float(config["par"]['thermochemistry']['metal_pie_redshift']),
     ) * unyt.K
     transition = float(initial_condition['atmosphere_radius_over_R200']) * r200
     transition_density = inflow_density(mdot, transition, inflow_velocity)
@@ -259,12 +259,12 @@ def _gas_pressure(density, temperature, mu):
 
 
 def _pie_net_rate(table, density, temperature, config):
-    par_config = config['par']
-    n_h = float(par_config['chemistry']['hydrogen_mass_fraction']) * density / PROTON_MASS_CGS
+
+    n_h = float(config["par"]['chemistry']['hydrogen_mass_fraction']) * density / PROTON_MASS_CGS
     heating, cooling = table.rates(
         temperature, n_h,
-        metallicity=float(par_config['thermochemistry']['metallicity']),
-        redshift=float(par_config['thermochemistry']['metal_pie_redshift']),
+        metallicity=float(config["par"]['thermochemistry']['metallicity']),
+        redshift=float(config["par"]['thermochemistry']['metal_pie_redshift']),
     )
     return float(np.asarray(cooling)) - float(np.asarray(heating))
 
@@ -273,7 +273,7 @@ def pie_stability_diagnostics(
     filenames, times_myr, halo, table, config, mu,
 ):
     """Compare simulated post-shock states with finite-Mach estimates."""
-    par_config = config['par']
+
     profiles = [load_snapshot(name) for name in filenames]
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     indices = [locate_shock(profile, r200) for profile in profiles]
@@ -281,7 +281,7 @@ def pie_stability_diagnostics(
         None if index is None else profile['radius_kpc'][index]
         for profile, index in zip(profiles, indices)
     ]
-    gamma = float(par_config['hydrodynamics']['gamma'])
+    gamma = float(config["par"]['hydrodynamics']['gamma'])
     downstream = []
     for profile, index in zip(profiles, indices):
         if index is None or index < 8 or index + 5 >= len(profile['radius_kpc']):

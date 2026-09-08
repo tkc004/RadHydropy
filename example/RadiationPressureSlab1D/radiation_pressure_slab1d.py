@@ -38,10 +38,10 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiation_pressure_slab1d.y
 
 
 def build_initial_condition(config):
-    par_config = config['par']
+
     initial = config['initial_condition']
-    grid_cells = int(par_config['mesh']['grid_cells'])
-    sim = Rsim(par_config)
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
     sim.par.simulation.box_size = quantity_to_value(
         initial['box_size'], code_units.length_unit
@@ -55,17 +55,17 @@ def build_initial_condition(config):
     ))
     boundary_proper_code = sim.mesh.boundary_proper_code
     width_proper_code = np.diff(boundary_proper_code)
-    area = np.ones(grid_cells) * quantity_to_value(
-        par_config['mesh']['area'], code_units.area_unit
+    area_proper_code = np.ones(grid_cells) * quantity_to_value(
+        config["par"]['mesh']['area'], code_units.area_unit
     )
-    volume_proper_code = width_proper_code * area
+    volume_proper_code = width_proper_code * area_proper_code
     coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
         x_proper_code=coordinate_proper_code,
         boundary_proper_code=boundary_proper_code,
         width_proper_code=width_proper_code,
-        area_proper_code=area,
+        area_proper_code=area_proper_code,
         volume_proper_code=volume_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
@@ -80,7 +80,7 @@ def build_initial_condition(config):
     sim.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
     sim.fluid.xHI = np.ones(
         grid_cells
-    ) * par_config['chemistry']['hydrogen_xHI_initial']
+    ) * config["par"]['chemistry']['hydrogen_xHI_initial']
     sim.fluid.SetFluidTime(sim.par.simulation.time_proper_code)
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     sim.fluid.SetPressure()
@@ -117,16 +117,16 @@ def _absorbed_momentum(source_result, mesh, par, dt):
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
+
     eu.clean_previous_outputs(config)
     write_initial_condition(config)
 
-    sim = Rsim(runtime)
+    sim = Rsim(config["par"])
     rio.readhdf5(
         sim.par,
         sim.mesh,
         sim.fluid,
-        runtime['simulation']['initial_condition_filename'],
+        config["par"]['simulation']['initial_condition_filename'],
     )
     sim.SetMesh()
     sim.SetFluid()
@@ -138,8 +138,8 @@ def main(config_filename=DEFAULT_CONFIG):
     expected = 0.0
     sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
 
-    final_time = runtime["simulation"]["final_time"].to_value(unyt.s)
-    dtmax = runtime["timestep"]["dtmax"].to_value(unyt.s)
+    final_time = config["par"]["simulation"]["final_time"].to_value(unyt.s)
+    dtmax = config["par"]["timestep"]["dtmax"].to_value(unyt.s)
     while float(np.asarray(sim.fluid.time_proper_code)) < final_time:
         remaining = final_time - float(np.asarray(sim.fluid.time_proper_code))
         # Keep this demonstration on a fixed, conservative source timestep so
@@ -170,7 +170,7 @@ def main(config_filename=DEFAULT_CONFIG):
     time_cgs_s_unyt = np.asarray(time_s) * unyt.s
     gas = np.asarray(gas_momentum) * (unyt.g * unyt.cm / unyt.s)
     expected = np.asarray(expected_momentum) * (unyt.g * unyt.cm / unyt.s)
-    figure = Path(runtime["output"]["savedir"]) / "RadiationPressureSlab1D_Momentum.jpg"
+    figure = Path(config["par"]["output"]["savedir"]) / "RadiationPressureSlab1D_Momentum.jpg"
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(time_cgs_s_unyt.to_value(unyt.s), gas.to_value(unyt.g * unyt.cm / unyt.s), label="gas momentum")
     plt.plot(time_cgs_s_unyt.to_value(unyt.s), expected.to_value(unyt.g * unyt.cm / unyt.s), "--", label="absorbed photons / c")

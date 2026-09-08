@@ -53,8 +53,8 @@ def build_initial_condition(config):
     return sim
 
 def ReadandPlot(outfilename, config, **kwargs):
-    par_config = config['par']
-    rout = Rsim(par_config)
+
+    rout = Rsim(config["par"])
     code_units_obj = config['_code_units']
     rout.par.units.CodeUnits = code_units_obj
     rout.par.unit_system = code_units_obj.unit_system
@@ -68,7 +68,7 @@ def ReadandPlot(outfilename, config, **kwargs):
              **kwargs)
     plt.axvline(
         x=(rout.fluid.time_proper_code * code_units_obj.time_unit)
-        * par_config['boundary']['outflow_velocity'],
+        * config["par"]['boundary']['outflow_velocity'],
         color=kwargs['color'],
         ls='dashed',
     )

@@ -50,15 +50,35 @@ def _snapshot(filename):
 
 
 def _run_case(config, label, hydrogen_density_cgs_cm3, table):
-    par = config['par']; initial_mapping = config['initial_condition']
+    initial_mapping = config['initial_condition']
     output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(output_dir / f'InitialCondition_{label}.hdf5')}, 'output': {**par['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': f'Output_{label}'}}
+    case_config = copy.deepcopy(config)
+    case_config['par'] = {
+        **case_config['par'],
+        'simulation': {
+            **case_config['par']['simulation'],
+            'initial_condition_filename': str(output_dir / f'InitialCondition_{label}.hdf5'),
+        },
+        'output': {
+            **case_config['par']['output'],
+            'directory': str(output_dir),
+            'savedir': str(output_dir),
+            'filename_prefix': f'Output_{label}',
+        },
+    }
 
-    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
-    case_config = {'par': case, 'initial_condition': {**initial_mapping, 'hydrogen_density_cgs_cm3': hydrogen_density_cgs_cm3, 'hydrogen_mass_fraction': case['thermochemistry']['hydrogen_mass_fraction'], 'proton_mass_g': float(unyt.mp.to_value(unyt.g)), 'vini': 0.0 * unyt.cm / unyt.s}, 'example': config['example'], '_code_units': code_units}
+    code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
+    case_config['initial_condition'] = {
+        **initial_mapping,
+        'hydrogen_density_cgs_cm3': hydrogen_density_cgs_cm3,
+        'hydrogen_mass_fraction': case_config['par']['thermochemistry']['hydrogen_mass_fraction'],
+        'proton_mass_g': float(unyt.mp.to_value(unyt.g)),
+        'vini': 0.0 * unyt.cm / unyt.s,
+    }
+    case_config['_code_units'] = code_units
     ric = build_initial_condition(case_config)
-    rio.writehdf5(ric, case['simulation']['initial_condition_filename'])
+    rio.writehdf5(ric, case_config['par']['simulation']['initial_condition_filename'])
 
     runtime_only = {
         'final_time', 'number_of_cells', 'evolution_timestep',
@@ -66,14 +86,14 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
         'current_time', 'grid_cells', 'initial_temperature',
         'mean_molecular_weight',
     }
-    sim = Rsim(case)
+    sim = Rsim(case_config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     sim.Run(outputtime=0, mode="hydro")
-    snapshots = sorted(output_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"))
+    snapshots = sorted(output_dir.glob(f"{case_config['par']['output']['filename_prefix']}_*.hdf5"))
     if len(snapshots) < 2:
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
@@ -81,10 +101,10 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     heating, cooling = table.rates(
         temperature,
         hydrogen_density_cgs_cm3,
-        metallicity=case['thermochemistry']["metallicity"],
-        redshift=case['thermochemistry']["metal_pie_redshift"],
+        metallicity=case_config['par']['thermochemistry']["metallicity"],
+        redshift=case_config['par']['thermochemistry']["metal_pie_redshift"],
     )
-    if hydrogen_density_cgs_cm3 > case['thermochemistry']["metal_pie_photoheating_max_density_cgs_cm3"]:
+    if hydrogen_density_cgs_cm3 > case_config['par']['thermochemistry']["metal_pie_photoheating_max_density_cgs_cm3"]:
         heating_used = 0.0
     else:
         heating_used = heating

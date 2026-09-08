@@ -11,9 +11,9 @@ from radhydropy.units import CodeUnits
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-    runtime = config['par']
-    simulation = runtime['simulation']
-    mesh = runtime['mesh']
+
+    simulation = config["par"]['simulation']
+    mesh = config["par"]['mesh']
     code_units = config['_code_units']
     result = Rsim(config['par'])
     result.par.mesh.grid_cells = int(mesh['grid_cells'])

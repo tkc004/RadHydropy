@@ -36,17 +36,18 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
     initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     ric = et.build_initial_condition(config)
-    initial_filename = Path(par['simulation']['initial_condition_filename'])
+    initial_filename = Path(config['par']['simulation']['initial_condition_filename'])
     rio.writehdf5(ric, initial_filename)
 
-    runtime = {**par, 'simulation': {**par['simulation'],
-        'initial_condition_filename': str(initial_filename)}}
-    mainrun = Rsim(runtime)
+    config['par']['simulation'] = {
+        **config['par']['simulation'],
+        'initial_condition_filename': str(initial_filename),
+    }
+    mainrun = Rsim(config['par'])
     rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
     mainrun.SetMesh()
     mainrun.SetFluid()

@@ -7,7 +7,7 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits, _gravitational_constant_code
 
 
-def load_units(config):
+def code_units_from_config(config):
     return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 
@@ -27,13 +27,13 @@ def make_shells(initial_condition, code_unit_system, cosmology, overdensity=None
     outer_boundaries = volume_midpoint_boundaries(top_hat_radius, rmax, number_outer)
     boundaries = np.concatenate((inner_boundaries, outer_boundaries[1:]))
     radius = ((boundaries[:-1]**3 + boundaries[1:]**3) / 2.0)**(1.0 / 3.0)
-    volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
+    volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
     cosmic_time = float(initial_condition['cosmic_time'])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     rho_comoving = float(cosmology.background_density(cosmic_time)) * scale_factor**3
     delta = float(initial_condition['overdensity'] if overdensity is None else overdensity)
     inside = radius < float(initial_condition['top_hat_radius'])
-    mass = rho_comoving * volume * (1.0 + delta * inside)
+    mass = rho_comoving * volume_comoving_code * (1.0 + delta * inside)
     hubble = float(cosmology.hubble(cosmic_time))
     velocity = np.zeros_like(radius)
     velocity[inside] = -scale_factor**2 * hubble * delta * radius[inside] / 3.0

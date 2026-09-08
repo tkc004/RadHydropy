@@ -31,11 +31,11 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
+
     initial_condition = config['initial_condition']
-    timestep = runtime['timestep']
-    output = runtime['output']
-    code_units = et.load_units(config)
+    timestep = config["par"]['timestep']
+    output = config["par"]['output']
+    code_units = et.code_units_from_config(config)
     shells = et.make_shells(initial_condition, code_units)
     time = 0.0
     history_time = [time]
@@ -43,10 +43,10 @@ def main(config_filename=DEFAULT_CONFIG):
     history_energy = [np.sum(shells.mass * shells.specific_energy())]
     crossings = 0
 
-    while time < runtime['simulation']['final_time']:
+    while time < config["par"]['simulation']['final_time']:
         dt = min(
             float(timestep['output_interval']) / 4.0,
-            float(runtime['simulation']['final_time']) - time,
+            float(config["par"]['simulation']['final_time']) - time,
         )
         predicted = shells.crossing_timestep(
             safety_factor=float(timestep['crossing_safety_factor'])

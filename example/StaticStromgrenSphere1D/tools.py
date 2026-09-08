@@ -62,10 +62,10 @@ def _attach_proper_runtime_states(mesh, fluid):
 
 def build_static_problem(config):
     """Build the initial state using the canonical nested runtime objects."""
-    par_config = config['par']
+
     initial = config['initial_condition']
-    grid_cells = int(par_config['mesh']['grid_cells'])
-    sim = Rsim(par_config)
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
     sim.par.simulation.box_size = float(
         quantity_to_value(initial['boxsize'], code_units.length_unit)
@@ -75,20 +75,20 @@ def build_static_problem(config):
         np.linspace(0.0, initial['boxsize'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units.length_unit,
     ))
-    boundary = sim.mesh.boundary_proper_code
-    width = np.diff(boundary)
-    volume = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
-    coordinate = 0.75 * (boundary[1:] ** 4 - boundary[:-1] ** 4) / (
-        boundary[1:] ** 3 - boundary[:-1] ** 3
+    boundary_proper_code = sim.mesh.boundary_proper_code
+    width = np.diff(boundary_proper_code)
+    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    x_proper_code = 0.75 * (boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4) / (
+        boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
     )
-    area = 4.0 * np.pi * boundary[:-1] ** 2
+    area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        x_proper_code=coordinate,
-        boundary_proper_code=boundary,
+        x_proper_code=x_proper_code,
+        boundary_proper_code=boundary_proper_code,
         width_proper_code=width,
-        area_proper_code=area,
-        volume_proper_code=volume,
+        area_proper_code=area_proper_code,
+        volume_proper_code=volume_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value((
         np.ones(grid_cells)

@@ -22,7 +22,7 @@ def build_initial_condition(config):
     grid_cells = int(par['mesh']['grid_cells'])
     # Component-level callers may provide the already-resolved private unit
     # object without repeating the YAML ``units`` group. Complete the nested
-    # runtime mapping at this boundary before constructing Rsim.
+    # runtime mapping at this boundary_proper_code before constructing Rsim.
     if 'units' not in config['par']:
         config['par'] = dict(config['par'])
         config['par']['units'] = {'CodeUnits': code_units.to_dict()}
@@ -31,19 +31,19 @@ def build_initial_condition(config):
     result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
     result.par.simulation.coordinate_system = 'spherical'
     result.par.mesh.grid_cells = grid_cells
-    boundary = as_named_array(quantity_to_value(
+    boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1), code_units.length_unit
     ))
-    result.mesh.boundary_proper_code = boundary
-    width = np.diff(boundary)
-    coordinate = 0.75 * (boundary[1:] ** 4 - boundary[:-1] ** 4) / (boundary[1:] ** 3 - boundary[:-1] ** 3)
-    volume = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
+    result.mesh.boundary_proper_code = boundary_proper_code
+    width = np.diff(boundary_proper_code)
+    x_proper_code = 0.75 * (boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4) / (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
-        width_proper_code=width, area_proper_code=4.0 * np.pi * boundary[:-1] ** 2, volume_proper_code=volume,
+        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
+        width_proper_code=width, area_proper_code=4.0 * np.pi * boundary_proper_code[:-1] ** 2, volume_proper_code=volume_proper_code,
     )
-    rho = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
-    result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho, code_units.density_unit))
+    rho_proper_code = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
+    result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho_proper_code, code_units.density_unit))
     midpoint_proper_code = quantity_to_value(
         0.5 * (initial['rmin'] + initial['rmax']), code_units.length_unit
     )
@@ -54,7 +54,7 @@ def build_initial_condition(config):
         initial['inflow_velocity'], code_units.velocity_unit
     )
     result.fluid.vel_proper_code = as_named_array(np.where(
-        coordinate < midpoint_proper_code,
+        x_proper_code < midpoint_proper_code,
         outflow_velocity_proper_code,
         inflow_velocity_proper_code,
     ))
@@ -86,12 +86,12 @@ def load_snapshot(filename):
         physical = physical_cells(header)
         noghost = int(header.attrs.get('GhostCells', 0))
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(
+        boundary_proper_code = np.asarray(
             data['boundary_proper_code'][()]
         )[noghost:noghost + nogrid + 1]
         return {
             'time_Myr': float(header['time_proper_code'][()]) / SECONDS_PER_MYR,
-            'boundary_cgs_cm': boundary,
+            'boundary_cgs_cm': boundary_proper_code,
             'density_cgs_g_cm3': np.asarray(data['rho_proper_code'][()])[physical],
             'velocity_cgs_cm_s': np.asarray(data['vel_proper_code'][()])[physical],
             'temperature_cgs_K': np.asarray(data['temp_proper_code'][()])[physical],
@@ -100,8 +100,8 @@ def load_snapshot(filename):
 
 def shock_radius(snapshot):
     """Locate the strongest compression near the colliding-stream interface."""
-    boundary = snapshot['boundary_cgs_cm']
-    centers = 0.5 * (boundary[1:] + boundary[:-1])
+    boundary_proper_code = snapshot['boundary_cgs_cm']
+    centers = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     density = np.maximum(snapshot['density_cgs_g_cm3'], 1.0e-99)
     gradient = np.abs(np.diff(np.log(density)))
     start = max(2, int(0.2 * len(gradient)))

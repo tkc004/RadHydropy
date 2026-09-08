@@ -40,17 +40,16 @@ def main(config_filename=None):
     if config_filename is None:
         config_filename = DEFAULT_CONFIG
     config = eu.load_nested_example_config(config_filename)
-    runtime_params = config['par']
-    output = runtime_params['output']
+    output = config['par']['output']
     config['_code_units'] = CodeUnits.from_mapping(
-        runtime_params['units']['CodeUnits']
+        config['par']['units']['CodeUnits']
     )
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     Path(output['savedir']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
 
-    sim = Rsim(runtime_params)
+    sim = Rsim(config['par'])
     sim.RunAll(outputtime=0)
 
     outputfilenames = et.output_files(
@@ -61,7 +60,7 @@ def main(config_filename=None):
         outputfilenames[-1], config
     )
     figure_stem = 'DynamicStromgrenSpherePhotoheating20pc1D'
-    if runtime_params['radiation'].get(
+    if config['par']['radiation'].get(
         'radiative_transfer_temporal_scheme'
     ) == 'c2ray':
         figure_stem += '_C2Ray'

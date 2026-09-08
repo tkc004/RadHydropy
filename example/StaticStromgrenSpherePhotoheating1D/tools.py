@@ -75,13 +75,13 @@ def _attach_proper_runtime_states(mesh, fluid):
 
 def build_static_problem(config):
     """Build the photoheating IC with the canonical nested runtime objects."""
-    par_config = config['par']
-    chemistry = par_config.get('chemistry', {})
-    thermo = par_config.get('thermochemistry', {})
-    radiation = par_config.get('radiation', {})
+
+    chemistry = config["par"].get('chemistry', {})
+    thermo = config["par"].get('thermochemistry', {})
+    radiation = config["par"].get('radiation', {})
     initial = config['initial_condition']
-    grid_cells = int(par_config['mesh']['grid_cells'])
-    sim = Rsim(par_config)
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    sim = Rsim(config["par"])
     code_units_obj = sim.par.units.CodeUnits
     sim.par.simulation.box_size = quantity_to_value(
         initial['box_size'], code_units_obj.length_unit
@@ -280,9 +280,9 @@ def load_log_reference_profile(filename, radius_unit):
 
 
 def save_plot(mesh, fluid, par, history, config, figure_filename):
-    par_config = config['par']
-    radiation = par_config['radiation']
-    thermo = par_config['thermochemistry']
+
+    radiation = config["par"]['radiation']
+    thermo = config["par"]['thermochemistry']
     initial = config['initial_condition']
     example = config.get('example', {})
     interior = interior_slice(par)

@@ -19,11 +19,12 @@ import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
-def measure(par, initial_condition, example_config):
+def measure(config):
+    initial_condition = config['initial_condition']
     (sim, saved_mesh, saved, initial_mass, initial_energy, initial_radius,
      cumulative_gravity_work, cumulative_potential_change,
      cumulative_potential_flux) = (
-        run_simulation(par, initial_condition, example_config)
+        run_simulation(config)
     )
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
@@ -72,12 +73,12 @@ def measure(par, initial_condition, example_config):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    initial_condition = config['initial_condition']
     resolutions = (32, 64, 128)
     results = []
     for resolution in resolutions:
         par = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': resolution}}
-        results.append(measure(par, initial_condition, config['example']))
+        case_config = {**config, 'par': par}
+        results.append(measure(case_config))
         print('resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g' % (
             resolution, *results[-1]
         ))

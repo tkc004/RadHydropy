@@ -8,7 +8,7 @@ from radhydropy.units import CodeUnits
 from example import example_utils as eu
 
 
-def load_units(config):
+def code_units_from_config(config):
     return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 

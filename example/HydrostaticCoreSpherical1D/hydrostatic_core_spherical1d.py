@@ -28,19 +28,22 @@ DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 
 def run(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
-    par = config["par"]
     initial_condition = config["initial_condition"]
-    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     initial = et.InitialCondition(config, units)
-    output_dir = Path(par["output"]["directory"])
+    output_dir = Path(config["par"]["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, output_dir / "InitialCondition.hdf5")
 
-    runtime = {**par, "simulation": {**par["simulation"],
-        "initial_condition_filename": str(output_dir / "InitialCondition.hdf5")},
-        "output": {**par["output"], "directory": str(output_dir),
-                   "savedir": str(output_dir)}}
-    sim = Rsim(runtime)
+    config["par"]["simulation"] = {
+        **config["par"]["simulation"],
+        "initial_condition_filename": str(output_dir / "InitialCondition.hdf5"),
+    }
+    config["par"]["output"] = {
+        **config["par"]["output"], "directory": str(output_dir),
+        "savedir": str(output_dir),
+    }
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()

@@ -28,11 +28,10 @@ from cosmological_rotating_collapse1d import spherical_centers, DEFAULT_CONFIG
 
 def main(output_root=None):
     config = eu.load_nested_example_config(DEFAULT_CONFIG)
-    runtime = config["par"]
+    config["par"] = copy.deepcopy(config["par"])
     initial_condition = config["initial_condition"]
-    runtime = copy.deepcopy(runtime)
-    runtime["thermochemistry"] = {
-        **runtime.get("thermochemistry", {}),
+    config["par"]["thermochemistry"] = {
+        **config["par"].get("thermochemistry", {}),
         'hydrogen_chemistry': True, 'hydrogen_thermal_coupling': True,
         'hydrogen_update_mu': False, 'hydrogen_recombination': True,
         'hydrogen_collisional_ionization': True, 'hydrogen_atomic_cooling': True,
@@ -41,23 +40,23 @@ def main(output_root=None):
         'hydrogen_implicit_fallback': 'error',
         'cooling_temperature_floor': {'value': 1.0e-3, 'unit': 'K'},
     }
-    runtime["simulation"] = {**runtime["simulation"], "final_time": 1.0}
+    config["par"]["simulation"] = {**config["par"]["simulation"], "final_time": 1.0}
     if output_root is not None:
-        runtime["output"] = {**runtime["output"], "directory": str(output_root), "savedir": str(output_root)}
+        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root), "savedir": str(output_root)}
 
-    units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
-    runtime["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
+    units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    config["par"]["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(runtime['gravity']['cosmology_t_ref']),
-        a_ref=float(runtime['gravity']['cosmology_a_ref']),
+        t_ref=float(config["par"]['gravity']['cosmology_t_ref']),
+        a_ref=float(config["par"]['gravity']['cosmology_a_ref']),
     )
-    output_dir = ROOT / runtime['output']['directory'] / 'hydrogen_source_rotation'
+    output_dir = ROOT / config["par"]['output']['directory'] / 'hydrogen_source_rotation'
     output_dir.mkdir(parents=True, exist_ok=True)
-    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': str(output_dir / 'InitialCondition.hdf5')}
-    runtime['output'] = {**runtime['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': 'Output'}
+    config["par"]['simulation'] = {**config["par"]['simulation'], 'initial_condition_filename': str(output_dir / 'InitialCondition.hdf5')}
+    config["par"]['output'] = {**config["par"]['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': 'Output'}
 
-    count = int(runtime["mesh"]["grid_cells"])
+    count = int(config["par"]["mesh"]["grid_cells"])
     cosmic_time = float(initial_condition["cosmic_time"])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
@@ -82,7 +81,7 @@ def main(output_root=None):
         cosmology.gravitational_constant * enclosed_mass * physical_radius_code
     )
     initial_config = {
-        "par": runtime,
+        "par": config["par"],
         "initial_condition": {
             **initial_condition,
             "boxsize": initial_condition["rmax"],
@@ -106,8 +105,8 @@ def main(output_root=None):
         ),
     }
     initial = build_initial_condition(initial_config)
-    rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
-    sim = Rsim(runtime)
+    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()

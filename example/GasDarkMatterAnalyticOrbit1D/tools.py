@@ -6,7 +6,7 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits
 
 
-def load_units(config):
+def code_units_from_config(config):
     return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 

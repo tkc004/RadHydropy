@@ -55,30 +55,30 @@ def build_initial_condition(config):
 
 def ReadandPlot(outfilename, config, **kwargs):
     initial = config['initial_condition']
-    par_config = config['par']
-    rout = Rsim(par_config)
+
+    rout = Rsim(config["par"])
     code_units_obj = config['_code_units']
     rout.par.units.CodeUnits = code_units_obj
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    boundary = np.asarray(rout.mesh.boundary_proper_code, dtype=float)
+    boundary_proper_code = np.asarray(rout.mesh.boundary_proper_code, dtype=float)
     first = int(rout.par.mesh.ghost_cells)
     last = first + int(rout.par.mesh.grid_cells)
-    x_center = 0.5 * (boundary[1:] + boundary[:-1])[first:last] * code_units_obj.length_unit
+    x_center = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])[first:last] * code_units_obj.length_unit
     rho_num = code_quantity_to_cgs(rout.fluid.rho_proper_code[first:last], code_units_obj, 'density_cgs_g_cm3')
-    rho_num = rho_num * (1.0 * par_config['boundary']['outflow_density'].units)
+    rho_num = rho_num * (1.0 * config["par"]['boundary']['outflow_density'].units)
     rho_ana = oa.density_profile(
         x_center,
-        par_config['boundary']['outflow_density'],
+        config["par"]['boundary']['outflow_density'],
         initial['injection_radius'],
     )
     front = oa.front_position(
         rout.fluid.time_proper_code * code_units_obj.time_unit,
-        par_config['boundary']['outflow_velocity'],
+        config["par"]['boundary']['outflow_velocity'],
     )
     x_values = x_center.to_value(initial['box_size'].units)
-    rho_values = np.asarray(rho_num.to_value(par_config['boundary']['outflow_density'].units), dtype=float)
-    rho_ana_values = np.asarray(rho_ana.to_value(par_config['boundary']['outflow_density'].units), dtype=float)
+    rho_values = np.asarray(rho_num.to_value(config["par"]['boundary']['outflow_density'].units), dtype=float)
+    rho_ana_values = np.asarray(rho_ana.to_value(config["par"]['boundary']['outflow_density'].units), dtype=float)
     plt.plot(x_values, rho_values, **kwargs)
     plt.plot(
         x_values,
@@ -98,4 +98,3 @@ def ReadandPlot(outfilename, config, **kwargs):
     plt.yscale('log')
     plt.xlabel(r'Radius [cm]')
     plt.ylabel(r'$\rho$ [g/cm$^3$]')
-

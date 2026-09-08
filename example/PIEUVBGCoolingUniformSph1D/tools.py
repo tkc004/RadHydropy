@@ -23,14 +23,14 @@ def build_initial_condition(config):
     result.par.mesh.ghost_cells = int(par['mesh'].get('ghost_cells', 0))
     boxsize = initial['boxsize']
     dx = boxsize / grid_cells
-    boundary = as_named_array(quantity_to_value(
+    boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(dx, boxsize + dx, grid_cells + 1), code_units.length_unit
     ))
-    width = np.diff(boundary)
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    result.mesh.boundary_proper_code = boundary
+    width = np.diff(boundary_proper_code)
+    x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    result.mesh.boundary_proper_code = boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
+        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
         width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
     )
     initial_velocity = initial.get('vini', 0.0 * unyt.cm / unyt.s)
@@ -47,9 +47,9 @@ def build_initial_condition(config):
     ))
     if hasattr(hydrogen_density_cgs_cm3, 'to_value'):
         hydrogen_density_cgs_cm3 = hydrogen_density_cgs_cm3.to_value(1 / unyt.cm**3)
-    rho = float(hydrogen_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
+    rho_proper_cgs_g_cm3 = float(hydrogen_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * rho * unyt.g / unyt.cm**3, code_units.density_unit
+        np.ones(grid_cells) * rho_proper_cgs_g_cm3 * unyt.g / unyt.cm**3, code_units.density_unit
     ))
     result.fluid.mu = np.ones(grid_cells) * initial['muini']
     result.fluid.time_proper_code = 0.0

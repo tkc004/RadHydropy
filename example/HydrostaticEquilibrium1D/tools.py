@@ -132,8 +132,8 @@ def build_initial_condition(config):
 def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     initial_condition = config['initial_condition']
-    par_config = config['par']
-    code_units_mapping = par_config.get('units', {}).get('CodeUnits')
+
+    code_units_mapping = config["par"].get('units', {}).get('CodeUnits')
     code_units_obj = (
         CodeUnits.from_mapping(code_units_mapping)
         if code_units_mapping is not None
@@ -152,7 +152,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     color = kwargs.get('color', 'C0')
-    nghost = int(par_config.get('mesh', {}).get('ghost_cells', 0))
+    nghost = int(config["par"].get('mesh', {}).get('ghost_cells', 0))
     boundary_proper_code = rout.mesh.geometry_state.boundary_proper_code
     xall = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     if nghost > 0:

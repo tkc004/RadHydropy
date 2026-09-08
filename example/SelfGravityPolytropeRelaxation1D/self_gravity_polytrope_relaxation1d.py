@@ -79,18 +79,16 @@ def _profile(sim, rho, pressure):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
     initial_mapping = config['initial_condition']
     eu.clean_previous_outputs(config)
-    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     config['_code_units'] = code_units
     initial_condition = et.build_initial_condition(config)
-    initial_filename = Path(par['simulation']['initial_condition_filename'])
+    initial_filename = Path(config['par']['simulation']['initial_condition_filename'])
     rio.writehdf5(initial_condition, initial_filename)
 
-    runtime = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(initial_filename)}}
-    runtime['relaxation_damping_time'] = config['example']['relaxation_damping_time']
-    sim = Rsim(runtime)
+    config['par']['simulation']['initial_condition_filename'] = str(initial_filename)
+    sim = Rsim(config['par'])
     sim.solver = PolytropeSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     # The IC header is authoritative for solver state, but it does not carry
@@ -129,7 +127,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
     sim.Run(mode='hydro', step_backend=damped_step)
 
-    outputs = sorted(Path(par['output']['directory']).glob(par['output']['filename_prefix'] + '_*.hdf5'))
+    outputs = sorted(
+        Path(config['par']['output']['directory']).glob(
+            config['par']['output']['filename_prefix'] + '_*.hdf5'
+        )
+    )
     output = outputs[-1] if outputs else None
     if output is None:
         raise FileNotFoundError('no output snapshots were written')
@@ -171,7 +173,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(par['output']['savedir']) / 'SelfGravityPolytropeRelaxation1D.jpg'
+    figure = Path(config['par']['output']['savedir']) / 'SelfGravityPolytropeRelaxation1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

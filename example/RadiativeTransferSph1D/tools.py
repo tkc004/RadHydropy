@@ -20,10 +20,10 @@ PC_IN_CM = unyt.unyt_quantity(1.0, unyt.pc).to_value(unyt.cm)
 
 
 def build_static_problem(config):
-    par_config = config['par']
+
     initial = config['initial_condition']
-    grid_cells = int(par_config['mesh']['grid_cells'])
-    sim = Rsim(par_config)
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
     sim.par.simulation.box_size = quantity_to_value(
         initial['boxsize'], code_units.length_unit

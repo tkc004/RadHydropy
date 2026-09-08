@@ -44,36 +44,36 @@ def _run_case(
     config, label, metallicity, hydrogen_density, table,
     adiabatic=False,
 ):
-    par_config = config['par']
-    thermo = par_config['thermochemistry']
+
+    thermo = config["par"]['thermochemistry']
     initial = config['initial_condition']
-    case = copy.deepcopy(par_config)
+    case_config = copy.deepcopy(config)
     output_dir = EXAMPLE_DIR / 'outputs' / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case['simulation']['name'] = label
-    case['simulation']['initial_condition_filename'] = str(
+    case_config['par']['simulation']['name'] = label
+    case_config['par']['simulation']['initial_condition_filename'] = str(
         output_dir / f'InitialCondition_{label}.hdf5'
     )
-    case['output'].update({
+    case_config['par']['output'].update({
         'directory': str(output_dir),
         'savedir': str(output_dir),
         'filename_prefix': f'Output_{label}',
     })
-    output_prefix = case['output']['filename_prefix']
-    case['thermochemistry']['metallicity'] = metallicity
+    output_prefix = case_config['par']['output']['filename_prefix']
+    case_config['par']['thermochemistry']['metallicity'] = metallicity
     case_initial = dict(initial)
     case_initial['hydrogen_density'] = hydrogen_density * unyt.cm**-3
-    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config = {
-        'par': case,
+        'par': case_config['par'],
         'initial_condition': case_initial,
         'example': config['example'],
         '_code_units': code_units,
     }
     eu.clean_previous_outputs(case_config)
     initial = build_initial_condition(case_config)
-    rio.writehdf5(initial, case['simulation']['initial_condition_filename'])
-    sim = Rsim(case)
+    rio.writehdf5(initial, case_config['par']['simulation']['initial_condition_filename'])
+    sim = Rsim(case_config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
@@ -90,7 +90,7 @@ def _run_case(
         'snapshots': snapshots,
         'initial_density_cgs_g_cm3': (
             case_initial['hydrogen_density'].to_value('cm**-3')
-            * PROTON_MASS_G / case['thermochemistry']['hydrogen_mass_fraction']
+            * PROTON_MASS_G / case_config['par']['thermochemistry']['hydrogen_mass_fraction']
         ),
         'upstream_velocity_cgs_cm_s': case_initial['collision_velocity'],
         'mu': case_initial['mean_molecular_weight'],
@@ -231,7 +231,7 @@ def _plot(results, filename):
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
-    par_config = nested['par']
+
     config = nested
     thermo = config['par']['thermochemistry']
     table_path = (config_filename.parent / thermo['metal_pie_table_filename']).resolve()

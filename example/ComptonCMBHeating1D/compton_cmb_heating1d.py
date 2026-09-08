@@ -101,7 +101,7 @@ def _run_case(
     ric = build_initial_condition(case_config)
     rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
 
-    sim = Rsim(case_params)
+    sim = Rsim(case_config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
@@ -219,13 +219,13 @@ def _run_converged_case(config, label, initial_temperature):
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename)
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     cases = config['example']['cases']
     eu.clean_previous_outputs(config)
 
     histories = {}
     for label, initial_temperature in cases.items():
-        if str(par_config['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
+        if str(config["par"]['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
             histories[label] = _run_converged_case(
                 config,
                 label,
@@ -238,8 +238,8 @@ def main(config_filename=DEFAULT_CONFIG):
                 float(initial_temperature),
             )
 
-    cmb_temperature = 2.7255 * (1.0 + par_config['thermochemistry']['compton_cmb_redshift'])
-    figure_filename = Path(par_config['output']['savedir']) / 'ComptonCMBHeating1D.jpg'
+    cmb_temperature = 2.7255 * (1.0 + config["par"]['thermochemistry']['compton_cmb_redshift'])
+    figure_filename = Path(config["par"]['output']['savedir']) / 'ComptonCMBHeating1D.jpg'
     figure_filename.parent.mkdir(parents=True, exist_ok=True)
     fig, (temperature_axis, error_axis) = plt.subplots(
         2,
@@ -273,7 +273,7 @@ def main(config_filename=DEFAULT_CONFIG):
         error_axis.legend(frameon=False)
     fig.suptitle(
         'CMB Compton heating and cooling '
-        f'($z={par_config["thermochemistry"]["compton_cmb_redshift"]:.1f}$)'
+        f'($z={config["par"]["thermochemistry"]["compton_cmb_redshift"]:.1f}$)'
     )
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches='tight')

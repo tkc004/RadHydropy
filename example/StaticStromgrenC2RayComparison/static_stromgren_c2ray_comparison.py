@@ -67,7 +67,7 @@ def _run_case(base_runtime, initial_condition, tools, label, scheme, steps, root
     }
     tools.write_initial_condition(case_config)
 
-    sim = Rsim(par_case)
+    sim = Rsim(case_config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
@@ -168,26 +168,26 @@ def _write_summary(histories, config, filename):
 
 def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_comparison.yaml')):
     nested = eu.load_nested_example_config(config_filename)
-    runtime = nested['par']
+
     initial_condition = nested['initial_condition']
     example = nested['example']
-    root = Path(runtime['output']['savedir']) / 'comparison_runs'
+    root = Path(nested["par"]['output']['savedir']) / 'comparison_runs'
     root.mkdir(parents=True, exist_ok=True)
     tools = _load_static_tools()
     config = nested
     histories = {}
     c2ray_steps = int(example['comparison_c2ray_steps'])
     histories[f'c2ray_{c2ray_steps}'] = _run_case(
-        runtime, initial_condition, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
+        nested["par"], initial_condition, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
     )
     for steps in example['comparison_instantaneous_steps']:
         steps = int(steps)
         histories[f'instantaneous_{steps}'] = _run_case(
-            runtime, initial_condition, tools, f'instantaneous_{steps}',
+            nested["par"], initial_condition, tools, f'instantaneous_{steps}',
             'instantaneous', steps, root,
         )
-    figure = Path(runtime['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'
-    summary = Path(runtime['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.csv'
+    figure = Path(nested["par"]['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'
+    summary = Path(nested["par"]['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.csv'
     _plot(histories, config, figure)
     _write_summary(histories, config, summary)
     print(f'comparison figure = {figure}')

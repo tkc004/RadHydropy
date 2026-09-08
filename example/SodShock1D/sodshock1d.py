@@ -34,18 +34,18 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    par_config, initial_condition = config['par'], config['initial_condition']
+    initial_condition = config['initial_condition']
     exampleparams = config['example']
     if riemann_solver is not None:
-        par_config['hydrodynamics']['riemann_solver'] = riemann_solver
-    output = par_config['output']
+        config['par']['hydrodynamics']['riemann_solver'] = riemann_solver
+    output = config['par']['output']
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
-    mainrun = Rsim(par_config)
+    rio.writehdf5(ric, config['par']['simulation']['initial_condition_filename'])
+    mainrun = Rsim(config['par'])
     mainrun.RunAll()
     outindex = exampleparams['output_index']
     outfilename = os.path.join(
@@ -77,4 +77,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config, riemann_solver=args.riemann_solver)
-

@@ -120,7 +120,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
             initial, par_config["simulation"]["initial_condition_filename"]
         )
 
-        sim = Rsim(par_config)
+        sim = Rsim(resolution_config["par"])
         sim.RunAll(outputtime=0)
         snapshots = sorted(output.glob("Output_*.hdf5"))
         if len(snapshots) < 2:

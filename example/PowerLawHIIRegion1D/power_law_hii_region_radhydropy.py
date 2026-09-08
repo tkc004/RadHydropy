@@ -38,9 +38,9 @@ def density_profile(radius_cgs_cm, nc, rc, w):
 
 def build_initial_condition(config):
     """Build the proper-code IC through the configured ``Rsim`` object."""
-    par_config = config['par']
+
     initial = config['initial_condition']
-    code = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     ncell = int(initial['number_of_cells'])
     box_size_proper_code = quantity_to_value(initial['boxsize'], code.length_unit)
     boundary_proper_code = np.linspace(0.0, box_size_proper_code, ncell + 1)
@@ -51,7 +51,7 @@ def build_initial_condition(config):
         initial['core_radius'].to_value(unyt.cm),
         initial['density_power_law_exponent'],
     ) / unyt.cm**3
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     sim.par.mesh.grid_cells = ncell
     sim.par.simulation.box_size = box_size_proper_code
     sim.par.simulation.time_proper_code = 0.0
@@ -92,20 +92,19 @@ def write_initial_condition(config, filename):
     rio.writehdf5(build_initial_condition(config), filename)
 
 
-def load_snapshot(filename, par_config):
+def load_output_state(filename, config):
     from radhydropy.fluid import Fluid
     from radhydropy.mesh import Mesh
     from radhydropy.params import Par
 
-    par = Par(par_config)
+    par = Par(config['par'])
     mesh = Mesh()
     fluid = Fluid()
     rio.readhdf5(par, mesh, fluid, filename)
     ghost_cells = par.mesh.ghost_cells
     grid_cells = par.mesh.grid_cells
-    code_units = par.units.CodeUnits
     if ghost_cells > 0:
-        mesh.boundary = mesh.boundary[ghost_cells:-ghost_cells]
+        mesh.boundary_proper_code = mesh.boundary_proper_code[ghost_cells:-ghost_cells]
     mesh.SetUpMesh(par)
     return par, mesh, fluid
 
@@ -114,7 +113,7 @@ def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
     first = par.mesh.ghost_cells
     interior = slice(first, first + par.mesh.grid_cells)
     radius = np.asarray(
-        code_quantity_to_cgs(mesh.coordinate[interior], par.units.CodeUnits, "length_cgs_cm"),
+        code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -146,7 +145,7 @@ def shock_radius_cgs_cm(
     first = par.mesh.ghost_cells
     interior = slice(first, first + par.mesh.grid_cells)
     radius_cgs_cm = np.asarray(
-        code_quantity_to_cgs(mesh.coordinate[interior], par.units.CodeUnits, "length_cgs_cm"),
+        code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
     rho_cgs = np.asarray(
@@ -221,7 +220,7 @@ def save_profile_plot(snapshots, output, exponent):
         interior = slice(first, first + par.mesh.grid_cells)
         radius_cgs_cm = np.asarray(
             code_quantity_to_cgs(
-                mesh.coordinate[interior], par.units.CodeUnits, "length_cgs_cm"
+                mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"
             ),
             dtype=float,
         )
@@ -272,18 +271,19 @@ def save_profile_plot(snapshots, output, exponent):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
     initial = config['initial_condition']
     example = config['example']
-    output_config = runtime['output']
+    output_config = config['par']['output']
     outdir = Path(output_config['directory'])
     outdir.mkdir(parents=True, exist_ok=True)
     Path(output_config['savedir']).mkdir(parents=True, exist_ok=True)
     for filename in output_files(outdir, output_config['filename_prefix']):
         filename.unlink()
-    write_initial_condition(config, runtime['simulation']['initial_condition_filename'])
+    write_initial_condition(
+        config, config['par']['simulation']['initial_condition_filename']
+    )
 
-    sim = Rsim(runtime)
+    sim = Rsim(config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
@@ -303,7 +303,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rc = initial['core_radius'].to_value(unyt.cm)
     exponent = float(initial['density_power_law_exponent'])
     for filename in output_files(outdir, output_config['filename_prefix']):
-        par, mesh, fluid = load_snapshot(filename, runtime)
+        par, mesh, fluid = load_output_state(filename, config)
         time_s = code_quantity_to_cgs(fluid.time_proper_code, par.units.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
@@ -323,8 +323,12 @@ def main(config_filename=DEFAULT_CONFIG):
     times_yr = np.asarray(times_yr)
     radii_cm = np.asarray(radii_cm)
     shock_radii_cm = np.asarray(shock_radii_cm)
-    end_time_yr = float(runtime["simulation"]["final_time"].to_value(unyt.yr))
-    source_rate_s = runtime['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s)
+    end_time_yr = float(
+        config['par']['simulation']['final_time'].to_value(unyt.yr)
+    )
+    source_rate_s = config['par']['radiation'][
+        'radiative_transfer_source_photon_rate'
+    ].to_value(1.0 / unyt.s)
     analytic_time_s, analytic_radius_cgs_cm, _ = analytic.calculate_front(
         source_rate_s,
         nc,

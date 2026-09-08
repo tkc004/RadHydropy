@@ -27,11 +27,11 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_dark_matter_shell_
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
+
     initial_condition = config['initial_condition']
-    units = et.load_units(config)
-    gravity = runtime['gravity']
-    timestep = runtime['timestep']
+    units = et.code_units_from_config(config)
+    gravity = config["par"]['gravity']
+    timestep = config["par"]['timestep']
     example = config.get('example', {})
     cosmology = EinsteinDeSitter.from_code_units(
         units, t_ref=float(gravity['cosmology_t_ref']),
@@ -64,7 +64,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_delta = et.overdensity_inside(lagrangian_radius, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]
-    final_cosmic_time = float(runtime['simulation']['final_time'])
+    final_cosmic_time = float(config["par"]['simulation']['final_time'])
     final_tau = float(cosmology.supercomoving_time(final_cosmic_time))
     time = float(tau)
     dt = float(timestep['supercomoving_timestep'])
@@ -101,7 +101,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.all(np.isfinite(shells.radius)) or not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError('dark-matter shells became invalid or unsorted')
 
-    figure = Path(runtime['output']['savedir']) / 'EinsteinDeSitterDarkMatterShellGrowth1D.jpg'
+    figure = Path(config["par"]['output']['savedir']) / 'EinsteinDeSitterDarkMatterShellGrowth1D.jpg'
     a_plot = np.linspace(a_initial, history_a[-1], 200)
     plt.figure(figsize=(6, 4))
     plt.plot(history_a, history_delta, label='shells')

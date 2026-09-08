@@ -217,12 +217,12 @@ def make_dark_matter(config):
     if central_core_radius < dm_inner:
         raise ValueError("dm_central_core_radius must be >= dm_inner_radius")
     # A fixed unresolved core already represents the excess mass inside its
-    # radius.  Do not leave live shells in the same volume and count them a
+    # radius.  Do not leave live shells in the same volume_comoving_code and count them a
     # second time when they are later absorbed.
     shell_inner = central_core_radius if central_core_model else dm_inner
     boundaries = np.geomspace(shell_inner, float(ic["rmax"]), count + 1)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
-    volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
+    volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
     t = float(ic["initial_cosmic_time"])
     a = float(cosmology.scale_factor(t))
     hubble = float(cosmology.hubble(t))
@@ -237,7 +237,7 @@ def make_dark_matter(config):
             * float(ic.get("correlation_h", 0.674))
         ),
     )
-    mass = rho * dm_fraction * (1.0 + delta) * volume
+    mass = rho * dm_fraction * (1.0 + delta) * volume_comoving_code
     velocity = -a**2 * hubble * mean_delta * radius / 3.0
     central_core_mass = None
     if central_core_model:
@@ -589,7 +589,7 @@ def gas_density_profile(sim, cosmic_time, cosmology):
         "density_proper_code": density_comoving / scale_factor**3,
     }
 class VolumeSmoothedDarkMatter:
-    """Use shell mass interpolated linearly in enclosed volume for gas force."""
+    """Use shell mass interpolated linearly in enclosed volume_comoving_code for gas force."""
 
     def __init__(self, shells):
         self.shells = shells

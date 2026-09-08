@@ -32,16 +32,16 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrostatic_equilibrium1d.y
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
+    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
 
-    mainrun = Rsim(par_config)
+    mainrun = Rsim(config["par"])
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(
@@ -53,8 +53,8 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.RunAll(outputtime=0, mode='hydro')
 
     output_files = sorted(
-        Path(par_config['output']['directory']).glob(
-            par_config['output']['filename_prefix'] + '_*.hdf5'
+        Path(config["par"]['output']['directory']).glob(
+            config["par"]['output']['filename_prefix'] + '_*.hdf5'
         )
     )
     if not output_files:
@@ -69,7 +69,7 @@ def main(config_filename=DEFAULT_CONFIG):
         markevery=1,
         color='C0',
     )
-    figure_filename = os.path.join(par_config['output']['savedir'], 'HydrostaticEquilibrium1D.jpg')
+    figure_filename = os.path.join(config["par"]['output']['savedir'], 'HydrostaticEquilibrium1D.jpg')
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
@@ -83,7 +83,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file with par_config and initial_condition.',
+        help='YAML file with config["par"] and initial_condition.',
     )
     return parser.parse_args()
 

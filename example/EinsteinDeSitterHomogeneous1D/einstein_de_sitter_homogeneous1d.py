@@ -20,18 +20,18 @@ import example_utils as eu
 
 def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
-    units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+
+    units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     cosmology = EinsteinDeSitter.from_code_units(units)
     t0 = quantity_to_value(
-        par_config['simulation']['initial_time'], units.time_unit
+        config["par"]['simulation']['initial_time'], units.time_unit
     )
     t1 = quantity_to_value(
-        par_config['simulation']['final_time'], units.time_unit
+        config["par"]['simulation']['final_time'], units.time_unit
     )
     initial_condition = config['initial_condition']
     tau0 = cosmology.supercomoving_time(t0)
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     sim.par.tau_supercomoving_code = tau0
     sim.par.simulation.tau_supercomoving_code = tau0
     sim.fluid.tau_supercomoving_code = tau0

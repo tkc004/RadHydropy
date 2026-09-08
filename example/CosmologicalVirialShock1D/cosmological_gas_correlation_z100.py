@@ -217,7 +217,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
     for color, index in zip(colors, selected):
         comoving_radius = radius
         # Reconstruct spherical cell volumes from neighboring cell centers;
-        # the common scale-factor volume cancels in the mass weighting.
+        # the common scale-factor volume_comoving_code cancels in the mass weighting.
         cell_edges = np.empty(comoving_radius.size + 1, dtype=float)
         if comoving_radius.size > 1:
             cell_edges[1:-1] = np.sqrt(comoving_radius[:-1] * comoving_radius[1:])
@@ -692,11 +692,11 @@ def _energy_audit_state(sim):
     last = first + int(sim.par.mesh.grid_cells)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     vel_supercomoving_code = np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float)
-    volume = np.asarray(sim.mesh.volume_comoving_code[first:last], dtype=float)
+    volume_comoving_code = np.asarray(sim.mesh.volume_comoving_code[first:last], dtype=float)
     mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
     total_energy = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
     kinetic_density = 0.5 * rho_comoving_code * vel_supercomoving_code**2
-    kinetic_energy = float(np.sum(kinetic_density * volume))
+    kinetic_energy = float(np.sum(kinetic_density * volume_comoving_code))
     total_energy_value = float(np.sum(total_energy))
     return {
         "total_gas_mass": float(np.sum(mass)),
@@ -727,9 +727,9 @@ def _energy_cell_state(sim):
     last = first + int(sim.par.mesh.grid_cells)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     velocity = np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float)
-    volume = np.asarray(sim.mesh.volume_comoving_code[first:last], dtype=float)
+    volume_comoving_code = np.asarray(sim.mesh.volume_comoving_code[first:last], dtype=float)
     total = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-    kinetic = 0.5 * rho_comoving_code * velocity**2 * volume
+    kinetic = 0.5 * rho_comoving_code * velocity**2 * volume_comoving_code
     return {
         "mass": np.asarray(sim.fluid.Mass_code[first:last], dtype=float).copy(),
         "total": total.copy(),
@@ -893,21 +893,21 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         dual_energy_entropy_limiter=None, dual_energy=None, cfl=None):
     config_filename = Path(config_filename).resolve()
     config = load_nested_example_config(config_filename)
-    par_config = config["par"]
+
     initial_condition = config["initial_condition"]
     example = config["example"]
-    simulation = par_config["simulation"]
-    hydro = par_config.setdefault("hydrodynamics", {})
-    gravity = par_config["gravity"]
-    output = par_config["output"]
-    thermo = par_config.setdefault("thermochemistry", {})
+    simulation = config["par"]["simulation"]
+    hydro = config["par"].setdefault("hydrodynamics", {})
+    gravity = config["par"]["gravity"]
+    output = config["par"]["output"]
+    thermo = config["par"].setdefault("thermochemistry", {})
     # These are plot/source-driver settings consumed by this workflow, not
     # Rsim runtime parameters.  Keep them out of the object passed to Rsim.
     configured_minimum_temperature = example.get("minimum_temperature")
     configured_temperature_plot_ymin = example.get("temperature_plot_ymin")
     # This workflow always produces energy-balance plots and per-cell energy
     # histories, so make the required diagnostics the example default.
-    par_config.setdefault("energy_diagnostics", True)
+    config["par"].setdefault("energy_diagnostics", True)
     if riemann_solver is not None:
         hydro["riemann_solver"] = riemann_solver
     if dual_energy_entropy_limiter is not None:
@@ -925,7 +925,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "hydrogen_atomic_cooling": False,
             "compton_cmb_enabled": True,
         })
-    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units,
@@ -963,7 +963,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             float(hydro.get("gas_specific_angular_momentum", 0.0)),
         )
     rio.writehdf5(initial, ic_filename)
-    config["_dark_matter_softening"] = par_config["dark_matter"]["softening"]
+    config["_dark_matter_softening"] = config["par"]["dark_matter"]["softening"]
     dm = et.make_dark_matter(config)
 
     baryon_fraction = float(initial_condition["baryon_fraction"])
@@ -983,9 +983,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if not np.isclose(initial_temperature, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
 
-    local = dict(par_config)
-    local["simulation"] = dict(par_config["simulation"])
-    local["output"] = dict(par_config["output"])
+    local = dict(config["par"])
+    local["simulation"] = dict(config["par"]["simulation"])
+    local["output"] = dict(config["par"]["output"])
     local["simulation"]["initial_condition_filename"] = str(ic_filename)
     local["output"]["directory"] = str(output_dir)
     local["output"]["savedir"] = str(output_dir)
@@ -1121,7 +1121,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         velocity = float(np.asarray(sim.par.boundary.inflow_velocity, dtype=float))
         temperature = float(np.asarray(sim.par.boundary.inflow_temperature, dtype=float))
         mu = float(np.asarray(sim.par.boundary.inflow_mu, dtype=float))
-        volume = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
+        volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
         pressure = float(np.asarray(
             sim.fluid.eos.pressure(rho, temperature, mu), dtype=float
         ))
@@ -1130,12 +1130,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         sim.fluid.temp_supercomoving_code[index] = temperature
         sim.fluid.mu[index] = mu
         sim.fluid.pre_supercomoving_code[index] = pressure
-        sim.fluid.Mass_code[index] = rho * volume
-        sim.fluid.Mom_code[index] = rho * velocity * volume
+        sim.fluid.Mass_code[index] = rho * volume_comoving_code
+        sim.fluid.Mom_code[index] = rho * velocity * volume_comoving_code
         sim.fluid.Energy_code[index] = float(np.asarray(
             sim.fluid.eos.total_energy_density(rho, velocity, pressure),
             dtype=float,
-        )) * volume
+        )) * volume_comoving_code
         thermal_energy_density = float(np.asarray(
             sim.fluid.eos.thermal_energy_density(pressure), dtype=float,
         ))
@@ -1145,7 +1145,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             # SetConserved intentionally preserves the active-cell dual-energy
             # field.  The explicitly reset EdS reservoir must therefore
             # synchronize its conserved thermal energy here as well.
-            sim.fluid.InternalEnergy_code[index] = thermal_energy_density * volume
+            sim.fluid.InternalEnergy_code[index] = thermal_energy_density * volume_comoving_code
         return (
             float(np.asarray(sim.fluid.Mass_code, dtype=float)[index]) - old_mass,
             float(np.asarray(sim.fluid.Energy_code, dtype=float)[index]) - old_energy,

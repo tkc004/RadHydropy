@@ -1131,16 +1131,12 @@ class Testing(unittest.TestCase):
         config = loaded_config
 
         par, mesh, fluid, _ = hii_tools.build_problem(config)
-        par = parameter_namespace(**vars(par))
-        # Rebuild the explicit numeric runtime clock after flattening the
-        # example parameter namespace; the nested simulation group is not
-        # copied by parameter_namespace.
         par.simulation.time_proper_code = 0.0
-        modified_boundary = np.asarray(mesh.boundary, dtype=float).copy() * 1.25
-        mesh.boundary = modified_boundary * unyt.cm
-        boundary_proper_code = np.asarray(
-            mesh.boundary.to_value(par.CodeUnits.length_unit), dtype=float
+        modified_boundary = (
+            np.asarray(mesh.boundary_proper_code, dtype=float).copy() * 1.25
         )
+        mesh.boundary_proper_code = modified_boundary
+        boundary_proper_code = modified_boundary
         width_proper_code = np.diff(boundary_proper_code)
         mesh.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
@@ -1199,9 +1195,17 @@ class Testing(unittest.TestCase):
             modified_boundary[1:][nonzero_vol_denom] ** 4
             - modified_boundary[:-1][nonzero_vol_denom] ** 4
         ) / vol_denom[nonzero_vol_denom]
+        output_coordinate = out_mesh.x_proper_code[interior]
+        if hasattr(output_coordinate, 'to_value'):
+            output_coordinate = output_coordinate.to_value(
+                out_par.CodeUnits.length_unit
+            )
         np.testing.assert_allclose(
-            np.asarray(out_mesh.x_proper_code[interior], dtype=float),
-            np.asarray(expected_coordinate[out_par.noghost : out_par.noghost + out_par.nogrid], dtype=float),
+            np.asarray(output_coordinate, dtype=float),
+            np.asarray(
+                expected_coordinate[out_par.noghost : out_par.noghost + out_par.nogrid],
+                dtype=float,
+            ),
         )
         self.assertEqual(
             float(np.asarray(out_fluid.time_proper_code, dtype=float)),

@@ -41,19 +41,19 @@ def _load_raw_config(filename):
 def _case_config(base_config, case_name, final_time):
     case = CASES[case_name]
     config = deepcopy(base_config)
-    par_config = config["par"]
+
     initial_condition = config["initial_condition"]
 
     output_dir = EXAMPLE_DIR / (
         "outputs_short_%s_%s" % (case_name, case["label"])
     )
     figure_prefix = "CosmologicalGasCorrelationShort%s" % case_name
-    par_config["simulation"]["name"] = figure_prefix
-    par_config["simulation"]["initial_condition_filename"] = str(
+    config["par"]["simulation"]["name"] = figure_prefix
+    config["par"]["simulation"]["initial_condition_filename"] = str(
         output_dir / "InitialCondition.hdf5"
     )
-    par_config["simulation"]["final_time"] = float(final_time)
-    par_config["output"].update({
+    config["par"]["simulation"]["final_time"] = float(final_time)
+    config["par"]["output"].update({
         "directory": str(output_dir),
         "savedir": str(output_dir),
         # Keep the shared correlation table resolvable after placing the

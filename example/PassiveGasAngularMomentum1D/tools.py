@@ -14,11 +14,11 @@ from radhydropy.units import quantity_to_value
 
 def build_initial_condition(config):
     """Build the active proper-code state from the complete nested config."""
-    par_config = config['par']
+
     initial = config['initial_condition']
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
-    grid_cells = int(par_config['mesh']['grid_cells'])
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
     box_size_proper_code = quantity_to_value(
         initial['box_size'], code_units.length_unit
     )

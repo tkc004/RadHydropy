@@ -55,8 +55,8 @@ def build_initial_condition(config):
 
 def ReadandPlot(outfilename, config, **kwargs):
     initial = config['initial_condition']
-    par_config = config['par']
-    rout = Rsim(par_config)
+
+    rout = Rsim(config["par"])
     code_units_obj = config['_code_units']
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
@@ -73,14 +73,14 @@ def ReadandPlot(outfilename, config, **kwargs):
         x=ia.front_position(
             initial['box_size'],
             time,
-            par_config['boundary']['inflow_velocity'],
+            config["par"]['boundary']['inflow_velocity'],
         ),
         color=kwargs['color'],
         ls='dashed',
     )
     rhoana = ia.density_profile(
         x_proper_code[first:last] * code_units_obj.length_unit,
-        par_config['boundary']['inflow_density'],
+        config["par"]['boundary']['inflow_density'],
         initial['box_size'],
     )
     plt.plot(x_proper_code[first:last] * code_units_obj.length_unit, rhoana, ls='dashed', color='k')

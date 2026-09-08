@@ -37,7 +37,7 @@ def load_correlation_table(config_filename, example):
 
 def run_lagrangian_top_hat(config):
     """Calibrate one finite top-hat mass before shell crossing."""
-    par_config = config["par"]
+
     example = config["example"]
     initial_condition = config["initial_condition"]
     code_unit_system = config["_code_unit_system"]
@@ -45,7 +45,7 @@ def run_lagrangian_top_hat(config):
     target_mass = float(initial_condition["target_halo_mass"])
     delta_i = float(initial_condition["initial_overdensity"])
     initial = float(initial_condition["initial_cosmic_time"])
-    final = float(par_config["simulation"]["final_time"])
+    final = float(config["par"]["simulation"]["final_time"])
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
@@ -117,7 +117,7 @@ def run_lagrangian_top_hat(config):
         history_time.append(cosmic_end)
         history_radius.append(physical_radius)
 
-    savedir = Path(par_config["output"]["savedir"])
+    savedir = Path(config["par"]["output"]["savedir"])
     figure = savedir / "CosmologicalTopHatDarkMatterOnly.jpg"
     savedir.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7, 4))
@@ -148,7 +148,7 @@ def run_lagrangian_top_hat(config):
 
 def run_live_shell_density_profiles(config):
     """Evolve a gas-free full-matter top-hat and save density snapshots."""
-    par_config = config["par"]
+
     example = config["example"]
     initial_condition = config["initial_condition"]
     code_unit_system = config["_code_unit_system"]
@@ -163,7 +163,7 @@ def run_live_shell_density_profiles(config):
     )
     shell_config = dict(config)
     shell_config["initial_condition"] = dm_ic
-    shell_config["_dark_matter_softening"] = par_config["dark_matter"]["softening"]
+    shell_config["_dark_matter_softening"] = config["par"]["dark_matter"]["softening"]
     shells = et.make_dark_matter(shell_config)
     target_times = np.asarray(
         example.get(
@@ -173,7 +173,7 @@ def run_live_shell_density_profiles(config):
         dtype=float,
     )
     initial = float(initial_condition["initial_cosmic_time"])
-    final = float(par_config["simulation"]["final_time"])
+    final = float(config["par"]["simulation"]["final_time"])
     target_times = np.unique(np.clip(target_times, initial, final))
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
@@ -277,7 +277,7 @@ def run_live_shell_density_profiles(config):
         / ((4.0 * np.pi / 3.0) * virial_overdensity
            * np.asarray([float(cosmology.background_density(time)) for time in times]))
     ) ** (1.0 / 3.0)
-    output_dir = Path(par_config["output"]["savedir"])
+    output_dir = Path(config["par"]["output"]["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     data_file = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.npz"
     figure = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.jpg"
@@ -376,17 +376,17 @@ def run_live_shell_density_profiles(config):
 
 def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     config = load_nested_example_config(config_filename)
-    par_config = config["par"]
+
     initial_condition = config["initial_condition"]
     example = config["example"]
     if final_time_override is not None:
-        par_config["simulation"] = dict(par_config["simulation"])
-        par_config["simulation"]["final_time"] = float(final_time_override)
-    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+        config["par"]["simulation"] = dict(config["par"]["simulation"])
+        config["par"]["simulation"]["final_time"] = float(final_time_override)
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(par_config["gravity"]["cosmology_t_ref"]),
-        a_ref=float(par_config["gravity"]["cosmology_a_ref"]),
+        t_ref=float(config["par"]["gravity"]["cosmology_t_ref"]),
+        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, example)
     config["_code_unit_system"] = units
@@ -406,7 +406,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     shells = et.make_dark_matter(dead_config)
     dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     initial = float(initial_condition["initial_cosmic_time"])
-    final = float(par_config["final_cosmic_time"])
+    final = float(config["par"]["final_cosmic_time"])
     time = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))
@@ -505,7 +505,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
 
     if not np.all(np.isfinite(shells.radius)) or np.any(np.diff(shells.radius) < 0.0):
         raise RuntimeError("dark-matter-only shells became invalid or unsorted")
-    savedir = Path(par_config["output"]["savedir"])
+    savedir = Path(config["par"]["output"]["savedir"])
     savedir.mkdir(parents=True, exist_ok=True)
     figure = savedir / "CosmologicalDarkMatterOnly.jpg"
     plt.figure(figsize=(6, 4))

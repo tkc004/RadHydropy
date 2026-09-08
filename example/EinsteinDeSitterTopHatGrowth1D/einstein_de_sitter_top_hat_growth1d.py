@@ -30,24 +30,23 @@ DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_top_hat_growth1d.y
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
+    config['par'] = {key: (dict(value) if isinstance(value, dict) else value)
+                     for key, value in config['par'].items()}
     initial_condition = config['initial_condition']
     example = config.get('example', {})
     eu.clean_previous_outputs(config)
-    units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     cosmology = et.EinsteinDeSitter.from_code_units(
-        units, t_ref=float(runtime['gravity']['cosmology_t_ref']),
-        a_ref=float(runtime['gravity']['cosmology_a_ref']),
+        units, t_ref=float(config['par']['gravity']['cosmology_t_ref']),
+        a_ref=float(config['par']['gravity']['cosmology_a_ref']),
     )
     config['_code_units'] = units
     config['_cosmology'] = cosmology
     initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, runtime['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial, config['par']['simulation']['initial_condition_filename'])
 
-    runtime = {key: (dict(value) if isinstance(value, dict) else value)
-               for key, value in runtime.items()}
-    runtime['simulation'] = {**runtime['simulation'], 'initial_condition_filename': runtime['simulation']['initial_condition_filename']}
-    sim = Rsim(runtime)
+    config['par']['simulation'] = {**config['par']['simulation']}
+    sim = Rsim(config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
@@ -59,6 +58,12 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.isclose(float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0]))
+    ):
+        raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))

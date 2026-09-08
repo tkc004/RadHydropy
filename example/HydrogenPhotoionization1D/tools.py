@@ -51,14 +51,14 @@ def build_initial_condition(config):
     for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'xHI', 'mu', 'ngamma_code'):
         setattr(result.fluid, field, as_named_array(getattr(result.fluid, field)[first:last]))
     result.par.mesh.ghost_cells = 0
-    boundary = result.mesh.boundary_proper_code
+    boundary_proper_code = result.mesh.boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        x_proper_code=0.5 * (boundary[1:] + boundary[:-1]),
-        boundary_proper_code=boundary,
-        width_proper_code=np.diff(boundary),
+        x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=np.diff(boundary_proper_code),
         area_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, code_units.area_unit),
-        volume_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, code_units.area_unit) * np.diff(boundary),
+        volume_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, code_units.area_unit) * np.diff(boundary_proper_code),
     )
     result.fluid.SetPressure()
     result.fluid.SetFluidTime(result.par.simulation.time_proper_code)
@@ -111,9 +111,9 @@ def time_value(sim, code_unit_system):
 def load_history_from_outputs(outputfiles, config):
     history = {'time_yr': [], 'temperature_cgs_K': [], 'xHI': [], 'ngamma_cgs_cm3': []}
     initial = config['initial_condition']
-    par_config = config['par']
+
     interior = slice(0, initial['grid_cells'])
-    code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
 
     for outfilename in sorted(outputfiles):
         rout = Rsim(config['par'])
@@ -149,7 +149,7 @@ def output_files(outdir, outfileprefix):
 
 def save_history_plot(history, filename, config, target_xHI):
     initial = config['initial_condition']
-    par_config = config['par']
+
     time_yr = np.asarray(history['time_yr'])
     xHI = np.asarray(history['xHI'])
     positive_time_yr = time_yr[time_yr > 0.0]
@@ -167,7 +167,7 @@ def save_history_plot(history, filename, config, target_xHI):
         initial['temperature'],
         initial['hydrogen_number_density'],
         initial['photon_number_density'],
-        par_config['radiation']['hydrogen_sigma_gamma'],
+        config["par"]['radiation']['hydrogen_sigma_gamma'],
     )
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))

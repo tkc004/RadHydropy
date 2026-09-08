@@ -48,7 +48,6 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
-    runtime = nested['par']
     config = nested
     initial = config['initial_condition']
     example = config.get('example', {})
@@ -63,60 +62,60 @@ def main(config_filename=DEFAULT_CONFIG):
             if not value.is_absolute():
                 example[key] = str(config_dir / value)
 
-    Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(nested['par']['output']['savedir']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
-    mainrun = Rsim(runtime)
+    mainrun = Rsim(nested['par'])
     rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
 
     history = mainrun.EvolveStaticThermochemistry(
-        runtime['simulation']['final_time'],
-        runtime['timestep']['evolution_timestep'],
+        nested['par']['simulation']['final_time'],
+        nested['par']['timestep']['evolution_timestep'],
         include_thermal_history=True,
         reference_time=example['reference_time'],
     )
 
-    output_filename = Path(runtime['output']['directory']) / f"{runtime['output']['filename_prefix']}_000.hdf5"
+    output_filename = Path(nested['par']['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
     rio.writehdf5(mainrun, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
     figure_name = 'StaticStromgrenSpherePhotoheating1D.jpg'
-    if runtime['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
+    if nested['par']['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
-    figure_filename = Path(runtime['output']['savedir']) / figure_name
+    figure_filename = Path(nested['par']['output']['savedir']) / figure_name
     et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
 
     print('time = %s' % out_fluid.time_proper_code)
-    if runtime['thermochemistry'].get('hydrogen_alpha_B') is None:
+    if nested['par']['thermochemistry'].get('hydrogen_alpha_B') is None:
         print('stromgren radius = temperature-dependent alpha_H(T)')
         print('analytic front radius = unavailable for temperature-dependent rates')
     else:
         print(
             'stromgren radius = %s'
             % sa.stromgren_radius(
-                runtime['radiation']['radiative_transfer_source_photon_rate'],
+                nested['par']['radiation']['radiative_transfer_source_photon_rate'],
                 initial['hydrogen_number_density'],
-                runtime['thermochemistry']['hydrogen_alpha_B'],
+                nested['par']['thermochemistry']['hydrogen_alpha_B'],
             ).to(unyt.kpc)
         )
         print(
             'analytic front radius = %s'
             % sa.ionization_front_radius(
-                runtime['simulation']['final_time'],
-                runtime['radiation']['radiative_transfer_source_photon_rate'],
+                nested['par']['simulation']['final_time'],
+                nested['par']['radiation']['radiative_transfer_source_photon_rate'],
                 initial['hydrogen_number_density'],
-                runtime['thermochemistry']['hydrogen_alpha_B'],
+                nested['par']['thermochemistry']['hydrogen_alpha_B'],
             ).to(unyt.kpc)
         )
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_cgs_K'][-1])
     print('front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('evolution steps = %d' % history['evolution_steps'])
-    print('IC file = %s' % runtime['simulation']['initial_condition_filename'])
+    print('IC file = %s' % nested['par']['simulation']['initial_condition_filename'])
     print('output file = %s' % output_filename)
     print('figure = %s' % figure_filename)
 

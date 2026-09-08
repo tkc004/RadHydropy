@@ -26,18 +26,18 @@ from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 
 def build_problem(config):
     """Build the H II initial state from direct nested configuration groups."""
-    par_config = config['par']
-    simulation = par_config['simulation']
-    mesh_config = par_config['mesh']
-    hydro = par_config['hydrodynamics']
-    boundary = par_config['boundary']
-    timestep = par_config['timestep']
-    output = par_config['output']
-    chemistry = par_config['chemistry']
-    thermochemistry = par_config['thermochemistry']
-    radiation = par_config['radiation']
+
+    simulation = config["par"]['simulation']
+    mesh_config = config["par"]['mesh']
+    hydro = config["par"]['hydrodynamics']
+    boundary = config["par"]['boundary']
+    timestep = config["par"]['timestep']
+    output = config["par"]['output']
+    chemistry = config["par"]['chemistry']
+    thermochemistry = config["par"]['thermochemistry']
+    radiation = config["par"]['radiation']
     initial = config['initial_condition']
-    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     grid_cells = initial['grid_cells']
     box_size = initial['boxsize']
     par = SimpleNamespace(
@@ -50,7 +50,7 @@ def build_problem(config):
         outfileprefix=output['filename_prefix'],
         savedir=output.get('savedir', output['directory']),
         outputtimefilename=output.get('time_list_filename'),
-        verbose=par_config.get('diagnostics', {}).get('verbose', 0),
+        verbose=config["par"].get('diagnostics', {}).get('verbose', 0),
         timesim=simulation['final_time'],
         area=mesh_config.get('area', 1.0 * unyt.cm**2),
         EOStype=hydro['eos_type'],

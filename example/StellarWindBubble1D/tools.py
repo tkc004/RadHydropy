@@ -46,11 +46,11 @@ def set_plot_style():
 
 def build_initial_condition(config):
     initial_config = config['initial_condition']
-    par_config = config['par']
+
     code_units = config['_code_units']
-    boundary_config = par_config['boundary']
+    boundary_config = config["par"]['boundary']
     grid_cells = int(initial_config['grid_cells'])
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     sim.par.simulation.coordinate_system = initial_config['coordinate_system']
     sim.par.simulation.box_size = np.asarray(
         quantity_to_value(initial_config['box_size'], code_units.length_unit),
@@ -100,10 +100,10 @@ def build_initial_condition(config):
     sim.fluid._refresh_runtime_state()
     return sim
 
-def load_snapshot(outfilename, config):
+def load_output_state(outfilename, config):
     """Load an output snapshot into a lightweight simulation wrapper."""
     initial_config = config['initial_condition']
-    par_config = config['par']
+
     rout = build_initial_condition(config)
     code_units_obj = config['_code_units']
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
@@ -112,8 +112,8 @@ def load_snapshot(outfilename, config):
     # and the corresponding faces before calculating profiles or shell
     # diagnostics; otherwise ghost states can be mistaken for the swept-up
     # shell and produce discontinuous pressure histories.
-    first = int(par_config.get('mesh', {}).get('ghost_cells', 0))
-    configured_count = int(par_config.get('mesh', {}).get(
+    first = int(config["par"].get('mesh', {}).get('ghost_cells', 0))
+    configured_count = int(config["par"].get('mesh', {}).get(
         'grid_cells', initial_config['grid_cells']
     ))
     boundary_count = len(rout.mesh.boundary_proper_code) - 1
@@ -162,7 +162,7 @@ def load_snapshot(outfilename, config):
 def numerical_forward_shock_radius(rout, search_fraction=0.1):
     """Estimate the forward-shock radius from the steepest pressure drop."""
 
-    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     pressure = (
         rout.fluid.rho_proper_code
         / (rout.fluid.mu * unyt.mp)
@@ -170,7 +170,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
         * rout.fluid.temp_proper_code
     ).to(unyt.dyn / unyt.cm**2)
 
-    coordinate_values = coordinate.to_value(coordinate.units)
+    coordinate_values = x_proper_code.to_value(x_proper_code.units)
     pressure_values = pressure.to_value(pressure.units)
 
     if pressure_values.size < 3:
@@ -180,7 +180,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
 
     mask = coordinate_values >= 0.0
     coordinate_values = coordinate_values[mask]
-    coordinate = coordinate[mask]
+    x_proper_code = x_proper_code[mask]
     pressure_values = pressure_values[mask]
     if pressure_values.size < 3:
         return None
@@ -193,7 +193,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
     if shock_slice.size == 0:
         return None
     shock_index = search_start + int(np.argmin(shock_slice))
-    return coordinate[shock_index]
+    return x_proper_code[shock_index]
 
 
 def format_density_threshold_factor(threshold_factor):
@@ -217,22 +217,22 @@ def shell_inner_edge_radius(
     the first one encountered after the launch region.
     """
 
-    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     density = rout.fluid.rho_proper_code
 
-    coordinate_values = coordinate.to_value(coordinate.units)
+    coordinate_values = x_proper_code.to_value(x_proper_code.units)
     density_values = density.to_value(density.units)
     mask = coordinate_values >= 0.0
     coordinate_values = coordinate_values[mask]
     density_values = density_values[mask]
-    coordinate = coordinate[mask]
+    x_proper_code = x_proper_code[mask]
 
     if minimum_radius is not None:
-        minimum_radius_value = minimum_radius.to_value(coordinate.units)
+        minimum_radius_value = minimum_radius.to_value(x_proper_code.units)
         keep = coordinate_values >= minimum_radius_value
         coordinate_values = coordinate_values[keep]
         density_values = density_values[keep]
-        coordinate = coordinate[keep]
+        x_proper_code = x_proper_code[keep]
 
     if density_values.size < 2:
         return None
@@ -268,19 +268,19 @@ def shell_inner_edge_radius(
         edge_index = int(starts[0])
 
     if edge_index == 0:
-        return coordinate[0]
+        return x_proper_code[0]
 
     x0 = coordinate_values[edge_index - 1]
     x1 = coordinate_values[edge_index]
     y0 = density_values[edge_index - 1]
     y1 = density_values[edge_index]
     if y1 == y0:
-        return coordinate[edge_index]
+        return x_proper_code[edge_index]
 
     fraction = (threshold - y0) / (y1 - y0)
     fraction = np.clip(fraction, 0.0, 1.0)
     radius = x0 + fraction * (x1 - x0)
-    return radius * coordinate.units
+    return radius * x_proper_code.units
 
 
 def weaver_forward_shock_radius(rout, config):
@@ -298,17 +298,17 @@ def weaver_forward_shock_radius(rout, config):
 def _snapshot_coordinate(rout, xunit=unyt.pc):
     """Return nonnegative cell-center coordinates for a snapshot."""
 
-    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
-    coordinate_values = coordinate.to_value(xunit)
+    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    coordinate_values = x_proper_code.to_value(xunit)
     nonnegative = coordinate_values >= 0.0
-    return coordinate[nonnegative], coordinate_values[nonnegative]
+    return x_proper_code[nonnegative], coordinate_values[nonnegative]
 
 
 def plot_density_snapshot(ax, rout, **kwargs):
     """Plot one density snapshot on a supplied axis."""
 
     plt.sca(ax)
-    coordinate, coordinate_values = _snapshot_coordinate(rout)
+    x_proper_code, coordinate_values = _snapshot_coordinate(rout)
     density = rout.fluid.rho_proper_code.to(unyt.g / unyt.cm**3)
     ax.plot(coordinate_values, density.to_value(unyt.g / unyt.cm**3), **kwargs)
     ax.set_yscale('log')
@@ -318,7 +318,7 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
     """Plot one temperature snapshot on a supplied axis."""
 
     plt.sca(ax)
-    coordinate, coordinate_values = _snapshot_coordinate(rout)
+    x_proper_code, coordinate_values = _snapshot_coordinate(rout)
     temperature = rout.fluid.temp_proper_code.to(unyt.K)
     ax.plot(coordinate_values, temperature.to_value(unyt.K), **kwargs)
     ax.set_yscale('log')
@@ -327,8 +327,8 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
 def plot_profile_snapshot(ax, rout, yquan, xunit=unyt.pc, **kwargs):
     """Plot one radial profile on a supplied axis using ``xunit``."""
 
-    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
-    coordinate_values = coordinate.to_value(xunit)
+    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    coordinate_values = x_proper_code.to_value(xunit)
     nonnegative = coordinate_values >= 0.0
     ax.plot(
         coordinate_values[nonnegative],
@@ -404,7 +404,7 @@ def make_radius_figure(snapshots, config):
     weaver_times = []
     weaver_radii = []
     initial_config = config['initial_condition']
-    par_config = config['par']
+
     shell_threshold_factor = config['example'].get('shell_edge_density_threshold_factor', 1.0)
 
     for rout in snapshots:
@@ -457,8 +457,8 @@ def make_radius_figure(snapshots, config):
 def numerical_bubble_pressure(rout, shell_radius):
     """Estimate the bubble pressure from a cavity-side annulus."""
 
-    coordinate = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
-    coordinate_values = coordinate.to_value(unyt.pc)
+    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    coordinate_values = x_proper_code.to_value(unyt.pc)
     nonnegative = coordinate_values >= 0.0
     coordinate_values = coordinate_values[nonnegative]
     shell_radius_value = shell_radius.to_value(unyt.pc)
@@ -621,7 +621,7 @@ def make_pressure_figure(snapshots, config):
 
 
 def ReadandPlot(outfilename, config, **kwargs):
-    rout = load_snapshot(outfilename, config)
+    rout = load_output_state(outfilename, config)
     plot_density_snapshot(plt.gca(), rout, **kwargs)
     if np.all(_current_time(rout) > 0 * _current_time(rout).units):
         shock_radius = weaver_forward_shock_radius(rout, config)

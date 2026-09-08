@@ -82,44 +82,44 @@ def _snapshot(filename, time_Myr=None):
 
 
 def _run_case(config, label, density, temperature, table):
-    par_config = config['par']
-    hydro = par_config['hydrodynamics']
-    thermo = par_config['thermochemistry']
+
+    hydro = config["par"]['hydrodynamics']
+    thermo = config["par"]['thermochemistry']
     initial_condition = config['initial_condition']
-    case = copy.deepcopy(par_config)
+    case_config = copy.deepcopy(config)
     output_dir = EXAMPLE_DIR / 'outputs' / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case['simulation']['name'] = label
-    case['simulation']['initial_condition_filename'] = str(
+    case_config['par']['simulation']['name'] = label
+    case_config['par']['simulation']['initial_condition_filename'] = str(
         output_dir / f'InitialCondition_{label}.hdf5'
     )
-    case['output'].update({
+    case_config['par']['output'].update({
         'directory': str(output_dir),
         'savedir': str(output_dir),
         'filename_prefix': f'Output_{label}',
     })
-    output_prefix = case['output']['filename_prefix']
+    output_prefix = case_config['par']['output']['filename_prefix']
     case_initial_condition = dict(initial_condition)
     case_initial_condition.update({
         'hydrogen_density_cgs_cm3': density,
         'temperature_unyt': temperature * unyt.K,
     })
-    case['thermochemistry']['metallicity'] = thermo['metallicity']
+    case_config['par']['thermochemistry']['metallicity'] = thermo['metallicity']
     output_dir.mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config = {
-        'par': case,
+        'par': case_config['par'],
         'initial_condition': case_initial_condition,
         'example': config['example'],
         '_code_units': code_units,
     }
     eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(case_config)
-    rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial_state, case_config['par']['simulation']['initial_condition_filename'])
     # The canonical IC builder already returned a fully initialized Rsim.  Keep
     # its loaded PIE table instead of reconstructing Par from the mutated
     # nested mapping (which serializes the table object as a plain dict).
-    sim = Rsim(case)
+    sim = Rsim(case_config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
@@ -266,9 +266,9 @@ def main(config_filename=DEFAULT_CONFIG):
     global TABLE, METALLICITY, REDSHIFT
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
-    par_config = nested['par']
+
     config = nested
-    thermo = par_config['thermochemistry']
+    thermo = config["par"]['thermochemistry']
     table_path = (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
     thermo['metal_pie_table_filename'] = str(table_path)
     TABLE = MetalPIETable(table_path)

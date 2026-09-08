@@ -28,29 +28,51 @@ CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
 
 def run_case(config, code_unit_system, cosmology, atomic_cooling):
-    case = copy.deepcopy(config["par"])
-    initial_condition = config["initial_condition"]
+    case_config = copy.deepcopy(config)
+    initial_condition = case_config["initial_condition"]
     label = "atomic_compton" if atomic_cooling else "compton_only"
-    case["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
-    case["simulation"]["initial_condition_filename"] = str(EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5")
-    case["output"]["filename_prefix"] = f"{label}_Output"
-    case["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
-    case["output"]["directory"] = str(EXAMPLE_ROOT / "outputs")
-    case["output"]["savedir"] = case["output"]["directory"]
-    Path(case["output"]["directory"]).mkdir(parents=True, exist_ok=True)
-    source_dt = float(case["_example"].get("source_timestep", 2.0))
-    case.pop("_example", None)
+    case_config["par"]["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
+    case_config["par"]["simulation"]["initial_condition_filename"] = str(EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5")
+    case_config["par"]["output"]["filename_prefix"] = f"{label}_Output"
+    case_config["par"]["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
+    case_config["par"]["output"]["directory"] = str(EXAMPLE_ROOT / "outputs")
+    case_config["par"]["output"]["savedir"] = case_config["par"]["output"]["directory"]
+    Path(case_config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
+    source_dt = float(case_config["example"].get("source_timestep", 2.0))
 
-    initial = UniformEdSInitialCondition(config, code_unit_system, cosmology)
-    rio.writehdf5(initial, case["simulation"]["initial_condition_filename"])
+    initial = UniformEdSInitialCondition(case_config, code_unit_system, cosmology)
+    rio.writehdf5(initial, case_config["par"]["simulation"]["initial_condition_filename"])
 
-    sim = Rsim(case)
+    sim = Rsim(case_config["par"])
     sim.par.cosmology = cosmology
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
-    sim.fluid.SetFluidTime(sim.par.time_proper_code)
+    initial_time_proper_code = float(
+        np.asarray(initial.fluid.time_proper_code, dtype=float).reshape(-1)[0]
+    )
+    sim.par.time_proper_code = np.asarray([initial_time_proper_code])
+    sim.par.simulation.time_proper_code = initial_time_proper_code
+    sim.fluid.SetFluidTime(initial_time_proper_code)
     sim.SetInitFluid()
+    # SetUpFluid/SetInitFluid starts the runtime clock at its default.  This
+    # proper-time EdS source benchmark must resume at the IC time before any
+    # source term or analytic comparison is evaluated.
+    sim.par.time_proper_code = np.asarray([initial_time_proper_code])
+    sim.par.simulation.time_proper_code = initial_time_proper_code
+    sim.fluid.SetFluidTime(initial_time_proper_code)
+    if not (
+        np.allclose(sim.par.time_proper_code, initial_time_proper_code)
+        and np.isclose(
+            float(np.asarray(sim.par.simulation.time_proper_code)),
+            initial_time_proper_code,
+        )
+        and np.isclose(
+            float(np.asarray(sim.fluid.time_proper_code)),
+            initial_time_proper_code,
+        )
+    ):
+        raise RuntimeError("proper-time startup clocks disagree after SetInitFluid")
     sim.par.cosmology = cosmology
 
     # Rsim.Run normally obtains an outer timestep from the hydro CFL
@@ -120,14 +142,14 @@ def run_case(config, code_unit_system, cosmology, atomic_cooling):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    par_config = config['par']
+
     initial_condition = config["initial_condition"]
-    par_config["_example"] = config["example"]
-    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+    config["par"]["_example"] = config["example"]
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(par_config["gravity"]["cosmology_t_ref"]),
-        a_ref=float(par_config["gravity"]["cosmology_a_ref"]),
+        t_ref=float(config["par"]["gravity"]["cosmology_t_ref"]),
+        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
     )
 
     compton, sim, physical = run_case(
@@ -153,8 +175,8 @@ def main():
         float(initial_condition["hydrogen_density_cgs_cm3"]),
         float(initial_condition["hydrogen_mass_fraction"]),
         float(initial_condition["xHI"]),
-        float(par_config["hydrodynamics"]["gamma"]),
-        float(par_config["thermochemistry"]["cmb_temperature_0"].to_value("K")),
+        float(config["par"]["hydrodynamics"]["gamma"]),
+        float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K")),
         1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
     )
     analytic_plot = analytic_compton_temperature(
@@ -166,8 +188,8 @@ def main():
         float(initial_condition["hydrogen_density_cgs_cm3"]),
         float(initial_condition["hydrogen_mass_fraction"]),
         float(initial_condition["xHI"]),
-        float(par_config["hydrodynamics"]["gamma"]),
-        float(par_config["thermochemistry"]["cmb_temperature_0"].to_value("K")),
+        float(config["par"]["hydrodynamics"]["gamma"]),
+        float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K")),
         1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
     )
     error = np.max(np.abs(compton["temperature_cgs_K"] - analytic) / analytic)
@@ -185,7 +207,7 @@ def main():
     if atomic["temperature_cgs_K"][-1] >= compton["temperature_cgs_K"][-1]:
         raise RuntimeError("atomic cooling did not cool below Compton-only run")
 
-    figure = Path(par_config["output"]["savedir"]) / "UniformEdSThermochemistry1D.jpg"
+    figure = Path(config["par"]["output"]["savedir"]) / "UniformEdSThermochemistry1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton")

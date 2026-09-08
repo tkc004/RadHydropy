@@ -102,7 +102,12 @@ class CosmologicalCentralGravity:
         return -scale_factor * self.mass / radius**2
 
 
-def run_rsim(par, initial_condition, example_config, cosmology, j):
+def run_rsim(config):
+    par = config['par']
+    initial_condition = config['initial_condition']
+    example_config = config['example']
+    cosmology = config['_cosmology']
+    j = config['_specific_angular_momentum_code']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
     initial_boundary = np.linspace(0.5, 1.5, count + 1)
@@ -119,7 +124,7 @@ def run_rsim(par, initial_condition, example_config, cosmology, j):
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(par)
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
     gravity = CosmologicalCentralGravity(float(initial_condition['central_excess_mass']), cosmology)
     sim.par.gravity = gravity
@@ -161,9 +166,9 @@ def main(config_filename=CONFIG):
         central_mass * x0
     )
     final_tau = float(par['simulation']['final_time'])
-    initial_sim, simulation, saved_fluid = run_rsim(
-        par, initial_condition, example_config, cosmology, j
-    )
+    config['_cosmology'] = cosmology
+    config['_specific_angular_momentum_code'] = j
+    initial_sim, simulation, saved_fluid = run_rsim(config)
     simulation_radius = np.asarray(simulation.mesh.x_comoving_code, dtype=float)
     circular_j_profile = np.sqrt(central_mass * simulation_radius)
     saved_j = np.asarray(saved_fluid.specific_angular_momentum_code, dtype=float)

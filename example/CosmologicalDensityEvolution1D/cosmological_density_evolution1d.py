@@ -58,9 +58,9 @@ def unit_mapping():
 
 def run():
     config = eu.load_nested_example_config(CONFIG_FILE)
-    base_runtime = config["par"]
+
     example = config["example"]
-    units = CodeUnits.from_mapping(base_runtime["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     time_unit_gyr = CODE_TIME_S / SECONDS_PER_GYR
     initial_scale_factor = float(example["initial_scale_factor"])
     final_scale_factor = float(example["final_scale_factor"])
@@ -106,35 +106,35 @@ def run():
             "time": initial_time * units.time_unit,
         }
         case_config["_rho_comoving_code"] = np.full(
-            int(base_runtime["mesh"]["grid_cells"]),
+            int(config["par"]["mesh"]["grid_cells"]),
             density_code * initial_scale_factor**3,
         )
         case_config["_temp_supercomoving_code"] = np.ones(
-            int(base_runtime["mesh"]["grid_cells"])
+            int(config["par"]["mesh"]["grid_cells"])
         )
         case_config["_vel_supercomoving_code"] = np.zeros(
-            int(base_runtime["mesh"]["grid_cells"])
+            int(config["par"]["mesh"]["grid_cells"])
         )
         initial = build_initial_condition(case_config)
         output_dir = OUTPUT_ROOT / label
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        par_config = copy.deepcopy(base_runtime)
-        par_config["simulation"].update(
+        case_config["par"] = copy.deepcopy(config["par"])
+        case_config["par"]["simulation"].update(
             name=f"CosmologicalDensityEvolution1D_{label}",
             initial_condition_filename=str(ic_filename),
             final_time=final_tau * units.time_unit,
         )
-        par_config["output"].update(directory=str(output_dir), savedir=str(output_dir))
-        par_config["gravity"].update(
+        case_config["par"]["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        case_config["par"]["gravity"].update(
             cosmology_type=cosmology_type,
             cosmology_t_ref=physical.age_0 / time_unit_gyr,
             cosmology_a_ref=1.0,
             **cosmology_parameters,
         )
-        par_config["output"]["cadence"] = (final_tau - initial_tau) / 2.0 * units.time_unit
-        sim = Rsim(par_config)
+        case_config["par"]["output"]["cadence"] = (final_tau - initial_tau) / 2.0 * units.time_unit
+        sim = Rsim(case_config["par"])
         rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
         sim.SetMesh()
         sim.SetFluid()

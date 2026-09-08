@@ -40,17 +40,17 @@ def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
 
 def spherical_cell_centers(boundary_proper_code):
     """Return spherical cell centers consistent with the mesh geometry."""
-    coordinate = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     vol_denom = boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
     nonzero = vol_denom != 0.0
-    coordinate[nonzero] = 0.75 * (
+    x_proper_code[nonzero] = 0.75 * (
         boundary_proper_code[1:][nonzero]**4 - boundary_proper_code[:-1][nonzero]**4
     ) / vol_denom[nonzero]
-    return coordinate
+    return x_proper_code
 
 
 def point_mass_hydrostatic_density_profile(
-    coordinate,
+    x_proper_code,
     rho_ref,
     temperature_proper_code,
     mu,
@@ -61,12 +61,12 @@ def point_mass_hydrostatic_density_profile(
     """Return the exact isothermal hydrostatic density profile."""
     c_s2 = sound_speed_squared(temperature_proper_code, mu, code_unit_system=code_unit_system)
     c_s2_value = c_s2.to_value(unyt.cm**2 / unyt.s**2)
-    if hasattr(coordinate, "to_value"):
-        coord_value = coordinate.to_value(unyt.cm)
+    if hasattr(x_proper_code, "to_value"):
+        coord_value = x_proper_code.to_value(unyt.cm)
     elif code_unit_system is not None:
-        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
+        coord_value = np.asarray(x_proper_code, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
-        coord_value = np.asarray(coordinate, dtype=float)
+        coord_value = np.asarray(x_proper_code, dtype=float)
     if hasattr(reference_radius, "to_value"):
         reference_radius_value = reference_radius.to_value(unyt.cm)
     elif code_unit_system is not None:
@@ -106,13 +106,13 @@ def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
     else:
         softening = float(softening)
 
-    def _acceleration(coordinate):
-        if hasattr(coordinate, "to_value"):
-            radius = coordinate.to_value(unyt.cm)
+    def _acceleration(x_proper_code):
+        if hasattr(x_proper_code, "to_value"):
+            radius = x_proper_code.to_value(unyt.cm)
         elif code_unit_system is not None:
-            radius = np.asarray(coordinate, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
+            radius = np.asarray(x_proper_code, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
         else:
-            radius = np.asarray(coordinate, dtype=float)
+            radius = np.asarray(x_proper_code, dtype=float)
         radius = np.maximum(radius, softening)
         return (
             -GRAVITATIONAL_CONSTANT_CGS * point_mass / radius**2

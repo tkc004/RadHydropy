@@ -33,10 +33,10 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     example = config['example']
-    code_units = et.load_units(config)
+    code_units = et.code_units_from_config(config)
     shell = et.make_shell(initial_condition, code_units)
     g_code = (
         GRAVITATIONAL_CONSTANT_CGS * code_units.mass_in_cgs
@@ -61,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     reference = solve_ivp(
         rhs,
-        (0.0, float(par_config['simulation']['final_time'])),
+        (0.0, float(config["par"]['simulation']['final_time'])),
         [initial_radius, initial_velocity],
         rtol=1.0e-11,
         atol=1.0e-13,
@@ -107,7 +107,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(par_config['output']['savedir']) / 'GasDarkMatterAnalyticOrbit1D.jpg'
+    figure = Path(config["par"]['output']['savedir']) / 'GasDarkMatterAnalyticOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

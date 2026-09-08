@@ -34,12 +34,12 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
-    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
     initial_density = quantity_to_value(
         initial.fluid.rho_proper_code,
         'g/cm**3',
@@ -53,12 +53,12 @@ def main(config_filename=DEFAULT_CONFIG):
     dark_matter = et.make_dark_matter(config)
     initial_dm_mass = dark_matter.total_mass * code_units.mass_in_cgs
 
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     rio.readhdf5(
         sim.par,
         sim.mesh,
         sim.fluid,
-        par_config['simulation']['initial_condition_filename'],
+        config["par"]['simulation']['initial_condition_filename'],
     )
     sim.SetMesh()
     sim.SetFluid()
@@ -113,7 +113,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.set_yscale('log')
     axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(par_config['output']['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
+    figure = Path(config["par"]['output']['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('dark-matter shells = %d' % dark_matter.number_of_shells)

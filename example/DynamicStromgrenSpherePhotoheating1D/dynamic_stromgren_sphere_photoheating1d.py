@@ -40,11 +40,10 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    runtime_params = config['par']
-    output = runtime_params['output']
+    output = config['par']['output']
     example = config.get('example', {})
     config['_code_units'] = CodeUnits.from_mapping(
-        runtime_params['units']['CodeUnits']
+        config['par']['units']['CodeUnits']
     )
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
@@ -52,7 +51,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     et.write_initial_condition(config)
 
-    sim = Rsim(runtime_params)
+    sim = Rsim(config['par'])
     sim.RunAll(outputtime=0)
 
     outputfilenames = et.output_files(output['directory'], output['filename_prefix'])
@@ -60,7 +59,7 @@ def main(config_filename=DEFAULT_CONFIG):
     out_par, out_mesh, out_fluid = et.load_output_state(outputfilenames[-1], config)
 
     figure_stem = 'DynamicStromgrenSpherePhotoheating1D'
-    if runtime_params['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
+    if config['par']['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_stem += '_C2Ray'
     figure_filename = Path(output['savedir']) / f'{figure_stem}.jpg'
     front_figure_filename = (
@@ -73,7 +72,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('output files = %d' % len(outputfilenames))
     print('final front radius = %.3e kpc' % history['front_radius_kpc'][-1])
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temperature_cgs_K'][-1])
-    print('IC file = %s' % runtime_params['simulation']['initial_condition_filename'])
+    print('IC file = %s' % config['par']['simulation']['initial_condition_filename'])
     for outputfilename in outputfilenames:
         print('output file = %s' % outputfilename)
     print('figure = %s' % figure_filename)

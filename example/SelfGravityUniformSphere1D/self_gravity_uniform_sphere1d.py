@@ -37,14 +37,16 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
     initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     initial_state = et.build_initial_condition(config)
-    rio.writehdf5(initial_state, runtime['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial_state, config['par']['simulation']['initial_condition_filename'])
 
-    runtime = {**runtime, 'simulation': {**runtime['simulation'], 'initial_condition_filename': runtime['simulation']['initial_condition_filename']}}
-    sim = Rsim(runtime)
+    config['par']['simulation'] = {
+        **config['par']['simulation'],
+        'initial_condition_filename': config['par']['simulation']['initial_condition_filename'],
+    }
+    sim = Rsim(config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()

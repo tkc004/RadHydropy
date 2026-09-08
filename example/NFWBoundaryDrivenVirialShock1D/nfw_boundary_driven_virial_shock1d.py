@@ -93,21 +93,20 @@ def _strip_snapshot_ghosts(sim):
 
 def _run_stage(config, halo, mode, restart=False):
     stage_config = copy.deepcopy(config)
-    par_config = stage_config['par']
-    outdir = Path(par_config['output']['directory'])
+    outdir = Path(stage_config['par']['output']['directory'])
     outdir.mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(stage_config)
-    sim = Rsim(par_config)
+    sim = Rsim(stage_config['par'])
     sim.solver = BoundaryAccretionSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     if restart:
         # A restart snapshot carries the previous stage's output settings.
         # Restore the current stage's destinations and schedule after reading
         # the snapshot so PIE outputs are selected and written for this stage.
-        sim.par.outdir = par_config['output']['directory']
-        sim.par.savedir = par_config['output']['savedir']
-        sim.par.outfileprefix = par_config['output']['filename_prefix']
-        sim.par.outputtimefilename = par_config['output']['time_list_filename']
+        sim.par.outdir = stage_config['par']['output']['directory']
+        sim.par.savedir = stage_config['par']['output']['savedir']
+        sim.par.outfileprefix = stage_config['par']['output']['filename_prefix']
+        sim.par.outputtimefilename = stage_config['par']['output']['time_list_filename']
         sim.par._sync_output_parameters()
     if restart:
         _strip_snapshot_ghosts(sim)
@@ -125,7 +124,7 @@ def _run_stage(config, halo, mode, restart=False):
     )
     sim.Run(mode=mode)
     return sorted(outdir.glob(
-        f"{par_config['output']['filename_prefix']}_*.hdf5"
+        f"{config['par']['output']['filename_prefix']}_*.hdf5"
     ))
 
 
@@ -192,27 +191,27 @@ def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
 def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     exampleparams = config['example']
-    par_config['simulation']['initial_condition_filename'] = str(
-        (config_filename.parent / par_config['simulation']['initial_condition_filename']).resolve()
+    config["par"]['simulation']['initial_condition_filename'] = str(
+        (config_filename.parent / config["par"]['simulation']['initial_condition_filename']).resolve()
     )
-    par_config['output']['directory'] = str(
-        (config_filename.parent / par_config['output']['directory']).resolve()
+    config["par"]['output']['directory'] = str(
+        (config_filename.parent / config["par"]['output']['directory']).resolve()
     )
-    par_config['output']['savedir'] = str(
-        (config_filename.parent / par_config['output']['savedir']).resolve()
+    config["par"]['output']['savedir'] = str(
+        (config_filename.parent / config["par"]['output']['savedir']).resolve()
     )
-    par_config['output']['time_list_filename'] = str(
-        (config_filename.parent / par_config['output']['time_list_filename']).resolve()
+    config["par"]['output']['time_list_filename'] = str(
+        (config_filename.parent / config["par"]['output']['time_list_filename']).resolve()
     )
-    par_config['thermochemistry']['metal_pie_table_filename'] = str(
-        (config_filename.parent / par_config['thermochemistry']['metal_pie_table_filename']).resolve()
+    config["par"]['thermochemistry']['metal_pie_table_filename'] = str(
+        (config_filename.parent / config["par"]['thermochemistry']['metal_pie_table_filename']).resolve()
     )
-    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     pie_table = MetalPIETable(
-        par_config['thermochemistry']['metal_pie_table_filename']
+        config["par"]['thermochemistry']['metal_pie_table_filename']
     )
     halo = nfw_halo_parameters(
         initial_condition['halo_mass'], initial_condition['concentration'], initial_condition['redshift'],
@@ -223,12 +222,12 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     nested_config['_pie_table'] = pie_table
     initial = build_initial_condition(nested_config)
     inflow = boundary_inflow_state(nested_config, halo, pie_table)
-    par_config['boundary'].update(inflow)
-    initial_filename = par_config['simulation']['initial_condition_filename']
+    config["par"]['boundary'].update(inflow)
+    initial_filename = config["par"]['simulation']['initial_condition_filename']
     Path(initial_filename).parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, initial_filename)
 
-    adiabatic = copy.deepcopy(par_config)
+    adiabatic = copy.deepcopy(config["par"])
     adiabatic['simulation']['final_time'] = exampleparams['adiabatic_final_time']
     adiabatic['thermochemistry']['network'] = 'hydrogen'
     adiabatic['thermochemistry']['metal_pie_enabled'] = False
@@ -242,8 +241,8 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     if adiabatic_only:
         return
 
-    pie = copy.deepcopy(par_config)
-    pie['simulation']['name'] = par_config['simulation']['name'] + '_PIE'
+    pie = copy.deepcopy(config["par"])
+    pie['simulation']['name'] = config["par"]['simulation']['name'] + '_PIE'
     pie['simulation']['initial_condition_filename'] = str(adiabatic_files[-1])
     pie['simulation']['final_time'] = exampleparams['pie_final_time']
     pie['output']['directory'] = str(
@@ -261,7 +260,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     if not pie_files:
         raise RuntimeError('PIE stage produced no snapshots')
 
-    savedir = Path(par_config['output']['savedir'])
+    savedir = Path(config["par"]['output']['savedir'])
     savedir.mkdir(parents=True, exist_ok=True)
     ad_report = savedir / 'NFWBoundaryDrivenVirialShock1D_AdiabaticShockHistory.txt'
     pie_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEShockHistory.txt'

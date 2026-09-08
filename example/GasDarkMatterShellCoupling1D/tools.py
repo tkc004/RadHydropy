@@ -11,16 +11,16 @@ from radhydropy.units import CodeUnits
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-    runtime = config['par']
-    code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
-    grid_cells = int(runtime['mesh']['grid_cells'])
-    result = Rsim(runtime)
+
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    result = Rsim(config["par"])
     result.par.simulation.coordinate_system = 'spherical'
     result.par.simulation.box_size = float(initial['rmax'].to_value(code_units.length_unit))
     result.par.mesh.ghost_cells = 1
-    boundary = np.linspace(initial['rmin'].to_value(code_units.length_unit), result.par.simulation.box_size, grid_cells + 1)
-    coordinate = 0.75 * (boundary[1:]**4 - boundary[:-1]**4) / (boundary[1:]**3 - boundary[:-1]**3)
-    result.mesh.boundary_proper_code = as_named_array(boundary)
+    boundary_proper_code = np.linspace(initial['rmin'].to_value(code_units.length_unit), result.par.simulation.box_size, grid_cells + 1)
+    x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+    result.mesh.boundary_proper_code = as_named_array(boundary_proper_code)
     result.fluid.rho_proper_code = as_named_array((np.ones(grid_cells) * initial['gas_density']).to_value(code_units.density_unit))
     result.fluid.temp_proper_code = as_named_array((np.ones(grid_cells) * initial['gas_temperature']).to_value(code_units.temperature_unit))
     result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
@@ -33,7 +33,7 @@ def build_initial_condition(config):
         setattr(result.fluid, field, as_named_array(getattr(result.fluid, field)[first:last]))
     result.par.mesh.ghost_cells = 0
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate,
+        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code,
         boundary_proper_code=result.mesh.boundary_proper_code,
         width_proper_code=np.diff(result.mesh.boundary_proper_code),
         area_proper_code=4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2,
@@ -47,8 +47,8 @@ def build_initial_condition(config):
 def make_dark_matter(config):
     """Build dark-matter shells from the complete nested configuration."""
     initial_condition = config['initial_condition']
-    par_config = config['par']
-    code_units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     count = int(initial_condition['dark_matter_shells'])
     radius = np.linspace(0.05, 0.95, count)
     velocity = np.asarray(radius) * float(

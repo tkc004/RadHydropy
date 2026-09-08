@@ -35,36 +35,36 @@ SPEED_OF_LIGHT = unyt.c.to_value(unyt.cm / unyt.s)
 
 def _build_initial_condition(config):
     """Write a one-cell, fixed-mass shell IC in the normal example format."""
-    par_config = config['par']
+
     initial = config['initial_condition']
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     code = sim.par.units.CodeUnits
-    grid_cells = int(par_config['mesh']['grid_cells'])
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
     if grid_cells != 1:
         raise ValueError('thin-shell IC requires exactly one active grid cell')
     sim.par.simulation.box_size = quantity_to_value(
         initial['box_size'], code.length_unit
     )
     sim.par.simulation.time_proper_code = 0.0
-    boundary = as_named_array(quantity_to_value(
+    boundary_proper_code = as_named_array(quantity_to_value(
         np.array([0.0, initial['box_size'].to_value(unyt.cm)]) * unyt.cm,
         code.length_unit,
     ))
-    area = quantity_to_value(par_config['mesh']['area'], code.area_unit)
-    width = np.diff(boundary)
-    volume = width * area
-    sim.mesh.boundary_proper_code = boundary
+    area_proper_code = quantity_to_value(config["par"]['mesh']['area'], code.area_unit)
+    width = np.diff(boundary_proper_code)
+    volume_proper_code = width * area_proper_code
+    sim.mesh.boundary_proper_code = boundary_proper_code
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        x_proper_code=0.5 * (boundary[1:] + boundary[:-1]),
-        boundary_proper_code=boundary,
+        x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+        boundary_proper_code=boundary_proper_code,
         width_proper_code=width,
-        area_proper_code=np.ones(1) * area,
-        volume_proper_code=volume,
+        area_proper_code=np.ones(1) * area_proper_code,
+        volume_proper_code=volume_proper_code,
     )
     shell_mass = initial['shell_mass'].to_value(unyt.g)
     sim.fluid.rho_proper_code = as_named_array(
-        np.array([shell_mass]) / volume
+        np.array([shell_mass]) / volume_proper_code
     )
     sim.fluid.vel_proper_code = as_named_array(np.zeros(1, dtype=float))
     sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
@@ -86,15 +86,15 @@ def _write_initial_condition(config):
 def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwargs):
     """Advance one source-only RadHydropy timestep.
 
-    The shell has one fixed control volume.  We intentionally do not call a
-    hydrodynamic step: this removes gas-pressure and boundary contributions
+    The shell has one fixed control volume_proper_code.  We intentionally do not call a
+    hydrodynamic step: this removes gas-pressure and boundary_proper_code contributions
     from the thin-shell momentum test while retaining the normal Rsim loop.
     """
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     interior = sim.par.mesh.ghost_cells
-    volume = float(np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float))
-    absorbed_rate = luminosity / photon_energy_cgs_erg / volume
+    volume_proper_code = float(np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float))
+    absorbed_rate = luminosity / photon_energy_cgs_erg / volume_proper_code
     source_result = {
         "source_steps": 1,
         "absorbed_photon_rate": np.array([absorbed_rate]),
@@ -115,24 +115,24 @@ def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwar
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    runtime = config['par']
+
     initial = config['initial_condition']
     eu.clean_previous_outputs(config)
-    Path(runtime["output"]["directory"]).mkdir(parents=True, exist_ok=True)
+    Path(config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     _write_initial_condition(config)
 
-    sim = Rsim(runtime)
+    sim = Rsim(config["par"])
     rio.readhdf5(
         sim.par,
         sim.mesh,
         sim.fluid,
-        runtime['simulation']['initial_condition_filename'],
+        config["par"]['simulation']['initial_condition_filename'],
     )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
 
-    luminosity = runtime["radiation"]["radiation_pressure_source_luminosity"].to_value(
+    luminosity = config["par"]["radiation"]["radiation_pressure_source_luminosity"].to_value(
         unyt.erg / unyt.s
     )
     photon_energy_cgs_erg = (20.0 * unyt.eV).to_value(unyt.erg)
@@ -187,7 +187,7 @@ def main(config_filename=DEFAULT_CONFIG):
         where=expected_momentum != 0.0,
     )
 
-    figure = Path(runtime["output"]["savedir"]) / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
+    figure = Path(config["par"]["output"]["savedir"]) / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
     time_myr = time_s / (1.0 * unyt.Myr).to_value(unyt.s)
     pc_cm = (1.0 * unyt.pc).to_value(unyt.cm)
     fig, axes = plt.subplots(3, 1, figsize=(7.5, 9.0), sharex=True)

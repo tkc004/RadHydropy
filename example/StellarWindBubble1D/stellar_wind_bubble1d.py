@@ -41,7 +41,7 @@ def load_snapshots(config, max_outputs=10, start_index=1):
             config['par']['output']['directory'],
             config['par']['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
         )
-        snapshots.append(et.load_snapshot(outfilename, config))
+        snapshots.append(et.load_output_state(outfilename, config))
     return snapshots
 
 
@@ -50,17 +50,17 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     example_config = config['example']
-    output_config = par_config['output']
+    output_config = config["par"]['output']
     eu.clean_previous_outputs(config)
 
     if not plot_only:
-        code_units_obj = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+        code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
         config['_code_units'] = code_units_obj
         initial_condition = et.build_initial_condition(config)
-        rio.writehdf5(initial_condition, par_config['simulation']['initial_condition_filename'])
-        mainrun = Rsim(par_config)
+        rio.writehdf5(initial_condition, config["par"]['simulation']['initial_condition_filename'])
+        mainrun = Rsim(config["par"])
         mainrun.RunAll(outputtime=0)
 
     snapshots = load_snapshots(config)

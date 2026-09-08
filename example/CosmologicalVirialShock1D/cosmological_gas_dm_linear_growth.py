@@ -137,18 +137,18 @@ def _set_background_state(sim, config, cosmic_time, baryon_fraction,
         sim.fluid.eos.pressure(rho, temperature, boundary_mu),
         dtype=float,
     ))
-    volume = float(np.asarray(sim.mesh.volume_comoving_code[index], dtype=float))
+    volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code[index], dtype=float))
     sim.fluid.rho_comoving_code[index] = rho
     sim.fluid.vel_supercomoving_code[index] = velocity
     sim.fluid.temp_supercomoving_code[index] = temperature
     sim.fluid.mu[index] = boundary_mu
     sim.fluid.pre_supercomoving_code[index] = pressure
-    sim.fluid.Mass_code[index] = rho * volume
+    sim.fluid.Mass_code[index] = rho * volume_comoving_code
     sim.fluid.Mom_code[index] = 0.0
     sim.fluid.Energy_code[index] = float(np.asarray(
         sim.fluid.eos.total_energy_density(rho, velocity, pressure),
         dtype=float,
-    )) * volume
+    )) * volume_comoving_code
 
 
 def _fit_amplitude(measured, reference, mask):
@@ -195,7 +195,7 @@ def _matched_shell_mass(target_enclosed_mass):
 
 
 def _make_matched_initial_state(config):
-    """Build gas cells and one volume-centred DM shell per identical cell."""
+    """Build gas cells and one volume_comoving_code-centred DM shell per identical cell."""
     code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
     initial_condition = config["initial_condition"]
@@ -272,7 +272,7 @@ def _snapshot(sim, dm, cosmic_time, config,
     )
     baryon_fraction = float(initial_condition["baryon_fraction"])
     dm_fraction = 1.0 - baryon_fraction
-    volume = 4.0 * np.pi / 3.0 * x**3
+    volume_comoving_code = 4.0 * np.pi / 3.0 * x**3
 
     gas_mass = prepare_enclosed_gas_mass(
         sim.mesh, sim.fluid.rho_comoving_code, sim.par
@@ -280,7 +280,7 @@ def _snapshot(sim, dm, cosmic_time, config,
     dm_x = np.asarray(dm.radius, dtype=float)
     dm_mass = dm.enclosed_mass(dm_x)
     delta_gas = gas_mass / np.maximum(
-        baryon_fraction * background_comoving * volume, 1.0e-300
+        baryon_fraction * background_comoving * volume_comoving_code, 1.0e-300
     ) - 1.0
     delta_dm = dm_mass / np.maximum(
         dm_fraction * background_comoving * (4.0 * np.pi / 3.0) * dm_x**3,

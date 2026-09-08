@@ -52,9 +52,8 @@ def build_initial_condition(config):
     return sim
 
 def ReadandPlot(outfilename, config, **kwargs):
-    run = config['par']
     code_units = config['_code_units']
-    rout = Rsim(run)
+    rout = Rsim(config['par'])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     first = int(rout.par.mesh.ghost_cells)
     last = first + int(rout.par.mesh.grid_cells)

@@ -19,10 +19,11 @@ import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
-def total_energy_error(par, initial_condition, example_config):
+def total_energy_error(config):
+    initial_condition = config['initial_condition']
     (sim, saved_mesh, saved, _initial_mass, _initial_energy,
      _initial_radius, _gravity_work, _potential_change,
-     _potential_flux) = run_simulation(par, initial_condition, example_config)
+     _potential_flux) = run_simulation(config)
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
     active = slice(first, first + count)
@@ -62,7 +63,8 @@ def main():
     errors = []
     for dtmax in dtmax_values:
         par = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': 128, 'ghost_cells': 2}, 'timestep': {**config['par']['timestep'], 'dtmax': float(dtmax)}}
-        error = total_energy_error(par, initial_condition, config['example'])
+        case_config = {**config, 'par': par}
+        error = total_energy_error(case_config)
         errors.append(error)
         print('dtmax %.6g: total-energy error %.8g' % (dtmax, error))
 

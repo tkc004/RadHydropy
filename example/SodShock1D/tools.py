@@ -30,8 +30,8 @@ def getAnalyticSolution(config, state):
     time = float(np.asarray(state.fluid.time_proper_code).flat[0])
     if time <= 0.0:
         return None
-    boundary = np.asarray(state.mesh.boundary_proper_code, dtype=float)
-    centers = 0.5 * (boundary[:-1] + boundary[1:])
+    boundary_proper_code = np.asarray(state.mesh.boundary_proper_code, dtype=float)
+    centers = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
     box = quantity_to_value(ic["box_size"], units.length_unit)
     interface = 0.25 * box
     left, _, _ = shocktubeanalyticgraph(

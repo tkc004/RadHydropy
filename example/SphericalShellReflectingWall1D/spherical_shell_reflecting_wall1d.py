@@ -69,26 +69,26 @@ def make_initial_condition(ic, code_unit_system):
     state.par.simulation.box_size = state.par.boxsize
     rmin = float(ic["inner_radius"].to_value(code_unit_system.length_unit))
     rmax = float(ic["outer_radius"].to_value(code_unit_system.length_unit))
-    boundary = np.linspace(rmin, rmax, state.par.nogrid + 1)
-    state.mesh.boundary = boundary * code_unit_system.length_unit
-    state.mesh.coordinate = 0.5 * (boundary[1:] + boundary[:-1]) * code_unit_system.length_unit
-    state.mesh.xdelta = np.diff(boundary) * code_unit_system.length_unit
-    state.mesh.area = 4.0 * np.pi * boundary[:-1] ** 2 * code_unit_system.area_unit
-    state.mesh.vol = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3) * code_unit_system.volume_unit
-    radius = np.asarray(state.mesh.coordinate.to_value(code_unit_system.length_unit))
-    shell = (radius >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
+    boundary_proper_code = np.linspace(rmin, rmax, state.par.nogrid + 1)
+    boundary_proper_code_unyt = boundary_proper_code * code_unit_system.length_unit
+    x_proper_code_unyt = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]) * code_unit_system.length_unit
+    width_proper_code_unyt = np.diff(boundary_proper_code) * code_unit_system.length_unit
+    area_proper_code_unyt = 4.0 * np.pi * boundary_proper_code[:-1] ** 2 * code_unit_system.area_unit
+    volume_proper_code_unyt = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3) * code_unit_system.volume_unit
+    radius_proper_code = np.asarray(x_proper_code_unyt.to_value(code_unit_system.length_unit))
+    shell = (radius_proper_code >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius_proper_code <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
     state.fluid.rho_proper_code = np.where(shell, float(ic["shell_density"]), 0.0)
     state.fluid.temp_proper_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
     state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(code_unit_system.velocity_unit)), 0.0)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
-    boundary_proper_code = np.asarray(state.mesh.boundary.to_value(code_unit_system.length_unit), dtype=float)
-    coordinate_proper_code = np.asarray(state.mesh.coordinate.to_value(code_unit_system.length_unit), dtype=float)
-    width_proper_code = np.asarray(state.mesh.xdelta.to_value(code_unit_system.length_unit), dtype=float)
-    area_proper_code = np.asarray(state.mesh.area.to_value(code_unit_system.area_unit), dtype=float)
-    volume_proper_code = np.asarray(state.mesh.vol.to_value(code_unit_system.volume_unit), dtype=float)
+    boundary_proper_code = np.asarray(boundary_proper_code_unyt.to_value(code_unit_system.length_unit), dtype=float)
+    x_proper_code = np.asarray(x_proper_code_unyt.to_value(code_unit_system.length_unit), dtype=float)
+    width_proper_code = np.asarray(width_proper_code_unyt.to_value(code_unit_system.length_unit), dtype=float)
+    area_proper_code = np.asarray(area_proper_code_unyt.to_value(code_unit_system.area_unit), dtype=float)
+    volume_proper_code = np.asarray(volume_proper_code_unyt.to_value(code_unit_system.volume_unit), dtype=float)
     state.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        x_proper_code=coordinate_proper_code,
+        x_proper_code=x_proper_code,
         boundary_proper_code=boundary_proper_code,
         width_proper_code=width_proper_code,
         area_proper_code=area_proper_code,
@@ -140,20 +140,20 @@ def _profile(sim):
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     config = eu.load_nested_example_config(config_filename)
-    par_config, initial_condition = config['par'], config['initial_condition']
+    initial_condition = config['initial_condition']
     exampleparams = config['example']
     if riemann_solver is not None:
-        par_config["hydrodynamics"]["riemann_solver"] = riemann_solver
-        par_config["output"]["directory"] = Path(par_config["output"]["directory"]).with_name(
-            Path(par_config["output"]["directory"]).name + "_" + riemann_solver
+        config["par"]["hydrodynamics"]["riemann_solver"] = riemann_solver
+        config["par"]["output"]["directory"] = Path(config["par"]["output"]["directory"]).with_name(
+            Path(config["par"]["output"]["directory"]).name + "_" + riemann_solver
         )
-        par_config["output"]["savedir"] = par_config["output"]["directory"]
-    outdir = Path(par_config["output"]["directory"])
+        config["par"]["output"]["savedir"] = config["par"]["output"]["directory"]
+    outdir = Path(config["par"]["output"]["directory"])
     outdir.mkdir(parents=True, exist_ok=True)
-    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     initial = make_initial_condition(initial_condition, units)
-    rio.writehdf5(initial, par_config["simulation"]["initial_condition_filename"])
-    sim = Rsim(par_config)
+    rio.writehdf5(initial, config["par"]["simulation"]["initial_condition_filename"])
+    sim = Rsim(config["par"])
     sim.solver = InnerWallSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()

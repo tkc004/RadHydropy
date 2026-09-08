@@ -38,25 +38,25 @@ def build_initial_condition(config):
     grid_cells = int(config['par']['mesh']['grid_cells'])
     rmin = initial.get('rmin', initial.get('inner_radius'))
     rmax = initial.get('rmax', initial.get('outer_radius'))
-    boundary = as_named_array(quantity_to_value(
+    boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(rmin, rmax, grid_cells + 1), code_units.length_unit
     ))
-    volume = 4.0 * np.pi / 3.0 * (boundary[1:]**3 - boundary[:-1]**3)
-    coordinate = 0.75 * (boundary[1:]**4 - boundary[:-1]**4) / (boundary[1:]**3 - boundary[:-1]**3)
-    sim.mesh.boundary_proper_code = boundary
+    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+    x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+    sim.mesh.boundary_proper_code = boundary_proper_code
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
-        width_proper_code=np.diff(boundary), area_proper_code=4.0 * np.pi * boundary[:-1]**2,
-        volume_proper_code=volume,
+        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
+        width_proper_code=np.diff(boundary_proper_code), area_proper_code=4.0 * np.pi * boundary_proper_code[:-1]**2,
+        volume_proper_code=volume_proper_code,
     )
     halo = nfw_halo_parameters(
         initial['halo_mass'], initial['concentration'], initial['redshift'],
         initial['overdensity'], initial['h0'],
     )
     temperature = virial_temperature(halo, initial['mu'])
-    radius = spherical_cell_centers(np.asarray(boundary) * code_units.length_unit)
+    radius = spherical_cell_centers(np.asarray(boundary_proper_code) * code_units.length_unit)
     density = hydrostatic_density_profile(
-        radius, np.asarray(boundary) * code_units.length_unit, halo, temperature,
+        radius, np.asarray(boundary_proper_code) * code_units.length_unit, halo, temperature,
         initial['mu'], initial['gas_fraction'],
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(density, code_units.density_unit))
@@ -75,18 +75,18 @@ def build_initial_condition(config):
     return sim
 
 
-def load_snapshot(filename, config):
+def load_output_state(filename, config):
     with h5py.File(filename, 'r') as handle:
         data = handle['Data']
         header = handle['Header']
         noghost = int(config['par']['mesh']['ghost_cells'])
         nogrid = int(header.attrs['GridCells'])
-        boundary = np.asarray(data['boundary_proper_code'][()])
-        boundary = boundary[noghost:noghost + nogrid + 1]
+        boundary_proper_code = np.asarray(data['boundary_proper_code'][()])
+        boundary_proper_code = boundary_proper_code[noghost:noghost + nogrid + 1]
         # Raw output datasets are written in their physical units (cm, g cm^-3,
         # K, and cm s^-1).  The CodeUnits metadata describes the runtime state,
         # but must not be applied a second time to these HDF5 values.
-        radius = spherical_cell_centers(boundary * unyt.cm).to_value(unyt.kpc)
+        radius = spherical_cell_centers(boundary_proper_code * unyt.cm).to_value(unyt.kpc)
         density = np.asarray(data['rho_proper_code'][()])[noghost:noghost + nogrid]
         temperature = np.asarray(data['temp_proper_code'][()])[noghost:noghost + nogrid]
         velocity = (np.asarray(data['vel_proper_code'][()])[noghost:noghost + nogrid]
@@ -98,7 +98,7 @@ def load_snapshot(filename, config):
 
 
 def analyze_snapshot(filename, config, halo, temperature):
-    time, radius, density, temp, velocity = load_snapshot(filename, config)
+    time, radius, density, temp, velocity = load_output_state(filename, config)
     radius_cgs_cm = radius * (1.0 * unyt.kpc).to_value(unyt.cm)
     mu = float(config['initial_condition']['mu'])
     pressure = density * BOLTZMANN_CONSTANT_CGS * temp / (mu * PROTON_MASS_CGS)

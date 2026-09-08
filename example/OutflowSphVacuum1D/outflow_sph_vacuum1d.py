@@ -28,30 +28,30 @@ DEFAULT_CONFIG = Path(__file__).with_name('outflow_sph_vacuum1d.yaml')
 def run(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_config = config['initial_condition']
     exampleparams = config['example']
     eu.clean_previous_outputs(config)
-    units = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     config['_code_units'] = units
     initial = tools.build_initial_condition(config)
     rio.writehdf5(
         initial,
-        rundir / par_config['simulation']['initial_condition_filename'],
+        rundir / config["par"]['simulation']['initial_condition_filename'],
     )
 
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     sim.RunAll(outputtime=0)
 
     profiles = []
-    first = int(par_config['mesh']['ghost_cells'])
+    first = int(config["par"]['mesh']['ghost_cells'])
     active_count = int(initial_config['grid_cells'])
-    output = par_config['output']
+    output = config["par"]['output']
     output_files = sorted(
         Path(output['directory']).glob(f"{output['filename_prefix']}_*.hdf5")
     )
     for filename in output_files:
-        snapshot = Rsim(par_config)
+        snapshot = Rsim(config["par"])
         rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, filename)
         rho_proper_code = np.asarray(snapshot.fluid.rho_proper_code, dtype=float)
         temp_proper_code = np.asarray(snapshot.fluid.temp_proper_code, dtype=float)
@@ -66,7 +66,7 @@ def run(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('vacuum outflow produced no output snapshots')
     filled = [
         np.count_nonzero(
-            rho[first:first + active_count] > par_config['hydrodynamics']['cfl_density_floor']
+            rho[first:first + active_count] > config["par"]['hydrodynamics']['cfl_density_floor']
         )
         for _, rho, _, _ in profiles
     ]

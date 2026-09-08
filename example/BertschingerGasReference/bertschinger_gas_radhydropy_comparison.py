@@ -129,11 +129,11 @@ def _interpolate_profile(solution, radius):
 def build_initial_condition(config):
     sim = SimpleNamespace()
     initial_condition = config['initial_condition']
-    runtime = config['par']
+
     solution = config['_reference_solution']
-    simulation = runtime['simulation']
-    mesh = runtime['mesh']
-    code_units = CodeUnits.from_mapping(runtime['units']['CodeUnits'])
+    simulation = config["par"]['simulation']
+    mesh = config["par"]['mesh']
+    code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     sim.par = Par()
     sim.mesh = Mesh()
     sim.fluid = Fluid()
@@ -159,7 +159,7 @@ def build_initial_condition(config):
     sim.par.temperature_representation = 'supercomoving'
     sim.par.perturbation_amplitude = float(initial_condition['perturbation_amplitude'])
     sim.par.simulation = SimpleNamespace(
-        # The runtime and HDF5 state use supercomoving time.  The IC profile
+        # The config["par"] and HDF5 state use supercomoving time.  The IC profile
         # itself is evaluated at this cosmic time, but the serialized state
         # must start at the corresponding tau (zero at t_ref here).
         tau_supercomoving_code=sim.par.tau_supercomoving_code.copy(),
@@ -352,16 +352,16 @@ def _plot_comparison(numerical, reference, output, numerical_label):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
-    output = par_config['output']
+    output = config["par"]['output']
     eu.clean_previous_outputs(config)
     reference = solve_bertschinger_gas()
     config['_reference_solution'] = reference
     initial = build_initial_condition(config)
-    rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
+    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
 
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
@@ -371,6 +371,12 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.isclose(float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0]))
+    ):
+        raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
     sim.par.cosmology = initial.par.cosmology
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,

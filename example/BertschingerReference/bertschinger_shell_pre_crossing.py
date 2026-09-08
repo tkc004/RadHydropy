@@ -50,10 +50,10 @@ def make_turnaround_shells(config):
     return shells, 0
 def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     config = example_tools.load_reference_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     example = config['example']
-    units = example_tools.load_units(config)
+    units = example_tools.code_units_from_config(config)
     cosmology = EinsteinDeSitter.from_code_units(
         units,
         t_ref=float(example['cosmology_t_ref']),
@@ -114,7 +114,7 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
         centre_match_lambda=match_lambda,
         centre_matching_velocity=float(example['ode_centre_matching_velocity']),
     )
-    figure = Path(par_config['output']['savedir']) / 'BertschingerDarkMatterShellPreCrossingVsODE.jpg'
+    figure = Path(config["par"]['output']['savedir']) / 'BertschingerDarkMatterShellPreCrossingVsODE.jpg'
     fig, axis = plt.subplots(figsize=(8, 5))
     axis.plot(xi_history, lambda_history, linestyle='None', marker='s',
               markersize=2.5, color='tab:blue', markevery=8,

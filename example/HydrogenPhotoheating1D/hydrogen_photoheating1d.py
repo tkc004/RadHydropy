@@ -42,10 +42,10 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
+
     initial_condition = config['initial_condition']
     exampleparams = config['example']
-    output = par_config['output']
+    output = config["par"]['output']
     eu.clean_previous_outputs(config)
 
     reference = et.reference_values(
@@ -57,9 +57,9 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, par_config['simulation']['initial_condition_filename'])
+    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
 
-    sim = Rsim(par_config)
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()

@@ -72,7 +72,7 @@ def build_initial_condition(config):
 
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
-def read_snapshot(filename, config):
+def load_output_state(filename, config):
     result = build_initial_condition(
         config,
     )

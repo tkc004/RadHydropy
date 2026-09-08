@@ -45,28 +45,28 @@ def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     print('rundir', rundir)
     nested = eu.load_nested_example_config(config_filename)
-    runtime = nested['par']
+
     config = nested
     eu.clean_previous_outputs(nested)
 
-    Path(runtime['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(runtime['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]['output']['savedir']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
-    mainrun = Rsim(runtime)
+    mainrun = Rsim(nested["par"])
     rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
-    if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray':
+    if nested["par"].get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray':
         mainrun.EvolveStaticThermochemistry(
-            runtime['simulation']['final_time'],
-            runtime['timestep']['evolution_timestep'],
+            nested["par"]['simulation']['final_time'],
+            nested["par"]['timestep']['evolution_timestep'],
         )
     rio.write_numbered_hdf5(mainrun, 0)
 
-    output_filename = Path(runtime['output']['directory']) / f"{runtime['output']['filename_prefix']}_000.hdf5"
+    output_filename = Path(nested["par"]['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
     relative_error = et.save_plot(
         out_mesh,
@@ -74,10 +74,10 @@ def main(config_filename=DEFAULT_CONFIG):
         out_par,
         config,
         str(
-            Path(runtime['output']['savedir'])
+            Path(nested["par"]['output']['savedir'])
             / (
                 'RadiativeTransferSph1D_C2Ray.jpg'
-                if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
+                if nested["par"].get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
                 else 'RadiativeTransferSph1D.jpg'
             )
         ),
@@ -86,10 +86,10 @@ def main(config_filename=DEFAULT_CONFIG):
     print('max relative error = %.3e' % relative_error)
     figure_name = (
         'RadiativeTransferSph1D_C2Ray.jpg'
-        if runtime.get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
+        if nested["par"].get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
         else 'RadiativeTransferSph1D.jpg'
     )
-    print('figure = %s' % (Path(runtime['output']['savedir']) / figure_name))
+    print('figure = %s' % (Path(nested["par"]['output']['savedir']) / figure_name))
 
 
 def parse_args():
@@ -99,7 +99,7 @@ def parse_args():
     parser.add_argument(
         '--config',
         default=DEFAULT_CONFIG,
-        help='YAML file containing nested runtime and initial-condition settings.',
+        help='YAML file containing nested nested["par"] and initial-condition settings.',
     )
     return parser.parse_args()
 

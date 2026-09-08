@@ -33,13 +33,13 @@ SECONDS_PER_GYR = 1.0e9 * 365.25 * 86400.0
 
 def evolve(config):
     """Integrate xHI and temperature with the RadHydropy source equations."""
-    par_config = config["par"]
+
     initial_condition = config["initial_condition"]
-    gamma = float(par_config["hydrodynamics"]["gamma"])
-    hydrogen_fraction = float(par_config["chemistry"]["hydrogen_mass_fraction"])
+    gamma = float(config["par"]["hydrodynamics"]["gamma"])
+    hydrogen_fraction = float(config["par"]["chemistry"]["hydrogen_mass_fraction"])
     nH0 = float(initial_condition["present_hydrogen_density_cgs_cm3"])
-    t_ref_s = float(par_config["gravity"]["cosmology_t_ref"].to_value("s"))
-    cmb0 = float(par_config["thermochemistry"]["cmb_temperature_0"].to_value("K"))
+    t_ref_s = float(config["par"]["gravity"]["cosmology_t_ref"].to_value("s"))
+    cmb0 = float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K"))
     z_initial = float(initial_condition["initial_redshift"])
     z_final = float(initial_condition["final_redshift"])
     t_initial = t_ref_s * (1.0 / (1.0 + z_initial)) ** 1.5

@@ -367,10 +367,10 @@ def run_live_shell_density_profiles(config):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
-    par_config = config["par"]
+
     initial_condition = config["initial_condition"]
-    gravity = par_config["gravity"]
-    units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+    gravity = config["par"]["gravity"]
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units, t_ref=float(gravity["cosmology_t_ref"]),
@@ -403,7 +403,7 @@ def main(config_filename=DEFAULT_CONFIG):
     shells = et.make_dark_matter(dead_config)
     dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     initial = float(initial_condition["initial_cosmic_time"])
-    final = float(par_config["simulation"]["final_time"])
+    final = float(config["par"]["simulation"]["final_time"])
     time = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))
@@ -502,7 +502,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     if not np.all(np.isfinite(shells.radius)) or np.any(np.diff(shells.radius) < 0.0):
         raise RuntimeError("dark-matter-only shells became invalid or unsorted")
-    savedir = Path(par_config["output"]["savedir"])
+    savedir = Path(config["par"]["output"]["savedir"])
     savedir.mkdir(parents=True, exist_ok=True)
     figure = savedir / "CosmologicalDarkMatterOnly.jpg"
     plt.figure(figsize=(6, 4))

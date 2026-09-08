@@ -28,25 +28,25 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('gas_hydro_control1d.yaml')
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par_config = config['par']
-    Path(par_config['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
-    eu.clean_previous_outputs(config)
-    config['_code_units'] = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
-    initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, par_config['simulation']['initial_condition_filename'])
 
-    sim = Rsim(par_config)
+    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(config["par"]['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    eu.clean_previous_outputs(config)
+    config['_code_units'] = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    initial = et.build_initial_condition(config)
+    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
+
+    sim = Rsim(config["par"])
     sim.RunAll(outputtime=0, mode='hydro')
     if hasattr(sim.fluid, 'AngularMomentum_code'):
         raise RuntimeError('control case unexpectedly created AngularMomentum')
 
     interior = slice(
-        par_config['mesh']['ghost_cells'],
-        par_config['mesh']['ghost_cells'] + par_config['mesh']['grid_cells'],
+        config["par"]['mesh']['ghost_cells'],
+        config["par"]['mesh']['ghost_cells'] + config["par"]['mesh']['grid_cells'],
     )
     radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
-    figure = Path(par_config['output']['savedir']) / 'GasHydroControl1D.jpg'
+    figure = Path(config["par"]['output']['savedir']) / 'GasHydroControl1D.jpg'
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True)
     for axis, initial_values, final_values, ylabel in (
         (axes[0], initial.fluid.rho_proper_code, sim.fluid.rho_proper_code[interior], 'density [code units]'),

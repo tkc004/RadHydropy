@@ -63,20 +63,20 @@ class InitialCondition(Rsim):
                  central_mass, rotation_factor, code_unit_system):
         super().__init__(par_config)
         self.par.mesh.ghost_cells = 0
-        boundary = np.linspace(radius_min, radius_max, count + 1)
-        radius = spherical_centers(boundary)
-        self.mesh.boundary_proper_code = boundary
+        boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
+        radius = spherical_centers(boundary_proper_code)
+        self.mesh.boundary_proper_code = boundary_proper_code
         self.mesh.x_proper_code = radius
-        self.mesh.width_proper_code = np.diff(boundary)
-        self.mesh.area_proper_code = 4.0 * np.pi * boundary[:-1] ** 2
-        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary ** 3)
+        self.mesh.width_proper_code = np.diff(boundary_proper_code)
+        self.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
+        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
         self.fluid.rho_proper_code = np.full(count, density)
         self.fluid.vel_proper_code = np.zeros(count)
         self.fluid.temp_proper_code = np.full(count, temperature)
         self.fluid.mu = np.ones(count)
         self.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(central_mass * radius)
         self.mesh.geometry_state = MeshGeometryState.from_arrays(
-            PROPER_RUNTIME_FIELDS, x_proper_code=radius, boundary_proper_code=boundary,
+            PROPER_RUNTIME_FIELDS, x_proper_code=radius, boundary_proper_code=boundary_proper_code,
             width_proper_code=self.mesh.width_proper_code, area_proper_code=self.mesh.area_proper_code,
             volume_proper_code=self.mesh.volume_proper_code,
         )
@@ -96,8 +96,8 @@ class FixedCentralGravity:
         acceleration[valid] = -self.central_mass / radius[valid]**2
         return acceleration
 
-    def potential_on(self, coordinate):
-        radius = np.abs(np.asarray(coordinate, dtype=float))
+    def potential_on(self, x_proper_code):
+        radius = np.abs(np.asarray(x_proper_code, dtype=float))
         potential = np.zeros_like(radius)
         valid = radius > 0.0
         potential[valid] = -self.central_mass / radius[valid]
@@ -107,7 +107,10 @@ class FixedCentralGravity:
         return self.potential_on(mesh.x_proper_code)
 
 
-def run_simulation(par, initial_condition, example_config):
+def run_simulation(config):
+    par = config['par']
+    initial_condition = config['initial_condition']
+    example_config = config['example']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
     initial = InitialCondition(
@@ -121,7 +124,7 @@ def run_simulation(par, initial_condition, example_config):
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(par)
+    sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
     sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
     sim.SetMesh()
@@ -155,7 +158,7 @@ def main(config_filename=CONFIG):
     example_config = config['example']
     (sim, saved_mesh, saved, initial_mass, initial_energy,
      initial_radius, cumulative_gravity_work, cumulative_potential_change,
-     cumulative_potential_flux) = run_simulation(par, initial_condition, example_config)
+     cumulative_potential_flux) = run_simulation(config)
     active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
     radius = np.asarray(sim.mesh.x_proper_code[active], dtype=float)
     central_mass = float(initial_condition['central_mass'])
@@ -265,7 +268,7 @@ def main(config_filename=CONFIG):
     print('cumulative gravity work = %.6g' % cumulative_gravity_work)
     print('cell-centered potential change = %.6g' % potential_change)
     print('reported potential change = %.6g' % cumulative_potential_change)
-    print('face potential-energy boundary flux = %.6g' % cumulative_potential_flux)
+    print('face potential-energy boundary_proper_code flux = %.6g' % cumulative_potential_flux)
     print('gravity/potential closure residual = %.6g' % potential_work_residual)
     print('total energy audit error = %.6g' % energy_error)
     print('maximum thermal/dynamical scale = %.6g' % np.max(pressure_ratio))
