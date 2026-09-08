@@ -60,7 +60,7 @@ initial_condition:
   rmin: {value: 1.0, unit: kpc}
   rmax: {value: 20.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
-  hydrogen_density: {value: 0.002, unit: cm**-3}
+  hydrogen_number_density: {value: 0.002, unit: cm**-3}
   inflow_velocity: {value: -100.0, unit: km/s}
   outflow_velocity: {value: 100.0, unit: km/s}
   inflow_temperature: {value: 1.0e4, unit: K}

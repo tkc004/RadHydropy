@@ -36,8 +36,8 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 )
 
 
-def load_correlation_table(config_filename, example):
-    filename = Path(example["linear_correlation_table_filename"])
+def load_correlation_table(config_filename, config):
+    filename = Path(config["example"]["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
     return et.load_lcdm_correlation_table(filename)
@@ -941,7 +941,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             t_ref=float(gravity["cosmology_t_ref"]),
             a_ref=float(gravity["cosmology_a_ref"]),
         )
-    correlation_table = load_correlation_table(config_filename, example)
+    correlation_table = load_correlation_table(config_filename, config)
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table

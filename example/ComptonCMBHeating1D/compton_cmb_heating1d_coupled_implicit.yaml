@@ -50,7 +50,7 @@ par:
 initial_condition:
   box_size_proper: {value: 1.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
-  hydrogen_density: {value: 1.0e-3, unit: 1/cm**3}
+  hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
   temperature_proper: {value: 1.0e6, unit: K}
   xHI: 0.99
   mean_molecular_weight: 0.9900990099

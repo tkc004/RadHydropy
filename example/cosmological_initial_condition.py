@@ -111,14 +111,14 @@ def build_initial_condition(config):
             config.get("_volume_comoving_code", np.diff(boundary_comoving_code)), dtype=float
         )
 
-    if "rho_left" in initial_condition:
+    if "rho_left_proper" in initial_condition:
         left = result.mesh.x_comoving_code < 0.5 * box_size_comoving_code
         rho_comoving_code = np.where(
-            left, float(initial_condition["rho_left"]),
-            float(initial_condition["rho_right"]),
+            left, float(initial_condition["rho_left_proper"]),
+            float(initial_condition["rho_right_proper"]),
         )
-        temp_left = initial_condition["temp_left"].to_value("K")
-        temp_right = initial_condition["temp_right"].to_value("K")
+        temp_left = initial_condition["temperature_left_proper"].to_value("K")
+        temp_right = initial_condition["temperature_right_proper"].to_value("K")
         temp_supercomoving_code = np.where(left, temp_left, temp_right)
         mu = np.full(grid_cells, float(initial_condition["mu"]))
     else:

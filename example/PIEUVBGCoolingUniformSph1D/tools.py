@@ -38,16 +38,16 @@ def build_initial_condition(config):
         np.zeros(grid_cells) * vel_proper, code_units.velocity_unit
     ))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['tempini'], code_units.temperature_unit
+        np.ones(grid_cells) * initial['temperature_proper'], code_units.temperature_unit
     ))
-    hydrogen_density_cgs_cm3 = initial.get('hydrogen_density_cgs_cm3', initial['nHini'])
+    hydrogen_number_density_cgs_cm3 = initial['hydrogen_number_density']
     proton_mass_g = float(initial.get('proton_mass_g', unyt.mp.to_value(unyt.g)))
     hydrogen_mass_fraction = float(initial.get(
         'hydrogen_mass_fraction', par['thermochemistry']['hydrogen_mass_fraction']
     ))
-    if hasattr(hydrogen_density_cgs_cm3, 'to_value'):
-        hydrogen_density_cgs_cm3 = hydrogen_density_cgs_cm3.to_value(1 / unyt.cm**3)
-    rho_proper = float(hydrogen_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
+    if hasattr(hydrogen_number_density_cgs_cm3, 'to_value'):
+        hydrogen_number_density_cgs_cm3 = hydrogen_number_density_cgs_cm3.to_value(1 / unyt.cm**3)
+    rho_proper = float(hydrogen_number_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * rho_proper * unyt.g / unyt.cm**3, code_units.density_unit
     ))

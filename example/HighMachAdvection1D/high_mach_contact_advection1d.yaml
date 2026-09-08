@@ -45,9 +45,9 @@ initial_condition:
   coordinate_system: cartesian
   box_size_proper: {value: 1.0e10, unit: cm}
   time_proper: {value: 0.0, unit: s}
-  rho_left: {value: 10.0, unit: g/cm**3}
-  rho_right: {value: 1.0, unit: g/cm**3}
-  pressure_initial: {value: 8.254e7, unit: erg/cm**3}
+  rho_left_proper: {value: 10.0, unit: g/cm**3}
+  rho_right_proper: {value: 1.0, unit: g/cm**3}
+  pressure_initial_proper: {value: 8.254e7, unit: erg/cm**3}
   vel_proper: {value: 1.0e8, unit: cm/s}
   mean_molecular_weight: 1.0
 example:

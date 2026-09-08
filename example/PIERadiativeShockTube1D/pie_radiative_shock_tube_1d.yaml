@@ -47,7 +47,7 @@ initial_condition:
   coordinate_system: cartesian
   box_size_proper: {value: 20.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
-  hydrogen_density: {value: 1.0e-3, unit: cm**-3}
+  hydrogen_number_density: {value: 1.0e-3, unit: cm**-3}
   collision_velocity: {value: 100.0, unit: km/s}
   temperature_proper: {value: 1.0e4, unit: K}
   mean_molecular_weight: 0.62

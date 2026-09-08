@@ -263,7 +263,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                     'slope_smoothing_bins', 3.0)))
             if profile is not None:
                 profile['xi'] = xi
-                profile['cosmic_time'] = cosmic_time
+                profile['time_cosmic'] = cosmic_time
                 profile['turnaround_radius'] = turnaround
                 slope_profiles.append(profile)
             next_profile += 1

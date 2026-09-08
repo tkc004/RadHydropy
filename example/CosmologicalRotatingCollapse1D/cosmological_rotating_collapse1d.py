@@ -210,7 +210,7 @@ def run_case(config, label, rotation_factor):
     par["output"] = dict(par["output"])
     par["output"].update(directory=str(output_dir), savedir=str(output_dir), filename_prefix="Output")
     count = int(par["mesh"]["grid_cells"])
-    cosmic_time = float(initial_condition["cosmic_time"])
+    cosmic_time = float(initial_condition["time_cosmic"])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     boundary_comoving_code = np.linspace(
@@ -224,7 +224,7 @@ def run_case(config, label, rotation_factor):
     )
     rho_background = float(cosmology.background_density(cosmic_time))
     inside = x_comoving_code < float(
-        initial_condition["top_hat_radius"].to_value(code_unit_system.length_unit)
+        initial_condition["radius_top_hat_comoving"].to_value(code_unit_system.length_unit)
     )
     rho_comoving_code = rho_background * (
         1.0 + float(initial_condition["overdensity"]) * inside
@@ -255,7 +255,7 @@ def run_case(config, label, rotation_factor):
         ) * x_comoving_code,
         "_temp_supercomoving_code": np.full(
             count,
-            float(initial_condition["tempini"].to_value(code_unit_system.temperature_unit))
+            float(initial_condition["temperature_proper"].to_value(code_unit_system.temperature_unit))
             * scale_factor**2,
         ),
         "_mu_dimensionless": np.full(count, float(initial_condition["muini"])),

@@ -170,11 +170,11 @@ def main():
     )
     analytic = analytic_compton_temperature(
         compton["time_s"],
-        float(initial_condition["temperature_cgs_K"]),
+        float(initial_condition["temperature_proper"].to_value("K")),
         float(initial_condition["initial_cosmic_time"]),
         cosmology,
         float(units.time_unit.to_value("s")),
-        float(initial_condition["hydrogen_density_cgs_cm3"]),
+        float(initial_condition["hydrogen_number_density"].to_value("1/cm**3")),
         float(initial_condition["hydrogen_mass_fraction"]),
         float(initial_condition["xHI"]),
         float(config["par"]["hydrodynamics"]["gamma"]),
@@ -183,11 +183,11 @@ def main():
     )
     analytic_plot = analytic_compton_temperature(
         plot_time_s,
-        float(initial_condition["temperature_cgs_K"]),
+        float(initial_condition["temperature_proper"].to_value("K")),
         float(initial_condition["initial_cosmic_time"]),
         cosmology,
         float(units.time_unit.to_value("s")),
-        float(initial_condition["hydrogen_density_cgs_cm3"]),
+        float(initial_condition["hydrogen_number_density"].to_value("1/cm**3")),
         float(initial_condition["hydrogen_mass_fraction"]),
         float(initial_condition["xHI"]),
         float(config["par"]["hydrodynamics"]["gamma"]),

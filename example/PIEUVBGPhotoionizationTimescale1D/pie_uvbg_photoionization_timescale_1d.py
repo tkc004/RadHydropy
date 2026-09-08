@@ -113,8 +113,9 @@ def main(config_filename=DEFAULT_CONFIG):
             case_config = {'par': {**par,
                 'simulation': {**par['simulation'], 'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5')},
                 'output': {**par['output'], 'directory': str(case_dir), 'savedir': str(case_dir), 'filename_prefix': 'Output'}},
-                'initial_condition': {**initial_condition, 'nHini': density,
-                                      'tempini': temperature_proper * unyt.K},
+                'initial_condition': {**initial_condition,
+                                      'hydrogen_number_density': density / unyt.cm**3,
+                                      'temperature_proper': temperature_proper * unyt.K},
                 'example': config['example']}
             ric = _write_initial_condition(case_config, case_dir)
             sim = Rsim(case_config['par'])

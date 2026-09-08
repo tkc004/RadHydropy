@@ -63,8 +63,8 @@ def build_initial_condition(config):
         volume_proper_code=sim.mesh.volume_proper_code,
     )
 
-    sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho0'], code_unit_system.density_unit)
-    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['tempini'], code_unit_system.temperature_unit)
+    sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho_proper'], code_unit_system.density_unit)
+    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['temperature_proper'], code_unit_system.temperature_unit)
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
     sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.SetUpFluid(sim.par, sim.mesh)

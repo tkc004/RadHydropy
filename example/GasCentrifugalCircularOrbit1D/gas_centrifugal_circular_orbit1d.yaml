@@ -34,13 +34,13 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  radius_min: 0.5
-  radius_max: 1.5
-  radius_proper_code: 1.0
-  central_mass: 1.0
-  rho_proper_code: 1.0
-  radial_velocity: 0.0
-  pre_proper_code: 1.0e-8
+  radius_inner_proper: {value: 0.5, unit: cm}
+  radius_outer_proper: {value: 1.5, unit: cm}
+  radius_proper: {value: 1.0, unit: cm}
+  central_mass_proper: {value: 1.0, unit: g}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+  vel_proper: {value: 0.0, unit: cm/s}
+  pressure_proper: {value: 1.0e-8, unit: erg/cm**3}
   timestep: 1.0e-3
   nsteps: 100
 example: {}

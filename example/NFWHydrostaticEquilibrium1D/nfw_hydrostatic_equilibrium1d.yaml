@@ -46,5 +46,5 @@ initial_condition:
   gas_fraction: 0.157
   mu: 0.59
   rho_ref: {value: 1.0e-27, unit: g/cm**3}
-  tempini: {value: 1.0, unit: K}
+  temperature_proper: {value: 1.0, unit: K}
 example: {}

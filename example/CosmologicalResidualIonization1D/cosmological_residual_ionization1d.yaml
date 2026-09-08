@@ -30,6 +30,6 @@ initial_condition:
   final_redshift: 4.9
   initial_xe: 2.0e-4
   temperature_proper: {value: 300.0, unit: K}
-  present_hydrogen_density_cgs_cm3: 1.9e-7
+  hydrogen_number_density: {value: 1.9e-7, unit: 1/cm**3}
   output_points: 400
 example: {}

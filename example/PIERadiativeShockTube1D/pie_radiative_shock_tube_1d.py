@@ -62,7 +62,7 @@ def _run_case(
     output_prefix = case_config['par']['output']['filename_prefix']
     case_config['par']['thermochemistry']['metallicity'] = metallicity
     case_initial = dict(initial)
-    case_initial['hydrogen_density'] = hydrogen_density * unyt.cm**-3
+    case_initial['hydrogen_number_density'] = hydrogen_density * unyt.cm**-3
     code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config = {
         'par': case_config['par'],
@@ -89,7 +89,7 @@ def _run_case(
         'adiabatic': adiabatic,
         'snapshots': snapshots,
         'rho_proper_cgs_g_cm3': (
-            case_initial['hydrogen_density'].to_value('cm**-3')
+            case_initial['hydrogen_number_density'].to_value('cm**-3')
             * PROTON_MASS_G / case_config['par']['thermochemistry']['hydrogen_mass_fraction']
         ),
         'upstream_velocity_cgs_cm_s': case_initial['collision_velocity'],

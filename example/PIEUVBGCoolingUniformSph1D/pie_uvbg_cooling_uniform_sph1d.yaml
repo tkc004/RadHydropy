@@ -46,7 +46,7 @@ initial_condition:
   coordsys: spherical
   box_size_proper: {value: 0.001, unit: pc}
   time_proper: {value: 0.0, unit: yr}
-  tempini: {value: 10000.0, unit: K}
+  temperature_proper: {value: 10000.0, unit: K}
   muini: 0.62
-  nHini: {value: 1.0, unit: 1/cm**3}
+  hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
 example: {}

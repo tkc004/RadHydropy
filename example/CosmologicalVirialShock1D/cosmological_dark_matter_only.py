@@ -25,8 +25,8 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_dark_matter_correlation_z100.yaml")
 
 
-def load_correlation_table(config_filename, example):
-    filename = example.get("linear_correlation_table_filename")
+def load_correlation_table(config_filename, config):
+    filename = config["example"].get("linear_correlation_table_filename")
     if not filename:
         return None
     filename = Path(filename)
@@ -388,7 +388,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
         t_ref=float(config["par"]["gravity"]["cosmology_t_ref"]),
         a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
     )
-    correlation_table = load_correlation_table(config_filename, example)
+    correlation_table = load_correlation_table(config_filename, config)
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table

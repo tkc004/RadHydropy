@@ -24,7 +24,7 @@ def build_initial_condition(config):
         0.0, 1.0, result.par.mesh.grid_cells + 1
     ) * initial['box_size_proper']
     density_proper_cgs_g_cm3_unyt = (
-        np.ones(result.par.mesh.grid_cells) * initial['hydrogen_density'] * unyt.mp
+        np.ones(result.par.mesh.grid_cells) * initial['hydrogen_number_density'] * unyt.mp
     )
     result.fluid.rho_proper_code = density_proper_cgs_g_cm3_unyt
     result.fluid.vel_proper_code = np.zeros(result.par.mesh.grid_cells, dtype=float)

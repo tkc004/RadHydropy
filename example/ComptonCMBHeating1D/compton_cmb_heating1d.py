@@ -149,7 +149,7 @@ def _run_case(
             time_s,
             temperature_proper,
             float(case_params['thermochemistry']['compton_cmb_redshift']),
-            float(case_initial_condition['hydrogen_density'].to_value(1.0 / unyt.cm**3)),
+            float(case_initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3)),
             float(case_initial_condition['xHI']),
         )
         relative_error = np.abs((temperature - analytic) / analytic)

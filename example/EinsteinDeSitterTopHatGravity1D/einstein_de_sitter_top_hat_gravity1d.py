@@ -44,9 +44,6 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, config['par']['simulation']['initial_condition_filename'])
 
-    config['par'] = {key: (dict(value) if isinstance(value, dict) else value)
-                     for key, value in config['par'].items()}
-    config['par']['simulation'] = {**config['par']['simulation']}
     sim = Rsim(config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
@@ -83,7 +80,7 @@ def main(config_filename=DEFAULT_CONFIG):
     cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
     rho_background = sim.par.cosmology.background_density(cosmic_time)
     analytic = et.top_hat_acceleration(
-        radius, float(initial_condition['top_hat_radius']), float(initial_condition['overdensity']),
+        radius, float(initial_condition['radius_top_hat_comoving']), float(initial_condition['overdensity']),
         rho_background * a**3, a, sim.par.cosmology.gravitational_constant,
     )
     comparison = slice(1, None)

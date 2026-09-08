@@ -17,6 +17,7 @@ from gas_centrifugal_hydro_expansion1d import (
 )
 import example_utils as eu
 from shell_remap import centrifugal_shell_reference
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def total_energy_error(config):
@@ -32,14 +33,15 @@ def total_energy_error(config):
         first:first + count + 1
     ]
     saved_radius = spherical_centers(saved_boundary)[active]
-    central_mass = float(initial_condition['central_mass'])
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    central_mass = quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
     rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time_proper_code)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,
         final_time,
-        float(initial_condition['rho_proper_code']),
+        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
         central_mass,
         rotation_factor,
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
@@ -48,7 +50,7 @@ def total_energy_error(config):
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_total = np.sum(
         np.asarray(saved.Energy_code[active], dtype=float)
-        - float(initial_condition['central_mass']) * saved_mass / saved_radius
+        - central_mass * saved_mass / saved_radius
     )
     ode_total = np.sum(reference['energy'])
     return abs(saved_total - ode_total) / max(abs(ode_total), 1.0e-12)

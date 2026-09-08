@@ -53,11 +53,11 @@ class UniformEdSInitialCondition(Rsim):
             self.mesh.boundary_proper_code ** 3
         )
 
-        hydrogen_density_cgs_cm3 = float(initial_condition["hydrogen_density_cgs_cm3"])
+        hydrogen_density_cgs_cm3 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))
         hydrogen_mass_fraction = float(initial_condition["hydrogen_mass_fraction"])
         rho_cgs_g_cm3 = hydrogen_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
         rho_proper_code = rho_cgs_g_cm3 / float(code_unit_system.density_unit.to_value("g/cm**3"))
-        temperature_cgs_K = float(initial_condition["temperature_cgs_K"])
+        temperature_cgs_K = float(initial_condition["temperature_proper"].to_value("K"))
         temperature_proper_code = temperature_cgs_K / float(code_unit_system.temperature_unit.to_value("K"))
         xHI_dimensionless = float(initial_condition["xHI"])
         mu_dimensionless = 1.0 / (hydrogen_mass_fraction * (2.0 - xHI_dimensionless))

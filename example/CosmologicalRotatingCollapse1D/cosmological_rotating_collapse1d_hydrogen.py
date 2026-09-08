@@ -57,7 +57,7 @@ def main(output_root=None):
     config["par"]['output'] = {**config["par"]['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': 'Output'}
 
     count = int(config["par"]["mesh"]["grid_cells"])
-    cosmic_time = float(initial_condition["cosmic_time"])
+    cosmic_time = float(initial_condition["time_cosmic"])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     boundary_comoving_code = np.linspace(
@@ -72,7 +72,7 @@ def main(output_root=None):
     rho_background = float(cosmology.background_density(cosmic_time))
     overdensity = float(initial_condition["overdensity"])
     inside = x_comoving_code < float(
-        initial_condition["top_hat_radius"].to_value(units.length_unit)
+        initial_condition["radius_top_hat_comoving"].to_value(units.length_unit)
     )
     rho_comoving_code = rho_background * (1.0 + overdensity * inside) * scale_factor**3
     enclosed_mass = np.cumsum(rho_comoving_code * volume_comoving_code)
@@ -96,7 +96,7 @@ def main(output_root=None):
         "_vel_supercomoving_code": -scale_factor**2 * hubble * overdensity * x_comoving_code / 3.0,
         "_temp_supercomoving_code": np.full(
             count,
-            float(initial_condition["tempini"].to_value(units.temperature_unit)) * scale_factor**2,
+            float(initial_condition["temperature_proper"].to_value(units.temperature_unit)) * scale_factor**2,
         ),
         "_mu_dimensionless": np.full(count, float(initial_condition["muini"])),
         "_specific_angular_momentum_code": specific_angular_momentum_code,

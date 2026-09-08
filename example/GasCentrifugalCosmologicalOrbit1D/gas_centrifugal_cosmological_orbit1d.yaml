@@ -49,6 +49,6 @@ initial_condition:
   initial_supercomoving_velocity: 0.0
   central_excess_mass: 1.0
   angular_momentum_fraction_of_circular: 0.7
+  temperature_proper: {value: 1.0e-8, unit: K}
 example:
-  temperature_supercomoving_code: 1.0e-8
   timestep: 0.0005

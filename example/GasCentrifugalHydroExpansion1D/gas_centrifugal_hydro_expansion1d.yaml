@@ -36,11 +36,11 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  radius_min: 0.5
-  radius_max: 1.5
-  rho_proper_code: 1.0
-  central_mass: 1.0
+  radius_inner_proper: {value: 0.5, unit: cm}
+  radius_outer_proper: {value: 1.5, unit: cm}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+  central_mass_proper: {value: 1.0, unit: g}
   rotation_factor: 1.2
   reference_samples_per_cell: 32
-example:
-  temperature_proper_code: 1.0e-8
+  temperature_proper: {value: 1.0e-8, unit: K}
+example: {}

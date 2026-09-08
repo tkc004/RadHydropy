@@ -64,7 +64,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius = sim.mesh.x_proper_code[interior]
-    rho0 = initial_condition['rho0']
+    rho0 = initial_condition['rho_proper']
     radius_quantity = np.asarray(radius, dtype=float) * sim.par.CodeUnits.length_unit
     analytic = et.uniform_sphere_acceleration(radius_quantity, rho0)
     numerical_cgs = quantity_to_value(

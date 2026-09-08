@@ -43,7 +43,7 @@ def build_initial_condition(config):
     sim.par.simulation.box_size_comoving_code = np.ones(1) * quantity_to_value(
         initial_condition['box_size_proper'], code_units.length_unit
     )
-    cosmic_time = float(initial_condition['cosmic_time'])
+    cosmic_time = float(initial_condition['time_cosmic'])
     sim.par.simulation.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
     sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
     sim.par.cosmological_expansion = True
@@ -63,7 +63,8 @@ def build_initial_condition(config):
     sim.par.temperature_representation = 'supercomoving'
 
     sim.mesh.boundary_comoving_code = np.linspace(
-        initial_condition['rmin'], initial_condition['rmax'], grid_cells + 1,
+        initial_condition['radius_inner_comoving'],
+        initial_condition['radius_outer_comoving'], grid_cells + 1,
     )
     sim.mesh.x_comoving_code = spherical_cell_centers(sim.mesh.boundary_comoving_code)
     sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
@@ -73,13 +74,13 @@ def build_initial_condition(config):
 
     background = cosmology.background_density(cosmic_time)
     background_comoving = background * cosmology.scale_factor(cosmic_time)**3
-    inside = sim.mesh.x_comoving_code < float(initial_condition['top_hat_radius'])
+    inside = sim.mesh.x_comoving_code < float(initial_condition['radius_top_hat_comoving'])
     sim.fluid.rho_comoving_code = background_comoving * (
         1.0 + float(initial_condition['overdensity']) * inside
     ) * np.ones(grid_cells)
     gamma = 5.0 / 3.0
     temperature = quantity_to_value(
-        initial_condition['tempini'], code_units.temperature_unit
+        initial_condition['temperature_proper'], code_units.temperature_unit
     )
     sim.fluid.temp_supercomoving_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(grid_cells)
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])

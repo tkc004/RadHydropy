@@ -44,7 +44,7 @@ def build_initial_condition(config):
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     boxsize_code = quantity_to_value(initial_condition['box_size_proper'], code_units.length_unit)
-    cosmic_time = float(initial_condition['cosmic_time'])
+    cosmic_time = float(initial_condition['time_cosmic'])
     sim.par.simulation.box_size_comoving_code = np.ones(1) * boxsize_code
     sim.par.simulation.coordinate_system = 'spherical'
     scale_factor = cosmology.scale_factor(cosmic_time)
@@ -67,8 +67,8 @@ def build_initial_condition(config):
     sim.par.pressure_representation = 'supercomoving'
     sim.par.temperature_representation = 'supercomoving'
 
-    rmin_code = quantity_to_value(initial_condition['rmin'], code_units.length_unit)
-    rmax_code = quantity_to_value(initial_condition['rmax'], code_units.length_unit)
+    rmin_code = quantity_to_value(initial_condition['radius_inner_comoving'], code_units.length_unit)
+    rmax_code = quantity_to_value(initial_condition['radius_outer_comoving'], code_units.length_unit)
     sim.mesh.boundary_comoving_code = np.linspace(
         rmin_code, rmax_code, grid_cells + 1,
     )
@@ -81,13 +81,13 @@ def build_initial_condition(config):
     rho_background = cosmology.background_density(cosmic_time)
     rho_comoving = rho_background * scale_factor**3
     delta = float(initial_condition['overdensity'])
-    inside = sim.mesh.x_comoving_code < float(initial_condition['top_hat_radius'])
+    inside = sim.mesh.x_comoving_code < float(initial_condition['radius_top_hat_comoving'])
     sim.fluid.rho_comoving_code = rho_comoving * (1.0 + delta * inside) * np.ones(grid_cells)
     sim.fluid.vel_supercomoving_code = growing_mode_velocity(
         sim.mesh.x_comoving_code, delta, scale_factor, hubble,
     )
     sim.fluid.temp_supercomoving_code = np.ones(grid_cells) * quantity_to_value(
-        initial_condition['tempini'], code_units.temperature_unit,
+        initial_condition['temperature_proper'], code_units.temperature_unit,
     ) * scale_factor**2
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
     sim.mesh.width_comoving_code = np.diff(sim.mesh.boundary_comoving_code)

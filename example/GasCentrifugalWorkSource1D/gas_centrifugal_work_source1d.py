@@ -25,7 +25,8 @@ import example_utils as eu
 
 CONFIG = ROOT / 'gas_centrifugal_work_source1d.yaml'
 
-def prepare_initial_condition(initial):
+def prepare_initial_condition(config):
+    initial = config["_initial_condition_runtime_state"]
     boundary_proper_code = np.asarray(initial.mesh.boundary_proper_code, dtype=float)
     initial.mesh.boundary_proper_code = boundary_proper_code
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
@@ -83,7 +84,8 @@ def run_simulation(config):
             units.length_unit * units.velocity_unit,
         ), units,
     )
-    prepare_initial_condition(initial)
+    config["_initial_condition_runtime_state"] = initial
+    prepare_initial_condition(config)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)

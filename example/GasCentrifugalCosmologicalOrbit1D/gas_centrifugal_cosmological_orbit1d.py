@@ -25,14 +25,15 @@ from radhydropy.cosmological_variables import (
     physical_radius,
     physical_velocity,
 )
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, SUPERCOMOVING_RUNTIME_FIELDS
 import example_utils as eu
 
 
 CONFIG = ROOT / 'gas_centrifugal_cosmological_orbit1d.yaml'
 
-def prepare_initial_condition(initial):
+def prepare_initial_condition(config):
+    initial = config["_initial_condition_runtime_state"]
     boundary_comoving_code = np.asarray(
         initial.mesh.boundary_comoving_code, dtype=float
     )
@@ -74,7 +75,10 @@ class CosmologicalInitialCondition(Rsim):
         radius_min = float(initial_condition['radius_min'])
         radius_max = float(initial_condition['radius_max'])
         rho_comoving_code = float(initial_condition['rho_proper'])
-        temp_supercomoving_code = float(initial_condition['temperature_supercomoving_code'])
+        temperature_proper_code = quantity_to_value(
+            initial_condition['temperature_proper'], code_unit_system.temperature_unit
+        )
+        temp_supercomoving_code = temperature_proper_code
         super().__init__(par_config)
         self.mesh.boundary_comoving_code = np.linspace(radius_min, radius_max, count + 1)
         self.mesh.x_comoving_code = 0.75 * (
@@ -122,7 +126,8 @@ def run_rsim(config):
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
     circular_j_profile = np.full(count, float(j))
     initial = CosmologicalInitialCondition(config, circular_j_profile)
-    prepare_initial_condition(initial)
+    config["_initial_condition_runtime_state"] = initial
+    prepare_initial_condition(config)
     initial.par.cosmology = cosmology
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)

@@ -18,7 +18,7 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
 from shell_remap import centrifugal_shell_reference
@@ -26,7 +26,8 @@ from shell_remap import centrifugal_shell_reference
 
 CONFIG = ROOT / 'gas_centrifugal_hydro_expansion1d.yaml'
 
-def prepare_initial_condition(initial):
+def prepare_initial_condition(config):
+    initial = config["_initial_condition_runtime_state"]
     boundary_proper_code = np.asarray(
         initial.mesh.boundary_proper_code, dtype=float
     )
@@ -108,26 +109,31 @@ class FixedCentralGravity:
 def run_simulation(config):
     par = config['par']
     initial_condition = config['initial_condition']
-    example_config = config['example']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
     initial = InitialCondition(
-        par, count, float(initial_condition['radius_min']), float(initial_condition['radius_max']),
-        float(initial_condition['rho_proper_code']), float(example_config['temperature_proper_code']),
-        float(initial_condition['central_mass']), float(initial_condition['rotation_factor']),
+        par, count,
+        quantity_to_value(initial_condition['radius_inner_proper'], units.length_unit),
+        quantity_to_value(initial_condition['radius_outer_proper'], units.length_unit),
+        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
+        quantity_to_value(initial_condition['temperature_proper'], units.temperature_unit),
+        quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit),
+        float(initial_condition['rotation_factor']),
         units,
     )
-    prepare_initial_condition(initial)
+    config["_initial_condition_runtime_state"] = initial
+    prepare_initial_condition(config)
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
-    sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
+    central_mass = quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
+    sim.par.gravity = FixedCentralGravity(central_mass)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
+    sim.par.gravity = FixedCentralGravity(central_mass)
     active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
     initial_mass = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
     initial_energy = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
@@ -150,12 +156,12 @@ def main(config_filename=CONFIG):
     config = eu.load_nested_example_config(config_filename)
     par = config['par']
     initial_condition = config['initial_condition']
-    example_config = config['example']
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     (sim, saved_mesh, saved, initial_mass, initial_energy,
      initial_radius, cumulative_gravity_work, cumulative_potential_change,
      cumulative_potential_flux) = run_simulation(config)
     active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
-    central_mass = float(initial_condition['central_mass'])
+    central_mass = quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
     rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time_proper_code)
     saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
@@ -166,7 +172,7 @@ def main(config_filename=CONFIG):
         source_boundary,
         source_boundary,
         final_time,
-        float(initial_condition['rho_proper_code']),
+        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
         central_mass,
         rotation_factor,
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),

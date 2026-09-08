@@ -51,7 +51,7 @@ def build_initial_condition(config):
         -collision_velocity_proper_code,
     ))
     hydrogen_mass_fraction = float(par['thermochemistry']['hydrogen_mass_fraction'])
-    rho_proper_code = initial['hydrogen_density'] * unyt.mp / hydrogen_mass_fraction
+    rho_proper_code = initial['hydrogen_number_density'] * unyt.mp / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * rho_proper_code, code_units.density_unit
     ))

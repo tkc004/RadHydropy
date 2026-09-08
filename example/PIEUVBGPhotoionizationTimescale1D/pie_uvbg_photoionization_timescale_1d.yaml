@@ -51,10 +51,10 @@ initial_condition:
   coordsys: cartesian
   box_size_proper: {value: 1.0, unit: pc}
   time_proper: {value: 0.0, unit: yr}
-  tempini: {value: 2.0e4, unit: K}
+  temperature_proper: {value: 2.0e4, unit: K}
   muini: 0.62
   hydrogen_mass_fraction: 0.7
   proton_mass_g: 1.67262192369e-24
-  nHini: 1.0
+  hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
   vini: {value: 0.0, unit: cm/s}
 example: {}

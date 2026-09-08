@@ -8,13 +8,13 @@ from basic_hydro_utils import make_initial_condition
 def build_initial_condition(config):
     initial, par, units = config["initial_condition"], config["par"], config["_code_units"]
     n=int(initial["grid_cells"]); size_proper_code=quantity_to_value(initial["box_size_proper"],units.length_unit); boundary_proper_code=np.linspace(0,size_proper_code,n+1); x_proper_code=.5*(boundary_proper_code[:-1]+boundary_proper_code[1:]); left=x_proper_code < .5*size_proper_code
-    rho_proper_code=np.where(left, initial.get("rho_left",initial.get("rho_proper", 1.0)), initial.get("rho_right",initial.get("rho_proper", 1.0)))
+    rho_proper_code=np.where(left, initial.get("rho_left_proper",initial.get("rho_proper", 1.0)), initial.get("rho_right_proper",initial.get("rho_proper", 1.0)))
     vel_proper_code=np.full(n,quantity_to_value(initial["vel_proper"],units.velocity_unit)); mu=np.full(n,initial["mean_molecular_weight"])
-    if "temp_left" in initial or "temp_right" in initial:
-        temp_proper_code=np.where(left,initial.get("temp_left",initial.get("temperature_proper",0)),initial.get("temp_right",initial.get("temperature_proper",0)))
-    elif "pressure_initial" in initial:
-        rho_left = quantity_to_value(initial["rho_left"], units.density_unit)
-        pressure = quantity_to_value(initial["pressure_initial"], units.pressure_unit)
+    if "temperature_left_proper" in initial or "temperature_right_proper" in initial:
+        temp_proper_code=np.where(left,initial.get("temperature_left_proper",initial.get("temperature_proper",0)),initial.get("temperature_right_proper",initial.get("temperature_proper",0)))
+    elif "pressure_initial_proper" in initial:
+        rho_left = quantity_to_value(initial["rho_left_proper"], units.density_unit)
+        pressure = quantity_to_value(initial["pressure_initial_proper"], units.pressure_unit)
         temp_proper_code=np.full(n, pressure / rho_left)
     else: temp_proper_code=np.full(n,quantity_to_value(initial["temperature_proper"],units.temperature_unit))
     temp_proper_code=np.asarray([quantity_to_value(v,units.temperature_unit) if hasattr(v,"to_value") else float(v) for v in temp_proper_code])

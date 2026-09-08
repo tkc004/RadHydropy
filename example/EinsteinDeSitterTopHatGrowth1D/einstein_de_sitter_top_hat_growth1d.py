@@ -64,7 +64,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))
-    top_hat_radius = float(initial_condition['top_hat_radius'])
+    top_hat_radius = float(initial_condition['radius_top_hat_comoving'])
     initial_inside = sim.mesh.x_comoving_code[physical] < top_hat_radius
     target_mass = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
     initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])

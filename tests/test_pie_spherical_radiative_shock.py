@@ -35,7 +35,7 @@ def test_spherical_ic_density_is_mass_density():
         'time_proper': 0.0 * unyt.Myr,
         'rmin': 1.0 * unyt.kpc,
         'rmax': 20.0 * unyt.kpc,
-        'hydrogen_density': 1.0e-3 * unyt.cm**-3,
+        'hydrogen_number_density': 1.0e-3 * unyt.cm**-3,
         'inflow_velocity': -100.0 * unyt.km / unyt.s,
         'outflow_velocity': 100.0 * unyt.km / unyt.s,
         'inflow_temperature': 1.0e4 * unyt.K,

@@ -42,7 +42,7 @@ def build_initial_condition(config):
         PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
         width_proper_code=width, area_proper_code=4.0 * np.pi * boundary_proper_code[:-1] ** 2, volume_proper_code=volume_proper_code,
     )
-    rho_proper_code = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
+    rho_proper_code = initial['hydrogen_number_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho_proper_code, code_units.density_unit))
     midpoint_proper_code = quantity_to_value(
         0.5 * (initial['rmin'] + initial['rmax']), code_units.length_unit
