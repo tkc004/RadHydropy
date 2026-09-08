@@ -36,9 +36,9 @@ def test_spherical_ic_density_is_mass_density():
         'radius_inner_proper': 1.0 * unyt.kpc,
         'radius_outer_proper': 20.0 * unyt.kpc,
         'hydrogen_number_density': 1.0e-3 * unyt.cm**-3,
-        'inflow_velocity': -100.0 * unyt.km / unyt.s,
-        'outflow_velocity': 100.0 * unyt.km / unyt.s,
-        'inflow_temperature': 1.0e4 * unyt.K,
+        'vel_inflow_proper': -100.0 * unyt.km / unyt.s,
+        'vel_outflow_proper': 100.0 * unyt.km / unyt.s,
+        'temperature_inflow_proper': 1.0e4 * unyt.K,
         'muini': 0.62,
     }
     from radhydropy.units import CodeUnits

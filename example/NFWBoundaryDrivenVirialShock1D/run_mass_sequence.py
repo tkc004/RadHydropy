@@ -25,7 +25,7 @@ import example_utils as eu
 from radhydropy.io import load_output_time_list
 from radhydropy.thermo_networks.pie import MetalPIETable
 from tools import (
-    GAMMA_CRITICAL, locate_shock, load_snapshot, nfw_halo_parameters,
+    GAMMA_CRITICAL, locate_shock, load_output_state, nfw_halo_parameters,
     pie_stability_diagnostics,
 )
 
@@ -75,7 +75,7 @@ def _case_diagnostics(config_filename):
     shock_radius = []
     gamma_eff = []
     for filename, time in zip(files, times):
-        snapshot = load_snapshot(filename, config)
+        snapshot = load_output_state(filename, config)
         index = locate_shock(
             snapshot, halo['virial_radius'].to_value(unyt.kpc)
         )

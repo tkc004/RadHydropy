@@ -1091,11 +1091,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         # the hydro representation.  For this gamma=5/3 supercomoving case,
         # rho_comoving_code = rho_phys*a^3 and T_code = T_phys*a^2; both happen to be
         # constant for a homogeneous adiabatic background, as they should.
-        sim.par.boundary.inflow_density = (
+        sim.par.boundary.rho_inflow_proper = (
             baryon_fraction * background_physical * scale_factor**3
         )
-        sim.par.boundary.inflow_velocity = 0.0
-        sim.par.boundary.inflow_temperature = temperature_physical * scale_factor**2
+        sim.par.boundary.vel_inflow_proper = 0.0
+        sim.par.boundary.temperature_inflow_proper = temperature_physical * scale_factor**2
         sim.par.boundary.inflow_mu = float(initial_condition.get("mu", 0.59))
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         # Hydro stores supercomoving temperature; keep the physical floor at
@@ -1112,9 +1112,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         index = first + int(sim.par.mesh.grid_cells) - 1
         old_mass = float(np.asarray(sim.fluid.Mass_code, dtype=float)[index])
         old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
-        rho_comoving_code = float(np.asarray(sim.par.boundary.inflow_density, dtype=float))
-        vel_supercomoving_code = float(np.asarray(sim.par.boundary.inflow_velocity, dtype=float))
-        temperature_proper_cgs_K = float(np.asarray(sim.par.boundary.inflow_temperature, dtype=float))
+        rho_comoving_code = float(np.asarray(sim.par.boundary.rho_inflow_proper, dtype=float))
+        vel_supercomoving_code = float(np.asarray(sim.par.boundary.vel_inflow_proper, dtype=float))
+        temperature_proper_cgs_K = float(np.asarray(sim.par.boundary.temperature_inflow_proper, dtype=float))
         mu = float(np.asarray(sim.par.boundary.inflow_mu, dtype=float))
         volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
         pre_supercomoving_code = float(np.asarray(

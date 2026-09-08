@@ -168,11 +168,11 @@ def _apply_inflow_spherical_boundary(
     solver._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
     runtime = runtime_fields(par)
     right_state = {
-        runtime.density: par.boundary.inflow_density,
-        runtime.velocity: par.boundary.inflow_velocity,
+        runtime.density: par.boundary.rho_inflow_proper,
+        runtime.velocity: par.boundary.vel_inflow_proper,
         runtime.pressure: fluid.eos.pressure(
-            par.boundary.inflow_density,
-            par.boundary.inflow_temperature,
+            par.boundary.rho_inflow_proper,
+            par.boundary.temperature_inflow_proper,
             par.boundary.inflow_mu,
         ),
     }
@@ -203,11 +203,11 @@ def _apply_outflow_spherical_boundary(
 ):
     runtime = runtime_fields(par)
     left_state = {
-        runtime.density: par.boundary.outflow_density,
-        runtime.velocity: par.boundary.outflow_velocity,
+        runtime.density: par.boundary.rho_outflow_proper,
+        runtime.velocity: par.boundary.vel_outflow_proper,
         runtime.pressure: fluid.eos.pressure(
-            par.boundary.outflow_density,
-            par.boundary.outflow_temperature,
+            par.boundary.rho_outflow_proper,
+            par.boundary.temperature_outflow_proper,
             par.boundary.outflow_mu,
         ),
     }
@@ -263,14 +263,14 @@ def _apply_wind_spherical_boundary(
     if reference_radius <= 0.0 or np.any(radius <= 0.0):
         raise ValueError('WindSph requires a positive inner radius')
 
-    density = par.boundary.outflow_density * (
+    density = par.boundary.rho_outflow_proper * (
         reference_radius / radius
     ) ** 2
-    velocity = par.boundary.outflow_velocity * np.ones(noghost)
+    velocity = par.boundary.vel_outflow_proper * np.ones(noghost)
     mu = float(par.boundary.outflow_mu)
     pressure = fluid.eos.pressure(
         density,
-        par.boundary.outflow_temperature * np.ones(noghost),
+        par.boundary.temperature_outflow_proper * np.ones(noghost),
         mu,
     )
     left_state = {

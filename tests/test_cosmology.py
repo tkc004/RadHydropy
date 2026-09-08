@@ -496,7 +496,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.hydrodynamics.temperature_proper == par.temperature_proper
     assert par.hydrodynamics.dual_energy is False
     assert par.boundary.condition == "Periodic"
-    assert par.boundary.inflow_density == 1.0 * unyt.g / unyt.cm**3
+    assert par.boundary.rho_inflow_proper == 1.0 * unyt.g / unyt.cm**3
     assert par.timestep.dtmin == 2.0e-8 * unyt.s
     assert par.timestep.dtmax == 2.0e-1 * unyt.s
     assert par.timestep.cooling_safety_factor == pytest.approx(0.1)

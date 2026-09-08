@@ -66,19 +66,19 @@ def plot_snapshot(outfilename, config, **kwargs):
     last = first + int(rout.par.mesh.grid_cells)
     x_center = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])[first:last] * code_units_obj.length_unit
     rho_num = code_quantity_to_cgs(rout.fluid.rho_proper_code[first:last], code_units_obj, 'density_cgs_g_cm3')
-    rho_num = rho_num * (1.0 * config["par"]['boundary']['outflow_density'].units)
+    rho_num = rho_num * (1.0 * config["par"]['boundary']['rho_outflow_proper'].units)
     rho_ana = oa.density_profile(
         x_center,
-        config["par"]['boundary']['outflow_density'],
+        config["par"]['boundary']['rho_outflow_proper'],
         initial['radius_injection_proper'],
     )
     front = oa.front_position(
         rout.fluid.time_proper_code * code_units_obj.time_unit,
-        config["par"]['boundary']['outflow_velocity'],
+        config["par"]['boundary']['vel_outflow_proper'],
     )
     x_values = x_center.to_value(initial['box_size_proper'].units)
-    rho_values = np.asarray(rho_num.to_value(config["par"]['boundary']['outflow_density'].units), dtype=float)
-    rho_ana_values = np.asarray(rho_ana.to_value(config["par"]['boundary']['outflow_density'].units), dtype=float)
+    rho_values = np.asarray(rho_num.to_value(config["par"]['boundary']['rho_outflow_proper'].units), dtype=float)
+    rho_ana_values = np.asarray(rho_ana.to_value(config["par"]['boundary']['rho_outflow_proper'].units), dtype=float)
     plt.plot(x_values, rho_values, **kwargs)
     plt.plot(
         x_values,

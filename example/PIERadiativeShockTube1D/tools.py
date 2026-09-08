@@ -72,7 +72,7 @@ def build_initial_condition(config):
     return result
 
 
-def load_snapshot(filename, config):
+def load_output_state(filename, config):
     """Load one snapshot through the configured canonical runtime state."""
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     snapshot = Rsim(config['par'])

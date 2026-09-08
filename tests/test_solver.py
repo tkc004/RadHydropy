@@ -39,13 +39,13 @@ class Par:
         )
         self.boundary = SimpleNamespace(
             condition=boundcond,
-            inflow_density=self.rho_inflow,
-            inflow_velocity=self.vel_inflow,
-            inflow_temperature=self.temp_inflow,
+            rho_inflow_proper=self.rho_inflow,
+            vel_inflow_proper=self.vel_inflow,
+            temperature_inflow_proper=self.temp_inflow,
             inflow_mu=self.mu_inflow,
-            outflow_density=self.rho_outflow,
-            outflow_velocity=self.vel_outflow,
-            outflow_temperature=self.temp_outflow,
+            rho_outflow_proper=self.rho_outflow,
+            vel_outflow_proper=self.vel_outflow,
+            temperature_outflow_proper=self.temp_outflow,
             outflow_mu=self.mu_outflow,
         )
         self.radiation = SimpleNamespace(

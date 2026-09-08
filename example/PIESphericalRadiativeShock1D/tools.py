@@ -48,17 +48,17 @@ def build_initial_condition(config):
         0.5 * (initial['radius_inner_proper'] + initial['radius_outer_proper']), code_units.length_unit
     )
     outflow_velocity_proper_code = quantity_to_value(
-        initial['outflow_velocity'], code_units.velocity_unit
+        initial['vel_outflow_proper'], code_units.velocity_unit
     )
     inflow_velocity_proper_code = quantity_to_value(
-        initial['inflow_velocity'], code_units.velocity_unit
+        initial['vel_inflow_proper'], code_units.velocity_unit
     )
     result.fluid.vel_proper_code = as_named_array(np.where(
         x_proper_code < midpoint_proper_code,
         outflow_velocity_proper_code,
         inflow_velocity_proper_code,
     ))
-    result.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * initial['inflow_temperature'], code_units.temperature_unit))
+    result.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * initial['temperature_inflow_proper'], code_units.temperature_unit))
     result.fluid.mu = np.ones(grid_cells) * initial['muini']
     result.fluid.time_proper_code = 0.0
     result.SetMesh()
@@ -73,7 +73,7 @@ def build_initial_condition(config):
     return result
 
 
-def load_snapshot(filename, config):
+def load_output_state(filename, config):
     """Load one snapshot through the configured canonical runtime state."""
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     snapshot = Rsim(config['par'])
@@ -119,7 +119,7 @@ def shock_radius(snapshot):
 def shock_history(filenames, config, output_interval_myr=None):
     rows = []
     for filename in filenames:
-        snapshot = load_snapshot(filename, config)
+        snapshot = load_output_state(filename, config)
         if output_interval_myr is None:
             time_myr = snapshot['time_Myr']
         else:

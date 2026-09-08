@@ -15,9 +15,9 @@ par:
     temperature_jump_error_threshold: 1.0e99
   boundary:
     condition: OutflowSph
-    outflow_density: {value: 8.0e-22, unit: g/cm**3}
-    outflow_temperature: {value: 7.0e5, unit: K}
-    outflow_velocity: {value: 0.0, unit: km/s}
+    rho_outflow_proper: {value: 8.0e-22, unit: g/cm**3}
+    temperature_outflow_proper: {value: 7.0e5, unit: K}
+    vel_outflow_proper: {value: 0.0, unit: km/s}
     outflow_mu: 0.6
   timestep:
     dtmin: {value: 1.0e-5, unit: yr}

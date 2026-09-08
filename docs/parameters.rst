@@ -260,13 +260,13 @@ state parameters:
    * - Key
      - Meaning
      - Typical unit
-   * - ``rho_inflow`` / ``rho_outflow``
+   * - ``rho_inflow_proper`` / ``rho_outflow_proper``
      - Density imposed at the inflow or outflow ghost cells.
      - mass density
-   * - ``vel_inflow`` / ``vel_outflow``
+   * - ``vel_inflow_proper`` / ``vel_outflow_proper``
      - Velocity imposed at the inflow or outflow ghost cells.
      - length / time
-   * - ``temp_inflow`` / ``temp_outflow``
+   * - ``temperature_inflow_proper`` / ``temperature_outflow_proper``
      - Temperature used to derive boundary pressure.
      - temperature
    * - ``mu_inflow`` / ``mu_outflow``

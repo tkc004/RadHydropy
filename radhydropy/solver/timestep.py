@@ -151,11 +151,11 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         and first < len(mesh_area)
     ):
         if boundary_condition == 'InflowSph':
-            boundary_density = getattr(boundary, 'inflow_density', 0.0)
-            boundary_velocity = getattr(boundary, 'inflow_velocity', 0.0)
+            boundary_density = getattr(boundary, 'rho_inflow_proper', 0.0)
+            boundary_velocity = getattr(boundary, 'vel_inflow_proper', 0.0)
         else:
-            boundary_density = getattr(boundary, 'outflow_density', 0.0)
-            boundary_velocity = getattr(boundary, 'outflow_velocity', 0.0)
+            boundary_density = getattr(boundary, 'rho_outflow_proper', 0.0)
+            boundary_velocity = getattr(boundary, 'vel_outflow_proper', 0.0)
         mass_flux = abs(float(np.asarray(boundary_density))) * abs(
             float(np.asarray(boundary_velocity))
         ) * abs(float(np.asarray(mesh_area[first])))

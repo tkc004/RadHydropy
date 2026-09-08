@@ -51,11 +51,11 @@ class BoundaryAccretionSolver(Solver):
         # domain. Suppress only a positive velocity that would inject gas.
         left['vel_proper_code'] = min(float(fluid.vel_proper_code[first]), 0.0)
         right = {
-            'rho_proper_code': par.boundary.inflow_density,
-            'vel_proper_code': par.boundary.inflow_velocity,
+            'rho_proper_code': par.boundary.rho_inflow_proper,
+            'vel_proper_code': par.boundary.vel_inflow_proper,
             'pre_proper_code': fluid.eos.pressure(
-                par.boundary.inflow_density,
-                par.boundary.inflow_temperature,
+                par.boundary.rho_inflow_proper,
+                par.boundary.temperature_inflow_proper,
                 par.boundary.inflow_mu,
             ),
         }
@@ -296,7 +296,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
     print('Tvir = %.6g K' % virial_temperature(halo, initial_condition['mu']).to_value(unyt.K))
-    print('outer PIE temperature = %.6g K' % inflow['inflow_temperature'].to_value(unyt.K))
+    print('outer PIE temperature = %.6g K' % inflow['temperature_inflow_proper'].to_value(unyt.K))
     print('adiabatic snapshots = %d; PIE snapshots = %d' % (
         len(adiabatic_files), len(pie_files)))
     print('figure = %s' % figure)

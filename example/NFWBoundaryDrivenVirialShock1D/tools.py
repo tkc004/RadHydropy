@@ -88,9 +88,9 @@ def boundary_inflow_state(config, halo, table):
         float(config["par"]['thermochemistry']['metal_pie_redshift']),
     )[0] * unyt.K
     return {
-        'inflow_density': density,
-        'inflow_velocity': velocity,
-        'inflow_temperature': temperature,
+        'rho_inflow_proper': density,
+        'vel_inflow_proper': velocity,
+        'temperature_inflow_proper': temperature,
         'inflow_mu': float(initial_condition['mu']),
     }
 
@@ -155,7 +155,7 @@ def build_initial_condition(config):
         mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])),
     )
 
-def load_snapshot(filename, config):
+def load_output_state(filename, config):
     """Load physical cells from a RadHydropy snapshot in CGS units."""
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     snapshot = Rsim(config['par'])
@@ -229,7 +229,7 @@ def shock_history(filenames, halo, config, times_myr=None):
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     rows = []
     for file_index, filename in enumerate(filenames):
-        snapshot = load_snapshot(filename, config)
+        snapshot = load_output_state(filename, config)
         if times_myr is not None:
             snapshot['time_Myr'] = float(times_myr[file_index])
         index = locate_shock(snapshot, r200)
@@ -288,7 +288,7 @@ def pie_stability_diagnostics(
 ):
     """Compare simulated post-shock states with finite-Mach estimates."""
 
-    profiles = [load_snapshot(name, config) for name in filenames]
+    profiles = [load_output_state(name, config) for name in filenames]
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     indices = [locate_shock(profile, r200) for profile in profiles]
     radii = [
@@ -487,7 +487,7 @@ def plot_comparison(
         selected = np.unique(np.linspace(0, len(files) - 1, 6, dtype=int))
         colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(selected)))
         for color, index in zip(colors, selected):
-            snapshot = load_snapshot(files[index], config)
+            snapshot = load_output_state(files[index], config)
             if times_myr is not None:
                 snapshot['time_Myr'] = float(times_myr[index])
             radius = snapshot['radius_kpc'] / r200

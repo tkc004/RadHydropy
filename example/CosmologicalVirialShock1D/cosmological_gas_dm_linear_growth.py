@@ -122,16 +122,16 @@ def _set_background_state(sim, config, cosmic_time, baryon_fraction,
     background_comoving = (
         float(cosmology.background_density(cosmic_time)) * scale_factor**3
     )
-    sim.par.boundary.inflow_density = baryon_fraction * background_comoving
-    sim.par.boundary.inflow_velocity = 0.0
-    sim.par.boundary.inflow_temperature = temperature_proper_code
+    sim.par.boundary.rho_inflow_proper = baryon_fraction * background_comoving
+    sim.par.boundary.vel_inflow_proper = 0.0
+    sim.par.boundary.temperature_inflow_proper = temperature_proper_code
     sim.par.boundary.inflow_mu = mu
 
     first = int(sim.par.mesh.ghost_cells)
     index = first + int(sim.par.mesh.grid_cells) - 1
-    rho_comoving_code = float(sim.par.boundary.inflow_density)
-    vel_supercomoving_code = float(sim.par.boundary.inflow_velocity)
-    temperature_proper_cgs_K = float(sim.par.boundary.inflow_temperature)
+    rho_comoving_code = float(sim.par.boundary.rho_inflow_proper)
+    vel_supercomoving_code = float(sim.par.boundary.vel_inflow_proper)
+    temperature_proper_cgs_K = float(sim.par.boundary.temperature_inflow_proper)
     boundary_mu = float(sim.par.boundary.inflow_mu)
     pre_supercomoving_code = float(np.asarray(
         sim.fluid.eos.pressure(rho_comoving_code, temperature_proper_cgs_K, boundary_mu),

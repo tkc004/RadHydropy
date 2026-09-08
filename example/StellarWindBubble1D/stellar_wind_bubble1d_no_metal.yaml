@@ -24,9 +24,9 @@ par:
     boundary_mass_loading_timestep: false
   boundary:
     condition: OutflowSph
-    outflow_velocity: {value: 1000.0, unit: km/s}
-    outflow_density: {value: 1.0e-22, unit: g/cm**3}
-    outflow_temperature: {value: 0.0, unit: K}
+    vel_outflow_proper: {value: 1000.0, unit: km/s}
+    rho_outflow_proper: {value: 1.0e-22, unit: g/cm**3}
+    temperature_outflow_proper: {value: 0.0, unit: K}
     outflow_mu: 0.62
   timestep:
     dtmin: {value: 1.0e-10, unit: Myr}

@@ -10,9 +10,9 @@ par:
     area_proper: {value: 1.0, unit: cm**2}
   boundary:
     condition: OutflowSph
-    outflow_density: {value: 2.1064555e-24, unit: g/cm**3}
-    outflow_velocity: {value: 1000.0, unit: km/s}
-    outflow_temperature: {value: 100.0, unit: K}
+    rho_outflow_proper: {value: 2.1064555e-24, unit: g/cm**3}
+    vel_outflow_proper: {value: 1000.0, unit: km/s}
+    temperature_outflow_proper: {value: 100.0, unit: K}
     outflow_mu: 0.62
   hydrodynamics:
     eos_type: polytropic

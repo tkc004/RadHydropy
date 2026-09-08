@@ -73,14 +73,14 @@ def plot_snapshot(outfilename, config, **kwargs):
         x=ia.front_position(
             initial['box_size_proper'],
             time,
-            config["par"]['boundary']['inflow_velocity'],
+            config["par"]['boundary']['vel_inflow_proper'],
         ),
         color=kwargs['color'],
         ls='dashed',
     )
     rhoana = ia.density_profile(
         x_proper_code[first:last] * code_units_obj.length_unit,
-        config["par"]['boundary']['inflow_density'],
+        config["par"]['boundary']['rho_inflow_proper'],
         initial['box_size_proper'],
     )
     plt.plot(x_proper_code[first:last] * code_units_obj.length_unit, rhoana, ls='dashed', color='k')

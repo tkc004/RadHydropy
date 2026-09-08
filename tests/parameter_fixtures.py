@@ -35,13 +35,13 @@ def parameter_namespace(**values):
     par.units = SimpleNamespace(CodeUnits=values.get("CodeUnits"))
     par.boundary = SimpleNamespace(
         condition=values.get("boundcond"),
-        inflow_density=values.get("rho_inflow"),
-        inflow_velocity=values.get("vel_inflow"),
-        inflow_temperature=values.get("temp_inflow"),
+        rho_inflow_proper=values.get("rho_inflow_proper"),
+        vel_inflow_proper=values.get("vel_inflow_proper"),
+        temperature_inflow_proper=values.get("temperature_inflow_proper"),
         inflow_mu=values.get("mu_inflow"),
-        outflow_density=values.get("rho_outflow"),
-        outflow_velocity=values.get("vel_outflow"),
-        outflow_temperature=values.get("temp_outflow"),
+        rho_outflow_proper=values.get("rho_outflow_proper"),
+        vel_outflow_proper=values.get("vel_outflow_proper"),
+        temperature_outflow_proper=values.get("temperature_outflow_proper"),
         outflow_mu=values.get("mu_outflow"),
     )
     par.timestep = SimpleNamespace(

@@ -9,7 +9,7 @@ is a possible result.
 
 The default mesh extends to ``rmin = 0.01 kpc`` and fills the central region
 with gas. Because ``OutflowSph`` prescribes the inner ghost state, its
-``rho_outflow``, ``temp_outflow``, and ``mu_outflow`` values are matched to the
+``rho_outflow_proper``, ``temperature_outflow_proper``, and ``mu_outflow`` values are matched to the
 central hydrostatic atmosphere rather than left at the generic defaults.
 
 Diagnostics include:

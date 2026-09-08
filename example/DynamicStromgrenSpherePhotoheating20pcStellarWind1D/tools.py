@@ -50,9 +50,9 @@ def build_static_problem(config):
     initial = config['initial_condition']
     example = config['example']
     par.boundary.condition = 'OutflowSph'
-    par.boundary.outflow_density = _wind_density(config)
-    par.boundary.outflow_velocity = example['wind_velocity']
-    par.boundary.outflow_temperature = example['wind_temperature']
+    par.boundary.rho_outflow_proper = _wind_density(config)
+    par.boundary.vel_outflow_proper = example['wind_velocity']
+    par.boundary.temperature_outflow_proper = example['wind_temperature']
     par.boundary.outflow_mu = example['wind_mu']
 
     box_size_proper_cgs_cm = initial['box_size_proper'].to_value(unyt.cm)

@@ -10,13 +10,13 @@ par:
     area_proper: {value: 1.0, unit: cm**2}
   boundary:
     condition: Periodic
-    inflow_density: {value: 1.0e-22, unit: g/cm**3}
-    inflow_velocity: {value: 0.0, unit: cm/s}
-    inflow_temperature: {value: 100.0, unit: K}
+    rho_inflow_proper: {value: 1.0e-22, unit: g/cm**3}
+    vel_inflow_proper: {value: 0.0, unit: cm/s}
+    temperature_inflow_proper: {value: 100.0, unit: K}
     inflow_mu: 1.0
-    outflow_density: {value: 1.0e-22, unit: g/cm**3}
-    outflow_velocity: {value: 0.0, unit: cm/s}
-    outflow_temperature: {value: 100.0, unit: K}
+    rho_outflow_proper: {value: 1.0e-22, unit: g/cm**3}
+    vel_outflow_proper: {value: 0.0, unit: cm/s}
+    temperature_outflow_proper: {value: 100.0, unit: K}
     outflow_mu: 1.0
   hydrodynamics:
     eos_type: polytropic

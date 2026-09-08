@@ -14,13 +14,13 @@ par:
     order: 0
   boundary:
     condition: InflowSph
-    inflow_velocity: {value: -100.0, unit: km/s}
-    inflow_density: {value: 4.402e-27, unit: g/cm**3}
-    inflow_temperature: {value: 10000.0, unit: K}
+    vel_inflow_proper: {value: -100.0, unit: km/s}
+    rho_inflow_proper: {value: 4.402e-27, unit: g/cm**3}
+    temperature_inflow_proper: {value: 10000.0, unit: K}
     inflow_mu: 0.62
-    outflow_velocity: {value: 100.0, unit: km/s}
-    outflow_density: {value: 4.402e-27, unit: g/cm**3}
-    outflow_temperature: {value: 10000.0, unit: K}
+    vel_outflow_proper: {value: 100.0, unit: km/s}
+    rho_outflow_proper: {value: 4.402e-27, unit: g/cm**3}
+    temperature_outflow_proper: {value: 10000.0, unit: K}
     outflow_mu: 0.62
   timestep:
     dtmin: {value: 1.0, unit: yr}
@@ -61,9 +61,8 @@ initial_condition:
   radius_outer_proper: {value: 20.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 0.002, unit: cm**-3}
-  inflow_velocity: {value: -100.0, unit: km/s}
-  outflow_velocity: {value: 100.0, unit: km/s}
-  inflow_temperature: {value: 1.0e4, unit: K}
+  vel_inflow_proper: {value: -100.0, unit: km/s}
+  vel_outflow_proper: {value: 100.0, unit: km/s}
+  temperature_inflow_proper: {value: 1.0e4, unit: K}
   muini: 0.62
 example: {}
-

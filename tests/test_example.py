@@ -463,8 +463,8 @@ class Testing(unittest.TestCase):
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 25.0)
         self.assertEqual(initial_condition['radius_injection_proper'].to_value(unyt.pc), 0.05)
         self.assertEqual(initial_condition['rho_proper'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
-        self.assertEqual(par_config['boundary']['outflow_velocity'].to_value(unyt.km / unyt.s), 1000.0)
-        self.assertEqual(par_config['boundary']['outflow_density'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
+        self.assertEqual(par_config['boundary']['vel_outflow_proper'].to_value(unyt.km / unyt.s), 1000.0)
+        self.assertEqual(par_config['boundary']['rho_outflow_proper'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
         self.assertEqual(initial_condition['time_proper'].to_value(unyt.Myr), 0.0)
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 0.1)
 
@@ -518,8 +518,8 @@ class Testing(unittest.TestCase):
         config = {
             'example': {'shell_edge_density_threshold_factor': 1.0},
             'par': {'boundary': {
-                'outflow_density': unyt.unyt_quantity(1.0e-22, unyt.g / unyt.cm**3),
-                'outflow_velocity': unyt.unyt_quantity(1000.0, unyt.km / unyt.s),
+                'rho_outflow_proper': unyt.unyt_quantity(1.0e-22, unyt.g / unyt.cm**3),
+                'vel_outflow_proper': unyt.unyt_quantity(1000.0, unyt.km / unyt.s),
             }},
             'initial_condition': {
                 'rho_proper': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),

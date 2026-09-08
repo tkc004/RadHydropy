@@ -1174,16 +1174,16 @@ class Solver():
         if outer_face >= len(density_code.R):
             return
         rho_background = float(
-            par.boundary.inflow_density
+            par.boundary.rho_inflow_proper
         )
         velocity_background = float(
-            par.boundary.inflow_velocity
+            par.boundary.vel_inflow_proper
         )
         pressure_background = float(
             fluid.eos.pressure(
                 rho_background,
                 float(
-                    par.boundary.inflow_temperature
+                    par.boundary.temperature_inflow_proper
                 ),
                 float(par.boundary.inflow_mu),
             )
@@ -1743,11 +1743,11 @@ class Solver():
         # floor and keeps the conservative state check below authoritative.
         boundary = getattr(par, 'boundary', None)
         if boundary is not None and getattr(boundary, 'condition', None) == 'WindSph':
-            wind_density = float(np.asarray(boundary.outflow_density))
-            wind_velocity = float(np.asarray(boundary.outflow_velocity))
+            wind_density = float(np.asarray(boundary.rho_outflow_proper))
+            wind_velocity = float(np.asarray(boundary.vel_outflow_proper))
             wind_pressure = float(np.asarray(fluid.eos.pressure(
-                boundary.outflow_density,
-                boundary.outflow_temperature,
+                boundary.rho_outflow_proper,
+                boundary.temperature_outflow_proper,
                 boundary.outflow_mu,
             )))
             wind_internal = (
@@ -1862,11 +1862,11 @@ class Solver():
             return 0.0
 
         boundary = par.boundary
-        rho_wind = float(np.asarray(boundary.outflow_density))
-        velocity_wind = float(np.asarray(boundary.outflow_velocity))
+        rho_wind = float(np.asarray(boundary.rho_outflow_proper))
+        velocity_wind = float(np.asarray(boundary.vel_outflow_proper))
         pressure_wind = float(np.asarray(fluid.eos.pressure(
-            boundary.outflow_density,
-            boundary.outflow_temperature,
+            boundary.rho_outflow_proper,
+            boundary.temperature_outflow_proper,
             boundary.outflow_mu,
         )))
         wind_internal = (

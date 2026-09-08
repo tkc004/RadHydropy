@@ -15,9 +15,9 @@ par:
     order: 0
   boundary:
     condition: OutflowSph
-    outflow_velocity: {value: 1.0, unit: cm/s}
-    outflow_density: {value: 1.0, unit: g/cm**3}
-    outflow_temperature: {value: 0.0, unit: K}
+    vel_outflow_proper: {value: 1.0, unit: cm/s}
+    rho_outflow_proper: {value: 1.0, unit: g/cm**3}
+    temperature_outflow_proper: {value: 0.0, unit: K}
     outflow_mu: 1.0
   timestep:
     dtmin: {value: 2.0e-8, unit: s}

@@ -13,8 +13,8 @@ def analytic_density_profile(radius, time_proper_code, config, cell_faces=None):
     initial = config['initial_condition']
     boundary = config['par']['boundary']
     injection_radius = float(initial['radius_injection_proper'])
-    density_outflow = float(boundary['outflow_density'])
-    velocity_outflow = float(boundary['outflow_velocity'])
+    density_outflow = float(boundary['rho_outflow_proper'])
+    velocity_outflow = float(boundary['vel_outflow_proper'])
     front = injection_radius + velocity_outflow * float(time_proper_code)
     profile = np.full_like(radius, np.nan, dtype=float)
     if cell_faces is None:

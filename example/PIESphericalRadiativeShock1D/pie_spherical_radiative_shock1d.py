@@ -24,7 +24,7 @@ from radhydropy.units import code_unit_scales
 from radhydropy.units import CodeUnits
 from radhydropy.thermo_networks.pie import MetalPIETable
 import example_utils as eu
-from tools import build_initial_condition, estimate_cooling_length, load_snapshot, shock_history
+from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history
 
 
 DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_spherical_radiative_shock1d.yaml'
@@ -47,20 +47,20 @@ class CollidingStreamsSolver(Solver):
         scales = code_unit_scales(getattr(par, 'CodeUnits', None))
 
         left_state = {
-            'rho_proper_code': par.boundary.outflow_density,
-            'vel_proper_code': par.boundary.outflow_velocity,
+            'rho_proper_code': par.boundary.rho_outflow_proper,
+            'vel_proper_code': par.boundary.vel_outflow_proper,
             'pre_proper_code': fluid.eos.pressure(
-                par.boundary.outflow_density,
-                par.boundary.outflow_temperature,
+                par.boundary.rho_outflow_proper,
+                par.boundary.temperature_outflow_proper,
                 par.boundary.outflow_mu,
             ),
         }
         right_state = {
-            'rho_proper_code': par.boundary.inflow_density,
-            'vel_proper_code': par.boundary.inflow_velocity,
+            'rho_proper_code': par.boundary.rho_inflow_proper,
+            'vel_proper_code': par.boundary.vel_inflow_proper,
             'pre_proper_code': fluid.eos.pressure(
-                par.boundary.inflow_density,
-                par.boundary.inflow_temperature,
+                par.boundary.rho_inflow_proper,
+                par.boundary.temperature_inflow_proper,
                 par.boundary.inflow_mu,
             ),
         }
@@ -125,7 +125,7 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     final_time_myr = float(case['simulation']['final_time'].to_value('Myr'))
     history = shock_history(output_files, case_config)
     history[:, 0] = np.linspace(0.0, final_time_myr, len(output_files))
-    final_snapshot = load_snapshot(output_files[-1], case_config)
+    final_snapshot = load_output_state(output_files[-1], case_config)
     cooling = None if not pie_enabled else estimate_cooling_length(
         final_snapshot, table, metallicity,
         float(case['thermochemistry']['hydrogen_mass_fraction']), float(initial['muini']),
@@ -182,7 +182,7 @@ def main(config_filename=DEFAULT_CONFIG):
         ))
         sample_times = result['history'][sample_indices, 0]
         for index, time_myr in zip(sample_indices, sample_times):
-            snapshot = load_snapshot(result['snapshots'][index], result['config'])
+            snapshot = load_output_state(result['snapshots'][index], result['config'])
             radius_proper_cgs_cm = (
                 0.5 * (snapshot['boundary_cgs_cm'][1:] + snapshot['boundary_cgs_cm'][:-1])
                 / 3.0856775814913673e21

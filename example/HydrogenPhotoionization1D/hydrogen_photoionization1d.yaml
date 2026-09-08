@@ -13,13 +13,13 @@ par:
     order: 0
   boundary:
     condition: Periodic
-    inflow_velocity: {value: 0.0, unit: cm/s}
-    inflow_density: {value: 1.0, unit: mp/cm**3}
-    inflow_temperature: {value: 0.0, unit: K}
+    vel_inflow_proper: {value: 0.0, unit: cm/s}
+    rho_inflow_proper: {value: 1.0, unit: mp/cm**3}
+    temperature_inflow_proper: {value: 0.0, unit: K}
     inflow_mu: 1.0
-    outflow_velocity: {value: 0.0, unit: cm/s}
-    outflow_density: {value: 1.0, unit: mp/cm**3}
-    outflow_temperature: {value: 0.0, unit: K}
+    vel_outflow_proper: {value: 0.0, unit: cm/s}
+    rho_outflow_proper: {value: 1.0, unit: mp/cm**3}
+    temperature_outflow_proper: {value: 0.0, unit: K}
     outflow_mu: 1.0
   timestep:
     dtmin: {value: 1.0e-6, unit: yr}

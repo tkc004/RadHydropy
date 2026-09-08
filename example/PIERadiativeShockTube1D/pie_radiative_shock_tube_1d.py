@@ -29,7 +29,7 @@ import example_utils as eu
 from tools import (
     build_initial_condition,
     cooling_length_estimate,
-    load_snapshot,
+    load_output_state,
     strong_shock_expectation,
     PROTON_MASS_G,
 )
@@ -101,7 +101,7 @@ def _shock_diagnostics(result, table, config):
     thermo = config['par']['thermochemistry']
     gamma = float(config['par']['hydrodynamics']['gamma'])
     mu = float(config['initial_condition']['mean_molecular_weight'])
-    snapshot = load_snapshot(result['snapshots'][-1], config)
+    snapshot = load_output_state(result['snapshots'][-1], config)
     # Diagnose the same final state that is plotted below.  Using the second
     # output here made the report and cooling-length overlays describe the
     # barely developed initial transient rather than the displayed shock.

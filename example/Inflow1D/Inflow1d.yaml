@@ -15,9 +15,9 @@ par:
     order: 0
   boundary:
     condition: InflowSph
-    inflow_velocity: {value: -1.0, unit: cm/s}
-    inflow_density: {value: 1.0, unit: g/cm**3}
-    inflow_temperature: {value: 0.0, unit: K}
+    vel_inflow_proper: {value: -1.0, unit: cm/s}
+    rho_inflow_proper: {value: 1.0, unit: g/cm**3}
+    temperature_inflow_proper: {value: 0.0, unit: K}
     inflow_mu: 1.0
   timestep:
     dtmin: {value: 1.0e-8, unit: s}

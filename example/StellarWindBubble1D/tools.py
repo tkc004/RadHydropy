@@ -289,8 +289,8 @@ def weaver_forward_shock_radius(rout, config):
     return wa.shock_radius(
         _time_proper(rout),
         config['initial_condition']['rho_proper'],
-        config['par']['boundary']['outflow_density'],
-        config['par']['boundary']['outflow_velocity'],
+        config['par']['boundary']['rho_outflow_proper'],
+        config['par']['boundary']['vel_outflow_proper'],
         config['initial_condition']['radius_injection_proper'],
     )
 
@@ -532,8 +532,8 @@ def collect_shell_diagnostics(snapshots, config):
         radius, velocity, pressure = wa.weaver_solution(
             time,
             initial_config['rho_proper'],
-            config['par']['boundary']['outflow_density'],
-            config['par']['boundary']['outflow_velocity'],
+            config['par']['boundary']['rho_outflow_proper'],
+            config['par']['boundary']['vel_outflow_proper'],
             initial_config['radius_injection_proper'],
         )
         weaver_radii.append(radius.to_value(unyt.pc))

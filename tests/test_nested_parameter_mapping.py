@@ -120,12 +120,12 @@ def test_nested_unitful_settings_are_converted_to_code_units():
             "positivity_density_floor": 4.0e-21 * unyt.g / unyt.cm**3,
         },
         "boundary": {
-            "inflow_density": 3.0e-21 * unyt.g / unyt.cm**3,
-            "inflow_velocity": 2.0e5 * unyt.cm / unyt.s,
-            "inflow_temperature": 400.0 * unyt.K,
-            "outflow_density": 4.0e-21 * unyt.g / unyt.cm**3,
-            "outflow_velocity": 3.0e5 * unyt.cm / unyt.s,
-            "outflow_temperature": 500.0 * unyt.K,
+            "rho_inflow_proper": 3.0e-21 * unyt.g / unyt.cm**3,
+            "vel_inflow_proper": 2.0e5 * unyt.cm / unyt.s,
+            "temperature_inflow_proper": 400.0 * unyt.K,
+            "rho_outflow_proper": 4.0e-21 * unyt.g / unyt.cm**3,
+            "vel_outflow_proper": 3.0e5 * unyt.cm / unyt.s,
+            "temperature_outflow_proper": 500.0 * unyt.K,
         },
         "timestep": {
             "dtmin": 1.0e13 * unyt.s,
@@ -182,12 +182,12 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     assert sim.par.simulation.time_code == pytest.approx(1.0)
     assert sim.par.simulation.box_size_proper_code == pytest.approx(3.0)
     assert sim.par.area_proper == pytest.approx(2.0)
-    assert sim.par.boundary.inflow_density == pytest.approx(3.0)
-    assert sim.par.boundary.inflow_velocity == pytest.approx(2.0)
-    assert sim.par.boundary.inflow_temperature == pytest.approx(400.0)
-    assert sim.par.boundary.outflow_density == pytest.approx(4.0)
-    assert sim.par.boundary.outflow_velocity == pytest.approx(3.0)
-    assert sim.par.boundary.outflow_temperature == pytest.approx(500.0)
+    assert sim.par.boundary.rho_inflow_proper == pytest.approx(3.0)
+    assert sim.par.boundary.vel_inflow_proper == pytest.approx(2.0)
+    assert sim.par.boundary.temperature_inflow_proper == pytest.approx(400.0)
+    assert sim.par.boundary.rho_outflow_proper == pytest.approx(4.0)
+    assert sim.par.boundary.vel_outflow_proper == pytest.approx(3.0)
+    assert sim.par.boundary.temperature_outflow_proper == pytest.approx(500.0)
     assert sim.par.positivity_density_floor == pytest.approx(4.0)
     assert sim.par.timestep.dtmin == pytest.approx(1.0)
     assert sim.par.timestep.dtmax == pytest.approx(2.0)

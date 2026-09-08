@@ -173,12 +173,12 @@ def ConvertParametersToCodeUnits(sim):
         ),
         "mesh": (("area_proper", "area"),),
         "boundary": (
-            ("inflow_velocity", "velocity"),
-            ("inflow_density", "density"),
-            ("inflow_temperature", "temperature"),
-            ("outflow_velocity", "velocity"),
-            ("outflow_density", "density"),
-            ("outflow_temperature", "temperature"),
+            ("vel_inflow_proper", "velocity"),
+            ("rho_inflow_proper", "density"),
+            ("temperature_inflow_proper", "temperature"),
+            ("vel_outflow_proper", "velocity"),
+            ("rho_outflow_proper", "density"),
+            ("temperature_outflow_proper", "temperature"),
         ),
         "radiation": (
             ("boundary_flux", "photon_flux"),

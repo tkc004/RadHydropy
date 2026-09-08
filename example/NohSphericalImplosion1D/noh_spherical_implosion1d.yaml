@@ -16,9 +16,9 @@ par:
     temperature_jump_error_threshold:
   boundary:
     condition: InflowSph
-    inflow_density: {value: 1.0, unit: g/cm**3}
-    inflow_velocity: {value: -1.0, unit: cm/s}
-    inflow_temperature: {value: 1.0e-12, unit: K}
+    rho_inflow_proper: {value: 1.0, unit: g/cm**3}
+    vel_inflow_proper: {value: -1.0, unit: cm/s}
+    temperature_inflow_proper: {value: 1.0e-12, unit: K}
     inflow_mu: 1.0
   timestep:
     dtmin: {value: 1.0e-8, unit: s}

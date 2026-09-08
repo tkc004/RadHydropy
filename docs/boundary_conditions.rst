@@ -55,9 +55,9 @@ Boundary-Specific Parameters
 The general boundary option is chosen through ``par.boundary.condition``. The spherical
 inflow and outflow modes also use these run parameters:
 
-* ``rho_inflow`` / ``rho_outflow``
-* ``vel_inflow`` / ``vel_outflow``
-* ``temp_inflow`` / ``temp_outflow``
+* ``rho_inflow_proper`` / ``rho_outflow_proper``
+* ``vel_inflow_proper`` / ``vel_outflow_proper``
+* ``temperature_inflow_proper`` / ``temperature_outflow_proper``
 * ``mu_inflow`` / ``mu_outflow``
 
 The corresponding pressure is derived from the equation of state.

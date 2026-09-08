@@ -68,7 +68,7 @@ def plot_snapshot(outfilename, config, **kwargs):
              **kwargs)
     plt.axvline(
         x=(rout.fluid.time_proper_code * code_units_obj.time_unit)
-        * config["par"]['boundary']['outflow_velocity'],
+        * config["par"]['boundary']['vel_outflow_proper'],
         color=kwargs['color'],
         ls='dashed',
     )

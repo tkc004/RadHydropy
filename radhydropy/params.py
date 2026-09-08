@@ -58,13 +58,13 @@ refparams = {
     'boundcond':'Periodic',
     'CodeUnits': None,
     'area_proper': 1.0 * unyt.cm**2,
-    'vel_inflow':1.0*unyt.cm/unyt.s,
-    'rho_inflow':1.0*unyt.g/unyt.cm**3,
-    'temp_inflow':0.0*unyt.K,
+    'vel_inflow_proper':1.0*unyt.cm/unyt.s,
+    'rho_inflow_proper':1.0*unyt.g/unyt.cm**3,
+    'temperature_inflow_proper':0.0*unyt.K,
     'mu_inflow':1.0,
-    'vel_outflow':1.0*unyt.cm/unyt.s,
-    'rho_outflow':1.0*unyt.g/unyt.cm**3,
-    'temp_outflow':0.0*unyt.K,
+    'vel_outflow_proper':1.0*unyt.cm/unyt.s,
+    'rho_outflow_proper':1.0*unyt.g/unyt.cm**3,
+    'temperature_outflow_proper':0.0*unyt.K,
     'mu_outflow':1.0,    
     'verbose':0, # speak out details?
     # Abort with a cell/neighborhood diagnostic if a gas cell crosses this
@@ -307,13 +307,13 @@ class BoundaryParameters:
     """Structured view of boundary-condition and reservoir settings."""
 
     condition: str = 'Periodic'
-    inflow_velocity: object = None
-    inflow_density: object = None
-    inflow_temperature: object = None
+    vel_inflow_proper: object = None
+    rho_inflow_proper: object = None
+    temperature_inflow_proper: object = None
     inflow_mu: float = 1.0
-    outflow_velocity: object = None
-    outflow_density: object = None
-    outflow_temperature: object = None
+    vel_outflow_proper: object = None
+    rho_outflow_proper: object = None
+    temperature_outflow_proper: object = None
     outflow_mu: float = 1.0
     cosmological_background_reconstruction: bool = False
 
@@ -653,10 +653,12 @@ class Par:
                 'temperature_jump_error_threshold': 'temperature_jump_error_threshold',
             },
             'boundary': {
-                'condition': 'boundcond', 'inflow_velocity': 'vel_inflow',
-                'inflow_density': 'rho_inflow', 'inflow_temperature': 'temp_inflow',
-                'inflow_mu': 'mu_inflow', 'outflow_velocity': 'vel_outflow',
-                'outflow_density': 'rho_outflow', 'outflow_temperature': 'temp_outflow',
+                'condition': 'boundcond', 'vel_inflow_proper': 'vel_inflow_proper',
+                'rho_inflow_proper': 'rho_inflow_proper',
+                'temperature_inflow_proper': 'temperature_inflow_proper',
+                'inflow_mu': 'mu_inflow', 'vel_outflow_proper': 'vel_outflow_proper',
+                'rho_outflow_proper': 'rho_outflow_proper',
+                'temperature_outflow_proper': 'temperature_outflow_proper',
                 'outflow_mu': 'mu_outflow',
             },
             'timestep': {
@@ -851,8 +853,9 @@ class Par:
         missing_keys = []
         nested_keys = {
             'nogrid', 'noghost', 'coordsys', 'timesim', 'gamma', 'CFL',
-            'boundcond', 'vel_inflow', 'vel_outflow', 'rho_inflow',
-            'rho_outflow', 'temp_inflow', 'temp_outflow', 'mu_inflow',
+            'boundcond', 'vel_inflow_proper', 'vel_outflow_proper',
+            'rho_inflow_proper', 'rho_outflow_proper',
+            'temperature_inflow_proper', 'temperature_outflow_proper', 'mu_inflow',
             'mu_outflow', 'dtmin', 'dtmax', 'CodeUnits',
             'radiative_transfer_boundary_flux',
             'radiative_transfer_source_photon_rate',
@@ -918,13 +921,13 @@ class Par:
     def _sync_boundary_parameters(self):
         self.boundary = BoundaryParameters(
             condition=self._parameter('boundcond'),
-            inflow_velocity=self._parameter('vel_inflow'),
-            inflow_density=self._parameter('rho_inflow'),
-            inflow_temperature=self._parameter('temp_inflow'),
+            vel_inflow_proper=self._parameter('vel_inflow_proper'),
+            rho_inflow_proper=self._parameter('rho_inflow_proper'),
+            temperature_inflow_proper=self._parameter('temperature_inflow_proper'),
             inflow_mu=self._parameter('mu_inflow'),
-            outflow_velocity=self._parameter('vel_outflow'),
-            outflow_density=self._parameter('rho_outflow'),
-            outflow_temperature=self._parameter('temp_outflow'),
+            vel_outflow_proper=self._parameter('vel_outflow_proper'),
+            rho_outflow_proper=self._parameter('rho_outflow_proper'),
+            temperature_outflow_proper=self._parameter('temperature_outflow_proper'),
             outflow_mu=self._parameter('mu_outflow'),
             cosmological_background_reconstruction=(
                 self.cosmological_background_boundary_reconstruction
