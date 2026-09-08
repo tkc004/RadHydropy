@@ -2,7 +2,8 @@ Boundary Conditions
 ===================
 
 RadHydropy applies boundary conditions by filling ghost cells before each
-hydrodynamic update. The active mode is selected with the ``boundcond`` runtime
+hydrodynamic update. The active mode is selected with the
+``par.boundary.condition`` runtime
 parameter and is handled by :meth:`radhydropy.solver.Solver.SetBoundary`.
 
 Supported Modes
@@ -16,7 +17,6 @@ The bundled solver currently supports these boundary-condition names:
 * ``OpenSph``
 * ``InflowSph``
 * ``OutflowSph``
-* ``WindSph``
 
 Cartesian Boundaries
 --------------------
@@ -52,7 +52,7 @@ spherical geometry so that the cell adjacent to ``r = 0`` remains symmetric.
 Boundary-Specific Parameters
 ----------------------------
 
-The general boundary option is chosen through ``boundcond``. The spherical
+The general boundary option is chosen through ``par.boundary.condition``. The spherical
 inflow and outflow modes also use these run parameters:
 
 * ``rho_inflow`` / ``rho_outflow``
@@ -69,13 +69,13 @@ Spherical calculations may optionally replace the unresolved innermost region
 with a fixed-mass pressure-supported core::
 
    gas_core_model: hydrostatic_fixed
-   gas_core_radius: {value: 20.0, unit: kpc}
+   radius_core_proper: {value: 20.0, unit: kpc}
 
 The core retains its primitive state and supplies pressure at the core/halo
 interface, while mass and energy flux through that interface are disabled.  It
 is not a sink.  Core cells are excluded from the resolved-halo CFL minimum.
 This model is disabled by default and should be tested for convergence by
-varying ``gas_core_radius``.
+varying ``radius_core_proper``.
 
 Practical Notes
 ---------------

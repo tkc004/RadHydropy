@@ -69,6 +69,18 @@ cd example/SodShock1D
 python sodshock1d.py
 ```
 
+Every example is run from its own directory (or with paths relative to the
+repository root), and accepts its YAML file explicitly when variants exist:
+
+```bash
+cd example/CosmologicalSodShock1D
+python cosmological_sod_shock1d.py --config cosmological_sod_shock1d.yaml
+```
+
+The YAML boundary is complete and nested: `par` contains solver/runtime
+parameters, `initial_condition` contains only data used to build the HDF5 IC,
+and `example` contains plotting, comparison, and other workflow controls.
+
 Most migrated examples follow the same pattern:
 
 1. load the nested `par`, `initial_condition`, and `example` sections from
@@ -178,7 +190,10 @@ API directly:
 step = sim.Step(mode="hydro_sources")
 print(step["dt"], step["hydro_steps"], step["source_steps"])
 
-counters = sim.Evolve(final_time=sim.par.timesim, mode="hydro_sources")
+counters = sim.Evolve(
+    final_time=sim.par.simulation.final_time,
+    mode="hydro_sources",
+)
 print(counters)
 ```
 

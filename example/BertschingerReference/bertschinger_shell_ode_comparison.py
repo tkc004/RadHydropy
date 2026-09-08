@@ -146,8 +146,8 @@ def _density_slope_profile(shells, cosmic_time, cosmology, turnaround, bins=192,
     candidate_indices = np.flatnonzero(candidates)
     splashback_index = int(candidate_indices[np.argmin(slope[candidates])])
     return {
-        'radius': np.exp(log_radius),
-        'density': np.exp(log_density),
+        'radius_proper': np.exp(log_radius),
+        'rho_proper': np.exp(log_density),
         'slope': slope,
         'virial_radius': rvir,
         'splashback_radius': float(np.exp(log_radius[splashback_index])),
@@ -430,8 +430,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             Path(config["par"]['output']['savedir']) /
             'BertschingerDarkMatterDensitySlope.npz',
             xi=np.asarray([p['xi'] for p in slope_profiles]),
-            radius=np.asarray([p['radius_proper'] for p in slope_profiles], dtype=object),
-            density=np.asarray([p['rho_proper'] for p in slope_profiles], dtype=object),
+            radius_proper=np.asarray([p['radius_proper'] for p in slope_profiles], dtype=object),
+            rho_proper=np.asarray([p['rho_proper'] for p in slope_profiles], dtype=object),
             slope=np.asarray([p['slope'] for p in slope_profiles], dtype=object),
             virial_radius=np.asarray([p['virial_radius'] for p in slope_profiles]),
             splashback_radius=np.asarray(

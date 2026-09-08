@@ -10,8 +10,8 @@ field of a fixed point mass.  The analytic density profile is
    \rho(r) = \rho_0 \exp\left[-\frac{\Phi(r)-\Phi(r_0)}{c_s^2}\right].
 
 The run uses ``gas_core_model: hydrostatic_fixed`` and compares the final
-resolved-halo density profile and core/halo interface pressure.  Vary
-``gas_core_radius`` to test core-radius convergence.
+resolved-halo density profile and core/halo interface pressure. Vary
+``par.gravity.radius_core_proper`` to test core-radius convergence.
 
 Run it with::
 

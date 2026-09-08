@@ -24,8 +24,9 @@ Run from the repository root with::
   python example/NFWBoundaryDrivenVirialShock1D/nfw_boundary_driven_virial_shock1d.py
 
 The default 512-cell, 2-Gyr calculation is intended as a resolved production
-example.  For quick checks, copy the YAML and reduce ``nogrid`` and both final
-times while keeping output times within the selected intervals.
+example. For quick checks, copy the YAML and reduce ``par.mesh.grid_cells``
+and both workflow final-time values under ``example`` while keeping output
+times within the selected intervals.
 
 Halo-mass sequence
 ------------------

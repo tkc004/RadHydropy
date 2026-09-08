@@ -59,5 +59,6 @@ The default run is 20 Myr, which covers several cooling times for the solar
 
 Resolution matters for this test. A cooling length comparable to one or two
 cells is under-resolved and can produce numerical suppression or spurious
-behavior. For a stronger overstability test, increase ``nogrid`` to 1024 or
-2048 and run for 50--100 Myr while retaining the 0.5 Myr output cadence.
+behavior. For a stronger overstability test, increase ``par.mesh.grid_cells``
+to 1024 or 2048 and run for 50--100 Myr while retaining the 0.5 Myr output
+cadence.

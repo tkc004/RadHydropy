@@ -244,8 +244,8 @@ def _make_matched_initial_state(config):
 
     shell_radius = coordinates.copy()
     shells = DarkMatterShells(
-        radius_comoving_code=shell_radius,
-        vel_supercomoving_code=-scale_factor**2 * hubble * mean_delta * shell_radius / 3.0,
+        radius=shell_radius,
+        velocity=-scale_factor**2 * hubble * mean_delta * shell_radius / 3.0,
         mass=_matched_shell_mass(
             (1.0 - baryon_fraction) * target_total_mass
         ),

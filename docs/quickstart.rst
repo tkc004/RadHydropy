@@ -49,38 +49,43 @@ Gravity examples such as the hydrostatic point-mass and ballistic-infall
 benchmarks follow the same pattern but also pass ``CodeUnits`` into their
 analytic gravity helpers so the internal math stays float-first.
 
-Run Parameters
---------------
+Runtime Parameters
+------------------
 
-The nested ``par`` block controls how the runner loads the problem and writes
-outputs. Its ``simulation`` and ``output`` sections contain the run controls
-used by the bundled examples:
+The complete nested ``par`` block controls the solver and run lifecycle. Use
+the current names below; older flat names such as ``timesim``, ``nogrid``, and
+``boundcond`` are not accepted:
 
-* ``simname``: label shown in logs and filenames.
-* ``ICfilename``: path to the HDF5 initial-condition file to read or write.
-* ``outdir`` and ``outfileprefix``: where numbered HDF5 outputs are written.
-* ``savedir``: directory for any plots or derived figures saved by the
-  example script.
-* ``coordsys``: geometry, usually ``cartesian`` or ``spherical``.
-* ``EOStype`` and ``gamma``: equation-of-state settings.
-* ``timesim``: final simulation time.
-* ``outdeltatime`` or ``outputtimefilename``: fixed output cadence or explicit
-  output times.
-* ``CFL``, ``order``, ``dtmin``, and ``dtmax``: timestep and reconstruction
-  controls.
-* ``boundcond``: boundary condition name.
+* ``par.simulation.name`` and ``par.simulation.initial_condition_filename``
+  identify the run and IC file.
+* ``par.simulation.coordinate_system`` and ``par.simulation.final_time``
+  select geometry and the stopping time.
+* ``par.mesh.grid_cells``, ``par.mesh.ghost_cells``, and
+  ``par.mesh.area_proper`` define the mesh.
+* ``par.hydrodynamics.eos_type``, ``gamma``, ``CFL``, and ``order`` define the
+  fluid update.
+* ``par.boundary.condition`` selects ``Periodic``, ``Open``, ``Reflecting``,
+  ``OpenSph``, ``InflowSph``, or ``OutflowSph``.
+* ``par.timestep.dtmin`` and ``par.timestep.dtmax`` constrain the step size.
+* ``par.output.directory``, ``filename_prefix``, ``cadence`` (or
+  ``time_interval``), and optional ``time_list_filename`` control saved
+  snapshots; ``savedir`` is an
+  example-workflow output location.
+* ``par.units.CodeUnits`` is mandatory and defines the internal unit system.
 
-Units can be written inline in the YAML file using ``value`` and ``unit``
-fields, as in ``timesim`` and ``outdeltatime`` in the bundled examples. See
-:doc:`parameters` for the complete runtime parameter reference.
+Unit-bearing values use ``{value, unit}`` mappings. Workflow-only values such
+as plot names, output indices, comparison settings, and convergence controls
+belong under ``example`` rather than ``par``. See :doc:`parameters` for the
+complete runtime parameter reference.
 
 See :doc:`initial_conditions` for a standalone description of the initial-condition
 parameters used by the bundled YAML examples.
 
 To use explicit output times instead of a fixed cadence, set
-`outputtimefilename` to a txt file whose first non-empty line is the time unit
-and whose remaining lines are the output times. Include the final simulation
-time if you want the last state written as an output snapshot. For example,
+``par.output.time_list_filename`` to a txt file whose first non-empty line is
+the time unit and whose remaining lines are the output times. Include
+``par.simulation.final_time`` if you want the final state written as an output
+snapshot. For example,
 the bundled example configs typically point to files such as ``output_times.txt``:
 
 .. code-block:: text
@@ -117,7 +122,10 @@ Use :meth:`radhydropy.rsim.Rsim.Evolve` to advance until a target time:
 
 .. code-block:: python
 
-   counters = sim.Evolve(final_time=sim.par.timesim, mode="hydro_sources")
+   counters = sim.Evolve(
+       final_time=sim.par.simulation.final_time,
+       mode="hydro_sources",
+   )
    print(counters["hydro_steps"], counters["source_steps"])
 
 The main runner helper remains :meth:`radhydropy.rsim.Rsim.Run`.

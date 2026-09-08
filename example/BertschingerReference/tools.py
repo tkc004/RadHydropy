@@ -102,8 +102,8 @@ def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
     mass_scaled = cumulative / ((4.0 * np.pi / 3.0) * rho_background * rta**3)
     return {
         'lambda': lam,
-        'density': density_contrast,
-        'velocity': velocity_scaled,
+        'rho_proper': density_contrast,
+        'vel_proper': velocity_scaled,
         'mass': mass_scaled,
         'turnaround_radius': rta,
     }

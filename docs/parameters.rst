@@ -8,9 +8,8 @@ are parameter groups. Missing values are filled from
 :data:`radhydropy.params.refparams`.
 
 For example, use ``par.mesh.grid_cells`` and
-``par.simulation.final_time`` in code; do not use the former flat names
-``par.nogrid`` or ``par.timesim``. ``Par`` does not expose those flat runtime
-aliases.
+``par.simulation.final_time`` in code. ``Par`` exposes the nested runtime
+groups and does not provide the former flat runtime aliases.
 
 Unit System
 -----------
@@ -79,120 +78,120 @@ Common Runtime Keys
    * - Key
      - Meaning
      - Typical unit
-   * - ``simname``
+   * - ``simulation.name``
      - Simulation name used by scripts and logs.
      - dimensionless
-   * - ``ICfilename``
+   * - ``simulation.initial_condition_filename``
      - HDF5 initial-condition file path.
      - path string
-   * - ``outdir``
+   * - ``output.directory``
      - Directory for output files.
      - path string
-   * - ``outfileprefix``
+   * - ``output.filename_prefix``
      - Prefix for HDF5 outputs written by :meth:`radhydropy.rsim.Rsim.Run`.
      - string
-   * - ``coordsys``
+   * - ``simulation.coordinate_system``
      - Coordinate system. Supported values are ``cartesian`` and ``spherical``.
      - string
-   * - ``EOStype``
+   * - ``hydrodynamics.eos_type``
      - Equation-of-state type. Supported values are ``polytropic`` and
        ``isothermal``.
      - string
-   * - ``gamma``
+   * - ``hydrodynamics.gamma``
      - Adiabatic index for polytropic gas.
      - dimensionless
-   * - ``dual_energy``
+   * - ``hydrodynamics.dual_energy``
      - Evolve the independent ``InternalEnergy`` variable for cold,
        kinetic-energy-dominated flows. The default is ``false``.
      - boolean
-   * - ``dual_energy_eta1`` / ``dual_energy_eta2``
+   * - ``hydrodynamics.dual_energy_eta1`` / ``hydrodynamics.dual_energy_eta2``
      - Bryan-style dual-energy thresholds. ``eta1`` selects the pressure
        estimate; ``eta2`` controls synchronization to conservative ``E-K``.
      - dimensionless
-   * - ``dual_energy_pressure_selection``
+   * - ``hydrodynamics.dual_energy_pressure_selection``
      - Select ``switch`` for normal dual-energy pressure selection or
        ``conservative`` to always use admissible ``E-K`` while still evolving
        ``InternalEnergy``.
      - string
-   * - ``dual_energy_pressure_floor``
+   * - ``hydrodynamics.dual_energy_pressure_floor``
      - Code-unit pressure used only when both conservative and independent
        thermal-energy estimates are invalid.
      - pressure
-   * - ``energy_diagnostics``
+   * - ``par.diagnostics.energy_diagnostics``
      - Record per-cell energy-work terms and cumulative energy-audit data.
        The default is ``false``.
      - boolean
-   * - ``gas_angular_momentum``
+   * - ``par.diagnostics.gas_angular_momentum``
      - Enable signed gas specific-angular-momentum storage and conservative
        transport. The default is ``false``.
      - boolean
-   * - ``gas_rotational_energy``
+   * - ``par.diagnostics.gas_rotational_energy``
      - Include ``E_rot = J**2/(2*M*r**2)`` in conserved ``Energy``. Requires
        ``gas_angular_momentum: true`` and a spherical mesh; the default is
        ``false``.
      - boolean
-   * - ``angular_momentum_flux_scheme``
+   * - ``par.diagnostics.angular_momentum_flux_scheme``
      - Angular-momentum transport scheme. ``fct`` uses donor upwind as the
        low-order base and limits the MUSCL correction face by face; ``donor``
        selects donor upwind everywhere. The default is ``fct``.
      - string
-   * - ``angular_momentum_energy_margin_fraction``
+   * - ``par.diagnostics.angular_momentum_energy_margin_fraction``
      - Local thermal-energy margin for rotating cells. Faces touching cells
        below this fraction use first-order hydro fluxes; other faces retain
        MUSCL. The default is ``1e-4``.
      - dimensionless
-   * - ``gravity_potential_energy``
+   * - ``par.diagnostics.gravity_potential_energy``
      - Evolve the opt-in conserved field ``U_phi = M*Phi``. It is initialized
        from the configured gravity potential, transported with
        ``F_phi = Phi_face F_M``, and receives the opposite of gravity work.
        Requires a gravity model providing ``potential_on``; the default is
        ``false``.
      - boolean
-   * - ``temperature``
+   * - ``par.hydrodynamics.temperature_proper``
      - Default gas/background temperature used for scalar temperature
        parameters. The default is ``2.7 K``.
      - temperature
-   * - ``timesim``
+   * - ``simulation.final_time``
      - Final simulation time.
      - time
-   * - ``outdeltatime``
+   * - ``output.cadence``
      - Output cadence.
      - time
-   * - ``outputtimefilename``
+   * - ``output.time_list_filename``
      - Optional txt file containing explicit output times. The first non-empty
        row gives the time unit and the remaining rows list the output times.
      - path string
-   * - ``CFL``
+   * - ``hydrodynamics.CFL``
      - Courant factor used by :meth:`radhydropy.solver.Solver.GetTimeStep`.
      - dimensionless
-   * - ``boundcond``
+   * - ``boundary.condition``
      - Boundary condition, such as ``Periodic``, ``Open``, ``Reflecting``,
-       ``OpenSph``, ``InflowSph``, ``OutflowSph``, or ``WindSph``.
+       ``OpenSph``, ``InflowSph``, or ``OutflowSph``.
      - string
-   * - ``order``
+   * - ``hydrodynamics.order``
      - Reconstruction order. ``0`` uses piecewise constant fluxes; ``1`` uses
        reconstructed states with flux limiting.
      - dimensionless
-   * - ``noghost``
+   * - ``mesh.ghost_cells``
      - Number of ghost cells on each side of the domain.
      - cells
-   * - ``dtmin`` / ``dtmax``
+   * - ``timestep.dtmin`` / ``timestep.dtmax``
      - Minimum and maximum allowed timesteps.
      - time
-   * - ``gas_core_model`` / ``gas_core_radius``
+   * - ``gas_core_model`` / ``radius_core_proper``
      - Optional pressure-supported unresolved central core.  Set
        ``gas_core_model: hydrostatic_fixed`` and choose a spherical core radius
        to hold the inner cells as a fixed-mass pressure-bearing core.  The
        default ``none`` preserves ordinary hydro evolution.
      - string / length
-   * - ``area``
+   * - ``mesh.area_proper``
      - Cartesian cross-sectional area used to calculate volumes.
      - area
 
-If ``outputtimefilename`` is provided, RadHydropy ignores ``outdeltatime`` and
+If ``output.time_list_filename`` is provided, RadHydropy ignores ``output.cadence`` and
 writes outputs at the explicit times listed in the txt file. The file format is
 one time unit on the first non-empty line, followed by one output time per
-line. Include ``timesim`` in the list if you want the final state written as an
+line. Include ``simulation.final_time`` in the list if you want the final state written as an
 output file. For example:
 
 .. code-block:: text

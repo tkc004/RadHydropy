@@ -260,7 +260,7 @@ def make_dark_matter(config):
             * 4.0 * np.pi / 3.0 * core_radius**3,
         )
     shells = DarkMatterShells(
-        radius_comoving_code=radius_comoving_code, vel_supercomoving_code=vel_supercomoving_code, mass=mass,
+        radius=radius_comoving_code, velocity=vel_supercomoving_code, mass=mass,
         angular_momentum=np.full(
             count, float(ic.get("dm_specific_angular_momentum", 0.0))
         ),

@@ -51,7 +51,8 @@ uses the header ``CodeUnits`` block to recover the runtime unit system.
 Practical Notes
 ---------------
 
-The example YAML files typically point ``ICfilename`` at a file named
+The example YAML files typically point
+``par.simulation.initial_condition_filename`` at a file named
 ``InitialCondition.hdf5`` inside the example directory. The same file layout is
 used by the output snapshot reader, so an output file can be reloaded with the
 same HDF5 structure.
