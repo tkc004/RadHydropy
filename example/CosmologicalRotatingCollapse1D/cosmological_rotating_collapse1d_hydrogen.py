@@ -113,6 +113,10 @@ def main(output_root=None):
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
     sim.SetInitFluid()
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.par.set_cosmology_model(cosmology)
 
     first = int(sim.par.mesh.ghost_cells)

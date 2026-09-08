@@ -187,21 +187,21 @@ def refresh_typed_initial_condition(result):
     )
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        coordinate=result.mesh.x_comoving_code,
-        boundary=result.mesh.boundary_comoving_code,
-        width=np.diff(result.mesh.boundary_comoving_code),
-        area=result.mesh.area_comoving_code,
-        volume=result.mesh.volume_comoving_code,
+        x_comoving_code=result.mesh.x_comoving_code,
+        boundary_comoving_code=result.mesh.boundary_comoving_code,
+        width_comoving_code=np.diff(result.mesh.boundary_comoving_code),
+        area_comoving_code=result.mesh.area_comoving_code,
+        volume_comoving_code=result.mesh.volume_comoving_code,
     )
     result.fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=result.fluid.rho_comoving_code,
-        velocity=result.fluid.vel_supercomoving_code,
-        pressure=result.fluid.pre_supercomoving_code,
-        temperature=result.fluid.temp_supercomoving_code,
-        time=float(result.par.tau_supercomoving_code[0]),
-        mu=result.fluid.mu,
-        xHI=result.fluid.xHI if hasattr(result.fluid, "xHI") else None,
+        rho_comoving_code=result.fluid.rho_comoving_code,
+        vel_supercomoving_code=result.fluid.vel_supercomoving_code,
+        pre_supercomoving_code=result.fluid.pre_supercomoving_code,
+        temp_supercomoving_code=result.fluid.temp_supercomoving_code,
+        tau_supercomoving_code=float(result.par.tau_supercomoving_code[0]),
+        mu_dimensionless=result.fluid.mu,
+        xHI_dimensionless=result.fluid.xHI if hasattr(result.fluid, "xHI") else None,
     )
 
 

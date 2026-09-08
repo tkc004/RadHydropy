@@ -39,8 +39,8 @@ def build_initial_condition(config):
     coordinate = 0.75 * (boundary[1:] ** 4 - boundary[:-1] ** 4) / (boundary[1:] ** 3 - boundary[:-1] ** 3)
     volume = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
-        width=width, area=4.0 * np.pi * boundary[:-1] ** 2, volume=volume,
+        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
+        width_proper_code=width, area_proper_code=4.0 * np.pi * boundary[:-1] ** 2, volume_proper_code=volume,
     )
     rho = initial['hydrogen_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho, code_units.density_unit))

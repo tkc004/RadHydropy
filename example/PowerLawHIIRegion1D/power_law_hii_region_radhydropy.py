@@ -4,7 +4,6 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import matplotlib
 matplotlib.use("Agg")
@@ -20,8 +19,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 
 import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits, code_quantity_to_cgs
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 import example_utils as eu
 
 import power_law_hii_region_analytic as analytic
@@ -36,62 +37,53 @@ def density_profile(radius_cgs_cm, nc, rc, w):
 
 
 def build_initial_condition(config):
-    """Build the physical IC object consumed by ``writehdf5``."""
-    from radhydropy.eos import EOS
-    from radhydropy.fluid import Fluid
-    from radhydropy.mesh import Mesh
-
+    """Build the proper-code IC through the configured ``Rsim`` object."""
     par_config = config['par']
     initial = config['initial_condition']
     code = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
     ncell = int(initial['number_of_cells'])
-    boxsize = initial['boxsize']
-    boundary = np.linspace(0.0, boxsize.to_value(unyt.cm), ncell + 1) * unyt.cm
-    radius = 0.5 * (boundary[1:] + boundary[:-1])
+    box_size_proper_code = quantity_to_value(initial['boxsize'], code.length_unit)
+    boundary_proper_code = np.linspace(0.0, box_size_proper_code, ncell + 1)
+    radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     n_h = density_profile(
-        radius.to_value(unyt.cm),
+        radius_proper_code * code.length_unit.to_value(unyt.cm),
         initial['core_number_density'].to_value(1.0 / unyt.cm**3),
         initial['core_radius'].to_value(unyt.cm),
         initial['density_power_law_exponent'],
     ) / unyt.cm**3
-
-    par = SimpleNamespace(
-        coordsys=par_config['simulation']['coordinate_system'],
-        boundcond=par_config['boundary']['condition'],
-        nogrid=ncell,
-        noghost=int(par_config['mesh']['ghost_cells']),
-        boxsize=boxsize,
-        area=par_config['mesh']['area'],
-        EOStype=par_config['hydrodynamics']['eos_type'],
-        gamma=par_config['hydrodynamics']['gamma'],
-        CodeUnits=code,
-        simulation=SimpleNamespace(
-            coordinate_system="spherical",
-            time_proper_code=0.0 * unyt.yr,
-            box_size=boxsize,
-        ),
-        mesh=SimpleNamespace(
-            grid_cells=ncell,
-            ghost_cells=int(par_config['mesh']['ghost_cells']),
-            area=par_config['mesh']['area'],
-        ),
-        hydrodynamics=SimpleNamespace(gamma=par_config['hydrodynamics']['gamma']),
-        units=SimpleNamespace(CodeUnits=code),
+    sim = Rsim(par_config)
+    sim.par.mesh.grid_cells = ncell
+    sim.par.simulation.box_size = box_size_proper_code
+    sim.par.simulation.time_proper_code = 0.0
+    width_proper_code = np.diff(boundary_proper_code)
+    area_proper_code = 4.0 * np.pi * radius_proper_code**2
+    volume_proper_code = 4.0 * np.pi / 3.0 * (
+        boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
     )
-    mesh = Mesh()
-    mesh.boundary = boundary
-    fluid = Fluid()
-    fluid.eos = EOS(par_config['hydrodynamics']['eos_type'], par_config['hydrodynamics']['gamma'], code)
-    density_proper_cgs_g_cm3_unyt = (n_h * unyt.mp).to(unyt.g / unyt.cm**3)
-    fluid.rho_proper_code = density_proper_cgs_g_cm3_unyt
-    fluid.vel_proper_code = np.zeros(ncell, dtype=float)
-    fluid.temp_proper_code = np.ones(ncell) * initial['initial_temperature']
-    fluid.xHI = np.ones(ncell)
-    fluid.mu = np.ones(ncell)
-    photon_number_density_cgs_cm3_unyt = np.zeros(ncell) / unyt.cm**3
-    fluid.ngamma_code = photon_number_density_cgs_cm3_unyt
-    fluid.SetFluidTime(0.0 * unyt.yr)
-    return SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    sim.mesh.boundary_proper_code = as_named_array(boundary_proper_code)
+    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        x_proper_code=radius_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=area_proper_code,
+        volume_proper_code=volume_proper_code,
+    )
+    sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
+        n_h * unyt.mp, code.density_unit
+    ))
+    sim.fluid.vel_proper_code = as_named_array(np.zeros(ncell))
+    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
+        np.ones(ncell) * initial['initial_temperature'], code.temperature_unit
+    ))
+    sim.fluid.xHI = as_named_array(np.ones(ncell))
+    sim.fluid.ngamma_code = as_named_array(np.zeros(ncell))
+    sim.fluid.mu = as_named_array(np.ones(ncell))
+    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    sim.fluid.SetFluidTime(0.0)
+    sim.fluid.SetPressure()
+    sim.fluid._refresh_runtime_state()
+    return sim
 
 
 def write_initial_condition(config, filename):

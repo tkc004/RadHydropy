@@ -18,9 +18,9 @@ class Mesh:
     def __init__(self):
         self.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            coordinate=np.arange(8, dtype=float) + 0.5,
-            boundary=np.linspace(0.0, 8.0, 9),
-            width=np.ones(8), area=np.ones(8), volume=np.ones(8),
+            x_proper_code=np.arange(8, dtype=float) + 0.5,
+            boundary_proper_code=np.linspace(0.0, 8.0, 9),
+            width_proper_code=np.ones(8), area_proper_code=np.ones(8), volume_proper_code=np.ones(8),
         )
 
 
@@ -70,9 +70,9 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=fluid.rho_code, velocity=fluid.vel_code,
-            pressure=fluid.pre_code, temperature=fluid.temp_code, time=0.0,
-            mu=fluid.mu,
+            rho_proper_code=fluid.rho_code, vel_proper_code=fluid.vel_code,
+            pre_proper_code=fluid.pre_code, temp_proper_code=fluid.temp_code, time_proper_code=0.0,
+            mu_dimensionless=fluid.mu,
         )
 
         Solver().SetConserved(Mesh(), fluid)
@@ -91,9 +91,9 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=fluid.rho_code, velocity=fluid.vel_code,
-            pressure=fluid.pre_code, temperature=fluid.temp_code, time=0.0,
-            mu=fluid.mu,
+            rho_proper_code=fluid.rho_code, vel_proper_code=fluid.vel_code,
+            pre_proper_code=fluid.pre_code, temp_proper_code=fluid.temp_code, time_proper_code=0.0,
+            mu_dimensionless=fluid.mu,
         )
         Solver().SetConserved(mesh, fluid)
 

@@ -215,21 +215,19 @@ def _source_test_problem(
     fluid.runtime_fields = runtime_fields
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         runtime_fields,
-        density=np.array([fluid_density]),
-        velocity=np.array([0.0]),
-        pressure=np.array([1.0]),
-        temperature=np.array([fluid_temperature]),
-        time=tau,
-    )
+        **{runtime_fields.density: np.array([fluid_density]), runtime_fields.velocity: np.array([0.0]), runtime_fields.pressure: np.array([1.0]), runtime_fields.temperature: np.array([fluid_temperature]), runtime_fields.time: tau},
+        )
     mesh = SimpleNamespace(coordsys='cartesian')
     mesh.geometry_state = MeshGeometryState.from_arrays(
         runtime_fields,
-        coordinate=np.array([0.5]),
-        boundary=np.array([0.0, 1.0]),
-        width=np.array([1.0]),
-        area=np.array([1.0]),
-        volume=np.array([1.0]),
-    )
+        **{
+            runtime_fields.coordinate: np.array([0.5]),
+            runtime_fields.boundary: np.array([0.0, 1.0]),
+            runtime_fields.width: np.array([1.0]),
+            runtime_fields.area: np.array([1.0]),
+            runtime_fields.volume: np.array([1.0]),
+        },
+        )
     return units, par, fluid, mesh, scale_factor
 
 
@@ -654,20 +652,20 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=0.0,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=0.0,
     )
     mesh = SimpleNamespace(coordsys='cartesian')
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=np.array([0.5]),
-        boundary=np.array([0.0, 1.0]),
-        width=np.array([1.0]),
-        area=np.array([1.0]),
-        volume=np.array([1.0]),
+        x_proper_code=np.array([0.5]),
+        boundary_proper_code=np.array([0.0, 1.0]),
+        width_proper_code=np.array([1.0]),
+        area_proper_code=np.array([1.0]),
+        volume_proper_code=np.array([1.0]),
     )
     result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
     assert result['source_steps'] >= 2
@@ -875,11 +873,11 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
     mesh = SimpleNamespace(coordsys='spherical')
     mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        coordinate=np.array([0.75]),
-        boundary=np.array([0.0, 1.0]),
-        width=np.array([1.0]),
-        area=np.array([1.0]),
-        volume=np.array([4.0 * np.pi / 3.0]),
+        x_comoving_code=np.array([0.75]),
+        boundary_comoving_code=np.array([0.0, 1.0]),
+        width_comoving_code=np.array([1.0]),
+        area_comoving_code=np.array([1.0]),
+        volume_comoving_code=np.array([4.0 * np.pi / 3.0]),
     )
     fluid = SimpleNamespace(
         rho_comoving_code=np.array([scale_factor**3]),
@@ -895,11 +893,11 @@ def test_fast_source_state_round_trips_supercomoving_temperature():
     fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=fluid.rho_comoving_code,
-        velocity=fluid.vel_supercomoving_code,
-        pressure=np.array([1.0]),
-        temperature=fluid.temp_supercomoving_code,
-        time=tau,
+        rho_comoving_code=fluid.rho_comoving_code,
+        vel_supercomoving_code=fluid.vel_supercomoving_code,
+        pre_supercomoving_code=np.array([1.0]),
+        temp_supercomoving_code=fluid.temp_supercomoving_code,
+        tau_supercomoving_code=tau,
     )
 
     state = _fast_source_state(mesh, fluid, par)

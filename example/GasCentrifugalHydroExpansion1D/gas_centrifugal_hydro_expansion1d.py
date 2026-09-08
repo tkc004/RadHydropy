@@ -33,11 +33,11 @@ def prepare_initial_condition(initial):
         initial.mesh.boundary_proper_code, dtype=float
     )
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.x_proper_code,
-        boundary=boundary_proper_code,
-        width=np.diff(boundary_proper_code),
-        area=4.0 * np.pi * boundary_proper_code[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (
+        PROPER_RUNTIME_FIELDS, x_proper_code=initial.mesh.x_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=np.diff(boundary_proper_code),
+        area_proper_code=4.0 * np.pi * boundary_proper_code[:-1]**2,
+        volume_proper_code=4.0 * np.pi / 3.0 * (
             boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
         ),
     )
@@ -45,10 +45,10 @@ def prepare_initial_condition(initial):
     initial.fluid.time_proper_code = 0.0
     initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
-        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
-        temperature=initial.fluid.temp_proper_code, time=0.0,
-        mu=initial.fluid.mu,
+        PROPER_RUNTIME_FIELDS, rho_proper_code=initial.fluid.rho_proper_code,
+        vel_proper_code=initial.fluid.vel_proper_code, pre_proper_code=initial.fluid.pre_proper_code,
+        temp_proper_code=initial.fluid.temp_proper_code, time_proper_code=0.0,
+        mu_dimensionless=initial.fluid.mu,
     )
 
 
@@ -76,9 +76,9 @@ class InitialCondition(Rsim):
         self.fluid.mu = np.ones(count)
         self.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(central_mass * radius)
         self.mesh.geometry_state = MeshGeometryState.from_arrays(
-            PROPER_RUNTIME_FIELDS, coordinate=radius, boundary=boundary,
-            width=self.mesh.width_proper_code, area=self.mesh.area_proper_code,
-            volume=self.mesh.volume_proper_code,
+            PROPER_RUNTIME_FIELDS, x_proper_code=radius, boundary_proper_code=boundary,
+            width_proper_code=self.mesh.width_proper_code, area_proper_code=self.mesh.area_proper_code,
+            volume_proper_code=self.mesh.volume_proper_code,
         )
 
 
@@ -121,14 +121,14 @@ def run_simulation(par, initial_condition, example_config):
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(config["par"])
+    sim = Rsim(par)
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
     sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     sim.par.gravity = FixedCentralGravity(float(initial_condition['central_mass']))
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
     initial_mass = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
     initial_energy = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
     initial_radius = np.asarray(sim.mesh.x_proper_code[active], dtype=float).copy()
@@ -156,13 +156,14 @@ def main(config_filename=CONFIG):
     (sim, saved_mesh, saved, initial_mass, initial_energy,
      initial_radius, cumulative_gravity_work, cumulative_potential_change,
      cumulative_potential_flux) = run_simulation(par, initial_condition, example_config)
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
     radius = np.asarray(sim.mesh.x_proper_code[active], dtype=float)
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time_proper_code)
     saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
-    source_boundary = saved_boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1]
+    first = int(sim.par.mesh.ghost_cells)
+    source_boundary = saved_boundary[first:first + int(sim.par.mesh.grid_cells) + 1]
     saved_radius = spherical_centers(saved_boundary)[active]
     reference = centrifugal_shell_reference(
         source_boundary,

@@ -36,7 +36,7 @@ def main(config_filename=DEFAULT_CONFIG):
     par_config = config['par']
     initial_condition = config['initial_condition']
     example = config['example']
-    code_units = et.load_units(par_config)
+    code_units = et.load_units(config)
     shell = et.make_shell(initial_condition, code_units)
     g_code = (
         GRAVITATIONAL_CONSTANT_CGS * code_units.mass_in_cgs

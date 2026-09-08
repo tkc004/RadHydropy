@@ -44,11 +44,11 @@ def build_static_problem(config):
     area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate_proper_code,
-        boundary=boundary_proper_code,
-        width=width_proper_code,
-        area=area_proper_code,
-        volume=volume_proper_code,
+        x_proper_code=coordinate_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=area_proper_code,
+        volume_proper_code=volume_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * unyt.mp / unyt.cm**3,
@@ -105,11 +105,11 @@ def _refresh_mesh_geometry(mesh, par):
         raise ValueError("coordinate system unknown: %s" % par.simulation.coordinate_system)
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=mesh.x_proper_code,
-        boundary=mesh.boundary_proper_code,
-        width=mesh.width_proper_code,
-        area=mesh.area_proper_code,
-        volume=mesh.volume_proper_code,
+        x_proper_code=mesh.x_proper_code,
+        boundary_proper_code=mesh.boundary_proper_code,
+        width_proper_code=mesh.width_proper_code,
+        area_proper_code=mesh.area_proper_code,
+        volume_proper_code=mesh.volume_proper_code,
     )
 
 
@@ -151,7 +151,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
         mesh.boundary_proper_code[interior.start : interior.stop + 1],
         mesh.volume_proper_code[interior],
         source_photon_rate,
-        code_units=code_units_obj,
+        code_unit_system=code_units_obj,
     )
 
     r_min = mesh.boundary_proper_code[interior.start + 1]
@@ -180,7 +180,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     analytic_point = rta.point_density(
         radius_line,
         source_photon_rate,
-        code_units=code_units_obj,
+        code_unit_system=code_units_obj,
     )
 
     simulated_cgs = simulated.to_value(1.0 / unyt.cm**3)

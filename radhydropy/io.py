@@ -921,29 +921,29 @@ def readhdf5(par, mesh, fluid, ICfilename):
             fluid.runtime_fields = PROPER_RUNTIME_FIELDS
             fluid.runtime_state = FluidRuntimeState.from_arrays(
                 PROPER_RUNTIME_FIELDS,
-                density=fluid.rho_proper_code,
-                velocity=fluid.vel_proper_code,
-                pressure=getattr(
+                rho_proper_code=fluid.rho_proper_code,
+                vel_proper_code=fluid.vel_proper_code,
+                pre_proper_code=getattr(
                     fluid, "pre_proper_code", np.zeros_like(fluid.rho_proper_code)
                 ),
-                temperature=fluid.temp_proper_code,
-                time=getattr(fluid, "time_proper_code", 0.0),
-                mu=getattr(fluid, "mu", None),
-                xHI=getattr(fluid, "xHI", None),
+                temp_proper_code=fluid.temp_proper_code,
+                time_proper_code=getattr(fluid, "time_proper_code", 0.0),
+                mu_dimensionless=getattr(fluid, "mu", None),
+                xHI_dimensionless=getattr(fluid, "xHI", None),
             )
         elif canonical_cosmological_schema:
             fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
             fluid.runtime_state = FluidRuntimeState.from_arrays(
                 SUPERCOMOVING_RUNTIME_FIELDS,
-                density=fluid.rho_comoving_code,
-                velocity=fluid.vel_supercomoving_code,
-                pressure=getattr(
+                rho_comoving_code=fluid.rho_comoving_code,
+                vel_supercomoving_code=fluid.vel_supercomoving_code,
+                pre_supercomoving_code=getattr(
                     fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code)
                 ),
-                temperature=fluid.temp_supercomoving_code,
-                time=getattr(fluid, "tau_supercomoving_code", 0.0),
-                mu=getattr(fluid, "mu", None),
-                xHI=getattr(fluid, "xHI", None),
+                temp_supercomoving_code=fluid.temp_supercomoving_code,
+                tau_supercomoving_code=getattr(fluid, "tau_supercomoving_code", 0.0),
+                mu_dimensionless=getattr(fluid, "mu", None),
+                xHI_dimensionless=getattr(fluid, "xHI", None),
             )
         if canonical_cosmological_schema:
             if "boundary_comoving_code" not in gdata:

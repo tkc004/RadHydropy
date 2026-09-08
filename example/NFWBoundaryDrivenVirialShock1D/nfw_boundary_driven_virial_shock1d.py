@@ -101,6 +101,15 @@ def _run_stage(config, halo, mode, restart=False):
     sim.solver = BoundaryAccretionSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     if restart:
+        # A restart snapshot carries the previous stage's output settings.
+        # Restore the current stage's destinations and schedule after reading
+        # the snapshot so PIE outputs are selected and written for this stage.
+        sim.par.outdir = par_config['output']['directory']
+        sim.par.savedir = par_config['output']['savedir']
+        sim.par.outfileprefix = par_config['output']['filename_prefix']
+        sim.par.outputtimefilename = par_config['output']['time_list_filename']
+        sim.par._sync_output_parameters()
+    if restart:
         _strip_snapshot_ghosts(sim)
     sim.SetMesh()
     sim.SetFluid()
@@ -167,11 +176,17 @@ def _write_adiabatic_energy_audit(files, code_unit_system, filename):
 
 def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
     times = rio.load_output_time_list(filename).to_value(unyt.Myr)
+    if offset_myr:
+        # Restart schedules are absolute times.  The restart itself is also
+        # retained as the first diagnostic snapshot.
+        times = times[times >= float(offset_myr)]
+        if not len(times) or times[0] > float(offset_myr):
+            times = np.insert(times, 0, float(offset_myr))
     if len(times) != expected_count:
         raise ValueError(
             f'{filename} contains {len(times)} times for {expected_count} snapshots'
         )
-    return times + float(offset_myr)
+    return times
 
 
 def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):

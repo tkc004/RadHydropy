@@ -25,12 +25,16 @@ def measure(par, initial_condition, example_config):
      cumulative_potential_flux) = (
         run_simulation(par, initial_condition, example_config)
     )
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
+    first = int(sim.par.mesh.ghost_cells)
+    count = int(sim.par.mesh.grid_cells)
+    active = slice(first, first + count)
     source_boundary = np.asarray(
-        saved_mesh.boundary[sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1],
+        saved_mesh.boundary_proper_code[first:first + count + 1],
         dtype=float,
     )
-    saved_radius = spherical_centers(np.asarray(saved_mesh.boundary, dtype=float))[active]
+    saved_radius = spherical_centers(
+        np.asarray(saved_mesh.boundary_proper_code, dtype=float)
+    )[active]
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time_proper_code)

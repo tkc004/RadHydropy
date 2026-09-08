@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(
         initial_condition['gravity_strength'],
-            code_units=code_units_obj,
+            code_unit_system=code_units_obj,
         ),
         code_units=code_units_obj,
     )

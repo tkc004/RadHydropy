@@ -44,9 +44,9 @@ def build_initial_condition(config):
             setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
     sim.par.mesh.ghost_cells = 0
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(PROPER_RUNTIME_FIELDS,
-        coordinate=sim.mesh.x_proper_code[first:last], boundary=sim.mesh.boundary_proper_code,
-        width=sim.mesh.width_proper_code[first:last], area=sim.mesh.area_proper_code[first:last],
-        volume=sim.mesh.volume_proper_code[first:last])
+        x_proper_code=sim.mesh.x_proper_code[first:last], boundary_proper_code=sim.mesh.boundary_proper_code,
+        width_proper_code=sim.mesh.width_proper_code[first:last], area_proper_code=sim.mesh.area_proper_code[first:last],
+        volume_proper_code=sim.mesh.volume_proper_code[first:last])
     sim.fluid._refresh_runtime_state()
 
 
@@ -54,7 +54,6 @@ def build_initial_condition(config):
 
 def ReadandPlot(outfilename, config, **kwargs):
     initial = config['initial_condition']
-    run = config['par']
     rout = Rsim(config['par'])
     code_units_obj = config['_code_units']
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)

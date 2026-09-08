@@ -33,11 +33,11 @@ def build_initial_condition(config):
         setattr(result.fluid, field, as_named_array(getattr(result.fluid, field)[first:last]))
     result.par.mesh.ghost_cells = 0
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate,
-        boundary=result.mesh.boundary_proper_code,
-        width=np.diff(result.mesh.boundary_proper_code),
-        area=4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (result.mesh.boundary_proper_code[1:]**3 - result.mesh.boundary_proper_code[:-1]**3),
+        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate,
+        boundary_proper_code=result.mesh.boundary_proper_code,
+        width_proper_code=np.diff(result.mesh.boundary_proper_code),
+        area_proper_code=4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2,
+        volume_proper_code=4.0 * np.pi / 3.0 * (result.mesh.boundary_proper_code[1:]**3 - result.mesh.boundary_proper_code[:-1]**3),
     )
     result.fluid.SetPressure()
     result.fluid.SetEnergyDensity()

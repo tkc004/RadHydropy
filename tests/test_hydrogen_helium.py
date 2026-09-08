@@ -148,13 +148,13 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             SUPERCOMOVING_RUNTIME_FIELDS,
-            density=fluid.rho_comoving_code,
-            velocity=fluid.vel_supercomoving_code,
-            pressure=fluid.pre_supercomoving_code,
-            temperature=fluid.temp_supercomoving_code,
-            time=fluid.tau_supercomoving_code,
-            mu=fluid.mu,
-            xHI=fluid.xHI,
+            rho_comoving_code=fluid.rho_comoving_code,
+            vel_supercomoving_code=fluid.vel_supercomoving_code,
+            pre_supercomoving_code=fluid.pre_supercomoving_code,
+            temp_supercomoving_code=fluid.temp_supercomoving_code,
+            tau_supercomoving_code=fluid.tau_supercomoving_code,
+            mu_dimensionless=fluid.mu,
+            xHI_dimensionless=fluid.xHI,
         )
         mesh = SimpleNamespace(
             geometry_state=MeshGeometryState(

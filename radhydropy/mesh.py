@@ -139,12 +139,8 @@ class Mesh:
 
         self.geometry_state = MeshGeometryState.from_arrays(
             self.runtime_fields,
-            coordinate=self.x_comoving_code,
-            boundary=self.boundary_comoving_code,
-            width=self.width_comoving_code,
-            area=self.area_comoving_code,
-            volume=self.volume_comoving_code,
-        )
+            **{self.runtime_fields.coordinate: self.x_comoving_code, self.runtime_fields.boundary: self.boundary_comoving_code, self.runtime_fields.width: self.width_comoving_code, self.runtime_fields.area: self.area_comoving_code, self.runtime_fields.volume: self.volume_comoving_code},
+            )
             
         if np.any(self.volume_comoving_code == 0.0) or np.any(np.isnan(self.volume_comoving_code)):
             raise ValueError("volume vanished") 
@@ -237,12 +233,8 @@ class Mesh:
         self.runtime_fields = runtime_fields(par)
         self.geometry_state = MeshGeometryState.from_arrays(
             self.runtime_fields,
-            coordinate=self.x_proper_code,
-            boundary=self.boundary_proper_code,
-            width=self.width_proper_code,
-            area=self.area_proper_code,
-            volume=self.volume_proper_code,
-        )
+            **{self.runtime_fields.coordinate: self.x_proper_code, self.runtime_fields.boundary: self.boundary_proper_code, self.runtime_fields.width: self.width_proper_code, self.runtime_fields.area: self.area_proper_code, self.runtime_fields.volume: self.volume_proper_code},
+            )
         if np.any(self.volume_proper_code == 0.0) or np.any(
             np.isnan(self.volume_proper_code)
         ):

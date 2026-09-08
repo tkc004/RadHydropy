@@ -146,8 +146,8 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     mesh = SimpleNamespace(coordsys='spherical')
     mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        coordinate=x, boundary=np.array([0.75, 2.25, 3.75]),
-        width=np.ones(2), area=np.ones(2), volume=np.ones(2),
+        x_comoving_code=x, boundary_comoving_code=np.array([0.75, 2.25, 3.75]),
+        width_comoving_code=np.ones(2), area_comoving_code=np.ones(2), volume_comoving_code=np.ones(2),
     )
     fluid = SimpleNamespace(
         rho_comoving_code=rho_sc,
@@ -155,8 +155,8 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=rho_sc, velocity=np.zeros(2), pressure=np.ones(2),
-        temperature=np.ones(2), time=tau,
+        rho_comoving_code=rho_sc, vel_supercomoving_code=np.zeros(2), pre_supercomoving_code=np.ones(2),
+        temp_supercomoving_code=np.ones(2), tau_supercomoving_code=tau,
     )
     options = SimpleNamespace(
         gas_rotational_energy=True,
@@ -200,8 +200,8 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     mesh = SimpleNamespace(coordsys='spherical')
     mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        coordinate=np.array([x]), boundary=np.array([x - 0.5, x + 0.5]),
-        width=np.array([1.0]), area=np.array([1.0]), volume=np.array([1.0]),
+        x_comoving_code=np.array([x]), boundary_comoving_code=np.array([x - 0.5, x + 0.5]),
+        width_comoving_code=np.array([1.0]), area_comoving_code=np.array([1.0]), volume_comoving_code=np.array([1.0]),
     )
     fluid = SimpleNamespace(
         rho_comoving_code=np.array([mass]), Mass_code=np.array([mass]), Mom_code=np.array([0.0]),
@@ -209,8 +209,8 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=fluid.rho_comoving_code, velocity=np.array([0.0]),
-        pressure=np.ones(1), temperature=np.ones(1), time=tau,
+        rho_comoving_code=fluid.rho_comoving_code, vel_supercomoving_code=np.array([0.0]),
+        pre_supercomoving_code=np.ones(1), temp_supercomoving_code=np.ones(1), tau_supercomoving_code=tau,
     )
 
     solver = Solver()
@@ -310,12 +310,12 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     fluid = SimpleNamespace(
         runtime_state=FluidRuntimeState.from_arrays(
             SUPERCOMOVING_RUNTIME_FIELDS,
-            density=np.asarray(rho_quantity.to_value(units.density_unit)),
-            velocity=np.zeros(2),
-            pressure=np.zeros(2),
-            temperature=np.ones(2),
-            time=tau_initial,
-            mu=np.ones(2),
+            rho_comoving_code=np.asarray(rho_quantity.to_value(units.density_unit)),
+            vel_supercomoving_code=np.zeros(2),
+            pre_supercomoving_code=np.zeros(2),
+            temp_supercomoving_code=np.ones(2),
+            tau_supercomoving_code=tau_initial,
+            mu_dimensionless=np.ones(2),
         ),
         mu=np.ones(2),
         specific_angular_momentum_code=specific_quantity,
@@ -394,12 +394,12 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     fluid = SimpleNamespace(
         runtime_state=FluidRuntimeState.from_arrays(
             SUPERCOMOVING_RUNTIME_FIELDS,
-            density=np.ones(2) * 4.0,
-            velocity=np.ones(2) * 2.0,
-            pressure=np.zeros(2),
-            temperature=np.ones(2) * 3.0,
-            time=tau,
-            mu=np.ones(2),
+            rho_comoving_code=np.ones(2) * 4.0,
+            vel_supercomoving_code=np.ones(2) * 2.0,
+            pre_supercomoving_code=np.zeros(2),
+            temp_supercomoving_code=np.ones(2) * 3.0,
+            tau_supercomoving_code=tau,
+            mu_dimensionless=np.ones(2),
         ),
         mu=np.ones(2),
     )
@@ -449,8 +449,8 @@ def test_lambda_cdm_header_round_trip():
     fluid = SimpleNamespace(
         runtime_state=FluidRuntimeState.from_arrays(
             SUPERCOMOVING_RUNTIME_FIELDS,
-            density=np.ones(1), velocity=np.zeros(1), pressure=np.zeros(1),
-            temperature=np.ones(1), time=tau, mu=np.ones(1),
+            rho_comoving_code=np.ones(1), vel_supercomoving_code=np.zeros(1), pre_supercomoving_code=np.zeros(1),
+            temp_supercomoving_code=np.ones(1), tau_supercomoving_code=tau, mu_dimensionless=np.ones(1),
         ),
         mu=np.ones(1),
     )

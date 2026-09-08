@@ -40,9 +40,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(par['units']['CodeUnits'])
-
-    config['_code_units'] = code_units_obj
-    ric = et.build_initial_condition(config, code_unit_system=code_units_obj)
+    ric = et.build_initial_condition(config)
     initial_filename = Path(par['simulation']['initial_condition_filename'])
     rio.writehdf5(ric, initial_filename)
 

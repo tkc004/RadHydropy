@@ -138,13 +138,13 @@ def test_fluid_exposes_validated_runtime_state():
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=fluid.time_proper_code,
-        mu=fluid.mu,
-        xHI=fluid.xHI,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=fluid.time_proper_code,
+        mu_dimensionless=fluid.mu,
+        xHI_dimensionless=fluid.xHI,
     )
 
     state = fluid.code_state
@@ -167,12 +167,12 @@ def test_fluid_runtime_state_rejects_unitful_arrays():
     with pytest.raises(TypeError, match="unitless numeric fluid code value"):
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=fluid.rho_proper_code,
-            velocity=fluid.vel_proper_code,
-            pressure=fluid.pre_proper_code,
-            temperature=fluid.temp_proper_code,
-            time=fluid.time_proper_code,
-            mu=fluid.mu,
+            rho_proper_code=fluid.rho_proper_code,
+            vel_proper_code=fluid.vel_proper_code,
+            pre_proper_code=fluid.pre_proper_code,
+            temp_proper_code=fluid.temp_proper_code,
+            time_proper_code=fluid.time_proper_code,
+            mu_dimensionless=fluid.mu,
         )
 
 
@@ -186,13 +186,13 @@ def test_hydrogen_source_state_uses_typed_cgs_boundary(code_units):
     fluid.pre_proper_code = np.ones(1)
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=0.0,
-        mu=np.ones(1),
-        xHI=fluid.xHI,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=0.0,
+        mu_dimensionless=np.ones(1),
+        xHI_dimensionless=fluid.xHI,
     )
 
     mesh = SimpleNamespace(
@@ -202,9 +202,9 @@ def test_hydrogen_source_state_uses_typed_cgs_boundary(code_units):
     )
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=mesh.coordinate,
-        boundary=mesh.boundary,
-        width=np.ones(1), area=np.ones(1), volume=mesh.vol,
+        x_proper_code=mesh.coordinate,
+        boundary_proper_code=mesh.boundary,
+        width_proper_code=np.ones(1), area_proper_code=np.ones(1), volume_proper_code=mesh.vol,
     )
     par = SimpleNamespace(
         units=SimpleNamespace(CodeUnits=code_units),

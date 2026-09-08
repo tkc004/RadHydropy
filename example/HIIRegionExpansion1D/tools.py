@@ -21,6 +21,7 @@ from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
+from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 
 
 def build_problem(config):
@@ -120,15 +121,38 @@ def build_problem(config):
     boundary_proper_cgs_cm_unyt = np.linspace(
         0.0, box_size.to_value(unyt.cm), grid_cells + 1
     ) * unyt.cm
-    mesh.boundary = boundary_proper_cgs_cm_unyt
+    boundary_proper_code = boundary_proper_cgs_cm_unyt.to_value(code_units.length_unit)
+    mesh.boundary_proper_code = boundary_proper_code
+    mesh.x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    mesh.width_proper_code = np.diff(boundary_proper_code)
+    mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
+    mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
+    mesh.runtime_fields = PROPER_RUNTIME_FIELDS
+    mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        x_proper_code=mesh.x_proper_code,
+        boundary_proper_code=mesh.boundary_proper_code,
+        width_proper_code=mesh.width_proper_code,
+        area_proper_code=mesh.area_proper_code,
+        volume_proper_code=mesh.volume_proper_code,
+    )
     fluid = Fluid()
     fluid.eos = EOS(par.EOStype, par.gamma, code_units)
-    fluid.rho_proper_code = np.ones(grid_cells) * initial['rho_initial']
+    fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(
+        initial['rho_initial'], code_units.density_unit
+    )
     fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
-    fluid.temp_proper_code = np.ones(grid_cells) * initial['neutral_temperature']
+    fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(
+        initial['neutral_temperature'], code_units.temperature_unit
+    )
     fluid.mu = np.ones(grid_cells)
     fluid.xHI = np.ones(grid_cells)
     fluid.SetFluidTime(initial.get('current_time', 0.0 * unyt.Myr))
+    fluid.pre_proper_code = fluid.eos.pressure(
+        fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+    )
+    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    fluid._refresh_runtime_state()
     return par, mesh, fluid, Solver()
 
 
@@ -415,7 +439,7 @@ def _scalar_in_unit(value, unit):
 
 def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
     interior = interior_slice(par)
-    radius = _value_in_unit(mesh.coordinate[interior], unyt.pc)
+    radius = _value_in_unit(mesh.x_proper_code[interior], unyt.pc)
     xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
 
     ionized = xHII >= ionized_fraction
@@ -459,7 +483,7 @@ def density_snapshot(mesh, fluid, par):
         ngamma_code = np.sum(ngamma_code, axis=0)
     return {
         'time_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
-        'radius_pc': _value_in_unit(mesh.coordinate[interior], unyt.pc).copy(),
+        'radius_pc': _value_in_unit(mesh.x_proper_code[interior], unyt.pc).copy(),
         'density_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
         'radiation_density_cgs_cm3': _value_in_unit(
             ngamma_code[interior], 1.0 / unyt.cm**3

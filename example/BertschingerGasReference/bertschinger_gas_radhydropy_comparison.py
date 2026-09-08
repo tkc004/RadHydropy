@@ -242,12 +242,12 @@ def build_initial_condition(config):
     )
     sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=sim.fluid.rho_comoving_code,
-        velocity=sim.fluid.vel_supercomoving_code,
-        pressure=np.zeros_like(sim.fluid.rho_comoving_code),
-        temperature=sim.fluid.temp_supercomoving_code,
-        time=sim.fluid.tau_supercomoving_code,
-        mu=sim.fluid.mu,
+        rho_comoving_code=sim.fluid.rho_comoving_code,
+        vel_supercomoving_code=sim.fluid.vel_supercomoving_code,
+        pre_supercomoving_code=np.zeros_like(sim.fluid.rho_comoving_code),
+        temp_supercomoving_code=sim.fluid.temp_supercomoving_code,
+        tau_supercomoving_code=sim.fluid.tau_supercomoving_code,
+        mu_dimensionless=sim.fluid.mu,
     )
 
     sim.dark_matter = DarkMatterShells(
@@ -367,6 +367,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
     sim.SetInitFluid()
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.par.cosmology = initial.par.cosmology
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,

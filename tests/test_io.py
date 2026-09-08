@@ -39,11 +39,11 @@ def _attach_proper_runtime_state(mesh, fluid):
     width_proper_code = np.diff(boundary_proper_code)
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
-        boundary=boundary_proper_code,
-        width=width_proper_code,
-        area=np.ones_like(width_proper_code),
-        volume=width_proper_code,
+        x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=np.ones_like(width_proper_code),
+        volume_proper_code=width_proper_code,
     )
     density_proper_code = np.asarray(
         fluid.rho_code.to_value(unyt.g / unyt.cm**3), dtype=float
@@ -61,13 +61,13 @@ def _attach_proper_runtime_state(mesh, fluid):
     fluid.time_proper_code = 0.0
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=density_proper_code,
-        velocity=velocity_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=temperature_proper_code,
-        time=fluid.time_proper_code,
-        mu=getattr(fluid, "mu", None),
-        xHI=getattr(fluid, "xHI", None),
+        rho_proper_code=density_proper_code,
+        vel_proper_code=velocity_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=temperature_proper_code,
+        time_proper_code=fluid.time_proper_code,
+        mu_dimensionless=getattr(fluid, "mu", None),
+        xHI_dimensionless=getattr(fluid, "xHI", None),
     )
     return mesh, fluid
 

@@ -253,11 +253,11 @@ class Mesh:
     vol = 4.0 * np.pi / 3.0 * np.diff(boundary**3)
     geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate,
-        boundary=boundary,
-        width=np.diff(boundary),
-        area=4.0 * np.pi * coordinate**2,
-        volume=vol,
+        x_proper_code=coordinate,
+        boundary_proper_code=boundary,
+        width_proper_code=np.diff(boundary),
+        area_proper_code=4.0 * np.pi * coordinate**2,
+        volume_proper_code=vol,
     )
 
 
@@ -349,20 +349,20 @@ def test_dark_matter_snapshot_group_is_written():
         time_proper_code = 0.0
         runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=rho_proper_code,
-            velocity=vel_proper_code,
-            pressure=pre_proper_code,
-            temperature=temp_proper_code,
-            time=time_proper_code,
-            mu=mu,
+            rho_proper_code=rho_proper_code,
+            vel_proper_code=vel_proper_code,
+            pre_proper_code=pre_proper_code,
+            temp_proper_code=temp_proper_code,
+            time_proper_code=time_proper_code,
+            mu_dimensionless=mu,
         )
     class MeshForIO:
         boundary = np.array([0.0, 1.0, 2.0])
         geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            coordinate=np.array([0.5, 1.5]),
-            boundary=boundary,
-            width=np.ones(2), area=np.ones(2), volume=np.ones(2),
+            x_proper_code=np.array([0.5, 1.5]),
+            boundary_proper_code=boundary,
+            width_proper_code=np.ones(2), area_proper_code=np.ones(2), volume_proper_code=np.ones(2),
         )
     class ParForIO:
         def __init__(self):
@@ -403,21 +403,21 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
         time_proper_code = 0.0
         runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=rho_proper_code,
-            velocity=vel_proper_code,
-            pressure=pre_proper_code,
-            temperature=temp_proper_code,
-            time=time_proper_code,
-            mu=mu,
+            rho_proper_code=rho_proper_code,
+            vel_proper_code=vel_proper_code,
+            pre_proper_code=pre_proper_code,
+            temp_proper_code=temp_proper_code,
+            time_proper_code=time_proper_code,
+            mu_dimensionless=mu,
         )
 
     class MeshForIO:
         boundary = np.array([0.0, 1.0, 2.0])
         geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            coordinate=np.array([0.5, 1.5]),
-            boundary=boundary,
-            width=np.ones(2), area=np.ones(2), volume=np.ones(2),
+            x_proper_code=np.array([0.5, 1.5]),
+            boundary_proper_code=boundary,
+            width_proper_code=np.ones(2), area_proper_code=np.ones(2), volume_proper_code=np.ones(2),
         )
 
     class ParForIO:

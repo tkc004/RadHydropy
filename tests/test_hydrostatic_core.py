@@ -30,9 +30,9 @@ def _core_problem(model="hydrostatic_fixed"):
     )
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=np.array([1.0, 2.0, 4.0, 8.0, 16.0, 32.0]),
-        boundary=np.array([0.5, 1.5, 3.0, 6.0, 12.0, 24.0, 40.0]),
-        width=np.ones(6), area=np.ones(6), volume=np.ones(6),
+        x_proper_code=np.array([1.0, 2.0, 4.0, 8.0, 16.0, 32.0]),
+        boundary_proper_code=np.array([0.5, 1.5, 3.0, 6.0, 12.0, 24.0, 40.0]),
+        width_proper_code=np.ones(6), area_proper_code=np.ones(6), volume_proper_code=np.ones(6),
     )
     fluid = SimpleNamespace(
         rho_code=np.ones(6),
@@ -43,9 +43,9 @@ def _core_problem(model="hydrostatic_fixed"):
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_code, velocity=fluid.vel_code,
-        pressure=fluid.pre_code, temperature=fluid.temp_code, time=0.0,
-        mu=fluid.mu,
+        rho_proper_code=fluid.rho_code, vel_proper_code=fluid.vel_code,
+        pre_proper_code=fluid.pre_code, temp_proper_code=fluid.temp_code, time_proper_code=0.0,
+        mu_dimensionless=fluid.mu,
     )
     fluid.rho_proper_code = fluid.rho_code
     fluid.vel_proper_code = fluid.vel_code

@@ -75,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         density_history.append(density)
         temperature_history.append(temperature)
         history.append({
-            "time": float(np.asarray(state.par.simulation.time_proper_code).flat[0]),
+            "time": float(np.asarray(state.fluid.time_proper_code).flat[0]),
             **et.energy_components(state),
         })
     if not history:

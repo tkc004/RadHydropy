@@ -45,9 +45,9 @@ def build_initial_condition(config):
     coordinate = 0.75 * (boundary[1:]**4 - boundary[:-1]**4) / (boundary[1:]**3 - boundary[:-1]**3)
     sim.mesh.boundary_proper_code = boundary
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
-        width=np.diff(boundary), area=4.0 * np.pi * boundary[:-1]**2,
-        volume=volume,
+        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
+        width_proper_code=np.diff(boundary), area_proper_code=4.0 * np.pi * boundary[:-1]**2,
+        volume_proper_code=volume,
     )
     halo = nfw_halo_parameters(
         initial['halo_mass'], initial['concentration'], initial['redshift'],

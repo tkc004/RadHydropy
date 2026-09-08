@@ -36,11 +36,11 @@ def build_initial_condition(config):
     sim.mesh.boundary_proper_code = boundary_proper_code
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate_proper_code,
-        boundary=boundary_proper_code,
-        width=width_proper_code,
-        area=np.ones(grid_cells),
-        volume=width_proper_code,
+        x_proper_code=coordinate_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=np.ones(grid_cells),
+        volume_proper_code=width_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.full(grid_cells, initial['initial_density']),
@@ -60,14 +60,14 @@ def build_initial_condition(config):
     phase_dimensionless = (
         2.0 * np.pi * coordinate_proper_code / box_size_proper_code
     )
-    angular_momentum_unit = code_units.length_unit * code_units.velocity_unit
-    angular_momentum_offset_code = quantity_to_value(
-        initial['angular_momentum_offset'], angular_momentum_unit
-    )
-    angular_momentum_amplitude_code = quantity_to_value(
-        initial['angular_momentum_amplitude'], angular_momentum_unit
-    )
     if initial.get('include_angular_momentum', True):
+        angular_momentum_unit = code_units.length_unit * code_units.velocity_unit
+        angular_momentum_offset_code = quantity_to_value(
+            initial['angular_momentum_offset'], angular_momentum_unit
+        )
+        angular_momentum_amplitude_code = quantity_to_value(
+            initial['angular_momentum_amplitude'], angular_momentum_unit
+        )
         sim.fluid.specific_angular_momentum_code = as_named_array(
             angular_momentum_offset_code
             + angular_momentum_amplitude_code * np.sin(phase_dimensionless)
@@ -77,11 +77,11 @@ def build_initial_condition(config):
     sim.fluid.SetPressure()
     sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=sim.fluid.rho_proper_code,
-        velocity=sim.fluid.vel_proper_code,
-        pressure=sim.fluid.pre_proper_code,
-        temperature=sim.fluid.temp_proper_code,
-        time=sim.fluid.time_proper_code,
-        mu=sim.fluid.mu,
+        rho_proper_code=sim.fluid.rho_proper_code,
+        vel_proper_code=sim.fluid.vel_proper_code,
+        pre_proper_code=sim.fluid.pre_proper_code,
+        temp_proper_code=sim.fluid.temp_proper_code,
+        time_proper_code=sim.fluid.time_proper_code,
+        mu_dimensionless=sim.fluid.mu,
     )
     return sim

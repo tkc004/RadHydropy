@@ -272,6 +272,10 @@ def run_case(config, label, rotation_factor):
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
     sim.SetInitFluid()
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.par.cosmology = cosmology
     active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     target_mass = np.cumsum(

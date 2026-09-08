@@ -41,7 +41,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     runtime = config['par']
     initial_condition = config['initial_condition']
-    code_units = et.load_units(runtime)
+    code_units = et.load_units(config)
     shell = et.make_shell(initial_condition, code_units)
     g_code = (
         6.67430e-8 * code_units.mass_in_cgs
@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
     time = 0.0
     while time < reference.t[-1]:
         dt = min(
-            float(par_config['output_interval']) / 4.0,
+            float(runtime['timestep']['output_interval']) / 4.0,
             reference.t[-1] - time,
         )
         time += shell.step(dt)
@@ -119,7 +119,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(par_config['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
+    figure = Path(runtime['output']['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

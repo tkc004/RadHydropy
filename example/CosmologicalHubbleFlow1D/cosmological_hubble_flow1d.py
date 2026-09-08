@@ -136,6 +136,10 @@ def run():
         sim.SetFluid()
         sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
         sim.SetInitFluid()
+        initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+        sim.par.tau_supercomoving_code = initial_tau.copy()
+        sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+        sim.fluid.SetFluidTime(initial_tau)
         sim.par.cosmology = code_cosmology
         sim.Run(outputtime=0)
 

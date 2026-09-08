@@ -996,6 +996,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     # IC/HDF5 restoration serializes the PIE table as metadata.  Rehydrate
     # the interpolation object before the run switches to the PIE network.
     metal_table = getattr(sim.par, "metal_pie_table", None)
@@ -1006,7 +1010,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         sim.par.metal_pie_table = MetalPIETable(table_filename)
         if hasattr(sim.par, "radiation"):
             sim.par.radiation.metal_pie_table = sim.par.metal_pie_table
-    sim.fluid.tau_supercomoving_code = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     dm_for_gas = (
         et.VolumeSmoothedDarkMatter(dm)
         if bool(hydro.get("smooth_dm_force_for_gas", False))

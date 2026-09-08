@@ -70,20 +70,20 @@ def _floatify_hydrostatic_simwrap(simwrap, code_units):
     )
     simwrap.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=simwrap.mesh.x_proper_code,
-        boundary=simwrap.mesh.boundary_proper_code,
-        width=simwrap.mesh.boundary_proper_code[1:] - simwrap.mesh.boundary_proper_code[:-1],
-        area=simwrap.mesh.area_proper_code,
-        volume=simwrap.mesh.volume_proper_code,
+        x_proper_code=simwrap.mesh.x_proper_code,
+        boundary_proper_code=simwrap.mesh.boundary_proper_code,
+        width_proper_code=simwrap.mesh.boundary_proper_code[1:] - simwrap.mesh.boundary_proper_code[:-1],
+        area_proper_code=simwrap.mesh.area_proper_code,
+        volume_proper_code=simwrap.mesh.volume_proper_code,
     )
     simwrap.fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=simwrap.fluid.rho_proper_code,
-        velocity=simwrap.fluid.vel_proper_code,
-        pressure=simwrap.fluid.pre_proper_code,
-        temperature=simwrap.fluid.temp_proper_code,
-        time=0.0,
-        mu=simwrap.fluid.mu,
+        rho_proper_code=simwrap.fluid.rho_proper_code,
+        vel_proper_code=simwrap.fluid.vel_proper_code,
+        pre_proper_code=simwrap.fluid.pre_proper_code,
+        temp_proper_code=simwrap.fluid.temp_proper_code,
+        time_proper_code=0.0,
+        mu_dimensionless=simwrap.fluid.mu,
     )
     return simwrap
 
@@ -244,20 +244,20 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
     )
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=full_coordinate,
-        boundary=full_boundary,
-        width=full_boundary[1:] - full_boundary[:-1],
-        area=np.ones(len(full_coordinate), dtype=float),
-        volume=full_boundary[1:] - full_boundary[:-1],
+        x_proper_code=full_coordinate,
+        boundary_proper_code=full_boundary,
+        width_proper_code=full_boundary[1:] - full_boundary[:-1],
+        area_proper_code=np.ones(len(full_coordinate), dtype=float),
+        volume_proper_code=full_boundary[1:] - full_boundary[:-1],
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=0.0,
-        mu=fluid.mu,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=0.0,
+        mu_dimensionless=fluid.mu,
     )
     fluid.rho_proper_code = fluid.rho_proper_code
     fluid.vel_proper_code = fluid.vel_proper_code

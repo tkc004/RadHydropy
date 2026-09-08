@@ -1144,11 +1144,11 @@ class Testing(unittest.TestCase):
         width_proper_code = np.diff(boundary_proper_code)
         mesh.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            coordinate=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
-            boundary=boundary_proper_code,
-            width=width_proper_code,
-            area=np.ones_like(width_proper_code),
-            volume=width_proper_code,
+            x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
+            boundary_proper_code=boundary_proper_code,
+            width_proper_code=width_proper_code,
+            area_proper_code=np.ones_like(width_proper_code),
+            volume_proper_code=width_proper_code,
         )
         density_proper_code = np.asarray(
             fluid.rho_proper_code.to_value(par.CodeUnits.density_unit)
@@ -1175,13 +1175,13 @@ class Testing(unittest.TestCase):
         )
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=density_proper_code,
-            velocity=velocity_proper_code,
-            pressure=pressure_proper_code,
-            temperature=temperature_proper_code,
-            time=0.0,
-            mu=fluid.mu,
-            xHI=fluid.xHI,
+            rho_proper_code=density_proper_code,
+            vel_proper_code=velocity_proper_code,
+            pre_proper_code=pressure_proper_code,
+            temp_proper_code=temperature_proper_code,
+            time_proper_code=0.0,
+            mu_dimensionless=fluid.mu,
+            xHI_dimensionless=fluid.xHI,
         )
         fluid.time_proper_code = 0.0
 

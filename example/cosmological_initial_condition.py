@@ -156,19 +156,19 @@ def build_initial_condition(config):
     result.fluid.pre_supercomoving_code = pre_supercomoving_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        coordinate=result.mesh.x_comoving_code,
-        boundary=result.mesh.boundary_comoving_code,
-        width=result.mesh.width_comoving_code,
-        area=result.mesh.area_comoving_code,
-        volume=result.mesh.volume_comoving_code,
+        x_comoving_code=result.mesh.x_comoving_code,
+        boundary_comoving_code=result.mesh.boundary_comoving_code,
+        width_comoving_code=result.mesh.width_comoving_code,
+        area_comoving_code=result.mesh.area_comoving_code,
+        volume_comoving_code=result.mesh.volume_comoving_code,
     )
     result.fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=rho_comoving_code,
-        velocity=vel_supercomoving_code,
-        pressure=pre_supercomoving_code,
-        temperature=temp_supercomoving_code,
-        time=result.fluid.tau_supercomoving_code,
-        mu=mu,
+        rho_comoving_code=rho_comoving_code,
+        vel_supercomoving_code=vel_supercomoving_code,
+        pre_supercomoving_code=pre_supercomoving_code,
+        temp_supercomoving_code=temp_supercomoving_code,
+        tau_supercomoving_code=result.fluid.tau_supercomoving_code,
+        mu_dimensionless=mu,
     )
     return Rsim.FromComponents(result.par, result.mesh, result.fluid, result.solver)

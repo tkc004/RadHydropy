@@ -78,11 +78,11 @@ def build_initial_condition(config):
     area_values = 4.0 * np.pi * boundary_values[:-1] ** 2
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate_values,
-        boundary=boundary_values,
-        width=width_values,
-        area=area_values,
-        volume=volume_values,
+        x_proper_code=coordinate_values,
+        boundary_proper_code=boundary_values,
+        width_proper_code=width_values,
+        area_proper_code=area_values,
+        volume_proper_code=volume_values,
     )
     sim.fluid.rho_proper_code = initial_config['initial_density'] * np.ones(grid_cells)
     sim.fluid.vel_proper_code = initial_config['velocity'] * np.ones(grid_cells)

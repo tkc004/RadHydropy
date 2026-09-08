@@ -6,8 +6,8 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits
 
 
-def load_units(par_config):
-    return CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+def load_units(config):
+    return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 
 def make_shell(initial_condition, code_unit_system):
@@ -25,7 +25,7 @@ def make_shell(initial_condition, code_unit_system):
         angular_momentum=[initial_condition['specific_angular_momentum']],
         softening=initial_condition['softening'],
         fixed_enclosed_mass=enclosed_mass,
-        code_unit_system=code_unit_system,
+        code_units=code_unit_system,
     )
 
 

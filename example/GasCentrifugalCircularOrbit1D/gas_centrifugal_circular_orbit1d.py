@@ -35,10 +35,10 @@ def prepare_initial_condition(initial):
         initial.mesh.boundary_proper_code, dtype=float
     )
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=initial.mesh.x_proper_code,
-        boundary=boundary_proper_code, width=np.diff(boundary_proper_code),
-        area=4.0 * np.pi * boundary_proper_code[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (
+        PROPER_RUNTIME_FIELDS, x_proper_code=initial.mesh.x_proper_code,
+        boundary_proper_code=boundary_proper_code, width_proper_code=np.diff(boundary_proper_code),
+        area_proper_code=4.0 * np.pi * boundary_proper_code[:-1]**2,
+        volume_proper_code=4.0 * np.pi / 3.0 * (
             boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
         ),
     )
@@ -46,10 +46,10 @@ def prepare_initial_condition(initial):
     initial.fluid.time_proper_code = 0.0
     initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, density=initial.fluid.rho_proper_code,
-        velocity=initial.fluid.vel_proper_code, pressure=initial.fluid.pre_proper_code,
-        temperature=initial.fluid.temp_proper_code, time=0.0,
-        mu=initial.fluid.mu,
+        PROPER_RUNTIME_FIELDS, rho_proper_code=initial.fluid.rho_proper_code,
+        vel_proper_code=initial.fluid.vel_proper_code, pre_proper_code=initial.fluid.pre_proper_code,
+        temp_proper_code=initial.fluid.temp_proper_code, time_proper_code=0.0,
+        mu_dimensionless=initial.fluid.mu,
     )
 
 
@@ -156,10 +156,10 @@ def main(config_filename=CONFIG):
         ),
     )
     mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=mesh.coordinate,
-        boundary=np.linspace(radius - 0.5, radius + 0.5, count + 1),
-        width=np.ones(count), area=4.0 * np.pi * np.ones(count) * radius**2,
-        volume=volume,
+        PROPER_RUNTIME_FIELDS, x_proper_code=mesh.coordinate,
+        boundary_proper_code=np.linspace(radius - 0.5, radius + 0.5, count + 1),
+        width_proper_code=np.ones(count), area_proper_code=4.0 * np.pi * np.ones(count) * radius**2,
+        volume_proper_code=volume,
     )
     par = mesh._par
     par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=count)
@@ -287,10 +287,10 @@ def main(config_filename=CONFIG):
         vol=np.asarray([1.0]),
     )
     shell_mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=np.asarray([radius]),
-        boundary=np.asarray([radius - 0.5, radius + 0.5]),
-        width=np.asarray([1.0]), area=np.asarray([4.0 * np.pi * radius**2]),
-        volume=np.asarray([1.0]),
+        PROPER_RUNTIME_FIELDS, x_proper_code=np.asarray([radius]),
+        boundary_proper_code=np.asarray([radius - 0.5, radius + 0.5]),
+        width_proper_code=np.asarray([1.0]), area_proper_code=np.asarray([4.0 * np.pi * radius**2]),
+        volume_proper_code=np.asarray([1.0]),
     )
     shell_par = SimpleNamespace(
         gas_angular_momentum=True, gas_rotational_energy=True,

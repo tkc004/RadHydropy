@@ -53,20 +53,20 @@ def build_initial_condition(config):
         np.linspace(0.0, initial['box_size'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units.length_unit,
     ))
-    boundary = sim.mesh.boundary_proper_code
-    width = np.diff(boundary)
+    boundary_proper_code = sim.mesh.boundary_proper_code
+    width_proper_code = np.diff(boundary_proper_code)
     area = np.ones(grid_cells) * quantity_to_value(
         par_config['mesh']['area'], code_units.area_unit
     )
-    volume = width * area
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
+    volume_proper_code = width_proper_code * area
+    coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate,
-        boundary=boundary,
-        width=width,
-        area=area,
-        volume=volume,
+        x_proper_code=coordinate_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=area,
+        volume_proper_code=volume_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * initial['initial_density'], code_units.density_unit
@@ -108,10 +108,10 @@ def _absorbed_momentum(source_result, mesh, par, dt):
         absorbed = absorbed[None, :]
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
     interior = slice(par.mesh.ghost_cells, par.mesh.ghost_cells + par.mesh.grid_cells)
-    volume = np.asarray(mesh.geometry_state.volume_proper_code[interior], dtype=float)
+    volume_proper_code = np.asarray(mesh.geometry_state.volume_proper_code[interior], dtype=float)
     absorbed_energy = np.sum(absorbed * energies[:, None], axis=0)
     direction = float(source_result.get("direction", 1))
-    return direction * float(np.sum(absorbed_energy * volume * dt) / unyt.c.to_value(unyt.cm / unyt.s))
+    return direction * float(np.sum(absorbed_energy * volume_proper_code * dt) / unyt.c.to_value(unyt.cm / unyt.s))
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -167,13 +167,13 @@ def main(config_filename=DEFAULT_CONFIG):
         gas_momentum.append(_total_momentum(sim.fluid, sim.par))
         expected_momentum.append(expected)
 
-    time = np.asarray(time_s) * unyt.s
+    time_cgs_s_unyt = np.asarray(time_s) * unyt.s
     gas = np.asarray(gas_momentum) * (unyt.g * unyt.cm / unyt.s)
     expected = np.asarray(expected_momentum) * (unyt.g * unyt.cm / unyt.s)
     figure = Path(runtime["output"]["savedir"]) / "RadiationPressureSlab1D_Momentum.jpg"
     plt.figure(figsize=(7.0, 4.5))
-    plt.plot(time.to_value(unyt.s), gas.to_value(unyt.g * unyt.cm / unyt.s), label="gas momentum")
-    plt.plot(time.to_value(unyt.s), expected.to_value(unyt.g * unyt.cm / unyt.s), "--", label="absorbed photons / c")
+    plt.plot(time_cgs_s_unyt.to_value(unyt.s), gas.to_value(unyt.g * unyt.cm / unyt.s), label="gas momentum")
+    plt.plot(time_cgs_s_unyt.to_value(unyt.s), expected.to_value(unyt.g * unyt.cm / unyt.s), "--", label="absorbed photons / c")
     plt.xlabel("time [s]")
     plt.ylabel(r"total momentum [g cm s$^{-1}$]")
     plt.legend()

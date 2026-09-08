@@ -50,11 +50,11 @@ def build_initial_condition(config):
     boundary = result.mesh.boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=0.5 * (boundary[1:] + boundary[:-1]),
-        boundary=boundary,
-        width=np.diff(boundary),
-        area=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, units.area_unit),
-        volume=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, units.area_unit) * np.diff(boundary),
+        x_proper_code=0.5 * (boundary[1:] + boundary[:-1]),
+        boundary_proper_code=boundary,
+        width_proper_code=np.diff(boundary),
+        area_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, units.area_unit),
+        volume_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, units.area_unit) * np.diff(boundary),
     )
     result.fluid.SetPressure()
     result.fluid.SetFluidTime(result.par.simulation.time_proper_code)
@@ -92,7 +92,7 @@ def mean_ionized_fraction(sim):
 
 
 def time_value(sim, code_unit_system):
-    code = getattr(sim.par.code_unit_system, 'CodeUnits', None)
+    code = getattr(sim.par.units, 'CodeUnits', None)
     time_s = time_seconds(sim.fluid.time_proper_code, code)
     unit_seconds = float((1.0 * code_unit_system).to_value(unyt.s))
     return float(time_s / unit_seconds)

@@ -45,7 +45,7 @@ def main(config_filename=DEFAULT_CONFIG):
         par_config['mesh']['ghost_cells'],
         par_config['mesh']['ghost_cells'] + par_config['mesh']['grid_cells'],
     )
-    radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
+    radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     figure = Path(par_config['output']['savedir']) / 'GasHydroControl1D.jpg'
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True)
     for axis, initial_values, final_values, ylabel in (

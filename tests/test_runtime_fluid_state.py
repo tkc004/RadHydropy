@@ -17,11 +17,11 @@ from radhydropy.runtime_fields import (
 def test_supercomoving_fluid_runtime_state_has_explicit_fields():
     state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=np.array([1.0, 2.0]),
-        velocity=np.array([0.1, 0.2]),
-        pressure=np.array([0.3, 0.4]),
-        temperature=np.array([100.0, 200.0]),
-        time=0.5,
+        rho_comoving_code=np.array([1.0, 2.0]),
+        vel_supercomoving_code=np.array([0.1, 0.2]),
+        pre_supercomoving_code=np.array([0.3, 0.4]),
+        temp_supercomoving_code=np.array([100.0, 200.0]),
+        tau_supercomoving_code=0.5,
     )
     assert state.rho_comoving_code is not None
     assert state.vel_supercomoving_code is not None

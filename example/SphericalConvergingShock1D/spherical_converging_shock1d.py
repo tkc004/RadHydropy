@@ -23,6 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import radhydropy.io as rio
 from radhydropy.eos import EOS
+from radhydropy.fluid import Fluid
+from radhydropy.mesh import Mesh
+from radhydropy.params import Par
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -33,19 +36,19 @@ DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
 
 def _read_profile(filename, code_unit_system):
-    par = et.Par()
-    mesh = et.Mesh()
-    fluid = et.Fluid()
+    par = Par({'CodeUnits': code_unit_system})
+    mesh = Mesh()
+    fluid = Fluid()
     par.code_unit_system = type('Units', (), {'CodeUnits': code_unit_system})()
     par.simulation = type('Simulation', (), {'coordinate_system': 'spherical'})()
     par.mesh = type('MeshParameters', (), {'ghost_cells': 2, 'grid_cells': 512})()
     par.CodeUnits = code_unit_system
     rio.readhdf5(par, mesh, fluid, filename)
-    first = int(getattr(par, "noghost", 2))
-    count = int(getattr(par, "nogrid"))
-    boundary = np.asarray(mesh.boundary, dtype=float)
-    coordinate = 0.5 * (boundary[1:] + boundary[:-1])
-    volume = 4.0 * np.pi / 3.0 * (boundary[1:] ** 3 - boundary[:-1] ** 3)
+    first = 2
+    count = len(mesh.boundary_proper_code) - 1 - 2 * first
+    boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
+    coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
     rho_proper_code = np.asarray(fluid.rho_proper_code[first:first + count], dtype=float)
     velocity_proper_code = np.asarray(fluid.vel_proper_code[first:first + count], dtype=float)
     temp_proper_code = np.asarray(fluid.temp_proper_code[first:first + count], dtype=float)
@@ -59,30 +62,30 @@ def _read_profile(filename, code_unit_system):
     mass = float(
         np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))
         if hasattr(fluid, "Mass_code")
-        else np.sum(rho_proper_code * volume[first:first + count])
+        else np.sum(rho_proper_code * volume_proper_code[first:first + count])
     )
-    energy = float(
+    total_energy_proper_code = float(
         np.sum(np.asarray(fluid.Energy_code[first:first + count], dtype=float))
         if hasattr(fluid, "Energy_code")
         else np.sum(
             eos.total_energy_density(
                 rho_proper_code, velocity_proper_code, pressure_proper_code
-            ) * volume[first:first + count]
+            ) * volume_proper_code[first:first + count]
         )
     )
     thermal = float(
         np.sum(
             eos.thermal_energy_density(pressure_proper_code)
-            * volume[first:first + count]
+            * volume_proper_code[first:first + count]
         )
     )
     return (
-        coordinate[first:first + count],
+        coordinate_proper_code[first:first + count],
         rho_proper_code,
         velocity_proper_code,
         temp_proper_code,
         mass,
-        energy,
+        total_energy_proper_code,
         thermal,
     )
 

@@ -40,23 +40,23 @@ def _attach_proper_runtime_states(mesh, fluid):
     ) / denominator[valid]
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate_proper_code,
-        boundary=boundary_proper_code,
-        width=width_proper_code,
-        area=area_proper_code,
-        volume=volume_proper_code,
+        x_proper_code=coordinate_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=area_proper_code,
+        volume_proper_code=volume_proper_code,
     )
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.SetPressure()
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=fluid.time_proper_code,
-        mu=fluid.mu,
-        xHI=fluid.xHI if hasattr(fluid, 'xHI') else None,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=fluid.time_proper_code,
+        mu_dimensionless=fluid.mu,
+        xHI_dimensionless=fluid.xHI if hasattr(fluid, 'xHI') else None,
     )
 
 
@@ -84,11 +84,11 @@ def build_static_problem(config):
     area = 4.0 * np.pi * boundary[:-1] ** 2
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate,
-        boundary=boundary,
-        width=width,
-        area=area,
-        volume=volume,
+        x_proper_code=coordinate,
+        boundary_proper_code=boundary,
+        width_proper_code=width,
+        area_proper_code=area,
+        volume_proper_code=volume,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value((
         np.ones(grid_cells)
@@ -144,11 +144,11 @@ def _refresh_mesh_geometry(mesh, par):
         raise ValueError("coordinate system unknown: %s" % par.simulation.coordinate_system)
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=mesh.x_proper_code,
-        boundary=mesh.boundary_proper_code,
-        width=mesh.width_proper_code,
-        area=mesh.area_proper_code,
-        volume=mesh.volume_proper_code,
+        x_proper_code=mesh.x_proper_code,
+        boundary_proper_code=mesh.boundary_proper_code,
+        width_proper_code=mesh.width_proper_code,
+        area_proper_code=mesh.area_proper_code,
+        volume_proper_code=mesh.volume_proper_code,
     )
 
 
@@ -177,13 +177,13 @@ def load_output_state(outputfilename, config):
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=fluid.time_proper_code,
-        mu=fluid.mu,
-        xHI=fluid.xHI,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=fluid.time_proper_code,
+        mu_dimensionless=fluid.mu,
+        xHI_dimensionless=fluid.xHI,
     )
     return par, mesh, fluid
 

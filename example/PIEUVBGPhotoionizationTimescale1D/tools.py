@@ -28,9 +28,9 @@ def build_initial_condition(config):
     ))
     result.mesh.boundary_proper_code = boundary
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=0.5 * (boundary[1:] + boundary[:-1]),
-        boundary=boundary, width=np.diff(boundary), area=np.ones(grid_cells),
-        volume=np.diff(boundary),
+        PROPER_RUNTIME_FIELDS, x_proper_code=0.5 * (boundary[1:] + boundary[:-1]),
+        boundary_proper_code=boundary, width_proper_code=np.diff(boundary), area_proper_code=np.ones(grid_cells),
+        volume_proper_code=np.diff(boundary),
     )
     result.fluid.vel_proper_code = as_named_array(quantity_to_value(
         np.zeros(grid_cells) * initial['vini'], code_units.velocity_unit

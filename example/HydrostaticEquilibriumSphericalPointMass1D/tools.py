@@ -121,7 +121,10 @@ def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
     return _acceleration
 
 
-def build_initial_condition(config, code_unit_system=None):
+def build_initial_condition(config):
+    code_unit_system = CodeUnits.from_mapping(
+        config['par']['units']['CodeUnits']
+    )
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     sim = Rsim(config['par'])
@@ -166,11 +169,11 @@ def build_initial_condition(config, code_unit_system=None):
     )
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=coordinate_proper_code,
-        boundary=boundary_proper_code,
-        width=np.diff(boundary_proper_code),
-        area=sim.mesh.area_proper_code,
-        volume=sim.mesh.volume_proper_code,
+        x_proper_code=coordinate_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=np.diff(boundary_proper_code),
+        area_proper_code=sim.mesh.area_proper_code,
+        volume_proper_code=sim.mesh.volume_proper_code,
     )
     sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_proper_code, code_unit_system.density_unit)
     sim.fluid.vel_proper_code = np.zeros(grid_cells)
@@ -179,9 +182,9 @@ def build_initial_condition(config, code_unit_system=None):
     sim.fluid.time_proper_code = 0.0
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, density=sim.fluid.rho_proper_code,
-        velocity=sim.fluid.vel_proper_code, pressure=sim.fluid.pre_proper_code,
-        temperature=sim.fluid.temp_proper_code, time=0.0, mu=sim.fluid.mu,
+        PROPER_RUNTIME_FIELDS, rho_proper_code=sim.fluid.rho_proper_code,
+        vel_proper_code=sim.fluid.vel_proper_code, pre_proper_code=sim.fluid.pre_proper_code,
+        temp_proper_code=sim.fluid.temp_proper_code, time_proper_code=0.0, mu_dimensionless=sim.fluid.mu,
     )
 
 
@@ -192,7 +195,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = config['par']['units']['CodeUnits']
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = build_initial_condition(config, code_unit_system=code_units_obj)
+    rout = build_initial_condition(config)
     if code_units_obj is not None:
         rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)

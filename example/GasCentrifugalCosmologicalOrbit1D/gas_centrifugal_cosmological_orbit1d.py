@@ -43,11 +43,11 @@ def prepare_initial_condition(initial):
     initial.par.time_coordinate = 'supercomoving'
     initial.par.velocity_representation = 'supercomoving_peculiar'
     initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, coordinate=initial.mesh.x_comoving_code,
-        boundary=boundary_comoving_code,
-        width=np.diff(boundary_comoving_code),
-        area=4.0 * np.pi * boundary_comoving_code[:-1]**2,
-        volume=4.0 * np.pi / 3.0 * (
+        SUPERCOMOVING_RUNTIME_FIELDS, x_comoving_code=initial.mesh.x_comoving_code,
+        boundary_comoving_code=boundary_comoving_code,
+        width_comoving_code=np.diff(boundary_comoving_code),
+        area_comoving_code=4.0 * np.pi * boundary_comoving_code[:-1]**2,
+        volume_comoving_code=4.0 * np.pi / 3.0 * (
             boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
         ),
     )
@@ -58,11 +58,11 @@ def prepare_initial_condition(initial):
     initial.fluid.tau_supercomoving_code = 0.0
     initial.fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
     initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, density=initial.fluid.rho_comoving_code,
-        velocity=initial.fluid.vel_supercomoving_code,
-        pressure=initial.fluid.pre_supercomoving_code,
-        temperature=initial.fluid.temp_supercomoving_code, time=0.0,
-        mu=initial.fluid.mu,
+        SUPERCOMOVING_RUNTIME_FIELDS, rho_comoving_code=initial.fluid.rho_comoving_code,
+        vel_supercomoving_code=initial.fluid.vel_supercomoving_code,
+        pre_supercomoving_code=initial.fluid.pre_supercomoving_code,
+        temp_supercomoving_code=initial.fluid.temp_supercomoving_code, tau_supercomoving_code=0.0,
+        mu_dimensionless=initial.fluid.mu,
     )
 
 
@@ -119,13 +119,17 @@ def run_rsim(par, initial_condition, example_config, cosmology, j):
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(config["par"])
+    sim = Rsim(par)
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
     gravity = CosmologicalCentralGravity(float(initial_condition['central_excess_mass']), cosmology)
     sim.par.gravity = gravity
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.par.gravity = gravity
     sim.par.set_cosmology_model(cosmology)
     sim.Run(outputtime=0, mode='hydro')
@@ -164,8 +168,8 @@ def main(config_filename=CONFIG):
     circular_j_profile = np.sqrt(central_mass * simulation_radius)
     saved_j = np.asarray(saved_fluid.specific_angular_momentum_code, dtype=float)
     saved_active = slice(
-        simulation.par.noghost,
-        simulation.par.noghost + simulation.par.nogrid,
+        int(simulation.par.mesh.ghost_cells),
+        int(simulation.par.mesh.ghost_cells) + int(simulation.par.mesh.grid_cells),
     )
     if not np.all(np.isfinite(saved_j[saved_active])):
         raise RuntimeError('cosmological Rsim produced invalid specific angular momentum')
@@ -240,8 +244,8 @@ def main(config_filename=CONFIG):
     # Fixed Eulerian coordinates cannot be placed on the moving x(t) curves,
     # so show the saved Rsim state in a separate spatial diagnostic figure.
     sim_active = slice(
-        simulation.par.noghost,
-        simulation.par.noghost + simulation.par.nogrid,
+        int(simulation.par.mesh.ghost_cells),
+        int(simulation.par.mesh.ghost_cells) + int(simulation.par.mesh.grid_cells),
     )
     sim_radius = np.asarray(simulation.mesh.x_comoving_code[sim_active], dtype=float)
     # Use the live Rsim mesh and fluid together.  Mixing live mesh coordinates

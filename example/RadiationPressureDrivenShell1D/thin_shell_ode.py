@@ -56,11 +56,11 @@ def _build_initial_condition(config):
     sim.mesh.boundary_proper_code = boundary
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=0.5 * (boundary[1:] + boundary[:-1]),
-        boundary=boundary,
-        width=width,
-        area=np.ones(1) * area,
-        volume=volume,
+        x_proper_code=0.5 * (boundary[1:] + boundary[:-1]),
+        boundary_proper_code=boundary,
+        width_proper_code=width,
+        area_proper_code=np.ones(1) * area,
+        volume_proper_code=volume,
     )
     shell_mass = initial['shell_mass'].to_value(unyt.g)
     sim.fluid.rho_proper_code = as_named_array(

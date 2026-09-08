@@ -41,33 +41,34 @@ def build_initial_condition(config):
     ic = config["initial_condition"]
     units = config["_code_units"]
     n = int(ic["grid_cells"])
-    boundary = np.linspace(quantity_to_value(ic["inner_radius"], units.length_unit), quantity_to_value(ic["outer_radius"], units.length_unit), n + 1)
-    center = spherical_cell_centers(boundary)
-    return make_initial_condition(config, boundary_proper_code=boundary,
-        rho_proper_code=ballistic_density_profile(center, quantity_to_value(ic["reference_density"], units.density_unit)),
+    boundary_proper_code = np.linspace(quantity_to_value(ic["inner_radius"], units.length_unit), quantity_to_value(ic["outer_radius"], units.length_unit), n + 1)
+    coordinate_proper_code = spherical_cell_centers(boundary_proper_code)
+    return make_initial_condition(config, boundary_proper_code=boundary_proper_code,
+        rho_proper_code=ballistic_density_profile(coordinate_proper_code, quantity_to_value(ic["reference_density"], units.density_unit)),
         vel_proper_code=np.zeros(n), temp_proper_code=np.full(n, quantity_to_value(ic["initial_temperature"], units.temperature_unit)),
-        mu_dimensionless=np.full(n, ic["mean_molecular_weight"]), area_proper_code=4*np.pi*boundary[:-1]**2)
+        mu_dimensionless=np.full(n, ic["mean_molecular_weight"]), area_proper_code=4*np.pi*boundary_proper_code[:-1]**2)
 
 def ReadandPlot(filename, config, **kwargs):
     ic, units = config["initial_condition"], config["_code_units"]
     sim = Rsim(config["par"]); rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells); last = first + int(sim.par.mesh.grid_cells)
-    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
-    x = spherical_cell_centers(boundary)[first:last]
-    rho = np.asarray(sim.fluid.rho_proper_code)[first:last]
-    vel = np.asarray(sim.fluid.vel_proper_code)[first:last]
+    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    coordinate_proper_code = spherical_cell_centers(boundary_proper_code)[first:last]
+    rho_proper_code = np.asarray(sim.fluid.rho_proper_code)[first:last]
+    vel_proper_code = np.asarray(sim.fluid.vel_proper_code)[first:last]
     time_proper_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
     analytic_rho = ballistic_density_profile(
-        x, quantity_to_value(ic["reference_density"], units.density_unit)
+        coordinate_proper_code, quantity_to_value(ic["reference_density"], units.density_unit)
     )
     analytic_vel = ballistic_velocity_profile(
-        x, ic["point_mass"], time_proper_code, code_units=units
+        coordinate_proper_code, ic["point_mass"], time_proper_code,
+        code_unit_system=units,
     ).to_value(unyt.cm / unyt.s) / units.velocity_in_cgs
     plt.subplot(1, 2, 1)
-    plt.plot(x, rho, label="numerical", **kwargs)
-    plt.plot(x, analytic_rho, color="black", linestyle="--", linewidth=2.0, label="analytic", zorder=5)
+    plt.plot(coordinate_proper_code, rho_proper_code, label="numerical", **kwargs)
+    plt.plot(coordinate_proper_code, analytic_rho, color="black", linestyle="--", linewidth=2.0, label="analytic", zorder=5)
     plt.legend()
     plt.subplot(1, 2, 2)
-    plt.plot(x, vel, label="numerical", **kwargs)
-    plt.plot(x, analytic_vel, color="black", linestyle="--", linewidth=2.0, label="free-fall", zorder=5)
+    plt.plot(coordinate_proper_code, vel_proper_code, label="numerical", **kwargs)
+    plt.plot(coordinate_proper_code, analytic_vel, color="black", linestyle="--", linewidth=2.0, label="free-fall", zorder=5)
     plt.legend()

@@ -35,11 +35,11 @@ def make_state(rho):
     mesh = SimpleNamespace(coordsys="cartesian")
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=np.arange(ncell, dtype=float) + 0.5,
-        boundary=np.arange(ncell + 1, dtype=float),
-        width=np.ones(ncell, dtype=float),
-        area=np.ones(ncell, dtype=float),
-        volume=np.ones(ncell, dtype=float),
+        x_proper_code=np.arange(ncell, dtype=float) + 0.5,
+        boundary_proper_code=np.arange(ncell + 1, dtype=float),
+        width_proper_code=np.ones(ncell, dtype=float),
+        area_proper_code=np.ones(ncell, dtype=float),
+        volume_proper_code=np.ones(ncell, dtype=float),
     )
     fluid = SimpleNamespace(
         rho_proper_code=rho.copy(),
@@ -52,11 +52,11 @@ def make_state(rho):
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=0.0,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=0.0,
     )
     par = parameter_namespace(
         CodeUnits=CODE_UNITS,

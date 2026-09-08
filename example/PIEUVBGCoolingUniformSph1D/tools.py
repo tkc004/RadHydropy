@@ -30,8 +30,8 @@ def build_initial_condition(config):
     coordinate = 0.5 * (boundary[1:] + boundary[:-1])
     result.mesh.boundary_proper_code = boundary
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
-        width=width, area=np.ones(grid_cells), volume=width,
+        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
+        width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
     )
     initial_velocity = initial.get('vini', 0.0 * unyt.cm / unyt.s)
     result.fluid.vel_proper_code = as_named_array(quantity_to_value(

@@ -23,10 +23,12 @@ def total_energy_error(par, initial_condition, example_config):
     (sim, saved_mesh, saved, _initial_mass, _initial_energy,
      _initial_radius, _gravity_work, _potential_change,
      _potential_flux) = run_simulation(par, initial_condition, example_config)
-    active = slice(sim.par.noghost, sim.par.noghost + sim.par.nogrid)
-    saved_boundary = np.asarray(saved_mesh.boundary, dtype=float)
+    first = int(sim.par.mesh.ghost_cells)
+    count = int(sim.par.mesh.grid_cells)
+    active = slice(first, first + count)
+    saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
     source_boundary = saved_boundary[
-        sim.par.noghost:sim.par.noghost + sim.par.nogrid + 1
+        first:first + count + 1
     ]
     saved_radius = spherical_centers(saved_boundary)[active]
     central_mass = float(initial_condition['central_mass'])
@@ -42,9 +44,10 @@ def total_energy_error(par, initial_condition, example_config):
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
+    saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_total = np.sum(
         np.asarray(saved.Energy_code[active], dtype=float)
-        + np.asarray(saved.GravitationalPotentialEnergy_code[active], dtype=float)
+        - float(initial_condition['central_mass']) * saved_mass / saved_radius
     )
     ode_total = np.sum(reference['energy'])
     return abs(saved_total - ode_total) / max(abs(ode_total), 1.0e-12)

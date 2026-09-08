@@ -533,7 +533,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    sim.fluid.tau_supercomoving_code = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     gravity_dm = SmoothEnclosedMassForGas(dm) if smooth_force else dm
     sim.par.gravity = Gravity(
         selfgravity=True,

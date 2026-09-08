@@ -50,11 +50,11 @@ def build_initial_condition(config):
     result.par.mesh.ghost_cells = 0
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=result.mesh.x_proper_code[first:last],
-        boundary=result.mesh.boundary_proper_code,
-        width=result.mesh.width_proper_code[first:last],
-        area=result.mesh.area_proper_code[first:last],
-        volume=result.mesh.volume_proper_code[first:last],
+        x_proper_code=result.mesh.x_proper_code[first:last],
+        boundary_proper_code=result.mesh.boundary_proper_code,
+        width_proper_code=result.mesh.width_proper_code[first:last],
+        area_proper_code=result.mesh.area_proper_code[first:last],
+        volume_proper_code=result.mesh.volume_proper_code[first:last],
     )
     result.fluid._refresh_runtime_state()
     return Rsim.FromComponents(result.par, result.mesh, result.fluid, result.solver)

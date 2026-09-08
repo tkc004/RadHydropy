@@ -11,6 +11,8 @@ from pathlib import Path
 import sys
 
 HERE = Path(__file__).resolve().parent
+PROJECT_ROOT = HERE.parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(HERE.parent))
 
 import matplotlib
@@ -29,13 +31,16 @@ from basic_hydro_utils import make_initial_condition as make_canonical_initial_c
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
 
-def make_initial_condition(config, code_unit_system):
+def make_initial_condition(config):
+    code_unit_system = CodeUnits.from_mapping(
+        config['par']['units']['CodeUnits']
+    )
     ic = config['initial_condition']
     n = int(ic["grid_cells"]); rmax = float(ic["box_size"].to_value(code_unit_system.length_unit))
-    boundary = np.linspace(0.0, rmax, n + 1)
+    boundary_proper_code = np.linspace(0.0, rmax, n + 1)
     return make_canonical_initial_condition(
         config,
-        boundary_proper_code=boundary,
+        boundary_proper_code=boundary_proper_code,
         rho_proper_code=np.full(n, float(ic["initial_density"].to_value("g/cm**3"))),
         vel_proper_code=np.full(n, float(ic["velocity"].to_value(code_unit_system.velocity_unit))),
         temp_proper_code=np.full(n, float(ic["temperature"].to_value("K"))),
@@ -43,31 +48,38 @@ def make_initial_condition(config, code_unit_system):
     )
 
 
-def read_profile(filename, code_unit_system, gamma, runtime):
-    sim = Rsim(runtime)
+def read_profile(filename, config):
+    code_unit_system = CodeUnits.from_mapping(
+        config['par']['units']['CodeUnits']
+    )
+    sim = Rsim(config['par'])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    boundary = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
-    radius = 0.5 * (boundary[1:] + boundary[:-1])
-    volume = 4.0 * np.pi / 3.0 * np.diff(boundary**3)
-    rho = np.asarray(sim.fluid.rho_proper_code, dtype=float)[first:last]
-    velocity = np.asarray(sim.fluid.vel_proper_code, dtype=float)[first:last]
-    temperature = np.asarray(sim.fluid.temp_proper_code, dtype=float)[first:last]
-    mu = np.asarray(sim.fluid.mu, dtype=float)[first:last]
-    eos = EOS("polytropic", gamma=gamma, code_units=code_unit_system)
-    pressure = np.asarray(eos.pressure(rho, temperature, mu), dtype=float)
-    kinetic = 0.5 * rho * velocity**2 * volume[first:last]
-    thermal = np.asarray(eos.thermal_energy_density(pressure), dtype=float) * volume[first:last]
+    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code**3)
+    rho_proper_code = np.asarray(sim.fluid.rho_proper_code, dtype=float)[first:last]
+    vel_proper_code = np.asarray(sim.fluid.vel_proper_code, dtype=float)[first:last]
+    temp_proper_code = np.asarray(sim.fluid.temp_proper_code, dtype=float)[first:last]
+    mu_dimensionless = np.asarray(sim.fluid.mu, dtype=float)[first:last]
+    eos = EOS(
+        "polytropic",
+        gamma=float(config['par']['hydrodynamics']['gamma']),
+        code_units=code_unit_system,
+    )
+    pre_proper_code = np.asarray(eos.pressure(rho_proper_code, temp_proper_code, mu_dimensionless), dtype=float)
+    kinetic_energy_proper_code = 0.5 * rho_proper_code * vel_proper_code**2 * volume_proper_code[first:last]
+    thermal_energy_proper_code = np.asarray(eos.thermal_energy_density(pre_proper_code), dtype=float) * volume_proper_code[first:last]
     return {
-        "radius": radius[first:last],
-        "rho": rho,
-        "velocity": velocity,
-        "temperature": temperature,
-        "pressure": pressure,
-        "kinetic": float(np.sum(kinetic)),
-        "thermal": float(np.sum(thermal)),
-        "time": float(np.asarray(sim.par.time_proper_code).flat[0]),
+        "radius_proper_code": coordinate_proper_code[first:last],
+        "rho_proper_code": rho_proper_code,
+        "vel_proper_code": vel_proper_code,
+        "temp_proper_code": temp_proper_code,
+        "pre_proper_code": pre_proper_code,
+        "kinetic_energy_proper_code": float(np.sum(kinetic_energy_proper_code)),
+        "thermal_energy_proper_code": float(np.sum(thermal_energy_proper_code)),
+        "time_proper_code": float(np.asarray(sim.par.time_proper_code).flat[0]),
     }
 
 
@@ -103,7 +115,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         resolution_config = dict(config)
         resolution_config["par"] = par_config
         resolution_config["initial_condition"] = initial_condition
-        initial = make_initial_condition(resolution_config, units)
+        initial = make_initial_condition(resolution_config)
         rio.writehdf5(
             initial, par_config["simulation"]["initial_condition_filename"]
         )
@@ -113,21 +125,21 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         snapshots = sorted(output.glob("Output_*.hdf5"))
         if len(snapshots) < 2:
             raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
-        profiles = [read_profile(filename, units, par_config["hydrodynamics"]["gamma"], par_config) for filename in snapshots]
+        profiles = [read_profile(filename, resolution_config) for filename in snapshots]
         all_profiles[resolution] = profiles
         initial_profile, final_profile = profiles[0], profiles[-1]
-        if not final_profile["thermal"] > initial_profile["thermal"]:
+        if not final_profile["thermal_energy_proper_code"] > initial_profile["thermal_energy_proper_code"]:
             raise RuntimeError(f"Noh resolution {resolution} did not heat")
-        if not np.max(final_profile["temperature"]) > 10.0 * np.max(initial_profile["temperature"]):
+        if not np.max(final_profile["temp_proper_code"]) > 10.0 * np.max(initial_profile["temp_proper_code"]):
             raise RuntimeError(f"Noh resolution {resolution} did not form a hot central shock")
         print(
             "resolution=%d thermal_ratio=%.6e Tmax=%.6e total_energy=(%.6e, %.6e)"
             % (
                 resolution,
-                final_profile["thermal"] / initial_profile["thermal"],
-                np.max(final_profile["temperature"]),
-                initial_profile["kinetic"] + initial_profile["thermal"],
-                final_profile["kinetic"] + final_profile["thermal"],
+                final_profile["thermal_energy_proper_code"] / initial_profile["thermal_energy_proper_code"],
+                np.max(final_profile["temp_proper_code"]),
+                initial_profile["kinetic_energy_proper_code"] + initial_profile["thermal_energy_proper_code"],
+                final_profile["kinetic_energy_proper_code"] + final_profile["thermal_energy_proper_code"],
             )
         )
 
@@ -137,11 +149,11 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex="col")
     for resolution in selected:
         profile = final[resolution]
-        radius = profile["radius"] / rmax
-        axes[0, 0].plot(radius, profile["rho"], label=f"N={resolution}")
-        axes[0, 1].plot(radius, profile["temperature"], label=f"N={resolution}")
-        axes[1, 0].plot(radius, profile["velocity"])
-        axes[1, 1].plot(radius, profile["pressure"])
+        radius_proper_code = profile["radius_proper_code"] / rmax
+        axes[0, 0].plot(radius_proper_code, profile["rho_proper_code"], label=f"N={resolution}")
+        axes[0, 1].plot(radius_proper_code, profile["temp_proper_code"], label=f"N={resolution}")
+        axes[1, 0].plot(radius_proper_code, profile["vel_proper_code"])
+        axes[1, 1].plot(radius_proper_code, profile["pre_proper_code"])
     axes[0, 0].set_ylabel(r"density [$\mathrm{g\,cm^{-3}}$]")
     axes[0, 1].set_ylabel("temperature [K]")
     axes[1, 0].set_ylabel(r"velocity [$\mathrm{cm\,s^{-1}}$]")
@@ -163,10 +175,14 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     convergence = []
     for resolution in selected[:-1]:
         profile = final[resolution]
-        reference_rho = np.interp(profile["radius"], reference["radius"], reference["rho"])
+        reference_rho = np.interp(
+            profile["radius_proper_code"],
+            reference["radius_proper_code"],
+            reference["rho_proper_code"],
+        )
         convergence.append(
             [resolution,
-             np.mean(np.abs(profile["rho"] - reference_rho))
+             np.mean(np.abs(profile["rho_proper_code"] - reference_rho))
              / max(np.mean(np.abs(reference_rho)), 1.0e-300)]
         )
     convergence = np.asarray(convergence, dtype=float)

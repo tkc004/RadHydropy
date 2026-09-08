@@ -3,6 +3,7 @@ par:
     name: RadiativeTransferSph1D
     initial_condition_filename: InitialCondition.hdf5
     coordinate_system: spherical
+    final_time: {value: 1000.0, unit: yr}
   mesh:
     grid_cells: 256
     ghost_cells: 2
@@ -10,6 +11,8 @@ par:
     order: 0
   boundary:
     condition: OpenSph
+  timestep:
+    evolution_timestep: {value: 1000.0, unit: yr}
   output:
     directory: .
     savedir: .

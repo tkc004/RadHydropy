@@ -29,9 +29,10 @@ def uniform_sphere_acceleration(radius, rho0):
     ).to(unyt.cm / unyt.s**2)
 
 
-def build_initial_condition(config, code_unit_system=None):
-    if code_unit_system is None:
-        code_unit_system = config['_code_units']
+def build_initial_condition(config):
+    code_unit_system = CodeUnits.from_mapping(
+        config['par']['units']['CodeUnits']
+    )
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     sim = Rsim(config['par'])
@@ -55,11 +56,11 @@ def build_initial_condition(config, code_unit_system=None):
     )
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=sim.mesh.x_proper_code,
-        boundary=sim.mesh.boundary_proper_code,
-        width=sim.mesh.width_proper_code,
-        area=sim.mesh.area_proper_code,
-        volume=sim.mesh.volume_proper_code,
+        x_proper_code=sim.mesh.x_proper_code,
+        boundary_proper_code=sim.mesh.boundary_proper_code,
+        width_proper_code=sim.mesh.width_proper_code,
+        area_proper_code=sim.mesh.area_proper_code,
+        volume_proper_code=sim.mesh.volume_proper_code,
     )
 
     sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho0'], code_unit_system.density_unit)
@@ -71,25 +72,9 @@ def build_initial_condition(config, code_unit_system=None):
 
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
-def read_code_units(par_config):
-    return CodeUnits.from_mapping(par_config['CodeUnits'])
-
-
-def read_snapshot(filename, par_config):
-    code_units = read_code_units(par_config)
+def read_snapshot(filename, config):
     result = build_initial_condition(
-        {
-            'nogrid': 1,
-            'coordsys': 'spherical',
-            'boxsize': 1.0 * code_units.length_unit,
-            'rmin': 0.0 * code_units.length_unit,
-            'rmax': 1.0 * code_units.length_unit,
-            'time': 0.0 * code_units.time_unit,
-            'rho0': 1.0 * code_units.density_unit,
-            'tempini': 1.0 * code_units.temperature_unit,
-            'muini': 1.0,
-        },
-        code_units,
+        config,
     )
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result

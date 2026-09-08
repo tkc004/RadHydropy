@@ -178,12 +178,8 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
     ))
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         fluid.runtime_fields,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=fluid.time_proper_code,
-        mu=fluid.mu,
+        **{fluid.runtime_fields.density: fluid.rho_proper_code, fluid.runtime_fields.velocity: fluid.vel_proper_code, fluid.runtime_fields.pressure: fluid.pre_proper_code, fluid.runtime_fields.temperature: fluid.temp_proper_code, fluid.runtime_fields.time: fluid.time_proper_code},
+        mu_dimensionless=fluid.mu,
     )
     mesh = SimpleNamespace(
         geometry_state=MeshGeometryState(
@@ -257,12 +253,12 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
     fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=fluid.rho_comoving_code,
-        velocity=fluid.vel_supercomoving_code,
-        pressure=fluid.pre_supercomoving_code,
-        temperature=fluid.temp_supercomoving_code,
-        time=fluid.tau_supercomoving_code,
-        mu=fluid.mu,
+        rho_comoving_code=fluid.rho_comoving_code,
+        vel_supercomoving_code=fluid.vel_supercomoving_code,
+        pre_supercomoving_code=fluid.pre_supercomoving_code,
+        temp_supercomoving_code=fluid.temp_supercomoving_code,
+        tau_supercomoving_code=fluid.tau_supercomoving_code,
+        mu_dimensionless=fluid.mu,
     )
     fluid.tau_supercomoving_code = 0.0
     mesh = SimpleNamespace(

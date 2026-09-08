@@ -22,6 +22,7 @@ import numpy as np
 import radhydropy.io as rio
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
+from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 import tools as et
@@ -30,6 +31,18 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name(
     'self_gravity_polytrope_relaxation1d.yaml'
 )
+
+
+class PolytropeSolver(Solver):
+    """Keep reflecting ghost temperatures consistent with the active state."""
+
+    def SetBoundary(self, mesh, fluid, par):
+        super().SetBoundary(mesh, fluid, par)
+        first = int(par.mesh.ghost_cells)
+        last = first + int(par.mesh.grid_cells)
+        fluid.temp_proper_code[:first] = fluid.temp_proper_code[first]
+        fluid.temp_proper_code[last:] = fluid.temp_proper_code[last - 1]
+        fluid.SetPressure()
 
 
 def _profile(sim, rho, pressure):
@@ -78,10 +91,20 @@ def main(config_filename=DEFAULT_CONFIG):
     runtime = {**par, 'simulation': {**par['simulation'], 'initial_condition_filename': str(initial_filename)}}
     runtime['relaxation_damping_time'] = config['example']['relaxation_damping_time']
     sim = Rsim(runtime)
+    sim.solver = PolytropeSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    # The reflecting boundary fills conserved variables but leaves primitive
+    # temperature unset in the ghost cells.  Copy the adjacent equilibrium
+    # temperature before the timestep estimate uses the ghost zones.
+    first = int(sim.par.mesh.ghost_cells)
+    last = first + int(sim.par.mesh.grid_cells)
+    sim.fluid.temp_proper_code[:first] = sim.fluid.temp_proper_code[first]
+    sim.fluid.temp_proper_code[last:] = sim.fluid.temp_proper_code[last - 1]
+    sim.fluid.SetPressure()
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     sim.par.gravity = Gravity(
         selfgravity=True,
         externalgravity=False,

@@ -38,8 +38,8 @@ def build_initial_condition(config):
     )
     result.mesh.boundary_proper_code = boundary
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate, boundary=boundary,
-        width=width, area=np.ones(grid_cells), volume=width,
+        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate, boundary_proper_code=boundary,
+        width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
     )
     collision_velocity_proper_code = quantity_to_value(
         initial['collision_velocity'], code_units.velocity_unit

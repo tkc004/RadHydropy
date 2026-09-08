@@ -30,8 +30,8 @@ def build_initial_condition(config):
     area_code = 4.0 * np.pi * boundary_code[:-1] ** 2
     result.mesh.boundary_proper_code = boundary_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=coordinate_code, boundary=boundary_code,
-        width=width_code, area=area_code, volume=volume_code,
+        PROPER_RUNTIME_FIELDS, x_proper_code=coordinate_code, boundary_proper_code=boundary_code,
+        width_proper_code=width_code, area_proper_code=area_code, volume_proper_code=volume_code,
     )
     result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells, dtype=float))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(

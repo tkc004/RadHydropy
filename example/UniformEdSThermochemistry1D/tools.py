@@ -92,21 +92,21 @@ class UniformEdSInitialCondition:
         self.fluid.time_proper_code = initial_time
         self.mesh.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            coordinate=self.mesh.x_proper_code,
-            boundary=self.mesh.boundary_proper_code,
-            width=np.diff(self.mesh.boundary_proper_code),
-            area=self.mesh.area_proper_code,
-            volume=self.mesh.volume_proper_code,
+            x_proper_code=self.mesh.x_proper_code,
+            boundary_proper_code=self.mesh.boundary_proper_code,
+            width_proper_code=np.diff(self.mesh.boundary_proper_code),
+            area_proper_code=self.mesh.area_proper_code,
+            volume_proper_code=self.mesh.volume_proper_code,
         )
         self.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
         self.fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            density=self.fluid.rho_proper_code,
-            velocity=self.fluid.vel_proper_code,
-            pressure=self.fluid.pre_proper_code,
-            temperature=self.fluid.temp_proper_code,
-            time=self.fluid.time_proper_code,
-            mu=self.fluid.mu,
+            rho_proper_code=self.fluid.rho_proper_code,
+            vel_proper_code=self.fluid.vel_proper_code,
+            pre_proper_code=self.fluid.pre_proper_code,
+            temp_proper_code=self.fluid.temp_proper_code,
+            time_proper_code=self.fluid.time_proper_code,
+            mu_dimensionless=self.fluid.mu,
         )
 
 

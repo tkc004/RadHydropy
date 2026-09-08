@@ -93,40 +93,29 @@ def build_initial_condition(config):
     sim.mesh.width_comoving_code = np.diff(sim.mesh.boundary_comoving_code)
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        coordinate=sim.mesh.x_comoving_code,
-        boundary=sim.mesh.boundary_comoving_code,
-        width=sim.mesh.width_comoving_code,
-        area=sim.mesh.area_comoving_code,
-        volume=sim.mesh.volume_comoving_code,
+        x_comoving_code=sim.mesh.x_comoving_code,
+        boundary_comoving_code=sim.mesh.boundary_comoving_code,
+        width_comoving_code=sim.mesh.width_comoving_code,
+        area_comoving_code=sim.mesh.area_comoving_code,
+        volume_comoving_code=sim.mesh.volume_comoving_code,
     )
     sim.fluid.tau_supercomoving_code = float(
         np.asarray(sim.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
     )
     sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        density=sim.fluid.rho_comoving_code,
-        velocity=sim.fluid.vel_supercomoving_code,
-        pressure=np.zeros_like(sim.fluid.rho_comoving_code),
-        temperature=sim.fluid.temp_supercomoving_code,
-        time=sim.fluid.tau_supercomoving_code,
-        mu=sim.fluid.mu,
+        rho_comoving_code=sim.fluid.rho_comoving_code,
+        vel_supercomoving_code=sim.fluid.vel_supercomoving_code,
+        pre_supercomoving_code=np.zeros_like(sim.fluid.rho_comoving_code),
+        temp_supercomoving_code=sim.fluid.temp_supercomoving_code,
+        tau_supercomoving_code=sim.fluid.tau_supercomoving_code,
+        mu_dimensionless=sim.fluid.mu,
     )
 
 
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
-def read_snapshot(filename, par_config):
-    units = CodeUnits.from_mapping(par_config['CodeUnits'])
-    cosmology = EinsteinDeSitter.from_code_units(units)
-    result = build_initial_condition({
-        'par': {'mesh': {'grid_cells': 1}},
-        'initial_condition': {
-            'boxsize': units.length_unit, 'rmin': 0.0 * units.length_unit,
-            'rmax': units.length_unit, 'cosmic_time': 1.0,
-            'top_hat_radius': 0.5, 'overdensity': 0.0,
-            'tempini': units.temperature_unit, 'muini': 1.0,
-        },
-        '_code_units': units, '_cosmology': cosmology,
-    })
+def read_snapshot(filename, config):
+    result = Rsim(config['par'])
     rio.readhdf5(result.par, result.mesh, result.fluid, filename)
     return result

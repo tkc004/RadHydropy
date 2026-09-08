@@ -77,13 +77,9 @@ class Fluid():
             raise ValueError("unknown runtime field representation")
         self.runtime_state = FluidRuntimeState.from_arrays(
             self.runtime_fields,
-            density=density,
-            velocity=velocity,
-            pressure=pressure,
-            temperature=temperature,
-            time=time,
-            mu=getattr(self, "mu", None),
-            xHI=getattr(self, "xHI", None),
+            **{self.runtime_fields.density: density, self.runtime_fields.velocity: velocity, self.runtime_fields.pressure: pressure, self.runtime_fields.temperature: temperature, self.runtime_fields.time: time},
+            mu_dimensionless=getattr(self, "mu", None),
+            xHI_dimensionless=getattr(self, "xHI", None),
         )
 
     @property

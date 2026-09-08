@@ -85,10 +85,10 @@ def build_initial_condition(config):
     result.mesh.area_proper_code = 4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2
     result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary_proper_code**3)
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=result.mesh.x_proper_code,
-        boundary=result.mesh.boundary_proper_code,
-        width=result.mesh.width_proper_code, area=result.mesh.area_proper_code,
-        volume=result.mesh.volume_proper_code)
+        PROPER_RUNTIME_FIELDS, x_proper_code=result.mesh.x_proper_code,
+        boundary_proper_code=result.mesh.boundary_proper_code,
+        width_proper_code=result.mesh.width_proper_code, area_proper_code=result.mesh.area_proper_code,
+        volume_proper_code=result.mesh.volume_proper_code)
     radius = np.asarray(result.mesh.x_proper_code, dtype=float) * code_units.length_unit
     density = equilibrium_density(radius, initial['central_density'], initial['polytropic_radius'])
     k_poly = polytropic_constant(initial['polytropic_radius'])

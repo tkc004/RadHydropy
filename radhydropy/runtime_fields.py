@@ -51,22 +51,25 @@ class MeshGeometryState:
                 )
 
     @classmethod
-    def from_arrays(cls, fields, *, coordinate, boundary, width, area, volume):
+    def from_arrays(cls, fields, **arrays):
+        required = (
+            fields.coordinate,
+            fields.boundary,
+            fields.width,
+            fields.area,
+            fields.volume,
+        )
+        missing = [name for name in required if name not in arrays]
+        if missing:
+            raise TypeError(
+                "missing canonical mesh runtime arrays: " + ", ".join(missing)
+            )
         values = {
-            "coordinate": np.asarray(coordinate, dtype=float).copy(),
-            "boundary": np.asarray(boundary, dtype=float).copy(),
-            "width": np.asarray(width, dtype=float).copy(),
-            "area": np.asarray(area, dtype=float).copy(),
-            "volume": np.asarray(volume, dtype=float).copy(),
+            name: np.asarray(arrays[name], dtype=float).copy()
+            for name in required
         }
         return cls(
-            **{
-                fields.coordinate: values["coordinate"],
-                fields.boundary: values["boundary"],
-                fields.width: values["width"],
-                fields.area: values["area"],
-                fields.volume: values["volume"],
-            }
+            **values
         )
 
 
@@ -97,25 +100,25 @@ class FluidRuntimeState:
                 )
 
     @classmethod
-    def from_arrays(
-        cls, fields, *, density, velocity, pressure, temperature, time,
-        mu=None, xHI=None,
-    ):
-        return cls(
-            **{
-                # Keep the runtime arrays live: solver updates must be visible
-                # through the typed state without a synchronization alias.
-                fields.density: density,
-                fields.velocity: velocity,
-                fields.pressure: pressure,
-                fields.temperature: temperature,
-                # Runtime clocks are numeric values in the active code-time
-                # coordinate; physical time conversion happens at boundaries.
-                fields.time: time,
-                "mu_dimensionless": mu,
-                "xHI_dimensionless": xHI,
-            }
+    def from_arrays(cls, fields, *, mu_dimensionless=None, xHI_dimensionless=None, **arrays):
+        required = (
+            fields.density,
+            fields.velocity,
+            fields.pressure,
+            fields.temperature,
+            fields.time,
         )
+        missing = [name for name in required if name not in arrays]
+        if missing:
+            raise TypeError(
+                "missing canonical fluid runtime arrays: " + ", ".join(missing)
+            )
+        values = {name: arrays[name] for name in required}
+        values.update(
+            mu_dimensionless=mu_dimensionless,
+            xHI_dimensionless=xHI_dimensionless,
+        )
+        return cls(**values)
 
 
 PROPER_RUNTIME_FIELDS = RuntimeFieldNames(

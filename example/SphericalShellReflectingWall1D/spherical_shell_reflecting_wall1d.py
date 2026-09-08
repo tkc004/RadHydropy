@@ -15,11 +15,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
+from radhydropy.eos import EOS
+from radhydropy.runtime_fields import (
+    FluidRuntimeState, MeshGeometryState, PROPER_RUNTIME_FIELDS,
+)
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
@@ -50,6 +56,7 @@ def make_initial_condition(ic, code_unit_system):
     state = State()
     state.par, state.mesh, state.fluid = State(), State(), State()
     state.par.code_unit_system = type('Units', (), {'CodeUnits': code_unit_system})()
+    state.par.units = state.par.code_unit_system
     state.par.unit_system = code_unit_system.unit_system
     state.par.simulation = type('Simulation', (), {})()
     state.par.nogrid = int(ic["grid_cells"])
@@ -74,21 +81,61 @@ def make_initial_condition(ic, code_unit_system):
     state.fluid.temp_proper_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
     state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(code_unit_system.velocity_unit)), 0.0)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
+    boundary_proper_code = np.asarray(state.mesh.boundary.to_value(code_unit_system.length_unit), dtype=float)
+    coordinate_proper_code = np.asarray(state.mesh.coordinate.to_value(code_unit_system.length_unit), dtype=float)
+    width_proper_code = np.asarray(state.mesh.xdelta.to_value(code_unit_system.length_unit), dtype=float)
+    area_proper_code = np.asarray(state.mesh.area.to_value(code_unit_system.area_unit), dtype=float)
+    volume_proper_code = np.asarray(state.mesh.vol.to_value(code_unit_system.volume_unit), dtype=float)
+    state.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        x_proper_code=coordinate_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=width_proper_code,
+        area_proper_code=area_proper_code,
+        volume_proper_code=volume_proper_code,
+    )
+    state.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    state.fluid.time_proper_code = 0.0
+    state.fluid.eos = EOS('polytropic', 5.0 / 3.0, code_unit_system)
+    state.fluid.pre_proper_code = state.fluid.eos.pressure(
+        state.fluid.rho_proper_code,
+        state.fluid.temp_proper_code,
+        state.fluid.mu,
+    )
+    state.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        rho_proper_code=state.fluid.rho_proper_code,
+        vel_proper_code=state.fluid.vel_proper_code,
+        pre_proper_code=state.fluid.pre_proper_code,
+        temp_proper_code=state.fluid.temp_proper_code,
+        time_proper_code=state.fluid.time_proper_code,
+        mu_dimensionless=state.fluid.mu,
+    )
     return state
 
 
 def _profile(sim):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    r = np.asarray(sim.mesh.coordinate[first:last], dtype=float)
+    r = np.asarray(sim.mesh.x_proper_code[first:last], dtype=float)
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     vel_proper_code = np.asarray(sim.fluid.vel_proper_code[first:last], dtype=float)
     pre_proper_code = np.asarray(sim.fluid.pre_proper_code[first:last], dtype=float)
     temp_proper_code = np.asarray(sim.fluid.temp_proper_code[first:last], dtype=float)
-    entropy = np.full_like(pre, np.nan)
-    active = rho > 0.0
-    entropy[active] = pre[active] / rho[active] ** float(sim.par.hydrodynamics.gamma)
-    return r, rho, vel, pre, temp, entropy
+    entropy = np.full_like(pre_proper_code, np.nan)
+    active = rho_proper_code > 0.0
+    entropy[active] = (
+        pre_proper_code[active]
+        / rho_proper_code[active] ** float(sim.par.hydrodynamics.gamma)
+    )
+    return (
+        r,
+        rho_proper_code,
+        vel_proper_code,
+        pre_proper_code,
+        temp_proper_code,
+        entropy,
+    )
 
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):

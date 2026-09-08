@@ -59,9 +59,9 @@ def test_primitive_reconstruction_stores_active_mask_for_vacuum_cells():
     mesh = SimpleNamespace(coordsys="cartesian")
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        coordinate=np.array([0.5, 1.5, 2.5]),
-        boundary=np.array([0.0, 1.0, 2.0, 3.0]),
-        width=np.ones(3), area=np.ones(3), volume=np.ones(3),
+        x_proper_code=np.array([0.5, 1.5, 2.5]),
+        boundary_proper_code=np.array([0.0, 1.0, 2.0, 3.0]),
+        width_proper_code=np.ones(3), area_proper_code=np.ones(3), volume_proper_code=np.ones(3),
     )
     fluid = SimpleNamespace(
         Mass_code=np.array([1.0, 0.0, 2.0]),
@@ -73,11 +73,11 @@ def test_primitive_reconstruction_stores_active_mask_for_vacuum_cells():
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=fluid.vel_proper_code,
-        pressure=fluid.pre_proper_code,
-        temperature=fluid.temp_proper_code,
-        time=0.0,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=fluid.vel_proper_code,
+        pre_proper_code=fluid.pre_proper_code,
+        temp_proper_code=fluid.temp_proper_code,
+        time_proper_code=0.0,
     )
 
     Solver().SetPrimitive(mesh, fluid)
@@ -98,9 +98,9 @@ def test_low_density_active_cell_blocks_both_interface_fluxes():
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        density=fluid.rho_proper_code,
-        velocity=np.zeros(5), pressure=np.ones(5),
-        temperature=np.ones(5), time=0.0,
+        rho_proper_code=fluid.rho_proper_code,
+        vel_proper_code=np.zeros(5), pre_proper_code=np.ones(5),
+        temp_proper_code=np.ones(5), time_proper_code=0.0,
     )
 
     Solver()._apply_low_density_flux_mask(fluid, par)

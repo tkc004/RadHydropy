@@ -79,7 +79,10 @@ def run_case(config, radiative):
     sim.SetInitFluid()
     # ``SetInitFluid`` initializes the hydro state time to zero; cosmological
     # ICs carry a non-zero (often negative) supercomoving start time.
-    sim.fluid.tau_supercomoving_code = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
+    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    sim.par.tau_supercomoving_code = initial_tau.copy()
+    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
+    sim.fluid.SetFluidTime(initial_tau)
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
         dark_matter=dm, code_units=sim.par.CodeUnits,

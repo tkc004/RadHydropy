@@ -27,9 +27,9 @@ def build_initial_condition(config):
     result.mesh.area_proper_code = 4.0 * np.pi * faces[:-1] ** 2
     result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(faces ** 3)
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, coordinate=result.mesh.x_proper_code,
-        boundary=faces, width=result.mesh.width_proper_code,
-        area=result.mesh.area_proper_code, volume=result.mesh.volume_proper_code,
+        PROPER_RUNTIME_FIELDS, x_proper_code=result.mesh.x_proper_code,
+        boundary_proper_code=faces, width_proper_code=result.mesh.width_proper_code,
+        area_proper_code=result.mesh.area_proper_code, volume_proper_code=result.mesh.volume_proper_code,
     )
     result.fluid.rho_proper_code = np.full(result.par.mesh.grid_cells, quantity_to_value(initial['initial_density'], code_units.density_unit))
     result.fluid.temp_proper_code = np.full(result.par.mesh.grid_cells, quantity_to_value(initial['temperature'], code_units.temperature_unit))

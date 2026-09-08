@@ -7,8 +7,8 @@ from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits, _gravitational_constant_code
 
 
-def load_units(par_config):
-    return CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+def load_units(config):
+    return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 
 def volume_midpoint_boundaries(rmin, rmax, number):
@@ -44,7 +44,7 @@ def make_shells(initial_condition, code_unit_system, cosmology, overdensity=None
     return DarkMatterShells(
         radius, velocity, mass,
         softening=float(initial_condition['softening']),
-        code_unit_system=code_unit_system,
+        code_units=code_unit_system,
     ), boundaries
 
 
