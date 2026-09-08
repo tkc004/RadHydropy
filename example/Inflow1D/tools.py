@@ -51,7 +51,7 @@ def build_initial_condition(config):
     sim.fluid._refresh_runtime_state()
     return sim
 
-def ReadandPlot(outfilename, config, **kwargs):
+def plot_snapshot(outfilename, config, **kwargs):
     code_units = config['_code_units']
     rout = Rsim(config['par'])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)

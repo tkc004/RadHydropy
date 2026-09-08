@@ -11,7 +11,7 @@ def make_shells(config):
     code_unit_system = code_units_from_config(config)
     number = int(initial_condition['number_of_shells'])
     radius = np.linspace(
-        initial_condition['inner_radius'], initial_condition['outer_radius'], number
+        initial_condition['radius_inner_dimensionless'], initial_condition['radius_outer_dimensionless'], number
     )
     mass = np.full(number, initial_condition['total_mass'] / number)
     velocity = initial_condition['vel_proper_scale'] * radius

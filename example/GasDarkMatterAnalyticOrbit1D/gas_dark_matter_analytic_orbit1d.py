@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
     gas_density = float(initial_condition['uniform_gas_density'])
     softening = float(initial_condition['softening'])
     angular_momentum = float(initial_condition['specific_angular_momentum'])
-    initial_radius = float(initial_condition['initial_radius'])
+    initial_radius = float(initial_condition['radius_initial_dimensionless'])
     vel_proper = float(initial_condition['vel_proper'])
 
     def rhs(time_proper_code, state):

@@ -73,7 +73,7 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   box_size_proper: {value: 20.0, unit: pc}
-  initial_radius: {value: 0.05, unit: pc}
+  radius_injection_proper: {value: 0.05, unit: pc}
   time_proper: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 100.0, unit: 1/cm**3}
   temperature_proper: {value: 100.0, unit: K}

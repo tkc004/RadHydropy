@@ -52,7 +52,7 @@ def main(config_filename=DEFAULT_CONFIG):
             output['directory'],
             output['filename_prefix'] + '_%03d' % outindex + '.hdf5',
         )
-        et.ReadandPlot(
+        et.plot_snapshot(
             outfilename,
             config,
             ls='none',
@@ -77,4 +77,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args.config)
-

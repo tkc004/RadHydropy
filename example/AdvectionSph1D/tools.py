@@ -25,7 +25,7 @@ def build_initial_condition(config):
         mu_dimensionless=np.full(n, initial["mean_molecular_weight"]))
 
 
-def ReadandPlot(filename, config, **kwargs):
+def plot_snapshot(filename, config, **kwargs):
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)

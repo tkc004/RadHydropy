@@ -133,8 +133,8 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     report = case_dir / 'ShockHistory.txt'
     with report.open('w', encoding='utf-8') as stream:
         stream.write('time_Myr shock_radius_kpc\n')
-        for time, radius in history:
-            stream.write(f'{time:.8g} {radius:.8g}\n')
+        for time_proper_Myr, radius_proper_kpc in history:
+            stream.write(f'{time_proper_Myr:.8g} {radius_proper_kpc:.8g}\n')
         stream.write('\nfinal_cooling_diagnostics\n')
         if cooling is None:
             stream.write('cooling_length_kpc nan\n')
@@ -183,16 +183,16 @@ def main(config_filename=DEFAULT_CONFIG):
         sample_times = result['history'][sample_indices, 0]
         for index, time_myr in zip(sample_indices, sample_times):
             snapshot = load_snapshot(result['snapshots'][index], result['config'])
-            radius = (
+            radius_proper_cgs_cm = (
                 0.5 * (snapshot['boundary_cgs_cm'][1:] + snapshot['boundary_cgs_cm'][:-1])
                 / 3.0856775814913673e21
             )
             label = f'{time_myr:.2g} Myr'
             axes[row, 0].plot(
-                radius, snapshot['density_cgs_g_cm3'], label=label,
+                radius_proper_cgs_cm, snapshot['density_cgs_g_cm3'], label=label,
             )
             axes[row, 1].plot(
-                radius, snapshot['temperature_cgs_K'], label=label,
+                radius_proper_cgs_cm, snapshot['temperature_cgs_K'], label=label,
             )
         axes[row, 2].plot(
             result['history'][:, 0], result['history'][:, 1],

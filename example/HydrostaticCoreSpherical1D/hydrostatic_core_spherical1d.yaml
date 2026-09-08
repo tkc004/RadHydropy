@@ -21,7 +21,7 @@ par:
     externalgravity: true
     selfgravity: false
     gas_core_model: hydrostatic_fixed
-    gas_core_radius: {value: 5.0, unit: pc}
+    radius_core_proper: {value: 5.0, unit: pc}
   output:
     directory: outputs
     savedir: outputs
@@ -39,8 +39,8 @@ par:
 initial_condition:
   grid_cells: 256
   coordinate_system: spherical
-  inner_radius: {value: 2.0, unit: pc}
-  outer_radius: {value: 20.0, unit: pc}
+  radius_inner_proper: {value: 2.0, unit: pc}
+  radius_outer_proper: {value: 20.0, unit: pc}
   reference_density: {value: 1.0e-24, unit: g/cm**3}
   temperature_proper: {value: 1.0e4, unit: K}
   mean_molecular_weight: 1.0

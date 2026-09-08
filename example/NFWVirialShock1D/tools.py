@@ -66,12 +66,12 @@ def build_initial_condition(config):
         initial_condition['initial_redshift'],
     )
     cmb_temperature = initial_condition.get('cmb_temperature_0', initial_condition['temperature_proper'])
-    temperature = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
+    temperature_proper_cgs_K = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
     return make_initial_condition(config,
         boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
         rho_proper_code=np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
         vel_proper_code=quantity_to_value(expansion_rate * coordinate_unyt, code_units.velocity_unit),
-        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
+        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature_proper_cgs_K, code_units.temperature_unit)),
         mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])))
 
 def _snapshot_profiles(filename, config):
@@ -84,17 +84,17 @@ def _snapshot_profiles(filename, config):
         code_units,
         'length_cgs_cm',
     ) * unyt.cm
-    radius = NFW.spherical_cell_centers(boundary_cgs_cm)
+    radius_proper_cgs_cm = NFW.spherical_cell_centers(boundary_cgs_cm)
     nghost = int(config['par']['mesh']['ghost_cells'])
-    radius = radius[nghost:-nghost]
+    radius_proper_cgs_cm = radius_proper_cgs_cm[nghost:-nghost]
     first = nghost
     last = first + int(config['par']['mesh']['grid_cells'])
-    density = code_quantity_to_cgs(
+    density_proper_cgs_g_cm3 = code_quantity_to_cgs(
         rout.fluid.rho_proper_code[first:last],
         code_units,
         'density_cgs_g_cm3',
     )
-    temperature = code_quantity_to_cgs(
+    temperature_proper_cgs_K = code_quantity_to_cgs(
         rout.fluid.temp_proper_code[first:last],
         code_units,
         'temperature_cgs_K',
@@ -107,8 +107,8 @@ def _snapshot_profiles(filename, config):
     time_myr = time_seconds(rout.fluid.time_proper_code, code_units) / float(
         (1.0 * unyt.Myr).to_value(unyt.s)
     )
-    radius_kpc = radius.to_value(unyt.kpc)
-    return time_myr, radius_kpc, density, temperature, velocity_km_s
+    radius_kpc = radius_proper_cgs_cm.to_value(unyt.kpc)
+    return time_myr, radius_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, velocity_km_s
 
 
 def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
@@ -133,9 +133,9 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
     mu = float(config['initial_condition']['mu'])
     shock_positions = []
     shock_indices = []
-    for _, radius, _, temperature, _ in profiles:
+    for _, radius_proper_cgs_cm, _, temperature_proper_cgs_K, _ in profiles:
         gradient = np.abs(
-            np.diff(np.log(np.maximum(temperature, 1.0))) / np.diff(radius)
+            np.diff(np.log(np.maximum(temperature_proper_cgs_K, 1.0))) / np.diff(radius_proper_cgs_cm)
         )
         # The accretion shock is the inner, hot-side edge of the infalling
         # shell. Exclude only ghost-adjacent cells and the outer boundary edge;
@@ -144,12 +144,12 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
         upper = max(lower + 1, len(gradient) - 5)
         index = lower + int(np.argmax(gradient[lower:upper]))
         shock_indices.append(index)
-        shock_positions.append(radius[index])
+        shock_positions.append(radius_proper_cgs_cm[index])
 
     rows = []
     kpc_per_myr_to_km_s = 977.792221
     for snapshot_index in range(1, len(profiles) - 1):
-        time_myr, radius, density, temperature, velocity = profiles[snapshot_index]
+        time_myr, radius_proper_cgs_cm, density_proper_cgs_g_cm3, temperature_proper_cgs_K, vel_peculiar_proper_cgs_cm_s = profiles[snapshot_index]
         previous_time = profiles[snapshot_index - 1][0]
         next_time = profiles[snapshot_index + 1][0]
         dt_myr = next_time - previous_time
@@ -160,16 +160,16 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
             - shock_positions[snapshot_index - 1]
         ) / dt_myr * kpc_per_myr_to_km_s
         index = shock_indices[snapshot_index]
-        if index < 5 or index + 5 > len(radius):
+        if index < 5 or index + 5 > len(radius_proper_cgs_cm):
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)
-        rho_upstream = float(np.median(density[upstream]))
-        rho_downstream = float(np.median(density[downstream]))
-        temp_upstream = float(np.median(temperature[upstream]))
-        temp_downstream = float(np.median(temperature[downstream]))
-        velocity_upstream = float(np.median(velocity[upstream]))
-        velocity_downstream = float(np.median(velocity[downstream]))
+        rho_upstream = float(np.median(density_proper_cgs_g_cm3[upstream]))
+        rho_downstream = float(np.median(density_proper_cgs_g_cm3[downstream]))
+        temp_upstream = float(np.median(temperature_proper_cgs_K[upstream]))
+        temp_downstream = float(np.median(temperature_proper_cgs_K[downstream]))
+        velocity_upstream = float(np.median(vel_peculiar_proper_cgs_cm_s[upstream]))
+        velocity_downstream = float(np.median(vel_peculiar_proper_cgs_cm_s[downstream]))
         relative_upstream = abs(velocity_upstream - shock_speed)
         sound_speed = np.sqrt(
             gamma * 1.380649e-16 * temp_upstream
@@ -227,13 +227,13 @@ def plot_snapshots(filenames, config, _unused, figure_filename):
     )
     virial_radius_kpc = halo['virial_radius'].to_value(unyt.kpc)
     for color, filename in zip(colors, filenames):
-        time_myr, radius_kpc, density, temperature, _ = _snapshot_profiles(
+        time_myr, radius_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, _ = _snapshot_profiles(
             filename,
             config,
         )
         label = f'{time_myr:.0f} Myr'
-        axes[0].plot(radius_kpc, density, color=color, label=label)
-        axes[1].plot(radius_kpc, temperature, color=color, label=label)
+        axes[0].plot(radius_kpc, density_proper_cgs_g_cm3, color=color, label=label)
+        axes[1].plot(radius_kpc, temperature_proper_cgs_K, color=color, label=label)
     axes[0].set_yscale('log')
     axes[1].set_yscale('log')
     axes[0].set_xlabel('r [kpc]')

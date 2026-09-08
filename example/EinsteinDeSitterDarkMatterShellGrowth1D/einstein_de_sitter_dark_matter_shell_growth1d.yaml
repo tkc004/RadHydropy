@@ -23,8 +23,8 @@ par:
 initial_condition:
   number_of_inner_shells: 1024
   number_of_outer_shells: 1024
-  inner_radius: 0.0
-  outer_radius: 2.0
+  radius_inner_dimensionless: 0.0
+  radius_outer_dimensionless: 2.0
   radius_top_hat_comoving: 0.5
   overdensity: 0.01
   time_cosmic: 1.0

@@ -129,7 +129,7 @@ def build_initial_condition(config):
         mu_dimensionless=np.full(grid_cells, initial_condition['mean_molecular_weight']),
         area_proper_code=np.ones(grid_cells),
     )
-def ReadandPlot(outfilename, config, **kwargs):
+def plot_snapshot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     initial_condition = config['initial_condition']
 

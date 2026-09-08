@@ -28,8 +28,8 @@ class UniformEdSInitialCondition(Rsim):
         super().__init__(config["par"])
         initial_condition = config["initial_condition"]
         count = int(config["par"]["mesh"]["grid_cells"])
-        rmin = quantity_to_value(initial_condition["inner_radius"], code_unit_system.length_unit)
-        rmax = quantity_to_value(initial_condition["outer_radius"], code_unit_system.length_unit)
+        rmin = quantity_to_value(initial_condition["radius_inner_proper"], code_unit_system.length_unit)
+        rmax = quantity_to_value(initial_condition["radius_outer_proper"], code_unit_system.length_unit)
         initial_time_proper_code = float(initial_condition["time_cosmic"])
 
         self.par.mesh.ghost_cells = 0

@@ -38,8 +38,8 @@ par:
 initial_condition:
   grid_cells: 64
   coordinate_system: spherical
-  inner_radius: {value: 1.0, unit: kpc}
-  outer_radius: {value: 20.0, unit: kpc}
+  radius_inner_proper: {value: 1.0, unit: kpc}
+  radius_outer_proper: {value: 20.0, unit: kpc}
   shell_inner: {value: 8.0, unit: kpc}
   shell_outer: {value: 10.0, unit: kpc}
   shell_density: 1.0

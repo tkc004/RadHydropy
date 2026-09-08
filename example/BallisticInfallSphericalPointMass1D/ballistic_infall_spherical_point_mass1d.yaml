@@ -38,8 +38,8 @@ initial_condition:
   coordinate_system: spherical
   box_size_proper: {value: 20.0, unit: pc}
   time_proper: {value: 0.0, unit: s}
-  inner_radius: {value: 2.0, unit: pc}
-  outer_radius: {value: 20.0, unit: pc}
+  radius_inner_proper: {value: 2.0, unit: pc}
+  radius_outer_proper: {value: 20.0, unit: pc}
   reference_density: {value: 1.0e-24, unit: g/cm**3}
   temperature_proper: {value: 1.0, unit: K}
   mean_molecular_weight: 1.0

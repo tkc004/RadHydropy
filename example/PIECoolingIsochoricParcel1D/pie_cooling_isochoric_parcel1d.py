@@ -40,18 +40,18 @@ PROTON_MASS_G = unyt.mp.to_value(unyt.g)
 BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 
-def _net_rate(table, temperature, density, metallicity, redshift):
+def _net_rate(table, temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity, redshift):
     heating, cooling = table.rates(
-        temperature, density, metallicity=metallicity, redshift=redshift
+        temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity=metallicity, redshift=redshift
     )
     return np.asarray(heating) - np.asarray(cooling)
 
 
-def _equilibrium_temperature(table, density, metallicity, redshift, mu):
+def _equilibrium_temperature(table, hydrogen_number_density_cgs_cm3, metallicity, redshift, mu):
     temperatures = np.logspace(
         table.log_temperature[0], table.log_temperature[-1], 2048
     )
-    net = _net_rate(table, temperatures, density, metallicity, redshift)
+    net = _net_rate(table, temperatures, hydrogen_number_density_cgs_cm3, metallicity, redshift)
     crossings = np.flatnonzero((net[:-1] >= 0.0) & (net[1:] < 0.0))
     if not len(crossings):
         return np.nan
@@ -63,7 +63,8 @@ def _equilibrium_temperature(table, density, metallicity, redshift, mu):
     return float(np.exp(x0 - y0 * (x1 - x0) / (y1 - y0)))
 
 
-def _snapshot(filename, time_Myr=None):
+def _snapshot(filename, config, time_proper_Myr=None):
+    eu._require_complete_example_config(config, '_snapshot')
     with h5py.File(filename, 'r') as handle:
         data = handle['Data']
         header = handle['Header']
@@ -72,16 +73,16 @@ def _snapshot(filename, time_Myr=None):
         first = noghost
         last = first + nogrid
         return {
-            'time_Myr': (
+            'time_proper_Myr': (
                 float(header['time_proper_code'][()]) / SECONDS_PER_MYR
-                if time_Myr is None else float(time_Myr)
+                if time_proper_Myr is None else float(time_proper_Myr)
             ),
-            'density': np.asarray(data['rho_proper_code'][()])[first:last],
-            'temperature': np.asarray(data['temp_proper_code'][()])[first:last],
+            'rho_proper_code': np.asarray(data['rho_proper_code'][()])[first:last],
+            'temp_proper_code': np.asarray(data['temp_proper_code'][()])[first:last],
         }
 
 
-def _run_case(config, label, density, temperature, table):
+def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, table):
 
     hydro = config["par"]['hydrodynamics']
     thermo = config["par"]['thermochemistry']
@@ -101,8 +102,8 @@ def _run_case(config, label, density, temperature, table):
     output_prefix = case_config['par']['output']['filename_prefix']
     case_initial_condition = dict(initial_condition)
     case_initial_condition.update({
-        'hydrogen_density_cgs_cm3': density,
-        'temperature_unyt': temperature * unyt.K,
+        'hydrogen_density_cgs_cm3': hydrogen_number_density_cgs_cm3,
+        'temperature_unyt': temperature_proper_cgs_K * unyt.K,
     })
     case_config['par']['thermochemistry']['metallicity'] = thermo['metallicity']
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -132,29 +133,29 @@ def _run_case(config, label, density, temperature, table):
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
     initial_rate = float(_net_rate(
-        table, temperature, density, thermo['metallicity'], thermo['metal_pie_redshift']
+        table, temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, thermo['metallicity'], thermo['metal_pie_redshift']
     ))
-    rho = density * PROTON_MASS_G / thermo['hydrogen_mass_fraction']
-    thermal_energy = rho * BOLTZMANN_ERG_cgs_K * temperature / (
+    rho_proper_cgs_g_cm3 = hydrogen_number_density_cgs_cm3 * PROTON_MASS_G / thermo['hydrogen_mass_fraction']
+    thermal_energy = rho_proper_cgs_g_cm3 * BOLTZMANN_ERG_cgs_K * temperature_proper_cgs_K / (
         (hydro['gamma'] - 1.0) * initial_condition['mean_molecular_weight'] * PROTON_MASS_G
     )
     thermal_time = thermal_energy / max(abs(initial_rate), 1.0e-99) / SECONDS_PER_MYR
     equilibrium = _equilibrium_temperature(
-        table, density, thermo['metallicity'], thermo['metal_pie_redshift'],
+        table, hydrogen_number_density_cgs_cm3, thermo['metallicity'], thermo['metal_pie_redshift'],
         initial_condition['mean_molecular_weight']
     )
     return {
         'label': label,
-        'density': density,
-        'temperature_initial': temperature,
+        'hydrogen_number_density_cgs_cm3': hydrogen_number_density_cgs_cm3,
+        'temperature_initial_cgs_K': temperature_proper_cgs_K,
         'initial_rate': initial_rate,
         'thermal_time_Myr': thermal_time,
-        'equilibrium_temperature': equilibrium,
+        'temperature_equilibrium_cgs_K': equilibrium,
         'snapshots': snapshots,
     }
 
 
-def _write_report(results, filename):
+def _write_report(results, config, filename):
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(
             'case nH_cgs_cm3 T_initial_cgs_K T_final_cgs_K T_equilibrium_cgs_K '
@@ -162,37 +163,37 @@ def _write_report(results, filename):
             'density_relative_change\n'
         )
         for result in results:
-            initial = _snapshot(result['snapshots'][0])
-            final = _snapshot(result['snapshots'][-1])
-            density_change = np.median(final['rho_proper']) / np.median(initial['rho_proper']) - 1.0
+            initial = _snapshot(result['snapshots'][0], config)
+            final = _snapshot(result['snapshots'][-1], config)
+            density_change = np.median(final['rho_proper_code']) / np.median(initial['rho_proper_code']) - 1.0
             report.write(
                 '%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n' % (
-                    result['label'], result['rho_proper'], result['temperature_initial'],
-                    np.median(final['temperature_proper']), result['equilibrium_temperature'],
+                    result['label'], result['hydrogen_number_density_cgs_cm3'], result['temperature_initial_cgs_K'],
+                    np.median(final['temp_proper_code']), result['temperature_equilibrium_cgs_K'],
                     result['initial_rate'], result['thermal_time_Myr'], density_change,
                 )
             )
 
 
-def _plot(results, filename):
+def _plot(results, config, filename):
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     right_markers = []
     for result in results:
         times = []
         temperatures = []
         for output_index, snapshot in enumerate(result['snapshots']):
-            data = _snapshot(snapshot, time_Myr=output_index * 50.0)
-            times.append(data['time_Myr'])
-            temperatures.append(np.median(data['temperature_proper']))
+            data = _snapshot(snapshot, config, time_proper_Myr=output_index * 50.0)
+            times.append(data['time_proper_Myr'])
+            temperatures.append(np.median(data['temp_proper_code']))
         line, = axes[0].plot(times, temperatures, marker='o', label=result['label'])
         equilibrium = result['equilibrium_temperature']
         if np.isfinite(equilibrium):
             axes[0].axhline(equilibrium, color=line.get_color(), ls=':', alpha=0.6)
         temperatures_grid = np.logspace(2, 8, 512)
         net = _net_rate(
-            TABLE, temperatures_grid, result['rho_proper'], METALLICITY, REDSHIFT
+            TABLE, temperatures_grid, result['hydrogen_number_density_cgs_cm3'], METALLICITY, REDSHIFT
         )
-        net_per_nh2 = net / result['rho_proper'] ** 2
+        net_per_nh2 = net / result['hydrogen_number_density_cgs_cm3'] ** 2
         magnitude = np.maximum(np.abs(net_per_nh2), 1.0e-99)
         heating = np.where(net_per_nh2 >= 0.0, magnitude, np.nan)
         cooling = np.where(net_per_nh2 < 0.0, magnitude, np.nan)
@@ -218,19 +219,19 @@ def _plot(results, filename):
         )
         initial_rate = float(_net_rate(
             TABLE,
-            result['temperature_initial'],
-            result['rho_proper'],
+            result['temperature_initial_cgs_K'],
+            result['hydrogen_number_density_cgs_cm3'],
             METALLICITY,
             REDSHIFT,
-        )) / result['rho_proper'] ** 2
+        )) / result['hydrogen_number_density_cgs_cm3'] ** 2
         right_markers.append((
-            result['temperature_initial'],
+            result['temperature_initial_cgs_K'],
             max(abs(initial_rate), 1.0e-99),
             line.get_color(),
         ))
-    for temperature, rate, color in right_markers:
+    for temperature_proper_cgs_K, rate, color in right_markers:
         axes[1].plot(
-            temperature,
+            temperature_proper_cgs_K,
             rate,
             marker='o',
             markersize=6,
@@ -277,20 +278,20 @@ def main(config_filename=DEFAULT_CONFIG):
     METALLICITY = float(thermo['metallicity'])
     REDSHIFT = float(thermo['metal_pie_redshift'])
     results = []
-    for label, density, temperature in CASES:
+    for label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K in CASES:
         results.append(_run_case(
-            config, label, density, temperature, TABLE
+            config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, TABLE
         ))
     figure = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D.jpg'
     report = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D_ThermalReport.txt'
-    _plot(results, figure)
-    _write_report(results, report)
+    _plot(results, config, figure)
+    _write_report(results, config, report)
     for result in results:
-        final = _snapshot(result['snapshots'][-1])
+        final = _snapshot(result['snapshots'][-1], config)
         print(
             '%s: T_initial=%.6g K, T_final=%.6g K, T_eq=%.6g K' % (
-                result['label'], result['temperature_initial'],
-                np.median(final['temperature_proper']), result['equilibrium_temperature'],
+                result['label'], result['temperature_initial_cgs_K'],
+                np.median(final['temp_proper_code']), result['temperature_equilibrium_cgs_K'],
             )
         )
     print('figure = %s' % figure)

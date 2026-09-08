@@ -73,7 +73,7 @@ def main(config_filename=DEFAULT_CONFIG):
             'Expected an evolved snapshot at %s, but it was not written.'
             % final_outfile
         )
-    et.ReadandPlot(
+    et.plot_snapshot(
         final_outfile,
         config,
         ls='none',

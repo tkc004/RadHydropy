@@ -29,8 +29,8 @@ def make_scale_free_shells(config):
     code_unit_system = config['_code_units']
     cosmology = config['_cosmology']
     number = int(initial_condition['number_of_shells'])
-    qmin = float(initial_condition['inner_radius'])
-    qmax = float(initial_condition['outer_radius'])
+    qmin = float(initial_condition['radius_inner_dimensionless'])
+    qmax = float(initial_condition['radius_outer_dimensionless'])
     boundaries = np.linspace(qmin**3, qmax**3, number + 1)**(1.0 / 3.0)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)

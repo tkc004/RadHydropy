@@ -302,8 +302,8 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(par_config['mesh']['grid_cells'], 256)
         self.assertEqual(initial_condition['coordinate_system'], 'spherical')
-        self.assertEqual(initial_condition['inner_radius'].to_value(unyt.pc), 2.0)
-        self.assertEqual(initial_condition['outer_radius'].to_value(unyt.pc), 20.0)
+        self.assertEqual(initial_condition['radius_inner_proper'].to_value(unyt.pc), 2.0)
+        self.assertEqual(initial_condition['radius_outer_proper'].to_value(unyt.pc), 20.0)
         self.assertEqual(initial_condition['point_mass'].to_value(unyt.g), 1.0e38)
 
     def test_spherical_ballistic_infall_uses_yaml_config(self):
@@ -327,8 +327,8 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 0.0001)
         self.assertEqual(par_config['mesh']['grid_cells'], 256)
         self.assertEqual(initial_condition['coordinate_system'], 'spherical')
-        self.assertEqual(initial_condition['inner_radius'].to_value(unyt.pc), 2.0)
-        self.assertEqual(initial_condition['outer_radius'].to_value(unyt.pc), 20.0)
+        self.assertEqual(initial_condition['radius_inner_proper'].to_value(unyt.pc), 2.0)
+        self.assertEqual(initial_condition['radius_outer_proper'].to_value(unyt.pc), 20.0)
         self.assertEqual(par_config['hydrodynamics']['eos_type'], 'polytropic')
         self.assertEqual(par_config['hydrodynamics']['gamma'], 1.4)
         self.assertEqual(initial_condition['temperature_proper'].to_value(unyt.K), 1.0)

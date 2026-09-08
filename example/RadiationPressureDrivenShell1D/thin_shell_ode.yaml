@@ -36,7 +36,7 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   box_size_proper: {value: 1.0, unit: pc}
-  initial_radius: {value: 0.2, unit: pc}
+  radius_shell_initial_proper: {value: 0.2, unit: pc}
   shell_mass: {value: 1.482077e32, unit: g}
   temperature_proper: {value: 1.0, unit: K}
 example: {}

@@ -50,11 +50,11 @@ def make_initial_condition(config):
     code_unit_system = result.par.units.CodeUnits
     grid_cells = int(result.par.mesh.grid_cells)
     result.par.simulation.box_size_proper_code = np.asarray(
-        [float(ic["outer_radius"].to_value(code_unit_system.length_unit))]
+        [float(ic["radius_outer_proper"].to_value(code_unit_system.length_unit))]
     )
     result.par.simulation.time_proper_code = 0.0
-    rmin = float(ic["inner_radius"].to_value(code_unit_system.length_unit))
-    rmax = float(ic["outer_radius"].to_value(code_unit_system.length_unit))
+    rmin = float(ic["radius_inner_proper"].to_value(code_unit_system.length_unit))
+    rmax = float(ic["radius_outer_proper"].to_value(code_unit_system.length_unit))
     boundary_proper_code = np.linspace(rmin, rmax, grid_cells + 1)
     radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     shell = (radius_proper_code >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius_proper_code <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))

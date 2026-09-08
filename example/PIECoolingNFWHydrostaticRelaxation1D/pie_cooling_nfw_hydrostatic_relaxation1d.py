@@ -52,7 +52,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
     runtime_only = {
         'box_size_proper', 'coordinate_system', 'time_proper', 'grid_cells',
-        'number_of_cells', 'inner_radius', 'outer_radius', 'halo_mass',
+        'number_of_cells', 'radius_inner_proper', 'radius_outer_proper', 'halo_mass',
         'concentration', 'redshift', 'overdensity', 'h0', 'gas_fraction',
         'mean_molecular_weight', 'mu', 'reference_density',
         'temperature_proper', 'final_time', 'evolution_timestep',

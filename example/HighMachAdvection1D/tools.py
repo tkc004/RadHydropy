@@ -14,8 +14,8 @@ def build_initial_condition(config):
         temp_proper_code=np.where(left,initial.get("temperature_left_proper",initial.get("temperature_proper",0)),initial.get("temperature_right_proper",initial.get("temperature_proper",0)))
     elif "pressure_initial_proper" in initial:
         rho_left = quantity_to_value(initial["rho_left_proper"], units.density_unit)
-        pressure = quantity_to_value(initial["pressure_initial_proper"], units.pressure_unit)
-        temp_proper_code=np.full(n, pressure / rho_left)
+        pressure_proper_code = quantity_to_value(initial["pressure_initial_proper"], units.pressure_unit)
+        temp_proper_code=np.full(n, pressure_proper_code / rho_left)
     else: temp_proper_code=np.full(n,quantity_to_value(initial["temperature_proper"],units.temperature_unit))
     temp_proper_code=np.asarray([quantity_to_value(v,units.temperature_unit) if hasattr(v,"to_value") else float(v) for v in temp_proper_code])
     rho_proper_code=np.asarray([quantity_to_value(v,units.density_unit) if hasattr(v,"to_value") else float(v) for v in rho_proper_code])

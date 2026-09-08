@@ -43,7 +43,7 @@ def spherical_centers(boundary_comoving_code):
 def integrate_shell_reference(initial, config, scale_factors):
     """Integrate pressureless physical shell orbits for comparison only."""
     cosmology = config["_code_cosmology"]
-    radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
+    radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     mass = np.cumsum(
         np.asarray(initial.fluid.rho_comoving_code, dtype=float)
         * np.asarray(initial.mesh.volume_comoving_code, dtype=float)
@@ -54,14 +54,14 @@ def integrate_shell_reference(initial, config, scale_factors):
     )
     scale_initial = float(cosmology.scale_factor(cosmic_time_initial))
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
-    initial_physical_radius = scale_initial * radius
+    initial_physical_radius = scale_initial * radius_comoving_code
     initial_physical_velocity = (
         hubble_initial * initial_physical_radius
         + np.asarray(initial.fluid.vel_supercomoving_code, dtype=float) / scale_initial
     )
     requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float)**1.5
     cosmic_times = np.unique(requested_times)
-    reference = np.empty((len(cosmic_times), len(radius)), dtype=float)
+    reference = np.empty((len(cosmic_times), len(radius_comoving_code)), dtype=float)
     for shell, shell_mass in enumerate(mass):
         def rhs(time_cosmic_code, state):
             shell_radius, shell_velocity = state
@@ -91,7 +91,7 @@ def integrate_shell_reference(initial, config, scale_factors):
         return reference
     return np.column_stack([
         np.interp(requested_times, cosmic_times, reference[:, shell])
-        for shell in range(len(radius))
+        for shell in range(len(radius_comoving_code))
     ])
 
 
@@ -99,7 +99,7 @@ def integrate_shell_density_reference(initial, config, scale_factors):
     """Return conservative Eulerian density from pressureless shell ODEs."""
     cosmology = config["_code_cosmology"]
     boundary_comoving_code = np.asarray(initial.mesh.boundary_comoving_code, dtype=float)
-    radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
+    radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     volume_comoving_code = np.asarray(initial.mesh.volume_comoving_code, dtype=float)
     shell_mass = np.asarray(initial.fluid.rho_comoving_code, dtype=float) * volume_comoving_code
     edge_mass = np.concatenate(([0.0], np.cumsum(shell_mass)))
@@ -116,7 +116,7 @@ def integrate_shell_density_reference(initial, config, scale_factors):
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
     initial_physical_boundary = scale_initial * boundary_comoving_code
     initial_edge_velocity = np.interp(
-        boundary_comoving_code, radius, np.asarray(initial.fluid.vel_supercomoving_code, dtype=float),
+        boundary_comoving_code, radius_comoving_code, np.asarray(initial.fluid.vel_supercomoving_code, dtype=float),
         left=0.0, right=float(np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)[-1]),
     )
     initial_physical_velocity = (
@@ -291,15 +291,15 @@ def run_case(config, label, rotation_factor):
     def record(state):
         tau = float(np.asarray(state.fluid.tau_supercomoving_code).flat[0])
         a = float(state.par.cosmology.scale_factor_from_supercomoving(tau))
-        radius = np.abs(np.asarray(state.mesh.x_comoving_code[active], dtype=float))
+        radius_comoving_code = np.abs(np.asarray(state.mesh.x_comoving_code[active], dtype=float))
         j = np.asarray(state.fluid.specific_angular_momentum_code[active], dtype=float)
         enclosed = np.cumsum(
             np.asarray(state.fluid.Mass_code[active], dtype=float)
         )
         gravity = state.par.cosmology.gravitational_constant * enclosed
-        valid = (radius > 0.0) & (gravity > 0.0)
-        support = np.zeros_like(radius)
-        support[valid] = j[valid]**2 / (gravity[valid] * radius[valid])
+        valid = (radius_comoving_code > 0.0) & (gravity > 0.0)
+        support = np.zeros_like(radius_comoving_code)
+        support[valid] = j[valid]**2 / (gravity[valid] * radius_comoving_code[valid])
         history["a"].append(a)
         history["maximum_density"].append(
             float(np.max(np.asarray(state.fluid.rho_comoving_code[active], dtype=float)))
@@ -329,12 +329,12 @@ def run_case(config, label, rotation_factor):
     np.savez(
         output_dir / "history.npz",
         a=np.asarray(history["a"], dtype=float),
-        density=np.asarray(history["density_profiles"], dtype=float),
+        rho_comoving_code=np.asarray(history["density_profiles"], dtype=float),
         specific_angular_momentum=np.asarray(history["j_profiles"], dtype=float),
         total_angular_momentum=np.asarray(history["total_j"], dtype=float),
         maximum_density=np.asarray(history["maximum_density"], dtype=float),
         support=np.asarray(history["support"], dtype=float),
-        radius=np.asarray(sim.mesh.x_comoving_code[active], dtype=float),
+        radius_comoving_code=np.asarray(sim.mesh.x_comoving_code[active], dtype=float),
         shell_radius=np.asarray(history["shell_radius"], dtype=float),
         reference_shell_radius=reference_shell_radius,
         reference_density=reference_density,

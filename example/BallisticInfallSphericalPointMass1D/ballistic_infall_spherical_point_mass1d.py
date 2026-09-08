@@ -64,7 +64,7 @@ def main(config_filename=DEFAULT_CONFIG):
         nested["par"]['output']['directory'],
         nested["par"]['output']['filename_prefix'] + '_001.hdf5',
     )
-    et.ReadandPlot(
+    et.plot_snapshot(
         final_outfile,
         nested,
         ls='none',

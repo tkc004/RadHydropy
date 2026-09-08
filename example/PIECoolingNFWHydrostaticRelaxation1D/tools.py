@@ -36,8 +36,8 @@ def build_initial_condition(config):
     sim = Rsim(config['par'])
     code_units = sim.par.units.CodeUnits
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    rmin = initial.get('radius_inner_proper', initial.get('inner_radius'))
-    rmax = initial.get('radius_outer_proper', initial.get('outer_radius'))
+    rmin = initial['radius_inner_proper']
+    rmax = initial['radius_outer_proper']
     boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(rmin, rmax, grid_cells + 1), code_units.length_unit
     ))

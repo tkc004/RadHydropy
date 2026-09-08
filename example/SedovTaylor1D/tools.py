@@ -24,7 +24,7 @@ def build_initial_condition(config):
     temp_proper_code[cut] = float(np.asarray(probe))
     return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code, vel_proper_code=np.zeros(n), temp_proper_code=temp_proper_code, mu_dimensionless=mu_dimensionless, area_proper_code=np.full(n, quantity_to_value(par["mesh"]["area_proper"], units.area_unit)))
 
-def ReadandPlot(filename, config, **kwargs):
+def plot_snapshot(filename, config, **kwargs):
     sim = Rsim(config["par"]); import radhydropy.io as rio; rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first=int(sim.par.mesh.ghost_cells); last=first+int(sim.par.mesh.grid_cells); b=np.asarray(sim.mesh.boundary_proper_code); x=.5*(b[:-1]+b[1:])[first:last]
     pre_proper_code = sim.fluid.eos.pressure(sim.fluid.rho_proper_code, sim.fluid.temp_proper_code, sim.fluid.mu)

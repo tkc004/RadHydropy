@@ -58,12 +58,12 @@ class InitialCondition(Rsim):
         self.par.simulation.coordinate_system = "spherical"
         self.par.simulation.time_proper_code = 0.0
         self.par.simulation.box_size_proper_code = np.asarray(
-            [float(initial_condition["outer_radius"].to_value(code_unit_system.length_unit))]
+            [float(initial_condition["radius_outer_proper"].to_value(code_unit_system.length_unit))]
         )
 
         self.mesh.boundary_proper_code = np.linspace(
-            float(initial_condition["inner_radius"].to_value(code_unit_system.length_unit)),
-            float(initial_condition["outer_radius"].to_value(code_unit_system.length_unit)),
+            float(initial_condition["radius_inner_proper"].to_value(code_unit_system.length_unit)),
+            float(initial_condition["radius_outer_proper"].to_value(code_unit_system.length_unit)),
             grid_cells + 1,
         )
         self.mesh.x_proper_code = spherical_cell_centers(self.mesh.boundary_proper_code)

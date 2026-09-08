@@ -53,8 +53,8 @@ initial_condition:
   coordinate_system: spherical
   box_size_proper: {value: 80.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
-  inner_radius: {value: 0.01, unit: kpc}
-  outer_radius: {value: 80.0, unit: kpc}
+  radius_inner_proper: {value: 0.01, unit: kpc}
+  radius_outer_proper: {value: 80.0, unit: kpc}
   halo_mass: {value: 5.497e8, unit: Msun}
   concentration: 10.0
   redshift: 0.0

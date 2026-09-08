@@ -135,8 +135,8 @@ def build_initial_condition(config):
     sim.par.simulation.box_size_proper_code = quantity_to_value(initial_condition['box_size_proper'], code_unit_system.length_unit)
 
     sim.mesh.boundary_proper_code = np.linspace(
-        initial_condition['inner_radius'],
-        initial_condition['outer_radius'],
+        initial_condition['radius_inner_proper'],
+        initial_condition['radius_outer_proper'],
         grid_cells + 1,
     )
     sim.mesh.x_proper_code = spherical_cell_centers(sim.mesh.boundary_proper_code)
@@ -191,7 +191,7 @@ def build_initial_condition(config):
     sim.fluid.SetUpFluid(sim.par, sim.mesh)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
-def ReadandPlot(outfilename, config, **kwargs):
+def plot_snapshot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = config['par']['units']['CodeUnits']
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None

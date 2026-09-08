@@ -212,15 +212,15 @@ class Testing(unittest.TestCase):
             captured_plots.append((x, y, kwargs))
 
         def fake_readhdf5(par, mesh, fluid, outfilename):
-            mesh.boundary = np.linspace(0.0, 7.0, 8) * unyt.pc
-            fluid.rho_code = np.linspace(1.0, 7.0, 7) * (unyt.g / unyt.cm**3)
-            fluid.vel_code = np.linspace(-3.0, 3.0, 7) * (unyt.cm / unyt.s)
+            mesh.geometry_state.boundary_proper_code = np.linspace(0.0, 3.0, 4)
+            fluid.rho_proper_code = np.linspace(1.0, 7.0, 7)
+            fluid.vel_proper_code = np.linspace(-3.0, 3.0, 7)
 
         with mock.patch.object(module.rio, 'readhdf5', fake_readhdf5), \
             mock.patch.object(module.plt, 'plot', side_effect=fake_plot), \
             mock.patch.object(module.plt, 'subplot', return_value=None), \
             mock.patch.object(module.plt, 'ylabel', return_value=None):
-            module.ReadandPlot(
+            module.plot_snapshot(
                 'unused.hdf5',
                 {
                     'par': {
@@ -230,7 +230,7 @@ class Testing(unittest.TestCase):
                     'initial_condition': {
                         'grid_cells': 3,
                         'coordinate_system': 'cartesian',
-                        'box_size_proper': 1.0 * unyt.pc,
+                        'box_size_proper': 1.0 * unyt.cm,
                         'time_proper': 0.0 * unyt.s,
                         'reference_density': 1.0 * (unyt.g / unyt.cm**3),
                         'temperature_proper': 1.0 * unyt.K,

@@ -147,10 +147,10 @@ def build_initial_condition(config):
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     inner_radius_code = float(
-        initial_condition['inner_radius'].to_value(code_units.length_unit)
+        initial_condition['radius_inner_proper'].to_value(code_units.length_unit)
     )
     outer_radius_code = float(
-        initial_condition['outer_radius'].to_value(code_units.length_unit)
+        initial_condition['radius_outer_proper'].to_value(code_units.length_unit)
     )
     sim.mesh.boundary_comoving_code = np.linspace(
         inner_radius_code, outer_radius_code, grid_cells + 1
@@ -230,7 +230,7 @@ def build_initial_condition(config):
     )
 
     sim.dark_matter = DarkMatterShells(
-        radius=np.array([float(initial_condition['outer_radius'].to_value(unyt.kpc)) * 2.0]),
+        radius=np.array([float(initial_condition['radius_outer_proper'].to_value(unyt.kpc)) * 2.0]),
         velocity=np.zeros(1),
         mass=np.full(1, 1.0e-30) * code_units.mass_unit,
         code_units=code_units,

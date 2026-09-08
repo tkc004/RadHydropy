@@ -22,7 +22,7 @@ OUTPUT = ROOT / 'outputs_caustic_convergence'
 CASES = {
     'shells': [2048, 4096, 8192],
     'smoothing': [6.0, 12.0, 24.0],
-    'inner_radius': [0.025, 0.05, 0.1],
+    'radius_inner_dimensionless': [0.025, 0.05, 0.1],
     'perturbation_amplitude': [4.0, 5.0, 6.0],
 }
 

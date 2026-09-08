@@ -57,8 +57,8 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  inner_radius: {value: 0.0, unit: pc}
-  outer_radius: {value: 1.0, unit: pc}
+  radius_inner_proper: {value: 0.0, unit: pc}
+  radius_outer_proper: {value: 1.0, unit: pc}
   time_cosmic: 49.25926684207865
   hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
   hydrogen_mass_fraction: 1.0
@@ -66,4 +66,3 @@ initial_condition:
   xHI: 0.9998
 example:
   source_timestep: 1.0
-

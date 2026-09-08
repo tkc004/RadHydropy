@@ -60,31 +60,31 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
 
     snapshots = sorted(output.glob("Output_*.hdf5"))
     history = []
-    entropy_radius = None
+    entropy_radius_proper_code = None
     entropy_history = []
-    density_history = []
-    temperature_history = []
+    rho_proper_code_history = []
+    temp_proper_code_history = []
     for filename in snapshots:
         state = et.build_initial_condition(config)
         rio.readhdf5(state.par, state.mesh, state.fluid, filename)
-        radius, density, temperature = et.primitive_profiles(state)
+        radius_proper_code, rho_proper_code, temp_proper_code = et.primitive_profiles(state)
         _, entropy = et.entropy_profile(state)
-        if entropy_radius is None:
-            entropy_radius = radius
+        if entropy_radius_proper_code is None:
+            entropy_radius_proper_code = radius_proper_code
         entropy_history.append(entropy)
-        density_history.append(density)
-        temperature_history.append(temperature)
+        rho_proper_code_history.append(rho_proper_code)
+        temp_proper_code_history.append(temp_proper_code)
         history.append({
-            "time": float(np.asarray(state.fluid.time_proper_code).flat[0]),
+            "time_proper_code": float(np.asarray(state.fluid.time_proper_code).flat[0]),
             **et.energy_components(state),
         })
     if not history:
-        history = [{"time": float(sim.fluid.time_proper_code), **et.energy_components(sim)}]
+        history = [{"time_proper_code": float(sim.fluid.time_proper_code), **et.energy_components(sim)}]
 
     data = output / "HighMachAdvection1D_EnergyHistory.npz"
     np.savez(
         data,
-        time_s=np.asarray([item["time_proper"] for item in history]),
+        time_s=np.asarray([item["time_proper_code"] for item in history]),
         total_energy=np.asarray([item["total"] for item in history]),
         kinetic_energy=np.asarray([item["kinetic"] for item in history]),
         thermal_energy=np.asarray([item["thermal"] for item in history]),
@@ -97,13 +97,13 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     entropy_values = np.asarray(entropy_history)
     np.savez(
         entropy_data,
-        time_s=np.asarray([item["time_proper"] for item in history]),
-        radius=np.asarray(entropy_radius),
+        time_s=np.asarray([item["time_proper_code"] for item in history]),
+        radius_proper_code=np.asarray(entropy_radius_proper_code),
         entropy=entropy_values,
-        density=np.asarray(density_history),
-        temperature=np.asarray(temperature_history),
+        rho_proper_code=np.asarray(rho_proper_code_history),
+        temp_proper_code=np.asarray(temp_proper_code_history),
     )
-    times = np.asarray([item["time_proper"] for item in history])
+    times = np.asarray([item["time_proper_code"] for item in history])
     radius_scale = max(float(np.asarray(initial_condition["box_size_proper"])), 1.0)
 
     def save_profile_map(values, filename, title, colorbar_label, **image_kwargs):
@@ -113,7 +113,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         log_values[positive] = np.log10(values[positive])
         figure, axis = plt.subplots(figsize=(7.5, 5.0))
         image = axis.pcolormesh(
-            np.asarray(entropy_radius) / radius_scale,
+            np.asarray(entropy_radius_proper_code) / radius_scale,
             times,
             np.ma.masked_invalid(log_values),
             shading="auto",

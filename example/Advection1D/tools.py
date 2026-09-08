@@ -52,7 +52,7 @@ def build_initial_condition(config):
 
     return sim
 
-def ReadandPlot(outfilename, config, **kwargs):
+def plot_snapshot(outfilename, config, **kwargs):
     initial = config['initial_condition']
     rout = Rsim(config['par'])
     code_units_obj = config['_code_units']

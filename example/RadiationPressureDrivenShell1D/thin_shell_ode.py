@@ -138,7 +138,7 @@ def main(config_filename=DEFAULT_CONFIG):
     photon_energy_cgs_erg = (20.0 * unyt.eV).to_value(unyt.erg)
     shell_mass = initial["shell_mass"].to_value(unyt.g)
     shell_state = {
-        "radius": initial["initial_radius"].to_value(unyt.cm),
+        "radius_proper_cgs_cm": initial["radius_shell_initial_proper"].to_value(unyt.cm),
         "velocity": 0.0,
     }
     history = {"time": [], "radius": [], "momentum": []}

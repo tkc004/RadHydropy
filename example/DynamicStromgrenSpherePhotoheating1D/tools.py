@@ -62,8 +62,8 @@ def _to_km_s(values, par):
 
 def _to_number_density(values, par):
     if hasattr(values, 'to_value'):
-        density = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
-        return density / (1.0 * unyt.mp).to_value(unyt.g)
+        density_proper_cgs_g_cm3 = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
+        return density_proper_cgs_g_cm3 / (1.0 * unyt.mp).to_value(unyt.g)
     code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
     if code is None:
         return np.asarray(values, dtype=float)
@@ -228,13 +228,13 @@ def ionization_front_position(
     neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
 ):
     interior = interior_slice(par)
-    radius = _to_kpc(mesh.x_proper_code[interior], par)
+    radius_proper_kpc = _to_kpc(mesh.x_proper_code[interior], par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
     if np.all(xHI > neutral_fraction):
         return 0.0
     if np.all(xHI <= neutral_fraction):
-        return radius[-1]
+        return radius_proper_kpc[-1]
 
     # The front is the first outward transition from ionized gas
     # (xHI <= 0.5) to neutral gas (xHI > 0.5). This remains well-defined
@@ -243,22 +243,22 @@ def ionization_front_position(
         (xHI[:-1] <= neutral_fraction) & (xHI[1:] > neutral_fraction)
     )[0]
     if crossings.size == 0:
-        return radius[np.where(xHI <= neutral_fraction)[0][-1]]
+        return radius_proper_kpc[np.where(xHI <= neutral_fraction)[0][-1]]
 
     left = int(crossings[0])
     right = left + 1
     weight = (neutral_fraction - xHI[left]) / (xHI[right] - xHI[left])
-    return radius[left] + weight * (radius[right] - radius[left])
+    return radius_proper_kpc[left] + weight * (radius_proper_kpc[right] - radius_proper_kpc[left])
 
 
 def mean_ionized_temperature(fluid, par):
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
-    temperature = _to_temperature(fluid.temp_proper_code[interior], par)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
-    return float(np.sum(ionized_weight * temperature) / np.sum(ionized_weight))
+    return float(np.sum(ionized_weight * temperature_proper_cgs_K) / np.sum(ionized_weight))
 
 
 def append_history(history, mesh, fluid, par):
@@ -290,7 +290,7 @@ def stromgren_radius(config):
     initial = config['initial_condition']
     chemistry = config['par']['chemistry']
     radiation = config['par']['radiation']
-    radius = (
+    radius_proper_kpc = (
         3.0
         * radiation['radiative_transfer_source_photon_rate']
         / (
@@ -300,7 +300,7 @@ def stromgren_radius(config):
             * initial['hydrogen_number_density']**2
         )
     ) ** (1.0 / 3.0)
-    return radius.to(unyt.kpc)
+    return radius_proper_kpc.to(unyt.kpc)
 
 
 def recombination_time(config):
@@ -319,9 +319,9 @@ def ionized_sound_speed_from_history(history, gamma):
     simulated final temperature.
     """
     del history
-    temperature = 1.0e4 * unyt.K
+    temperature_proper_cgs_K = 1.0e4 * unyt.K
     mu_ionized = 0.5
-    return np.sqrt(gamma * unyt.kboltz * temperature / (mu_ionized * unyt.mp)).to(
+    return np.sqrt(gamma * unyt.kboltz * temperature_proper_cgs_K / (mu_ionized * unyt.mp)).to(
         unyt.km / unyt.s
     )
 
@@ -374,16 +374,16 @@ def scatter_reference(ax, reference, label='ZEUS-MP'):
 
 def save_front_plot(history, config, figure_filename):
     example = config.get('example', {})
-    time = np.asarray(history['time_Myr']) * unyt.Myr
+    time_proper_Myr = np.asarray(history['time_Myr']) * unyt.Myr
     front_radius = np.asarray(history['front_radius_kpc'])
     radius_stromgren = stromgren_radius(config)
     tau_recombination = recombination_time(config)
     ci = ionized_sound_speed_from_history(history, 5.0 / 3.0)
-    spitzer_valid = time >= tau_recombination
+    spitzer_valid = time_proper_Myr >= tau_recombination
     radius_spitzer = None
     if np.any(spitzer_valid):
         radius_spitzer = shifted_spitzer_radius(
-            time[spitzer_valid],
+            time_proper_Myr[spitzer_valid],
             config,
             ci,
         ).to_value(unyt.kpc)
@@ -391,7 +391,7 @@ def save_front_plot(history, config, figure_filename):
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
-        time.to_value(unyt.Myr),
+        time_proper_Myr.to_value(unyt.Myr),
         front_radius,
         color='tab:blue',
         lw=2.0,
@@ -399,7 +399,7 @@ def save_front_plot(history, config, figure_filename):
     )
     if radius_spitzer is not None:
         ax.plot(
-            time[spitzer_valid].to_value(unyt.Myr),
+            time_proper_Myr[spitzer_valid].to_value(unyt.Myr),
             radius_spitzer,
             color='black',
             lw=1.7,
@@ -424,7 +424,7 @@ def save_front_plot(history, config, figure_filename):
         ls=':',
         label=r'$R_{\rm S}$',
     )
-    ax.set_xlim(0.0, time[-1].to_value(unyt.Myr))
+    ax.set_xlim(0.0, time_proper_Myr[-1].to_value(unyt.Myr))
     if radius_spitzer is not None:
         ax.set_ylim(0.0, max(plot_radius_max, 1.05 * np.nanmax(radius_spitzer)))
     else:
@@ -443,10 +443,10 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.x_proper_code[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
     number_density = _to_number_density(fluid.rho_proper_code[interior], par)
-    velocity = _to_km_s(fluid.vel_proper_code[interior], par)
+    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], par)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure = _to_pressure(fluid.pre_proper_code[interior], par)
-    temperature = _to_temperature(fluid.temp_proper_code[interior], par)
+    pressure_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], par)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
     plot_radius_max = example['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(
@@ -487,7 +487,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     axes[0].set_ylabel(r'$n$ [cm$^{-3}$]')
     axes[0].legend(frameon=False, loc='best')
 
-    positive_velocity = np.where(velocity > 0.0, velocity, np.nan)
+    positive_velocity = np.where(vel_peculiar_proper_km_s > 0.0, vel_peculiar_proper_km_s, np.nan)
     axes[1].plot(radius_pc, positive_velocity, color='tab:orange', lw=1.8, label='RadHydropy')
     scatter_reference(axes[1], velocity_reference)
     axes[1].set_yscale('log')
@@ -507,13 +507,13 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     axes[2].set_ylabel(r'$x_{\rm HI}$')
     axes[2].legend(frameon=False, loc='best')
 
-    axes[3].plot(radius_pc, pressure, color='tab:red', lw=1.8, label='RadHydropy')
+    axes[3].plot(radius_pc, pressure_proper_cgs_erg_cm3, color='tab:red', lw=1.8, label='RadHydropy')
     scatter_reference(axes[3], pressure_reference)
     axes[3].set_yscale('log')
     axes[3].set_ylabel(r'$P$ [g cm$^{-1}$ s$^{-2}$]')
     axes[3].legend(frameon=False, loc='best')
 
-    axes[4].plot(radius_pc, temperature, color='tab:purple', lw=1.8, label='RadHydropy')
+    axes[4].plot(radius_pc, temperature_proper_cgs_K, color='tab:purple', lw=1.8, label='RadHydropy')
     axes[4].set_yscale('log')
     axes[4].set_ylabel(r'$T$ [K]')
     axes[4].set_xlabel('Radius [pc]')

@@ -48,23 +48,24 @@ def units():
 
 
 def reproduce_reference():
-    """Run the established EdS calibration unchanged before the comparison."""
-    config = EXAMPLE_ROOT / "cosmological_dark_matter_correlation_z100.yaml"
-    config = eu.load_nested_example_config(config)
-    nested = copy.deepcopy(config["par"])
-    nested["output"] = dict(nested["output"])
-    nested["output"]["savedir"] = str(OUTPUT_ROOT / "reference")
-    example = copy.deepcopy(config.get("example", {}))
-    initial_condition = config["initial_condition"]
-    reference_units = CodeUnits.from_mapping(nested["units"]["CodeUnits"])
+    """Run the established EdS calibration using the complete config."""
+    config_filename = EXAMPLE_ROOT / "cosmological_dark_matter_correlation_z100.yaml"
+    config = eu.load_nested_example_config(config_filename)
+    reference_config = copy.deepcopy(config)
+    reference_config["par"]["output"]["savedir"] = str(OUTPUT_ROOT / "reference")
+    reference_units = CodeUnits.from_mapping(
+        reference_config["par"]["units"]["CodeUnits"]
+    )
     cosmology = CodeEdS.from_code_units(
         reference_units,
-        t_ref=float(nested["gravity"]["cosmology_t_ref"]),
-        a_ref=float(nested["gravity"]["cosmology_a_ref"]),
+        t_ref=float(reference_config["par"]["gravity"]["cosmology_t_ref"]),
+        a_ref=float(reference_config["par"]["gravity"]["cosmology_a_ref"]),
     )
-    reference_example.run_lagrangian_top_hat(
-        nested, example, initial_condition, reference_units, cosmology,
-    )
+    # These runtime-only objects cannot be represented in YAML. Attach them
+    # at this call site while preserving the complete nested config boundary.
+    reference_config["_code_unit_system"] = reference_units
+    reference_config["_cosmology"] = cosmology
+    reference_example.run_lagrangian_top_hat(reference_config)
 
 
 def reference_step(radius, velocity, dt, a_start, a_end, g_code, mass, rho_comoving):

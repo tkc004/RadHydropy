@@ -1,6 +1,7 @@
 """Uniform spherical HM12 PIE cooling/heating hydro test."""
 
 import argparse
+import copy
 import os
 import sys
 from pathlib import Path
@@ -33,7 +34,8 @@ DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_cooling_uniform_sph1d.yaml"
 CASES = {"diffuse": 1.0, "self_shielded": 100.0}
 
 
-def _snapshot(filename):
+def _snapshot(filename, config):
+    eu._require_complete_example_config(config, '_snapshot')
     with h5py.File(filename, "r") as handle:
         data = handle["Data"]
         header = handle["Header"]
@@ -43,9 +45,9 @@ def _snapshot(filename):
         last = first + nogrid
         boundary_proper_code = np.asarray(data["boundary_proper_code"][()])[first : last + 1]
         return {
-            "radius": 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:]),
-            "density": np.asarray(data["rho_proper_code"][()])[first:last],
-            "temperature": np.asarray(data["temp_proper_code"][()])[first:last],
+            "radius_proper_code": 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:]),
+            "rho_proper_code": np.asarray(data["rho_proper_code"][()])[first:last],
+            "temp_proper_code": np.asarray(data["temp_proper_code"][()])[first:last],
         }
 
 
@@ -136,19 +138,19 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = EXAMPLE_DIR / "PIEUVBGCoolingUniformSph1D.jpg"
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex="col")
     for column, (label, (snapshots, _)) in enumerate(results.items()):
-        initial = _snapshot(snapshots[0])
-        final = _snapshot(snapshots[-1])
+        initial = _snapshot(snapshots[0], config)
+        final = _snapshot(snapshots[-1], config)
         # The physical radius is ~1e15 cm.  Plotting those large absolute
         # values can trigger a misleading sliver/spike artifact in some
         # Matplotlib backends when the temperature is nearly uniform.
         radius_scale = 1.0e15
-        radius_initial = initial["radius_proper"] / radius_scale
-        radius_final = final["radius_proper"] / radius_scale
+        radius_initial = initial["radius_proper_code"] / radius_scale
+        radius_final = final["radius_proper_code"] / radius_scale
         # Remove round-off-level differences before the logarithmic plot;
         # otherwise the renderer can amplify 1e-11 K noise into visible
         # downward spikes.
-        temperature_initial = np.round(initial["temperature_proper"], decimals=6)
-        temperature_final = np.round(final["temperature_proper"], decimals=6)
+        temperature_initial = np.round(initial["temp_proper_code"], decimals=6)
+        temperature_final = np.round(final["temp_proper_code"], decimals=6)
         expected_style = {
             "linestyle": "None",
             "marker": "s",
@@ -169,13 +171,13 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         axes[1, column].plot(
             radius_initial,
-            initial["rho_proper"],
+            initial["rho_proper_code"],
             label="expected",
             **expected_style,
         )
         axes[1, column].plot(
             radius_final,
-            final["rho_proper"],
+            final["rho_proper_code"],
             label="simulation",
             **simulation_style,
         )

@@ -620,7 +620,7 @@ def make_pressure_figure(snapshots, config):
     return figure
 
 
-def ReadandPlot(outfilename, config, **kwargs):
+def plot_snapshot(outfilename, config, **kwargs):
     rout = load_output_state(outfilename, config)
     plot_density_snapshot(plt.gca(), rout, **kwargs)
     if np.all(_time_proper(rout) > 0 * _time_proper(rout).units):

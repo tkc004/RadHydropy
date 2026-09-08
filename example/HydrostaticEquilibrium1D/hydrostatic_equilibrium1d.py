@@ -60,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not output_files:
         raise FileNotFoundError('hydrostatic run produced no output snapshot')
     final_outfile = str(output_files[-1])
-    et.ReadandPlot(
+    et.plot_snapshot(
         final_outfile,
         config,
         ls='none',

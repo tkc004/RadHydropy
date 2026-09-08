@@ -13,7 +13,7 @@ def build_initial_condition(config):
     rho=np.full(n,quantity_to_value(ic["rho_proper"],units.density_unit)); rho[mid]*=ic["density_ratio"]; temp=np.full(n,quantity_to_value(ic["temperature_proper"],units.temperature_unit)); temp[mid]*=ic["temperature_ratio"]
     return make_initial_condition(config, boundary_proper_code=b, rho_proper_code=rho, vel_proper_code=np.full(n,quantity_to_value(ic["vel_proper"],units.velocity_unit)), temp_proper_code=temp, mu_dimensionless=np.full(n,ic["mean_molecular_weight"]), area_proper_code=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area_proper"],units.area_unit))
 
-def getAnalyticSolution(config, state):
+def analytic_density_profile(config, state):
     ic = config["initial_condition"]
     units = config["_code_units"]
     rho_high = quantity_to_value(ic["rho_proper"], units.density_unit)
@@ -46,8 +46,8 @@ def getAnalyticSolution(config, state):
     )
     return np.where(centers <= 0.5 * box, left, mirrored)
 
-def ReadandPlot(filename, config, **kwargs):
+def plot_snapshot(filename, config, **kwargs):
     sim=Rsim(config["par"]); import radhydropy.io as rio; rio.readhdf5(sim.par,sim.mesh,sim.fluid,filename); first=int(sim.par.mesh.ghost_cells); last=first+int(sim.par.mesh.grid_cells); b=np.asarray(sim.mesh.boundary_proper_code); x=.5*(b[:-1]+b[1:]); plt.plot(x[first:last],np.asarray(sim.fluid.rho_proper_code)[first:last],**kwargs)
-    analytic = getAnalyticSolution(config, sim)
+    analytic = analytic_density_profile(config, sim)
     if analytic is not None:
         plt.plot(x[first:last], analytic[first:last], color=kwargs.get("color"), linestyle="--", label="analytic")

@@ -124,12 +124,12 @@ def main(output_root=None):
     mass_before = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
     angular_before = np.asarray(sim.fluid.AngularMomentum_code[active], dtype=float).copy()
     energy_before = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
-    radius = np.abs(np.asarray(sim.mesh.x_comoving_code[active], dtype=float))
+    radius_comoving_code = np.abs(np.asarray(sim.mesh.x_comoving_code[active], dtype=float))
     rotational_before = np.zeros_like(mass_before)
-    valid = (mass_before > 0.0) & (radius > 0.0)
+    valid = (mass_before > 0.0) & (radius_comoving_code > 0.0)
     rotational_before[valid] = (
         0.5 * angular_before[valid]**2
-        / (mass_before[valid] * radius[valid]**2)
+        / (mass_before[valid] * radius_comoving_code[valid]**2)
     )
 
     sim.ApplyThermochemistrySources(1.0e-3)
@@ -140,10 +140,10 @@ def main(output_root=None):
     energy_after = np.asarray(sim.fluid.Energy_code[active], dtype=float)
     momentum_after = np.asarray(sim.fluid.Mom_code[active], dtype=float)
     rotational_after = np.zeros_like(mass_after)
-    valid = (mass_after > 0.0) & (radius > 0.0)
+    valid = (mass_after > 0.0) & (radius_comoving_code > 0.0)
     rotational_after[valid] = (
         0.5 * angular_after[valid]**2
-        / (mass_after[valid] * radius[valid]**2)
+        / (mass_after[valid] * radius_comoving_code[valid]**2)
     )
     kinetic_before = 0.5 * np.asarray(sim.fluid.Mom_code[active], dtype=float)**2 / mass_before
     kinetic_after = 0.5 * momentum_after**2 / mass_after

@@ -54,7 +54,7 @@ def main(config_filename=DEFAULT_CONFIG):
         Path(output['directory']).glob(f"{output['filename_prefix']}_*.hdf5")
     )
     for outfilename in outputfiles:
-        et.ReadandPlot(
+        et.plot_snapshot(
             str(outfilename),
             config,
             ls='none',

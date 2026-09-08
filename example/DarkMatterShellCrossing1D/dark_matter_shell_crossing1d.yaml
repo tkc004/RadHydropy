@@ -19,8 +19,8 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   number_of_shells: 32
-  inner_radius: 0.08
-  outer_radius: 0.8
+  radius_inner_dimensionless: 0.08
+  radius_outer_dimensionless: 0.8
   total_mass: 1.0
   vel_proper_scale: -0.55
   angular_momentum_fraction: 0.15
