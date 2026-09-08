@@ -42,7 +42,7 @@ def main(config_filename=CONFIG):
     config["_dark_matter_softening"] = float(par["dark_matter"]["softening"])
     shells = et.make_dark_matter(config)
 
-    initial = float(ic["initial_cosmic_time"])
+    initial = float(ic["time_cosmic"])
     final = float(par["simulation"]["final_time"])
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))

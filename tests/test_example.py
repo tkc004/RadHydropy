@@ -461,7 +461,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['hydrodynamics']['order'], 0)
         self.assertEqual(par_config['mesh']['grid_cells'], 1024)
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 25.0)
-        self.assertEqual(initial_condition['injection_radius'].to_value(unyt.pc), 0.05)
+        self.assertEqual(initial_condition['radius_injection_proper'].to_value(unyt.pc), 0.05)
         self.assertEqual(initial_condition['rho_proper'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
         self.assertEqual(par_config['boundary']['outflow_velocity'].to_value(unyt.km / unyt.s), 1000.0)
         self.assertEqual(par_config['boundary']['outflow_density'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
@@ -523,7 +523,7 @@ class Testing(unittest.TestCase):
             }},
             'initial_condition': {
                 'rho_proper': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
-                'injection_radius': unyt.unyt_quantity(0.05, unyt.pc),
+                'radius_injection_proper': unyt.unyt_quantity(0.05, unyt.pc),
             },
         }
 
@@ -987,8 +987,14 @@ class Testing(unittest.TestCase):
                 )
                 temperature.attrs['units'] = 'K'
 
+            config = {
+                'par': {},
+                'initial_condition': {},
+                'example': {},
+            }
             written = example_utils.write_radial_profile_csv(
                 hdf5_filename,
+                config,
                 csv_filename,
             )
 

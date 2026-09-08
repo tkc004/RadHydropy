@@ -37,8 +37,8 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  rmin: {value: 0.05, unit: pc}
-  rmax: {value: 0.95, unit: pc}
+  radius_inner_proper: {value: 0.05, unit: pc}
+  radius_outer_proper: {value: 0.95, unit: pc}
   gas_density: {value: 1.0e-20, unit: g/cm**3}
   gas_temperature: {value: 10.0, unit: K}
   mu: 1.0
@@ -48,3 +48,4 @@ initial_condition:
   dark_matter_angular_momentum: 0.02
   dark_matter_softening: {value: 0.01, unit: pc}
 example: {}
+

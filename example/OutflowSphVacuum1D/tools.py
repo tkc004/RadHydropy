@@ -12,7 +12,7 @@ def analytic_density_profile(radius, time_proper_code, config, cell_faces=None):
     radius = np.asarray(radius, dtype=float)
     initial = config['initial_condition']
     boundary = config['par']['boundary']
-    injection_radius = float(initial['injection_radius'])
+    injection_radius = float(initial['radius_injection_proper'])
     density_outflow = float(boundary['outflow_density'])
     velocity_outflow = float(boundary['outflow_velocity'])
     front = injection_radius + velocity_outflow * float(time_proper_code)
@@ -39,7 +39,7 @@ def build_initial_condition(config):
     sim = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
-    injection_radius_code = quantity_to_value(initial['injection_radius'], code_units.length_unit)
+    injection_radius_code = quantity_to_value(initial['radius_injection_proper'], code_units.length_unit)
     box_size_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     sim.mesh.boundary_proper_code = as_named_array(np.linspace(
         injection_radius_code, injection_radius_code + box_size_code, grid_cells + 1

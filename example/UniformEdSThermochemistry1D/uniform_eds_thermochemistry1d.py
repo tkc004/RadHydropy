@@ -162,7 +162,7 @@ def main():
     atomic, _, _ = run_case(config, atomic_cooling=True)
 
     initial_time_s = (
-        float(initial_condition["initial_cosmic_time"])
+        float(initial_condition["time_cosmic"])
         * float(units.time_unit.to_value("s"))
     )
     plot_time_s = np.linspace(
@@ -171,7 +171,7 @@ def main():
     analytic = analytic_compton_temperature(
         compton["time_s"],
         float(initial_condition["temperature_proper"].to_value("K")),
-        float(initial_condition["initial_cosmic_time"]),
+        float(initial_condition["time_cosmic"]),
         cosmology,
         float(units.time_unit.to_value("s")),
         float(initial_condition["hydrogen_number_density"].to_value("1/cm**3")),
@@ -184,7 +184,7 @@ def main():
     analytic_plot = analytic_compton_temperature(
         plot_time_s,
         float(initial_condition["temperature_proper"].to_value("K")),
-        float(initial_condition["initial_cosmic_time"]),
+        float(initial_condition["time_cosmic"]),
         cosmology,
         float(units.time_unit.to_value("s")),
         float(initial_condition["hydrogen_number_density"].to_value("1/cm**3")),

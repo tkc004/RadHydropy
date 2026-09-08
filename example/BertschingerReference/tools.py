@@ -34,7 +34,7 @@ def make_scale_free_shells(config):
     boundaries = np.linspace(qmin**3, qmax**3, number + 1)**(1.0 / 3.0)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = float(initial_condition['initial_cosmic_time'])
+    cosmic_time = float(initial_condition['time_cosmic'])
     a = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     rho_comoving = float(cosmology.background_density(cosmic_time)) * a**3

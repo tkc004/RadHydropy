@@ -79,11 +79,11 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   nogrid: 256
-  rmin: 3.0
-  rmax: 4000.0
+  radius_inner_comoving: 3.0
+  radius_outer_comoving: 4000.0
   verbal: 1
-  initial_cosmic_time: 0.64428210447
-  perturbation_radius: 250.0
+  time_cosmic: 0.64428210447
+  radius_perturbation_comoving: 250.0
   target_halo_mass: 100.0
   initial_overdensity: 0.0166930693
   rho_proper_profile: linear_correlation
@@ -91,7 +91,7 @@ initial_condition:
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76
   dark_matter_shells: 1024
-  dm_inner_radius: 0.01
+  radius_inner_dark_matter_comoving: 0.01
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.02
   softening: 0.2

@@ -36,8 +36,8 @@ par:
 initial_condition:
   box_size_proper: {value: 10.0, unit: kpc}
   time_proper: {value: 0.0, unit: yr}
-  rmin: {value: 0.1, unit: kpc}
-  rmax: {value: 9.6, unit: kpc}
+  radius_inner_proper: {value: 0.1, unit: kpc}
+  radius_outer_proper: {value: 9.6, unit: kpc}
   halo_mass: {value: 1.0e8, unit: Msun}
   concentration: 10.0
   redshift: 0.0
@@ -48,3 +48,4 @@ initial_condition:
   rho_ref: {value: 1.0e-27, unit: g/cm**3}
   temperature_proper: {value: 1.0, unit: K}
 example: {}
+

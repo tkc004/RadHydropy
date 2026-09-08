@@ -16,8 +16,8 @@ def build_initial_condition(config):
     result = Rsim(config["par"])
     result.par.mesh.grid_cells = int(config["par"]['mesh']['grid_cells'])
     result.par.mesh.ghost_cells = 0
-    rmin = quantity_to_value(initial['rmin'], code_units.length_unit)
-    rmax = quantity_to_value(initial['rmax'], code_units.length_unit)
+    rmin = quantity_to_value(initial['radius_inner_proper'], code_units.length_unit)
+    rmax = quantity_to_value(initial['radius_outer_proper'], code_units.length_unit)
     result.par.simulation.box_size_proper_code = np.asarray([rmax])
     result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
     faces = np.linspace(rmin, rmax, result.par.mesh.grid_cells + 1)

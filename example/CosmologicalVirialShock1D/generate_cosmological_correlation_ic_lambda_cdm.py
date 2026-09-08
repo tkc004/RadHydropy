@@ -73,7 +73,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
-    initial_time = float(initial_condition["initial_cosmic_time"])
+    initial_time = float(initial_condition["time_cosmic"])
     scale_factor = float(cosmology.scale_factor(initial_time))
     peculiar_velocity = np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius

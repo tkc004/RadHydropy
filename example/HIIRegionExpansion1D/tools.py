@@ -34,7 +34,7 @@ def build_problem(config):
         initial['rho_initial'], code_units.density_unit
     )
     temperature_proper_code = np.ones(grid_cells) * quantity_to_value(
-        initial['neutral_temperature'], code_units.temperature_unit
+        initial['temperature_neutral_proper'], code_units.temperature_unit
     )
     sim = make_initial_condition(
         config,
@@ -137,8 +137,8 @@ def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
     fluid.eos.apply_piecewise_isothermal_state(
         fluid,
         par,
-        initial_condition['neutral_temperature'],
-        initial_condition['ionized_temperature'],
+        initial_condition['temperature_neutral_proper'],
+        initial_condition['temperature_ionized_proper'],
     )
     refresh_state(mesh, fluid, par, solver)
 
@@ -396,7 +396,7 @@ def stromgren_radius(config):
 def neutral_sound_speed(config):
     config = config['initial_condition']
     return np.sqrt(
-        unyt.kb * config['neutral_temperature'] / unyt.mp
+        unyt.kb * config['temperature_neutral_proper'] / unyt.mp
     ).to(unyt.cm / unyt.s)
 
 

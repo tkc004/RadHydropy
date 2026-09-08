@@ -87,7 +87,7 @@ def run(config_filename=DEFAULT_CONFIG):
     if hasattr(initial.fluid, "xHI"):
         print("initial CMB temperature = %.8g K" % float(np.median(
             np.asarray(initial.fluid.temp_supercomoving_code) /
-            float(cosmology.scale_factor(float(initial_condition["initial_cosmic_time"])))**2
+            float(cosmology.scale_factor(float(initial_condition["time_cosmic"])))**2
         )))
         print("initial electron fraction = %.8g" % float(np.median(
             1.0 - np.asarray(initial.fluid.xHI)
@@ -137,7 +137,7 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(initial_condition["initial_cosmic_time"])
+    initial_time = float(initial_condition["time_cosmic"])
     final_time = float(par["simulation"]["final_time"])
     target_tau = float(cosmology.supercomoving_time(final_time))
     cadence = float(par.get("gas_profile_cadence", 0.10))

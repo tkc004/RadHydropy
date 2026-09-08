@@ -48,7 +48,7 @@ def build_initial_condition(config):
     n_h = density_profile(
         radius_proper_code * code.length_unit.to_value(unyt.cm),
         initial['core_number_density'].to_value(1.0 / unyt.cm**3),
-        initial['core_radius'].to_value(unyt.cm),
+        initial['radius_core_proper'].to_value(unyt.cm),
         initial['density_power_law_exponent'],
     ) / unyt.cm**3
     sim = Rsim(config["par"])
@@ -187,8 +187,8 @@ def apply_piecewise_isothermal_state(sim, config):
     sim.fluid.eos.apply_piecewise_isothermal_state(
         sim.fluid,
         sim.par,
-        config['initial_condition']["neutral_temperature"],
-        config['initial_condition']["ionized_temperature"],
+        config['initial_condition']["temperature_neutral_proper"],
+        config['initial_condition']["temperature_ionized_proper"],
         config['initial_condition'].get("isothermal_ionized_fraction_threshold"),
     )
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
@@ -300,7 +300,7 @@ def main(config_filename=DEFAULT_CONFIG):
     shock_radii_cm = []
     snapshots = []
     nc = initial['core_number_density'].to_value(1.0 / unyt.cm**3)
-    rc = initial['core_radius'].to_value(unyt.cm)
+    rc = initial['radius_core_proper'].to_value(unyt.cm)
     exponent = float(initial['density_power_law_exponent'])
     for filename in output_files(outdir, output_config['filename_prefix']):
         par, mesh, fluid = load_output_state(filename, config)

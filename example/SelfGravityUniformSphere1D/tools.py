@@ -43,8 +43,8 @@ def build_initial_condition(config):
     sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time_proper'], code_unit_system.time_unit)
 
     boundary_proper_code = np.linspace(
-        quantity_to_value(initial_condition['rmin'], code_unit_system.length_unit),
-        quantity_to_value(initial_condition['rmax'], code_unit_system.length_unit),
+        quantity_to_value(initial_condition['radius_inner_proper'], code_unit_system.length_unit),
+        quantity_to_value(initial_condition['radius_outer_proper'], code_unit_system.length_unit),
         grid_cells + 1,
     )
     sim.mesh.boundary_proper_code = boundary_proper_code

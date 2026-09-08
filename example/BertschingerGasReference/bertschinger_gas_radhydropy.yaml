@@ -51,8 +51,9 @@ initial_condition:
   box_size_proper: {value: 800.0, unit: kpc}
   inner_radius: {value: 0.15, unit: kpc}
   outer_radius: {value: 800.0, unit: kpc}
-  initial_cosmic_time: 0.1
+  time_cosmic: 0.1
   perturbation_amplitude: 5.0
   mean_molecular_weight: 0.6
   temperature_proper: {value: 1.0e-6, unit: K}
 example: {}
+

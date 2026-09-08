@@ -35,7 +35,7 @@ def make_turnaround_shells(config):
     code_unit_system = config['_code_units']
     cosmology = config['_cosmology']
     turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
-    time = float(initial_condition['initial_cosmic_time'])
+    time = float(initial_condition['time_cosmic'])
     scale_factor = float(cosmology.scale_factor(time))
     hubble = float(cosmology.hubble(time))
     background_coefficient = 2.0 / (9.0 * cosmology.gravitational_constant)
@@ -62,7 +62,7 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     config['_code_units'] = units
     config['_cosmology'] = cosmology
     shells, tracked = make_turnaround_shells(config)
-    initial_time = float(initial_condition['initial_cosmic_time'])
+    initial_time = float(initial_condition['time_cosmic'])
     final_xi = float(example.get('pre_crossing_final_xi', 0.9))
     match_lambda = float(example.get('pre_crossing_match_lambda', 0.002))
     final_time = initial_time * np.exp(final_xi)

@@ -975,10 +975,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "initial gas/total mass fraction does not match baryon_fraction"
         )
     temperature_proper = float(np.median(initial.fluid.temp_supercomoving_code)) / float(
-        cosmology.scale_factor(float(initial_condition["initial_cosmic_time"]))
+        cosmology.scale_factor(float(initial_condition["time_cosmic"]))
     ) ** 2
     expected_temperature = float(initial_condition["cmb_temperature_0"]) * (
-        1.0 / float(cosmology.scale_factor(float(initial_condition["initial_cosmic_time"])))
+        1.0 / float(cosmology.scale_factor(float(initial_condition["time_cosmic"])))
     )
     if not np.isclose(temperature_proper, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
@@ -1018,7 +1018,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(initial_condition["initial_cosmic_time"])
+    initial_time = float(initial_condition["time_cosmic"])
     initial_a = float(cosmology.scale_factor(initial_time))
     minimum_temperature = configured_minimum_temperature
     if minimum_temperature is not None:
@@ -1680,8 +1680,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         virial_temperature,
         temperature_figure,
         minimum_temperature=temperature_plot_ymin,
-        inner_radius=float(initial_condition.get("inner_wall_radius_comoving", initial_condition["rmin"])),
-        box_boundary=float(initial_condition["rmax"]),
+        inner_radius=float(initial_condition.get("inner_wall_radius_comoving", initial_condition["radius_inner_comoving"])),
+        box_boundary=float(initial_condition["radius_outer_comoving"]),
     )
     specific_angular_momentum_figure = output_dir / (
         figure_prefix + "_SpecificAngularMomentum.jpg"

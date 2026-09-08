@@ -215,8 +215,8 @@ def main(config_filename=DEFAULT_CONFIG):
     for row in range(3):
         axes[row, 2].set_xlabel('time [Myr]')
         collision_radius = 0.5 * (
-            float(initial['rmin'].to_value('kpc'))
-            + float(initial['rmax'].to_value('kpc'))
+            float(initial['radius_inner_proper'].to_value('kpc'))
+            + float(initial['radius_outer_proper'].to_value('kpc'))
         )
         axes[row, 0].set_xlim(collision_radius - 3.0, collision_radius + 3.0)
         axes[row, 1].set_xlim(collision_radius - 3.0, collision_radius + 3.0)

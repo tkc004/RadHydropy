@@ -57,8 +57,8 @@ initial_condition:
   nogrid: 512
   coordsys: spherical
   box_size_proper: {value: 19.0, unit: kpc}
-  rmin: {value: 1.0, unit: kpc}
-  rmax: {value: 20.0, unit: kpc}
+  radius_inner_proper: {value: 1.0, unit: kpc}
+  radius_outer_proper: {value: 20.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 0.002, unit: cm**-3}
   inflow_velocity: {value: -100.0, unit: km/s}
@@ -66,3 +66,4 @@ initial_condition:
   inflow_temperature: {value: 1.0e4, unit: K}
   muini: 0.62
 example: {}
+

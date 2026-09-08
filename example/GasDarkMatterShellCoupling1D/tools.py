@@ -16,9 +16,9 @@ def build_initial_condition(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     result = Rsim(config["par"])
     result.par.simulation.coordinate_system = 'spherical'
-    result.par.simulation.box_size_proper_code = float(initial['rmax'].to_value(code_units.length_unit))
+    result.par.simulation.box_size_proper_code = float(initial['radius_outer_proper'].to_value(code_units.length_unit))
     result.par.mesh.ghost_cells = 1
-    boundary_proper_code = np.linspace(initial['rmin'].to_value(code_units.length_unit), result.par.simulation.box_size_proper_code, grid_cells + 1)
+    boundary_proper_code = np.linspace(initial['radius_inner_proper'].to_value(code_units.length_unit), result.par.simulation.box_size_proper_code, grid_cells + 1)
     x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
     result.mesh.boundary_proper_code = as_named_array(boundary_proper_code)
     result.fluid.rho_proper_code = as_named_array((np.ones(grid_cells) * initial['gas_density']).to_value(code_units.density_unit))

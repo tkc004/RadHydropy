@@ -123,7 +123,7 @@ def build_initial_condition(config):
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     sim.par.hydrodynamics.gamma = 5.0 / 3.0
     grid_cells = int(mesh['grid_cells'])
-    initial_time = float(initial_condition['initial_cosmic_time'])
+    initial_time = float(initial_condition['time_cosmic'])
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True

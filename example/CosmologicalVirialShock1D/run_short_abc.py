@@ -2,17 +2,20 @@
 
 import argparse
 from copy import deepcopy
+from collections.abc import Mapping
 import os
 from pathlib import Path
 import tempfile
 
 import yaml
+import unyt
 
 os.environ.setdefault(
     "MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib")
 )
 
 import cosmological_gas_correlation_z100 as experiment
+import example_utils as eu
 
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
@@ -30,9 +33,23 @@ CASES = {
 }
 
 
-def _load_raw_config(filename):
-    with Path(filename).open(encoding="utf-8") as stream:
-        config = yaml.safe_load(stream)
+def _yaml_value(value):
+    """Convert the nested loader's unit-aware values back to YAML mappings."""
+    if isinstance(value, Mapping):
+        return {key: _yaml_value(item) for key, item in value.items()}
+    if isinstance(value, unyt.unyt_array):
+        numeric_value = value.value.tolist()
+        if value.ndim == 0:
+            numeric_value = value.value.item()
+        return {"value": numeric_value, "unit": str(value.units)}
+    if isinstance(value, list):
+        return [_yaml_value(item) for item in value]
+    return value
+
+
+def _load_config(filename):
+    """Load and validate the complete nested short-run configuration."""
+    config = eu.load_nested_example_config(filename)
     if not isinstance(config, dict):
         raise ValueError("short A/B/C base configuration must be a mapping")
     return config
@@ -73,7 +90,7 @@ def run_case(base_config, case_name, final_time):
     output_dir.mkdir(parents=True, exist_ok=True)
     config_filename = output_dir / "effective_config.yaml"
     with config_filename.open("w", encoding="utf-8") as stream:
-        yaml.safe_dump(config, stream, sort_keys=False)
+        yaml.safe_dump(_yaml_value(config), stream, sort_keys=False)
 
     print(
         "short case %s: inner_wall=%g comoving kpc output=%s"
@@ -91,7 +108,7 @@ def run_case(base_config, case_name, final_time):
 
 
 def main(config_filename=DEFAULT_CONFIG, cases=None, final_time=1.0):
-    base_config = _load_raw_config(config_filename)
+    base_config = _load_config(config_filename)
     selected = list(CASES) if cases is None else list(cases)
     outputs = []
     for case_name in selected:

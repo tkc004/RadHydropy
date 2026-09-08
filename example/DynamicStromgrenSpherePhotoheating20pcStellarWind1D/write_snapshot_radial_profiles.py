@@ -20,6 +20,11 @@ if str(EXAMPLE_ROOT) not in sys.path:
 import example_utils as eu
 
 
+DEFAULT_CONFIG = EXAMPLE_DIR / (
+    'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
+)
+
+
 def snapshot_time_myr(snapshot_filename):
     """Read the snapshot time from the HDF5 header and return Myr."""
     with h5py.File(snapshot_filename, 'r') as hdf5:
@@ -31,14 +36,15 @@ def snapshot_time_myr(snapshot_filename):
     return time.to_value(unyt.Myr)
 
 
-def write_snapshot_profile(snapshot_filename, csv_filename):
+def write_snapshot_profile(snapshot_filename, config, csv_filename):
     """Convert one HDF5 snapshot to a radial-profile CSV file."""
-    return eu.write_radial_profile_csv(snapshot_filename, csv_filename)
+    return eu.write_radial_profile_csv(snapshot_filename, config, csv_filename)
 
 
-def process_snapshots(snapshot_directory=EXAMPLE_DIR):
+def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CONFIG):
     """Write one time-stamped radial-profile CSV for every snapshot."""
     snapshot_directory = Path(snapshot_directory).resolve()
+    config = eu.load_nested_example_config(config_filename)
     csv_directory = snapshot_directory / 'radial_profiles'
     csv_directory.mkdir(parents=True, exist_ok=True)
     snapshots = sorted(snapshot_directory.glob('Output_*.hdf5'))
@@ -50,7 +56,7 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR):
         time_myr = snapshot_time_myr(snapshot)
         time_label = f'{time_myr:.6g}'
         csv_filename = csv_directory / f'radial_profile_{time_label}Myr.csv'
-        csv_files.append(write_snapshot_profile(snapshot, csv_filename))
+        csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))
         print(f'{snapshot.name} -> {csv_filename.name}')
     return csv_files
 
@@ -76,12 +82,13 @@ def parse_args():
 
 def main():
     args = parse_args()
+    config = eu.load_nested_example_config(DEFAULT_CONFIG)
     if args.snapshot is not None:
         snapshot = args.snapshot.resolve()
         output_directory = snapshot.parent / 'radial_profiles'
         output_directory.mkdir(parents=True, exist_ok=True)
         output = output_directory / 'radial_profile.csv'
-        write_snapshot_profile(snapshot, output)
+        write_snapshot_profile(snapshot, config, output)
         print(f'{snapshot.name} -> {output.name}')
     else:
         process_snapshots(args.directory)

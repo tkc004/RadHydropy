@@ -43,8 +43,8 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  rmin: {value: 0.0, unit: pc}
-  rmax: {value: 2.0, unit: pc}
+  radius_inner_comoving: {value: 0.0, unit: pc}
+  radius_outer_comoving: {value: 2.0, unit: pc}
   time_cosmic: 1.0
   radius_top_hat_comoving: {value: 0.75, unit: pc}
   overdensity: 0.20
@@ -53,3 +53,4 @@ initial_condition:
   moderate_rotation_factor: 0.45
   high_rotation_factor: 0.85
 example: {}
+

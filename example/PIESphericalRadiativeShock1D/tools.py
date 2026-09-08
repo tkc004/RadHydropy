@@ -32,7 +32,7 @@ def build_initial_condition(config):
     result.par.simulation.coordinate_system = 'spherical'
     result.par.mesh.grid_cells = grid_cells
     boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(initial['rmin'], initial['rmax'], grid_cells + 1), code_units.length_unit
+        np.linspace(initial['radius_inner_proper'], initial['radius_outer_proper'], grid_cells + 1), code_units.length_unit
     ))
     result.mesh.boundary_proper_code = boundary_proper_code
     width = np.diff(boundary_proper_code)
@@ -45,7 +45,7 @@ def build_initial_condition(config):
     rho_proper_code = initial['hydrogen_number_density'] * unyt.mp / float(par['thermochemistry']['hydrogen_mass_fraction'])
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * rho_proper_code, code_units.density_unit))
     midpoint_proper_code = quantity_to_value(
-        0.5 * (initial['rmin'] + initial['rmax']), code_units.length_unit
+        0.5 * (initial['radius_inner_proper'] + initial['radius_outer_proper']), code_units.length_unit
     )
     outflow_velocity_proper_code = quantity_to_value(
         initial['outflow_velocity'], code_units.velocity_unit

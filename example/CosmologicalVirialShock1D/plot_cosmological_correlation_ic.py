@@ -61,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
         vel_supercomoving_code = handle["Data/vel_supercomoving_code"][:] / float(units.velocity_unit)
 
     radius_comoving_code = et.cell_centres(boundary_comoving_code)
-    initial_time = float(initial_condition["initial_cosmic_time"])
+    initial_time = float(initial_condition["time_cosmic"])
     scale_factor = float(cosmology.scale_factor(initial_time))
     redshift = 1.0 / scale_factor - 1.0
     length_unit_mpc_h = (

@@ -21,8 +21,9 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   target_halo_mass: 100.0
-  initial_cosmic_time: 0.01418666885
+  time_cosmic: 0.01418666885
   initial_overdensity: 0.0166930693
   dark_matter_shells: 256
 example:
   dm_only_shells: 1024
+

@@ -49,8 +49,8 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     boundary_unyt = np.linspace(
-        initial_condition['rmin'],
-        initial_condition['rmax'],
+        initial_condition['radius_inner_proper'],
+        initial_condition['radius_outer_proper'],
         grid_cells + 1,
     )
     coordinate_unyt = NFW.spherical_cell_centers(boundary_unyt)

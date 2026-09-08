@@ -42,8 +42,8 @@ def perturbation_radius(config):
     ic = config["initial_condition"]
     cosmology = config["_cosmology"]
     if ic.get("target_halo_mass") is None:
-        return float(ic["perturbation_radius"])
-    t = float(ic["initial_cosmic_time"])
+        return float(ic["radius_perturbation_comoving"])
+    t = float(ic["time_cosmic"])
     a = float(cosmology.scale_factor(t))
     rho_comoving = float(cosmology.background_density(t)) * a**3
     overdensity = float(ic["initial_overdensity"])
@@ -209,21 +209,21 @@ def make_dark_matter(config):
     code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
     count = int(ic["dark_matter_shells"])
-    dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
+    dm_inner = float(ic.get("radius_inner_dark_matter_comoving", 1.0e-2))
     central_core_model = DEFAULT_CENTRAL_CORE_MODEL
     central_core_radius = float(
         ic.get("dm_central_core_radius", dm_inner)
     ) if central_core_model else dm_inner
     if central_core_radius < dm_inner:
-        raise ValueError("dm_central_core_radius must be >= dm_inner_radius")
+        raise ValueError("dm_central_core_radius must be >= radius_inner_dark_matter_comoving")
     # A fixed unresolved core already represents the excess mass inside its
     # radius.  Do not leave live shells in the same volume_comoving_code and count them a
     # second time when they are later absorbed.
     shell_inner = central_core_radius if central_core_model else dm_inner
-    boundaries = np.geomspace(shell_inner, float(ic["rmax"]), count + 1)
+    boundaries = np.geomspace(shell_inner, float(ic["radius_outer_comoving"]), count + 1)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    t = float(ic["initial_cosmic_time"])
+    t = float(ic["time_cosmic"])
     a = float(cosmology.scale_factor(t))
     hubble = float(cosmology.hubble(t))
     rho = float(cosmology.background_density(t)) * a**3

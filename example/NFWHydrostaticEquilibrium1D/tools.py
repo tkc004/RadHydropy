@@ -118,8 +118,8 @@ def build_initial_condition(config):
     grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size_proper_unyt = initial_condition['box_size_proper']
     time_value = initial_condition['time_proper']
-    radius_min = initial_condition['rmin'] if 'rmin' in initial_condition else initial_condition['inner_radius']
-    radius_max = initial_condition['rmax'] if 'rmax' in initial_condition else initial_condition['outer_radius']
+    radius_min = initial_condition['radius_inner_proper'] if 'radius_inner_proper' in initial_condition else initial_condition['inner_radius']
+    radius_max = initial_condition['radius_outer_proper'] if 'radius_outer_proper' in initial_condition else initial_condition['outer_radius']
     boundary_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * (radius_max - radius_min) + radius_min
     coordinate_unyt = spherical_cell_centers(boundary_unyt)
     halo = nfw_halo_parameters(

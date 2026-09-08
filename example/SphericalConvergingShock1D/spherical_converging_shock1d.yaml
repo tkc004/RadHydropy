@@ -51,8 +51,8 @@ par:
 initial_condition:
   grid_cells: 512
   coordinate_system: spherical
-  rmin: {value: 1.0e-2, unit: cm}
-  rmax: {value: 1.0, unit: cm}
+  radius_inner_proper: {value: 1.0e-2, unit: cm}
+  radius_outer_proper: {value: 1.0, unit: cm}
   time_proper: {value: 0.0, unit: s}
   rho_proper: {value: 1.0, unit: g/cm**3}
   temperature_proper: {value: 1.0e-10, unit: K}
@@ -60,3 +60,4 @@ initial_condition:
   vel_proper: {value: -1.0, unit: cm/s}
 example:
   plot_filename: SphericalConvergingShock1D.jpg
+

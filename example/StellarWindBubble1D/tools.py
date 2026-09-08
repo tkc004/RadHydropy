@@ -60,8 +60,8 @@ def build_initial_condition(config):
         np.asarray(quantity_to_value(initial_config['time_proper'], code_units.time_unit))
     )
     boundary_proper_cgs_cm = np.linspace(
-        initial_config['injection_radius'],
-        initial_config['injection_radius'] + initial_config['box_size_proper'],
+        initial_config['radius_injection_proper'],
+        initial_config['radius_injection_proper'] + initial_config['box_size_proper'],
         grid_cells + 1,
     )
     sim.mesh.boundary_proper_code = as_named_array(
@@ -291,7 +291,7 @@ def weaver_forward_shock_radius(rout, config):
         config['initial_condition']['rho_proper'],
         config['par']['boundary']['outflow_density'],
         config['par']['boundary']['outflow_velocity'],
-        config['initial_condition']['injection_radius'],
+        config['initial_condition']['radius_injection_proper'],
     )
 
 
@@ -376,7 +376,7 @@ def make_profile_figure(snapshots, config):
         )
         if _time_proper(rout) > 0 * _time_proper(rout).units:
             shock_radius = weaver_forward_shock_radius(rout, config)
-            shock_value = shock_radius.to_value(config['initial_condition']['injection_radius'].units).item()
+            shock_value = shock_radius.to_value(config['initial_condition']['radius_injection_proper'].units).item()
             for ax in (ax_density, ax_temperature):
                 ax.axvline(
                     x=shock_value,
@@ -534,7 +534,7 @@ def collect_shell_diagnostics(snapshots, config):
             initial_config['rho_proper'],
             config['par']['boundary']['outflow_density'],
             config['par']['boundary']['outflow_velocity'],
-            initial_config['injection_radius'],
+            initial_config['radius_injection_proper'],
         )
         weaver_radii.append(radius.to_value(unyt.pc))
         weaver_velocities.append(velocity.to_value(unyt.km / unyt.s))
@@ -626,7 +626,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     if np.all(_time_proper(rout) > 0 * _time_proper(rout).units):
         shock_radius = weaver_forward_shock_radius(rout, config)
         plt.axvline(
-            x=shock_radius.to_value(config['initial_condition']['injection_radius'].units).item(),
+        x=shock_radius.to_value(config['initial_condition']['radius_injection_proper'].units).item(),
             color=kwargs['color'],
             ls='dashed',
         )

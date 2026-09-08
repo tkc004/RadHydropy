@@ -61,8 +61,8 @@ def main(output_root=None):
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     boundary_comoving_code = np.linspace(
-        float(initial_condition["rmin"].to_value(units.length_unit)),
-        float(initial_condition["rmax"].to_value(units.length_unit)),
+        float(initial_condition["radius_inner_comoving"].to_value(units.length_unit)),
+        float(initial_condition["radius_outer_comoving"].to_value(units.length_unit)),
         count + 1,
     )
     x_comoving_code = spherical_centers(boundary_comoving_code)
@@ -84,7 +84,7 @@ def main(output_root=None):
         "par": config["par"],
         "initial_condition": {
             **initial_condition,
-            "box_size_comoving": initial_condition["rmax"],
+            "box_size_comoving": initial_condition["radius_outer_comoving"],
             "time_cosmic": cosmic_time * units.time_unit,
         },
         "example": {},

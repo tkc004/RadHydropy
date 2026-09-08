@@ -54,8 +54,8 @@ def build_initial_condition(config):
     grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size_proper_unyt = initial_condition['box_size_proper']
     time_proper_unyt = initial_condition['time_proper']
-    radius_inner_proper_unyt = initial_condition['rmin']
-    radius_outer_proper_unyt = initial_condition['rmax']
+    radius_inner_proper_unyt = initial_condition['radius_inner_proper']
+    radius_outer_proper_unyt = initial_condition['radius_outer_proper']
     boundary_proper_unyt = np.linspace(
         radius_inner_proper_unyt, radius_outer_proper_unyt, grid_cells + 1
     )

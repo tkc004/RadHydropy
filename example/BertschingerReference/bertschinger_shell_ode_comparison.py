@@ -175,7 +175,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         initial_q, cosmology,
         recent_window_fraction=float(example.get(
             'recent_accretion_window_fraction', 0.5)))
-    initial_time = float(initial_condition['initial_cosmic_time'])
+    initial_time = float(initial_condition['time_cosmic'])
     final_time = float(example.get(
         'comparison_final_cosmic_time',
         initial_time * np.exp(float(example['ode_xi_end']))))

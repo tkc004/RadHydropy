@@ -57,7 +57,7 @@ initial_condition:
   grid_cells: 1024
   coordinate_system: spherical
   box_size_proper: {value: 25.0, unit: pc}
-  injection_radius: {value: 0.05, unit: pc}
+  radius_injection_proper: {value: 0.05, unit: pc}
   time_proper: {value: 0.0, unit: Myr}
   temperature_proper: {value: 100.0, unit: K}
   mean_molecular_weight: 0.62

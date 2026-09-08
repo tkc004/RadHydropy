@@ -57,11 +57,11 @@ par:
     hydrogen_thermal_coupling: false
     hydrogen_chemistry: false
 initial_condition:
-  rmin: 1.0
-  rmax: 500.0
+  radius_inner_comoving: 1.0
+  radius_outer_comoving: 500.0
   inner_wall_radius_comoving: 0.0
-  initial_cosmic_time: 0.01418666885
-  perturbation_radius: 250.0
+  time_cosmic: 0.01418666885
+  radius_perturbation_comoving: 250.0
   target_halo_mass: 100.0
   initial_overdensity: 0.001
   rho_proper_profile: linear_correlation

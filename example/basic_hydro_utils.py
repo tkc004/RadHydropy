@@ -7,6 +7,86 @@ from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 
 
+def _validate_active_proper_state(sim, first, last):
+    """Validate the active proper-code primitive and conserved state."""
+    rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
+    vel_proper_code = np.asarray(sim.fluid.vel_proper_code[first:last], dtype=float)
+    pre_proper_code = np.asarray(sim.fluid.pre_proper_code[first:last], dtype=float)
+    temp_proper_code = np.asarray(sim.fluid.temp_proper_code[first:last], dtype=float)
+    mu_dimensionless = np.asarray(sim.fluid.mu[first:last], dtype=float)
+    volume_proper_code = np.asarray(sim.mesh.volume_proper_code[first:last], dtype=float)
+
+    for field_name, field_values in (
+        ("rho_proper_code", rho_proper_code),
+        ("vel_proper_code", vel_proper_code),
+        ("pre_proper_code", pre_proper_code),
+        ("temp_proper_code", temp_proper_code),
+        ("mu_dimensionless", mu_dimensionless),
+        ("volume_proper_code", volume_proper_code),
+    ):
+        if not np.all(np.isfinite(field_values)):
+            raise ValueError(f"active {field_name} contains non-finite values")
+
+    if np.any(rho_proper_code <= 0.0):
+        raise ValueError("active rho_proper_code must be strictly positive")
+    if np.any(temp_proper_code < 0.0):
+        raise ValueError("active temp_proper_code must be non-negative")
+    if np.any(pre_proper_code < 0.0):
+        raise ValueError("active pre_proper_code must be non-negative")
+    if np.any(volume_proper_code <= 0.0):
+        raise ValueError("active volume_proper_code must be strictly positive")
+
+    expected_pre_proper_code = np.asarray(
+        sim.fluid.eos.pressure(
+            rho_proper_code,
+            temp_proper_code,
+            mu_dimensionless,
+        ),
+        dtype=float,
+    )
+    if not np.allclose(
+        pre_proper_code,
+        expected_pre_proper_code,
+        rtol=1.0e-10,
+        atol=1.0e-14,
+    ):
+        raise ValueError("active proper-code pressure is inconsistent with rho/temp/mu")
+
+    expected_mass_code = rho_proper_code * volume_proper_code
+    expected_mom_code = expected_mass_code * vel_proper_code
+    expected_energy_code = (
+        sim.fluid.eos.total_energy_density(
+            rho_proper_code,
+            vel_proper_code,
+            pre_proper_code,
+        )
+        * volume_proper_code
+    )
+    mass_code = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+    mom_code = np.asarray(sim.fluid.Mom_code[first:last], dtype=float)
+    energy_code = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
+    for field_name, field_values in (
+        ("Mass_code", mass_code),
+        ("Mom_code", mom_code),
+        ("Energy_code", energy_code),
+    ):
+        if not np.all(np.isfinite(field_values)):
+            raise ValueError(f"active {field_name} contains non-finite values")
+    if not np.allclose(mass_code, expected_mass_code, rtol=1.0e-10, atol=1.0e-14):
+        raise ValueError("active Mass_code is inconsistent with rho/volume")
+    if not np.allclose(mom_code, expected_mom_code, rtol=1.0e-10, atol=1.0e-14):
+        raise ValueError("active Mom_code is inconsistent with rho/vel/volume")
+    if not np.allclose(
+        energy_code,
+        expected_energy_code,
+        rtol=1.0e-10,
+        atol=1.0e-14,
+    ):
+        raise ValueError(
+            "active Energy_code is inconsistent with rho/vel/pre/volume"
+        )
+
+
 def make_initial_condition(
     config,
     *,
@@ -79,9 +159,11 @@ def make_initial_condition(
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     first = int(sim.par.mesh.ghost_cells)
     last = first + grid_cells
+    _validate_active_proper_state(sim, first, last)
     sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
     for field in (
-        "rho_proper_code", "vel_proper_code", "temp_proper_code", "mu",
+        "rho_proper_code", "vel_proper_code", "pre_proper_code",
+        "temp_proper_code", "mu",
         "Mass_code", "Mom_code", "AngularMomentum_code", "Energy_code",
         "InternalEnergy_code",
     ):

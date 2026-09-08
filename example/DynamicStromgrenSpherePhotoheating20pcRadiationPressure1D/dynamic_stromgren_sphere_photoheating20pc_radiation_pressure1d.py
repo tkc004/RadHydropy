@@ -242,7 +242,11 @@ def main(config_filename=DEFAULT_CONFIG):
         comments="",
     )
 
-    eu.write_radial_profile_csv(outputfilenames[-1], Path(output['directory']) / "radial_profile_rhd.csv")
+    eu.write_radial_profile_csv(
+        outputfilenames[-1],
+        config,
+        Path(output['directory']) / "radial_profile_rhd.csv",
+    )
     print("final gas momentum = %.6e g cm/s" % gas[-1])
     print("absorbed photon momentum = %.6e g cm/s" % radiation[-1])
     print("momentum figure = %s" % momentum_figure)

@@ -1,6 +1,7 @@
 """Shared helpers for example scripts in this directory."""
 
 import csv
+from collections.abc import Mapping
 from numbers import Integral
 from pathlib import Path
 
@@ -70,13 +71,23 @@ def load_nested_example_config(config_filename):
     }
 
 
-def snapshot_physical_fields(hdf5_filename):
+def _require_complete_example_config(config, helper_name):
+    if not isinstance(config, Mapping) or not {
+        'par', 'initial_condition', 'example',
+    }.issubset(config):
+        raise TypeError(
+            f'{helper_name} requires a complete nested example config'
+        )
+
+
+def snapshot_physical_fields(hdf5_filename, config):
     """Return radial snapshot fields converted to physical quantities.
 
     The snapshot metadata determines whether conversion is needed. Ordinary
     physical snapshots are returned unchanged; supercomoving snapshots use
     the canonical cosmology header contract.
     """
+    _require_complete_example_config(config, 'snapshot_physical_fields')
     with h5py.File(hdf5_filename, 'r') as hdf5:
         header = hdf5['Header']
         data = hdf5['Data']
@@ -108,15 +119,24 @@ def snapshot_physical_fields(hdf5_filename):
             gamma = float(header.attrs.get('gamma', 5.0 / 3.0))
             scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
             hubble = float(cosmology.hubble_from_supercomoving(tau))
-            radius = 0.5 * (boundary_comoving_code[:-1] + boundary_comoving_code[1:])
+            radius_comoving_code = 0.5 * (
+                boundary_comoving_code[:-1] + boundary_comoving_code[1:]
+            )
             return {
                 'boundary_proper_cgs_cm': physical_radius(boundary_comoving_code, scale_factor),
-                'radius_proper': physical_radius(radius, scale_factor),
-                'rho_proper': physical_density(density_comoving_code, scale_factor),
-                'vel_peculiar_proper_cgs_cm_s': physical_velocity(
-                    velocity_supercomoving_code, radius, scale_factor, hubble
+                'radius_proper_cgs_cm': physical_radius(
+                    radius_comoving_code, scale_factor
                 ),
-                'temperature_proper': physical_temperature(
+                'rho_proper_cgs_g_cm3': physical_density(
+                    density_comoving_code, scale_factor
+                ),
+                'vel_peculiar_proper_cgs_cm_s': physical_velocity(
+                    velocity_supercomoving_code,
+                    radius_comoving_code,
+                    scale_factor,
+                    hubble,
+                ),
+                'temperature_proper_cgs_K': physical_temperature(
                     temperature_supercomoving_code, scale_factor, gamma
                 ),
             }
@@ -144,7 +164,7 @@ def clean_previous_outputs(config):
         path.unlink(missing_ok=True)
 
 
-def write_radial_profile_csv(hdf5_filename, csv_filename=None):
+def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
     """Write physical radial velocity, hydrogen density, and temperature.
 
     The HDF5 datasets are expected to be ``Data/Boundary``, ``Data/Velocity``,
@@ -166,6 +186,7 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
     pathlib.Path
         The written CSV path.
     """
+    _require_complete_example_config(config, 'write_radial_profile_csv')
     hdf5_filename = Path(hdf5_filename)
     csv_filename = (
         hdf5_filename.with_suffix('.csv')
@@ -177,35 +198,63 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         header = hdf5['Header']
         data = hdf5['Data']
         if 'boundary_proper_code' in data:
-            boundary_dataset = data['boundary_proper_code']
-            velocity_dataset = data['vel_proper_code']
-            density_dataset = data['rho_proper_code']
-            temperature_dataset = data['temp_proper_code']
+            boundary_proper_code_dataset = data['boundary_proper_code']
+            vel_proper_code_dataset = data['vel_proper_code']
+            rho_proper_code_dataset = data['rho_proper_code']
+            temp_proper_code_dataset = data['temp_proper_code']
             physical_values = False
         else:
-            boundary_dataset = data['boundary_comoving_code']
-            velocity_dataset = data['vel_supercomoving_code']
-            density_dataset = data['rho_comoving_code']
-            temperature_dataset = data['temp_supercomoving_code']
+            boundary_comoving_code_dataset = data['boundary_comoving_code']
+            vel_supercomoving_code_dataset = data['vel_supercomoving_code']
+            rho_comoving_code_dataset = data['rho_comoving_code']
+            temp_supercomoving_code_dataset = data['temp_supercomoving_code']
             physical_values = True
 
-        fields = snapshot_physical_fields(hdf5_filename)
+        fields = snapshot_physical_fields(hdf5_filename, config)
         if physical_values:
-            boundaries = np.asarray(fields['boundary_proper_cgs_cm'], dtype=float)
-            velocity = np.asarray(fields['vel_peculiar_proper_cgs_cm_s'], dtype=float)
-            density = np.asarray(fields['rho_proper'], dtype=float)
-            temperature = np.asarray(fields['temperature_proper'], dtype=float)
+            boundary_proper_cgs_cm = np.asarray(
+                fields['boundary_proper_cgs_cm'], dtype=float
+            )
+            vel_peculiar_proper_cgs_cm_s = np.asarray(
+                fields['vel_peculiar_proper_cgs_cm_s'], dtype=float
+            )
+            rho_proper_cgs_g_cm3 = np.asarray(
+                fields['rho_proper_cgs_g_cm3'], dtype=float
+            )
+            temperature_proper_cgs_K = np.asarray(
+                fields['temperature_proper_cgs_K'], dtype=float
+            )
         else:
-            boundaries = np.asarray(fields['boundary_proper_code'], dtype=float)
-            velocity = np.asarray(fields['vel_proper_code'], dtype=float)
-            density = np.asarray(fields['rho_proper_code'], dtype=float)
-            temperature = np.asarray(fields['temp_proper_code'], dtype=float)
-        if len(boundaries) != len(velocity) + 1:
+            boundary_proper_code = np.asarray(
+                fields['boundary_proper_code'], dtype=float
+            )
+            vel_proper_code = np.asarray(fields['vel_proper_code'], dtype=float)
+            rho_proper_code = np.asarray(fields['rho_proper_code'], dtype=float)
+            temp_proper_code = np.asarray(fields['temp_proper_code'], dtype=float)
+        if physical_values:
+            boundary_count = len(boundary_proper_cgs_cm)
+            cell_count = len(vel_peculiar_proper_cgs_cm_s)
+        else:
+            boundary_count = len(boundary_proper_code)
+            cell_count = len(vel_proper_code)
+        if boundary_count != cell_count + 1:
             raise ValueError(
                 'Data/Boundary must contain exactly one more value than '
                 'Data/Velocity, Data/Density, and Data/Temperature.'
             )
-        if not (len(velocity) == len(density) == len(temperature)):
+        if physical_values:
+            quantity_count = (
+                len(vel_peculiar_proper_cgs_cm_s),
+                len(rho_proper_cgs_g_cm3),
+                len(temperature_proper_cgs_K),
+            )
+        else:
+            quantity_count = (
+                len(vel_proper_code),
+                len(rho_proper_code),
+                len(temp_proper_code),
+            )
+        if not (quantity_count[0] == quantity_count[1] == quantity_count[2]):
             raise ValueError(
                 'Data/Velocity, Data/Density, and Data/Temperature must '
                 'have the same length.'
@@ -215,37 +264,55 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         if not isinstance(noghost, Integral):
             noghost = int(np.asarray(noghost).item())
         noghost = int(noghost)
-        if noghost < 0 or 2 * noghost >= len(velocity):
+        if noghost < 0 or 2 * noghost >= cell_count:
             raise ValueError(f'Invalid number of ghost cells: {noghost}')
         start = noghost
-        stop = len(velocity) - noghost
-
-        radius = 0.5 * (boundaries[start:stop] + boundaries[start + 1:stop + 1])
-        velocity = velocity[start:stop]
-        density = density[start:stop]
-        temperature = temperature[start:stop]
+        stop = cell_count - noghost
 
         if physical_values:
-            radius = radius / (1.0 * unyt.pc).to_value(unyt.cm)
-            velocity = velocity / (1.0 * unyt.km).to_value(unyt.cm)
-            density = density / (1.0 * unyt.mp).to_value(unyt.g)
+            radius_proper_cgs_cm = 0.5 * (
+                boundary_proper_cgs_cm[start:stop]
+                + boundary_proper_cgs_cm[start + 1:stop + 1]
+            )
+            vel_peculiar_proper_cgs_cm_s = vel_peculiar_proper_cgs_cm_s[start:stop]
+            rho_proper_cgs_g_cm3 = rho_proper_cgs_g_cm3[start:stop]
+            temperature_proper_cgs_K = temperature_proper_cgs_K[start:stop]
         else:
-            radius = unyt.unyt_array(
-                radius,
-                boundary_dataset.attrs.get('units', 'cm'),
+            radius_proper_code = 0.5 * (
+                boundary_proper_code[start:stop]
+                + boundary_proper_code[start + 1:stop + 1]
+            )
+            vel_proper_code = vel_proper_code[start:stop]
+            rho_proper_code = rho_proper_code[start:stop]
+            temp_proper_code = temp_proper_code[start:stop]
+
+        if physical_values:
+            radius_proper_cgs_pc = radius_proper_cgs_cm / (
+                1.0 * unyt.pc
+            ).to_value(unyt.cm)
+            vel_peculiar_proper_cgs_km_s = vel_peculiar_proper_cgs_cm_s / (
+                1.0 * unyt.km
+            ).to_value(unyt.cm)
+            number_density_cgs_cm3 = rho_proper_cgs_g_cm3 / (
+                1.0 * unyt.mp
+            ).to_value(unyt.g)
+        else:
+            radius_proper_cgs_pc = unyt.unyt_array(
+                radius_proper_code,
+                boundary_proper_code_dataset.attrs.get('units', 'cm'),
             ).to_value(unyt.pc)
-            velocity = unyt.unyt_array(
-                velocity,
-                velocity_dataset.attrs.get('units', 'cm/s'),
+            vel_peculiar_proper_cgs_km_s = unyt.unyt_array(
+                vel_proper_code,
+                vel_proper_code_dataset.attrs.get('units', 'cm/s'),
             ).to_value(unyt.km / unyt.s)
-            density = unyt.unyt_array(
-                density,
-                density_dataset.attrs.get('units', 'g/cm**3'),
+            number_density_cgs_cm3 = unyt.unyt_array(
+                rho_proper_code,
+                rho_proper_code_dataset.attrs.get('units', 'g/cm**3'),
             ).to_value(unyt.g / unyt.cm**3)
-            density /= (1.0 * unyt.mp).to_value(unyt.g)
-            temperature = unyt.unyt_array(
-                temperature,
-                temperature_dataset.attrs.get('units', 'K'),
+            number_density_cgs_cm3 /= (1.0 * unyt.mp).to_value(unyt.g)
+            temperature_proper_cgs_K = unyt.unyt_array(
+                temp_proper_code,
+                temp_proper_code_dataset.attrs.get('units', 'K'),
             ).to_value(unyt.K)
 
     csv_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -254,10 +321,10 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         writer.writerow(('RADIUS_PC', 'VELOCITY_cgs_KMS', 'DENSITY_CM3', 'TEMP_cgs_K'))
         writer.writerows(
             zip(
-                (f'{value:.8g}' for value in radius),
-                (f'{value:.8g}' for value in velocity),
-                (f'{value:.8g}' for value in density),
-                (f'{value:.8g}' for value in temperature),
+                (f'{value:.8g}' for value in radius_proper_cgs_pc),
+                (f'{value:.8g}' for value in vel_peculiar_proper_cgs_km_s),
+                (f'{value:.8g}' for value in number_density_cgs_cm3),
+                (f'{value:.8g}' for value in temperature_proper_cgs_K),
             )
         )
     return csv_filename

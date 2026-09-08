@@ -90,7 +90,7 @@ def run_case(config, radiative):
     sim.par.dark_matter_background_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     sim.par.gas_background_fraction = float(initial_condition["baryon_fraction"])
 
-    t0 = float(initial_condition["initial_cosmic_time"])
+    t0 = float(initial_condition["time_cosmic"])
     tf = float(par["simulation"]["final_time"])
     target = float(cosmology.supercomoving_time(tf))
     cadence = float(par.get("snapshot_cadence", par.get("gas_profile_cadence", 0.1)))

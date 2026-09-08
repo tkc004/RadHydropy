@@ -63,10 +63,10 @@ initial_condition:
   number_of_cells: 4000
   box_size_proper: {value: 5.0, unit: pc}
   temperature_proper: {value: 100.0, unit: K}
-  neutral_temperature: {value: 100.0, unit: K}
-  ionized_temperature: {value: 1.0e4, unit: K}
+  temperature_neutral_proper: {value: 100.0, unit: K}
+  temperature_ionized_proper: {value: 1.0e4, unit: K}
   core_number_density: {value: 1.0e6, unit: 1/cm**3}
-  core_radius: {value: 2.1e16, unit: cm}
+  radius_core_proper: {value: 2.1e16, unit: cm}
   density_power_law_exponent: 1.5
 example:
   front_plot_filename: PowerLawHIIRegion1D_w1p5_RadHydroVsAnalytic.jpg

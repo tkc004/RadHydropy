@@ -23,9 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import radhydropy.io as rio
 from radhydropy.eos import EOS
-from radhydropy.fluid import Fluid
-from radhydropy.mesh import Mesh
-from radhydropy.params import Par
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -35,15 +32,13 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
 
-def _read_profile(filename, code_unit_system):
-    par = Par({'CodeUnits': code_unit_system})
-    mesh = Mesh()
-    fluid = Fluid()
-    par.code_unit_system = type('Units', (), {'CodeUnits': code_unit_system})()
-    par.simulation = type('Simulation', (), {'coordinate_system': 'spherical'})()
-    par.mesh = type('MeshParameters', (), {'ghost_cells': 2, 'grid_cells': 512})()
-    par.CodeUnits = code_unit_system
-    rio.readhdf5(par, mesh, fluid, filename)
+def _read_profile(filename, config):
+    """Read a proper-code snapshot into the configured typed runtime state."""
+    result = Rsim(config["par"])
+    rio.readhdf5(result.par, result.mesh, result.fluid, filename)
+    code_unit_system = result.par.units.CodeUnits
+    mesh = result.mesh
+    fluid = result.fluid
     first = 2
     count = len(mesh.boundary_proper_code) - 1 - 2 * first
     boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
@@ -110,7 +105,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if len(outputs) < 2:
         raise RuntimeError("spherical converging benchmark produced too few outputs")
 
-    profiles = [_read_profile(filename, units) for filename in outputs]
+    profiles = [_read_profile(filename, config) for filename in outputs]
     # Keep the reference plot focused on the first 13 snapshots.  This also
     # makes an interrupted run with those snapshots available reproducible
     # without including a later, potentially incomplete tail.

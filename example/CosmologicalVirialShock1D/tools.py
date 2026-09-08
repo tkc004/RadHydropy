@@ -49,8 +49,8 @@ def perturbation_radius(config):
     ic = config["initial_condition"]
     cosmology = config["_cosmology"]
     if ic.get("target_halo_mass") is None:
-        return float(ic["perturbation_radius"])
-    t = float(ic["initial_cosmic_time"])
+        return float(ic["radius_perturbation_comoving"])
+    t = float(ic["time_cosmic"])
     a = float(cosmology.scale_factor(t))
     rho_comoving = float(cosmology.background_density(t)) * a**3
     overdensity = float(ic["initial_overdensity"])
@@ -214,10 +214,10 @@ def build_initial_condition(config):
     par = config['par']
     grid_cells = int(par['mesh']['grid_cells'])
     result = Rsim(config["par"])
-    cosmic_time = float(ic['initial_cosmic_time'])
+    cosmic_time = float(ic['time_cosmic'])
     result.par.tau_supercomoving_code = np.array([cosmology.supercomoving_time(cosmic_time)])
     result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
-    result.par.simulation.box_size_comoving_code = float(ic['rmax'])
+    result.par.simulation.box_size_comoving_code = float(ic['radius_outer_comoving'])
     result.par.simulation.coordinate_system = 'spherical'
     result.par.hydrodynamics.gamma = 5.0 / 3.0
     result.par.cosmological_expansion = True
@@ -235,8 +235,8 @@ def build_initial_condition(config):
     result.par.density_representation = 'comoving'
     result.par.pressure_representation = 'supercomoving'
     result.par.temperature_representation = 'supercomoving'
-    result.mesh.boundary_comoving_code = np.geomspace(float(ic['rmin']), float(ic['rmax']), grid_cells + 1)
-    inner_wall = float(ic.get('inner_wall_radius_comoving', ic['rmin']))
+    result.mesh.boundary_comoving_code = np.geomspace(float(ic['radius_inner_comoving']), float(ic['radius_outer_comoving']), grid_cells + 1)
+    inner_wall = float(ic.get('inner_wall_radius_comoving', ic['radius_inner_comoving']))
     result.mesh.boundary_comoving_code[0] = 0.0 if inner_wall <= 0.0 else inner_wall
     result.mesh.x_comoving_code = cell_centres(result.mesh.boundary_comoving_code)
     result.mesh.area_comoving_code = 4.0 * np.pi * result.mesh.boundary_comoving_code[:-1]**2
@@ -322,21 +322,21 @@ def make_dark_matter(config):
     ic = config["initial_condition"]
     softening = config.get("_dark_matter_softening")
     count = int(ic["dark_matter_shells"])
-    dm_inner = float(ic.get("dm_inner_radius", 1.0e-2))
+    dm_inner = float(ic.get("radius_inner_dark_matter_comoving", 1.0e-2))
     central_core_model = DEFAULT_CENTRAL_CORE_MODEL
     central_core_radius = float(
         ic.get("dm_central_core_radius", dm_inner)
     ) if central_core_model else dm_inner
     if central_core_radius < dm_inner:
-        raise ValueError("dm_central_core_radius must be >= dm_inner_radius")
+        raise ValueError("dm_central_core_radius must be >= radius_inner_dark_matter_comoving")
     # A fixed unresolved core already represents the excess mass inside its
     # radius.  Do not leave live shells in the same volume_comoving_code and count them a
     # second time when they are later absorbed.
     shell_inner = central_core_radius if central_core_model else dm_inner
-    boundaries = np.geomspace(shell_inner, float(ic["rmax"]), count + 1)
+    boundaries = np.geomspace(shell_inner, float(ic["radius_outer_comoving"]), count + 1)
     radius = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    t = float(ic["initial_cosmic_time"])
+    t = float(ic["time_cosmic"])
     a = float(cosmology.scale_factor(t))
     hubble = float(cosmology.hubble(t))
     rho = float(cosmology.background_density(t)) * a**3
