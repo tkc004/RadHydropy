@@ -114,9 +114,9 @@ def _hydrostatic_base_initial_condition(nogrid):
         "nogrid": nogrid,
         "coordsys": "cartesian",
         "box_size_proper": 10.0 * unyt.cm,
-        "current_time": 0.0 * unyt.s,
+        "time_proper": 0.0 * unyt.s,
         "reference_density": 1.0e-24 * unyt.g / unyt.cm**3,
-        "initial_temperature": 1.0e4 * unyt.K,
+        "temperature_proper": 1.0e4 * unyt.K,
         "mean_molecular_weight": 1.0,
         "gravity_strength": 1.0e-7 * unyt.cm / unyt.s**2,
     }
@@ -293,9 +293,9 @@ class Testing(unittest.TestCase):
             "nogrid": 256,
             "coordsys": "cartesian",
             "box_size_proper": 10.0 * unyt.pc,
-            "current_time": 0.0 * unyt.s,
+            "time_proper": 0.0 * unyt.s,
             "reference_density": 1.0e-24 * unyt.g / unyt.cm**3,
-            "initial_temperature": 1.0e4 * unyt.K,
+            "temperature_proper": 1.0e4 * unyt.K,
             "mean_molecular_weight": 1.0,
             "gravity_strength": 1.0e-7 * unyt.cm / unyt.s**2,
         }

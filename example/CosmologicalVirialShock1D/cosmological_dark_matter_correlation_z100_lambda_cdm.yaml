@@ -45,7 +45,7 @@ initial_condition:
   perturbation_radius: 250.0
   target_halo_mass: 100.0
   initial_overdensity: 0.0166930693
-  initial_density_profile: linear_correlation
+  rho_proper_profile: linear_correlation
   correlation_h: 0.674
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76
@@ -56,7 +56,7 @@ initial_condition:
   dm_specific_angular_momentum: 0.01
   softening: 10.0
   uv_background_on_redshift: 10.0
-  cie_initial_temperature: 10.0
+  cie_temperature_proper: 10.0
 example:
   dark_matter_crossing_safety_factor: 0.5
   dm_only_shells: 1024

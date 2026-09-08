@@ -617,6 +617,7 @@ class Par:
                 'initial_time': 'initial_time',
                 'box_size_proper': 'box_size_proper',
                 'box_size_comoving_cgs_cm': 'box_size_comoving_cgs_cm',
+                'time_proper': 'time_code',
                 'current_time': 'time_code',
             },
             'mesh': {

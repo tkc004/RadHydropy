@@ -115,7 +115,7 @@ def _load_correlation_table(config_filename, example):
 
 
 def _set_background_state(sim, config, cosmic_time, baryon_fraction,
-                          initial_temperature_code, mu):
+                          temperature_proper_code, mu):
     """Synchronize the analytic EdS outer reservoir and its active cell."""
     cosmology = config["_cosmology"]
     scale_factor = float(cosmology.scale_factor(cosmic_time))
@@ -124,7 +124,7 @@ def _set_background_state(sim, config, cosmic_time, baryon_fraction,
     )
     sim.par.boundary.inflow_density = baryon_fraction * background_comoving
     sim.par.boundary.inflow_velocity = 0.0
-    sim.par.boundary.inflow_temperature = initial_temperature_code
+    sim.par.boundary.inflow_temperature = temperature_proper_code
     sim.par.boundary.inflow_mu = mu
 
     first = int(sim.par.mesh.ghost_cells)
@@ -238,7 +238,7 @@ def _make_matched_initial_state(config):
     )
     initial.fluid.temp_supercomoving_code = np.full(
         int(par["mesh"]["grid_cells"]),
-        float(initial_condition["cie_initial_temperature"]) * scale_factor**2,
+        float(initial_condition["cie_temperature_proper"]) * scale_factor**2,
     )
     et.refresh_typed_initial_condition(initial)
 
@@ -559,7 +559,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if final_time <= initial_time:
         raise ValueError("final cosmic time must exceed the initial time")
     initial_scale_factor = float(cosmology.scale_factor(initial_time))
-    initial_temperature_code = float(initial_condition["cie_initial_temperature"]) * initial_scale_factor**2
+    temperature_proper_code = float(initial_condition["cie_temperature_proper"]) * initial_scale_factor**2
     diagnostic_min = float(example["diagnostic_radius_min_comoving_kpc"])
     diagnostic_max = float(example["diagnostic_radius_max_comoving_kpc"])
     snapshot_count = int(example.get("snapshot_count", 9))
@@ -568,7 +568,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     _set_background_state(
         sim, config, initial_time, baryon_fraction,
-            initial_temperature_code, float(initial_condition["mu"]),
+            temperature_proper_code, float(initial_condition["mu"]),
     )
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid)
@@ -585,7 +585,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             )
             _set_background_state(
                 sim, config, cosmic_time, baryon_fraction,
-                initial_temperature_code, float(initial_condition["mu"]),
+                temperature_proper_code, float(initial_condition["mu"]),
             )
             sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
             sim.solver.SetConserved(sim.mesh, sim.fluid)
@@ -608,7 +608,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         _set_background_state(
             sim, config, cosmic_time, baryon_fraction,
-            initial_temperature_code, float(initial_condition["mu"]),
+            temperature_proper_code, float(initial_condition["mu"]),
         )
         history.append(_snapshot(
             sim, dm, cosmic_time, config,

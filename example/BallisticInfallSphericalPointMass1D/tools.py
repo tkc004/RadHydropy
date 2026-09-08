@@ -45,7 +45,7 @@ def build_initial_condition(config):
     coordinate_proper_code = spherical_cell_centers(boundary_proper_code)
     return make_initial_condition(config, boundary_proper_code=boundary_proper_code,
         rho_proper_code=ballistic_density_profile(coordinate_proper_code, quantity_to_value(ic["reference_density"], units.density_unit)),
-        vel_proper_code=np.zeros(n), temp_proper_code=np.full(n, quantity_to_value(ic["initial_temperature"], units.temperature_unit)),
+        vel_proper_code=np.zeros(n), temp_proper_code=np.full(n, quantity_to_value(ic["temperature_proper"], units.temperature_unit)),
         mu_dimensionless=np.full(n, ic["mean_molecular_weight"]), area_proper_code=4*np.pi*boundary_proper_code[:-1]**2)
 
 def ReadandPlot(filename, config, **kwargs):

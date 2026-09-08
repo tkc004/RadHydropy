@@ -43,7 +43,7 @@ def run():
     time_unit_gyr = CODE_TIME_S / SECONDS_PER_GYR
     initial_scale_factor = float(example["initial_scale_factor"])
     final_scale_factor = float(example["final_scale_factor"])
-    initial_temperature = float(example["initial_temperature"])
+    temperature_proper = float(example["temperature_proper"])
     cases = [
         ("EdS", PhysicalEdS(h0=70.0), CodeEdS),
         ("LCDM_0p3_0p7", PhysicalLambdaCDM(h0=70.0, omega_m=0.3, omega_lambda=0.7), CodeLambdaCDM),
@@ -87,7 +87,7 @@ def run():
         # For gamma=5/3, T_tilde = T*a^2.  The stored temperature is therefore
         # constant for homogeneous adiabatic expansion.
         case_config["_temp_supercomoving_code"] = np.full(
-            grid_cells, initial_temperature * initial_scale_factor**2
+            grid_cells, temperature_proper * initial_scale_factor**2
         )
         case_config["_vel_supercomoving_code"] = np.zeros(grid_cells)
         initial = build_initial_condition(case_config)
@@ -125,7 +125,7 @@ def run():
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         stored_temperature = float(np.mean(sim.fluid.temp_supercomoving_code))
         measured_temperature = stored_temperature / final_a**2
-        expected_temperature = initial_temperature * (initial_scale_factor / final_scale_factor) ** 2
+        expected_temperature = temperature_proper * (initial_scale_factor / final_scale_factor) ** 2
         print(
             f"{label}: a={final_a:.12g}, T_stored={stored_temperature:.12g}, "
             f"T_physical={measured_temperature:.12g} K, "

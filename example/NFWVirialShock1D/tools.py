@@ -65,7 +65,7 @@ def build_initial_condition(config):
         initial_condition['omega_lambda'],
         initial_condition['initial_redshift'],
     )
-    cmb_temperature = initial_condition.get('cmb_temperature_0', initial_condition['initial_temperature'])
+    cmb_temperature = initial_condition.get('cmb_temperature_0', initial_condition['temperature_proper'])
     temperature = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
     return make_initial_condition(config,
         boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),

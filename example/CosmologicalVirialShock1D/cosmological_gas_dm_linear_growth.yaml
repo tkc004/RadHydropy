@@ -64,7 +64,7 @@ initial_condition:
   perturbation_radius: 250.0
   target_halo_mass: 100.0
   initial_overdensity: 0.001
-  initial_density_profile: linear_correlation
+  rho_proper_profile: linear_correlation
   correlation_h: 0.674
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76
@@ -74,7 +74,7 @@ initial_condition:
   specific_angular_momentum: 0.0
   cmb_equilibrium_initial: false
   uv_background_on_redshift: 10.0
-  cie_initial_temperature: 0.0001
+  cie_temperature_proper: 0.0001
 example:
   snapshot_count: 7
   diagnostic_radius_min_comoving_kpc: 20.0

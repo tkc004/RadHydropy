@@ -93,7 +93,7 @@ class UniformEdSInitialCondition(Rsim):
 
 def analytic_compton_temperature(
     cosmic_times_s,
-    initial_temperature_cgs_K,
+    temperature_proper_cgs_K,
     initial_cosmic_time,
     cosmology,
     time_unit_s,
@@ -139,7 +139,7 @@ def analytic_compton_temperature(
     solution = solve_ivp(
         rhs,
         (initial_time_s, final_time_s),
-        [initial_temperature_cgs_K],
+        [temperature_proper_cgs_K],
         t_eval=np.asarray(cosmic_times_s, dtype=float),
         rtol=1.0e-10,
         atol=1.0e-8,

@@ -52,7 +52,7 @@ initial_condition:
   grid_cells: 512
   coordinate_system: spherical
   box_size_proper: {value: 80.0, unit: kpc}
-  current_time: {value: 0.0, unit: Myr}
+  time_proper: {value: 0.0, unit: Myr}
   inner_radius: {value: 0.01, unit: kpc}
   outer_radius: {value: 80.0, unit: kpc}
   halo_mass: {value: 5.497e8, unit: Msun}
@@ -64,5 +64,5 @@ initial_condition:
   mean_molecular_weight: 0.59
   mu: 0.59
   reference_density: {value: 1.0e-27, unit: g/cm**3}
-  initial_temperature: {value: 1.0, unit: K}
+  temperature_proper: {value: 1.0, unit: K}
 example: {}

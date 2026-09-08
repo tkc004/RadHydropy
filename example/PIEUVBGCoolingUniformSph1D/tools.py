@@ -33,9 +33,9 @@ def build_initial_condition(config):
         PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
         width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
     )
-    initial_velocity = initial.get('vini', 0.0 * unyt.cm / unyt.s)
+    vel_proper = initial.get('vini', 0.0 * unyt.cm / unyt.s)
     result.fluid.vel_proper_code = as_named_array(quantity_to_value(
-        np.zeros(grid_cells) * initial_velocity, code_units.velocity_unit
+        np.zeros(grid_cells) * vel_proper, code_units.velocity_unit
     ))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * initial['tempini'], code_units.temperature_unit

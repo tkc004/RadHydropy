@@ -23,13 +23,13 @@ def build_initial_condition(config):
     width = initial['box_size_proper'].to_value(code_units.length_unit)
     sim.mesh.boundary_proper_code = as_named_array(np.linspace(start, start + width, grid_cells + 1))
     sim.fluid.vel_proper_code = as_named_array(np.full(
-        grid_cells, initial['initial_velocity'].to_value(code_units.velocity_unit)
+        grid_cells, initial['vel_proper'].to_value(code_units.velocity_unit)
     ))
     sim.fluid.temp_proper_code = as_named_array(np.full(
-        grid_cells, initial['initial_temperature'].to_value(code_units.temperature_unit)
+        grid_cells, initial['temperature_proper'].to_value(code_units.temperature_unit)
     ))
     sim.fluid.rho_proper_code = as_named_array(np.full(
-        grid_cells, initial['initial_density'].to_value(code_units.density_unit)
+        grid_cells, initial['rho_proper'].to_value(code_units.density_unit)
     ))
     sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
     sim.SetMesh()

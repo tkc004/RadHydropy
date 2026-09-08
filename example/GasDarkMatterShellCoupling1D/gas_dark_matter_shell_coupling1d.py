@@ -40,7 +40,7 @@ def main(config_filename=DEFAULT_CONFIG):
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
-    initial_density = quantity_to_value(
+    rho_proper = quantity_to_value(
         initial.fluid.rho_proper_code,
         'g/cm**3',
     )
@@ -105,7 +105,7 @@ def main(config_filename=DEFAULT_CONFIG):
             % (gas_mass_error, dm_mass_error)
         )
     fig, axis = plt.subplots(figsize=(5, 4))
-    axis.plot(radius_pc, initial_density, '--', label='initial')
+    axis.plot(radius_pc, rho_proper, '--', label='initial')
     axis.plot(radius_pc, density, label='final')
     axis.set_xlabel('radius [pc]')
     axis.set_ylabel(r'gas density [g cm$^{-3}$]')

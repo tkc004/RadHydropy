@@ -45,7 +45,7 @@ def evolve(config):
     t_initial = t_ref_s * (1.0 / (1.0 + z_initial)) ** 1.5
     t_final = t_ref_s * (1.0 / (1.0 + z_final)) ** 1.5
     initial_xe = float(initial_condition["initial_xe"])
-    initial_temperature = float(initial_condition["initial_temperature"].to_value("K"))
+    temperature_proper = float(initial_condition["temperature_proper"].to_value("K"))
 
     def rates(time_s, values):
         xHI = float(np.clip(values[0], 1.0e-12, 1.0 - 1.0e-12))
@@ -81,7 +81,7 @@ def evolve(config):
     solution = solve_ivp(
         rates,
         (t_initial, t_final),
-        [1.0 - initial_xe, initial_temperature],
+        [1.0 - initial_xe, temperature_proper],
         t_eval=np.linspace(t_initial, t_final, int(initial_condition["output_points"])),
         rtol=2.0e-9,
         atol=[1.0e-12, 1.0e-5],

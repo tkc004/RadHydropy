@@ -43,4 +43,4 @@ initial_condition: {}
 example:
   initial_scale_factor: 0.009900990099009901
   final_scale_factor: 0.5
-  initial_temperature: 1000.0
+  temperature_proper: 1000.0

@@ -150,7 +150,7 @@ def build_static_problem(config):
     )
     temperature_proper_code = np.full(
         grid_cells,
-        quantity_to_value(initial['initial_temperature'], units.temperature_unit),
+        quantity_to_value(initial['temperature_proper'], units.temperature_unit),
     )
     sim = make_initial_condition(
         config, boundary_proper_code=boundary_proper_code,

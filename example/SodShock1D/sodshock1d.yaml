@@ -37,10 +37,10 @@ initial_condition:
   grid_cells: 1000
   coordinate_system: cartesian
   box_size_proper: {value: 4.0, unit: cm}
-  current_time: {value: 0.0, unit: s}
-  initial_density: {value: 1.0, unit: g/cm**3}
-  initial_velocity: {value: 0.0, unit: km/s}
-  initial_temperature: {value: 1.5506894880146205e-08, unit: K}
+  time_proper: {value: 0.0, unit: s}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+  vel_proper: {value: 0.0, unit: km/s}
+  temperature_proper: {value: 1.5506894880146205e-08, unit: K}
   mean_molecular_weight: 1.0
   density_ratio: 0.1
   temperature_ratio: 0.8

@@ -20,7 +20,7 @@ initial_condition:
   central_mass: 1.0
   shell_mass: 1.0e-12
   initial_radius: 0.4
-  initial_velocity: 0.0
+  vel_proper: 0.0
   specific_angular_momentum: 0.15
   softening: 0.02
 example: {}

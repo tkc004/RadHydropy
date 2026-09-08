@@ -25,7 +25,7 @@ def build_initial_condition(config):
     result = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
     result.par.simulation.coordinate_system = initial['coordinate_system']
-    result.par.simulation.time_proper_code = initial['current_time'].to_value(code_units.time_unit)
+    result.par.simulation.time_proper_code = initial['time_proper'].to_value(code_units.time_unit)
     result.par.simulation.box_size_proper_code = initial['box_size_proper'].to_value(code_units.length_unit)
     result.par.mesh.ghost_cells = 1
     result.mesh.boundary_proper_code = as_named_array(np.linspace(
@@ -237,21 +237,21 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
     next_output_index = 0
 
     while sim.fluid.time_proper_code * time_unit < final_time:
-        current_time = sim.fluid.time_proper_code * time_unit
-        dt = final_time - current_time
+        time_proper = sim.fluid.time_proper_code * time_unit
+        dt = final_time - time_proper
         if output_times is not None and next_output_index < len(output_times):
             target_output_time = output_times[next_output_index]
-            if current_time < target_output_time < current_time + dt:
-                dt = target_output_time - current_time
+            if time_proper < target_output_time < time_proper + dt:
+                dt = target_output_time - time_proper
         elif (
             next_output_time is not None
-            and current_time < next_output_time < current_time + dt
+            and time_proper < next_output_time < time_proper + dt
         ):
-            dt = next_output_time - current_time
-        if current_time < source_switch_time < current_time + dt:
-            dt = source_switch_time - current_time
+            dt = next_output_time - time_proper
+        if time_proper < source_switch_time < time_proper + dt:
+            dt = source_switch_time - time_proper
 
-        if current_time < source_switch_time:
+        if time_proper < source_switch_time:
             ngamma_cgs_cm3 = float(
                 np.asarray(photon_density_on.to_value(1.0 / unyt.cm**3), dtype=float)
             )

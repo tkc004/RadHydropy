@@ -83,7 +83,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if bool(initial_condition.get("cmb_equilibrium_initial", False)):
         expected_temperature = float(initial_condition.get("cmb_temperature_0", 2.7255)) / scale_factor
     else:
-        expected_temperature = float(initial_condition.get("cie_initial_temperature", 10.0))
+        expected_temperature = float(initial_condition.get("cie_temperature_proper", 10.0))
 
     target_radius = et.perturbation_radius(config)
     clipped_edges = np.clip(boundary, 0.0, target_radius)

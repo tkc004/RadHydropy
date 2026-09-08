@@ -64,9 +64,9 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   box_size_proper: {value: 20.0, unit: kpc}
-  current_time: {value: 0.0, unit: Myr}
+  time_proper: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
-  initial_temperature: {value: 100.0, unit: K}
+  temperature_proper: {value: 100.0, unit: K}
 example:
   plot_radius_max: {value: 7.5, unit: kpc}
   reference_radius_unit: {value: 15.0, unit: kpc}

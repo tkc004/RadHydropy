@@ -47,7 +47,7 @@ def main(config_filename=DEFAULT_CONFIG):
     softening = float(initial_condition['softening'])
     angular_momentum = float(initial_condition['specific_angular_momentum'])
     initial_radius = float(initial_condition['initial_radius'])
-    initial_velocity = float(initial_condition['initial_velocity'])
+    vel_proper = float(initial_condition['vel_proper'])
 
     def rhs(time_proper_code, state):
         radius, velocity = state
@@ -62,7 +62,7 @@ def main(config_filename=DEFAULT_CONFIG):
     reference = solve_ivp(
         rhs,
         (0.0, float(config["par"]['simulation']['final_time'])),
-        [initial_radius, initial_velocity],
+        [initial_radius, vel_proper],
         rtol=1.0e-11,
         atol=1.0e-13,
         max_step=float(example['output_interval']) / 4.0,

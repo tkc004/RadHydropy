@@ -71,7 +71,7 @@ initial_condition:
   perturbation_radius: 250.0
   target_halo_mass: 100.0
   initial_overdensity: 0.001
-  initial_density_profile: linear_correlation
+  rho_proper_profile: linear_correlation
   correlation_h: 0.674
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76
@@ -84,7 +84,7 @@ initial_condition:
   cmb_temperature_0: 2.7255
   cmb_residual_electron_fraction: 0.0002
   uv_background_on_redshift: 10.0
-  cie_initial_temperature: 0.0001
+  cie_temperature_proper: 0.0001
 example:
   gas_profile_cadence: 0.01
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

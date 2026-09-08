@@ -17,11 +17,11 @@ def build_initial_condition(config):
     size = quantity_to_value(initial["box_size_proper"], units.length_unit)
     boundary_proper_code = np.linspace(size / n, size + size / n, n + 1)
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    rho_proper_code = np.full(n, quantity_to_value(initial["initial_density"], units.density_unit))
+    rho_proper_code = np.full(n, quantity_to_value(initial["rho_proper"], units.density_unit))
     rho_proper_code[(coordinate_proper_code < .25 * size) | (coordinate_proper_code > .75 * size)] *= .01
     return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code,
-        vel_proper_code=np.full(n, quantity_to_value(initial["initial_velocity"], units.velocity_unit)),
-        temp_proper_code=np.full(n, quantity_to_value(initial["initial_temperature"], units.temperature_unit)),
+        vel_proper_code=np.full(n, quantity_to_value(initial["vel_proper"], units.velocity_unit)),
+        temp_proper_code=np.full(n, quantity_to_value(initial["temperature_proper"], units.temperature_unit)),
         mu_dimensionless=np.full(n, initial["mean_molecular_weight"]))
 
 
@@ -37,9 +37,9 @@ def ReadandPlot(filename, config, **kwargs):
     analytic_density = asa.top_hat_density_profile(
         coordinate_proper_code[first:last],
         time_proper_code,
-        quantity_to_value(config["initial_condition"]["initial_velocity"], units.velocity_unit),
+        quantity_to_value(config["initial_condition"]["vel_proper"], units.velocity_unit),
         quantity_to_value(config["initial_condition"]["box_size_proper"], units.length_unit),
-        quantity_to_value(config["initial_condition"]["initial_density"], units.density_unit),
+        quantity_to_value(config["initial_condition"]["rho_proper"], units.density_unit),
     )
     plt.plot(coordinate_proper_code[first:last] * units.length_unit,
              np.asarray(sim.fluid.rho_proper_code)[first:last] * units.density_unit,

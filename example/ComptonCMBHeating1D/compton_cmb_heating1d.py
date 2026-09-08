@@ -48,7 +48,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('compton_cmb_heating1d.yaml'
 
 def _analytic_temperature(
     time_s,
-    initial_temperature,
+    temperature_proper,
     redshift,
     nH_cgs_cm3,
     neutral_fraction,
@@ -75,14 +75,14 @@ def _analytic_temperature(
         / rho_cgs_g_cm3
     )
     return cmb_temperature + (
-        initial_temperature - cmb_temperature
+        temperature_proper - cmb_temperature
     ) * np.exp(-temperature_rate_coefficient * time_s)
 
 
 def _run_case(
     config,
     label,
-    initial_temperature,
+    temperature_proper,
     timestep_override=None,
 ):
     case_params = copy.deepcopy(config['par'])
@@ -93,7 +93,7 @@ def _run_case(
         Path(config['par']['output']['directory']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
     )
     case_initial_condition = dict(config['initial_condition'])
-    case_initial_condition['initial_temperature'] = initial_temperature * unyt.K
+    case_initial_condition['temperature_proper'] = temperature_proper * unyt.K
     case_params.pop('_example', None)
 
     code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
@@ -147,7 +147,7 @@ def _run_case(
     if example.get('compare_compton_analytic', True):
         analytic = _analytic_temperature(
             time_s,
-            initial_temperature,
+            temperature_proper,
             float(case_params['thermochemistry']['compton_cmb_redshift']),
             float(case_initial_condition['hydrogen_density'].to_value(1.0 / unyt.cm**3)),
             float(case_initial_condition['xHI']),
@@ -173,7 +173,7 @@ def _timestep_difference(coarse_history, fine_history):
     return float(np.max(np.abs(coarse_temperature - fine_at_coarse) / scale))
 
 
-def _run_converged_case(config, label, initial_temperature):
+def _run_converged_case(config, label, temperature_proper):
     """Refine the implicit source timestep until two runs agree."""
     timestep = config['example']['evolution_timestep']
     thermo = config['par']['thermochemistry']
@@ -182,7 +182,7 @@ def _run_converged_case(config, label, initial_temperature):
     coarse = _run_case(
         config,
         label,
-        initial_temperature,
+        temperature_proper,
         timestep_override=timestep,
     )
     for refinement in range(1, max_refinements + 1):
@@ -190,7 +190,7 @@ def _run_converged_case(config, label, initial_temperature):
         fine = _run_case(
             config,
             label,
-            initial_temperature,
+            temperature_proper,
             timestep_override=timestep,
         )
         difference = _timestep_difference(coarse, fine)
@@ -224,18 +224,18 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(config)
 
     histories = {}
-    for label, initial_temperature in cases.items():
+    for label, temperature_proper in cases.items():
         if str(config["par"]['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
             histories[label] = _run_converged_case(
                 config,
                 label,
-                float(initial_temperature),
+                float(temperature_proper),
             )
         else:
             histories[label] = _run_case(
                 config,
                 label,
-                float(initial_temperature),
+                float(temperature_proper),
             )
 
     cmb_temperature = 2.7255 * (1.0 + config["par"]['thermochemistry']['compton_cmb_redshift'])

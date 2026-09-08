@@ -95,10 +95,10 @@ def run():
             }
         initial_tau = float(code_cosmology.supercomoving_time(initial_time))
         final_tau = float(code_cosmology.supercomoving_time(final_time))
-        initial_density_cgs = density_msun_mpc3_to_cgs(
+        rho_proper_cgs = density_msun_mpc3_to_cgs(
             physical.critical_density(initial_time_gyr)
         )
-        density_code = initial_density_cgs / density_unit
+        density_code = rho_proper_cgs / density_unit
         case_config = copy.deepcopy(config)
         case_config["_code_cosmology"] = code_cosmology
         case_config["initial_condition"] = {

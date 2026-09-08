@@ -20,7 +20,7 @@ initial_condition:
   central_dark_matter_mass: 0.15
   uniform_gas_density: 0.20
   initial_radius: 0.55
-  initial_velocity: 0.0
+  vel_proper: 0.0
   specific_angular_momentum: 0.16
   softening: 0.02
   shell_mass: 1.0e-12

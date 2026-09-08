@@ -29,7 +29,7 @@ def build_initial_condition(config):
         grid_cells, initial['temperature_proper'].to_value(code_units.temperature_unit)
     ))
     sim.fluid.rho_proper_code = as_named_array(np.full(
-        grid_cells, initial['initial_density'].to_value(code_units.density_unit)
+        grid_cells, initial['rho_proper'].to_value(code_units.density_unit)
     ))
     sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
     sim.SetMesh()

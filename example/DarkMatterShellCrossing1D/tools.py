@@ -14,7 +14,7 @@ def make_shells(config):
         initial_condition['inner_radius'], initial_condition['outer_radius'], number
     )
     mass = np.full(number, initial_condition['total_mass'] / number)
-    velocity = initial_condition['initial_velocity_scale'] * radius
+    velocity = initial_condition['vel_proper_scale'] * radius
     angular_momentum = (
         initial_condition['angular_momentum_fraction']
         * np.sqrt(radius)

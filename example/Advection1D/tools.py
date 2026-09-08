@@ -21,9 +21,9 @@ def build_initial_condition(config):
     boundary_proper_code = np.linspace(0.0, box_size_code, grid_cells + 1)
     coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
 
-    rho_proper_code = np.full(grid_cells, quantity_to_value(initial['initial_density'], code_units.density_unit))
-    sim.fluid.vel_proper_code = as_named_array(np.full(grid_cells, quantity_to_value(initial['initial_velocity'], code_units.velocity_unit)))
-    sim.fluid.temp_proper_code = as_named_array(np.full(grid_cells, quantity_to_value(initial['initial_temperature'], code_units.temperature_unit)))
+    rho_proper_code = np.full(grid_cells, quantity_to_value(initial['rho_proper'], code_units.density_unit))
+    sim.fluid.vel_proper_code = as_named_array(np.full(grid_cells, quantity_to_value(initial['vel_proper'], code_units.velocity_unit)))
+    sim.fluid.temp_proper_code = as_named_array(np.full(grid_cells, quantity_to_value(initial['temperature_proper'], code_units.temperature_unit)))
     rho_proper_code[
         np.logical_or(
             coordinate_proper_code < 0.25 * box_size_code,
@@ -62,10 +62,10 @@ def ReadandPlot(outfilename, config, **kwargs):
     x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[:-1] + rout.mesh.boundary_proper_code[1:])
     x_physical = x_proper_code[first:last]
     box_size = quantity_to_value(initial['box_size_proper'], code_units_obj.length_unit)
-    velocity = quantity_to_value(initial['initial_velocity'], code_units_obj.velocity_unit)
+    velocity = quantity_to_value(initial['vel_proper'], code_units_obj.velocity_unit)
     time_proper_code = float(np.asarray(rout.fluid.time_proper_code).flat[0])
     launch = np.mod(x_physical - velocity * time_proper_code, box_size)
-    high_density = quantity_to_value(initial['initial_density'], code_units_obj.density_unit)
+    high_density = quantity_to_value(initial['rho_proper'], code_units_obj.density_unit)
     analytic_density = np.where(
         (launch >= 0.25 * box_size) & (launch <= 0.75 * box_size),
         high_density,

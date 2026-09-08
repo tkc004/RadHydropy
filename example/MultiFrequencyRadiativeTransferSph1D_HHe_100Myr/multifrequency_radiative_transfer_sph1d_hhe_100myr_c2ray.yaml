@@ -58,13 +58,13 @@ initial_condition:
   number_of_cells: 128
   box_size_proper: {value: 10.0, unit: kpc}
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
-  initial_temperature: {value: 100.0, unit: K}
+  temperature_proper: {value: 100.0, unit: K}
 example:
   outdir: .
   outfileprefix: Output_C2Ray
   savedir: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray.jpg
   evolution_timestep: {value: 0.5, unit: Myr}
-  initial_temperature: {value: 100.0, unit: K}
+  temperature_proper: {value: 100.0, unit: K}
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
   box_size_proper: {value: 10.0, unit: kpc}

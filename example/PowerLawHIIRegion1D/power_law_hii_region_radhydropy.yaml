@@ -61,7 +61,7 @@ par:
 initial_condition:
   number_of_cells: 256
   box_size_proper: {value: 1.5, unit: pc}
-  initial_temperature: {value: 100.0, unit: K}
+  temperature_proper: {value: 100.0, unit: K}
   neutral_temperature: {value: 100.0, unit: K}
   ionized_temperature: {value: 1.0e4, unit: K}
   core_number_density: {value: 1.0e6, unit: 1/cm**3}

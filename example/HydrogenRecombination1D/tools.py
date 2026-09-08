@@ -22,7 +22,7 @@ def build_initial_condition(config):
     grid_cells = int(initial['grid_cells'])
     result = Rsim(config['par'])
     result.par.simulation.coordinate_system = initial['coordinate_system']
-    result.par.simulation.time_proper_code = initial['current_time'].to_value(units.time_unit)
+    result.par.simulation.time_proper_code = initial['time_proper'].to_value(units.time_unit)
     result.par.simulation.box_size_proper_code = initial['box_size_proper'].to_value(units.length_unit)
     result.par.mesh.ghost_cells = 1
     result.mesh.boundary_proper_code = as_named_array(np.linspace(

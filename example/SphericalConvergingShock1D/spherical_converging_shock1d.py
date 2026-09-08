@@ -117,7 +117,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     profiles = profiles[:13]
     initial_mass, initial_energy = profiles[0][4:6]
     final_mass, final_energy = profiles[-1][4:6]
-    initial_temperature = profiles[0][3]
+    temperature_proper = profiles[0][3]
     final_temperature = profiles[-1][3]
     thermal_energy = []
     for profile in profiles:
@@ -125,7 +125,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     thermal_energy = np.asarray(thermal_energy)
     if not thermal_energy[-1] > thermal_energy[0]:
         raise RuntimeError("converging flow did not increase thermal energy")
-    if not np.max(final_temperature) > 5.0 * np.max(initial_temperature):
+    if not np.max(final_temperature) > 5.0 * np.max(temperature_proper):
         raise RuntimeError("converging flow did not produce a resolved central shock")
     if not np.isclose(final_mass, initial_mass, rtol=2.0e-6):
         raise RuntimeError("spherical reflecting benchmark lost mass")
@@ -155,7 +155,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
     print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
     print(f"thermal energy increase = {thermal_energy[-1] / thermal_energy[0]:.6e}")
-    print(f"central temperature amplification = {np.max(final_temperature) / np.max(initial_temperature):.6e}")
+    print(f"central temperature amplification = {np.max(final_temperature) / np.max(temperature_proper):.6e}")
     return figure
 
 

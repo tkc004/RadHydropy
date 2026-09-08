@@ -60,9 +60,9 @@ initial_condition:
   grid_cells: 128
   coordinate_system: spherical
   box_size_proper: {value: 10.0, unit: kpc}
-  current_time: {value: 0.0, unit: Myr}
+  time_proper: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
-  initial_temperature: {value: 100.0, unit: K}
+  temperature_proper: {value: 100.0, unit: K}
 
 example:
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_100Myr.jpg

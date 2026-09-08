@@ -51,7 +51,7 @@ par:
   diagnostics:
     verbose: 0
 initial_condition:
-  current_time: {value: 0.0, unit: Myr}
+  time_proper: {value: 0.0, unit: Myr}
   halo_mass: {value: 1.0e11, unit: Msun}
   concentration: 10.0
   redshift: 0.0

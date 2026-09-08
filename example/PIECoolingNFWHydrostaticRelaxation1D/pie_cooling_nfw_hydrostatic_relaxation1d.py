@@ -51,11 +51,11 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
     runtime_only = {
-        'box_size_proper', 'coordinate_system', 'current_time', 'grid_cells',
+        'box_size_proper', 'coordinate_system', 'time_proper', 'grid_cells',
         'number_of_cells', 'inner_radius', 'outer_radius', 'halo_mass',
         'concentration', 'redshift', 'overdensity', 'h0', 'gas_fraction',
         'mean_molecular_weight', 'mu', 'reference_density',
-        'initial_temperature', 'final_time', 'evolution_timestep',
+        'temperature_proper', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
     sim = Rsim(config["par"])
@@ -68,14 +68,14 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetInitFluid()
     nghost = int(par['mesh']['ghost_cells'])
     interior = slice(nghost, -nghost if nghost else None)
-    initial_density_max = float(np.max(np.asarray(sim.fluid.rho_proper_code[interior])))
+    rho_proper_max = float(np.max(np.asarray(sim.fluid.rho_proper_code[interior])))
     floor = thermochemistry['cooling_temperature_floor'].to_value(unyt.K)
     runaway_factor = float(thermochemistry.get('runaway_density_factor', 100.0))
 
     def stop_on_runaway(runner):
         density = np.asarray(runner.fluid.rho_proper_code[interior])
         temperature_state = np.asarray(runner.fluid.temp_proper_code[interior])
-        runaway = np.max(density) >= runaway_factor * initial_density_max
+        runaway = np.max(density) >= runaway_factor * rho_proper_max
         # Do not terminate because a tenuous outer cell reaches the imposed
         # floor.  The relevant runaway is central loss of pressure support.
         ncentral = max(8, int(0.1 * temperature_state.size))

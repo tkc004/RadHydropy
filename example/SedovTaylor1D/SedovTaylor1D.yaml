@@ -37,8 +37,8 @@ initial_condition:
   grid_cells: 1001
   coordinate_system: cartesian
   box_size_proper: {value: 2.0, unit: cm}
-  current_time: {value: 0.0, unit: s}
-  initial_density: {value: 1.0, unit: g/cm**3}
+  time_proper: {value: 0.0, unit: s}
+  rho_proper: {value: 1.0, unit: g/cm**3}
   explosion_energy: {value: 1.0, unit: erg}
   explosion_radius: {value: 0.2, unit: cm}
   mean_molecular_weight: 1.0

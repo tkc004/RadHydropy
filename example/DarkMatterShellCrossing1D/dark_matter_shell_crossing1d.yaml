@@ -22,7 +22,7 @@ initial_condition:
   inner_radius: 0.08
   outer_radius: 0.8
   total_mass: 1.0
-  initial_velocity_scale: -0.55
+  vel_proper_scale: -0.55
   angular_momentum_fraction: 0.15
   softening: 0.02
 example: {}

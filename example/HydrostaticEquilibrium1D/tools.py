@@ -106,20 +106,20 @@ def build_initial_condition(config):
     box_size = _physical_value(
         initial_condition['box_size_proper'], unyt.cm, 'box_size'
     ) * unyt.cm
-    current_time = _physical_value(
-        initial_condition['current_time'], unyt.s, 'current_time'
+    time_proper = _physical_value(
+        initial_condition['time_proper'], unyt.s, 'time_proper'
     ) * unyt.s
     boundary_proper_code = np.linspace(0.0, 1.0, grid_cells + 1) * quantity_to_value(box_size, code_units.length_unit)
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
     density_proper_code = quantity_to_value(hydrostatic_density_profile(
         coordinate_proper_code * code_units.length_unit,
         initial_condition['reference_density'],
-        initial_condition['initial_temperature'],
+        initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],
         code_unit_system=code_units,
     ), code_units.density_unit)
-    temperature_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['initial_temperature'], code_units.temperature_unit))
+    temperature_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['temperature_proper'], code_units.temperature_unit))
     return make_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
@@ -168,7 +168,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     rho_analytic = hydrostatic_density_profile(
         xcoord,
         initial_condition['reference_density'],
-        initial_condition['initial_temperature'],
+        initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],
         code_unit_system=code_units_obj,

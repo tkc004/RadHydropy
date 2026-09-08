@@ -49,5 +49,5 @@ initial_condition:
   initial_redshift: 0.0
   mu: 0.59
   cmb_temperature_0: {value: 2.7255, unit: K}
-  initial_temperature: {value: 2.7255, unit: K}
+  temperature_proper: {value: 2.7255, unit: K}
 example: {}

@@ -47,9 +47,9 @@ par:
 
 initial_condition:
   box_size_proper: {value: 1.0, unit: kpc}
-  current_time: {value: 0.0, unit: Myr}
+  time_proper: {value: 0.0, unit: Myr}
   hydrogen_density: {value: 1.0e-3, unit: 1/cm**3}
-  initial_temperature: {value: 1.0e6, unit: K}
+  temperature_proper: {value: 1.0e6, unit: K}
   xHI: 0.99
   mean_molecular_weight: 0.9900990099
 

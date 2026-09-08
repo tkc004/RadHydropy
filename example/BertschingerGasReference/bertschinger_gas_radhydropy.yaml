@@ -54,5 +54,5 @@ initial_condition:
   initial_cosmic_time: 0.1
   perturbation_amplitude: 5.0
   mean_molecular_weight: 0.6
-  initial_temperature: {value: 1.0e-6, unit: K}
+  temperature_proper: {value: 1.0e-6, unit: K}
 example: {}

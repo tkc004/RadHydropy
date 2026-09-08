@@ -39,9 +39,9 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   box_size_proper: {value: 10.0, unit: pc}
-  current_time: {value: 0.0, unit: s}
+  time_proper: {value: 0.0, unit: s}
   reference_density: {value: 1.0e-24, unit: g/cm**3}
-  initial_temperature: {value: 1.0e4, unit: K}
+  temperature_proper: {value: 1.0e4, unit: K}
   mean_molecular_weight: 1.0
   gravity_strength: {value: 1.0e-7, unit: cm/s**2}
 example: {}

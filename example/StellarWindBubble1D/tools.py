@@ -13,7 +13,7 @@ from radhydropy.rsim import Rsim
 import weaver_analytic as wa
 
 
-def _current_time(rout):
+def _time_proper(rout):
     return unyt.unyt_quantity(
         float(np.asarray(rout.fluid.time_proper_code)),
         rout.par.CodeUnits.time_unit,
@@ -57,7 +57,7 @@ def build_initial_condition(config):
         dtype=float,
     )
     sim.fluid.time_proper_code = float(
-        np.asarray(quantity_to_value(initial_config['current_time'], code_units.time_unit))
+        np.asarray(quantity_to_value(initial_config['time_proper'], code_units.time_unit))
     )
     boundary_proper_cgs_cm = np.linspace(
         initial_config['injection_radius'],
@@ -84,7 +84,7 @@ def build_initial_condition(config):
         area_proper_code=area_values,
         volume_proper_code=volume_values,
     )
-    sim.fluid.rho_proper_code = initial_config['initial_density'] * np.ones(grid_cells)
+    sim.fluid.rho_proper_code = initial_config['rho_proper'] * np.ones(grid_cells)
     sim.fluid.vel_proper_code = initial_config['vel_proper'] * np.ones(grid_cells)
     sim.fluid.temp_proper_code = initial_config['temperature_proper'] * np.ones(grid_cells)
     sim.fluid.mu = initial_config['mean_molecular_weight'] * np.ones(grid_cells)
@@ -287,8 +287,8 @@ def weaver_forward_shock_radius(rout, config):
     """Return the Weaver shock radius for a loaded snapshot."""
 
     return wa.shock_radius(
-        _current_time(rout),
-        config['initial_condition']['initial_density'],
+        _time_proper(rout),
+        config['initial_condition']['rho_proper'],
         config['par']['boundary']['outflow_density'],
         config['par']['boundary']['outflow_velocity'],
         config['initial_condition']['injection_radius'],
@@ -374,7 +374,7 @@ def make_profile_figure(snapshots, config):
             markevery=5,
             color=color,
         )
-        if _current_time(rout) > 0 * _current_time(rout).units:
+        if _time_proper(rout) > 0 * _time_proper(rout).units:
             shock_radius = weaver_forward_shock_radius(rout, config)
             shock_value = shock_radius.to_value(config['initial_condition']['injection_radius'].units).item()
             for ax in (ax_density, ax_temperature):
@@ -408,17 +408,17 @@ def make_radius_figure(snapshots, config):
     shell_threshold_factor = config['example'].get('shell_edge_density_threshold_factor', 1.0)
 
     for rout in snapshots:
-        if _current_time(rout) <= 0 * _current_time(rout).units:
+        if _time_proper(rout) <= 0 * _time_proper(rout).units:
             continue
         numerical_radius = shell_inner_edge_radius(
             rout,
-            initial_config['initial_density'],
+            initial_config['rho_proper'],
             shell_threshold_factor,
         )
         if numerical_radius is None:
             continue
         weaver_radius = weaver_forward_shock_radius(rout, config)
-        time_myr = _current_time(rout).to_value(unyt.Myr)
+        time_myr = _time_proper(rout).to_value(unyt.Myr)
         numerical_times.append(time_myr)
         numerical_radii.append(numerical_radius.to_value(unyt.pc))
         weaver_times.append(time_myr)
@@ -493,11 +493,11 @@ def collect_shell_diagnostics(snapshots, config):
     pressures = []
 
     for rout in snapshots:
-        if _current_time(rout) <= 0 * _current_time(rout).units:
+        if _time_proper(rout) <= 0 * _time_proper(rout).units:
             continue
         shell_radius = shell_inner_edge_radius(
             rout,
-            initial_config['initial_density'],
+            initial_config['rho_proper'],
             shell_threshold_factor,
         )
         if shell_radius is None:
@@ -505,7 +505,7 @@ def collect_shell_diagnostics(snapshots, config):
         bubble_pressure = numerical_bubble_pressure(rout, shell_radius)
         if bubble_pressure is None:
             continue
-        times.append(_current_time(rout))
+        times.append(_time_proper(rout))
         radii.append(shell_radius)
         pressures.append(bubble_pressure)
 
@@ -531,7 +531,7 @@ def collect_shell_diagnostics(snapshots, config):
     for time in times:
         radius, velocity, pressure = wa.weaver_solution(
             time,
-            initial_config['initial_density'],
+            initial_config['rho_proper'],
             config['par']['boundary']['outflow_density'],
             config['par']['boundary']['outflow_velocity'],
             initial_config['injection_radius'],
@@ -623,7 +623,7 @@ def make_pressure_figure(snapshots, config):
 def ReadandPlot(outfilename, config, **kwargs):
     rout = load_output_state(outfilename, config)
     plot_density_snapshot(plt.gca(), rout, **kwargs)
-    if np.all(_current_time(rout) > 0 * _current_time(rout).units):
+    if np.all(_time_proper(rout) > 0 * _time_proper(rout).units):
         shock_radius = weaver_forward_shock_radius(rout, config)
         plt.axvline(
             x=shock_radius.to_value(config['initial_condition']['injection_radius'].units).item(),

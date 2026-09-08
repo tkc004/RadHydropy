@@ -75,7 +75,7 @@ class InitialCondition(Rsim):
         self.fluid.rho_proper_code = point_mass_density(
             self.mesh.x_proper_code * code_unit_system.length_unit,
             initial_condition["reference_density"],
-            initial_condition["initial_temperature"],
+            initial_condition["temperature_proper"],
             initial_condition["mean_molecular_weight"],
             initial_condition["point_mass"],
             self.mesh.x_proper_code[0] * code_unit_system.length_unit,
@@ -86,7 +86,7 @@ class InitialCondition(Rsim):
         )
         self.fluid.temp_proper_code = np.full(
             grid_cells,
-            float(initial_condition["initial_temperature"].to_value(unyt.K))
+            float(initial_condition["temperature_proper"].to_value(unyt.K))
             / scales["temperature_cgs_K"],
         )
         self.fluid.mu = np.full(grid_cells, float(initial_condition["mean_molecular_weight"]))
@@ -115,7 +115,7 @@ def analytic_density_code(radius_code, config):
     rho_proper_unyt = point_mass_density(
         np.asarray(radius_code) * code_unit_system.length_unit,
         initial_condition["reference_density"],
-        initial_condition["initial_temperature"],
+        initial_condition["temperature_proper"],
         initial_condition["mean_molecular_weight"],
         initial_condition["point_mass"],
         float(radius_code[0]) * code_unit_system.length_unit,

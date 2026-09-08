@@ -203,7 +203,7 @@ def build_initial_condition(config):
         * code_units.boltzmann_code / code_units.proton_mass_code
     )
     temperature_code = np.maximum(temperature_code, 0.0)
-    sim.par.initial_temperature_code = float(np.max(temperature_code))
+    sim.par.temperature_proper_code = float(np.max(temperature_code))
     sim.par.mu_outflow = float(initial_condition['mean_molecular_weight'])
     sim.fluid.rho_comoving_code = density
     sim.fluid.vel_supercomoving_code = velocity

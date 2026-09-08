@@ -35,11 +35,11 @@ initial_condition:
   grid_cells: 1000
   coordinate_system: spherical
   box_size_proper: {value: 4.0, unit: cm}
-  current_time: {value: 0.0, unit: s}
-  initial_temperature: {value: 0.0, unit: K}
+  time_proper: {value: 0.0, unit: s}
+  temperature_proper: {value: 0.0, unit: K}
   mean_molecular_weight: 1.0
-  initial_velocity: {value: 1.0, unit: cm/s}
-  initial_density: {value: 1.0, unit: g/cm**3
+  vel_proper: {value: 1.0, unit: cm/s}
+  rho_proper: {value: 1.0, unit: g/cm**3
 
 }
 example:

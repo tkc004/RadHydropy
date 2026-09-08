@@ -47,7 +47,7 @@ def build_initial_condition(config):
         initial['box_size_proper'], code_units.length_unit
     )
     sim.par.simulation.time_proper_code = quantity_to_value(
-        initial.get('current_time', 0.0 * unyt.s), code_units.time_unit
+        initial.get('time_proper', 0.0 * unyt.s), code_units.time_unit
     )
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
@@ -69,7 +69,7 @@ def build_initial_condition(config):
         volume_proper_code=volume_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['initial_density'], code_units.density_unit
+        np.ones(grid_cells) * initial['rho_proper'], code_units.density_unit
     ))
     sim.fluid.vel_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * initial['vel_proper'], code_units.velocity_unit

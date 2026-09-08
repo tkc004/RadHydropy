@@ -35,11 +35,11 @@ initial_condition:
   grid_cells: 256
   coordinate_system: spherical
   box_size_proper: {value: 20.0, unit: pc}
-  current_time: {value: 0.0, unit: s}
+  time_proper: {value: 0.0, unit: s}
   inner_radius: {value: 2.0, unit: pc}
   outer_radius: {value: 20.0, unit: pc}
   reference_density: {value: 1.0e-24, unit: g/cm**3}
-  initial_temperature: {value: 1.0e4, unit: K}
+  temperature_proper: {value: 1.0e4, unit: K}
   mean_molecular_weight: 1.0
   point_mass: {value: 1.0e38, unit: g}
 example: {}

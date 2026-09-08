@@ -14,12 +14,12 @@ def build_initial_condition(config):
     thermochemistry = config['par']['thermochemistry']
     code_units = config['_code_units']
     density_cgs_cm3 = initial.get('hydrogen_density_cgs_cm3', 1.0)
-    temperature_unyt = initial.get('temperature_unyt', initial['initial_temperature'])
+    temperature_unyt = initial.get('temperature_unyt', initial['temperature_proper'])
     hydrogen_mass_fraction = float(thermochemistry['hydrogen_mass_fraction'])
     grid_cells = int(config['par']['mesh']['grid_cells'])
     result = Rsim(config['par'])
     result.par.simulation.coordinate_system = initial['coordinate_system']
-    result.par.simulation.time_proper_code = quantity_to_value(initial['current_time'], code_units.time_unit)
+    result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
     result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     box_size_proper_code = result.par.simulation.box_size_proper_code
     dx_code = box_size_proper_code / grid_cells

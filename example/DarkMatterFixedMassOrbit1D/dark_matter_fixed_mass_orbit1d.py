@@ -51,8 +51,8 @@ def main(config_filename=DEFAULT_CONFIG):
     softening = float(initial_condition['softening'])
     angular_momentum = float(initial_condition['specific_angular_momentum'])
     initial_radius = float(initial_condition['initial_radius'])
-    initial_velocity = float(initial_condition['initial_velocity'])
-    energy = 0.5 * initial_velocity**2 + effective_potential(
+    vel_proper = float(initial_condition['vel_proper'])
+    energy = 0.5 * vel_proper**2 + effective_potential(
         initial_radius, central_mass, angular_momentum, softening, g_code
     )
 
@@ -73,7 +73,7 @@ def main(config_filename=DEFAULT_CONFIG):
     reference = solve_ivp(
         rhs,
         (0.0, float(config["par"]['simulation']['final_time'])),
-        [initial_radius, initial_velocity],
+        [initial_radius, vel_proper],
         rtol=1.0e-11,
         atol=1.0e-13,
         max_step=float(config["par"]['timestep']['output_interval']) / 4.0,

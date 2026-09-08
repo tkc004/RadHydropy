@@ -77,7 +77,7 @@ initial_condition:
   perturbation_radius: 250.0
   target_halo_mass: 0.0001
   initial_overdensity: 0.3503168317
-  initial_density_profile: linear_correlation
+  rho_proper_profile: linear_correlation
   correlation_h: 0.674
   baryon_fraction: 0.157
   hydrogen_mass_fraction: 0.76

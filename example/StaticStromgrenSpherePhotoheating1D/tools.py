@@ -118,7 +118,7 @@ def build_static_problem(config):
     ).to(unyt.g / unyt.cm**3), code_units_obj.density_unit))
     sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells, dtype=float))
     temperature_proper_unyt = np.ones(grid_cells) * initial.get(
-        'initial_temperature', 1.0e4 * unyt.K
+        'temperature_proper', 1.0e4 * unyt.K
     )
     sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
         temperature_proper_unyt, code_units_obj.temperature_unit
@@ -126,7 +126,7 @@ def build_static_problem(config):
     sim.fluid.mu = np.ones(grid_cells)
     if initial.get('hydrogen_initial_collisional_equilibrium', False):
         sim.fluid.xHI = np.ones(grid_cells) * collisional_equilibrium_neutral_fraction(
-            initial.get('initial_temperature', 1.0e4 * unyt.K).to_value(unyt.K)
+            initial.get('temperature_proper', 1.0e4 * unyt.K).to_value(unyt.K)
         )
     else:
         sim.fluid.xHI = np.ones(grid_cells) * chemistry.get(

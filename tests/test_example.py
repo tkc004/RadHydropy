@@ -331,7 +331,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(initial_condition['outer_radius'].to_value(unyt.pc), 20.0)
         self.assertEqual(par_config['hydrodynamics']['eos_type'], 'polytropic')
         self.assertEqual(par_config['hydrodynamics']['gamma'], 1.4)
-        self.assertEqual(initial_condition['initial_temperature'].to_value(unyt.K), 1.0)
+        self.assertEqual(initial_condition['temperature_proper'].to_value(unyt.K), 1.0)
         self.assertEqual(initial_condition['point_mass'].to_value(unyt.g), 1.0e38)
 
     def test_radiative_transfer_sph1d_uses_yaml_config(self):
@@ -462,10 +462,10 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['mesh']['grid_cells'], 1024)
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 25.0)
         self.assertEqual(initial_condition['injection_radius'].to_value(unyt.pc), 0.05)
-        self.assertEqual(initial_condition['initial_density'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
+        self.assertEqual(initial_condition['rho_proper'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
         self.assertEqual(par_config['boundary']['outflow_velocity'].to_value(unyt.km / unyt.s), 1000.0)
         self.assertEqual(par_config['boundary']['outflow_density'].to_value(unyt.g / unyt.cm**3), 1.0e-22)
-        self.assertEqual(initial_condition['current_time'].to_value(unyt.Myr), 0.0)
+        self.assertEqual(initial_condition['time_proper'].to_value(unyt.Myr), 0.0)
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 0.1)
 
     def test_stellar_wind_shell_edge_radius_uses_inner_shell(self):
@@ -522,7 +522,7 @@ class Testing(unittest.TestCase):
                 'outflow_velocity': unyt.unyt_quantity(1000.0, unyt.km / unyt.s),
             }},
             'initial_condition': {
-                'initial_density': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
+                'rho_proper': unyt.unyt_quantity(1.0e-24, unyt.g / unyt.cm**3),
                 'injection_radius': unyt.unyt_quantity(0.05, unyt.pc),
             },
         }
@@ -669,7 +669,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['mesh']['grid_cells'], 1024)
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.kpc), 20.0)
         self.assertEqual(initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
-        self.assertEqual(initial_condition['initial_temperature'].to_value(unyt.K), 100.0)
+        self.assertEqual(initial_condition['temperature_proper'].to_value(unyt.K), 100.0)
         self.assertEqual(initial_condition['time_proper'].to_value(unyt.Myr), 0.0)
         self.assertEqual(config['example']['analytic_inner_radius'].to_value(unyt.kpc), 0.1)
 

@@ -41,7 +41,7 @@ def make_initial_condition(config):
     return make_canonical_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
-        rho_proper_code=np.full(n, float(ic["initial_density"].to_value("g/cm**3"))),
+        rho_proper_code=np.full(n, float(ic["rho_proper"].to_value("g/cm**3"))),
         vel_proper_code=np.full(n, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit))),
         temp_proper_code=np.full(n, float(ic["temperature_proper"].to_value("K"))),
         mu_dimensionless=np.full(n, float(ic["mean_molecular_weight"])),

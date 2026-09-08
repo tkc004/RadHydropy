@@ -83,7 +83,7 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     runtime_only = {
         'final_time', 'number_of_cells', 'evolution_timestep',
         'chemistry_timestep', 'box_size_proper', 'coordinate_system',
-        'current_time', 'grid_cells', 'initial_temperature',
+        'time_proper', 'grid_cells', 'temperature_proper',
         'mean_molecular_weight',
     }
     sim = Rsim(case_config['par'])

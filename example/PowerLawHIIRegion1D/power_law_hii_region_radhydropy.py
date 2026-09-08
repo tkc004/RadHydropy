@@ -74,7 +74,7 @@ def build_initial_condition(config):
     ))
     sim.fluid.vel_proper_code = as_named_array(np.zeros(ncell))
     sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(ncell) * initial['initial_temperature'], code.temperature_unit
+        np.ones(ncell) * initial['temperature_proper'], code.temperature_unit
     ))
     sim.fluid.xHI = as_named_array(np.ones(ncell))
     sim.fluid.ngamma_code = as_named_array(np.zeros(ncell))

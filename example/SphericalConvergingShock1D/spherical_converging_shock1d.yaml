@@ -53,8 +53,8 @@ initial_condition:
   coordinate_system: spherical
   rmin: {value: 1.0e-2, unit: cm}
   rmax: {value: 1.0, unit: cm}
-  current_time: {value: 0.0, unit: s}
-  initial_density: {value: 1.0, unit: g/cm**3}
+  time_proper: {value: 0.0, unit: s}
+  rho_proper: {value: 1.0, unit: g/cm**3}
   temperature_proper: {value: 1.0e-10, unit: K}
   mean_molecular_weight: 1.0
   vel_proper: {value: -1.0, unit: cm/s}

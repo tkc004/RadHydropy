@@ -41,17 +41,17 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_j = np.asarray(
         initial.fluid.specific_angular_momentum_code, dtype=float
     ).copy()
-    initial_density_proper_code = np.asarray(
+    rho_proper_proper_code = np.asarray(
         initial.fluid.rho_proper_code, dtype=float
     ).copy()
-    initial_velocity_proper_code = np.asarray(
+    vel_proper_proper_code = np.asarray(
         initial.fluid.vel_proper_code, dtype=float
     ).copy()
-    initial_temperature_proper_code = np.asarray(
+    temperature_proper_proper_code = np.asarray(
         initial.fluid.temp_proper_code, dtype=float
     ).copy()
     initial_total_j = np.sum(
-        initial_density_proper_code * initial_j
+        rho_proper_proper_code * initial_j
         * float(np.asarray(
             initial.mesh.boundary_proper_code[1]
             - initial.mesh.boundary_proper_code[0]
@@ -113,9 +113,9 @@ def main(config_filename=DEFAULT_CONFIG):
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     hydro_plots = (
-        (axes[0, 0], initial_density_proper_code, final_density_proper_code, 'density [proper code]'),
-        (axes[0, 1], initial_velocity_proper_code, final_velocity_proper_code, 'velocity [proper code]'),
-        (axes[1, 0], initial_temperature_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
+        (axes[0, 0], rho_proper_proper_code, final_density_proper_code, 'density [proper code]'),
+        (axes[0, 1], vel_proper_proper_code, final_velocity_proper_code, 'velocity [proper code]'),
+        (axes[1, 0], temperature_proper_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
     )
     for axis, initial_values, final_values, ylabel in hydro_plots:
         axis.plot(radius, initial_values, '--', label='initial')

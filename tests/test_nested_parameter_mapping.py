@@ -112,7 +112,7 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     config = {
         "simulation": {
             "final_time": 2.0e13 * unyt.s,
-            "current_time": 1.0e13 * unyt.s,
+            "time_proper": 1.0e13 * unyt.s,
             "box_size_proper": 3.0e18 * unyt.cm,
         },
         "mesh": {"grid_cells": 4, "ghost_cells": 2, "area_proper": 2.0e36 * unyt.cm**2},

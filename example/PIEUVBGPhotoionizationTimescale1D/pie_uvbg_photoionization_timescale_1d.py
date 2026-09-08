@@ -99,22 +99,22 @@ def main(config_filename=DEFAULT_CONFIG):
         "pie_uvbg_photoionization_timescale_1d_output_times.txt"
     )
 
-    initial_temperatures = (1.0e3, 1.0e4, 2.0e4, 1.0e5)
+    temperature_propers = (1.0e3, 1.0e4, 2.0e4, 1.0e5)
     densities = (0.1, 1.0, 10.0)
     results = []
     for density in densities:
         equilibrium_temperature = _equilibrium_temperature(
             table, density, redshift, metallicity
         )
-        for initial_temperature in initial_temperatures:
-            case_name = f"nH_{density:g}_T_{initial_temperature:g}"
+        for temperature_proper in temperature_propers:
+            case_name = f"nH_{density:g}_T_{temperature_proper:g}"
             case_dir = output_dir / case_name
             clean_outputs(case_dir)
             case_config = {'par': {**par,
                 'simulation': {**par['simulation'], 'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5')},
                 'output': {**par['output'], 'directory': str(case_dir), 'savedir': str(case_dir), 'filename_prefix': 'Output'}},
                 'initial_condition': {**initial_condition, 'nHini': density,
-                                      'tempini': initial_temperature * unyt.K},
+                                      'tempini': temperature_proper * unyt.K},
                 'example': config['example']}
             ric = _write_initial_condition(case_config, case_dir)
             sim = Rsim(case_config['par'])
@@ -139,9 +139,9 @@ def main(config_filename=DEFAULT_CONFIG):
             error = np.abs(temperature - equilibrium_temperature) / equilibrium_temperature
             results.append(
                 {
-                    "label": rf"$n_H={density:g},\ T_0={initial_temperature:.0e}$",
+                    "label": rf"$n_H={density:g},\ T_0={temperature_proper:.0e}$",
                     "density": density,
-                    "initial_temperature": initial_temperature,
+                    "temperature_proper": temperature_proper,
                     "equilibrium_temperature": equilibrium_temperature,
                     "time_yr": time_yr,
                     "timescale_ratio": timescale_ratio,
@@ -162,9 +162,9 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         for result in density_results:
             linestyle = linestyles[
-                initial_temperatures.index(result["initial_temperature"])
+                temperature_propers.index(result["temperature_proper"])
             ]
-            label = rf"$T_0={result['initial_temperature']:.0e}\ {{\rm K}}$"
+            label = rf"$T_0={result['temperature_proper']:.0e}\ {{\rm K}}$"
             ax_temp.plot(
                 result["time_yr"],
                 result["temperature_proper"],

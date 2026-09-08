@@ -125,7 +125,7 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
     radius = np.asarray(radius, dtype=float)
     target_radius = perturbation_radius(config)
     overdensity = float(ic["initial_overdensity"])
-    profile = str(ic.get("initial_density_profile", "top_hat")).lower()
+    profile = str(ic.get("rho_proper_profile", "top_hat")).lower()
     if profile == "top_hat":
         inside = radius < target_radius
         delta = overdensity * inside
@@ -134,7 +134,7 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
-        raise ValueError("unknown initial_density_profile %r" % profile)
+        raise ValueError("unknown rho_proper_profile %r" % profile)
 
     if profile == "linear_correlation":
         if correlation_table is None:

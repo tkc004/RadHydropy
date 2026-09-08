@@ -18,7 +18,7 @@ def build_initial_condition(config):
     result = Rsim(config['par'])
     result.par.mesh.grid_cells = int(mesh['grid_cells'])
     result.par.simulation.coordinate_system = simulation['coordinate_system']
-    result.par.simulation.time_proper_code = initial['current_time']
+    result.par.simulation.time_proper_code = initial['time_proper']
     result.par.simulation.box_size_proper_code = initial['box_size_proper']
     result.mesh.boundary_proper_code = np.linspace(
         0.0, 1.0, result.par.mesh.grid_cells + 1
@@ -28,7 +28,7 @@ def build_initial_condition(config):
     )
     result.fluid.rho_proper_code = density_proper_cgs_g_cm3_unyt
     result.fluid.vel_proper_code = np.zeros(result.par.mesh.grid_cells, dtype=float)
-    result.fluid.temp_proper_code = np.ones(result.par.mesh.grid_cells) * initial['initial_temperature']
+    result.fluid.temp_proper_code = np.ones(result.par.mesh.grid_cells) * initial['temperature_proper']
     result.fluid.xHI = np.ones(result.par.mesh.grid_cells) * initial['xHI']
     result.fluid.mu = np.ones(result.par.mesh.grid_cells) * initial['mean_molecular_weight']
     result.SetMesh()

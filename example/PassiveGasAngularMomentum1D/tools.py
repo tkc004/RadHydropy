@@ -24,7 +24,7 @@ def build_initial_condition(config):
     )
     sim.par.simulation.box_size_proper_code = box_size_proper_code
     sim.par.simulation.time_proper_code = quantity_to_value(
-        initial['current_time'], code_units.time_unit
+        initial['time_proper'], code_units.time_unit
     )
     boundary_proper_code = as_named_array(
         np.linspace(0.0, box_size_proper_code, grid_cells + 1)
@@ -43,7 +43,7 @@ def build_initial_condition(config):
         volume_proper_code=width_proper_code,
     )
     sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.full(grid_cells, initial['initial_density']),
+        np.full(grid_cells, initial['rho_proper']),
         code_units.density_unit,
     ))
     sim.fluid.vel_proper_code = as_named_array(quantity_to_value(

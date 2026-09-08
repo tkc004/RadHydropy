@@ -132,7 +132,7 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
     correlation_table = config.get("_correlation_table")
     target_radius = perturbation_radius(config)
     overdensity = float(ic["initial_overdensity"])
-    profile = str(ic.get("initial_density_profile", "top_hat")).lower()
+    profile = str(ic.get("rho_proper_profile", "top_hat")).lower()
     if profile == "top_hat":
         inside = radius < target_radius
         delta = overdensity * inside
@@ -141,7 +141,7 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
-        raise ValueError("unknown initial_density_profile %r" % profile)
+        raise ValueError("unknown rho_proper_profile %r" % profile)
 
     if profile == "linear_correlation":
         if correlation_table is None:
@@ -265,7 +265,7 @@ def build_initial_condition(config):
         result.fluid.xHI = 1.0 - electron_fraction
         result.fluid.mu = 1.0 / (float(ic['hydrogen_mass_fraction']) * (2.0 - result.fluid.xHI))
     elif redshift > float(ic.get('uv_background_on_redshift', 10.0)):
-        temp_phys = float(ic.get('cie_initial_temperature', 10.0))
+        temp_phys = float(ic.get('cie_temperature_proper', 10.0))
     else:
         temp_phys = pie_temperature(pie_table, float(np.median(n_h)), redshift) if pie_table else 1.0e4
     result.fluid.temp_supercomoving_code = temp_phys * a**2 * np.ones(grid_cells)

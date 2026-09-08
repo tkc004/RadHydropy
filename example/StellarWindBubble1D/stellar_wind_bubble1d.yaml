@@ -50,11 +50,11 @@ initial_condition:
   coordinate_system: spherical
   box_size_proper: {value: 25.0, unit: pc}
   injection_radius: {value: 0.05, unit: pc}
-  current_time: {value: 0.0, unit: Myr}
+  time_proper: {value: 0.0, unit: Myr}
   temperature_proper: {value: 100.0, unit: K}
   mean_molecular_weight: 0.62
   vel_proper: {value: 0.0, unit: km/s}
-  initial_density: {value: 1.0e-24, unit: g/cm**3}
+  rho_proper: {value: 1.0e-24, unit: g/cm**3}
 example:
   figure_prefix: StellarWindBubble1D_with_metal
   shell_edge_density_threshold_factor: 1.0

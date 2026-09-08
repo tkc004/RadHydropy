@@ -131,7 +131,7 @@ def build_initial_condition(config):
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     sim.par.simulation.coordinate_system = initial_condition['coordinate_system']
-    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['current_time'], code_unit_system.time_unit)
+    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time_proper'], code_unit_system.time_unit)
     sim.par.simulation.box_size_proper_code = quantity_to_value(initial_condition['box_size_proper'], code_unit_system.length_unit)
 
     sim.mesh.boundary_proper_code = np.linspace(
@@ -149,13 +149,13 @@ def build_initial_condition(config):
         / 3.0
     )
 
-    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['initial_temperature'], code_unit_system.temperature_unit)
+    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['temperature_proper'], code_unit_system.temperature_unit)
     sim.fluid.mu = np.ones(grid_cells) * initial_condition['mean_molecular_weight']
     sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.rho_proper_code = point_mass_hydrostatic_density_profile(
         sim.mesh.x_proper_code,
         initial_condition['reference_density'],
-        initial_condition['initial_temperature'],
+        initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['point_mass'],
         reference_radius=sim.mesh.x_proper_code[0],
@@ -216,7 +216,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     rho_analytic = point_mass_hydrostatic_density_profile(
         xcoord,
         config['initial_condition']['reference_density'],
-        config['initial_condition']['initial_temperature'],
+        config['initial_condition']['temperature_proper'],
         config['initial_condition']['mean_molecular_weight'],
         config['initial_condition']['point_mass'],
         reference_radius=xcoord[0],

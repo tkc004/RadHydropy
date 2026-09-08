@@ -88,7 +88,7 @@ def _run_case(
         'metallicity': metallicity,
         'adiabatic': adiabatic,
         'snapshots': snapshots,
-        'initial_density_cgs_g_cm3': (
+        'rho_proper_cgs_g_cm3': (
             case_initial['hydrogen_density'].to_value('cm**-3')
             * PROTON_MASS_G / case_config['par']['thermochemistry']['hydrogen_mass_fraction']
         ),

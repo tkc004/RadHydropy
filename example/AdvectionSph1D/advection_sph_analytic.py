@@ -46,10 +46,10 @@ def top_hat_density_profile(
     if hasattr(boxsize, "to_value"):
         boxsize = boxsize.to_value()
     launch_radius = radius - time_proper_code * velocity
-    initial_density = density_low_factor * density_high * np.ones_like(radius)
+    rho_proper = density_low_factor * density_high * np.ones_like(radius)
 
     inside = np.logical_and(launch_radius >= 0.0, launch_radius <= boxsize)
-    initial_density[
+    rho_proper[
         np.logical_and(
             launch_radius >= left_fraction * boxsize,
             launch_radius <= right_fraction * boxsize,
@@ -59,7 +59,7 @@ def top_hat_density_profile(
     rho = np.zeros_like(radius)
     positive = radius > 0.0
     rho[inside & positive] = (
-        initial_density[inside & positive]
+        rho_proper[inside & positive]
         * (launch_radius[inside & positive] / radius[inside & positive]) ** 2.0
     )
     return rho
