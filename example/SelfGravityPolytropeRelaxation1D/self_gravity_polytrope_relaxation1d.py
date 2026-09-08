@@ -47,7 +47,7 @@ class PolytropeSolver(Solver):
 
 def _profile(sim, rho, pressure):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    radius = np.asarray(sim.mesh.coordinate[interior], dtype=float)
+    radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     code = sim.par.CodeUnits
     radius_q = radius * code.length_unit
     gravity = sim.par.gravity.acceleration_on_mesh(
@@ -93,6 +93,13 @@ def main(config_filename=DEFAULT_CONFIG):
     sim = Rsim(runtime)
     sim.solver = PolytropeSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    # The IC header is authoritative for solver state, but it does not carry
+    # this example-local relaxation control.  Restore it after the header
+    # read and convert it to the active code-time representation before the
+    # first damped step.
+    sim.par.relaxation_damping_time = config['example']['relaxation_damping_time'].to_value(
+        sim.par.CodeUnits.time_unit
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -129,7 +136,7 @@ def main(config_filename=DEFAULT_CONFIG):
     final = et.read_output(output, config)
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     k_poly = et.polytropic_constant(initial_mapping['polytropic_radius'])
-    radius = np.asarray(final.mesh.coordinate[interior], dtype=float) * sim.par.CodeUnits.length_unit
+    radius = np.asarray(final.mesh.x_proper_code[interior], dtype=float) * sim.par.CodeUnits.length_unit
     rho_final = np.asarray(final.fluid.rho_proper_code[interior], dtype=float) * sim.par.CodeUnits.density_unit
     pressure_final = np.asarray(final.fluid.pre_proper_code[interior], dtype=float) * sim.par.CodeUnits.pressure_unit
     rho_expected = et.equilibrium_density(
