@@ -15,12 +15,12 @@ OUTPUT = HERE / "outputs_correlation_gas"
 PREFIX = "CosmologicalGasCorrelationZ100"
 
 
-def _spherical_divergence(radius, velocity):
-    flux = radius**2 * velocity
+def _spherical_divergence(radius_comoving_code, vel_supercomoving_code):
+    flux = radius_comoving_code**2 * vel_supercomoving_code
     divergence = np.empty_like(flux)
-    for index, (radius_row, flux_row) in enumerate(zip(radius, flux)):
+    for index, (radius_row, flux_row) in enumerate(zip(radius_comoving_code, flux)):
         divergence[index] = np.gradient(flux_row, radius_row, edge_order=1)
-    return divergence / np.maximum(radius, 1.0e-30) ** 2
+    return divergence / np.maximum(radius_comoving_code, 1.0e-30) ** 2
 
 
 def _edges(values):
@@ -35,14 +35,14 @@ def _edges(values):
     return edges
 
 
-def _plot_indicator(axis, time_cosmic_code, radius, values, title, label, signed=True):
-    finite = np.isfinite(time_cosmic_code) & np.isfinite(radius) & np.isfinite(values)
+def _plot_indicator(axis, time_cosmic_code, radius_comoving_code, values, title, label, signed=True):
+    finite = np.isfinite(time_cosmic_code) & np.isfinite(radius_comoving_code) & np.isfinite(values)
     if not np.any(finite):
         return
     time_edges = _edges(time_cosmic_code[finite])
-    radius_edges = _edges(radius[finite])
+    radius_edges = _edges(radius_comoving_code[finite])
     count, _, _ = np.histogram2d(
-        time_cosmic_code[finite], radius[finite], bins=(time_edges, radius_edges)
+        time_cosmic_code[finite], radius_comoving_code[finite], bins=(time_edges, radius_edges)
     )
     if signed:
         scale = max(float(np.nanmax(np.abs(values[finite]), initial=0.0)), 1.0e-30)
@@ -57,7 +57,7 @@ def _plot_indicator(axis, time_cosmic_code, radius, values, title, label, signed
         cmap = "magma"
         finite &= values > 0.0
     weighted, _, _ = np.histogram2d(
-        time_cosmic_code[finite], radius[finite], bins=(time_edges, radius_edges),
+        time_cosmic_code[finite], radius_comoving_code[finite], bins=(time_edges, radius_edges),
         weights=values[finite],
     )
     mean = np.divide(weighted, count, out=np.full_like(weighted, np.nan), where=count > 0)
@@ -75,47 +75,47 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
          mu=0.59, exclude_outer_cells=2):
     output = Path(output)
     data = np.load(output / (prefix + ".npz"))
-    time = np.asarray(data["time_Gyr"], dtype=float)
+    time_cosmic_code = np.asarray(data["time_cosmic_Gyr"], dtype=float)
     scale = np.asarray(data["scale_factor"], dtype=float)
     comoving_radius = np.asarray(data["radius_comoving_kpc"], dtype=float)
     proper_radius = comoving_radius[None, :] * scale[:, None]
-    density = np.asarray(data["density_proper_code"], dtype=float)
-    temperature = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
-    velocity = np.asarray(data["radial_velocity_physical_km_s"], dtype=float)
+    rho_comoving_code = np.asarray(data["rho_proper_code"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
+    vel_supercomoving_code = np.asarray(data["radial_velocity_physical_km_s"], dtype=float)
     count = max(3, comoving_radius.size - max(0, int(exclude_outer_cells)))
-    comoving_radius, proper_radius, density, temperature, velocity = (
+    comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_supercomoving_code = (
         array[..., :count] for array in
-        (comoving_radius, proper_radius, density, temperature, velocity)
+        (comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_supercomoving_code)
     )
 
-    divergence = _spherical_divergence(proper_radius, velocity)
-    entropy = temperature / np.maximum(density, 1.0e-300) ** (float(gamma) - 1.0)
+    divergence = _spherical_divergence(proper_radius, vel_supercomoving_code)
+    entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (float(gamma) - 1.0)
     midpoint_radius = 0.5 * (comoving_radius[1:] + comoving_radius[:-1])
     density_jump = np.log10(
-        np.maximum(density[:, :-1], 1.0e-300)
-        / np.maximum(density[:, 1:], 1.0e-300)
+        np.maximum(rho_comoving_code[:, :-1], 1.0e-300)
+        / np.maximum(rho_comoving_code[:, 1:], 1.0e-300)
     )
     entropy_jump = np.log10(
         np.maximum(entropy[:, :-1], 1.0e-300)
         / np.maximum(entropy[:, 1:], 1.0e-300)
     )
     sound_speed = np.sqrt(
-        float(gamma) * 1.380649e-16 * np.maximum(temperature, 0.0)
+        float(gamma) * 1.380649e-16 * np.maximum(temperature_proper_cgs_K, 0.0)
         / (float(mu) * 1.67262192369e-24)
     ) / 1.0e5
     pair_sound_speed = 0.5 * (sound_speed[:, 1:] + sound_speed[:, :-1])
-    valid_temperature_pair = (temperature[:, 1:] > 1.0) & (temperature[:, :-1] > 1.0)
+    valid_temperature_pair = (temperature_proper_cgs_K[:, 1:] > 1.0) & (temperature_proper_cgs_K[:, :-1] > 1.0)
     velocity_jump_mach = np.divide(
-        np.abs(velocity[:, 1:] - velocity[:, :-1]),
+        np.abs(vel_supercomoving_code[:, 1:] - vel_supercomoving_code[:, :-1]),
         pair_sound_speed,
         out=np.full_like(pair_sound_speed, np.nan),
         where=(pair_sound_speed > 0.0) & valid_temperature_pair,
     )
-    time_cells = np.broadcast_to(time[:, None], proper_radius.shape)
-    time_pairs = np.broadcast_to(time[:, None], (time.size, midpoint_radius.size))
+    time_cells = np.broadcast_to(time_cosmic_code[:, None], proper_radius.shape)
+    time_pairs = np.broadcast_to(time_cosmic_code[:, None], (time_cosmic_code.size, midpoint_radius.size))
     plot_radius = np.broadcast_to(comoving_radius[None, :], proper_radius.shape)
     plot_midpoint_radius = np.broadcast_to(
-        midpoint_radius[None, :], (time.size, midpoint_radius.size)
+        midpoint_radius[None, :], (time_cosmic_code.size, midpoint_radius.size)
     )
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True)

@@ -56,10 +56,10 @@ def perturbation_radius(config):
     )
 
 
-def _gaussian_correlation_mean(radius, correlation_length):
+def _gaussian_correlation_mean(radius_comoving_code, correlation_length):
     """Mean enclosed Gaussian correlation shape, normalized to xi(0)=1."""
-    radius = np.asarray(radius, dtype=float)
-    x = radius / max(float(correlation_length), 1.0e-30)
+    radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
+    x = radius_comoving_code / max(float(correlation_length), 1.0e-30)
     erf_x = np.vectorize(erf, otypes=[float])(x)
     integral = np.sqrt(np.pi) / 4.0 * erf_x - 0.5 * x * np.exp(-x**2)
     result = np.divide(3.0 * integral, np.maximum(x**3, 1.0e-30))
@@ -68,9 +68,9 @@ def _gaussian_correlation_mean(radius, correlation_length):
     return result
 
 
-def _correlation_profile(radius, table, length_unit_mpc_h):
+def _correlation_profile(radius_comoving_code, table, length_unit_mpc_h):
     """Interpolate xi and its enclosed mean in simulation length units."""
-    radius = np.asarray(radius, dtype=float)
+    radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
     table_radius = np.asarray(table["radius_mpc_h"], dtype=float)
     table_correlation = np.asarray(table["correlation"], dtype=float)
     if table_radius.ndim != 1 or table_correlation.ndim != 1:
@@ -79,7 +79,7 @@ def _correlation_profile(radius, table, length_unit_mpc_h):
         raise ValueError("linear correlation table arrays have incompatible sizes")
     if np.any(np.diff(table_radius) <= 0.0):
         raise ValueError("linear correlation table radii must be increasing")
-    radius_mpc_h = radius * float(length_unit_mpc_h)
+    radius_mpc_h = radius_comoving_code * float(length_unit_mpc_h)
     if np.any(radius_mpc_h > table_radius[-1]):
         raise ValueError("initial-condition radius exceeds the correlation table")
 
@@ -112,7 +112,7 @@ def _correlation_profile(radius, table, length_unit_mpc_h):
     return xi, mean_xi
 
 
-def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
+def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0):
     """Return ``(delta, mean_delta)`` for the configured growing mode.
 
     ``linear_correlation`` uses the supplied tabulated linear-theory
@@ -122,15 +122,15 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
     ic = config["initial_condition"]
     cosmology = config["_cosmology"]
     correlation_table = config.get("_correlation_table")
-    radius = np.asarray(radius, dtype=float)
+    radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
     target_radius = perturbation_radius(config)
     overdensity = float(ic["initial_overdensity"])
     profile = str(ic.get("rho_proper_profile", "top_hat")).lower()
     if profile == "top_hat":
-        inside = radius < target_radius
+        inside = radius_comoving_code < target_radius
         delta = overdensity * inside
         mean_delta = overdensity * np.where(
-            inside, 1.0, (target_radius / np.maximum(radius, 1.0e-30)) ** 3
+            inside, 1.0, (target_radius / np.maximum(radius_comoving_code, 1.0e-30)) ** 3
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
@@ -142,7 +142,7 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
                 "linear_correlation requires a tabulated correlation table"
             )
         xi, mean_xi = _correlation_profile(
-            radius, correlation_table, length_unit_mpc_h
+            radius_comoving_code, correlation_table, length_unit_mpc_h
         )
         target_mean_xi = float(
             _correlation_profile(
@@ -154,8 +154,8 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
         correlation_length = float(
             ic.get("correlation_length", 0.5 * target_radius)
         )
-        xi = np.exp(-(radius / max(correlation_length, 1.0e-30)) ** 2)
-        mean_xi = _gaussian_correlation_mean(radius, correlation_length)
+        xi = np.exp(-(radius_comoving_code / max(correlation_length, 1.0e-30)) ** 2)
+        mean_xi = _gaussian_correlation_mean(radius_comoving_code, correlation_length)
         target_mean_xi = float(
             _gaussian_correlation_mean(
                 np.array([target_radius]), correlation_length
@@ -170,17 +170,17 @@ def density_contrast_profile(radius, config, length_unit_mpc_h=1.0):
 def pie_temperature(table, hydrogen_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
-    temperature = 10.0**logt
+    temperature_proper_cgs_K = 10.0**logt
     heating, cooling = table.rates(
-        temperature, hydrogen_density_cgs_cm3, metallicity=1.0, redshift=redshift
+        temperature_proper_cgs_K, hydrogen_density_cgs_cm3, metallicity=1.0, redshift=redshift
     )
     net = np.asarray(heating) - np.asarray(cooling)
     crossings = np.flatnonzero(net[:-1] * net[1:] <= 0.0)
     if crossings.size:
         i = crossings[0]
         fraction = abs(net[i]) / max(abs(net[i]) + abs(net[i + 1]), 1.0e-300)
-        return float(temperature[i] * (temperature[i + 1] / temperature[i])**fraction)
-    return float(np.clip(fallback, temperature[0], temperature[-1]))
+        return float(temperature_proper_cgs_K[i] * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i])**fraction)
+    return float(np.clip(fallback, temperature_proper_cgs_K[0], temperature_proper_cgs_K[-1]))
 
 
 def cmb_temperature(redshift, temperature_0=2.7255):
@@ -221,15 +221,15 @@ def make_dark_matter(config):
     # second time when they are later absorbed.
     shell_inner = central_core_radius if central_core_model else dm_inner
     boundaries = np.geomspace(shell_inner, float(ic["radius_outer_comoving"]), count + 1)
-    radius = 0.5 * (boundaries[:-1] + boundaries[1:])
+    radius_comoving_code = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
     t = float(ic["time_cosmic"])
     a = float(cosmology.scale_factor(t))
     hubble = float(cosmology.hubble(t))
-    rho = float(cosmology.background_density(t)) * a**3
+    rho_comoving_code = float(cosmology.background_density(t)) * a**3
     dm_fraction = 1.0 - float(ic["baryon_fraction"])
     delta, mean_delta = density_contrast_profile(
-        radius,
+        radius_comoving_code,
         config,
         length_unit_mpc_h=(
             float(code_unit_system.length_in_cgs)
@@ -237,8 +237,8 @@ def make_dark_matter(config):
             * float(ic.get("correlation_h", 0.674))
         ),
     )
-    mass = rho * dm_fraction * (1.0 + delta) * volume_comoving_code
-    velocity = -a**2 * hubble * mean_delta * radius / 3.0
+    mass = rho_comoving_code * dm_fraction * (1.0 + delta) * volume_comoving_code
+    vel_supercomoving_code = -a**2 * hubble * mean_delta * radius_comoving_code / 3.0
     central_core_mass = None
     if central_core_model:
         core_radius = central_core_radius
@@ -256,11 +256,11 @@ def make_dark_matter(config):
         # central mass.
         central_core_mass = max(
             0.0,
-            rho * dm_fraction * float(core_mean_delta[0])
+            rho_comoving_code * dm_fraction * float(core_mean_delta[0])
             * 4.0 * np.pi / 3.0 * core_radius**3,
         )
     shells = DarkMatterShells(
-        radius=radius, velocity=velocity, mass=mass,
+        radius_comoving_code=radius_comoving_code, vel_supercomoving_code=vel_supercomoving_code, mass=mass,
         angular_momentum=np.full(
             count, float(ic.get("dm_specific_angular_momentum", 0.0))
         ),
@@ -284,41 +284,41 @@ def make_dark_matter(config):
 
 
 def splashback_radius(
-    dm_radius_kpc, dm_mass, rvir_kpc=np.nan, bin_count=128,
+    dm_radius_proper_kpc, dm_mass, rvir_kpc=np.nan, bin_count=128,
 ):
     """Estimate splashback from the steepest outer DM density slope.
 
     The input shell masses are rebinned exactly, rather than differentiating
     the noisy density assigned to individual infinitesimal shells.  The
-    returned radius is in the same proper-kpc basis as ``dm_radius_kpc``.
+    returned radius is in the same proper-kpc basis as ``dm_radius_proper_kpc``.
     """
-    radius = np.asarray(dm_radius_kpc, dtype=float)
+    radius_comoving_code = np.asarray(dm_radius_proper_kpc, dtype=float)
     mass = np.asarray(dm_mass, dtype=float)
     if not np.isfinite(rvir_kpc) or float(rvir_kpc) <= 0.0:
         return float("nan")
-    valid = np.isfinite(radius) & np.isfinite(mass) & (radius > 0.0) & (mass > 0.0)
-    radius = radius[valid]
+    valid = np.isfinite(radius_comoving_code) & np.isfinite(mass) & (radius_comoving_code > 0.0) & (mass > 0.0)
+    radius_comoving_code = radius_comoving_code[valid]
     mass = mass[valid]
-    if radius.size < 16:
+    if radius_comoving_code.size < 16:
         return float("nan")
-    order = np.argsort(radius)
-    radius = radius[order]
+    order = np.argsort(radius_comoving_code)
+    radius_comoving_code = radius_comoving_code[order]
     mass = mass[order]
     edges = np.geomspace(
-        max(radius[0] * 0.9, 1.0e-12),
-        radius[-1] * 1.1,
+        max(radius_comoving_code[0] * 0.9, 1.0e-12),
+        radius_comoving_code[-1] * 1.1,
         int(max(32, bin_count)) + 1,
     )
-    shell_mass, _ = np.histogram(radius, bins=edges, weights=mass)
+    shell_mass, _ = np.histogram(radius_comoving_code, bins=edges, weights=mass)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
-    density = shell_mass / np.maximum(shell_volume, 1.0e-300)
-    occupied = density > 0.0
+    rho_comoving_code = shell_mass / np.maximum(shell_volume, 1.0e-300)
+    occupied = rho_comoving_code > 0.0
     if np.count_nonzero(occupied) < 12:
         return float("nan")
     radii = np.sqrt(edges[:-1] * edges[1:])[occupied]
-    density = density[occupied]
+    rho_comoving_code = rho_comoving_code[occupied]
     log_radius = np.log(radii)
-    log_density = np.log(density)
+    log_density = np.log(rho_comoving_code)
     # A short boxcar suppresses individual-shell noise while retaining the
     # broad splashback trough.
     window = min(7, log_density.size if log_density.size % 2 else log_density.size - 1)
@@ -351,7 +351,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
     edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
-    gas_mass = rho * 4.0 * np.pi / 3.0 * np.diff(edges**3)
+    gas_mass = rho_comoving_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
     gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass)))
     dm_order = np.argsort(dm.radius)
     dm_r = dm.radius[dm_order]
@@ -465,7 +465,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
             for local in shock_candidates:
                 inner = max(0, int(local) - 2)
                 outer = min(proper.size - 1, int(local) + 2)
-                compression = rho[inner] / max(rho[outer], 1.0e-300)
+                compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
                 heating = temp_phys[inner] / max(
                     temp_phys[outer], 1.0e-300
                 )
@@ -512,7 +512,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic):
     if np.isfinite(rdisc):
         rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
     return {
-        "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
         "rvir_kpc": rvir,
         "rtarget_kpc": rtarget,
         "rho_crit_code": rho_crit,
@@ -548,11 +548,11 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
     dm_volume = 4.0 * np.pi / 3.0 * np.diff(dm_edges**3)
     dm_density = dm_mass / np.maximum(dm_volume, 1.0e-30)
     return {
-        "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
         "gas_radius_kpc": gas["radius_proper_kpc"],
-        "gas_density_code": gas["density_proper_code"],
-        "dm_radius_kpc": dm_radius,
-        "dm_density_code": dm_density,
+        "gas_rho_proper_code": gas["rho_proper_code"],
+        "dm_radius_proper_kpc": dm_radius,
+        "dm_rho_proper_code": dm_density,
         "dm_mass": dm_mass,
         # The softened unresolved core is part of the gravitating DM profile
         # even though it is not represented by a live shell.
@@ -582,11 +582,11 @@ def gas_density_profile(sim, cosmic_time, cosmology):
         sim.fluid.rho_comoving_code[first:last], dtype=float
     )
     return {
-        "time_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
         "scale_factor": scale_factor,
         "radius_comoving_kpc": radius_comoving,
         "radius_proper_kpc": scale_factor * radius_comoving,
-        "density_proper_code": density_comoving / scale_factor**3,
+        "rho_proper_code": density_comoving / scale_factor**3,
     }
 class VolumeSmoothedDarkMatter:
     """Use shell mass interpolated linearly in enclosed volume_comoving_code for gas force."""
@@ -597,11 +597,11 @@ class VolumeSmoothedDarkMatter:
     def __getattr__(self, name):
         return getattr(self.shells, name)
 
-    def gravitating_enclosed_mass(self, radius=None,
+    def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):
-        if radius is None:
+        if radius_comoving_code is None:
             return self.shells.gravitating_enclosed_mass(
-                radius,
+                radius_comoving_code,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             )
         shell_radius = np.asarray(self.shells.radius, dtype=float)
@@ -620,7 +620,7 @@ class VolumeSmoothedDarkMatter:
         )
         interpolation_radius = np.concatenate(([0.0], shell_radius, [outer_radius]))
         interpolation_mass = np.concatenate(([0.0], shell_enclosed, [total]))
-        requested = np.asarray(radius, dtype=float)
+        requested = np.asarray(radius_comoving_code, dtype=float)
         return np.interp(
             requested**3,
             interpolation_radius**3,

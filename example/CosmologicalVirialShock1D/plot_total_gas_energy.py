@@ -16,7 +16,7 @@ PREFIX = "CosmologicalGasCorrelationZ100_ComptonAtomic"
 def main():
     filename = OUTPUT / (PREFIX + "_EnergyByCellAndShell.npz")
     data = np.load(filename)
-    time = np.asarray(data["gas_time_Gyr"], dtype=float)
+    time_cosmic_code = np.asarray(data["gas_time_cosmic_Gyr"], dtype=float)
 
     total = np.nansum(np.asarray(data["gas_total_energy"], dtype=float), axis=1)
     thermal = np.nansum(np.asarray(data["gas_thermal_energy"], dtype=float), axis=1)
@@ -25,21 +25,21 @@ def main():
     # Gravity is recorded by the solver as signed work per hydro step.  Map
     # its cumulative contribution onto the lower-cadence cell-energy times.
     audit = np.load(OUTPUT / (PREFIX + "_EnergyAudit.npz"))
-    audit_time = np.asarray(audit["time_Gyr"], dtype=float)
+    audit_time = np.asarray(audit["time_cosmic_Gyr"], dtype=float)
     cumulative_gravity_work = np.cumsum(
         np.asarray(audit["gravitational_work"], dtype=float)
     )
-    gravity_work = np.interp(time, audit_time, cumulative_gravity_work)
+    gravity_work = np.interp(time_cosmic_code, audit_time, cumulative_gravity_work)
     total_with_gravity_work = total + gravity_work
 
     figure = OUTPUT / (PREFIX + "_TotalGasEnergyEvolution.jpg")
     fig, axis = plt.subplots(figsize=(9, 6))
-    axis.plot(time, total, "o-", label="total gas energy", linewidth=2.0)
-    axis.plot(time, thermal, "o-", label="thermal energy")
-    axis.plot(time, kinetic, "o-", label="kinetic energy")
-    axis.plot(time, gravity_work, "o-", label="cumulative gravitational work")
+    axis.plot(time_cosmic_code, total, "o-", label="total gas energy", linewidth=2.0)
+    axis.plot(time_cosmic_code, thermal, "o-", label="thermal energy")
+    axis.plot(time_cosmic_code, kinetic, "o-", label="kinetic energy")
+    axis.plot(time_cosmic_code, gravity_work, "o-", label="cumulative gravitational work")
     axis.plot(
-        time, total_with_gravity_work, "o--",
+        time_cosmic_code, total_with_gravity_work, "o--",
         label="hydrodynamic total + gravitational work",
         linewidth=2.0,
     )

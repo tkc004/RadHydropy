@@ -24,30 +24,30 @@ KPC_PER_GYR_PER_cgs_KM_S = 1.022712165045695
 SOFTENING_cgs_KPC = 0.2
 
 
-def _shell_edges(radius):
-    radius = np.asarray(radius, dtype=float)
-    edges = np.empty(radius.size + 1)
-    if radius.size == 1:
-        return np.array([0.5 * radius[0], 1.5 * radius[0]])
-    edges[1:-1] = np.sqrt(radius[:-1] * radius[1:])
-    edges[0] = radius[0] ** 2 / edges[1]
-    edges[-1] = radius[-1] ** 2 / edges[-2]
+def _shell_edges(radius_comoving_code):
+    radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
+    edges = np.empty(radius_comoving_code.size + 1)
+    if radius_comoving_code.size == 1:
+        return np.array([0.5 * radius_comoving_code[0], 1.5 * radius_comoving_code[0]])
+    edges[1:-1] = np.sqrt(radius_comoving_code[:-1] * radius_comoving_code[1:])
+    edges[0] = radius_comoving_code[0] ** 2 / edges[1]
+    edges[-1] = radius_comoving_code[-1] ** 2 / edges[-2]
     return edges
 
 
-def _gas_mass_profile(radius, density):
-    edges = _shell_edges(radius)
-    mass = np.asarray(density, dtype=float) * (4.0 * np.pi / 3.0) * np.diff(edges**3)
+def _gas_mass_profile(radius_comoving_code, rho_comoving_code):
+    edges = _shell_edges(radius_comoving_code)
+    mass = np.asarray(rho_comoving_code, dtype=float) * (4.0 * np.pi / 3.0) * np.diff(edges**3)
     return edges, np.maximum(mass, 0.0)
 
 
 def _dark_matter_proxy(gas, dark_matter):
-    times = np.asarray(dark_matter["time_Gyr"], dtype=float)
+    times = np.asarray(dark_matter["time_cosmic_Gyr"], dtype=float)
     scale = np.asarray(dark_matter["scale_factor"], dtype=float)
-    shell_radius = np.asarray(dark_matter["radius_kpc"], dtype=float)
+    shell_radius = np.asarray(dark_matter["radius_proper_kpc"], dtype=float)
     shell_mass = np.asarray(dark_matter["mass"], dtype=float)
     gas_radius_comoving = np.asarray(gas["radius_comoving_kpc"], dtype=float)
-    gas_density = np.asarray(gas["density_proper_code"], dtype=float)
+    gas_density = np.asarray(gas["rho_proper_code"], dtype=float)
 
     kinetic = np.full(times.size, np.nan)
     potential = np.full(times.size, np.nan)
@@ -56,20 +56,20 @@ def _dark_matter_proxy(gas, dark_matter):
             np.isfinite(shell_radius[i]) & np.isfinite(shell_mass[i])
             & (shell_radius[i] > 0.0) & (shell_mass[i] > 0.0)
         )
-        radius = shell_radius[i, valid]
+        radius_comoving_code = shell_radius[i, valid]
         mass = shell_mass[i, valid]
-        order = np.argsort(radius)
-        radius = radius[order]
+        order = np.argsort(radius_comoving_code)
+        radius_comoving_code = radius_comoving_code[order]
         mass = mass[order]
         gas_radius = gas_radius_comoving * scale[i]
         gas_edges, gas_cell_mass = _gas_mass_profile(gas_radius, gas_density[i])
         gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_cell_mass)))
-        gas_inside = np.interp(radius, gas_edges, gas_cumulative,
+        gas_inside = np.interp(radius_comoving_code, gas_edges, gas_cumulative,
                                left=0.0, right=gas_cumulative[-1])
         dm_inside = np.cumsum(mass)
         core_mass = float(np.asarray(dark_matter["central_core_mass"])[i])
         enclosed = gas_inside + dm_inside + core_mass
-        potential[i] = -G_CODE * np.sum(mass * enclosed / (radius + SOFTENING_cgs_KPC))
+        potential[i] = -G_CODE * np.sum(mass * enclosed / (radius_comoving_code + SOFTENING_cgs_KPC))
 
         # Shell velocities are absent from the saved file.  A rank-matched
         # finite difference gives a useful global kinetic-energy proxy, but
@@ -79,7 +79,7 @@ def _dark_matter_proxy(gas, dark_matter):
             following = shell_radius[i + 1]
             previous = np.sort(previous[np.isfinite(previous) & (previous > 0.0)])
             following = np.sort(following[np.isfinite(following) & (following > 0.0)])
-            count = min(radius.size, previous.size, following.size)
+            count = min(radius_comoving_code.size, previous.size, following.size)
             if count:
                 dt = times[i + 1] - times[i - 1]
                 velocity_km_s = (following[:count] - previous[:count]) / dt * (
@@ -89,10 +89,10 @@ def _dark_matter_proxy(gas, dark_matter):
         elif times.size > 1:
             neighbor = shell_radius[i + (1 if i == 0 else -1)]
             neighbor = np.sort(neighbor[np.isfinite(neighbor) & (neighbor > 0.0)])
-            count = min(radius.size, neighbor.size)
+            count = min(radius_comoving_code.size, neighbor.size)
             dt = abs(times[i + (1 if i == 0 else -1)] - times[i])
             if count and dt > 0.0:
-                velocity_km_s = (radius[:count] - neighbor[:count]) / dt
+                velocity_km_s = (radius_comoving_code[:count] - neighbor[:count]) / dt
                 velocity_km_s /= KPC_PER_GYR_PER_cgs_KM_S
                 kinetic[i] = 0.5 * np.sum(mass[:count] * velocity_km_s**2)
     return kinetic, potential
@@ -103,7 +103,7 @@ def main():
     audit = np.load(OUTPUT / (PREFIX + "_EnergyAudit.npz"))
     dark_matter = np.load(OUTPUT / (PREFIX + "_DarkMatterDensities.npz"))
 
-    audit_time = np.asarray(audit["time_Gyr"], dtype=float)
+    audit_time = np.asarray(audit["time_cosmic_Gyr"], dtype=float)
     gas_total = np.asarray(audit["total_gas_energy"], dtype=float)
     gas_kinetic = np.asarray(audit["kinetic_energy"], dtype=float)
     gas_thermal = np.asarray(audit["thermal_energy"], dtype=float)
@@ -122,7 +122,7 @@ def main():
     diagnostics = OUTPUT / (PREFIX + "_EnergyDiagnostics.npz")
     np.savez(
         diagnostics,
-        gas_time_Gyr=audit_time,
+        gas_time_cosmic_Gyr=audit_time,
         gas_total=gas_total,
         gas_kinetic=gas_kinetic,
         gas_thermal=gas_thermal,
@@ -130,7 +130,7 @@ def main():
         gas_cumulative_boundary_and_reservoir=gas_boundary,
         gas_budget=gas_budget,
         gas_budget_residual=gas_residual,
-        dm_time_Gyr=np.asarray(dark_matter["time_Gyr"], dtype=float),
+        dm_time_cosmic_Gyr=np.asarray(dark_matter["time_cosmic_Gyr"], dtype=float),
         dm_kinetic_proxy=dm_kinetic,
         dm_potential_proxy=dm_potential,
         dm_total_proxy=dm_total,
@@ -156,19 +156,19 @@ def main():
     axes[2, 0].set_xlabel("cosmic time [Gyr]")
     axes[2, 0].legend(frameon=False, fontsize=8)
 
-    dm_time = np.asarray(dark_matter["time_Gyr"], dtype=float)
-    axes[0, 1].plot(dm_time, dm_kinetic, label="kinetic proxy")
-    axes[0, 1].plot(dm_time, dm_potential, label="gravity proxy")
-    axes[0, 1].plot(dm_time, dm_total, label="total proxy", color="black", lw=2.0)
+    dm_time_cosmic_Gyr = np.asarray(dark_matter["time_cosmic_Gyr"], dtype=float)
+    axes[0, 1].plot(dm_time_cosmic_Gyr, dm_kinetic, label="kinetic proxy")
+    axes[0, 1].plot(dm_time_cosmic_Gyr, dm_potential, label="gravity proxy")
+    axes[0, 1].plot(dm_time_cosmic_Gyr, dm_total, label="total proxy", color="black", lw=2.0)
     axes[0, 1].set_title("Dark matter: reconstructed proxies")
     axes[0, 1].set_ylabel("energy [code units]")
     axes[0, 1].legend(frameon=False, fontsize=8)
-    axes[1, 1].plot(dm_time, dm_kinetic, label="kinematic proxy")
-    axes[1, 1].plot(dm_time, np.zeros_like(dm_time), label="thermal = 0")
+    axes[1, 1].plot(dm_time_cosmic_Gyr, dm_kinetic, label="kinematic proxy")
+    axes[1, 1].plot(dm_time_cosmic_Gyr, np.zeros_like(dm_time_cosmic_Gyr), label="thermal = 0")
     axes[1, 1].set_ylabel("energy [code units]")
     axes[1, 1].legend(frameon=False, fontsize=8)
-    axes[2, 1].plot(dm_time, dm_potential, label="potential-energy proxy")
-    axes[2, 1].plot(dm_time, dm_total, label="total proxy", color="black")
+    axes[2, 1].plot(dm_time_cosmic_Gyr, dm_potential, label="potential-energy proxy")
+    axes[2, 1].plot(dm_time_cosmic_Gyr, dm_total, label="total proxy", color="black")
     axes[2, 1].set_ylabel("energy [code units]")
     axes[2, 1].set_xlabel("cosmic time [Gyr]")
     axes[2, 1].legend(frameon=False, fontsize=8)

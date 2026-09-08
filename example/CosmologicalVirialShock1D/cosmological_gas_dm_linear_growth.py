@@ -51,11 +51,11 @@ class SmoothEnclosedMassForGas:
     def __getattr__(self, name):
         return getattr(self.shells, name)
 
-    def gravitating_enclosed_mass(self, radius=None,
+    def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):
-        if radius is None:
+        if radius_comoving_code is None:
             return self.shells.gravitating_enclosed_mass(
-                radius,
+                radius_comoving_code,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             )
         shell_radius = np.asarray(self.shells.radius, dtype=float)
@@ -78,7 +78,7 @@ class SmoothEnclosedMassForGas:
         interpolation_mass = np.concatenate((
             [0.0], shell_enclosed, [total],
         ))
-        requested = np.asarray(radius, dtype=float)
+        requested = np.asarray(radius_comoving_code, dtype=float)
         return np.interp(
             requested**3,
             interpolation_radius**3,
@@ -129,24 +129,24 @@ def _set_background_state(sim, config, cosmic_time, baryon_fraction,
 
     first = int(sim.par.mesh.ghost_cells)
     index = first + int(sim.par.mesh.grid_cells) - 1
-    rho = float(sim.par.boundary.inflow_density)
-    velocity = float(sim.par.boundary.inflow_velocity)
-    temperature = float(sim.par.boundary.inflow_temperature)
+    rho_comoving_code = float(sim.par.boundary.inflow_density)
+    vel_supercomoving_code = float(sim.par.boundary.inflow_velocity)
+    temperature_proper_cgs_K = float(sim.par.boundary.inflow_temperature)
     boundary_mu = float(sim.par.boundary.inflow_mu)
-    pressure = float(np.asarray(
-        sim.fluid.eos.pressure(rho, temperature, boundary_mu),
+    pre_supercomoving_code = float(np.asarray(
+        sim.fluid.eos.pressure(rho_comoving_code, temperature_proper_cgs_K, boundary_mu),
         dtype=float,
     ))
     volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code[index], dtype=float))
-    sim.fluid.rho_comoving_code[index] = rho
-    sim.fluid.vel_supercomoving_code[index] = velocity
-    sim.fluid.temp_supercomoving_code[index] = temperature
+    sim.fluid.rho_comoving_code[index] = rho_comoving_code
+    sim.fluid.vel_supercomoving_code[index] = vel_supercomoving_code
+    sim.fluid.temp_supercomoving_code[index] = temperature_proper_cgs_K
     sim.fluid.mu[index] = boundary_mu
-    sim.fluid.pre_supercomoving_code[index] = pressure
-    sim.fluid.Mass_code[index] = rho * volume_comoving_code
+    sim.fluid.pre_supercomoving_code[index] = pre_supercomoving_code
+    sim.fluid.Mass_code[index] = rho_comoving_code * volume_comoving_code
     sim.fluid.Mom_code[index] = 0.0
     sim.fluid.Energy_code[index] = float(np.asarray(
-        sim.fluid.eos.total_energy_density(rho, velocity, pressure),
+        sim.fluid.eos.total_energy_density(rho_comoving_code, vel_supercomoving_code, pre_supercomoving_code),
         dtype=float,
     )) * volume_comoving_code
 
@@ -170,16 +170,16 @@ def _matched_cell_density(boundaries, coordinates, target_enclosed_mass):
     partial_volume = 4.0 * np.pi / 3.0 * (
         coordinates**3 - boundaries[:-1]**3
     )
-    density = np.empty_like(coordinates)
+    rho_comoving_code = np.empty_like(coordinates)
     mass_before = 0.0
     for index in range(coordinates.size):
-        density[index] = (
+        rho_comoving_code[index] = (
             target_enclosed_mass[index] - mass_before
         ) / max(partial_volume[index], 1.0e-300)
-        mass_before += density[index] * shell_volume[index]
-    if np.any(density <= 0.0):
+        mass_before += rho_comoving_code[index] * shell_volume[index]
+    if np.any(rho_comoving_code <= 0.0):
         raise RuntimeError("matched gas-density quadrature became non-positive")
-    return density
+    return rho_comoving_code
 
 
 def _matched_shell_mass(target_enclosed_mass):
@@ -244,8 +244,8 @@ def _make_matched_initial_state(config):
 
     shell_radius = coordinates.copy()
     shells = DarkMatterShells(
-        radius=shell_radius,
-        velocity=-scale_factor**2 * hubble * mean_delta * shell_radius / 3.0,
+        radius_comoving_code=shell_radius,
+        vel_supercomoving_code=-scale_factor**2 * hubble * mean_delta * shell_radius / 3.0,
         mass=_matched_shell_mass(
             (1.0 - baryon_fraction) * target_total_mass
         ),
@@ -334,7 +334,7 @@ def _snapshot(sim, dm, cosmic_time, config,
     )
 
     return {
-        "time_Gyr": float(
+        "time_cosmic_Gyr": float(
             cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")
         ),
         "scale_factor": scale_factor,
@@ -378,23 +378,23 @@ def _save_outputs(history, output_dir, force_mode, positivity_factors,
     np.savez(data_filename, **data)
 
     final = history[-1]
-    radius = final["radius_comoving_kpc"]
+    radius_comoving_code = final["radius_comoving_kpc"]
     dm_radius = final["dm_radius_comoving_kpc"]
-    gas_plot = (radius >= diagnostic_min) & (radius <= diagnostic_max)
+    gas_plot = (radius_comoving_code >= diagnostic_min) & (radius_comoving_code <= diagnostic_max)
     dm_plot = (dm_radius >= diagnostic_min) & (dm_radius <= diagnostic_max)
     figure, axes = plt.subplots(2, 2, figsize=(11.0, 8.0))
-    axes[0, 0].plot(radius[gas_plot], final["delta_bar_analytic"][gas_plot], "k-", label="analytic")
-    axes[0, 0].plot(radius[gas_plot], final["delta_bar_gas"][gas_plot], "C0--", label="gas")
+    axes[0, 0].plot(radius_comoving_code[gas_plot], final["delta_bar_analytic"][gas_plot], "k-", label="analytic")
+    axes[0, 0].plot(radius_comoving_code[gas_plot], final["delta_bar_gas"][gas_plot], "C0--", label="gas")
     axes[0, 0].plot(dm_radius[dm_plot], final["delta_bar_dm_analytic"][dm_plot], "k:", label="analytic at DM shells")
     axes[0, 0].plot(dm_radius[dm_plot], final["delta_bar_dm"][dm_plot], "C1:", label="dark matter")
     axes[0, 0].set_ylabel(r"enclosed $\bar{\delta}$")
     axes[0, 0].set_title("Final enclosed overdensity")
 
     axes[0, 1].plot(
-        radius[gas_plot], final["gas_velocity_analytic_km_s"][gas_plot], "k-", label="analytic gas grid"
+        radius_comoving_code[gas_plot], final["gas_velocity_analytic_km_s"][gas_plot], "k-", label="analytic gas grid"
     )
     axes[0, 1].plot(
-        radius[gas_plot], final["gas_peculiar_velocity_km_s"][gas_plot], "C0--", label="gas"
+        radius_comoving_code[gas_plot], final["gas_peculiar_velocity_km_s"][gas_plot], "C0--", label="gas"
     )
     axes[0, 1].plot(
         dm_radius[dm_plot], final["dm_peculiar_velocity_km_s"][dm_plot], "C1:", label="dark matter"
@@ -444,7 +444,7 @@ def _save_outputs(history, output_dir, force_mode, positivity_factors,
         "fraction_hydro_steps_limited %.10g\n"
         % (
             force_mode,
-            final["time_Gyr"],
+            final["time_cosmic_Gyr"],
             final["growth_factor"],
             final["delta_gas_growth_amplitude"],
             final["delta_dm_growth_amplitude"],
@@ -627,7 +627,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "DM crossing batch fraction = %.8g"
         % float(getattr(sim.par, "dark_matter_crossing_batch_fraction", 0.0))
     )
-    print("final cosmic time = %.8g Gyr" % final["time_Gyr"])
+    print("final cosmic time = %.8g Gyr" % final["time_cosmic_Gyr"])
     print("gas/analytic overdensity = %.8g" % final["delta_gas_growth_amplitude"])
     print("DM/analytic overdensity = %.8g" % final["delta_dm_growth_amplitude"])
     print("gas/DM overdensity = %.8g" % final["delta_gas_over_dm"])

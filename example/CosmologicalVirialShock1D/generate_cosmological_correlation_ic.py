@@ -69,27 +69,27 @@ def main(config_filename=DEFAULT_CONFIG):
         / float((1.0 * unyt.Mpc).to_value("cm"))
         * float(initial_condition.get("correlation_h", 0.674))
     )
-    radius = np.asarray(initial.mesh.x_comoving_code, dtype=float)
+    radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     delta, mean_delta = et.density_contrast_profile(
-        radius,
+        radius_comoving_code,
         config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     initial_time = float(initial_condition["time_cosmic"])
     scale_factor = float(cosmology.scale_factor(initial_time))
     peculiar_velocity = np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)
-    hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius
+    hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code
 
     figure = output.with_name("CosmologicalCorrelationInitialCondition.jpg")
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
-    axes[0].semilogx(radius, delta, label=r"$\delta(r)$")
-    axes[0].semilogx(radius, mean_delta, label=r"$\bar{\delta}(<r)$")
+    axes[0].semilogx(radius_comoving_code, delta, label=r"$\delta(r)$")
+    axes[0].semilogx(radius_comoving_code, mean_delta, label=r"$\bar{\delta}(<r)$")
     axes[0].set_xlabel("comoving radius [code length]")
     axes[0].set_ylabel("linear density contrast")
     axes[0].grid(alpha=0.25)
     axes[0].legend(fontsize=9)
-    axes[1].semilogx(radius, hubble_velocity, label="quiet Hubble flow")
-    axes[1].semilogx(radius, peculiar_velocity, label="peculiar velocity")
+    axes[1].semilogx(radius_comoving_code, hubble_velocity, label="quiet Hubble flow")
+    axes[1].semilogx(radius_comoving_code, peculiar_velocity, label="peculiar velocity")
     axes[1].set_xlabel("comoving radius [code length]")
     axes[1].set_ylabel("initial velocity [code units]")
     axes[1].grid(alpha=0.25)

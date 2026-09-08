@@ -59,8 +59,8 @@ def main(config_filename=CONFIG):
         a_start = float(cosmology.scale_factor(start))
         a_end = float(cosmology.scale_factor(end))
         rho_comoving = float(cosmology.background_density(start)) * a_start**3
-        background = lambda radius, rho=rho_comoving: (
-            4.0 * np.pi / 3.0 * rho * np.asarray(radius, dtype=float)**3
+        background = lambda radius_comoving_code, rho_comoving_code=rho_comoving: (
+            4.0 * np.pi / 3.0 * rho_comoving_code * np.asarray(radius_comoving_code, dtype=float)**3
         )
         shells.step(
             dt,
@@ -81,26 +81,26 @@ def main(config_filename=CONFIG):
     radii = np.asarray(radii)
     masses = np.asarray(masses)
     mean_density = np.asarray([
-        float(cosmology.background_density(time)) for time in times
+        float(cosmology.background_density(time_cosmic_code)) for time_cosmic_code in times
     ])
     density_contrast = np.empty_like(radii)
     enclosed_mass = np.empty_like(radii)
     density_plot_radius = []
     density_plot_contrast = []
-    for row, (radius, mass) in enumerate(zip(radii, masses)):
-        order = np.argsort(radius)
-        radius = radius[order]
+    for row, (radius_comoving_code, mass) in enumerate(zip(radii, masses)):
+        order = np.argsort(radius_comoving_code)
+        radius_comoving_code = radius_comoving_code[order]
         mass = mass[order]
-        edges = np.empty(radius.size + 1)
-        edges[1:-1] = np.sqrt(radius[:-1] * radius[1:])
-        edges[0] = radius[0]**2 / edges[1]
-        edges[-1] = radius[-1]**2 / edges[-2]
+        edges = np.empty(radius_comoving_code.size + 1)
+        edges[1:-1] = np.sqrt(radius_comoving_code[:-1] * radius_comoving_code[1:])
+        edges[0] = radius_comoving_code[0]**2 / edges[1]
+        edges[-1] = radius_comoving_code[-1]**2 / edges[-2]
         shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
-        density = np.divide(
+        rho_comoving_code = np.divide(
             mass, shell_volume,
             out=np.full_like(mass, np.inf), where=shell_volume > 0.0,
         )
-        density_contrast[row] = density / mean_density[row]
+        density_contrast[row] = rho_comoving_code / mean_density[row]
         enclosed_mass[row] = np.cumsum(mass)
 
         # The shell-by-shell profile becomes visually dominated by sampling
@@ -108,12 +108,12 @@ def main(config_filename=CONFIG):
         # into logarithmic radial bins; retain the full-resolution enclosed
         # mass data and panel.
         bin_edges = np.geomspace(
-            max(radius[0], np.finfo(float).tiny),
-            radius[-1],
+            max(radius_comoving_code[0], np.finfo(float).tiny),
+            radius_comoving_code[-1],
             int(par["output"]["density_plot_bins"]) + 1,
         )
         bin_index = np.clip(
-            np.digitize(radius, bin_edges) - 1, 0, bin_edges.size - 2
+            np.digitize(radius_comoving_code, bin_edges) - 1, 0, bin_edges.size - 2
         )
         binned_mass = np.bincount(
             bin_index, weights=mass, minlength=bin_edges.size - 1
@@ -131,7 +131,7 @@ def main(config_filename=CONFIG):
         density_plot_contrast.append(bin_density_contrast[valid])
 
     data_file = output_dir / "DarkMatterOnlyCorrelationControl.npz"
-    np.savez(data_file, time=times, radius_kpc=radii,
+    np.savez(data_file, time_cosmic_code=times, radius_comoving_code=radii,
              density_contrast=density_contrast, enclosed_mass=enclosed_mass)
     figure = output_dir / "DarkMatterOnlyCorrelationControl.jpg"
     selected = np.unique(np.linspace(0, len(times) - 1, min(9, len(times))).astype(int))

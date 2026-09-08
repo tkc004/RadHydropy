@@ -179,19 +179,19 @@ def run(config_filename=DEFAULT_CONFIG):
             while next_snapshot <= cosmic_time + 1.0e-12:
                 next_snapshot += cadence
 
-    times = np.asarray([item["time_Gyr"] for item in gas_profiles])
+    times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])
     radius_comoving = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
     density_proper = np.asarray(
-        [item["density_proper_code"] for item in gas_profiles]
+        [item["rho_proper_code"] for item in gas_profiles]
     )
     scale_factors = np.asarray([item["scale_factor"] for item in gas_profiles])
     rvir_proper = np.asarray([item["rvir_kpc"] for item in radius_history])
     np.savez(
         output_dir / "AdiabaticGasDensityProfiles.npz",
-        time_Gyr=times,
+        time_cosmic_Gyr=times,
         scale_factor=scale_factors,
         radius_comoving_kpc=radius_comoving,
-        density_proper_code=density_proper,
+        rho_proper_code=density_proper,
         rvir_proper_kpc=rvir_proper,
         rvir_comoving_kpc=rvir_proper / scale_factors,
         target_radius_kpc=np.asarray([item["rtarget_kpc"] for item in radius_history]),
@@ -234,9 +234,9 @@ def plot_gas_density_evolution(
     )
     axis = axes[0]
     for color, index in zip(colors, selected):
-        density = np.maximum(density_proper[index], 1.0e-30)
+        rho_comoving_code = np.maximum(density_proper[index], 1.0e-30)
         label = "t = %.2f Gyr" % times[index]
-        axis.loglog(radius_comoving, density, color=color, lw=1.7, label=label)
+        axis.loglog(radius_comoving, rho_comoving_code, color=color, lw=1.7, label=label)
         if np.isfinite(rvir_proper[index]) and rvir_proper[index] > 0.0:
             axis.axvline(
                 rvir_proper[index] / scale_factors[index],

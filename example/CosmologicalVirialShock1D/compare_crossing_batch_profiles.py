@@ -34,15 +34,15 @@ def main():
     for color, (fraction, run_dir, prefix) in zip(colors, RUNS):
         gas = np.load(run_dir / (prefix + ".npz"))
         dm = np.load(run_dir / (prefix + "_DarkMatterDensities.npz"))
-        gas_radius = gas["radius_comoving_kpc"] / gas["scale_factor"][-1]
-        gas_density = gas["density_proper_code"][-1]
-        dm_radius = dm["radius_kpc"][-1]
-        dm_density = dm["density_code"][-1]
-        gas_ax.loglog(gas_radius, gas_density, color=color, label=_label(fraction))
-        dm_ax.loglog(dm_radius, np.maximum(dm_density, 1.0e-300), color=color,
+        gas_radius_proper_kpc = gas["radius_comoving_kpc"] / gas["scale_factor"][-1]
+        gas_rho_proper_code = gas["rho_proper_code"][-1]
+        dm_radius_proper_kpc = dm["radius_proper_kpc"][-1]
+        dm_rho_comoving_code = dm["rho_comoving_code"][-1]
+        gas_ax.loglog(gas_radius_proper_kpc, gas_rho_proper_code, color=color, label=_label(fraction))
+        dm_ax.loglog(dm_radius_proper_kpc, np.maximum(dm_rho_comoving_code, 1.0e-300), color=color,
                      label=_label(fraction))
-        rows.append((fraction, gas["time_Gyr"][-1], gas["rvir_kpc"][-1],
-                     dm["radius_kpc"][-1].max(), dm["mass"][-1].sum()))
+        rows.append((fraction, gas["time_cosmic_Gyr"][-1], gas["rvir_kpc"][-1],
+                     dm["radius_proper_kpc"][-1].max(), dm["mass"][-1].sum()))
 
     gas_ax.set_xlabel("proper radius [kpc]")
     gas_ax.set_ylabel("gas density [code units]")

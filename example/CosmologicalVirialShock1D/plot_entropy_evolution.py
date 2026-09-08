@@ -37,16 +37,16 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
          exclude_outer_cells=2):
     output = Path(output)
     data = np.load(output / (prefix + ".npz"))
-    times = np.asarray(data["time_Gyr"], dtype=float)
-    radius = np.asarray(data["radius_comoving_kpc"], dtype=float)
-    density = np.asarray(data["density_proper_code"], dtype=float)
-    temperature = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
+    times = np.asarray(data["time_cosmic_Gyr"], dtype=float)
+    radius_comoving_code = np.asarray(data["radius_comoving_kpc"], dtype=float)
+    rho_comoving_code = np.asarray(data["rho_proper_code"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
     scale = np.asarray(data["scale_factor"], dtype=float)
     rvir = np.asarray(data["rvir_proper_kpc"], dtype=float)
     rshock = np.asarray(data["rshock_kpc"], dtype=float)
-    entropy = temperature / np.maximum(density, 1.0e-300) ** (float(gamma) - 1.0)
-    cell_count = max(1, radius.size - max(0, int(exclude_outer_cells)))
-    radius = radius[:cell_count]
+    entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (float(gamma) - 1.0)
+    cell_count = max(1, radius_comoving_code.size - max(0, int(exclude_outer_cells)))
+    radius_comoving_code = radius_comoving_code[:cell_count]
     entropy = entropy[:, :cell_count]
 
     selected = np.unique(np.linspace(0, len(times) - 1, min(9, len(times))).astype(int))
@@ -57,11 +57,11 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     )
     for color, index in zip(colors, selected):
         valid = (
-            np.isfinite(radius) & np.isfinite(entropy[index])
-            & (radius > 0.0) & (entropy[index] > 0.0)
+            np.isfinite(radius_comoving_code) & np.isfinite(entropy[index])
+            & (radius_comoving_code > 0.0) & (entropy[index] > 0.0)
         )
         axes[0].loglog(
-            radius[valid], entropy[index, valid], color=color, lw=1.7,
+            radius_comoving_code[valid], entropy[index, valid], color=color, lw=1.7,
             label="t = %.2f Gyr" % times[index],
         )
         if np.isfinite(rvir[index]) and rvir[index] > 0.0:

@@ -15,7 +15,7 @@ PREFIX = "CosmologicalGasCorrelationZ100_ComptonAtomic"
 
 
 def _aperture_sum(data, profiles, key, radius_factor=2.0):
-    radius = np.asarray(profiles["radius_comoving_kpc"], dtype=float)
+    radius_comoving_code = np.asarray(profiles["radius_comoving_kpc"], dtype=float)
     scale = np.asarray(profiles["scale_factor"], dtype=float)
     rvir = np.asarray(profiles["rvir_proper_kpc"], dtype=float)
     values = np.asarray(data[key], dtype=float)
@@ -23,7 +23,7 @@ def _aperture_sum(data, profiles, key, radius_factor=2.0):
     for index in range(values.shape[0]):
         if not np.isfinite(rvir[index]):
             continue
-        mask = radius * scale[index] <= radius_factor * rvir[index]
+        mask = radius_comoving_code * scale[index] <= radius_factor * rvir[index]
         result[index] = np.nansum(values[index, mask])
     return result
 
@@ -32,7 +32,7 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     output = Path(output)
     data = np.load(output / (prefix + "_EnergyByCellAndShell.npz"))
     profiles = np.load(output / (prefix + ".npz"))
-    time = np.asarray(data["gas_time_Gyr"], dtype=float)
+    time_cosmic_code = np.asarray(data["gas_time_cosmic_Gyr"], dtype=float)
     rvir = np.asarray(profiles["rvir_proper_kpc"], dtype=float)
     if not np.any(np.isfinite(rvir)):
         raise RuntimeError("no resolved virial-radius snapshots found")
@@ -57,38 +57,38 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     fig, axes = plt.subplots(2, 1, figsize=(10, 9), sharex=True)
     # Circles denote remaining-energy components; process terms use distinct
     # non-circular markers so the energy partition is visually unambiguous.
-    axes[0].plot(time, changes["delta_total"], "o-", lw=2, label=r"$\Delta E_i$")
+    axes[0].plot(time_cosmic_code, changes["delta_total"], "o-", lw=2, label=r"$\Delta E_i$")
     axes[0].plot(
-        time, changes["delta_thermal"], "o-", lw=2,
+        time_cosmic_code, changes["delta_thermal"], "o-", lw=2,
         label=r"$\Delta E_{i,\rm thermal}$",
     )
     axes[0].plot(
-        time, changes["delta_kinetic"], "o-", lw=2,
+        time_cosmic_code, changes["delta_kinetic"], "o-", lw=2,
         label=r"$\Delta E_{i,\rm kinetic}$",
     )
     axes[0].plot(
-        time, changes["hydro"], "^-",
+        time_cosmic_code, changes["hydro"], "^-",
         label=r"hydrodynamic flux energy change $\Delta E_{i,\rm flux}$",
     )
-    axes[0].plot(time, changes["gravity"], "s-", label="gravitational work")
-    axes[0].plot(time, changes["thermochemistry"], "D-", label="thermochemistry")
-    axes[0].plot(time, changes["accounting_sum"], "P--", lw=2, label="accounting sum")
+    axes[0].plot(time_cosmic_code, changes["gravity"], "s-", label="gravitational work")
+    axes[0].plot(time_cosmic_code, changes["thermochemistry"], "D-", label="thermochemistry")
+    axes[0].plot(time_cosmic_code, changes["accounting_sum"], "P--", lw=2, label="accounting sum")
     axes[0].set_ylabel("energy change [code units]")
     axes[0].set_title(r"Energy balance inside $2r_{\rm vir}(t)$")
     axes[0].legend(frameon=False, fontsize=9)
 
-    axes[1].plot(time, changes["residual"], "x-", lw=2, label="balance residual")
+    axes[1].plot(time_cosmic_code, changes["residual"], "x-", lw=2, label="balance residual")
     axes[1].axhline(0.0, color="black", lw=0.8)
     axes[1].set_xlabel("cosmic time [Gyr]")
     axes[1].set_ylabel("energy change [code units]")
     axes[1].set_title("Cell-wise balance residual inside aperture")
     axes[1].legend(frameon=False, fontsize=9)
-    if time.size >= 2:
+    if time_cosmic_code.size >= 2:
         for axis in axes:
-            axis.set_xlim(float(time[0]), float(time[-1]))
+            axis.set_xlim(float(time_cosmic_code[0]), float(time_cosmic_code[-1]))
     scale_factor = np.asarray(profiles["scale_factor"], dtype=float)
-    finite = np.isfinite(time) & np.isfinite(scale_factor) & (scale_factor > 0.0)
-    time_valid = time[finite]
+    finite = np.isfinite(time_cosmic_code) & np.isfinite(scale_factor) & (scale_factor > 0.0)
+    time_valid = time_cosmic_code[finite]
     redshift_valid = 1.0 / scale_factor[finite] - 1.0
     if time_valid.size >= 2:
         # Use exact snapshot locations.  A secondary-axis interpolation
@@ -104,10 +104,10 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
         top_axis.set_xlabel("redshift z (from saved scale factor)")
     resolved = np.isfinite(rvir)
     if np.any(resolved) and not np.all(resolved):
-        first_resolved = time[np.flatnonzero(resolved)[0]]
+        first_resolved = time_cosmic_code[np.flatnonzero(resolved)[0]]
         for axis in axes:
             axis.axvspan(
-                float(time[0]), float(first_resolved),
+                float(time_cosmic_code[0]), float(first_resolved),
                 color="0.85", alpha=0.35, lw=0,
             )
         axes[0].text(

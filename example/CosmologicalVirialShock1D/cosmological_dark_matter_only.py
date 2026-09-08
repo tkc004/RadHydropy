@@ -49,8 +49,8 @@ def run_lagrangian_top_hat(config):
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
-    radius = et.perturbation_radius(config)
-    velocity = -a_initial**2 * h_initial * delta_i * radius / 3.0
+    radius_comoving_code = et.perturbation_radius(config)
+    vel_supercomoving_code = -a_initial**2 * h_initial * delta_i * radius_comoving_code / 3.0
     angular_momentum = float(initial_condition.get("dm_specific_angular_momentum", 0.0))
     g_code = _gravitational_constant_code(code_unit_system)
     tau = float(cosmology.supercomoving_time(initial))
@@ -62,14 +62,14 @@ def run_lagrangian_top_hat(config):
         )
     )
     history_time = [initial]
-    history_radius = [a_initial * radius]
+    history_radius = [a_initial * radius_comoving_code]
     turnaround = None
     virial_crossing = None
     previous_velocity = float(
-        h_initial * a_initial * radius + velocity / a_initial
+        h_initial * a_initial * radius_comoving_code + vel_supercomoving_code / a_initial
     )
     previous_time = initial
-    previous_radius = a_initial * radius
+    previous_radius = a_initial * radius_comoving_code
 
     collapse_time = initial * (1.686 / delta_i) ** 1.5
     turnaround_time = 0.5 * collapse_time
@@ -92,17 +92,17 @@ def run_lagrangian_top_hat(config):
             centrifugal = angular_momentum**2 / max(r**3, 1.0e-30)
             return gravity + centrifugal
 
-        velocity_half = velocity + 0.5 * dt * acceleration(radius, a_start)
-        radius_new = radius + dt * velocity_half
-        velocity = velocity_half + 0.5 * dt * acceleration(radius_new, a_end)
-        radius = radius_new
-        if radius <= 0.0:
+        velocity_half = vel_supercomoving_code + 0.5 * dt * acceleration(radius_comoving_code, a_start)
+        radius_new = radius_comoving_code + dt * velocity_half
+        vel_supercomoving_code = velocity_half + 0.5 * dt * acceleration(radius_new, a_end)
+        radius_comoving_code = radius_new
+        if radius_comoving_code <= 0.0:
             raise RuntimeError("top-hat boundary reached the pressureless singularity before virial crossing")
         tau = tau_end
         physical_velocity = float(
-            cosmology.hubble(cosmic_end) * a_end * radius + velocity / a_end
+            cosmology.hubble(cosmic_end) * a_end * radius_comoving_code + vel_supercomoving_code / a_end
         )
-        physical_radius = a_end * radius
+        physical_radius = a_end * radius_comoving_code
         if previous_velocity > 0.0 >= physical_velocity:
             fraction = previous_velocity / (previous_velocity - physical_velocity)
             turnaround = (
@@ -186,29 +186,29 @@ def run_live_shell_density_profiles(config):
     def save_profile(cosmic_time):
         a = float(cosmology.scale_factor(cosmic_time))
         order = np.argsort(shells.radius)
-        radius = a * np.asarray(shells.radius[order], dtype=float)
+        radius_comoving_code = a * np.asarray(shells.radius[order], dtype=float)
         mass = np.asarray(shells.mass[order], dtype=float)
         # Cold shell collapse can carry shells through the coordinate origin
         # after crossing.  They remain part of the enclosed mass; represent
         # crossed/central material at a small positive radius for logarithmic
         # density binning instead of silently dropping it from the profile.
-        radius = np.abs(np.nan_to_num(radius, nan=0.0, posinf=0.0, neginf=0.0))
-        radius = np.maximum(radius, 1.0e-8)
+        radius_comoving_code = np.abs(np.nan_to_num(radius_comoving_code, nan=0.0, posinf=0.0, neginf=0.0))
+        radius_comoving_code = np.maximum(radius_comoving_code, 1.0e-8)
         core_mass = float(getattr(shells, "central_core_mass", 0.0))
         core_radius = a * float(getattr(shells, "central_core_radius", 0.0))
-        profiles.append((float(cosmic_time), radius, mass, core_mass, core_radius))
+        profiles.append((float(cosmic_time), radius_comoving_code, mass, core_mass, core_radius))
         # Include the absorbed unresolved-core mass when locating r200.  The
         # profile bins already include this same mass, so the overdensity
         # marker must use the identical enclosed-mass definition.
         cumulative_mass = core_mass + np.cumsum(mass)
         mean_density = cumulative_mass / (
-            4.0 * np.pi / 3.0 * np.maximum(radius, 1.0e-30) ** 3
+            4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
         )
         threshold = 200.0 * float(cosmology.background_density(cosmic_time))
         candidates = np.flatnonzero(mean_density >= threshold)
         if candidates.size:
             index = int(candidates[-1])
-            virial_radii.append(float(radius[index]))
+            virial_radii.append(float(radius_comoving_code[index]))
         else:
             virial_radii.append(float("nan"))
 
@@ -223,8 +223,8 @@ def run_live_shell_density_profiles(config):
         a_start = float(cosmology.scale_factor(cosmic_start))
         a_end = float(cosmology.scale_factor(cosmic_end))
         rho_comoving = float(cosmology.background_density(cosmic_start)) * a_start**3
-        background = lambda radius, rho=rho_comoving: (
-            4.0 * np.pi / 3.0 * rho * np.asarray(radius, dtype=float) ** 3
+        background = lambda radius_comoving_code, rho_comoving_code=rho_comoving: (
+            4.0 * np.pi / 3.0 * rho_comoving_code * np.asarray(radius_comoving_code, dtype=float) ** 3
         )
         shells.step(
             dt,
@@ -250,32 +250,32 @@ def run_live_shell_density_profiles(config):
     core_masses = np.asarray([item[3] for item in profiles])
     core_radii = np.asarray([item[4] for item in profiles])
     bin_count = int(example.get("dm_density_bins", 128))
-    bin_min = max(1.0e-8, min(np.min(radius) for radius in shell_radii) * 0.9)
-    bin_max = max(np.max(radius) for radius in shell_radii) * 1.1
+    bin_min = max(1.0e-8, min(np.min(radius_comoving_code) for radius_comoving_code in shell_radii) * 0.9)
+    bin_max = max(np.max(radius_comoving_code) for radius_comoving_code in shell_radii) * 1.1
     bin_edges = np.geomspace(bin_min, bin_max, bin_count + 1)
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     bin_volumes = 4.0 * np.pi / 3.0 * np.diff(bin_edges**3)
     densities = []
-    for radius, mass, core_mass, core_radius in zip(
+    for radius_comoving_code, mass, core_mass, core_radius in zip(
         shell_radii, shell_masses, core_masses, core_radii
     ):
-        mass_in_bin, _ = np.histogram(radius, bins=bin_edges, weights=mass)
+        mass_in_bin, _ = np.histogram(radius_comoving_code, bins=bin_edges, weights=mass)
         if core_mass > 0.0 and core_radius > 0.0:
             core_bin = int(np.searchsorted(bin_edges, core_radius, side="right") - 1)
             if 0 <= core_bin < mass_in_bin.size:
                 mass_in_bin[core_bin] += core_mass
-        density = mass_in_bin / np.maximum(bin_volumes, 1.0e-30)
-        densities.append(np.where(mass_in_bin > 0.0, density, np.nan))
+        rho_comoving_code = mass_in_bin / np.maximum(bin_volumes, 1.0e-30)
+        densities.append(np.where(mass_in_bin > 0.0, rho_comoving_code, np.nan))
     densities = np.asarray(densities)
     virial_radii = np.asarray(virial_radii)
-    scale_factors = np.asarray([float(cosmology.scale_factor(time)) for time in times])
+    scale_factors = np.asarray([float(cosmology.scale_factor(time_cosmic_code)) for time_cosmic_code in times])
     comoving_bin_radii = bin_radii[None, :] / scale_factors[:, None]
     target_mass = float(initial_condition["target_halo_mass"])
     virial_overdensity = 18.0 * np.pi**2
     analytic_rvir = (
         target_mass
         / ((4.0 * np.pi / 3.0) * virial_overdensity
-           * np.asarray([float(cosmology.background_density(time)) for time in times]))
+           * np.asarray([float(cosmology.background_density(time_cosmic_code)) for time_cosmic_code in times]))
     ) ** (1.0 / 3.0)
     output_dir = Path(config["par"]["output"]["savedir"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -283,11 +283,11 @@ def run_live_shell_density_profiles(config):
     figure = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.jpg"
     np.savez(
         data_file,
-        time_Gyr=times,
-        radius_kpc=bin_radii,
+        time_cosmic_Gyr=times,
+        radius_proper_kpc=bin_radii,
         radius_comoving_kpc=comoving_bin_radii,
         bin_edges_kpc=bin_edges,
-        density_code=densities,
+        rho_comoving_code=densities,
         central_core_mass=core_masses,
         central_core_radius_kpc=core_radii,
         rvir_kpc=virial_radii,
@@ -296,14 +296,14 @@ def run_live_shell_density_profiles(config):
 
     plt.figure(figsize=(7.0, 5.0))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(times)))
-    for time, density, rvir, comoving_radius, color in zip(
+    for time_cosmic_code, rho_comoving_code, rvir, comoving_radius, color in zip(
         times, densities, virial_radii, comoving_bin_radii, colors
     ):
-        valid = np.isfinite(density) & (density > 0.0)
-        plt.loglog(comoving_radius[valid], density[valid], color=color, lw=1.6,
-                   label="t = %.1f" % time)
+        valid = np.isfinite(rho_comoving_code) & (rho_comoving_code > 0.0)
+        plt.loglog(comoving_radius[valid], rho_comoving_code[valid], color=color, lw=1.6,
+                   label="t = %.1f" % time_cosmic_code)
         if np.isfinite(rvir):
-            scale_factor = float(cosmology.scale_factor(time))
+            scale_factor = float(cosmology.scale_factor(time_cosmic_code))
             plt.axvline(rvir / scale_factor, color=color, ls="--", lw=1.1, alpha=0.8)
     # Bertschinger/Fillmore--Goldreich similarity reference for the local
     # initial perturbation slope delta M/M propto M^-s.  Normalize the
@@ -407,7 +407,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     initial = float(initial_condition["time_cosmic"])
     final = float(config["par"]["final_cosmic_time"])
-    time = float(cosmology.supercomoving_time(initial))
+    time_cosmic_code = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))
     target_mass = float(initial_condition["target_halo_mass"])
@@ -439,15 +439,15 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     previous_target_radius = float(initial_a * shells.radius[initial_index])
     previous_target_time = initial
     steps = 0
-    while time < final_tau:
-        dt = min(timestep, final_tau - time)
-        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(time))
+    while time_cosmic_code < final_tau:
+        dt = min(timestep, final_tau - time_cosmic_code)
+        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(time_cosmic_code))
         scale_start = float(cosmology.scale_factor(cosmic_start))
         rho_start = float(cosmology.background_density(cosmic_start)) * scale_start**3
-        background = lambda radius: (
-            4.0 * np.pi / 3.0 * rho_start * dm_fraction * np.asarray(radius)**3
+        background = lambda radius_comoving_code: (
+            4.0 * np.pi / 3.0 * rho_start * dm_fraction * np.asarray(radius_comoving_code)**3
         )
-        time_end = time + dt
+        time_end = time_cosmic_code + dt
         cosmic_end = float(cosmology.cosmic_time_from_supercomoving(time_end))
         scale_end = float(cosmology.scale_factor(cosmic_end))
         shells.step(
@@ -458,7 +458,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
             scale_factor_end=scale_end,
             cosmological=True,
         )
-        time = time_end
+        time_cosmic_code = time_end
         steps += 1
         history_time.append(cosmic_end)
         history_inner_radius.append(float(shells.radius[0]))

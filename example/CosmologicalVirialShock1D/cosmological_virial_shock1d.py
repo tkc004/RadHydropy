@@ -129,10 +129,10 @@ def run_case(config, radiative):
 def plot_histories(histories, filename):
     fig, axes = plt.subplots(2, 1, figsize=(7.2, 7.0), sharex=True)
     for axis, (label, history) in zip(axes, (("Adiabatic", histories["adiabatic"]), ("Radiative PIE", histories["radiative"]))):
-        time = history["time_Gyr"]
-        axis.plot(time, history["mvir"], color="black", label=r"$M(<r_{\rm vir})$")
-        axis.plot(time, history["mshock"], color="tab:red", label=r"$M(<r_{\rm shock})$")
-        axis.plot(time, history["mdisc"], color="tab:blue", label=r"$M(<r_{\rm disc})$")
+        time_cosmic_code = history["time_cosmic_Gyr"]
+        axis.plot(time_cosmic_code, history["mvir"], color="black", label=r"$M(<r_{\rm vir})$")
+        axis.plot(time_cosmic_code, history["mshock"], color="tab:red", label=r"$M(<r_{\rm shock})$")
+        axis.plot(time_cosmic_code, history["mdisc"], color="tab:blue", label=r"$M(<r_{\rm disc})$")
         axis.set_yscale("log")
         axis.set_ylabel(r"total mass [$10^{10}\,M_\odot$]")
         axis.set_title(label)
@@ -152,18 +152,18 @@ def plot_radius_histories(histories, filename):
         axes,
         (("Adiabatic", histories["adiabatic"]), ("Radiative CIE → PIE", histories["radiative"])),
     ):
-        time = history["time_Gyr"]
+        time_cosmic_code = history["time_cosmic_Gyr"]
         # The virial and disc radii can coincide when the centrifugal
         # balance lies outside the measured halo.  Draw r_vir last, with a
         # dashed line and markers, so it cannot disappear underneath r_disc.
-        axis.plot(time, history["rshock_kpc"], color="tab:red", lw=1.8,
+        axis.plot(time_cosmic_code, history["rshock_kpc"], color="tab:red", lw=1.8,
                   label=r"$r_{\rm shock}$", zorder=2)
-        axis.plot(time, history["rdisc_kpc"], color="tab:blue", lw=1.8,
+        axis.plot(time_cosmic_code, history["rdisc_kpc"], color="tab:blue", lw=1.8,
                   label=r"$r_{\rm disc}$", zorder=2)
-        axis.plot(time, history["rtarget_kpc"], color="0.45", lw=1.2,
+        axis.plot(time_cosmic_code, history["rtarget_kpc"], color="0.45", lw=1.2,
                   ls=":", label=r"$r(M_{\rm target})$", zorder=1)
-        axis.plot(time, history["rvir_kpc"], color="black", lw=2.0,
-                  ls="--", marker="o", markevery=max(1, len(time) // 12),
+        axis.plot(time_cosmic_code, history["rvir_kpc"], color="black", lw=2.0,
+                  ls="--", marker="o", markevery=max(1, len(time_cosmic_code) // 12),
                   ms=3.0, label=r"$r_{\rm vir}$", zorder=4)
         axis.set_ylabel("radius [kpc]")
         axis.set_title(label)
@@ -184,13 +184,13 @@ def plot_density_profiles(profiles, filename):
         axes, (("Adiabatic", profiles["adiabatic"]),
                ("Radiative CIE → PIE", profiles["radiative"])),
     ):
-        axis.loglog(profile["gas_radius_kpc"], profile["gas_density_code"],
+        axis.loglog(profile["gas_radius_kpc"], profile["gas_rho_proper_code"],
                     color="tab:red", label="gas")
-        axis.loglog(profile["dm_radius_kpc"], profile["dm_density_code"],
+        axis.loglog(profile["dm_radius_proper_kpc"], profile["dm_rho_proper_code"],
                     color="black", marker="o", ms=2.5, linestyle="None",
                     label="dark matter shells")
         axis.set_ylabel(r"density [code mass / kpc$^3$]")
-        axis.set_title(label + " at t = %.2f Gyr" % profile["time_Gyr"])
+        axis.set_title(label + " at t = %.2f Gyr" % profile["time_cosmic_Gyr"])
         axis.grid(alpha=0.25, which="both")
         axis.legend(loc="best", fontsize=9)
     axes[-1].set_xlabel("proper radius [kpc]")

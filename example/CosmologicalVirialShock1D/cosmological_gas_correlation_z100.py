@@ -64,7 +64,7 @@ def _add_redshift_top_axis(axis, times, scale_factors):
     top_axis.set_xlabel("redshift")
 
 
-def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
+def plot_density_evolution(times, radius_comoving_code, rho_comoving_code, virial_radius, scale_factors,
                            filename, ymin=None):
     selected = np.unique(
         np.linspace(0, len(times) - 1, min(9, len(times))).astype(int)
@@ -75,7 +75,7 @@ def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
     for color, index in zip(colors, selected):
-        axes[0].loglog(radius, np.maximum(density[index], 1.0e-30),
+        axes[0].loglog(radius_comoving_code, np.maximum(rho_comoving_code[index], 1.0e-30),
                        color=color, lw=1.7, label="t = %.2f Gyr" % times[index])
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
             axes[0].axvline(
@@ -114,17 +114,17 @@ def plot_density_evolution(times, radius, density, virial_radius, scale_factors,
 
 def plot_mass_history(history, filename):
     """Plot masses interior to the measured virial, shock, and disc radii."""
-    time = history["time_Gyr"]
+    time_cosmic_code = history["time_cosmic_Gyr"]
     fig, axis = plt.subplots(figsize=(8.0, 5.8))
-    axis.plot(time, history["mvir"], color="black", lw=1.8,
+    axis.plot(time_cosmic_code, history["mvir"], color="black", lw=1.8,
               label=r"$M(<r_{\rm vir})$")
-    axis.plot(time, history["mshock"], color="tab:red", lw=1.8,
+    axis.plot(time_cosmic_code, history["mshock"], color="tab:red", lw=1.8,
               label=r"$M(<r_{\rm shock})$")
-    axis.plot(time, history["mdisc"], color="tab:blue", lw=1.8,
+    axis.plot(time_cosmic_code, history["mdisc"], color="tab:blue", lw=1.8,
               label=r"$M(<r_{\rm disc})$")
     axis.set_yscale("log")
     axis.set_xlabel("cosmic time [Gyr]")
-    _add_redshift_top_axis(axis, time, history["scale_factor"])
+    _add_redshift_top_axis(axis, time_cosmic_code, history["scale_factor"])
     axis.set_ylabel(r"total mass [$10^{10}\,M_\odot$]")
     axis.set_title("Mass interior to virial, shock, and centrifugal/disc radii\n"
                    "adiabatic gas + live dark matter")
@@ -137,20 +137,20 @@ def plot_mass_history(history, filename):
 
 def plot_radius_history(history, filename):
     """Plot the evolving shock, virial, disc, and target-mass radii."""
-    time = history["time_Gyr"]
+    time_cosmic_code = history["time_cosmic_Gyr"]
     fig, axis = plt.subplots(figsize=(8.0, 5.8))
-    axis.plot(time, history["rshock_kpc"], color="tab:red", lw=1.8,
+    axis.plot(time_cosmic_code, history["rshock_kpc"], color="tab:red", lw=1.8,
               label=r"$r_{\rm shock}$")
-    axis.plot(time, history["rdisc_kpc"], color="tab:blue", lw=1.8,
+    axis.plot(time_cosmic_code, history["rdisc_kpc"], color="tab:blue", lw=1.8,
               label=r"$r_{\rm disc}$")
-    axis.plot(time, history["rtarget_kpc"], color="0.45", lw=1.2,
+    axis.plot(time_cosmic_code, history["rtarget_kpc"], color="0.45", lw=1.2,
               ls=":", label=r"$r(M_{\rm target})$")
-    axis.plot(time, history["rvir_kpc"], color="black", lw=2.0,
-              ls="--", marker="o", markevery=max(1, len(time) // 12),
+    axis.plot(time_cosmic_code, history["rvir_kpc"], color="black", lw=2.0,
+              ls="--", marker="o", markevery=max(1, len(time_cosmic_code) // 12),
               ms=3.0, label=r"$r_{\rm vir}$")
     axis.set_yscale("log")
     axis.set_xlabel("cosmic time [Gyr]")
-    _add_redshift_top_axis(axis, time, history["scale_factor"])
+    _add_redshift_top_axis(axis, time_cosmic_code, history["scale_factor"])
     axis.set_ylabel("proper radius [kpc]")
     axis.set_title("Evolution of shock, virial, and disc radii\n"
                    "adiabatic gas + live dark matter")
@@ -161,26 +161,26 @@ def plot_radius_history(history, filename):
     plt.close(fig)
 
 
-def _log_radial_bin_profile(radius, values, weights=None, bin_count=48,
+def _log_radial_bin_profile(radius_comoving_code, values, weights=None, bin_count=48,
                             log_weighted=False):
     """Return mass-weighted mean values in logarithmic radial bins."""
-    radius = np.asarray(radius, dtype=float)
+    radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
     values = np.asarray(values, dtype=float)
     if weights is None:
         weights = np.ones_like(values)
     weights = np.asarray(weights, dtype=float)
     valid = (
-        np.isfinite(radius) & np.isfinite(values) & np.isfinite(weights)
-        & (radius > 0.0) & (values > 0.0) & (weights > 0.0)
+        np.isfinite(radius_comoving_code) & np.isfinite(values) & np.isfinite(weights)
+        & (radius_comoving_code > 0.0) & (values > 0.0) & (weights > 0.0)
     )
     if not np.any(valid):
         return np.empty(0), np.empty(0)
     log_edges = np.linspace(
-        np.log10(radius[valid].min()),
-        np.log10(radius[valid].max()),
+        np.log10(radius_comoving_code[valid].min()),
+        np.log10(radius_comoving_code[valid].max()),
         max(8, int(bin_count)) + 1,
     )
-    indices = np.digitize(np.log10(radius[valid]), log_edges) - 1
+    indices = np.digitize(np.log10(radius_comoving_code[valid]), log_edges) - 1
     centers = []
     binned = []
     for index in range(len(log_edges) - 1):
@@ -199,7 +199,7 @@ def _log_radial_bin_profile(radius, values, weights=None, bin_count=48,
     return np.asarray(centers), np.asarray(binned)
 
 
-def plot_temperature_evolution(times, radius, density, temperature, virial_radius,
+def plot_temperature_evolution(times, radius_comoving_code, rho_comoving_code, temperature_proper_cgs_K, virial_radius,
                                splashback_radius, scale_factors,
                                virial_temperature, filename,
                                minimum_temperature=None,
@@ -215,7 +215,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
     for color, index in zip(colors, selected):
-        comoving_radius = radius
+        comoving_radius = radius_comoving_code
         # Reconstruct spherical cell volumes from neighboring cell centers;
         # the common scale-factor volume_comoving_code cancels in the mass weighting.
         cell_edges = np.empty(comoving_radius.size + 1, dtype=float)
@@ -226,9 +226,9 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
         else:
             cell_edges[:] = (0.5 * comoving_radius[0], 1.5 * comoving_radius[0])
         cell_volume = np.maximum(np.diff(cell_edges ** 3), 0.0)
-        mass_weight = np.asarray(density[index], dtype=float) * cell_volume
+        mass_weight = np.asarray(rho_comoving_code[index], dtype=float) * cell_volume
         binned_radius, binned_temperature = _log_radial_bin_profile(
-            comoving_radius, temperature[index], weights=mass_weight,
+            comoving_radius, temperature_proper_cgs_K[index], weights=mass_weight,
             bin_count=radial_bin_count, log_weighted=True,
         )
         axes[0].loglog(
@@ -295,7 +295,7 @@ def plot_temperature_evolution(times, radius, density, temperature, virial_radiu
 
 
 def plot_specific_angular_momentum_evolution(
-    times, radius, density, specific_angular_momentum, virial_radius,
+    times, radius_comoving_code, rho_comoving_code, specific_angular_momentum, virial_radius,
     splashback_radius, scale_factors, filename, radial_bin_count=32,
 ):
     """Plot the signed gas specific-angular-momentum profile evolution."""
@@ -309,18 +309,18 @@ def plot_specific_angular_momentum_evolution(
     )
     for color, index in zip(colors, selected):
         values = np.asarray(specific_angular_momentum[index], dtype=float)
-        cell_edges = np.empty(radius.size + 1, dtype=float)
-        if radius.size > 1:
-            cell_edges[1:-1] = np.sqrt(radius[:-1] * radius[1:])
-            cell_edges[0] = radius[0] ** 2 / cell_edges[1]
-            cell_edges[-1] = radius[-1] ** 2 / cell_edges[-2]
+        cell_edges = np.empty(radius_comoving_code.size + 1, dtype=float)
+        if radius_comoving_code.size > 1:
+            cell_edges[1:-1] = np.sqrt(radius_comoving_code[:-1] * radius_comoving_code[1:])
+            cell_edges[0] = radius_comoving_code[0] ** 2 / cell_edges[1]
+            cell_edges[-1] = radius_comoving_code[-1] ** 2 / cell_edges[-2]
         else:
-            cell_edges[:] = (0.5 * radius[0], 1.5 * radius[0])
-        mass_weight = np.asarray(density[index], dtype=float) * np.maximum(
+            cell_edges[:] = (0.5 * radius_comoving_code[0], 1.5 * radius_comoving_code[0])
+        mass_weight = np.asarray(rho_comoving_code[index], dtype=float) * np.maximum(
             np.diff(cell_edges ** 3), 0.0
         )
         binned_radius, binned_j = _log_radial_bin_profile(
-            radius, values, weights=mass_weight, bin_count=radial_bin_count,
+            radius_comoving_code, values, weights=mass_weight, bin_count=radial_bin_count,
             log_weighted=False,
         )
         axes[0].semilogx(
@@ -356,15 +356,15 @@ def plot_specific_angular_momentum_evolution(
 
 
 def plot_temperature_density_evolution(
-    times, density, temperature, filename, bin_count=48, ymin=0.1,
+    times, rho_comoving_code, temperature_proper_cgs_K, filename, bin_count=48, ymin=0.1,
     density_to_nH_cgs_cm3=1.0,
 ):
     """Plot cell temperature against physical hydrogen number density."""
     rho_values = (
-        np.asarray(density, dtype=float).ravel()
+        np.asarray(rho_comoving_code, dtype=float).ravel()
         * float(density_to_nH_cgs_cm3)
     )
-    temp_values = np.asarray(temperature, dtype=float).ravel()
+    temp_values = np.asarray(temperature_proper_cgs_K, dtype=float).ravel()
     valid = (
         np.isfinite(rho_values) & np.isfinite(temp_values)
         & (rho_values > 0.0) & (temp_values > 0.0)
@@ -410,7 +410,7 @@ def plot_temperature_density_evolution(
 
 
 def plot_velocity_evolution(
-    times, radius, density, velocity, virial_radius, scale_factors, filename,
+    times, radius_comoving_code, rho_comoving_code, vel_supercomoving_code, virial_radius, scale_factors, filename,
     radial_bin_count=48,
 ):
     """Plot mass-weighted absolute physical radial velocity profiles."""
@@ -420,7 +420,7 @@ def plot_velocity_evolution(
     colors = plt.get_cmap("cividis")(np.linspace(0.05, 0.95, selected.size))
     fig, axis = plt.subplots(figsize=(8.0, 5.8))
     for color, index in zip(colors, selected):
-        proper_radius = radius * scale_factors[index]
+        proper_radius = radius_comoving_code * scale_factors[index]
         cell_edges = np.empty(proper_radius.size + 1, dtype=float)
         if proper_radius.size > 1:
             cell_edges[1:-1] = np.sqrt(proper_radius[:-1] * proper_radius[1:])
@@ -428,12 +428,12 @@ def plot_velocity_evolution(
             cell_edges[-1] = proper_radius[-1] ** 2 / cell_edges[-2]
         else:
             cell_edges[:] = (0.5 * proper_radius[0], 1.5 * proper_radius[0])
-        mass_weight = np.asarray(density[index], dtype=float) * np.maximum(
+        mass_weight = np.asarray(rho_comoving_code[index], dtype=float) * np.maximum(
             np.diff(cell_edges**3), 0.0
         )
         binned_radius, binned_velocity = _log_radial_bin_profile(
             proper_radius,
-            np.maximum(np.asarray(velocity[index], dtype=float), 0.0),
+            np.maximum(np.asarray(vel_supercomoving_code[index], dtype=float), 0.0),
             weights=mass_weight,
             bin_count=radial_bin_count,
         )
@@ -545,14 +545,14 @@ def plot_dark_matter_density_evolution(
     for index, color in zip(selected, colors):
         profile = dm_profiles[index]
         scale_factor = float(profile["scale_factor"])
-        radius = np.asarray(profile["dm_radius_kpc"], dtype=float)
-        density = np.asarray(profile["dm_density_code"], dtype=float)
+        radius_comoving_code = np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
+        rho_comoving_code = np.asarray(profile["dm_rho_proper_code"], dtype=float)
         mass = np.asarray(profile["dm_mass"], dtype=float)
         core_mass = float(profile.get("dm_central_core_mass", 0.0))
         core_radius = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
-        comoving_radius = radius / scale_factor
+        comoving_radius = radius_comoving_code / scale_factor
         valid = (
-            np.isfinite(comoving_radius) & np.isfinite(density)
+            np.isfinite(comoving_radius) & np.isfinite(rho_comoving_code)
             & np.isfinite(mass) & (comoving_radius > 0.0) & (mass > 0.0)
         )
         shell_radius = comoving_radius[valid]
@@ -576,14 +576,14 @@ def plot_dark_matter_density_evolution(
         density_contrast = binned_density / max(background_density, 1.0e-300)
         density_axis.loglog(
             bin_radii[valid_bins], density_contrast[valid_bins],
-            color=color, lw=1.6, label="t = %.2f" % profile["time_Gyr"],
+            color=color, lw=1.6, label="t = %.2f" % profile["time_cosmic_Gyr"],
         )
         cumulative_mass = np.cumsum(shell_mass)
         if core_mass > 0.0:
             cumulative_mass = cumulative_mass + core_mass
         mass_axis.step(
             shell_radius, cumulative_mass, where="post",
-            color=color, lw=1.6, label="t = %.2f" % profile["time_Gyr"],
+            color=color, lw=1.6, label="t = %.2f" % profile["time_cosmic_Gyr"],
         )
     density_axis.axhline(1.0, color="black", lw=0.8, ls="--")
     density_axis.set_xlabel("comoving radius [kpc]")
@@ -613,7 +613,7 @@ def plot_baryon_normalized_density_comparison(
     fb = float(baryon_fraction)
     virial_radius = np.asarray(virial_radius, dtype=float)
     all_comoving = np.concatenate([
-        np.asarray(profile["dm_radius_kpc"], dtype=float)
+        np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
         / float(profile["scale_factor"])
         for profile in dm_profiles
     ])
@@ -628,8 +628,8 @@ def plot_baryon_normalized_density_comparison(
         dm = dm_profiles[index]
         scale_factor = float(gas["scale_factor"])
         gas_radius = np.asarray(gas["radius_proper_kpc"], dtype=float)
-        gas_density_raw = np.asarray(gas["density_proper_code"], dtype=float)
-        dm_radius = np.asarray(dm["dm_radius_kpc"], dtype=float)
+        gas_density_raw = np.asarray(gas["rho_proper_code"], dtype=float)
+        dm_radius = np.asarray(dm["dm_radius_proper_kpc"], dtype=float)
         dm_mass = np.asarray(dm["dm_mass"], dtype=float)
         proper_edges = scale_factor * bin_edges
         gas_edges = np.empty(gas_radius.size + 1)
@@ -648,7 +648,7 @@ def plot_baryon_normalized_density_comparison(
         gas_density = gas_mass_bin / np.maximum(bin_volume, 1.0e-300) / fb
         dm_density = dm_mass_bin / np.maximum(bin_volume, 1.0e-300) / (1.0 - fb)
         valid = (gas_density > 0.0) & (dm_density > 0.0)
-        label = "t = %.2f Gyr" % gas["time_Gyr"]
+        label = "t = %.2f Gyr" % gas["time_cosmic_Gyr"]
         axes[0].loglog(bin_radii[valid], gas_density[valid], color=color, lw=1.5, label=label + " gas/$f_b$")
         axes[0].loglog(bin_radii[valid], dm_density[valid], color=color, lw=1.0, ls="--", alpha=0.85, label=label + " DM/$1-f_b$")
         axes[1].semilogx(bin_radii[valid], gas_density[valid] / dm_density[valid], color=color, lw=1.5)
@@ -726,10 +726,10 @@ def _energy_cell_state(sim):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
-    velocity = np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float)
+    vel_supercomoving_code = np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float)
     volume_comoving_code = np.asarray(sim.mesh.volume_comoving_code[first:last], dtype=float)
     total = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-    kinetic = 0.5 * rho_comoving_code * velocity**2 * volume_comoving_code
+    kinetic = 0.5 * rho_comoving_code * vel_supercomoving_code**2 * volume_comoving_code
     return {
         "mass": np.asarray(sim.fluid.Mass_code[first:last], dtype=float).copy(),
         "total": total.copy(),
@@ -809,9 +809,9 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     thermal_rate = np.asarray(rtc.thermal_rate(
         state, rrt.trace_photon_density(state, sim.par), sim.par
     ), dtype=float)
-    rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+    rho_comoving_code = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
     specific_energy = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float)
-    temperature = np.asarray(state["temperature_cgs_K"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(state["temperature_cgs_K"], dtype=float)
     mu = np.asarray(
         state.get("mu", sim.fluid.mu[int(sim.par.mesh.ghost_cells):int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells)]),
         dtype=float,
@@ -821,9 +821,9 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
         gas_profile["radial_velocity_physical_km_s"], dtype=float
     ) * 1.0e5
     divergence = np.gradient(radius_cgs_cm**2 * velocity_cgs_cm_s, radius_cgs_cm) / np.maximum(radius_cgs_cm, 1.0e-30)**2
-    rho_dot = -rho * divergence
+    rho_dot = -rho_comoving_code * divergence
     sound_speed = np.sqrt(
-        float(sim.par.hydrodynamics.gamma) * 1.380649e-16 * np.maximum(temperature, 0.0)
+        float(sim.par.hydrodynamics.gamma) * 1.380649e-16 * np.maximum(temperature_proper_cgs_K, 0.0)
         / (np.maximum(mu, 1.0e-30) * 1.67262192369e-24)
     )
     mach = np.divide(
@@ -834,7 +834,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     q = -thermal_rate
     # q is volumetric [erg cm^-3 s^-1].  The equivalent expression using a
     # specific cooling rate q/rho is gamma - rho*(q/rho)/(rho_dot*e).
-    gamma_eff = np.full_like(rho, np.nan)
+    gamma_eff = np.full_like(rho_comoving_code, np.nan)
     valid = (rho_dot > 0.0) & (specific_energy > 0.0)
     gamma_eff[valid] = (
         float(sim.par.hydrodynamics.gamma) - q[valid] / (rho_dot[valid] * specific_energy[valid])
@@ -859,20 +859,20 @@ def _dark_matter_energy_state(dm):
         ids = np.arange(len(dm.radius), dtype=int)
     ids = np.asarray(ids, dtype=int)
     order = np.argsort(ids)
-    radius = np.asarray(dm.radius, dtype=float)[order]
-    velocity = np.asarray(dm.velocity, dtype=float)[order]
+    radius_comoving_code = np.asarray(dm.radius, dtype=float)[order]
+    vel_supercomoving_code = np.asarray(dm.velocity, dtype=float)[order]
     mass = np.asarray(dm.mass, dtype=float)[order]
     angular = 0.5 * np.asarray(dm.angular_momentum, dtype=float)[order] ** 2 / (
-        np.maximum(radius, np.finfo(float).tiny) + float(dm.softening)
+        np.maximum(radius_comoving_code, np.finfo(float).tiny) + float(dm.softening)
     ) ** 2
     total_specific = np.asarray(dm.specific_energy(), dtype=float)[order]
-    potential = total_specific - 0.5 * velocity**2 - angular
+    potential = total_specific - 0.5 * vel_supercomoving_code**2 - angular
     return {
         "id": ids[order],
-        "radius": radius,
-        "velocity": velocity,
+        "radius_comoving_code": radius_comoving_code,
+        "vel_supercomoving_code": vel_supercomoving_code,
         "mass": mass,
-        "kinetic": mass * 0.5 * velocity**2,
+        "kinetic": mass * 0.5 * vel_supercomoving_code**2,
         "potential": mass * potential,
         "total": mass * total_specific,
     }
@@ -1112,27 +1112,27 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         index = first + int(sim.par.mesh.grid_cells) - 1
         old_mass = float(np.asarray(sim.fluid.Mass_code, dtype=float)[index])
         old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
-        rho = float(np.asarray(sim.par.boundary.inflow_density, dtype=float))
-        velocity = float(np.asarray(sim.par.boundary.inflow_velocity, dtype=float))
-        temperature = float(np.asarray(sim.par.boundary.inflow_temperature, dtype=float))
+        rho_comoving_code = float(np.asarray(sim.par.boundary.inflow_density, dtype=float))
+        vel_supercomoving_code = float(np.asarray(sim.par.boundary.inflow_velocity, dtype=float))
+        temperature_proper_cgs_K = float(np.asarray(sim.par.boundary.inflow_temperature, dtype=float))
         mu = float(np.asarray(sim.par.boundary.inflow_mu, dtype=float))
         volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
-        pressure = float(np.asarray(
-            sim.fluid.eos.pressure(rho, temperature, mu), dtype=float
+        pre_supercomoving_code = float(np.asarray(
+            sim.fluid.eos.pressure(rho_comoving_code, temperature_proper_cgs_K, mu), dtype=float
         ))
-        sim.fluid.rho_comoving_code[index] = rho
-        sim.fluid.vel_supercomoving_code[index] = velocity
-        sim.fluid.temp_supercomoving_code[index] = temperature
+        sim.fluid.rho_comoving_code[index] = rho_comoving_code
+        sim.fluid.vel_supercomoving_code[index] = vel_supercomoving_code
+        sim.fluid.temp_supercomoving_code[index] = temperature_proper_cgs_K
         sim.fluid.mu[index] = mu
-        sim.fluid.pre_supercomoving_code[index] = pressure
-        sim.fluid.Mass_code[index] = rho * volume_comoving_code
-        sim.fluid.Mom_code[index] = rho * velocity * volume_comoving_code
+        sim.fluid.pre_supercomoving_code[index] = pre_supercomoving_code
+        sim.fluid.Mass_code[index] = rho_comoving_code * volume_comoving_code
+        sim.fluid.Mom_code[index] = rho_comoving_code * vel_supercomoving_code * volume_comoving_code
         sim.fluid.Energy_code[index] = float(np.asarray(
-            sim.fluid.eos.total_energy_density(rho, velocity, pressure),
+            sim.fluid.eos.total_energy_density(rho_comoving_code, vel_supercomoving_code, pre_supercomoving_code),
             dtype=float,
         )) * volume_comoving_code
         thermal_energy_density = float(np.asarray(
-            sim.fluid.eos.thermal_energy_density(pressure), dtype=float,
+            sim.fluid.eos.thermal_energy_density(pre_supercomoving_code), dtype=float,
         ))
         if hasattr(sim.fluid, "eth"):
             sim.fluid.eth_code[index] = thermal_energy_density
@@ -1283,7 +1283,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     ))) if hasattr(sim.fluid, "AngularMomentum_code") else 0.0
     energy_audit = {
         "step": [0],
-        "time_Gyr": [initial_time * sim.par.CodeUnits.time_unit.to_value("Gyr")],
+        "time_cosmic_Gyr": [initial_time * sim.par.CodeUnits.time_unit.to_value("Gyr")],
         "dt": [0.0],
         "scale_factor": [initial_a],
         **{key: [value] for key, value in audit_initial.items()},
@@ -1418,7 +1418,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         for key, value in audit_state.items():
             energy_audit[key].append(value)
         energy_audit["step"].append(steps)
-        energy_audit["time_Gyr"].append(
+        energy_audit["time_cosmic_Gyr"].append(
             cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")
         )
         energy_audit["dt"].append(dt)
@@ -1462,17 +1462,17 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             while next_snapshot <= cosmic_time + 1.0e-12:
                 next_snapshot += cadence
 
-    times = np.asarray([item["time_Gyr"] for item in gas_profiles])
-    radius = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
-    density = np.asarray([item["density_proper_code"] for item in gas_profiles])
-    temperature = np.asarray(
+    times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])
+    radius_comoving_code = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
+    rho_comoving_code = np.asarray([item["rho_proper_code"] for item in gas_profiles])
+    temperature_proper_cgs_K = np.asarray(
         [item["temperature_physical_cgs_K"] for item in gas_profiles]
     )
-    velocity = np.asarray(
+    vel_supercomoving_code = np.asarray(
         [item["velocity_physical_km_s"] for item in gas_profiles]
     )
     specific_angular_momentum = np.asarray(
-        [item.get("specific_angular_momentum", np.zeros_like(radius))
+        [item.get("specific_angular_momentum", np.zeros_like(radius_comoving_code))
          for item in gas_profiles]
     )
     radial_velocity = np.asarray(
@@ -1482,16 +1482,16 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     plot_exclude_outer_cells = max(
         0, int(example.get("plot_exclude_outer_cells", 0))
     )
-    plot_cell_count = max(1, radius.size - plot_exclude_outer_cells)
-    plot_radius = radius[:plot_cell_count]
-    plot_density = density[:, :plot_cell_count]
-    plot_temperature = temperature[:, :plot_cell_count]
-    plot_velocity = velocity[:, :plot_cell_count]
+    plot_cell_count = max(1, radius_comoving_code.size - plot_exclude_outer_cells)
+    plot_radius = radius_comoving_code[:plot_cell_count]
+    plot_density = rho_comoving_code[:, :plot_cell_count]
+    plot_temperature = temperature_proper_cgs_K[:, :plot_cell_count]
+    plot_velocity = vel_supercomoving_code[:, :plot_cell_count]
     plot_gas_profiles = []
     for profile in gas_profiles:
         trimmed = dict(profile)
         for key in (
-            "radius_proper_kpc", "density_proper_code",
+            "radius_proper_kpc", "rho_proper_code",
             "temperature_physical_cgs_K", "velocity_physical_km_s",
             "radial_velocity_physical_km_s",
             "specific_angular_momentum",
@@ -1511,9 +1511,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     history["scale_factor"] = scale_factors
     data_file = output_dir / (figure_prefix + ".npz")
     np.savez(data_file, **history,
-             radius_comoving_kpc=radius, density_proper_code=density,
-             temperature_physical_cgs_K=temperature,
-             velocity_physical_km_s=velocity,
+             radius_comoving_kpc=radius_comoving_code, rho_proper_code=rho_comoving_code,
+             temperature_physical_cgs_K=temperature_proper_cgs_K,
+             velocity_physical_km_s=vel_supercomoving_code,
              radial_velocity_physical_km_s=radial_velocity,
              specific_angular_momentum=specific_angular_momentum,
              q_cgs_erg_cm3_s=np.asarray([item["q_cgs_erg_cm3_s"] for item in gas_profiles]),
@@ -1553,7 +1553,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     # Gas rows are physical cells; DM rows are shell IDs, padded with NaN when
     # a shell has been absorbed into the unresolved central core.
     per_cell = {
-        "time_Gyr": np.asarray([item["time_Gyr"] for item in gas_profiles]),
+        "time_cosmic_Gyr": np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles]),
         "mass": _pad_energy_history(gas_energy_history, "mass"),
         "total_energy": _pad_energy_history(gas_energy_history, "total"),
         "kinetic_energy": _pad_energy_history(gas_energy_history, "kinetic"),
@@ -1630,10 +1630,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         - per_cell["thermochemistry_energy_change"]
     )
     per_shell = {
-        "time_Gyr": np.asarray([item["time_Gyr"] for item in dm_profiles]),
+        "time_cosmic_Gyr": np.asarray([item["time_cosmic_Gyr"] for item in dm_profiles]),
         "shell_id": _pad_energy_history(dm_energy_history, "id", fill=-1),
-        "radius": _pad_energy_history(dm_energy_history, "radius"),
-        "velocity": _pad_energy_history(dm_energy_history, "velocity"),
+        "radius_comoving_code": _pad_energy_history(dm_energy_history, "radius_comoving_code"),
+        "vel_supercomoving_code": _pad_energy_history(dm_energy_history, "vel_supercomoving_code"),
         "mass": _pad_energy_history(dm_energy_history, "mass"),
         "kinetic_energy": _pad_energy_history(dm_energy_history, "kinetic"),
         "potential_energy": _pad_energy_history(dm_energy_history, "potential"),
@@ -1733,13 +1733,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     dm_data_file = output_dir / (figure_prefix + "_DarkMatterDensities.npz")
     np.savez(
         dm_data_file,
-        time_Gyr=np.asarray([item["time_Gyr"] for item in dm_profiles]),
+        time_cosmic_Gyr=np.asarray([item["time_cosmic_Gyr"] for item in dm_profiles]),
         scale_factor=np.asarray([item["scale_factor"] for item in dm_profiles]),
-        mean_density_code=np.asarray([
+        mean_rho_comoving_code=np.asarray([
             item.get("dm_mean_density_code", np.nan) for item in dm_profiles
         ]),
-        radius_kpc=_pad_profile_history(dm_profiles, "dm_radius_kpc"),
-        density_code=_pad_profile_history(dm_profiles, "dm_density_code"),
+        radius_proper_kpc=_pad_profile_history(dm_profiles, "dm_radius_proper_kpc"),
+        rho_proper_code=_pad_profile_history(dm_profiles, "dm_rho_proper_code"),
         mass=_pad_profile_history(dm_profiles, "dm_mass"),
         total_mass=np.asarray([
             item.get("dm_total_mass", np.nan) for item in dm_profiles
