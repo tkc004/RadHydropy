@@ -154,7 +154,7 @@ def main(config_filename=DEFAULT_CONFIG):
     linestyles = ["-", "--", ":", "-."]
     for density in densities:
         density_results = [
-            result for result in results if result["density"] == density
+            result for result in results if result["rho_proper"] == density
         ]
         equilibrium_temperature = density_results[0]["equilibrium_temperature"]
         fig, (ax_temp, ax_error) = plt.subplots(
@@ -167,7 +167,7 @@ def main(config_filename=DEFAULT_CONFIG):
             label = rf"$T_0={result['initial_temperature']:.0e}\ {{\rm K}}$"
             ax_temp.plot(
                 result["time_yr"],
-                result["temperature"],
+                result["temperature_proper"],
                 color="tab:blue",
                 linestyle=linestyle,
                 linewidth=1.4,

@@ -43,8 +43,8 @@ initial_condition:
   shell_inner: {value: 8.0, unit: kpc}
   shell_outer: {value: 10.0, unit: kpc}
   shell_density: 1.0
-  temperature: {value: 10.0, unit: K}
-  velocity: {value: -300.0, unit: km/s}
+  temperature_proper: {value: 10.0, unit: K}
+  vel_proper: {value: -300.0, unit: km/s}
   mean_molecular_weight: 0.59
 example:
   shell_edge_density_threshold_factor: 1.0

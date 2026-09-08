@@ -6,7 +6,7 @@ par:
     final_time: {value: 1.0, unit: s}
   mesh:
     ghost_cells: 2
-    area: {value: 1.0, unit: cm**2}
+    area_proper: {value: 1.0, unit: cm**2}
   hydrodynamics:
     eos_type: polytropic
     gamma: 1.4
@@ -36,7 +36,7 @@ par:
 initial_condition:
   grid_cells: 1001
   coordinate_system: cartesian
-  box_size: {value: 2.0, unit: cm}
+  box_size_proper: {value: 2.0, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_density: {value: 1.0, unit: g/cm**3}
   explosion_energy: {value: 1.0, unit: erg}

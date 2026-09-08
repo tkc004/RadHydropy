@@ -113,7 +113,7 @@ def _hydrostatic_base_initial_condition(nogrid):
     return {
         "nogrid": nogrid,
         "coordsys": "cartesian",
-        "box_size": 10.0 * unyt.cm,
+        "box_size_proper": 10.0 * unyt.cm,
         "current_time": 0.0 * unyt.s,
         "reference_density": 1.0e-24 * unyt.g / unyt.cm**3,
         "initial_temperature": 1.0e4 * unyt.K,
@@ -292,7 +292,7 @@ class Testing(unittest.TestCase):
         initial_condition = {
             "nogrid": 256,
             "coordsys": "cartesian",
-            "box_size": 10.0 * unyt.pc,
+            "box_size_proper": 10.0 * unyt.pc,
             "current_time": 0.0 * unyt.s,
             "reference_density": 1.0e-24 * unyt.g / unyt.cm**3,
             "initial_temperature": 1.0e4 * unyt.K,

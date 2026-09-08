@@ -7,7 +7,7 @@ par:
   mesh:
     grid_cells: 64
     ghost_cells: 2
-    area: {value: 1.0, unit: cm**2}
+    area_proper: {value: 1.0, unit: cm**2}
   boundary:
     condition: Periodic
     inflow_density: {value: 1.0e-22, unit: g/cm**3}
@@ -67,10 +67,10 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  box_size: {value: 1.0e10, unit: cm}
+  box_size_proper: {value: 1.0e10, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_density: {value: 1.0e-22, unit: g/cm**3}
-  velocity: {value: 0.0, unit: cm/s}
-  temperature: {value: 100.0, unit: K}
+  vel_proper: {value: 0.0, unit: cm/s}
+  temperature_proper: {value: 100.0, unit: K}
   mean_molecular_weight: 1.0
 example: {}

@@ -42,8 +42,8 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  boxsize: {value: 8.0, unit: cm}
-  time: {value: 0.0, unit: s}
+  box_size_comoving: {value: 8.0, unit: cm}
+  time_cosmic: {value: 0.0, unit: s}
   rho_left: 1.0
   rho_right: 0.125
   temp_left: {value: 1.0e-8, unit: K}

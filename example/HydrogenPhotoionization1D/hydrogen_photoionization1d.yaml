@@ -63,10 +63,10 @@ par:
 initial_condition:
   grid_cells: 16
   coordinate_system: cartesian
-  box_size: {value: 1.0, unit: kpc}
+  box_size_proper: {value: 1.0, unit: kpc}
   current_time: {value: 0.0, unit: yr}
   hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
-  temperature: {value: 2.0e4, unit: K}
+  temperature_proper: {value: 2.0e4, unit: K}
   neutral_fraction: 1.0
   photon_number_density: {value: 1.0e-3, unit: 1/cm**3}
   mean_molecular_weight: 1.0

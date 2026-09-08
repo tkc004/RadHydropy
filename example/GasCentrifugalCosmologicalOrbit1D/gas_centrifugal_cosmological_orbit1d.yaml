@@ -50,5 +50,5 @@ initial_condition:
   central_excess_mass: 1.0
   angular_momentum_fraction_of_circular: 0.7
 example:
-  temperature: 1.0e-8
+  temperature_supercomoving_code: 1.0e-8
   timestep: 0.0005

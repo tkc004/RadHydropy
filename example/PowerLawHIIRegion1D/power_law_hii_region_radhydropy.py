@@ -42,7 +42,7 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     code = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     ncell = int(initial['number_of_cells'])
-    box_size_proper_code = quantity_to_value(initial['boxsize'], code.length_unit)
+    box_size_proper_code = quantity_to_value(initial['box_size_proper'], code.length_unit)
     boundary_proper_code = np.linspace(0.0, box_size_proper_code, ncell + 1)
     radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     n_h = density_profile(
@@ -53,7 +53,7 @@ def build_initial_condition(config):
     ) / unyt.cm**3
     sim = Rsim(config["par"])
     sim.par.mesh.grid_cells = ncell
-    sim.par.simulation.box_size = box_size_proper_code
+    sim.par.simulation.box_size_proper_code = box_size_proper_code
     sim.par.simulation.time_proper_code = 0.0
     width_proper_code = np.diff(boundary_proper_code)
     area_proper_code = 4.0 * np.pi * radius_proper_code**2

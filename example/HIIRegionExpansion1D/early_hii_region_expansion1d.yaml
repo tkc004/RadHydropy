@@ -6,7 +6,7 @@ par:
     final_time: {value: 0.14, unit: Myr}
   mesh:
     ghost_cells: 2
-    area: {value: 1.0, unit: cm**2}
+    area_proper: {value: 1.0, unit: cm**2}
   hydrodynamics:
     eos_type: isothermal
     gamma: 1.0
@@ -72,22 +72,22 @@ initial_condition:
   ionized_sound_speed: {value: 12.85, unit: km/s}
   sigma_gamma: {value: 6.3e-18, unit: cm**2}
   alpha_B_coefficient: {value: 2.7e-13, unit: cm**3/s}
-  boxsize: {value: 2.0, unit: pc}
+  box_size_proper: {value: 2.0, unit: pc}
   grid_cells: 2048
   final_time: {value: 0.14, unit: Myr}
   comparison_time: {value: 0.14, unit: Myr}
 
 example:
   output_snapshots:
-  - time: {value: 0.0, unit: Myr}
-  - time: {value: 0.005, unit: Myr}
+  - time_proper: {value: 0.0, unit: Myr}
+  - time_proper: {value: 0.005, unit: Myr}
     label: 0p005
-  - time: {value: 0.010, unit: Myr}
-  - time: {value: 0.020, unit: Myr}
+  - time_proper: {value: 0.010, unit: Myr}
+  - time_proper: {value: 0.020, unit: Myr}
     label: 0p020
-  - time: {value: 0.040, unit: Myr}
-  - time: {value: 0.080, unit: Myr}
+  - time_proper: {value: 0.040, unit: Myr}
+  - time_proper: {value: 0.080, unit: Myr}
     label: 0p080
-  - time: {value: 0.120, unit: Myr}
-  - time: {value: 0.140, unit: Myr}
+  - time_proper: {value: 0.120, unit: Myr}
+  - time_proper: {value: 0.140, unit: Myr}
     label: 0p140

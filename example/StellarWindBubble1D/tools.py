@@ -52,8 +52,8 @@ def build_initial_condition(config):
     grid_cells = int(initial_config['grid_cells'])
     sim = Rsim(config["par"])
     sim.par.simulation.coordinate_system = initial_config['coordinate_system']
-    sim.par.simulation.box_size = np.asarray(
-        quantity_to_value(initial_config['box_size'], code_units.length_unit),
+    sim.par.simulation.box_size_proper_code = np.asarray(
+        quantity_to_value(initial_config['box_size_proper'], code_units.length_unit),
         dtype=float,
     )
     sim.fluid.time_proper_code = float(
@@ -61,7 +61,7 @@ def build_initial_condition(config):
     )
     boundary_proper_cgs_cm = np.linspace(
         initial_config['injection_radius'],
-        initial_config['injection_radius'] + initial_config['box_size'],
+        initial_config['injection_radius'] + initial_config['box_size_proper'],
         grid_cells + 1,
     )
     sim.mesh.boundary_proper_code = as_named_array(
@@ -85,8 +85,8 @@ def build_initial_condition(config):
         volume_proper_code=volume_values,
     )
     sim.fluid.rho_proper_code = initial_config['initial_density'] * np.ones(grid_cells)
-    sim.fluid.vel_proper_code = initial_config['velocity'] * np.ones(grid_cells)
-    sim.fluid.temp_proper_code = initial_config['temperature'] * np.ones(grid_cells)
+    sim.fluid.vel_proper_code = initial_config['vel_proper'] * np.ones(grid_cells)
+    sim.fluid.temp_proper_code = initial_config['temperature_proper'] * np.ones(grid_cells)
     sim.fluid.mu = initial_config['mean_molecular_weight'] * np.ones(grid_cells)
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     for name, unit in (

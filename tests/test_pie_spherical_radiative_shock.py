@@ -31,8 +31,8 @@ def test_spherical_ic_density_is_mass_density():
 
     initial_condition = {
         'nogrid': 4,
-        'boxsize': 19.0 * unyt.kpc,
-        'time': 0.0 * unyt.Myr,
+        'box_size_proper': 19.0 * unyt.kpc,
+        'time_proper': 0.0 * unyt.Myr,
         'rmin': 1.0 * unyt.kpc,
         'rmax': 20.0 * unyt.kpc,
         'hydrogen_density': 1.0e-3 * unyt.cm**-3,

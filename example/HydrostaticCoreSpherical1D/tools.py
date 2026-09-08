@@ -8,7 +8,7 @@ from radhydropy.constants import (
     GRAVITATIONAL_CONSTANT_CGS,
     PROTON_MASS_CGS,
 )
-from radhydropy.units import code_unit_scales, quantity_to_value
+from radhydropy.units import CodeUnits, code_unit_scales, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 from radhydropy.rsim import Rsim
 
@@ -25,16 +25,17 @@ def spherical_cell_centers(boundary_proper_code):
 
 
 def point_mass_density(
-    radius, rho_ref, temperature, mu, point_mass, reference_radius,
+    radius_unyt, rho_ref_unyt, temperature_unyt, mu_dimensionless,
+    point_mass_unyt, reference_radius_unyt,
 ):
     """Exact isothermal hydrostatic density around a point mass."""
-    radius_cgs_cm = np.asarray(radius.to_value(unyt.cm), dtype=float)
-    ref_cm = float(reference_radius.to_value(unyt.cm))
-    rho_ref_cgs = float(rho_ref.to_value(unyt.g / unyt.cm**3))
-    mass_g = float(point_mass.to_value(unyt.g))
+    radius_cgs_cm = np.asarray(radius_unyt.to_value(unyt.cm), dtype=float)
+    ref_cm = float(reference_radius_unyt.to_value(unyt.cm))
+    rho_ref_cgs = float(rho_ref_unyt.to_value(unyt.g / unyt.cm**3))
+    mass_g = float(point_mass_unyt.to_value(unyt.g))
     sound_speed_squared = (
-        BOLTZMANN_CONSTANT_CGS * float(temperature.to_value(unyt.K))
-        / (float(mu) * PROTON_MASS_CGS)
+        BOLTZMANN_CONSTANT_CGS * float(temperature_unyt.to_value(unyt.K))
+        / (float(mu_dimensionless) * PROTON_MASS_CGS)
     )
     potential_difference = (
         -GRAVITATIONAL_CONSTANT_CGS * mass_g / radius_cgs_cm
@@ -48,14 +49,15 @@ def point_mass_density(
 class InitialCondition(Rsim):
     """Minimal HDF5-compatible analytic initial-condition container."""
 
-    def __init__(self, config, code_unit_system):
+    def __init__(self, config):
+        code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
         initial_condition = config["initial_condition"]
         grid_cells = int(config["par"]["mesh"]["grid_cells"])
         super().__init__(config["par"])
         self.par.mesh.grid_cells = grid_cells
         self.par.simulation.coordinate_system = "spherical"
         self.par.simulation.time_proper_code = 0.0
-        self.par.simulation.box_size = np.asarray(
+        self.par.simulation.box_size_proper_code = np.asarray(
             [float(initial_condition["outer_radius"].to_value(code_unit_system.length_unit))]
         )
 
@@ -107,9 +109,10 @@ class InitialCondition(Rsim):
         self.solver.SetConserved(self.mesh, self.fluid, verbose=0)
 
 
-def analytic_density_code(radius_code, config, code_unit_system):
+def analytic_density_code(radius_code, config):
+    code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     initial_condition = config["initial_condition"]
-    density = point_mass_density(
+    rho_proper_unyt = point_mass_density(
         np.asarray(radius_code) * code_unit_system.length_unit,
         initial_condition["reference_density"],
         initial_condition["initial_temperature"],
@@ -117,4 +120,4 @@ def analytic_density_code(radius_code, config, code_unit_system):
         initial_condition["point_mass"],
         float(radius_code[0]) * code_unit_system.length_unit,
     )
-    return quantity_to_value(density, code_unit_system.density_unit)
+    return quantity_to_value(rho_proper_unyt, code_unit_system.density_unit)

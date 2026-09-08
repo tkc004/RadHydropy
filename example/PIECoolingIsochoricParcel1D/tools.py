@@ -20,10 +20,10 @@ def build_initial_condition(config):
     result = Rsim(config['par'])
     result.par.simulation.coordinate_system = initial['coordinate_system']
     result.par.simulation.time_proper_code = quantity_to_value(initial['current_time'], code_units.time_unit)
-    result.par.simulation.box_size = quantity_to_value(initial['box_size'], code_units.length_unit)
-    boxsize_code = result.par.simulation.box_size
-    dx_code = boxsize_code / grid_cells
-    boundary_code = as_named_array(np.linspace(dx_code, boxsize_code + dx_code, grid_cells + 1))
+    result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
+    box_size_proper_code = result.par.simulation.box_size_proper_code
+    dx_code = box_size_proper_code / grid_cells
+    boundary_code = as_named_array(np.linspace(dx_code, box_size_proper_code + dx_code, grid_cells + 1))
     width_code = np.diff(boundary_code)
     volume_code = 4.0 * np.pi / 3.0 * (boundary_code[1:] ** 3 - boundary_code[:-1] ** 3)
     coordinate_code = 0.75 * (boundary_code[1:] ** 4 - boundary_code[:-1] ** 4) / (boundary_code[1:] ** 3 - boundary_code[:-1] ** 3)

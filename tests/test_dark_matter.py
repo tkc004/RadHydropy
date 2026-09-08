@@ -368,10 +368,12 @@ def test_dark_matter_snapshot_group_is_written():
         def __init__(self):
             self.CodeUnits = units
             self.time = np.array([0.0])
-            self.boxsize = np.array([2.0])
+            self.box_size_proper_code = np.array([2.0])
             self.dark_matter = dm
             self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
-            self.simulation = SimpleNamespace(box_size=self.boxsize, time_code=self.time)
+            self.simulation = SimpleNamespace(
+                box_size_proper_code=self.box_size_proper_code, time_code=self.time
+            )
             self.units = SimpleNamespace(CodeUnits=units)
     class State:
         par = ParForIO()
@@ -424,10 +426,12 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
         def __init__(self):
             self.CodeUnits = units
             self.time = np.array([0.0])
-            self.boxsize = np.array([2.0])
+            self.box_size_proper_code = np.array([2.0])
             self.dark_matter = dm
             self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
-            self.simulation = SimpleNamespace(box_size=self.boxsize, time_code=self.time)
+            self.simulation = SimpleNamespace(
+                box_size_proper_code=self.box_size_proper_code, time_code=self.time
+            )
             self.units = SimpleNamespace(CodeUnits=units)
 
     class State:

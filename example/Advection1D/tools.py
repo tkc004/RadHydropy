@@ -17,7 +17,7 @@ def build_initial_condition(config):
     sim = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
-    box_size_code = quantity_to_value(initial['box_size'], code_units.length_unit)
+    box_size_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     boundary_proper_code = np.linspace(0.0, box_size_code, grid_cells + 1)
     coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
 
@@ -61,7 +61,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     last = first + int(rout.par.mesh.grid_cells)
     x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[:-1] + rout.mesh.boundary_proper_code[1:])
     x_physical = x_proper_code[first:last]
-    box_size = quantity_to_value(initial['box_size'], code_units_obj.length_unit)
+    box_size = quantity_to_value(initial['box_size_proper'], code_units_obj.length_unit)
     velocity = quantity_to_value(initial['initial_velocity'], code_units_obj.velocity_unit)
     time_proper_code = float(np.asarray(rout.fluid.time_proper_code).flat[0])
     launch = np.mod(x_physical - velocity * time_proper_code, box_size)

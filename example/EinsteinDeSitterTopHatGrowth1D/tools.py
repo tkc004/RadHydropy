@@ -43,9 +43,9 @@ def build_initial_condition(config):
     sim = Rsim(config['par'])
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
-    boxsize_code = quantity_to_value(initial_condition['boxsize'], code_units.length_unit)
+    boxsize_code = quantity_to_value(initial_condition['box_size_proper'], code_units.length_unit)
     cosmic_time = float(initial_condition['cosmic_time'])
-    sim.par.simulation.box_size = np.ones(1) * boxsize_code
+    sim.par.simulation.box_size_comoving_code = np.ones(1) * boxsize_code
     sim.par.simulation.coordinate_system = 'spherical'
     scale_factor = cosmology.scale_factor(cosmic_time)
     hubble = cosmology.hubble(cosmic_time)

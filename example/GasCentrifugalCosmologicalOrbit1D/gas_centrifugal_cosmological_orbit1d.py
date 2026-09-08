@@ -67,8 +67,15 @@ def prepare_initial_condition(initial):
 
 
 class CosmologicalInitialCondition(Rsim):
-    def __init__(self, par_config, count, radius_min, radius_max, density, temperature,
-                 specific_j, code_unit_system):
+    def __init__(self, config, specific_j):
+        par_config = config['par']
+        initial_condition = config['initial_condition']
+        code_unit_system = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+        count = int(par_config['mesh']['grid_cells'])
+        radius_min = float(initial_condition['radius_min'])
+        radius_max = float(initial_condition['radius_max'])
+        density = float(initial_condition['rho_proper'])
+        temperature = float(initial_condition['temperature_supercomoving_code'])
         super().__init__(par_config)
         self.mesh.boundary_comoving_code = np.linspace(radius_min, radius_max, count + 1)
         self.mesh.x_comoving_code = 0.75 * (
@@ -115,10 +122,7 @@ def run_rsim(config):
         initial_boundary[1:]**4 - initial_boundary[:-1]**4
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
     circular_j_profile = np.full(count, float(j))
-    initial = CosmologicalInitialCondition(
-        par, count, 0.5, 1.5, 1.0, float(example_config['temperature']),
-        circular_j_profile, units
-    )
+    initial = CosmologicalInitialCondition(config, circular_j_profile)
     prepare_initial_condition(initial)
     initial.par.cosmology = cosmology
     filename = ROOT / par['simulation']['initial_condition_filename']

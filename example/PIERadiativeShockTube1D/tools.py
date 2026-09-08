@@ -4,9 +4,10 @@ import numpy as np
 import unyt
 
 from radhydropy.arrays import as_named_array
+import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value
 from basic_hydro_utils import finalize_initial_condition
 
 
@@ -23,18 +24,18 @@ def build_initial_condition(config):
     result = Rsim(config["par"])
     result.par.simulation.coordinate_system = initial['coordinate_system']
     result.par.simulation.time_proper_code = quantity_to_value(initial['current_time'], code_units.time_unit)
-    result.par.simulation.box_size = quantity_to_value(initial['box_size'], code_units.length_unit)
+    result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     grid_cells = int(par['mesh']['grid_cells'])
     result.par.mesh.grid_cells = grid_cells
     result.par.mesh.ghost_cells = int(par['mesh']['ghost_cells'])
-    boxsize = initial['box_size']
+    box_size_proper_unyt = initial['box_size_proper']
     boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0 * boxsize, boxsize, grid_cells + 1), code_units.length_unit
+        np.linspace(0.0 * box_size_proper_unyt, box_size_proper_unyt, grid_cells + 1), code_units.length_unit
     ))
     width = np.diff(boundary_proper_code)
     x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     midpoint_proper_code = quantity_to_value(
-        0.5 * boxsize, code_units.length_unit
+        0.5 * box_size_proper_unyt, code_units.length_unit
     )
     result.mesh.boundary_proper_code = boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
@@ -71,29 +72,35 @@ def build_initial_condition(config):
     return result
 
 
-def _physical_cells(data, header):
-    noghost = int(header.attrs.get('GhostCells', 0))
-    nogrid = int(header.attrs['GridCells'])
-    return slice(noghost, noghost + nogrid)
-
-
-def load_snapshot(filename):
-    import h5py
-
-    with h5py.File(filename, 'r') as handle:
-        data = handle['Data']
-        header = handle['Header']
-        physical = _physical_cells(data, header)
-        noghost = int(header.attrs.get('GhostCells', 0))
-        nogrid = int(header.attrs['GridCells'])
-        boundary_proper_code = np.asarray(data['boundary_proper_code'][()])[noghost:noghost + nogrid + 1]
-        return {
-            'time_Myr': float(header['time_proper_code'][()]) / SECONDS_PER_MYR,
-            'boundary_cgs_cm': boundary_proper_code,
-            'density_cgs_g_cm3': np.asarray(data['rho_proper_code'][()])[physical],
-            'velocity_cgs_cm_s': np.asarray(data['vel_proper_code'][()])[physical],
-            'temperature_cgs_K': np.asarray(data['temp_proper_code'][()])[physical],
-        }
+def load_snapshot(filename, config):
+    """Load one snapshot through the configured canonical runtime state."""
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    count = int(snapshot.par.mesh.grid_cells)
+    physical = slice(first, first + count)
+    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
+        first:first + count + 1
+    ]
+    return {
+        'time_Myr': (
+            float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
+            * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
+        ),
+        'boundary_cgs_cm': boundary_proper_code * float(
+            code_units.length_unit.to_value('cm')
+        ),
+        'density_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
+            code_units.density_unit.to_value('g/cm**3')
+        ),
+        'velocity_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
+            code_units.velocity_unit.to_value('cm/s')
+        ),
+        'temperature_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
+            code_units.temperature_unit.to_value('K')
+        ),
+    }
 
 
 def strong_shock_expectation(gamma, upstream_velocity_cgs_cm_s, mu):

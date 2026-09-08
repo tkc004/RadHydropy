@@ -26,24 +26,24 @@ def build_initial_condition(config):
     result = Rsim(config["par"])
     code_units = result.par.units.CodeUnits
     grid_cells = int(par["mesh"]["grid_cells"])
-    boxsize_code = float(
+    box_size_comoving_code = float(
         initial_condition.get(
-            "boxsize", par["simulation"].get("box_size", 1.0)
+            "box_size_comoving", par["simulation"].get("box_size_comoving", 1.0)
         ).to_value(code_units.length_unit)
         if hasattr(
             initial_condition.get(
-                "boxsize", par["simulation"].get("box_size", 1.0)
+                "box_size_comoving", par["simulation"].get("box_size_comoving", 1.0)
             ),
             "to_value",
         )
         else initial_condition.get(
-            "boxsize", par["simulation"].get("box_size", 1.0)
+            "box_size_comoving", par["simulation"].get("box_size_comoving", 1.0)
         )
     )
     initial_time_code = float(
-        initial_condition.get("time", 0.0).to_value(code_units.time_unit)
-        if hasattr(initial_condition.get("time", 0.0), "to_value")
-        else initial_condition.get("time", 0.0)
+        initial_condition.get("time_cosmic", 0.0).to_value(code_units.time_unit)
+        if hasattr(initial_condition.get("time_cosmic", 0.0), "to_value")
+        else initial_condition.get("time_cosmic", 0.0)
     )
     initial_tau_supercomoving_code = config.get(
         "_initial_tau_supercomoving_code"
@@ -56,7 +56,7 @@ def build_initial_condition(config):
         [float(initial_tau_supercomoving_code)]
     )
     result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
-    result.par.simulation.box_size = boxsize_code
+    result.par.simulation.box_size_comoving_code = box_size_comoving_code
     result.par.simulation.coordinate_system = par["simulation"].get(
         "coordinate_system", "cartesian"
     )
@@ -80,7 +80,7 @@ def build_initial_condition(config):
     if boundary_override is None:
         boundary_start_code = float(config.get("_boundary_start_code", 0.0))
         boundary = np.linspace(
-            boundary_start_code, boundary_start_code + boxsize_code,
+            boundary_start_code, boundary_start_code + box_size_comoving_code,
             grid_cells + 1,
         )
     else:
@@ -112,7 +112,7 @@ def build_initial_condition(config):
         )
 
     if "rho_left" in initial_condition:
-        left = result.mesh.x_comoving_code < 0.5 * boxsize_code
+        left = result.mesh.x_comoving_code < 0.5 * box_size_comoving_code
         rho_comoving_code = np.where(
             left, float(initial_condition["rho_left"]),
             float(initial_condition["rho_right"]),

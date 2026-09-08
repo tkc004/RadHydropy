@@ -48,7 +48,7 @@ par:
     cosmology_a_ref: 1.0
     externalgravity: false
 initial_condition:
-  box_size: {value: 800.0, unit: kpc}
+  box_size_proper: {value: 800.0, unit: kpc}
   inner_radius: {value: 0.15, unit: kpc}
   outer_radius: {value: 800.0, unit: kpc}
   initial_cosmic_time: 0.1

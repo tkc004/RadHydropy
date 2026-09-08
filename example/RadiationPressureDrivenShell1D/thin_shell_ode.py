@@ -42,15 +42,15 @@ def _build_initial_condition(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     if grid_cells != 1:
         raise ValueError('thin-shell IC requires exactly one active grid cell')
-    sim.par.simulation.box_size = quantity_to_value(
-        initial['box_size'], code.length_unit
+    sim.par.simulation.box_size_proper_code = quantity_to_value(
+        initial['box_size_proper'], code.length_unit
     )
     sim.par.simulation.time_proper_code = 0.0
     boundary_proper_code = as_named_array(quantity_to_value(
-        np.array([0.0, initial['box_size'].to_value(unyt.cm)]) * unyt.cm,
+        np.array([0.0, initial['box_size_proper'].to_value(unyt.cm)]) * unyt.cm,
         code.length_unit,
     ))
-    area_proper_code = quantity_to_value(config["par"]['mesh']['area'], code.area_unit)
+    area_proper_code = quantity_to_value(config["par"]['mesh']['area_proper'], code.area_unit)
     width = np.diff(boundary_proper_code)
     volume_proper_code = width * area_proper_code
     sim.mesh.boundary_proper_code = boundary_proper_code
@@ -68,7 +68,7 @@ def _build_initial_condition(config):
     )
     sim.fluid.vel_proper_code = as_named_array(np.zeros(1, dtype=float))
     sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.array([initial['temperature']]), code.temperature_unit
+        np.array([initial['temperature_proper']]), code.temperature_unit
     ))
     sim.fluid.mu = np.ones(1)
     sim.fluid.SetFluidTime(0.0)
@@ -107,8 +107,8 @@ def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwar
     sim._sync_hydro_state()
     sim.fluid.time_proper_code += dt
     interior = sim.par.mesh.ghost_cells
-    shell_state["velocity"] = float(sim.fluid.vel_proper_code[interior])
-    shell_state["radius"] += shell_state["velocity"] * float(dt)
+    shell_state["vel_proper"] = float(sim.fluid.vel_proper_code[interior])
+    shell_state["radius_proper"] += shell_state["vel_proper"] * float(dt)
     return {"dt": dt, "hydro_steps": 0, "source_steps": 1}
 
 
@@ -145,8 +145,8 @@ def main(config_filename=DEFAULT_CONFIG):
 
     def record(simulation):
         interior = simulation.par.mesh.ghost_cells
-        history["time"].append(float(simulation.fluid.time_proper_code))
-        history["radius"].append(shell_state["radius"])
+        history["time_proper"].append(float(simulation.fluid.time_proper_code))
+        history["radius_proper"].append(shell_state["radius_proper"])
         history["momentum"].append(float(simulation.fluid.Mom_code[interior]))
 
     record(sim)
@@ -169,10 +169,10 @@ def main(config_filename=DEFAULT_CONFIG):
         step_backend=step_backend,
     )
 
-    time_s = np.asarray(history["time"]) * float(
+    time_s = np.asarray(history["time_proper"]) * float(
         (1.0 * sim.par.units.CodeUnits.time_unit).to_value(unyt.s)
     )
-    radius_cgs_cm = np.asarray(history["radius"])
+    radius_cgs_cm = np.asarray(history["radius_proper"])
     momentum = np.asarray(history["momentum"]) * float(
         (1.0 * sim.par.units.CodeUnits.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s)
     )

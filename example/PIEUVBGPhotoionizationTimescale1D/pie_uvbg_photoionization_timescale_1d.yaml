@@ -49,8 +49,8 @@ par:
 initial_condition:
   nogrid: 1
   coordsys: cartesian
-  boxsize: {value: 1.0, unit: pc}
-  time: {value: 0.0, unit: yr}
+  box_size_proper: {value: 1.0, unit: pc}
+  time_proper: {value: 0.0, unit: yr}
   tempini: {value: 2.0e4, unit: K}
   muini: 0.62
   hydrogen_mass_fraction: 0.7

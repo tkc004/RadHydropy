@@ -113,9 +113,9 @@ def test_nested_unitful_settings_are_converted_to_code_units():
         "simulation": {
             "final_time": 2.0e13 * unyt.s,
             "current_time": 1.0e13 * unyt.s,
-            "box_size": 3.0e18 * unyt.cm,
+            "box_size_proper": 3.0e18 * unyt.cm,
         },
-        "mesh": {"grid_cells": 4, "ghost_cells": 2, "area": 2.0e36 * unyt.cm**2},
+        "mesh": {"grid_cells": 4, "ghost_cells": 2, "area_proper": 2.0e36 * unyt.cm**2},
         "hydrodynamics": {
             "positivity_density_floor": 4.0e-21 * unyt.g / unyt.cm**3,
         },
@@ -180,8 +180,8 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     sim.ConvertParametersToCodeUnits()
     assert sim.par.simulation.final_time == pytest.approx(2.0)
     assert sim.par.simulation.time_code == pytest.approx(1.0)
-    assert sim.par.simulation.box_size == pytest.approx(3.0)
-    assert sim.par.area == pytest.approx(2.0)
+    assert sim.par.simulation.box_size_proper_code == pytest.approx(3.0)
+    assert sim.par.area_proper == pytest.approx(2.0)
     assert sim.par.boundary.inflow_density == pytest.approx(3.0)
     assert sim.par.boundary.inflow_velocity == pytest.approx(2.0)
     assert sim.par.boundary.inflow_temperature == pytest.approx(400.0)

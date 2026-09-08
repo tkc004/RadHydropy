@@ -67,12 +67,12 @@ def build_static_problem(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
-    sim.par.simulation.box_size = float(
-        quantity_to_value(initial['boxsize'], code_units.length_unit)
+    sim.par.simulation.box_size_proper_code = float(
+        quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     )
     sim.par.simulation.time_proper_code = 0.0
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['boxsize'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
+        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units.length_unit,
     ))
     boundary_proper_code = sim.mesh.boundary_proper_code
@@ -119,7 +119,7 @@ def _refresh_mesh_geometry(mesh, par):
         mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         if getattr(par.mesh, 'area', None) is not None:
             mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(
-                par.mesh.area, code_units.area_unit
+                par.mesh.area_proper, code_units.area_unit
             )
         else:
             mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
@@ -164,7 +164,7 @@ def load_output_state(outputfilename, config):
     rio.readhdf5(par, mesh, fluid, outputfilename)
     code_units_obj = par.units.CodeUnits
     par.time_proper_code = float(np.asarray(par.time_proper_code, dtype=float))
-    par.simulation.box_size = float(np.asarray(par.box_size_proper_code, dtype=float))
+    par.simulation.box_size_proper_code = float(np.asarray(par.box_size_proper_code, dtype=float))
     mesh.boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
     fluid.rho_proper_code = np.asarray(fluid.rho_proper_code, dtype=float)
     fluid.vel_proper_code = np.asarray(fluid.vel_proper_code, dtype=float)
@@ -292,7 +292,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     interior = interior_slice(par)
     radius_kpc = _radius_kpc(mesh.x_proper_code[interior], par)
     radius = radius_kpc * unyt.kpc
-    plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = 1.0 - xHI
     xHI_analytic = sa.neutral_fraction_profile(
@@ -367,7 +367,7 @@ def save_front_history_plot(history, config, figure_filename):
     example = config.get('example', {})
     time_Myr = np.asarray(history['time_Myr'])
     front_radius_kpc = np.asarray(history['front_radius_kpc'])
-    plot_radius_max = example.get('plot_radius_max', initial['boxsize']).to_value(unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
     time = time_Myr * unyt.Myr
     analytic_front = sa.ionization_front_radius(
         time,

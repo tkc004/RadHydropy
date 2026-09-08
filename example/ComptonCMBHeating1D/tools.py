@@ -19,10 +19,10 @@ def build_initial_condition(config):
     result.par.mesh.grid_cells = int(mesh['grid_cells'])
     result.par.simulation.coordinate_system = simulation['coordinate_system']
     result.par.simulation.time_proper_code = initial['current_time']
-    result.par.simulation.box_size = initial['box_size']
+    result.par.simulation.box_size_proper_code = initial['box_size_proper']
     result.mesh.boundary_proper_code = np.linspace(
         0.0, 1.0, result.par.mesh.grid_cells + 1
-    ) * initial['box_size']
+    ) * initial['box_size_proper']
     density_proper_cgs_g_cm3_unyt = (
         np.ones(result.par.mesh.grid_cells) * initial['hydrogen_density'] * unyt.mp
     )

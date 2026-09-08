@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/radhydropy-matplotlib')
 ROOT = Path(__file__).resolve().parent
@@ -20,7 +19,6 @@ import numpy as np
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
 from shell_remap import centrifugal_shell_reference
@@ -59,24 +57,24 @@ def spherical_centers(boundary_proper_code):
 
 
 class InitialCondition(Rsim):
-    def __init__(self, par_config, count, radius_min, radius_max, density, temperature,
+    def __init__(self, par_config, count, radius_min, radius_max, rho_proper_code, temp_proper_code,
                  central_mass, rotation_factor, code_unit_system):
         super().__init__(par_config)
         self.par.mesh.ghost_cells = 0
         boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
-        radius = spherical_centers(boundary_proper_code)
+        radius_proper_code = spherical_centers(boundary_proper_code)
         self.mesh.boundary_proper_code = boundary_proper_code
-        self.mesh.x_proper_code = radius
+        self.mesh.x_proper_code = radius_proper_code
         self.mesh.width_proper_code = np.diff(boundary_proper_code)
         self.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
         self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
-        self.fluid.rho_proper_code = np.full(count, density)
+        self.fluid.rho_proper_code = np.full(count, rho_proper_code)
         self.fluid.vel_proper_code = np.zeros(count)
-        self.fluid.temp_proper_code = np.full(count, temperature)
+        self.fluid.temp_proper_code = np.full(count, temp_proper_code)
         self.fluid.mu = np.ones(count)
-        self.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(central_mass * radius)
+        self.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(central_mass * radius_proper_code)
         self.mesh.geometry_state = MeshGeometryState.from_arrays(
-            PROPER_RUNTIME_FIELDS, x_proper_code=radius, boundary_proper_code=boundary_proper_code,
+            PROPER_RUNTIME_FIELDS, x_proper_code=radius_proper_code, boundary_proper_code=boundary_proper_code,
             width_proper_code=self.mesh.width_proper_code, area_proper_code=self.mesh.area_proper_code,
             volume_proper_code=self.mesh.volume_proper_code,
         )
@@ -90,17 +88,17 @@ class FixedCentralGravity:
         self.central_mass = central_mass
 
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
-        radius = np.abs(np.asarray(mesh.x_proper_code, dtype=float))
-        acceleration = np.zeros_like(radius)
-        valid = radius > 0.0
-        acceleration[valid] = -self.central_mass / radius[valid]**2
+        radius_proper_code = np.abs(np.asarray(mesh.x_proper_code, dtype=float))
+        acceleration = np.zeros_like(radius_proper_code)
+        valid = radius_proper_code > 0.0
+        acceleration[valid] = -self.central_mass / radius_proper_code[valid]**2
         return acceleration
 
     def potential_on(self, x_proper_code):
-        radius = np.abs(np.asarray(x_proper_code, dtype=float))
-        potential = np.zeros_like(radius)
-        valid = radius > 0.0
-        potential[valid] = -self.central_mass / radius[valid]
+        radius_proper_code = np.abs(np.asarray(x_proper_code, dtype=float))
+        potential = np.zeros_like(radius_proper_code)
+        valid = radius_proper_code > 0.0
+        potential[valid] = -self.central_mass / radius_proper_code[valid]
         return potential
 
     def potential_on_mesh(self, mesh):
@@ -115,11 +113,10 @@ def run_simulation(config):
     count = int(par['mesh']['grid_cells'])
     initial = InitialCondition(
         par, count, float(initial_condition['radius_min']), float(initial_condition['radius_max']),
-        float(initial_condition['density']), float(example_config['temperature']),
+        float(initial_condition['rho_proper_code']), float(example_config['temperature_proper_code']),
         float(initial_condition['central_mass']), float(initial_condition['rotation_factor']),
         units,
     )
-    prepare_initial_condition(initial)
     prepare_initial_condition(initial)
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
@@ -139,12 +136,10 @@ def run_simulation(config):
     final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
-    final_par = sim.par
-    final_mesh = SimpleNamespace()
-    final_fluid = SimpleNamespace()
-    rio.readhdf5(final_par, final_mesh, final_fluid, final_filename)
+    final_sim = Rsim(config["par"])
+    rio.readhdf5(final_sim.par, final_sim.mesh, final_sim.fluid, final_filename)
     return (
-        sim, final_mesh, final_fluid, initial_mass, initial_energy,
+        sim, final_sim.mesh, final_sim.fluid, initial_mass, initial_energy,
         initial_radius, float(sim.cumulative_gravity_work),
         float(sim.cumulative_gravity_potential_change),
         float(sim.cumulative_gravity_potential_flux),
@@ -160,7 +155,6 @@ def main(config_filename=CONFIG):
      initial_radius, cumulative_gravity_work, cumulative_potential_change,
      cumulative_potential_flux) = run_simulation(config)
     active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
-    radius = np.asarray(sim.mesh.x_proper_code[active], dtype=float)
     central_mass = float(initial_condition['central_mass'])
     rotation_factor = float(initial_condition['rotation_factor'])
     final_time = float(sim.fluid.time_proper_code)
@@ -172,18 +166,18 @@ def main(config_filename=CONFIG):
         source_boundary,
         source_boundary,
         final_time,
-        float(initial_condition['density']),
+        float(initial_condition['rho_proper_code']),
         central_mass,
         rotation_factor,
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
-    ode_velocity = reference['velocity']
+    vel_proper_code_reference = reference['vel_proper']
     ode_j = reference['specific_angular_momentum']
     saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_energy = np.asarray(saved.Energy_code[active], dtype=float)
-    velocity_error = float(np.max(np.abs(saved_velocity - ode_velocity)))
+    velocity_error = float(np.max(np.abs(saved_velocity - vel_proper_code_reference)))
     j_error = float(np.max(np.abs(saved_j - ode_j)))
     mass_error = float(
         abs(np.sum(saved_mass) - np.sum(initial_mass))
@@ -219,12 +213,12 @@ def main(config_filename=CONFIG):
             % (energy_error / energy_scale)
         )
 
-    density = np.asarray(saved.rho_proper_code[active], dtype=float)
-    temperature = np.asarray(saved.temp_proper_code[active], dtype=float)
+    rho_proper_code = np.asarray(saved.rho_proper_code[active], dtype=float)
+    temp_proper_code = np.asarray(saved.temp_proper_code[active], dtype=float)
     mu = np.asarray(saved.mu[active], dtype=float)
-    pressure = np.asarray(sim.fluid.eos.pressure(density, temperature, mu), dtype=float)
+    pre_proper_code = np.asarray(sim.fluid.eos.pressure(rho_proper_code, temp_proper_code, mu), dtype=float)
     pressure_ratio = np.divide(
-        pressure / np.maximum(density, np.finfo(float).tiny),
+        pre_proper_code / np.maximum(rho_proper_code, np.finfo(float).tiny),
         central_mass / np.maximum(saved_radius, np.finfo(float).tiny),
     )
     figure = ROOT / par['output']['savedir'] / 'GasCentrifugalHydroExpansion1D.jpg'
@@ -232,9 +226,9 @@ def main(config_filename=CONFIG):
     fig, axes = plt.subplots(2, 3, figsize=(15, 7))
     axes = axes.flat
     axes[0].plot(saved_radius, saved_velocity, ':o', markersize=4, label='Rsim')
-    axes[0].plot(saved_radius, ode_velocity, '--', label='pressureless shell ODE')
+    axes[0].plot(saved_radius, vel_proper_code_reference, '--', label='pressureless shell ODE')
     axes[0].set_ylabel('radial velocity')
-    axes[1].plot(saved_radius, density, ':o', markersize=4, label='Rsim density')
+    axes[1].plot(saved_radius, rho_proper_code, ':o', markersize=4, label='Rsim density')
     axes[1].set_ylabel('density')
     axes[2].plot(saved_radius, saved_j, ':o', markersize=4, label='Rsim $J/M$')
     axes[2].plot(saved_radius, ode_j, '--', label='advected shell $j$')

@@ -42,7 +42,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     initial_condition = config['initial_condition']
     code_units = et.code_units_from_config(config)
-    shell = et.make_shell(initial_condition, code_units)
+    shell = et.make_shell(config)
     g_code = (
         6.67430e-8 * code_units.mass_in_cgs
         / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)

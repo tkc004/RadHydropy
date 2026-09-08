@@ -82,7 +82,7 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
 
     runtime_only = {
         'final_time', 'number_of_cells', 'evolution_timestep',
-        'chemistry_timestep', 'box_size', 'coordinate_system',
+        'chemistry_timestep', 'box_size_proper', 'coordinate_system',
         'current_time', 'grid_cells', 'initial_temperature',
         'mean_molecular_weight',
     }
@@ -142,13 +142,13 @@ def main(config_filename=DEFAULT_CONFIG):
         # values can trigger a misleading sliver/spike artifact in some
         # Matplotlib backends when the temperature is nearly uniform.
         radius_scale = 1.0e15
-        radius_initial = initial["radius"] / radius_scale
-        radius_final = final["radius"] / radius_scale
+        radius_initial = initial["radius_proper"] / radius_scale
+        radius_final = final["radius_proper"] / radius_scale
         # Remove round-off-level differences before the logarithmic plot;
         # otherwise the renderer can amplify 1e-11 K noise into visible
         # downward spikes.
-        temperature_initial = np.round(initial["temperature"], decimals=6)
-        temperature_final = np.round(final["temperature"], decimals=6)
+        temperature_initial = np.round(initial["temperature_proper"], decimals=6)
+        temperature_final = np.round(final["temperature_proper"], decimals=6)
         expected_style = {
             "linestyle": "None",
             "marker": "s",
@@ -169,13 +169,13 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         axes[1, column].plot(
             radius_initial,
-            initial["density"],
+            initial["rho_proper"],
             label="expected",
             **expected_style,
         )
         axes[1, column].plot(
             radius_final,
-            final["density"],
+            final["rho_proper"],
             label="simulation",
             **simulation_style,
         )

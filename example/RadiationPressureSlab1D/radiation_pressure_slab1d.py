@@ -43,20 +43,20 @@ def build_initial_condition(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
-    sim.par.simulation.box_size = quantity_to_value(
-        initial['box_size'], code_units.length_unit
+    sim.par.simulation.box_size_proper_code = quantity_to_value(
+        initial['box_size_proper'], code_units.length_unit
     )
     sim.par.simulation.time_proper_code = quantity_to_value(
         initial.get('current_time', 0.0 * unyt.s), code_units.time_unit
     )
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['box_size'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
+        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units.length_unit,
     ))
     boundary_proper_code = sim.mesh.boundary_proper_code
     width_proper_code = np.diff(boundary_proper_code)
     area_proper_code = np.ones(grid_cells) * quantity_to_value(
-        config["par"]['mesh']['area'], code_units.area_unit
+        config["par"]['mesh']['area_proper'], code_units.area_unit
     )
     volume_proper_code = width_proper_code * area_proper_code
     coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
@@ -72,10 +72,10 @@ def build_initial_condition(config):
         np.ones(grid_cells) * initial['initial_density'], code_units.density_unit
     ))
     sim.fluid.vel_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['velocity'], code_units.velocity_unit
+        np.ones(grid_cells) * initial['vel_proper'], code_units.velocity_unit
     ))
     sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['temperature'], code_units.temperature_unit
+        np.ones(grid_cells) * initial['temperature_proper'], code_units.temperature_unit
     ))
     sim.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
     sim.fluid.xHI = np.ones(

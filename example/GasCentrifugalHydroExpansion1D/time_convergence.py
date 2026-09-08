@@ -39,7 +39,7 @@ def total_energy_error(config):
         source_boundary,
         source_boundary,
         final_time,
-        float(initial_condition['density']),
+        float(initial_condition['rho_proper_code']),
         central_mass,
         rotation_factor,
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),

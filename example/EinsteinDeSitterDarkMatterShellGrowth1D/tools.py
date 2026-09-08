@@ -16,7 +16,15 @@ def volume_midpoint_boundaries(rmin, rmax, number):
     return boundaries**(1.0 / 3.0)
 
 
-def make_shells(initial_condition, code_unit_system, cosmology, overdensity=None):
+def make_shells(config, overdensity=None):
+    initial_condition = config['initial_condition']
+    code_unit_system = code_units_from_config(config)
+    gravity = config['par']['gravity']
+    cosmology = EinsteinDeSitter.from_code_units(
+        code_unit_system,
+        t_ref=float(gravity['cosmology_t_ref']),
+        a_ref=float(gravity['cosmology_a_ref']),
+    )
     default_number = int(initial_condition.get('number_of_shells', 2))
     number_inner = int(initial_condition.get('number_of_inner_shells', default_number // 2))
     number_outer = int(initial_condition.get('number_of_outer_shells', number_inner))

@@ -25,10 +25,10 @@ par:
         UnitTemp_in_cgs: 1.0
 initial_condition:
   coordsys: spherical
-  boxsize: {value: 1.0, unit: pc}
+  box_size_proper: {value: 1.0, unit: pc}
   rmin: {value: 0.0, unit: pc}
   rmax: {value: 1.0, unit: pc}
-  time: {value: 0.0, unit: s}
+  time_proper: {value: 0.0, unit: s}
   rho0: {value: 1.0e-20, unit: g/cm**3}
   tempini: {value: 10.0, unit: K}
   muini: 1.0

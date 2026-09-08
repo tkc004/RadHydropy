@@ -16,15 +16,15 @@ def build_initial_condition(config):
     grid_cells = int(par['mesh']['grid_cells'])
     result = Rsim(config["par"])
     code_units = result.par.units.CodeUnits
-    result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
-    result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
+    result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
+    result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     result.par.simulation.coordinate_system = initial['coordsys']
     result.par.mesh.grid_cells = grid_cells
     result.par.mesh.ghost_cells = int(par['mesh'].get('ghost_cells', 0))
-    boxsize = initial['boxsize']
-    dx = boxsize / grid_cells
+    box_size_proper_unyt = initial['box_size_proper']
+    dx = box_size_proper_unyt / grid_cells
     boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(dx, boxsize + dx, grid_cells + 1), code_units.length_unit
+        np.linspace(dx, box_size_proper_unyt + dx, grid_cells + 1), code_units.length_unit
     ))
     width = np.diff(boundary_proper_code)
     x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
@@ -47,9 +47,9 @@ def build_initial_condition(config):
     ))
     if hasattr(hydrogen_density_cgs_cm3, 'to_value'):
         hydrogen_density_cgs_cm3 = hydrogen_density_cgs_cm3.to_value(1 / unyt.cm**3)
-    rho_proper_cgs_g_cm3 = float(hydrogen_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
+    rho_proper = float(hydrogen_density_cgs_cm3) * proton_mass_g / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * rho_proper_cgs_g_cm3 * unyt.g / unyt.cm**3, code_units.density_unit
+        np.ones(grid_cells) * rho_proper * unyt.g / unyt.cm**3, code_units.density_unit
     ))
     result.fluid.mu = np.ones(grid_cells) * initial['muini']
     result.fluid.time_proper_code = 0.0

@@ -7,7 +7,7 @@ par:
   mesh:
     grid_cells: 128
     ghost_cells: 16
-    area: {value: 1.0, unit: cm**2}
+    area_proper: {value: 1.0, unit: cm**2}
   boundary:
     condition: OutflowSph
     outflow_density: {value: 2.1064555e-24, unit: g/cm**3}
@@ -72,7 +72,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  box_size: {value: 20.0, unit: pc}
+  box_size_proper: {value: 20.0, unit: pc}
   initial_radius: {value: 0.05, unit: pc}
   current_time: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 100.0, unit: 1/cm**3}

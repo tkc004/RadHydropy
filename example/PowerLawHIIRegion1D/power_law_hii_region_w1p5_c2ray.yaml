@@ -7,7 +7,7 @@ par:
   mesh:
     grid_cells: 1024
     ghost_cells: 2
-    area: {value: 1.0, unit: cm**2}
+    area_proper: {value: 1.0, unit: cm**2}
   hydrodynamics:
     eos_type: isothermal
     gamma: 1.0
@@ -66,7 +66,7 @@ par:
     time_list_filename: output_times_w1p5.txt
 initial_condition:
   number_of_cells: 1024
-  boxsize: {value: 5.0, unit: pc}
+  box_size_proper: {value: 5.0, unit: pc}
   initial_temperature: {value: 100.0, unit: K}
   neutral_temperature: {value: 100.0, unit: K}
   ionized_temperature: {value: 1.0e4, unit: K}

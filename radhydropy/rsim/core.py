@@ -339,7 +339,7 @@ class Rsim():
         print("--- %s seconds ---" % (
             time.time() - getattr(self, "_start_time", time.time())
         ))
-        ru.CheckDimension(self.par.simulation.box_size, 1.0 * unyt.pc)
+        ru.CheckDimension(self.par.simulation.box_size_proper_code, 1.0 * unyt.pc)
         ru.CheckDimension(
             self.par.hydrodynamics.gamma,
             1.0,

@@ -75,7 +75,7 @@ def _case_diagnostics(config_filename):
     shock_radius = []
     gamma_eff = []
     for filename, time in zip(files, times):
-        snapshot = load_snapshot(filename)
+        snapshot = load_snapshot(filename, config)
         index = locate_shock(
             snapshot, halo['virial_radius'].to_value(unyt.kpc)
         )

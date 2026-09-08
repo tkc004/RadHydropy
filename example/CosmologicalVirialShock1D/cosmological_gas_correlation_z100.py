@@ -983,14 +983,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if not np.isclose(initial_temperature, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
 
-    local = dict(config["par"])
-    local["simulation"] = dict(config["par"]["simulation"])
-    local["output"] = dict(config["par"]["output"])
-    local["simulation"]["initial_condition_filename"] = str(ic_filename)
-    local["output"]["directory"] = str(output_dir)
-    local["output"]["savedir"] = str(output_dir)
-    config = dict(config)
-    config["par"] = local
+    config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
+    config["par"]["output"]["directory"] = str(output_dir)
+    config["par"]["output"]["savedir"] = str(output_dir)
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()

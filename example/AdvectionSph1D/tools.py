@@ -14,7 +14,7 @@ def build_initial_condition(config):
     initial = config["initial_condition"]
     units = config["_code_units"]
     n = int(initial["grid_cells"])
-    size = quantity_to_value(initial["box_size"], units.length_unit)
+    size = quantity_to_value(initial["box_size_proper"], units.length_unit)
     boundary_proper_code = np.linspace(size / n, size + size / n, n + 1)
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
     rho_proper_code = np.full(n, quantity_to_value(initial["initial_density"], units.density_unit))
@@ -38,7 +38,7 @@ def ReadandPlot(filename, config, **kwargs):
         coordinate_proper_code[first:last],
         time_proper_code,
         quantity_to_value(config["initial_condition"]["initial_velocity"], units.velocity_unit),
-        quantity_to_value(config["initial_condition"]["box_size"], units.length_unit),
+        quantity_to_value(config["initial_condition"]["box_size_proper"], units.length_unit),
         quantity_to_value(config["initial_condition"]["initial_density"], units.density_unit),
     )
     plt.plot(coordinate_proper_code[first:last] * units.length_unit,

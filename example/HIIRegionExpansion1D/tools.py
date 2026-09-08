@@ -2,7 +2,6 @@
 
 import glob
 import os
-from types import SimpleNamespace
 from pathlib import Path
 
 import matplotlib
@@ -16,150 +15,49 @@ import radhydropy.radiative_transfer as rrt
 import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.thermo_networks.hydrogen as rth
 import radhydropy.io as rio
-from radhydropy.eos import EOS
-from radhydropy.fluid import Fluid
-from radhydropy.mesh import Mesh
-from radhydropy.solver import Solver
+from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.runtime_fields import FluidRuntimeState, MeshGeometryState, PROPER_RUNTIME_FIELDS
+from basic_hydro_utils import make_initial_condition
 
 
 def build_problem(config):
     """Build the H II initial state from direct nested configuration groups."""
-
-    simulation = config["par"]['simulation']
-    mesh_config = config["par"]['mesh']
-    hydro = config["par"]['hydrodynamics']
-    boundary = config["par"]['boundary']
-    timestep = config["par"]['timestep']
-    output = config["par"]['output']
-    chemistry = config["par"]['chemistry']
-    thermochemistry = config["par"]['thermochemistry']
-    radiation = config["par"]['radiation']
     initial = config['initial_condition']
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
-    grid_cells = initial['grid_cells']
-    box_size = initial['boxsize']
-    par = SimpleNamespace(
-        coordsys=simulation['coordinate_system'],
-        boundcond=boundary['condition'],
-        nogrid=grid_cells,
-        noghost=mesh_config.get('ghost_cells', 2),
-        boxsize=box_size,
-        outdir=output['directory'],
-        outfileprefix=output['filename_prefix'],
-        savedir=output.get('savedir', output['directory']),
-        outputtimefilename=output.get('time_list_filename'),
-        verbose=config["par"].get('diagnostics', {}).get('verbose', 0),
-        timesim=simulation['final_time'],
-        area=mesh_config.get('area', 1.0 * unyt.cm**2),
-        EOStype=hydro['eos_type'],
-        gamma=hydro['gamma'],
-        CFL=hydro['CFL'],
-        order=hydro['order'],
-        dtmin=timestep['dtmin'],
-        dtmax=timestep['dtmax'],
-        hydrogen_chemistry=thermochemistry.get('hydrogen_chemistry', True),
-        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
-        hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
-        hydrogen_xHI_inflow=chemistry.get('hydrogen_xHI_inflow', 1.0),
-        hydrogen_xHI_outflow=chemistry.get('hydrogen_xHI_outflow', 1.0),
-        hydrogen_source_CFL=timestep.get('hydrogen_source_CFL'),
-        hydrogen_source_dtmin=timestep.get('hydrogen_source_dtmin'),
-        hydrogen_update_mu=chemistry.get('hydrogen_update_mu', True),
-        hydrogen_thermal_coupling=thermochemistry.get('hydrogen_thermal_coupling', False),
-        hydrogen_recombination=thermochemistry.get('hydrogen_recombination', True),
-        hydrogen_collisional_ionization=thermochemistry.get('hydrogen_collisional_ionization', False),
-        hydrogen_alpha_B=chemistry['hydrogen_alpha_B'],
-        hydrogen_beta=chemistry['hydrogen_beta'],
-        hydrogen_radiation_field=radiation.get('hydrogen_radiation_field', False),
-        hydrogen_radiation_evolution=radiation.get('hydrogen_radiation_evolution', False),
-        hydrogen_ngamma_initial=radiation.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3),
-        hydrogen_sigma_gamma=radiation['hydrogen_sigma_gamma'],
-        hydrogen_epsilon_gamma=radiation['hydrogen_epsilon_gamma'],
-        radiative_transfer=radiation.get('radiative_transfer', True),
-        radiative_transfer_method=radiation.get('method', 'long_characteristics'),
-        radiative_transfer_temporal_scheme=radiation.get('temporal_scheme', 'c2ray'),
-        radiative_transfer_c2ray_max_iterations=radiation.get('c2ray_max_iterations', 32),
-        radiative_transfer_c2ray_tolerance=radiation.get('c2ray_tolerance', 1.0e-6),
-        radiative_transfer_c2ray_relaxation=radiation.get('c2ray_relaxation', 1.0),
-        radiative_transfer_c2ray_nonconvergence=radiation.get('c2ray_nonconvergence', 'warn'),
-        radiative_transfer_boundary_flux=radiation['boundary_flux'],
-        radiative_transfer_source_photon_rate=radiation['source_photon_rate'],
-        radiative_transfer_direction=radiation.get('direction', 1),
-        CodeUnits=code_units,
-        unit_system=code_units.unit_system,
-    )
-    par.mesh = SimpleNamespace(ghost_cells=par.noghost, grid_cells=grid_cells, area=par.area)
-    par.simulation = SimpleNamespace(
-        coordinate_system=par.coordsys,
-        final_time=par.timesim,
-        initial_condition_filename=simulation['initial_condition_filename'],
-        time_proper_code=initial.get('current_time', 0.0 * unyt.Myr),
-        box_size=box_size,
-    )
-    par.hydrodynamics = SimpleNamespace(
-        eos_type=par.EOStype, gamma=par.gamma, CFL=par.CFL, order=par.order,
-        riemann_solver=hydro.get('riemann_solver', 'Rusanov'),
-    )
-    par.units = SimpleNamespace(CodeUnits=code_units)
-    par.boundary = SimpleNamespace(condition=par.boundcond)
-    par.timestep = SimpleNamespace(dtmin=par.dtmin, dtmax=par.dtmax)
-    par.output = SimpleNamespace(
-        directory=par.outdir, filename_prefix=par.outfileprefix,
-        cadence=output.get('cadence'), time_list_filename=par.outputtimefilename,
-    )
-    par.radiation = SimpleNamespace(
-        radiative_transfer=par.radiative_transfer,
-        method=par.radiative_transfer_method,
-        temporal_scheme=par.radiative_transfer_temporal_scheme,
-        direction=par.radiative_transfer_direction,
-        boundary_flux=par.radiative_transfer_boundary_flux,
-        source_photon_rate=par.radiative_transfer_source_photon_rate,
-    )
-    mesh = Mesh()
+    grid_cells = int(config["par"]['mesh']['grid_cells'])
     boundary_proper_cgs_cm_unyt = np.linspace(
-        0.0, box_size.to_value(unyt.cm), grid_cells + 1
+        0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1
     ) * unyt.cm
     boundary_proper_code = boundary_proper_cgs_cm_unyt.to_value(code_units.length_unit)
-    mesh.boundary_proper_code = boundary_proper_code
-    mesh.x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-    mesh.width_proper_code = np.diff(boundary_proper_code)
-    mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
-    mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
-    mesh.runtime_fields = PROPER_RUNTIME_FIELDS
-    mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=mesh.x_proper_code,
-        boundary_proper_code=mesh.boundary_proper_code,
-        width_proper_code=mesh.width_proper_code,
-        area_proper_code=mesh.area_proper_code,
-        volume_proper_code=mesh.volume_proper_code,
-    )
-    fluid = Fluid()
-    fluid.eos = EOS(par.EOStype, par.gamma, code_units)
-    fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(
+    density_proper_code = np.ones(grid_cells) * quantity_to_value(
         initial['rho_initial'], code_units.density_unit
     )
-    fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
-    fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(
+    temperature_proper_code = np.ones(grid_cells) * quantity_to_value(
         initial['neutral_temperature'], code_units.temperature_unit
     )
-    fluid.mu = np.ones(grid_cells)
-    fluid.xHI = np.ones(grid_cells)
-    fluid.SetFluidTime(initial.get('current_time', 0.0 * unyt.Myr))
-    fluid.pre_proper_code = fluid.eos.pressure(
-        fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+    sim = make_initial_condition(
+        config,
+        boundary_proper_code=boundary_proper_code,
+        rho_proper_code=density_proper_code,
+        vel_proper_code=np.zeros(grid_cells),
+        temp_proper_code=temperature_proper_code,
+        mu_dimensionless=np.ones(grid_cells),
     )
-    fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    fluid._refresh_runtime_state()
-    return par, mesh, fluid, Solver()
+    sim.fluid.xHI = np.ones(grid_cells)
+    radiation = config["par"]['radiation']
+    sim.fluid.ngamma_code = np.full(
+        grid_cells,
+        quantity_to_value(radiation.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3), code_units.number_density_unit),
+    )
+    sim.fluid._refresh_runtime_state()
+    return sim.par, sim.mesh, sim.fluid, sim.solver
 
 
 def write_initial_condition(config):
     """Build the raw IC state and write it to ``ICfilename``."""
-    par, mesh, fluid, _ = build_problem(config)
-    sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+    par, mesh, fluid, solver = build_problem(config)
+    sim = Rsim.FromComponents(par, mesh, fluid, solver)
     icfilename = config['par']['simulation']['initial_condition_filename']
     Path(icfilename).unlink(missing_ok=True)
     rio.writehdf5(sim, icfilename)
@@ -168,43 +66,23 @@ def write_initial_condition(config):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    code_units_obj = par.CodeUnits
-    par.time_proper_code = np.asarray(
-        par.time_proper_code, dtype=float
-    ) * code_units_obj.time_unit
-    par.box_size_proper_code = np.asarray(
-        par.box_size_proper_code, dtype=float
-    ) * code_units_obj.length_unit
-    fluid.time_proper_code = np.asarray(
-        fluid.time_proper_code, dtype=float
-    ) * code_units_obj.time_unit
-    mesh.boundary_proper_code = np.asarray(
-        mesh.boundary_proper_code, dtype=float
-    ) * code_units_obj.length_unit
-    fluid.rho_proper_code = np.asarray(fluid.rho_proper_code, dtype=float) * code_units_obj.density_unit
-    fluid.vel_proper_code = np.asarray(fluid.vel_proper_code, dtype=float) * code_units_obj.velocity_unit
-    fluid.temp_proper_code = np.asarray(fluid.temp_proper_code, dtype=float) * code_units_obj.temperature_unit
-    if hasattr(fluid, 'ngamma_code'):
-        if not hasattr(fluid.ngamma_code, 'units'):
-            fluid.ngamma_code = (
-                np.asarray(fluid.ngamma_code, dtype=float)
-                * code_units_obj.number_density_unit
-            )
     # ``readhdf5`` restores the saved boundary and fluid state, but it does not
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's
     # actual coordinates instead of the constructor-time placeholders.
-    boundary = mesh.boundary_proper_code
-    if par.coordsys == 'cartesian':
+    boundary = np.asarray(mesh.boundary_proper_code, dtype=float)
+    if par.simulation.coordinate_system == 'cartesian':
         mesh.width_proper_code = boundary[1:] - boundary[:-1]
         mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
         mesh.x_proper_code = 0.5 * (boundary[1:] + boundary[:-1])
-        if hasattr(par, 'area'):
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * par.area
+        if hasattr(par.mesh, 'area'):
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * float(
+                np.asarray(par.mesh.area_proper, dtype=float)
+            )
         else:
             mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
-    elif par.coordsys == 'spherical':
+    elif par.simulation.coordinate_system == 'spherical':
         mesh.width_proper_code = boundary[1:] - boundary[:-1]
         mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
         mesh.area_proper_code = (boundary[:-1] ** 2) * 4.0 * np.pi
@@ -690,7 +568,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.set_xlabel('Radius [pc]')
     ax.set_ylabel(r'Density [g cm$^{-3}$]')
     ax.set_title('Density profile at %.3f Myr' % snapshot['time_Myr'])
-    ax.set_xlim(0.0, config['initial_condition']['boxsize'].to_value(unyt.pc))
+    ax.set_xlim(0.0, config['initial_condition']['box_size_proper'].to_value(unyt.pc))
     positive_density = density_cgs_g_cm3[density_cgs_g_cm3 > 0.0]
     if positive_density.size:
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_density)))

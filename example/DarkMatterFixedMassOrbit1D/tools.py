@@ -8,7 +8,9 @@ def code_units_from_config(config):
     return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 
-def make_shell(initial_condition, code_unit_system):
+def make_shell(config):
+    initial_condition = config['initial_condition']
+    code_unit_system = code_units_from_config(config)
     return DarkMatterShells(
         radius=[initial_condition['initial_radius']],
         velocity=[initial_condition['initial_velocity']],

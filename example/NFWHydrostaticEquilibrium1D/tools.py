@@ -116,8 +116,8 @@ def build_initial_condition(config):
     initial_condition = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    box_size = initial_condition['boxsize'] if 'boxsize' in initial_condition else initial_condition['box_size']
-    time_value = initial_condition['time'] if 'time' in initial_condition else initial_condition['current_time']
+    box_size_proper_unyt = initial_condition['box_size_proper']
+    time_value = initial_condition['time_proper']
     radius_min = initial_condition['rmin'] if 'rmin' in initial_condition else initial_condition['inner_radius']
     radius_max = initial_condition['rmax'] if 'rmax' in initial_condition else initial_condition['outer_radius']
     boundary_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * (radius_max - radius_min) + radius_min

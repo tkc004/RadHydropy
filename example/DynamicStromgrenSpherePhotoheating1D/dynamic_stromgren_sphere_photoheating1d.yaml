@@ -7,7 +7,7 @@ par:
   mesh:
     grid_cells: 1024
     ghost_cells: 2
-    area: {value: 1.0, unit: cm**2}
+    area_proper: {value: 1.0, unit: cm**2}
   boundary:
     condition: OpenSph
   hydrodynamics:
@@ -63,7 +63,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  box_size: {value: 20.0, unit: kpc}
+  box_size_proper: {value: 20.0, unit: kpc}
   current_time: {value: 0.0, unit: Myr}
   hydrogen_number_density: {value: 1.0e-3, unit: 1/cm**3}
   initial_temperature: {value: 100.0, unit: K}

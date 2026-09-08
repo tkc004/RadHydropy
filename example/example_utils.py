@@ -111,12 +111,12 @@ def snapshot_physical_fields(hdf5_filename):
             radius = 0.5 * (boundary_comoving_code[:-1] + boundary_comoving_code[1:])
             return {
                 'boundary_proper_cgs_cm': physical_radius(boundary_comoving_code, scale_factor),
-                'radius_proper_cgs_cm': physical_radius(radius, scale_factor),
-                'rho_proper_cgs_g_cm3': physical_density(density_comoving_code, scale_factor),
+                'radius_proper': physical_radius(radius, scale_factor),
+                'rho_proper': physical_density(density_comoving_code, scale_factor),
                 'vel_peculiar_proper_cgs_cm_s': physical_velocity(
                     velocity_supercomoving_code, radius, scale_factor, hubble
                 ),
-                'temperature_proper_cgs_K': physical_temperature(
+                'temperature_proper': physical_temperature(
                     temperature_supercomoving_code, scale_factor, gamma
                 ),
             }
@@ -193,8 +193,8 @@ def write_radial_profile_csv(hdf5_filename, csv_filename=None):
         if physical_values:
             boundaries = np.asarray(fields['boundary_proper_cgs_cm'], dtype=float)
             velocity = np.asarray(fields['vel_peculiar_proper_cgs_cm_s'], dtype=float)
-            density = np.asarray(fields['rho_proper_cgs_g_cm3'], dtype=float)
-            temperature = np.asarray(fields['temperature_proper_cgs_K'], dtype=float)
+            density = np.asarray(fields['rho_proper'], dtype=float)
+            temperature = np.asarray(fields['temperature_proper'], dtype=float)
         else:
             boundaries = np.asarray(fields['boundary_proper_code'], dtype=float)
             velocity = np.asarray(fields['vel_proper_code'], dtype=float)

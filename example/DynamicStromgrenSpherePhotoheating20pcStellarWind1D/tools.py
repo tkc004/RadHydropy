@@ -55,11 +55,11 @@ def build_static_problem(config):
     par.boundary.outflow_temperature = example['wind_temperature']
     par.boundary.outflow_mu = example['wind_mu']
 
-    boxsize_cm = initial['box_size'].to_value(unyt.cm)
+    box_size_proper_cgs_cm = initial['box_size_proper'].to_value(unyt.cm)
     rinj_cm = example['rinj'].to_value(unyt.cm)
     boundary_proper_cgs_cm_unyt = np.linspace(
         rinj_cm,
-        rinj_cm + boxsize_cm,
+        rinj_cm + box_size_proper_cgs_cm,
         config['par']['mesh']['grid_cells'] + 1,
     ) * unyt.cm
     mesh.boundary_proper_code = quantity_to_value(

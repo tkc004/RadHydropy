@@ -11,7 +11,9 @@ import numpy as np
 import unyt
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
-from radhydropy.units import quantity_to_value
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits, quantity_to_value
 from basic_hydro_utils import make_initial_condition
 
 
@@ -140,7 +142,7 @@ def build_initial_condition(config):
         + weight * np.log(rho_cold.to_value(unyt.g / unyt.cm**3))
     )
     density_proper_cgs_g_cm3_unyt = np.exp(log_density) * unyt.g / unyt.cm**3
-    temperature_proper_cgs_K_unyt = (
+    temperature_proper_unyt = (
         (1.0 - weight) * hot_temperature.to_value(unyt.K)
         + weight * temperature_cold.to_value(unyt.K)
     ) * unyt.K
@@ -149,30 +151,42 @@ def build_initial_condition(config):
         boundary_proper_code=quantity_to_value(boundary_proper_cgs_cm_unyt, code_units.length_unit),
         rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
         vel_proper_code=quantity_to_value(weight * inflow_velocity, code_units.velocity_unit),
-        temp_proper_code=quantity_to_value(temperature_proper_cgs_K_unyt, code_units.temperature_unit),
+        temp_proper_code=quantity_to_value(temperature_proper_unyt, code_units.temperature_unit),
         mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])),
     )
 
-def load_snapshot(filename):
+def load_snapshot(filename, config):
     """Load physical cells from a RadHydropy snapshot in CGS units."""
-    with h5py.File(filename, 'r') as handle:
-        header = handle['Header'].attrs
-        header_group = handle['Header']
-        data = handle['Data']
-        nogrid = int(header['GridCells'])
-        noghost = int(header.get('GhostCells', (len(data['rho_proper_code']) - nogrid) // 2))
-        physical = slice(noghost, noghost + nogrid)
-        boundary = np.asarray(data['boundary_proper_code'])[noghost:noghost + nogrid + 1]
-        centers = 0.75 * (
-            boundary[1:]**4 - boundary[:-1]**4
-        ) / (boundary[1:]**3 - boundary[:-1]**3)
-        return {
-            'time_Myr': float(header_group['time_proper_code'][()]) / SECONDS_PER_MYR,
-            'radius_kpc': centers / KPC_CM,
-            'density_cgs_g_cm3': np.asarray(data['rho_proper_code'])[physical],
-            'velocity_km_s': np.asarray(data['vel_proper_code'])[physical] / 1.0e5,
-            'temperature_cgs_K': np.asarray(data['temp_proper_code'])[physical],
-        }
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    count = int(snapshot.par.mesh.grid_cells)
+    physical = slice(first, first + count)
+    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
+        first:first + count + 1
+    ]
+    centers_proper_code = 0.75 * (
+        boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4
+    ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+    return {
+        'time_Myr': (
+            float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
+            * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
+        ),
+        'radius_kpc': centers_proper_code * float(
+            code_units.length_unit.to_value('cm')
+        ) / KPC_CM,
+        'density_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
+            code_units.density_unit.to_value('g/cm**3')
+        ),
+        'velocity_km_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
+            code_units.velocity_unit.to_value('cm/s')
+        ) / 1.0e5,
+        'temperature_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
+            code_units.temperature_unit.to_value('K')
+        ),
+    }
 
 
 def locate_shock(snapshot, r200_kpc):
@@ -210,12 +224,12 @@ def locate_shock(snapshot, r200_kpc):
     return index
 
 
-def shock_history(filenames, halo, times_myr=None):
+def shock_history(filenames, halo, config, times_myr=None):
     """Return shock radius and jump diagnostics from saved snapshots."""
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     rows = []
     for file_index, filename in enumerate(filenames):
-        snapshot = load_snapshot(filename)
+        snapshot = load_snapshot(filename, config)
         if times_myr is not None:
             snapshot['time_Myr'] = float(times_myr[file_index])
         index = locate_shock(snapshot, r200)
@@ -274,7 +288,7 @@ def pie_stability_diagnostics(
 ):
     """Compare simulated post-shock states with finite-Mach estimates."""
 
-    profiles = [load_snapshot(name) for name in filenames]
+    profiles = [load_snapshot(name, config) for name in filenames]
     r200 = halo['virial_radius'].to_value(unyt.kpc)
     indices = [locate_shock(profile, r200) for profile in profiles]
     radii = [
@@ -459,6 +473,7 @@ def plot_stability_diagnostics(rows, filename):
 
 def plot_comparison(
     adiabatic_files, pie_files, halo, filename,
+    config,
     adiabatic_times_myr=None, pie_times_myr=None,
 ):
     """Plot profiles and shock histories for the settling and PIE stages."""
@@ -472,7 +487,7 @@ def plot_comparison(
         selected = np.unique(np.linspace(0, len(files) - 1, 6, dtype=int))
         colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(selected)))
         for color, index in zip(colors, selected):
-            snapshot = load_snapshot(files[index])
+            snapshot = load_snapshot(files[index], config)
             if times_myr is not None:
                 snapshot['time_Myr'] = float(times_myr[index])
             radius = snapshot['radius_kpc'] / r200
@@ -481,7 +496,7 @@ def plot_comparison(
                               label=plot_label)
             axes[row, 1].plot(radius, snapshot['temperature_cgs_K'], color=color)
             axes[row, 2].plot(radius, snapshot['velocity_km_s'], color=color)
-        history = shock_history(files, halo, times_myr=times_myr)
+        history = shock_history(files, halo, config, times_myr=times_myr)
         if history:
             axes[row, 3].plot(
                 [item['time_Myr'] for item in history],

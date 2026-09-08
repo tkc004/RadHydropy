@@ -1,12 +1,12 @@
 """Initial conditions and diagnostics for a gravity-free spherical PIE shock."""
 
-import h5py
 import numpy as np
 import unyt
 from radhydropy.arrays import as_named_array
+import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value
 from basic_hydro_utils import finalize_initial_condition
 
 
@@ -27,8 +27,8 @@ def build_initial_condition(config):
         config['par'] = dict(config['par'])
         config['par']['units'] = {'CodeUnits': code_units.to_dict()}
     result = Rsim(config["par"])
-    result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
-    result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
+    result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
+    result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     result.par.simulation.coordinate_system = 'spherical'
     result.par.mesh.grid_cells = grid_cells
     boundary_proper_code = as_named_array(quantity_to_value(
@@ -73,29 +73,35 @@ def build_initial_condition(config):
     return result
 
 
-def physical_cells(header):
-    noghost = int(header.attrs.get('GhostCells', 0))
-    nogrid = int(header.attrs['GridCells'])
-    return slice(noghost, noghost + nogrid)
-
-
-def load_snapshot(filename):
-    with h5py.File(filename, 'r') as handle:
-        data = handle['Data']
-        header = handle['Header']
-        physical = physical_cells(header)
-        noghost = int(header.attrs.get('GhostCells', 0))
-        nogrid = int(header.attrs['GridCells'])
-        boundary_proper_code = np.asarray(
-            data['boundary_proper_code'][()]
-        )[noghost:noghost + nogrid + 1]
-        return {
-            'time_Myr': float(header['time_proper_code'][()]) / SECONDS_PER_MYR,
-            'boundary_cgs_cm': boundary_proper_code,
-            'density_cgs_g_cm3': np.asarray(data['rho_proper_code'][()])[physical],
-            'velocity_cgs_cm_s': np.asarray(data['vel_proper_code'][()])[physical],
-            'temperature_cgs_K': np.asarray(data['temp_proper_code'][()])[physical],
-        }
+def load_snapshot(filename, config):
+    """Load one snapshot through the configured canonical runtime state."""
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    count = int(snapshot.par.mesh.grid_cells)
+    physical = slice(first, first + count)
+    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
+        first:first + count + 1
+    ]
+    return {
+        'time_Myr': (
+            float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
+            * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
+        ),
+        'boundary_cgs_cm': boundary_proper_code * float(
+            code_units.length_unit.to_value('cm')
+        ),
+        'density_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
+            code_units.density_unit.to_value('g/cm**3')
+        ),
+        'velocity_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
+            code_units.velocity_unit.to_value('cm/s')
+        ),
+        'temperature_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
+            code_units.temperature_unit.to_value('K')
+        ),
+    }
 
 
 def shock_radius(snapshot):
@@ -110,10 +116,10 @@ def shock_radius(snapshot):
     return float(centers[index] / KPC_CM)
 
 
-def shock_history(filenames, output_interval_myr=None):
+def shock_history(filenames, config, output_interval_myr=None):
     rows = []
     for filename in filenames:
-        snapshot = load_snapshot(filename)
+        snapshot = load_snapshot(filename, config)
         if output_interval_myr is None:
             time_myr = snapshot['time_Myr']
         else:

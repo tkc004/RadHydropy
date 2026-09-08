@@ -1,6 +1,7 @@
 """Sod shock tube in an expanding Einstein--de Sitter background."""
 
 import argparse
+import copy
 from pathlib import Path
 import sys
 
@@ -65,9 +66,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     case_config = copy.deepcopy(config)
     initial_condition = config["initial_condition"]
     if riemann_solver is not None:
-        case_config["par"] = {**case_config["par"], "hydrodynamics": {**case_config["par"]["hydrodynamics"], "riemann_solver": riemann_solver}}
+        case_config["par"]["hydrodynamics"]["riemann_solver"] = riemann_solver
     if dual_energy is not None:
-        case_config["par"] = {**case_config["par"], "hydrodynamics": {**case_config["par"]["hydrodynamics"], "dual_energy": dual_energy}}
+        case_config["par"]["hydrodynamics"]["dual_energy"] = dual_energy
     output = case_config["par"]["output"]
     output_dir = Path(output["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -91,19 +92,14 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         )
     case_config["_code_cosmology"] = code_cosmology
     case_config["_initial_tau_supercomoving_code"] = 0.0
-    boxsize_code = float(initial_condition["boxsize"].to_value(units.length_unit))
+    boxsize_code = float(initial_condition["box_size_comoving"].to_value(units.length_unit))
     case_config["_boundary_start_code"] = -boxsize_code / int(
         case_config["par"]["mesh"]["grid_cells"]
     )
     initial = build_cosmological_initial_condition(case_config)
     ic_filename = output_dir / "InitialCondition.hdf5"
     rio.writehdf5(initial, ic_filename)
-    case_config["par"] = {key: (dict(value) if isinstance(value, dict) else value)
-                           for key, value in case_config["par"].items()}
-    case_config["par"]["simulation"] = {
-        **case_config["par"]["simulation"],
-        "initial_condition_filename": str(ic_filename),
-    }
+    case_config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
     sim = Rsim(case_config["par"])
     sim.par.set_cosmology_model(initial.par.cosmology)
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
@@ -134,7 +130,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         raise RuntimeError("cosmological Sod shock did not heat the gas")
 
     radius, density, temperature, _, _ = profiles[-1]
-    gamma = float(runtime["hydrodynamics"]["gamma"])
+    gamma = float(case_config["par"]["hydrodynamics"]["gamma"])
     pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
     pressure_left = float(initial_condition["rho_left"]) * float(
         initial_condition["temp_left"].to_value("K")
@@ -165,9 +161,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         velocity_shock,
         final_tau,
         radius,
-        0.5 * float(initial_condition["boxsize"].to_value(units.length_unit)),
+        0.5 * float(initial_condition["box_size_comoving"].to_value(units.length_unit)),
     )
-    interface = 0.5 * float(initial_condition["boxsize"].to_value(units.length_unit))
+    interface = 0.5 * float(initial_condition["box_size_comoving"].to_value(units.length_unit))
     central = (radius > interface - 2.0) & (radius < interface + 2.0)
     density_l1 = float(np.mean(np.abs(density[central] - rho_exact[central])))
     if density_l1 > 0.04:

@@ -138,7 +138,7 @@ def build_static_problem(config):
     units = config['_code_units']
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     box_size_proper_code = quantity_to_value(
-        initial['box_size'], units.length_unit
+        initial['box_size_proper'], units.length_unit
     )
     boundary_proper_code = np.linspace(0.0, box_size_proper_code, grid_cells + 1)
     density_proper_code = np.full(
@@ -177,121 +177,6 @@ def build_static_problem(config):
         xHI_dimensionless=sim.fluid.xHI,
     )
     return sim
-
-    # Retained below only as historical context; unreachable legacy setup.
-
-    simulation = config["par"]['simulation']
-    mesh_config = config["par"]['mesh']
-    hydro = config["par"]['hydrodynamics']
-    boundary = config["par"]['boundary']
-    timestep = config["par"]['timestep']
-    output = config["par"]['output']
-    chemistry = config["par"]['chemistry']
-    thermo = config["par"]['thermochemistry']
-    radiation = config["par"]['radiation']
-    initial = config['initial_condition']
-    code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
-    par = SimpleNamespace(
-        coordsys=simulation.get('coordinate_system', 'spherical'),
-        boundcond=boundary.get('condition', 'OpenSph'),
-        nogrid=mesh_config['grid_cells'],
-        noghost=mesh_config.get('ghost_cells', 2),
-        boxsize=initial['box_size'],
-        verbose=config["par"].get('diagnostics', {}).get('verbose', 0),
-        area=mesh_config.get('area', 1.0 * unyt.cm**2),
-        EOStype=hydro.get('eos_type', 'polytropic'),
-        gamma=hydro.get('gamma', 5.0 / 3.0),
-        CFL=hydro.get('CFL', 0.1),
-        order=0,
-        dtmin=timestep['dtmin'],
-        dtmax=timestep['dtmax'],
-        hydrogen_chemistry=chemistry.get('hydrogen_chemistry', True),
-        hydrogen_mass_fraction=chemistry.get('hydrogen_mass_fraction', 1.0),
-        hydrogen_xHI_initial=chemistry.get('hydrogen_xHI_initial', 1.0),
-        hydrogen_xHI_inflow=chemistry.get('hydrogen_xHI_inflow', 1.0),
-        hydrogen_xHI_outflow=chemistry.get('hydrogen_xHI_outflow', 1.0),
-        hydrogen_source_CFL=timestep.get('hydrogen_source_CFL', 0.1),
-        hydrogen_source_dtmin=timestep['hydrogen_source_dtmin'],
-        hydrogen_update_mu=chemistry.get('hydrogen_update_mu', True),
-        hydrogen_thermal_coupling=thermo.get('hydrogen_thermal_coupling', True),
-        hydrogen_recombination=chemistry.get('hydrogen_recombination', True),
-        hydrogen_collisional_ionization=chemistry.get('hydrogen_collisional_ionization', False),
-        hydrogen_alpha_B=chemistry['hydrogen_alpha_B'],
-        hydrogen_beta=chemistry['hydrogen_beta'],
-        hydrogen_radiation_field=radiation.get('hydrogen_radiation_field', False),
-        hydrogen_radiation_evolution=radiation.get('hydrogen_radiation_evolution', False),
-        hydrogen_ngamma_initial=radiation['hydrogen_ngamma_initial'],
-        hydrogen_sigma_gamma=radiation['hydrogen_sigma_gamma'],
-        hydrogen_epsilon_gamma=radiation['hydrogen_epsilon_gamma'],
-        radiative_transfer=radiation.get('radiative_transfer', True),
-        radiative_transfer_method=radiation.get('radiative_transfer_method', 'long_characteristics'),
-        radiative_transfer_temporal_scheme=radiation.get(
-            'radiative_transfer_temporal_scheme', 'c2ray'
-        ),
-        radiative_transfer_c2ray_max_iterations=radiation.get(
-            'radiative_transfer_c2ray_max_iterations', 32
-        ),
-        radiative_transfer_c2ray_tolerance=radiation.get(
-            'radiative_transfer_c2ray_tolerance', 1.0e-6
-        ),
-        radiative_transfer_c2ray_relaxation=radiation.get(
-            'radiative_transfer_c2ray_relaxation', 1.0
-        ),
-        radiative_transfer_c2ray_nonconvergence=radiation.get(
-            'radiative_transfer_c2ray_nonconvergence', 'warn'
-        ),
-        radiative_transfer_boundary_flux=radiation['radiative_transfer_boundary_flux'],
-        radiative_transfer_source_photon_rate=radiation['radiative_transfer_source_photon_rate'],
-        radiative_transfer_direction=1,
-        CodeUnits=code_units_obj,
-        units=SimpleNamespace(CodeUnits=code_units_obj),
-        unit_system=code_units_obj.unit_system,
-    )
-    par.simulation = SimpleNamespace(
-        time_proper_code=0.0 * unyt.Myr,
-        box_size=initial['box_size'],
-        coordinate_system=par.coordsys,
-    )
-    par.mesh = SimpleNamespace(
-        grid_cells=par.nogrid,
-        ghost_cells=par.noghost,
-    )
-
-    mesh = Mesh()
-    mesh.boundary_proper_code = quantity_to_value(np.linspace(
-        0.0,
-        initial['box_size'].to_value(unyt.cm),
-        par.nogrid + 1,
-    ) * unyt.cm, code_units_obj.length_unit)
-
-    fluid = Fluid()
-    fluid.code_units = code_units_obj
-    fluid.eos = EOS(par.EOStype, par.gamma, code_units_obj)
-    fluid.rho_proper_code = quantity_to_value((
-        np.ones(par.nogrid)
-        * initial['hydrogen_number_density']
-        * unyt.mp
-    ).to(unyt.g / unyt.cm**3), code_units_obj.density_unit)
-    fluid.vel_proper_code = quantity_to_value(
-        np.zeros(par.nogrid) * unyt.cm / unyt.s,
-        code_units_obj.velocity_unit,
-    )
-    fluid.temp_proper_code = quantity_to_value(
-        np.ones(par.nogrid) * initial['initial_temperature'],
-        code_units_obj.temperature_unit,
-    )
-    fluid.mu = np.ones(par.nogrid)
-    fluid.xHI = np.ones(par.nogrid)
-    fluid.ngamma_code = quantity_to_value(
-        np.ones(par.nogrid) * radiation['hydrogen_ngamma_initial'],
-        code_units_obj.number_density_unit,
-    )
-    fluid.SetFluidTime(0.0)
-    _attach_proper_runtime_states(par, mesh, fluid)
-
-    solver = Solver()
-    return par, mesh, fluid, solver
-
 
 build_problem = build_static_problem
 

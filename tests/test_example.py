@@ -186,7 +186,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(config['example']['target_neutral_fraction'], 0.01)
         self.assertEqual(par_config['output']['filename_prefix'], 'Output')
         self.assertEqual(par_config['mesh']['grid_cells'], 16)
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.kpc), 1.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.kpc), 1.0)
 
     def test_hydrogen_photoionization1d_analytic_neutral_fraction_uses_units(self):
         config_filename = (
@@ -202,7 +202,7 @@ class Testing(unittest.TestCase):
         neutral_fraction = hydrogen_photoionization_analytic.neutral_fraction(
             0.0,
             initial_condition['neutral_fraction'],
-            initial_condition['temperature'],
+            initial_condition['temperature_proper'],
             initial_condition['hydrogen_number_density'],
             initial_condition['photon_number_density'],
             par_config['radiation']['hydrogen_sigma_gamma'],
@@ -272,7 +272,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['hydrodynamics']['eos_type'], 'isothermal')
         self.assertEqual(par_config['boundary']['condition'], 'Reflecting')
         self.assertEqual(par_config['mesh']['grid_cells'], 256)
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 10.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 10.0)
         self.assertAlmostEqual(
             initial_condition['gravity_strength'].to_value(unyt.cm / unyt.s**2),
             1.0e-7,
@@ -356,7 +356,7 @@ class Testing(unittest.TestCase):
         )
         self.assertIn('CodeUnits', par_config['units'])
         self.assertEqual(par_config['mesh']['grid_cells'], 256)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 1.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 1.0)
 
     def test_radiative_transfer_sph1d_c2ray_uses_yaml_config(self):
         config_filename = (
@@ -460,7 +460,7 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(par_config['hydrodynamics']['order'], 0)
         self.assertEqual(par_config['mesh']['grid_cells'], 1024)
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 25.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 25.0)
         self.assertEqual(initial_condition['injection_radius'].to_value(unyt.pc), 0.05)
         self.assertEqual(initial_condition['initial_density'].to_value(unyt.g / unyt.cm**3), 1.0e-24)
         self.assertEqual(par_config['boundary']['outflow_velocity'].to_value(unyt.km / unyt.s), 1000.0)
@@ -609,7 +609,7 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(config['example']['plot_radius_max'].to_value(unyt.kpc), 7.5)
         self.assertEqual(par_config['mesh']['grid_cells'], 256)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.kpc), 20.0)
         self.assertEqual(initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
 
     def test_static_stromgren_c2ray_comparison_uses_256_cells_and_requested_steps(self):
@@ -667,10 +667,10 @@ class Testing(unittest.TestCase):
             True,
         )
         self.assertEqual(par_config['mesh']['grid_cells'], 1024)
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.kpc), 20.0)
         self.assertEqual(initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3), 1.0e-3)
         self.assertEqual(initial_condition['initial_temperature'].to_value(unyt.K), 100.0)
-        self.assertEqual(initial_condition['time'].to_value(unyt.Myr), 0.0)
+        self.assertEqual(initial_condition['time_proper'].to_value(unyt.Myr), 0.0)
         self.assertEqual(config['example']['analytic_inner_radius'].to_value(unyt.kpc), 0.1)
 
     def test_static_stromgren_sphere_photoheating1d_c2ray_uses_distinct_outputs(self):
@@ -801,7 +801,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par['simulation']['coordinate_system'], 'spherical')
         self.assertTrue(Path(par['output']['time_list_filename']).exists())
         self.assertEqual(par['mesh']['grid_cells'], 1024)
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.kpc), 20.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.kpc), 20.0)
         self.assertEqual(
             par['radiation']['radiative_transfer_source_photon_rate'].to_value(
                 1.0 / unyt.s
@@ -849,7 +849,7 @@ class Testing(unittest.TestCase):
             par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 20.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 20.0)
         self.assertEqual(par_config['mesh']['grid_cells'], 512)
         self.assertEqual(
             initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3),
@@ -917,7 +917,7 @@ class Testing(unittest.TestCase):
         par_config, initial_condition = config['par'], config['initial_condition']
 
         self.assertEqual(par_config['mesh']['grid_cells'], 128)
-        self.assertEqual(initial_condition['box_size'].to_value(unyt.pc), 20.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 20.0)
         self.assertEqual(
             par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
@@ -1037,7 +1037,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['simulation']['initial_condition_filename'].split('/')[-1], 'InitialCondition_C2Ray.hdf5')
         self.assertEqual(par_config['radiation']['c2ray_nonconvergence'], 'warn')
         self.assertEqual(par_config['mesh']['grid_cells'], 2048)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 2.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 2.0)
         self.assertEqual(initial_condition['final_time'].to_value(unyt.Myr), 0.14)
         self.assertTrue(Path(par_config['output']['time_list_filename']).exists())
         self.assertEqual(len(config['example']['output_snapshots']), 8)
@@ -1086,7 +1086,7 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(par_config['radiation']['c2ray_nonconvergence'], 'warn')
         self.assertEqual(par_config['mesh']['grid_cells'], 512)
-        self.assertEqual(initial_condition['boxsize'].to_value(unyt.pc), 7.0)
+        self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 7.0)
         self.assertEqual(initial_condition['final_time'].to_value(unyt.Myr), 3.0)
         self.assertEqual(par_config['timestep']['hydrogen_source_CFL'], 10000.0)
         self.assertTrue(Path(par_config['output']['time_list_filename']).exists())
@@ -1113,6 +1113,8 @@ class Testing(unittest.TestCase):
                 hii_tools,
                 'build_problem',
                 return_value=(sim, SimpleNamespace(), SimpleNamespace(), None),
+            ), mock.patch.object(
+                hii_tools.Rsim, 'FromComponents', return_value=sim
             ), mock.patch.object(hii_tools.rio, 'writehdf5') as write_mock:
                 hii_tools.write_initial_condition(config)
 
@@ -1187,7 +1189,10 @@ class Testing(unittest.TestCase):
 
             out_par, out_mesh, out_fluid = hii_tools.load_output_state(outputfilename, config)
 
-        interior = slice(out_par.noghost, out_par.noghost + out_par.nogrid)
+        interior = slice(
+            out_par.mesh.ghost_cells,
+            out_par.mesh.ghost_cells + out_par.mesh.grid_cells,
+        )
         expected_coordinate = 0.5 * (modified_boundary[1:] + modified_boundary[:-1])
         vol_denom = modified_boundary[1:] ** 3 - modified_boundary[:-1] ** 3
         nonzero_vol_denom = vol_denom != 0.0
@@ -1203,7 +1208,10 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(
             np.asarray(output_coordinate, dtype=float),
             np.asarray(
-                expected_coordinate[out_par.noghost : out_par.noghost + out_par.nogrid],
+                expected_coordinate[
+                    out_par.mesh.ghost_cells :
+                    out_par.mesh.ghost_cells + out_par.mesh.grid_cells
+                ],
                 dtype=float,
             ),
         )

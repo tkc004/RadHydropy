@@ -51,7 +51,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
     runtime_only = {
-        'box_size', 'coordinate_system', 'current_time', 'grid_cells',
+        'box_size_proper', 'coordinate_system', 'current_time', 'grid_cells',
         'number_of_cells', 'inner_radius', 'outer_radius', 'halo_mass',
         'concentration', 'redshift', 'overdensity', 'h0', 'gas_fraction',
         'mean_molecular_weight', 'mu', 'reference_density',

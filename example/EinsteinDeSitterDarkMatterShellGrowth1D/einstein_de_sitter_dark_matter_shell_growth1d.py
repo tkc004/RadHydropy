@@ -39,7 +39,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     # First verify that the discretized homogeneous background has no peculiar force.
-    homogeneous, _ = et.make_shells(initial_condition, units, cosmology, overdensity=0.0)
+    homogeneous, _ = et.make_shells(config, overdensity=0.0)
     tau = cosmology.supercomoving_time(float(initial_condition['cosmic_time']))
     a_initial = float(cosmology.scale_factor_from_supercomoving(tau))
     rho_comoving = float(cosmology.background_density(float(initial_condition['cosmic_time']))) * a_initial**3
@@ -53,7 +53,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if homogeneous_error > float(example['homogeneous_acceleration_tolerance']):
         raise RuntimeError('homogeneous shell acceleration %.6g is nonzero' % homogeneous_error)
 
-    shells, boundaries = et.make_shells(initial_condition, units, cosmology)
+    shells, boundaries = et.make_shells(config)
     top_hat_radius = float(initial_condition['top_hat_radius'])
     inside = shells.radius < top_hat_radius
     target_mass = float(np.sum(shells.mass[inside]))

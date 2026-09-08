@@ -34,8 +34,8 @@ par:
   diagnostics:
     verbose: 0
 initial_condition:
-  boxsize: {value: 10.0, unit: kpc}
-  time: {value: 0.0, unit: yr}
+  box_size_proper: {value: 10.0, unit: kpc}
+  time_proper: {value: 0.0, unit: yr}
   rmin: {value: 0.1, unit: kpc}
   rmax: {value: 9.6, unit: kpc}
   halo_mass: {value: 1.0e8, unit: Msun}

@@ -230,7 +230,7 @@ class Testing(unittest.TestCase):
                     'initial_condition': {
                         'grid_cells': 3,
                         'coordinate_system': 'cartesian',
-                        'box_size': 1.0 * unyt.pc,
+                        'box_size_proper': 1.0 * unyt.pc,
                         'current_time': 0.0 * unyt.s,
                         'reference_density': 1.0 * (unyt.g / unyt.cm**3),
                         'initial_temperature': 1.0 * unyt.K,

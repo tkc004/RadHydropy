@@ -57,7 +57,7 @@ par:
     filename_prefix: Output_C2Ray
 initial_condition:
   number_of_cells: 128
-  box_size: {value: 10.0, unit: kpc}
+  box_size_proper: {value: 10.0, unit: kpc}
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
   initial_temperature: {value: 100.0, unit: K}
 example:
@@ -69,4 +69,4 @@ example:
   evolution_timestep: {value: 0.5, unit: Myr}
   initial_temperature: {value: 100.0, unit: K}
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
-  boxsize: {value: 10.0, unit: kpc}
+  box_size_proper: {value: 10.0, unit: kpc}

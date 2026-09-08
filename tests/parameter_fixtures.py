@@ -15,14 +15,15 @@ def parameter_namespace(**values):
     par.mesh = SimpleNamespace(
         ghost_cells=values.get("noghost", 0),
         grid_cells=values.get("nogrid"),
-        area=values.get("area"),
+        area_proper=values.get("area_proper"),
     )
     par.simulation = SimpleNamespace(
         coordinate_system=values.get("coordsys"),
         final_time=values.get("timesim"),
         initial_condition_filename=values.get("ICfilename"),
         time_code=values.get("time_code"),
-        box_size=values.get("boxsize"),
+        box_size_proper_code=values.get("box_size_proper"),
+        box_size_comoving_code=values.get("box_size_proper"),
     )
     par.hydrodynamics = SimpleNamespace(
         eos_type=values.get("EOStype"),

@@ -34,10 +34,10 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  radius: {value: 1.0, unit: cm}
-  density: {value: 1.0, unit: g/cm**3}
+  radius_proper: {value: 1.0, unit: cm}
+  rho_proper: {value: 1.0, unit: g/cm**3}
   radial_velocity: {value: -0.2, unit: cm/s}
   specific_angular_momentum: {value: 0.7, unit: cm**2/s}
 example:
-  temperature: {value: 1.0e-8, unit: K}
+  temperature_proper: {value: 1.0e-8, unit: K}
   timestep: {value: 1.0e-3, unit: s}

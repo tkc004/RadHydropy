@@ -84,7 +84,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     data = output / "HighMachAdvection1D_EnergyHistory.npz"
     np.savez(
         data,
-        time_s=np.asarray([item["time"] for item in history]),
+        time_s=np.asarray([item["time_proper"] for item in history]),
         total_energy=np.asarray([item["total"] for item in history]),
         kinetic_energy=np.asarray([item["kinetic"] for item in history]),
         thermal_energy=np.asarray([item["thermal"] for item in history]),
@@ -97,14 +97,14 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     entropy_values = np.asarray(entropy_history)
     np.savez(
         entropy_data,
-        time_s=np.asarray([item["time"] for item in history]),
+        time_s=np.asarray([item["time_proper"] for item in history]),
         radius=np.asarray(entropy_radius),
         entropy=entropy_values,
         density=np.asarray(density_history),
         temperature=np.asarray(temperature_history),
     )
-    times = np.asarray([item["time"] for item in history])
-    radius_scale = max(float(np.asarray(initial_condition["box_size"])), 1.0)
+    times = np.asarray([item["time_proper"] for item in history])
+    radius_scale = max(float(np.asarray(initial_condition["box_size_proper"])), 1.0)
 
     def save_profile_map(values, filename, title, colorbar_label, **image_kwargs):
         values = np.asarray(values)

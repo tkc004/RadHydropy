@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/radhydropy-matplotlib')
 
@@ -23,7 +22,6 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
 
@@ -61,14 +59,14 @@ class FixedCentralGravity:
         self.dark_matter = None
 
     def acceleration_on_mesh(self, mesh, rho=None, par=None):
-        radius = np.asarray(mesh.x_proper_code, dtype=float)
-        return -self.central_mass / radius**2
+        radius_proper_code = np.asarray(mesh.x_proper_code, dtype=float)
+        return -self.central_mass / radius_proper_code**2
 
 
 class CircularInitialCondition(Rsim):
     """HDF5-compatible spherical circular-orbit initial condition."""
 
-    def __init__(self, par_config, count, radius_min, radius_max, density, pressure,
+    def __init__(self, par_config, count, radius_min, radius_max, rho_proper_code, pre_proper_code,
                  central_mass, code_unit_system):
         super().__init__(par_config)
         self.mesh.boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
@@ -77,10 +75,10 @@ class CircularInitialCondition(Rsim):
         ) / (self.mesh.boundary_proper_code[1:]**3 - self.mesh.boundary_proper_code[:-1]**3)
         self.mesh.width_proper_code = np.diff(self.mesh.boundary_proper_code)
         self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1]**2
-        self.mesh.volume_proper_codeume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code**3)
-        self.fluid.rho_proper_code = np.full(count, density)
+        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code**3)
+        self.fluid.rho_proper_code = np.full(count, rho_proper_code)
         self.fluid.vel_proper_code = np.zeros(count)
-        self.fluid.temp_proper_code = np.full(count, pressure * 0.4)
+        self.fluid.temp_proper_code = np.full(count, pre_proper_code * 0.4)
         self.fluid.mu = np.ones(count)
         self.fluid.specific_angular_momentum_code = np.sqrt(
             central_mass * self.mesh.x_proper_code
@@ -93,10 +91,9 @@ def run_rsim(config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial = CircularInitialCondition(
         par, int(par['mesh']['grid_cells']), float(initial_condition['radius_min']), float(initial_condition['radius_max']),
-        float(initial_condition['density']), float(initial_condition['pressure']),
+        float(initial_condition['rho_proper_code']), float(initial_condition['pre_proper_code']),
         float(initial_condition['central_mass']), units,
     )
-    prepare_initial_condition(initial)
     prepare_initial_condition(initial)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -114,12 +111,10 @@ def run_rsim(config):
     output_files = sorted((ROOT / par['output']['directory']).glob('Output_*.hdf5'))
     if not output_files:
         raise RuntimeError('Rsim produced no circular-orbit output')
-    final_par = sim.par
-    final_mesh = SimpleNamespace()
-    final_fluid = SimpleNamespace()
-    rio.readhdf5(final_par, final_mesh, final_fluid, output_files[-1])
+    final_sim = Rsim(config["par"])
+    rio.readhdf5(final_sim.par, final_sim.mesh, final_sim.fluid, output_files[-1])
     active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    return initial, sim, final_mesh, final_fluid, active, initial_mass, initial_energy
+    return initial, sim, final_sim.mesh, final_sim.fluid, active, initial_mass, initial_energy
 
 
 def main(config_filename=CONFIG):
@@ -132,46 +127,55 @@ def main(config_filename=CONFIG):
      simulation_initial_mass, simulation_initial_energy) = run_rsim(config)
 
     count = int(par['mesh']['grid_cells'])
-    radius = float(initial_condition['radius'])
+    radius_proper_code = float(initial_condition['radius_proper_code'])
     central_mass = float(initial_condition['central_mass'])
-    specific_j = np.sqrt(central_mass * radius)
+    specific_j = np.sqrt(central_mass * radius_proper_code)
     volume_proper_code = np.ones(count)
-    mass = np.full(count, float(initial_condition['density'])) * volume_proper_code
+    mass = np.full(count, float(initial_condition['rho_proper_code'])) * volume_proper_code
     momentum = np.full(count, float(initial_condition['radial_velocity'])) * mass
-    rotational_energy = 0.5 * mass * specific_j**2 / radius**2
-    thermal_energy = np.full(count, float(initial_condition['pressure']) / 0.4)
+    rotational_energy = 0.5 * mass * specific_j**2 / radius_proper_code**2
+    thermal_energy = np.full(count, float(initial_condition['pre_proper_code']) / 0.4)
 
-    mesh = SimpleNamespace(
-        coordsys='spherical',
-        x_proper_code=np.full(count, radius),
-        volume_proper_code=volume_proper_code,
-        _par=SimpleNamespace(
-            gas_angular_momentum=True,
-            gas_rotational_energy=True,
-            noghost=0,
-            nogrid=count,
-            energy_diagnostics=False,
-            CodeUnits=None,
-            gravity=FixedCentralGravity(central_mass, specific_j),
-        ),
+    analytic_sim = Rsim(config["par"])
+    analytic_sim.par.mesh.grid_cells = count
+    analytic_sim.par.mesh.ghost_cells = 0
+    analytic_sim.par.simulation.coordinate_system = 'spherical'
+    analytic_sim.par.gravity = FixedCentralGravity(central_mass, specific_j)
+    analytic_sim.mesh.boundary_proper_code = np.linspace(radius_proper_code - 0.5, radius_proper_code + 0.5, count + 1)
+    analytic_sim.mesh._par = analytic_sim.par
+    analytic_sim.mesh.coordsys = 'spherical'
+    analytic_sim.mesh.width_proper_code = np.ones(count)
+    analytic_sim.mesh.x_proper_code = np.full(count, radius_proper_code)
+    analytic_sim.mesh.area_proper_code = 4.0 * np.pi * np.full(count, radius_proper_code**2)
+    analytic_sim.mesh.volume_proper_code = volume_proper_code.copy()
+    analytic_sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, x_proper_code=analytic_sim.mesh.x_proper_code,
+        boundary_proper_code=analytic_sim.mesh.boundary_proper_code,
+        width_proper_code=analytic_sim.mesh.width_proper_code,
+        area_proper_code=analytic_sim.mesh.area_proper_code,
+        volume_proper_code=analytic_sim.mesh.volume_proper_code,
     )
-    mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=mesh.x_proper_code,
-        boundary_proper_code=np.linspace(radius - 0.5, radius + 0.5, count + 1),
-        width_proper_code=np.ones(count), area_proper_code=4.0 * np.pi * np.ones(count) * radius**2,
-        volume_proper_code=volume_proper_code,
+    analytic_sim.fluid.rho_proper_code = np.full(count, float(initial_condition['rho_proper_code']))
+    analytic_sim.fluid.vel_proper_code = np.zeros(count)
+    analytic_sim.fluid.temp_proper_code = np.full(count, float(initial_condition['pre_proper_code']) / 0.4)
+    analytic_sim.fluid.mu = np.ones(count)
+    analytic_sim.fluid.specific_angular_momentum_code = np.full(count, specific_j)
+    analytic_sim.fluid.pre_proper_code = analytic_sim.fluid.temp_proper_code * 0.4
+    analytic_sim.fluid.Mass_code = mass.copy()
+    analytic_sim.fluid.Mom_code = momentum.copy()
+    analytic_sim.fluid.AngularMomentum_code = mass * specific_j
+    analytic_sim.fluid.Energy_code = thermal_energy + rotational_energy
+    analytic_sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    analytic_sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        rho_proper_code=analytic_sim.fluid.rho_proper_code,
+        vel_proper_code=analytic_sim.fluid.vel_proper_code,
+        pre_proper_code=analytic_sim.fluid.pre_proper_code,
+        temp_proper_code=analytic_sim.fluid.temp_proper_code,
+        time_proper_code=0.0,
+        mu_dimensionless=analytic_sim.fluid.mu,
     )
-    par = mesh._par
-    par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=count)
-    fluid = SimpleNamespace(
-        rho_proper_code=np.ones(count) * float(initial_condition['density']),
-        Mass_code=mass.copy(),
-        Mom_code=momentum.copy(),
-        Energy_code=thermal_energy + rotational_energy,
-        AngularMomentum_code=mass * specific_j,
-    )
-
-    solver = Solver()
+    mesh, fluid, par, solver = analytic_sim.mesh, analytic_sim.fluid, analytic_sim.par, analytic_sim.solver
     initial_energy = fluid.Energy_code.copy()
     times = [0.0]
     velocity_history = [fluid.Mom_code[0] / fluid.Mass_code[0]]
@@ -190,7 +194,7 @@ def main(config_filename=CONFIG):
     expected_rotational = rotational_energy
     if not np.allclose(
         expected_rotational,
-        0.5 * fluid.AngularMomentum_code**2 / (fluid.Mass_code * radius**2),
+        0.5 * fluid.AngularMomentum_code**2 / (fluid.Mass_code * radius_proper_code**2),
     ):
         raise RuntimeError('rotational energy bookkeeping is inconsistent')
 
@@ -239,7 +243,7 @@ def main(config_filename=CONFIG):
     reference = solve_ivp(
         orbit_rhs,
         (0.0, eccentric_time),
-        (radius, 0.0),
+        (radius_proper_code, 0.0),
         rtol=1.0e-11,
         atol=1.0e-13,
         dense_output=True,
@@ -249,7 +253,7 @@ def main(config_filename=CONFIG):
         0.0, eccentric_time + 0.5 * eccentric_dt, eccentric_dt
     )
     eccentric_state = np.empty((2, len(eccentric_times)))
-    eccentric_state[:, 0] = (radius, 0.0)
+    eccentric_state[:, 0] = (radius_proper_code, 0.0)
     for index in range(len(eccentric_times) - 1):
         state = eccentric_state[:, index]
         h = eccentric_dt
@@ -277,44 +281,57 @@ def main(config_filename=CONFIG):
     if np.max(np.abs(eccentric_energy - eccentric_energy[0])) > 1.0e-10:
         raise RuntimeError('eccentric orbit failed specific-energy conservation')
 
-    # Drive a moving one-shell simulation with RadHydropy's actual source
-    # routine.  The Eulerian gas mesh has fixed cell coordinates, so this
-    # small shell driver supplies the moving x_proper_code needed for a trajectory
-    # comparison while retaining the production centrifugal/gravity update.
-    shell_solver = Solver()
-    shell_mesh = SimpleNamespace(
-        coordsys='spherical', x_proper_code=np.asarray([radius]),
-        volume_proper_code=np.asarray([1.0]),
+    # Drive a moving one-shell Rsim state with the actual centrifugal source.
+    shell_sim = Rsim(config["par"])
+    shell_sim.par.mesh.grid_cells = 1
+    shell_sim.par.mesh.ghost_cells = 0
+    shell_sim.par.simulation.coordinate_system = 'spherical'
+    shell_sim.par.gravity = FixedCentralGravity(central_mass, eccentric_j)
+    shell_sim.mesh.boundary_proper_code = np.asarray([radius_proper_code - 0.5, radius_proper_code + 0.5])
+    shell_sim.mesh._par = shell_sim.par
+    shell_sim.mesh.coordsys = 'spherical'
+    shell_sim.mesh.width_proper_code = np.asarray([1.0])
+    shell_sim.mesh.x_proper_code = np.asarray([radius_proper_code])
+    shell_sim.mesh.area_proper_code = np.asarray([4.0 * np.pi * radius_proper_code**2])
+    shell_sim.mesh.volume_proper_code = np.asarray([1.0])
+    shell_sim.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, x_proper_code=shell_sim.mesh.x_proper_code,
+        boundary_proper_code=shell_sim.mesh.boundary_proper_code,
+        width_proper_code=shell_sim.mesh.width_proper_code,
+        area_proper_code=shell_sim.mesh.area_proper_code,
+        volume_proper_code=shell_sim.mesh.volume_proper_code,
     )
-    shell_mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=np.asarray([radius]),
-        boundary_proper_code=np.asarray([radius - 0.5, radius + 0.5]),
-        width_proper_code=np.asarray([1.0]), area_proper_code=np.asarray([4.0 * np.pi * radius**2]),
-        volume_proper_code=np.asarray([1.0]),
+    shell_sim.fluid.rho_proper_code = np.asarray([1.0])
+    shell_sim.fluid.vel_proper_code = np.asarray([0.0])
+    shell_sim.fluid.temp_proper_code = np.asarray([float(initial_condition['pre_proper_code']) / 0.4])
+    shell_sim.fluid.mu = np.asarray([1.0])
+    shell_sim.fluid.specific_angular_momentum_code = np.asarray([eccentric_j])
+    shell_sim.fluid.pre_proper_code = shell_sim.fluid.temp_proper_code * 0.4
+    shell_sim.fluid.Mass_code = np.asarray([1.0])
+    shell_sim.fluid.Mom_code = np.asarray([0.0])
+    shell_sim.fluid.AngularMomentum_code = np.asarray([eccentric_j])
+    shell_sim.fluid.Energy_code = np.asarray([1.0 + 0.5 * eccentric_j**2 / radius_proper_code**2])
+    shell_sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    shell_sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS,
+        rho_proper_code=shell_sim.fluid.rho_proper_code,
+        vel_proper_code=shell_sim.fluid.vel_proper_code,
+        pre_proper_code=shell_sim.fluid.pre_proper_code,
+        temp_proper_code=shell_sim.fluid.temp_proper_code,
+        time_proper_code=0.0,
+        mu_dimensionless=shell_sim.fluid.mu,
     )
-    shell_par = SimpleNamespace(
-        gas_angular_momentum=True, gas_rotational_energy=True,
-        noghost=0, nogrid=1, energy_diagnostics=False,
-        CodeUnits=None,
-        gravity=FixedCentralGravity(central_mass, eccentric_j),
-    )
-    shell_par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=1)
-    shell_fluid = SimpleNamespace(
-        rho_proper_code=np.asarray([1.0]), Mass_code=np.asarray([1.0]),
-        Mom_code=np.asarray([0.0]), AngularMomentum_code=np.asarray([eccentric_j]),
-        Energy_code=np.asarray([1.0 + 0.5 * eccentric_j**2 / radius**2]),
-    )
+    shell_mesh, shell_fluid = shell_sim.mesh, shell_sim.fluid
+    shell_par, shell_solver = shell_sim.par, shell_sim.solver
     shell_radius = np.empty(len(eccentric_times))
     shell_velocity = np.empty(len(eccentric_times))
-    shell_radius[0] = radius
+    shell_radius[0] = radius_proper_code
     shell_velocity[0] = 0.0
     for index in range(len(eccentric_times) - 1):
         shell_mesh.x_proper_code[...] = shell_radius[index]
         shell_solver.ApplyGravity(eccentric_dt, shell_mesh, shell_fluid, shell_par)
         shell_velocity[index + 1] = shell_fluid.Mom_code[0] / shell_fluid.Mass_code[0]
-        shell_radius[index + 1] = (
-            shell_radius[index] + eccentric_dt * shell_velocity[index + 1]
-        )
+        shell_radius[index + 1] = shell_radius[index] + eccentric_dt * shell_velocity[index + 1]
     shell_radius_error = np.max(
         np.abs(shell_radius - reference_eccentric[0])
     )

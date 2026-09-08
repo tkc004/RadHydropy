@@ -275,11 +275,16 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
         offset_myr=exampleparams['adiabatic_final_time'].to_value(unyt.Myr),
     )
     write_report(
-        shock_history(adiabatic_files, halo, times_myr=adiabatic_times), ad_report
+        shock_history(
+            adiabatic_files, halo, adiabatic_config, times_myr=adiabatic_times
+        ), ad_report
     )
-    write_report(shock_history(pie_files, halo, times_myr=pie_times), pie_report)
+    write_report(
+        shock_history(pie_files, halo, pie_config, times_myr=pie_times), pie_report
+    )
     plot_comparison(
         adiabatic_files, pie_files, halo, figure,
+        pie_config,
         adiabatic_times_myr=adiabatic_times, pie_times_myr=pie_times,
     )
     stability = pie_stability_diagnostics(

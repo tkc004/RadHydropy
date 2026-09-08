@@ -1,6 +1,5 @@
 """Initial conditions and diagnostics for the cosmological virial-shock test."""
 
-from types import SimpleNamespace
 from math import erf
 from pathlib import Path
 import importlib.util
@@ -218,9 +217,9 @@ def build_initial_condition(config):
     cosmic_time = float(ic['initial_cosmic_time'])
     result.par.tau_supercomoving_code = np.array([cosmology.supercomoving_time(cosmic_time)])
     result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
-    result.par.simulation.box_size = float(ic['rmax'])
+    result.par.simulation.box_size_comoving_code = float(ic['rmax'])
     result.par.simulation.coordinate_system = 'spherical'
-    result.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    result.par.hydrodynamics.gamma = 5.0 / 3.0
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True
     result.par.cosmological_gravity = True

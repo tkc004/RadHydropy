@@ -52,8 +52,8 @@ par:
 initial_condition:
   nogrid: 512
   coordsys: spherical
-  boxsize: {value: 100.0, unit: kpc}
-  time: {value: 0.0, unit: Myr}
+  box_size_proper: {value: 100.0, unit: kpc}
+  time_proper: {value: 0.0, unit: Myr}
   rmin: {value: 0.01, unit: kpc}
   rmax: {value: 100.0, unit: kpc}
   halo_mass: {value: 1.112e9, unit: Msun}

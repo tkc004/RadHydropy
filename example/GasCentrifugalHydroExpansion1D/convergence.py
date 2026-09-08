@@ -43,12 +43,12 @@ def measure(config):
         source_boundary,
         source_boundary,
         final_time,
-        float(initial_condition['density']),
+        float(initial_condition['rho_proper_code']),
         central_mass,
         rotation_factor,
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
-    ode_velocity = reference['velocity']
+    ode_velocity = reference['vel_proper']
     ode_j = reference['specific_angular_momentum']
     saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)

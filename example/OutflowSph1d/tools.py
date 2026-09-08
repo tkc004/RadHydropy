@@ -20,7 +20,7 @@ def build_initial_condition(config):
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
     start = initial['injection_radius'].to_value(code_units.length_unit)
-    width = initial['box_size'].to_value(code_units.length_unit)
+    width = initial['box_size_proper'].to_value(code_units.length_unit)
     sim.mesh.boundary_proper_code = as_named_array(np.linspace(start, start + width, grid_cells + 1))
     sim.fluid.vel_proper_code = as_named_array(np.full(
         grid_cells, initial['initial_velocity'].to_value(code_units.velocity_unit)
@@ -76,7 +76,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         rout.fluid.time_proper_code * code_units_obj.time_unit,
         config["par"]['boundary']['outflow_velocity'],
     )
-    x_values = x_center.to_value(initial['box_size'].units)
+    x_values = x_center.to_value(initial['box_size_proper'].units)
     rho_values = np.asarray(rho_num.to_value(config["par"]['boundary']['outflow_density'].units), dtype=float)
     rho_ana_values = np.asarray(rho_ana.to_value(config["par"]['boundary']['outflow_density'].units), dtype=float)
     plt.plot(x_values, rho_values, **kwargs)
@@ -87,7 +87,7 @@ def ReadandPlot(outfilename, config, **kwargs):
         color='k',
     )
     plt.axvline(
-        x=front.to_value(initial['box_size'].units),
+        x=front.to_value(initial['box_size_proper'].units),
         color=kwargs['color'],
         ls='dashed',
     )

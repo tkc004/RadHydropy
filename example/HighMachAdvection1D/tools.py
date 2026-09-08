@@ -7,7 +7,7 @@ from basic_hydro_utils import make_initial_condition
 
 def build_initial_condition(config):
     initial, par, units = config["initial_condition"], config["par"], config["_code_units"]
-    n=int(initial["grid_cells"]); size_proper_code=quantity_to_value(initial["box_size"],units.length_unit); boundary_proper_code=np.linspace(0,size_proper_code,n+1); x_proper_code=.5*(boundary_proper_code[:-1]+boundary_proper_code[1:]); left=x_proper_code < .5*size_proper_code
+    n=int(initial["grid_cells"]); size_proper_code=quantity_to_value(initial["box_size_proper"],units.length_unit); boundary_proper_code=np.linspace(0,size_proper_code,n+1); x_proper_code=.5*(boundary_proper_code[:-1]+boundary_proper_code[1:]); left=x_proper_code < .5*size_proper_code
     rho_proper_code=np.where(left, initial.get("rho_left",initial.get("initial_density", 1.0)), initial.get("rho_right",initial.get("initial_density", 1.0)))
     vel_proper_code=np.full(n,quantity_to_value(initial["initial_velocity"],units.velocity_unit)); mu=np.full(n,initial["mean_molecular_weight"])
     if "temp_left" in initial or "temp_right" in initial:
@@ -19,7 +19,7 @@ def build_initial_condition(config):
     else: temp_proper_code=np.full(n,quantity_to_value(initial["initial_temperature"],units.temperature_unit))
     temp_proper_code=np.asarray([quantity_to_value(v,units.temperature_unit) if hasattr(v,"to_value") else float(v) for v in temp_proper_code])
     rho_proper_code=np.asarray([quantity_to_value(v,units.density_unit) if hasattr(v,"to_value") else float(v) for v in rho_proper_code])
-    return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code, vel_proper_code=vel_proper_code, temp_proper_code=temp_proper_code, mu_dimensionless=mu, area_proper_code=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area"],units.area_unit))
+    return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code, vel_proper_code=vel_proper_code, temp_proper_code=temp_proper_code, mu_dimensionless=mu, area_proper_code=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area_proper"],units.area_unit))
 
 def _physical(state):
     first=int(state.par.mesh.ghost_cells); last=first+int(state.par.mesh.grid_cells); b=np.asarray(state.mesh.boundary_proper_code); return first,last,.5*(b[:-1]+b[1:])

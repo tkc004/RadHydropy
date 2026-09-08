@@ -25,7 +25,7 @@ class Mesh:
         ----------
         par : object
             Parameter object with ``nogrid``, ``noghost``, and ``coordsys``.
-            Cartesian meshes also require ``area``.
+            Cartesian meshes also require ``area_proper``.
 
         Raises
         ------
@@ -84,14 +84,14 @@ class Mesh:
             1.0 / self.width_comoving_code
         )
         if self.coordsys == 'cartesian':
-            if not hasattr(par.mesh, 'area'):
-                raise AttributeError("par.mesh.area is required for a cartesian mesh")
+            if not hasattr(par.mesh, 'area_proper'):
+                raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")
             # coordinate is the midpoint of boundary
             self.x_comoving_code = as_named_array(
                 0.5 * (self.boundary_comoving_code[1:] + self.boundary_comoving_code[:-1])
             )
             area_value = quantity_to_value(
-                par.mesh.area,
+                par.mesh.area_proper,
                 code_units.area_unit,
             )
             self.area_comoving_code = as_named_array(
@@ -188,12 +188,12 @@ class Mesh:
         self.width_proper_code = width_proper_code
         self.coordinate_inverse_proper_code = as_named_array(1.0 / width_proper_code)
         if par.simulation.coordinate_system == "cartesian":
-            if not hasattr(par.mesh, "area"):
-                raise AttributeError("par.mesh.area is required for a cartesian mesh")
+            if not hasattr(par.mesh, "area_proper"):
+                raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")
             self.x_proper_code = as_named_array(
                 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
             )
-            area_proper_code = quantity_to_value(par.mesh.area, code_units.area_unit)
+            area_proper_code = quantity_to_value(par.mesh.area_proper, code_units.area_unit)
             self.area_proper_code = as_named_array(
                 np.ones_like(width_proper_code) * float(np.asarray(area_proper_code))
             )

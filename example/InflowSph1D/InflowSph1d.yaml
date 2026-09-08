@@ -40,11 +40,11 @@ par:
 initial_condition:
   grid_cells: 1000
   coordinate_system: spherical
-  box_size: {value: 2.0, unit: cm}
+  box_size_proper: {value: 2.0, unit: cm}
   current_time: {value: 0.0, unit: s}
-  temperature: {value: 0.0, unit: K}
+  temperature_proper: {value: 0.0, unit: K}
   mean_molecular_weight: 1.0
-  velocity: {value: 0.0, unit: cm/s}
+  vel_proper: {value: 0.0, unit: cm/s}
   initial_density: {value: 0.001, unit: g/cm**3}
 example:
   plot_filename: InflowSph1D.jpg

@@ -123,9 +123,9 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
     # numbered snapshots span the configured run, so use their normalized
     # positions for plot/report labels until that core I/O issue is fixed.
     final_time_myr = float(case['simulation']['final_time'].to_value('Myr'))
-    history = shock_history(output_files)
+    history = shock_history(output_files, case_config)
     history[:, 0] = np.linspace(0.0, final_time_myr, len(output_files))
-    final_snapshot = load_snapshot(output_files[-1])
+    final_snapshot = load_snapshot(output_files[-1], case_config)
     cooling = None if not pie_enabled else estimate_cooling_length(
         final_snapshot, table, metallicity,
         float(case['thermochemistry']['hydrogen_mass_fraction']), float(initial['muini']),
@@ -151,6 +151,7 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
         'title': title,
         'history': history,
         'snapshots': output_files,
+        'config': case_config,
         'report': report,
         'cooling': cooling,
     }
@@ -181,7 +182,7 @@ def main(config_filename=DEFAULT_CONFIG):
         ))
         sample_times = result['history'][sample_indices, 0]
         for index, time_myr in zip(sample_indices, sample_times):
-            snapshot = load_snapshot(result['snapshots'][index])
+            snapshot = load_snapshot(result['snapshots'][index], result['config'])
             radius = (
                 0.5 * (snapshot['boundary_cgs_cm'][1:] + snapshot['boundary_cgs_cm'][:-1])
                 / 3.0856775814913673e21

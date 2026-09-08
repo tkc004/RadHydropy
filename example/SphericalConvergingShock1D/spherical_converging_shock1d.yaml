@@ -55,8 +55,8 @@ initial_condition:
   rmax: {value: 1.0, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_density: {value: 1.0, unit: g/cm**3}
-  temperature: {value: 1.0e-10, unit: K}
+  temperature_proper: {value: 1.0e-10, unit: K}
   mean_molecular_weight: 1.0
-  velocity: {value: -1.0, unit: cm/s}
+  vel_proper: {value: -1.0, unit: cm/s}
 example:
   plot_filename: SphericalConvergingShock1D.jpg

@@ -73,9 +73,9 @@ def build_initial_condition(config):
     grid_cells = int(config['par']['mesh']['grid_cells'])
     result = Rsim(config['par'])
     result.par.mesh.ghost_cells = 0
-    box_size = np.ones(1) * initial['boxsize']
-    result.par.time_proper_code = np.ones(1) * initial['time']
-    result.par.simulation.box_size = box_size
+    box_size = np.ones(1) * initial['box_size_proper']
+    result.par.time_proper_code = np.ones(1) * initial['time_proper']
+    result.par.simulation.box_size_proper_code = box_size
     result.par.simulation.coordinate_system = 'spherical'
     result.mesh.boundary_proper_code = np.linspace(
         quantity_to_value(initial['rmin'], code_units.length_unit),

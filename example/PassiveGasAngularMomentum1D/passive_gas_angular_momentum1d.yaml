@@ -35,11 +35,11 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  box_size: {value: 1.0, unit: cm}
+  box_size_proper: {value: 1.0, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_density: {value: 1.0, unit: g/cm**3}
-  velocity: {value: 0.1, unit: cm/s}
-  temperature: {value: 1.0e-5, unit: K}
+  vel_proper: {value: 0.1, unit: cm/s}
+  temperature_proper: {value: 1.0e-5, unit: K}
   mean_molecular_weight: 1.0
   angular_momentum_amplitude: {value: 0.2, unit: cm**2/s}
   angular_momentum_offset: {value: 0.5, unit: cm**2/s}

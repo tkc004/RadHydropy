@@ -164,11 +164,11 @@ def _write_report(results, filename):
         for result in results:
             initial = _snapshot(result['snapshots'][0])
             final = _snapshot(result['snapshots'][-1])
-            density_change = np.median(final['density']) / np.median(initial['density']) - 1.0
+            density_change = np.median(final['rho_proper']) / np.median(initial['rho_proper']) - 1.0
             report.write(
                 '%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n' % (
-                    result['label'], result['density'], result['temperature_initial'],
-                    np.median(final['temperature']), result['equilibrium_temperature'],
+                    result['label'], result['rho_proper'], result['temperature_initial'],
+                    np.median(final['temperature_proper']), result['equilibrium_temperature'],
                     result['initial_rate'], result['thermal_time_Myr'], density_change,
                 )
             )
@@ -183,16 +183,16 @@ def _plot(results, filename):
         for output_index, snapshot in enumerate(result['snapshots']):
             data = _snapshot(snapshot, time_Myr=output_index * 50.0)
             times.append(data['time_Myr'])
-            temperatures.append(np.median(data['temperature']))
+            temperatures.append(np.median(data['temperature_proper']))
         line, = axes[0].plot(times, temperatures, marker='o', label=result['label'])
         equilibrium = result['equilibrium_temperature']
         if np.isfinite(equilibrium):
             axes[0].axhline(equilibrium, color=line.get_color(), ls=':', alpha=0.6)
         temperatures_grid = np.logspace(2, 8, 512)
         net = _net_rate(
-            TABLE, temperatures_grid, result['density'], METALLICITY, REDSHIFT
+            TABLE, temperatures_grid, result['rho_proper'], METALLICITY, REDSHIFT
         )
-        net_per_nh2 = net / result['density'] ** 2
+        net_per_nh2 = net / result['rho_proper'] ** 2
         magnitude = np.maximum(np.abs(net_per_nh2), 1.0e-99)
         heating = np.where(net_per_nh2 >= 0.0, magnitude, np.nan)
         cooling = np.where(net_per_nh2 < 0.0, magnitude, np.nan)
@@ -219,10 +219,10 @@ def _plot(results, filename):
         initial_rate = float(_net_rate(
             TABLE,
             result['temperature_initial'],
-            result['density'],
+            result['rho_proper'],
             METALLICITY,
             REDSHIFT,
-        )) / result['density'] ** 2
+        )) / result['rho_proper'] ** 2
         right_markers.append((
             result['temperature_initial'],
             max(abs(initial_rate), 1.0e-99),
@@ -290,7 +290,7 @@ def main(config_filename=DEFAULT_CONFIG):
         print(
             '%s: T_initial=%.6g K, T_final=%.6g K, T_eq=%.6g K' % (
                 result['label'], result['temperature_initial'],
-                np.median(final['temperature']), result['equilibrium_temperature'],
+                np.median(final['temperature_proper']), result['equilibrium_temperature'],
             )
         )
     print('figure = %s' % figure)

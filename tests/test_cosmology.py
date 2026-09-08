@@ -287,7 +287,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     par = parameter_namespace(
         coordsys='spherical', nogrid=2, noghost=0,
         CodeUnits=units, time_code=tau_initial,
-        boxsize=3.0 * units.length_unit,
+        box_size_proper=3.0 * units.length_unit,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='einstein_de_sitter',
         cosmology_t_ref=1.0, cosmology_a_ref=1.0,
@@ -372,7 +372,7 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
         coordsys='cartesian', nogrid=2, noghost=0,
-        CodeUnits=units, time_code=tau, boxsize=2.0,
+        CodeUnits=units, time_code=tau, box_size_proper=2.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='einstein_de_sitter',
         cosmology_t_ref=1.0, cosmology_a_ref=1.0,
@@ -428,7 +428,7 @@ def test_lambda_cdm_header_round_trip():
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
         coordsys='cartesian', nogrid=1, noghost=0,
-        CodeUnits=units, time_code=tau, boxsize=1.0,
+        CodeUnits=units, time_code=tau, box_size_proper=1.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='lambda_cdm',
         cosmology_t_ref=2.0, cosmology_a_ref=1.0,
@@ -493,7 +493,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.units.unit_system is par.unit_system
     assert par.hydrodynamics.eos_type == "polytropic"
     assert par.hydrodynamics.gamma == pytest.approx(1.4)
-    assert par.hydrodynamics.temperature == par.temperature
+    assert par.hydrodynamics.temperature_proper == par.temperature_proper
     assert par.hydrodynamics.dual_energy is False
     assert par.boundary.condition == "Periodic"
     assert par.boundary.inflow_density == 1.0 * unyt.g / unyt.cm**3
@@ -517,7 +517,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.diagnostics.verbose == par.verbose
     assert par.diagnostics.energy_diagnostics is False
     assert par.mesh.ghost_cells == 2
-    assert par.mesh.area == par.area
+    assert par.mesh.area_proper == par.area_proper
     assert par.chemistry.key == "H"
     assert par.chemistry.hydrogen_mass_fraction == pytest.approx(1.0)
     assert par.chemistry.hydrogen_xHI_initial == pytest.approx(1.0)

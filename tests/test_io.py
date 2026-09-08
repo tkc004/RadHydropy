@@ -82,7 +82,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=0.0 * unyt.s,
-            boxsize=3.0 * unyt.cm,
+            box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -105,7 +105,7 @@ class Testing(unittest.TestCase):
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
         self.assertEqual(self._scalar_value(loaded_par.time_proper_code), 0.0)
-        self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
+        self.assertEqual(self._scalar_value(loaded_par.box_size_proper), 3.0)
         self.assertEqual(self._scalar_value(loaded_fluid.time_proper_code), 0.0)
 
     def test_hdf5_uses_canonical_code_state_dataset_names(self):
@@ -113,7 +113,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=2,
             time_code=0.0 * unyt.s,
-            boxsize=2.0 * unyt.cm,
+            box_size_proper=2.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(boundary=np.array([0.0, 1.0, 2.0]) * unyt.cm)
@@ -153,7 +153,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=0.0 * unyt.s,
-            boxsize=3.0 * unyt.cm,
+            box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -189,7 +189,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=1.5 * unyt.s,
-            boxsize=3.0 * unyt.cm,
+            box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
             custom_scalar=7,
             custom_text='hello',
@@ -243,7 +243,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=1.5 * unyt.s,
-            boxsize=3.0 * unyt.cm,
+            box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
             custom_scalar=7,
             custom_nested={'alpha': 1, 'beta': [2, 3]},
@@ -276,14 +276,14 @@ class Testing(unittest.TestCase):
         self.assertEqual(loaded_par.custom_scalar, 7)
         self.assertEqual(loaded_par.custom_nested, {'alpha': 1, 'beta': [2, 3]})
         self.assertEqual(self._scalar_value(loaded_par.time_proper_code), 1.5)
-        self.assertEqual(self._scalar_value(loaded_par.boxsize), 3.0)
+        self.assertEqual(self._scalar_value(loaded_par.box_size_proper), 3.0)
 
     def test_writehdf5_does_not_mutate_par_time(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
             time_code=1.5 * unyt.s,
-            boxsize=3.0 * unyt.cm,
+            box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -309,7 +309,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=np.array([0.0]) * unyt.s,
-            boxsize=np.array([3.0]) * unyt.cm,
+            box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -340,7 +340,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=np.array([0.0]) * unyt.s,
-            boxsize=np.array([3.0]) * unyt.cm,
+            box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -372,7 +372,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=np.array([0.0]) * unyt.s,
-            boxsize=np.array([3.0]) * unyt.cm,
+            box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -407,7 +407,7 @@ class Testing(unittest.TestCase):
             coordsys='cartesian',
             nogrid=3,
             time_code=np.array([0.0]) * unyt.s,
-            boxsize=np.array([3.0]) * unyt.cm,
+            box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(
@@ -455,7 +455,7 @@ class Testing(unittest.TestCase):
                     coordsys='cartesian',
                     nogrid=3,
                     time_code=0.0 * unyt.s,
-                    boxsize=3.0 * unyt.cm,
+                    box_size_proper=3.0 * unyt.cm,
                     CodeUnits=CODE_UNITS,
                 )
                 mesh = SimpleNamespace(
@@ -477,8 +477,8 @@ class Testing(unittest.TestCase):
                 self.assertEqual(payload['par']['timesim']['value'], 1.0)
                 self.assertEqual(payload['initial_condition']['coordsys'], 'cartesian')
                 self.assertEqual(payload['initial_condition']['nogrid'], 3)
-                self.assertEqual(payload['initial_condition']['boxsize']['value'], 3.0)
-                self.assertEqual(payload['initial_condition']['boxsize']['unit'], 'cm')
+                self.assertEqual(payload['initial_condition']['box_size_proper']['value'], 3.0)
+                self.assertEqual(payload['initial_condition']['box_size_proper']['unit'], 'cm')
             finally:
                 os.chdir(cwd)
 
@@ -493,7 +493,7 @@ class Testing(unittest.TestCase):
                     coordsys='cartesian',
                     nogrid=3,
                     time_code=0.0 * unyt.s,
-                    boxsize=3.0 * unyt.cm,
+                    box_size_proper=3.0 * unyt.cm,
                     CodeUnits=CODE_UNITS,
                 )
                 mesh = SimpleNamespace(

@@ -154,9 +154,10 @@ def ConvertParametersToCodeUnits(sim):
             ("final_time", "time"),
             ("time_code", "time"),
             ("initial_time", "time"),
-            ("box_size", "length"),
+            ("box_size_proper_code", "length"),
         ),
         "hydrodynamics": (
+            ("temperature_proper", "temperature"),
             ("hydro_temperature_floor", "temperature"),
             ("positivity_density_floor", "density"),
         ),
@@ -170,7 +171,7 @@ def ConvertParametersToCodeUnits(sim):
             ("output_interval", "time"),
             ("supercomoving_timestep", "time"),
         ),
-        "mesh": (("area", "area"),),
+        "mesh": (("area_proper", "area"),),
         "boundary": (
             ("inflow_velocity", "velocity"),
             ("inflow_density", "density"),
@@ -244,7 +245,7 @@ def ConvertParametersToCodeUnits(sim):
         for nested_name, flat_name in (
             ("final_time", "timesim"),
             ("time_code", "time"),
-            ("box_size", "boxsize"),
+            ("box_size_proper_code", "length"),
         ):
             if hasattr(simulation, nested_name) and hasattr(sim.par, flat_name):
                 setattr(simulation, nested_name, getattr(sim.par, flat_name))

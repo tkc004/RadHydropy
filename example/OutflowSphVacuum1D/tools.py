@@ -40,7 +40,7 @@ def build_initial_condition(config):
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
     injection_radius_code = quantity_to_value(initial['injection_radius'], code_units.length_unit)
-    box_size_code = quantity_to_value(initial['box_size'], code_units.length_unit)
+    box_size_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     sim.mesh.boundary_proper_code = as_named_array(np.linspace(
         injection_radius_code, injection_radius_code + box_size_code, grid_cells + 1
     ))

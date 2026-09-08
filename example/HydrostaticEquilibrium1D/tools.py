@@ -104,7 +104,7 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size = _physical_value(
-        initial_condition['box_size'], unyt.cm, 'box_size'
+        initial_condition['box_size_proper'], unyt.cm, 'box_size'
     ) * unyt.cm
     current_time = _physical_value(
         initial_condition['current_time'], unyt.s, 'current_time'

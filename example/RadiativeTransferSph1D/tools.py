@@ -25,12 +25,12 @@ def build_static_problem(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     sim = Rsim(config["par"])
     code_units = sim.par.units.CodeUnits
-    sim.par.simulation.box_size = quantity_to_value(
-        initial['boxsize'], code_units.length_unit
+    sim.par.simulation.box_size_proper_code = quantity_to_value(
+        initial['box_size_proper'], code_units.length_unit
     )
     sim.par.simulation.time_proper_code = 0.0
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['boxsize'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
+        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units.length_unit,
     ))
     boundary_proper_code = sim.mesh.boundary_proper_code
@@ -83,7 +83,7 @@ def _refresh_mesh_geometry(mesh, par):
     if par.simulation.coordinate_system == 'cartesian':
         mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         if getattr(par.mesh, 'area', None) is not None:
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(par.mesh.area, par.units.CodeUnits.area_unit)
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(par.mesh.area_proper, par.units.CodeUnits.area_unit)
         else:
             mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code

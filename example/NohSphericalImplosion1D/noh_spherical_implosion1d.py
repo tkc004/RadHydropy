@@ -36,14 +36,14 @@ def make_initial_condition(config):
         config['par']['units']['CodeUnits']
     )
     ic = config['initial_condition']
-    n = int(ic["grid_cells"]); rmax = float(ic["box_size"].to_value(code_unit_system.length_unit))
+    n = int(ic["grid_cells"]); rmax = float(ic["box_size_proper"].to_value(code_unit_system.length_unit))
     boundary_proper_code = np.linspace(0.0, rmax, n + 1)
     return make_canonical_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
         rho_proper_code=np.full(n, float(ic["initial_density"].to_value("g/cm**3"))),
-        vel_proper_code=np.full(n, float(ic["velocity"].to_value(code_unit_system.velocity_unit))),
-        temp_proper_code=np.full(n, float(ic["temperature"].to_value("K"))),
+        vel_proper_code=np.full(n, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit))),
+        temp_proper_code=np.full(n, float(ic["temperature_proper"].to_value("K"))),
         mu_dimensionless=np.full(n, float(ic["mean_molecular_weight"])),
     )
 
@@ -145,7 +145,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
 
     selected = sorted(all_profiles)
     final = {resolution: all_profiles[resolution][-1] for resolution in selected}
-    rmax = float(base_initial_condition["box_size"].to_value(units.length_unit))
+    rmax = float(base_initial_condition["box_size_proper"].to_value(units.length_unit))
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex="col")
     for resolution in selected:
         profile = final[resolution]

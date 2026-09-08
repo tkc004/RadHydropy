@@ -19,11 +19,11 @@ def build_initial_condition(config):
     result = Rsim(config['par'])
     code_units = result.par.units.CodeUnits
     result.par.simulation.coordinate_system = initial['coordsys']
-    result.par.simulation.time_proper_code = quantity_to_value(initial['time'], code_units.time_unit)
-    result.par.simulation.box_size = quantity_to_value(initial['boxsize'], code_units.length_unit)
+    result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
+    result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
     result.par.mesh.grid_cells = grid_cells
     boundary = as_named_array(quantity_to_value(
-        np.linspace(0.0 * initial['boxsize'], initial['boxsize'], grid_cells + 1),
+        np.linspace(0.0 * initial['box_size_proper'], initial['box_size_proper'], grid_cells + 1),
         code_units.length_unit,
     ))
     result.mesh.boundary_proper_code = boundary

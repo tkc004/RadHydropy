@@ -83,14 +83,14 @@ def build_static_problem(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     sim = Rsim(config["par"])
     code_units_obj = sim.par.units.CodeUnits
-    sim.par.simulation.box_size = quantity_to_value(
-        initial['box_size'], code_units_obj.length_unit
+    sim.par.simulation.box_size_proper_code = quantity_to_value(
+        initial['box_size_proper'], code_units_obj.length_unit
     )
     sim.par.simulation.time_proper_code = quantity_to_value(
-        initial.get('time', 0.0 * unyt.Myr), code_units_obj.time_unit
+        initial.get('time_proper', 0.0 * unyt.Myr), code_units_obj.time_unit
     )
     sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['box_size'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
+        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
         code_units_obj.length_unit,
     ))
     boundary_proper_code = sim.mesh.boundary_proper_code
@@ -117,11 +117,11 @@ def build_static_problem(config):
         / chemistry.get('hydrogen_mass_fraction', 1.0)
     ).to(unyt.g / unyt.cm**3), code_units_obj.density_unit))
     sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells, dtype=float))
-    temperature_proper_cgs_K_unyt = np.ones(grid_cells) * initial.get(
+    temperature_proper_unyt = np.ones(grid_cells) * initial.get(
         'initial_temperature', 1.0e4 * unyt.K
     )
     sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        temperature_proper_cgs_K_unyt, code_units_obj.temperature_unit
+        temperature_proper_unyt, code_units_obj.temperature_unit
     ))
     sim.fluid.mu = np.ones(grid_cells)
     if initial.get('hydrogen_initial_collisional_equilibrium', False):
@@ -184,7 +184,7 @@ def _refresh_mesh_geometry(mesh, par):
     if par.simulation.coordinate_system == 'cartesian':
         mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         if hasattr(par, 'area'):
-            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(par.mesh.area, code_units_obj.area_unit)
+            mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(par.mesh.area_proper, code_units_obj.area_unit)
         else:
             mesh.area_proper_code = np.ones(len(mesh.width_proper_code))
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
@@ -300,7 +300,7 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
         temperature_cgs_K = snapshot['temperature_cgs_K']
         profile_time_Myr = snapshot['time_Myr']
     xHII = 1.0 - xHI
-    plot_radius_max = example.get('plot_radius_max', initial['box_size']).to_value(unyt.kpc)
+    plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
     reference_radius_unit = example.get('reference_radius_unit', 5.4 * unyt.kpc)
     temperature_reference = load_log_reference_profile(
         example.get('temperature_reference_filename', None),

@@ -52,23 +52,22 @@ def run_case(config, radiative):
     output = par["output"]
     case_dir = Path(output["savedir"]) / case
     case_dir.mkdir(parents=True, exist_ok=True)
-    local = copy.deepcopy(par)
-    local["output"].update({
+    case_config = copy.deepcopy(config)
+    case_par = case_config["par"]
+    case_par["output"].update({
         "savedir": str(case_dir), "directory": str(case_dir),
     })
-    local["simulation"]["initial_condition_filename"] = str(case_dir / "InitialCondition.hdf5")
-    local["thermochemistry"].update({
+    case_par["simulation"]["initial_condition_filename"] = str(case_dir / "InitialCondition.hdf5")
+    case_par["thermochemistry"].update({
         # Load the PIE table at startup so the network can switch to it at
         # z=10 without reconstructing the Rsim parameter object.
         "metal_pie_enabled": bool(radiative),
         "cie_cooling": bool(radiative),
         "thermochemistry_network": "cie_cooling" if radiative else "hydrogen",
     })
-    case_config = dict(config)
-    case_config["par"] = local
     initial = et.build_initial_condition(case_config)
-    rio.writehdf5(initial, local["simulation"]["initial_condition_filename"])
-    case_config["_dark_matter_softening"] = local.get("dark_matter", {}).get("softening", 0.0)
+    rio.writehdf5(initial, case_par["simulation"]["initial_condition_filename"])
+    case_config["_dark_matter_softening"] = case_par.get("dark_matter", {}).get("softening", 0.0)
     dm = et.make_dark_matter(case_config)
 
     sim = Rsim.FromComponents(

@@ -52,8 +52,8 @@ def build_initial_condition(config):
     initial_condition = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    box_size = initial_condition['boxsize']
-    time_value = initial_condition['time']
+    box_size_proper_unyt = initial_condition['box_size_proper']
+    time_value = initial_condition['time_proper']
     radius_min = initial_condition['rmin']
     radius_max = initial_condition['rmax']
     boundary_unyt = np.linspace(

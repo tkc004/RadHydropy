@@ -23,10 +23,10 @@ def build_initial_condition(config):
     result = Rsim(config['par'])
     result.par.simulation.coordinate_system = initial['coordinate_system']
     result.par.simulation.time_proper_code = initial['current_time'].to_value(units.time_unit)
-    result.par.simulation.box_size = initial['box_size'].to_value(units.length_unit)
+    result.par.simulation.box_size_proper_code = initial['box_size_proper'].to_value(units.length_unit)
     result.par.mesh.ghost_cells = 1
     result.mesh.boundary_proper_code = as_named_array(np.linspace(
-        0.0, result.par.simulation.box_size, grid_cells + 1
+        0.0, result.par.simulation.box_size_proper_code, grid_cells + 1
     ))
     result.fluid.rho_proper_code = as_named_array(
         (np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp)
@@ -34,7 +34,7 @@ def build_initial_condition(config):
     )
     result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
     result.fluid.temp_proper_code = as_named_array(
-        (np.ones(grid_cells) * initial['temperature']).to_value(units.temperature_unit)
+        (np.ones(grid_cells) * initial['temperature_proper']).to_value(units.temperature_unit)
     )
     result.fluid.xHI = as_named_array(np.ones(grid_cells) * initial['neutral_fraction'])
     result.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mean_molecular_weight'])
@@ -53,8 +53,8 @@ def build_initial_condition(config):
         x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
         boundary_proper_code=boundary_proper_code,
         width_proper_code=np.diff(boundary_proper_code),
-        area_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, units.area_unit),
-        volume_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area, units.area_unit) * np.diff(boundary_proper_code),
+        area_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area_proper, units.area_unit),
+        volume_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area_proper, units.area_unit) * np.diff(boundary_proper_code),
     )
     result.fluid.SetPressure()
     result.fluid.SetFluidTime(result.par.simulation.time_proper_code)
@@ -152,7 +152,7 @@ def save_history_plot(history, filename, config, target_neutral_fraction):
     dense_analytic = hra.ionized_fraction(
         dense_time_yr,
         initial['neutral_fraction'],
-        initial['temperature'],
+        initial['temperature_proper'],
         initial['hydrogen_number_density'],
     )
 

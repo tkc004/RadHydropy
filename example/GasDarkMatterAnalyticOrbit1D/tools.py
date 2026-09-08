@@ -10,13 +10,15 @@ def code_units_from_config(config):
     return CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
 
-def make_shell(initial_condition, code_unit_system):
+def make_shell(config):
+    initial_condition = config['initial_condition']
+    code_unit_system = code_units_from_config(config)
     central_mass = float(initial_condition['central_dark_matter_mass'])
     gas_density = float(initial_condition['uniform_gas_density'])
 
-    def enclosed_mass(radius):
-        radius = np.asarray(radius, dtype=float)
-        return central_mass + 4.0 * np.pi / 3.0 * gas_density * radius**3
+    def enclosed_mass(radius_code):
+        radius_code = np.asarray(radius_code, dtype=float)
+        return central_mass + 4.0 * np.pi / 3.0 * gas_density * radius_code**3
 
     return DarkMatterShells(
         radius=[initial_condition['initial_radius']],
@@ -29,10 +31,11 @@ def make_shell(initial_condition, code_unit_system):
     )
 
 
-def enclosed_mass(radius, initial_condition):
-    radius = np.asarray(radius, dtype=float)
+def enclosed_mass(radius_code, config):
+    initial_condition = config['initial_condition']
+    radius_code = np.asarray(radius_code, dtype=float)
     return (
         float(initial_condition['central_dark_matter_mass'])
         + 4.0 * np.pi / 3.0
-        * float(initial_condition['uniform_gas_density']) * radius**3
+        * float(initial_condition['uniform_gas_density']) * radius_code**3
     )

@@ -78,8 +78,8 @@ def run():
         case_config["_code_cosmology"] = code_cosmology
         grid_cells = int(config["par"]["mesh"]["grid_cells"])
         case_config["initial_condition"] = {
-            "boxsize": 4.0 * units.length_unit,
-            "time": initial_time * units.time_unit,
+            "box_size_comoving": 4.0 * units.length_unit,
+            "time_cosmic": initial_time * units.time_unit,
         }
         case_config["_rho_comoving_code"] = np.full(
             grid_cells, initial_scale_factor**3

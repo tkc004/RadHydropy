@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/radhydropy-matplotlib')
 ROOT = Path(__file__).resolve().parent
@@ -20,7 +19,6 @@ import numpy as np
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
-from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 import example_utils as eu
 
@@ -48,22 +46,23 @@ def prepare_initial_condition(initial):
 
 
 class InitialCondition(Rsim):
-    def __init__(self, par_config, radius, density, velocity, temperature,
+    def __init__(self, par_config, radius_proper_code, rho_proper_code,
+                 vel_proper_code, temp_proper_code,
                  specific_j, code_unit_system):
         super().__init__(par_config)
         self.par.mesh.grid_cells = 1
         self.par.mesh.ghost_cells = 0
         self.par.simulation.coordinate_system = 'spherical'
         self.par.simulation.time_proper_code = 0.0
-        self.par.simulation.box_size = np.asarray([radius])
-        self.mesh.boundary_proper_code = np.asarray([radius - 0.5, radius + 0.5])
-        self.mesh.x_proper_code = np.asarray([radius])
+        self.par.simulation.box_size_proper_code = np.asarray([radius_proper_code])
+        self.mesh.boundary_proper_code = np.asarray([radius_proper_code - 0.5, radius_proper_code + 0.5])
+        self.mesh.x_proper_code = np.asarray([radius_proper_code])
         self.mesh.width_proper_code = np.asarray([1.0])
         self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1] ** 2
         self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code ** 3)
-        self.fluid.rho_proper_code = np.asarray([density])
-        self.fluid.vel_proper_code = np.asarray([velocity])
-        self.fluid.temp_proper_code = np.asarray([temperature])
+        self.fluid.rho_proper_code = np.asarray([rho_proper_code])
+        self.fluid.vel_proper_code = np.asarray([vel_proper_code])
+        self.fluid.temp_proper_code = np.asarray([temp_proper_code])
         self.fluid.mu = np.ones(1)
         self.fluid.specific_angular_momentum_code = np.asarray([specific_j])
 
@@ -73,18 +72,17 @@ def run_simulation(config):
     initial_condition = config['initial_condition']
     example_config = config['example']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    radius = quantity_to_value(initial_condition['radius'], units.length_unit)
+    radius_proper_code = quantity_to_value(initial_condition['radius_proper'], units.length_unit)
     initial = InitialCondition(
-        par, radius,
-        quantity_to_value(initial_condition['density'], units.density_unit),
+        par, radius_proper_code,
+        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
         quantity_to_value(initial_condition['radial_velocity'], units.velocity_unit),
-        quantity_to_value(example_config['temperature'], units.temperature_unit),
+        quantity_to_value(example_config['temperature_proper'], units.temperature_unit),
         quantity_to_value(
             initial_condition['specific_angular_momentum'],
             units.length_unit * units.velocity_unit,
         ), units,
     )
-    prepare_initial_condition(initial)
     prepare_initial_condition(initial)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -125,12 +123,10 @@ def run_simulation(config):
     final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
     sim.fluid.SetTemperature()
     rio.writehdf5(sim, final_filename)
-    final_par = sim.par
-    final_mesh = SimpleNamespace()
-    final_fluid = SimpleNamespace()
-    rio.readhdf5(final_par, final_mesh, final_fluid, final_filename)
+    final_sim = Rsim(config["par"])
+    rio.readhdf5(final_sim.par, final_sim.mesh, final_sim.fluid, final_filename)
     return (
-        sim, final_fluid, initial_mass, initial_momentum, initial_energy,
+        sim, final_sim.fluid, initial_mass, initial_momentum, initial_energy,
         initial_internal, np.asarray(source_times), np.asarray(source_momenta),
         np.asarray(source_energies), np.asarray(source_works),
     )
@@ -151,16 +147,16 @@ def main(config_filename=CONFIG):
         initial_condition['specific_angular_momentum'],
         units.length_unit * units.velocity_unit,
     )
-    radius = float(sim.mesh.x_proper_code[first])
-    acceleration = j**2 / radius**3
+    radius_proper_code = float(sim.mesh.x_proper_code[first])
+    acceleration_proper_code = j**2 / radius_proper_code**3
     # The generic HDF5 header stores the initial IC time for this non-cosmology
     # source driver; use the live Rsim clock for the exact source interval.
     final_time = float(sim.fluid.time_proper_code)
-    time = source_times
-    expected_momentum = initial_momentum + mass * acceleration * time
+    time_proper_code = source_times
+    expected_momentum = initial_momentum + mass * acceleration_proper_code * time_proper_code
     # Centrifugal work is an internal transfer from rotational to radial
     # kinetic energy; the conserved total-energy field therefore stays fixed.
-    expected_energy = np.full_like(time, initial_energy)
+    expected_energy = np.full_like(time_proper_code, initial_energy)
     # The reported centrifugal work is the transfer into radial kinetic
     # energy.  It is negative here because the inward radial flow is slowed;
     # total energy remains constant while rotational and radial reservoirs
@@ -192,15 +188,15 @@ def main(config_filename=CONFIG):
     # so the analytic reference remains visible.
     plotted = np.unique(np.r_[np.arange(0, len(source_times), 10),
                               len(source_times) - 1])
-    axes[0].plot(time, expected_momentum, '--', label='analytic')
+    axes[0].plot(time_proper_code, expected_momentum, '--', label='analytic')
     axes[0].plot(source_times[plotted], source_momenta[plotted], ':o',
                  markersize=4, label='Rsim')
     axes[0].set_ylabel('radial momentum')
-    axes[1].plot(time, expected_energy, '--', label='analytic')
+    axes[1].plot(time_proper_code, expected_energy, '--', label='analytic')
     axes[1].plot(source_times[plotted], source_energies[plotted], ':o',
                  markersize=4, label='Rsim')
     axes[1].set_ylabel('total energy')
-    axes[2].plot(time, expected_work, '--', label='analytic')
+    axes[2].plot(time_proper_code, expected_work, '--', label='analytic')
     axes[2].plot(source_times[plotted], source_works[plotted], ':o',
                  markersize=4, label='Rsim')
     axes[2].set_ylabel('work')

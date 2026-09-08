@@ -9,9 +9,9 @@ from basic_hydro_utils import make_initial_condition
 from sodshock_analytic import shocktubecal, shocktubeanalyticgraph
 
 def build_initial_condition(config):
-    ic, units = config["initial_condition"], config["_code_units"]; n=int(ic["grid_cells"]); size=quantity_to_value(ic["box_size"],units.length_unit); b=np.linspace(-size/n,size+size/n,n+1); x=.5*(b[:-1]+b[1:]); mid=(x>.25*size)&(x<.75*size)
+    ic, units = config["initial_condition"], config["_code_units"]; n=int(ic["grid_cells"]); size=quantity_to_value(ic["box_size_proper"],units.length_unit); b=np.linspace(-size/n,size+size/n,n+1); x=.5*(b[:-1]+b[1:]); mid=(x>.25*size)&(x<.75*size)
     rho=np.full(n,quantity_to_value(ic["initial_density"],units.density_unit)); rho[mid]*=ic["density_ratio"]; temp=np.full(n,quantity_to_value(ic["initial_temperature"],units.temperature_unit)); temp[mid]*=ic["temperature_ratio"]
-    return make_initial_condition(config, boundary_proper_code=b, rho_proper_code=rho, vel_proper_code=np.full(n,quantity_to_value(ic["initial_velocity"],units.velocity_unit)), temp_proper_code=temp, mu_dimensionless=np.full(n,ic["mean_molecular_weight"]), area_proper_code=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area"],units.area_unit))
+    return make_initial_condition(config, boundary_proper_code=b, rho_proper_code=rho, vel_proper_code=np.full(n,quantity_to_value(ic["initial_velocity"],units.velocity_unit)), temp_proper_code=temp, mu_dimensionless=np.full(n,ic["mean_molecular_weight"]), area_proper_code=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area_proper"],units.area_unit))
 
 def getAnalyticSolution(config, state):
     ic = config["initial_condition"]
@@ -32,7 +32,7 @@ def getAnalyticSolution(config, state):
         return None
     boundary_proper_code = np.asarray(state.mesh.boundary_proper_code, dtype=float)
     centers = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    box = quantity_to_value(ic["box_size"], units.length_unit)
+    box = quantity_to_value(ic["box_size_proper"], units.length_unit)
     interface = 0.25 * box
     left, _, _ = shocktubeanalyticgraph(
         config["par"]["hydrodynamics"]["gamma"], rho_low, rho2, rho3,

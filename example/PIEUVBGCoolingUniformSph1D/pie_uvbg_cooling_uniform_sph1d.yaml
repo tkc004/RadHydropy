@@ -44,8 +44,8 @@ par:
 initial_condition:
   nogrid: 48
   coordsys: spherical
-  boxsize: {value: 0.001, unit: pc}
-  time: {value: 0.0, unit: yr}
+  box_size_proper: {value: 0.001, unit: pc}
+  time_proper: {value: 0.0, unit: yr}
   tempini: {value: 10000.0, unit: K}
   muini: 0.62
   nHini: {value: 1.0, unit: 1/cm**3}

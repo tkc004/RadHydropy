@@ -48,16 +48,16 @@ refparams = {
     'cosmological_gravity': False,
     'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
     'gamma':1.4, # for polytropic, the polytropic index
-    'temperature':2.7*unyt.K, # default gas/background temperature
+    'temperature_proper':2.7*unyt.K, # default gas/background temperature
     'hydro_integrator': 'euler',
     'initial_time': None,
     'time_code': 0.0 * unyt.s,
     'timesim':2.0*unyt.s, # final simulation time
-    'boxsize': None,
+    'box_size_proper': None,
     'CFL':0.1, # CFL condition for time-step
     'boundcond':'Periodic',
     'CodeUnits': None,
-    'area': 1.0 * unyt.cm**2,
+    'area_proper': 1.0 * unyt.cm**2,
     'vel_inflow':1.0*unyt.cm/unyt.s,
     'rho_inflow':1.0*unyt.g/unyt.cm**3,
     'temp_inflow':0.0*unyt.K,
@@ -285,7 +285,7 @@ class HydrodynamicsParameters:
 
     eos_type: str = 'polytropic'
     gamma: float = 1.4
-    temperature: object = None
+    temperature_proper: object = None
     CFL: float = 0.1
     order: int = 0
     riemann_solver: str = 'Rusanov'
@@ -401,7 +401,8 @@ class SimulationParameters:
     coordinate_system: str = 'cartesian'
     final_time: object = None
     time_code: object = None
-    box_size: object = None
+    box_size_proper_code: object = None
+    box_size_comoving_code: object = None
     cosmological_expansion: bool = False
     supercomoving_coordinates: bool = False
     coordinate_frame: str = 'physical'
@@ -428,7 +429,7 @@ class MeshParameters:
     """Structured view of mesh geometry settings."""
 
     ghost_cells: int = 2
-    area: object = None
+    area_proper: object = None
     grid_cells: object = None
 
 
@@ -614,12 +615,17 @@ class Par:
                 'coordinate_system': 'coordsys',
                 'final_time': 'timesim',
                 'initial_time': 'initial_time',
-                'box_size': 'boxsize',
+                'box_size_proper': 'box_size_proper',
+                'box_size_comoving_cgs_cm': 'box_size_comoving_cgs_cm',
                 'current_time': 'time_code',
             },
-            'mesh': {'grid_cells': 'nogrid', 'ghost_cells': 'noghost', 'area': 'area'},
+            'mesh': {
+                'grid_cells': 'nogrid', 'ghost_cells': 'noghost',
+                'area_proper': 'area_proper',
+            },
             'hydrodynamics': {
-                'eos_type': 'EOStype', 'gamma': 'gamma', 'temperature': 'temperature',
+                'eos_type': 'EOStype', 'gamma': 'gamma',
+                'temperature_proper': 'temperature_proper',
                 'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
                 'flux_limiter': 'flux_limiter',
                 'positivity_preserving': 'positivity_preserving',
@@ -890,7 +896,7 @@ class Par:
         self.hydrodynamics = HydrodynamicsParameters(
             eos_type=self.EOStype,
             gamma=self._parameter('gamma'),
-            temperature=self.temperature,
+            temperature_proper=self.temperature_proper,
             CFL=self._parameter('CFL'),
             order=self.order,
             riemann_solver=self.riemann_solver,
@@ -991,7 +997,7 @@ class Par:
             coordinate_system=self._parameter('coordsys'),
             final_time=self._parameter('timesim'),
             time_code=getattr(self, 'time_code', None),
-            box_size=getattr(self, 'boxsize', None),
+            box_size_proper_code=getattr(self, 'box_size_proper', None),
             cosmological_expansion=self.cosmological_expansion,
             supercomoving_coordinates=self.supercomoving_coordinates,
             coordinate_frame=self.coordinate_frame,
@@ -1014,7 +1020,7 @@ class Par:
     def _sync_mesh_parameters(self):
         self.mesh = MeshParameters(
             ghost_cells=self._parameter('noghost'),
-            area=self.area,
+            area_proper=self.area_proper,
             grid_cells=self._parameter('nogrid'),
         )
 

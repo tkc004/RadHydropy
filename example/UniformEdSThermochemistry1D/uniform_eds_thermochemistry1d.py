@@ -27,7 +27,13 @@ import example_utils as eu
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
 
-def run_case(config, code_unit_system, cosmology, atomic_cooling):
+def run_case(config, atomic_cooling):
+    code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    cosmology = EinsteinDeSitter.from_code_units(
+        code_unit_system,
+        t_ref=float(config["par"]["gravity"]["cosmology_t_ref"]),
+        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
+    )
     case_config = copy.deepcopy(config)
     initial_condition = case_config["initial_condition"]
     label = "atomic_compton" if atomic_cooling else "compton_only"
@@ -40,7 +46,7 @@ def run_case(config, code_unit_system, cosmology, atomic_cooling):
     Path(case_config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     source_dt = float(case_config["example"].get("source_timestep", 2.0))
 
-    initial = UniformEdSInitialCondition(case_config, code_unit_system, cosmology)
+    initial = UniformEdSInitialCondition(case_config)
     rio.writehdf5(initial, case_config["par"]["simulation"]["initial_condition_filename"])
 
     sim = Rsim(case_config["par"])
@@ -152,12 +158,8 @@ def main():
         a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
     )
 
-    compton, sim, physical = run_case(
-        config, units, cosmology, atomic_cooling=False
-    )
-    atomic, _, _ = run_case(
-        config, units, cosmology, atomic_cooling=True
-    )
+    compton, sim, physical = run_case(config, atomic_cooling=False)
+    atomic, _, _ = run_case(config, atomic_cooling=True)
 
     initial_time_s = (
         float(initial_condition["initial_cosmic_time"])

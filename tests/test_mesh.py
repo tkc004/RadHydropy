@@ -22,8 +22,11 @@ class Par():
         self.nogrid = 10
         self.noghost = 2
         self.coordsys = 'cartesian'
-        self.area = 3.0 * unyt.cm**2
-        self.mesh = SimpleNamespace(ghost_cells=2, grid_cells=10, area=self.area)
+        self.area_proper = 3.0 * unyt.cm**2
+        self.mesh = SimpleNamespace(
+            ghost_cells=2, grid_cells=10,
+            area_proper=self.area_proper,
+        )
         self.simulation = SimpleNamespace(coordinate_system='cartesian')
         self.units = SimpleNamespace(CodeUnits=self.CodeUnits)
 

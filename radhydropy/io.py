@@ -522,7 +522,11 @@ def writehdf5(ric,ICfilename):
         _write_quantity(
             header,
             "box_size_comoving_code" if cosmological_schema else "box_size_proper_code",
-            ric.par.simulation.box_size,
+            (
+                ric.par.simulation.box_size_comoving_code
+                if cosmological_schema
+                else ric.par.simulation.box_size_proper_code
+            ),
             code_units=code_units,
             scale_key="length_cgs_cm",
             default_unit=unyt.cm,
@@ -855,7 +859,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
                     np.asarray(runtime_time, dtype=float).reshape(-1)[0]
                 )
             par.simulation.time_code = runtime_time
-            par.simulation.box_size = getattr(par, box_field)
+            if canonical_cosmological_schema:
+                par.simulation.box_size_comoving_code = getattr(par, box_field)
+            else:
+                par.simulation.box_size_proper_code = getattr(par, box_field)
             if canonical_cosmological_schema:
                 fluid.tau_supercomoving_code = par.simulation.time_code
             elif canonical_proper_schema:

@@ -35,7 +35,7 @@ par:
 initial_condition:
   grid_cells: 1000
   coordinate_system: spherical
-  box_size: {value: 5.0, unit: cm}
+  box_size_proper: {value: 5.0, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_density: {value: 1.0, unit: g/cm**3}
   explosion_energy: {value: 1.0e-4, unit: erg}

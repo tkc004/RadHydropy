@@ -38,9 +38,9 @@ par:
 initial_condition:
   radius_min: 0.5
   radius_max: 1.5
-  density: 1.0
+  rho_proper_code: 1.0
   central_mass: 1.0
   rotation_factor: 1.2
   reference_samples_per_cell: 32
 example:
-  temperature: 1.0e-8
+  temperature_proper_code: 1.0e-8

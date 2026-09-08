@@ -36,13 +36,13 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     sim.par.simulation.tau_supercomoving_code = tau0
     sim.fluid.tau_supercomoving_code = tau0
     sim.fluid.rho_comoving_code = np.array([
-        quantity_to_value(initial_condition['density'], units.density_unit)
+        quantity_to_value(initial_condition['rho_proper'], units.density_unit)
     ])
     sim.fluid.vel_supercomoving_code = np.array([
-        quantity_to_value(initial_condition['velocity'], units.velocity_unit)
+        quantity_to_value(initial_condition['vel_proper'], units.velocity_unit)
     ])
     sim.fluid.pre_supercomoving_code = np.array([
-        quantity_to_value(initial_condition['pressure'], units.pressure_unit)
+        quantity_to_value(initial_condition['pre_proper'], units.pressure_unit)
     ])
     fluid = sim.fluid
     initial = (

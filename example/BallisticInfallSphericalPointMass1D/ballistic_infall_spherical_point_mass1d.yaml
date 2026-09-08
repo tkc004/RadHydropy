@@ -36,7 +36,7 @@ par:
 initial_condition:
   grid_cells: 256
   coordinate_system: spherical
-  box_size: {value: 20.0, unit: pc}
+  box_size_proper: {value: 20.0, unit: pc}
   current_time: {value: 0.0, unit: s}
   inner_radius: {value: 2.0, unit: pc}
   outer_radius: {value: 20.0, unit: pc}

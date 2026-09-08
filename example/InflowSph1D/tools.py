@@ -18,15 +18,15 @@ def build_initial_condition(config):
     sim = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
-    box_size_code = float(initial['box_size'].to_value(code_units.length_unit))
+    box_size_code = float(initial['box_size_proper'].to_value(code_units.length_unit))
     sim.mesh.boundary_proper_code = as_named_array(np.linspace(
         0.0, box_size_code, grid_cells + 1
     ))
     sim.fluid.vel_proper_code = as_named_array(np.full(
-        grid_cells, initial['velocity'].to_value(code_units.velocity_unit)
+        grid_cells, initial['vel_proper'].to_value(code_units.velocity_unit)
     ))
     sim.fluid.temp_proper_code = as_named_array(np.full(
-        grid_cells, initial['temperature'].to_value(code_units.temperature_unit)
+        grid_cells, initial['temperature_proper'].to_value(code_units.temperature_unit)
     ))
     sim.fluid.rho_proper_code = as_named_array(np.full(
         grid_cells, initial['initial_density'].to_value(code_units.density_unit)
@@ -71,7 +71,7 @@ def ReadandPlot(outfilename, config, **kwargs):
     plt.ylim(ymax=10.1)
     plt.axvline(
         x=ia.front_position(
-            initial['box_size'],
+            initial['box_size_proper'],
             time,
             config["par"]['boundary']['inflow_velocity'],
         ),
@@ -81,7 +81,6 @@ def ReadandPlot(outfilename, config, **kwargs):
     rhoana = ia.density_profile(
         x_proper_code[first:last] * code_units_obj.length_unit,
         config["par"]['boundary']['inflow_density'],
-        initial['box_size'],
+        initial['box_size_proper'],
     )
     plt.plot(x_proper_code[first:last] * code_units_obj.length_unit, rhoana, ls='dashed', color='k')
-

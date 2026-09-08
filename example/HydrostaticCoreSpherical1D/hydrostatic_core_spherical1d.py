@@ -30,7 +30,7 @@ def run(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
     initial_condition = config["initial_condition"]
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    initial = et.InitialCondition(config, units)
+    initial = et.InitialCondition(config)
     output_dir = Path(config["par"]["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, output_dir / "InitialCondition.hdf5")
@@ -72,13 +72,13 @@ def run(config_filename=DEFAULT_CONFIG):
 
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    radius = np.asarray(sim.mesh.geometry_state.x_proper_code[first:last], dtype=float)
-    density = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
-    analytic = et.analytic_density_code(radius, config, units)
+    radius_proper_code = np.asarray(sim.mesh.geometry_state.x_proper_code[first:last], dtype=float)
+    rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
+    analytic_rho_proper_code = et.analytic_density_code(radius_proper_code, config)
     core_radius = float(np.asarray(sim.par.gas_core_radius))
-    halo = radius >= core_radius
-    relative_error = np.abs(density - analytic) / np.maximum(analytic, 1.0e-300)
-    core_cells = radius < core_radius
+    halo = radius_proper_code >= core_radius
+    relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(analytic_rho_proper_code, 1.0e-300)
+    core_cells = radius_proper_code < core_radius
     core_last = np.flatnonzero(core_cells)[-1]
     pressure_mismatch = abs(
         float(sim.fluid.pre_proper_code[first + core_last])
@@ -92,10 +92,10 @@ def run(config_filename=DEFAULT_CONFIG):
     print("mean timestep: %.6e" % mean_step)
 
     figure = output_dir / "HydrostaticCoreSpherical1D.jpg"
-    radius_pc = radius * float(units.length_in_cgs) / 3.085677581e18
+    radius_pc = radius_proper_code * float(units.length_in_cgs) / 3.085677581e18
     plt.figure(figsize=(7.0, 5.0))
-    plt.loglog(radius_pc, density, label="simulation")
-    plt.loglog(radius_pc, analytic, "--", label="analytic")
+    plt.loglog(radius_pc, rho_proper_code, label="simulation")
+    plt.loglog(radius_pc, analytic_rho_proper_code, "--", label="analytic")
     plt.axvline(core_radius * float(units.length_in_cgs) / 3.085677581e18,
                 color="0.4", ls=":", label="core radius")
     plt.xlabel("radius [pc]")

@@ -56,12 +56,12 @@ par:
 initial_condition:
   grid_cells: 1024
   coordinate_system: spherical
-  box_size: {value: 25.0, unit: pc}
+  box_size_proper: {value: 25.0, unit: pc}
   injection_radius: {value: 0.05, unit: pc}
   current_time: {value: 0.0, unit: Myr}
-  temperature: {value: 100.0, unit: K}
+  temperature_proper: {value: 100.0, unit: K}
   mean_molecular_weight: 0.62
-  velocity: {value: 0.0, unit: km/s}
+  vel_proper: {value: 0.0, unit: km/s}
   initial_density: {value: 1.0e-24, unit: g/cm**3}
 example:
   figure_prefix: StellarWindBubble1D_no_metal

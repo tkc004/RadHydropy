@@ -7,7 +7,6 @@ import sys
 import tempfile
 
 import numpy as np
-from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -38,18 +37,6 @@ from bertschinger_gas import solve_bertschinger_gas
 
 
 DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_gas_radhydropy.yaml')
-
-
-class Par:
-    pass
-
-
-class Mesh:
-    pass
-
-
-class Fluid:
-    pass
 
 
 class BertschingerBoundarySolver(Solver):
@@ -127,18 +114,14 @@ def _interpolate_profile(solution, radius):
 
 
 def build_initial_condition(config):
-    sim = SimpleNamespace()
+    sim = Rsim(config["par"])
     initial_condition = config['initial_condition']
 
     solution = config['_reference_solution']
     simulation = config["par"]['simulation']
     mesh = config["par"]['mesh']
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
-    sim.par = Par()
-    sim.mesh = Mesh()
-    sim.fluid = Fluid()
-    sim.par.units = SimpleNamespace(CodeUnits=code_units)
-    sim.par.hydrodynamics = SimpleNamespace(gamma=5.0 / 3.0)
+    sim.par.hydrodynamics.gamma = 5.0 / 3.0
     grid_cells = int(mesh['grid_cells'])
     initial_time = float(initial_condition['initial_cosmic_time'])
     sim.par.cosmological_expansion = True
@@ -158,15 +141,11 @@ def build_initial_condition(config):
     sim.par.pressure_representation = 'supercomoving'
     sim.par.temperature_representation = 'supercomoving'
     sim.par.perturbation_amplitude = float(initial_condition['perturbation_amplitude'])
-    sim.par.simulation = SimpleNamespace(
-        # The config["par"] and HDF5 state use supercomoving time.  The IC profile
-        # itself is evaluated at this cosmic time, but the serialized state
-        # must start at the corresponding tau (zero at t_ref here).
-        tau_supercomoving_code=sim.par.tau_supercomoving_code.copy(),
-        box_size=initial_condition['box_size'],
-        coordinate_system=simulation['coordinate_system'],
-    )
-    sim.par.mesh = SimpleNamespace(grid_cells=grid_cells, ghost_cells=0)
+    sim.par.simulation.tau_supercomoving_code = sim.par.tau_supercomoving_code.copy()
+    sim.par.simulation.box_size_comoving_code = initial_condition['box_size_proper']
+    sim.par.simulation.coordinate_system = simulation['coordinate_system']
+    sim.par.mesh.grid_cells = grid_cells
+    sim.par.mesh.ghost_cells = 0
     inner_radius_code = float(
         initial_condition['inner_radius'].to_value(code_units.length_unit)
     )
@@ -396,7 +375,7 @@ def main(config_filename=DEFAULT_CONFIG):
     report = Path(output['savedir']) / 'BertschingerGasReference_RadHydroComparison.txt'
     lam = numerical['lambda']
     with report.open('w', encoding='utf-8') as stream:
-        stream.write('final_similarity_time %.12g\n' % numerical['time'])
+        stream.write('final_similarity_time %.12g\n' % numerical['time_proper'])
         stream.write('standalone_shock_lambda %.12g\n' % reference.shock_lambda)
         for name in ('density', 'velocity', 'pressure'):
             valid = np.isfinite(analytic_profiles[name])
@@ -405,9 +384,9 @@ def main(config_filename=DEFAULT_CONFIG):
             ))
             stream.write('%s_rms_error %.12g\n' % (name, error))
         outer = lam > 1.0
-        stream.write('outer_density_mean %.12g\n' % np.mean(numerical['density'][outer]))
-        stream.write('outer_density_min %.12g\n' % np.min(numerical['density'][outer]))
-        stream.write('outer_density_max %.12g\n' % np.max(numerical['density'][outer]))
+        stream.write('outer_density_mean %.12g\n' % np.mean(numerical['rho_proper'][outer]))
+        stream.write('outer_density_min %.12g\n' % np.min(numerical['rho_proper'][outer]))
+        stream.write('outer_density_max %.12g\n' % np.max(numerical['rho_proper'][outer]))
     print('shock lambda = %.8f' % reference.shock_lambda)
     print('initial-condition figure = %s' % initial_output)
     print('comparison figure = %s' % comparison_output)

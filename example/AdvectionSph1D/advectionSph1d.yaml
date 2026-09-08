@@ -34,7 +34,7 @@ par:
 initial_condition:
   grid_cells: 1000
   coordinate_system: spherical
-  box_size: {value: 4.0, unit: cm}
+  box_size_proper: {value: 4.0, unit: cm}
   current_time: {value: 0.0, unit: s}
   initial_temperature: {value: 0.0, unit: K}
   mean_molecular_weight: 1.0

@@ -19,7 +19,7 @@ def build_initial_condition(config):
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
     sim.mesh.boundary_proper_code = as_named_array(np.linspace(
-        0.0, quantity_to_value(initial['box_size'], code_units.length_unit), grid_cells + 1
+        0.0, quantity_to_value(initial['box_size_proper'], code_units.length_unit), grid_cells + 1
     ))
     sim.fluid.vel_proper_code = as_named_array(np.full(
         grid_cells, quantity_to_value(initial['initial_velocity'], code_units.velocity_unit)
@@ -72,5 +72,3 @@ def ReadandPlot(outfilename, config, **kwargs):
         color=kwargs['color'],
         ls='dashed',
     )
-
-

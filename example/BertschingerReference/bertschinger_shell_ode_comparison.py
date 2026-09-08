@@ -381,8 +381,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         density_figure, density_axis = plt.subplots(figsize=(8, 5))
         for profile in slope_profiles:
             density_axis.plot(
-                profile['radius'] / profile['virial_radius'],
-                profile['density'] / profile['background_density'],
+                profile['radius_proper'] / profile['virial_radius'],
+                profile['rho_proper'] / profile['background_density'],
                 linewidth=1.6,
                 label=r'$\xi=%.2f$' % profile['xi'])
         density_axis.axvline(1.0, color='black', linestyle=':',
@@ -402,7 +402,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
 
         slope_figure, slope_axis = plt.subplots(figsize=(8, 5))
         for profile in slope_profiles:
-            x = np.log10(profile['radius'] / profile['virial_radius'])
+            x = np.log10(profile['radius_proper'] / profile['virial_radius'])
             line, = slope_axis.plot(
                 x, profile['slope'],
                 linewidth=1.6,
@@ -410,7 +410,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             slope_axis.plot(
                 np.log10(profile['splashback_radius'] /
                           profile['virial_radius']),
-                np.interp(profile['splashback_radius'], profile['radius'],
+                np.interp(profile['splashback_radius'], profile['radius_proper'],
                           profile['slope']),
                             marker='o', color=line.get_color(),
                             markeredgecolor='black')
@@ -430,8 +430,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             Path(config["par"]['output']['savedir']) /
             'BertschingerDarkMatterDensitySlope.npz',
             xi=np.asarray([p['xi'] for p in slope_profiles]),
-            radius=np.asarray([p['radius'] for p in slope_profiles], dtype=object),
-            density=np.asarray([p['density'] for p in slope_profiles], dtype=object),
+            radius=np.asarray([p['radius_proper'] for p in slope_profiles], dtype=object),
+            density=np.asarray([p['rho_proper'] for p in slope_profiles], dtype=object),
             slope=np.asarray([p['slope'] for p in slope_profiles], dtype=object),
             virial_radius=np.asarray([p['virial_radius'] for p in slope_profiles]),
             splashback_radius=np.asarray(

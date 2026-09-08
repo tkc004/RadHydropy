@@ -84,8 +84,8 @@ def main(output_root=None):
         "par": config["par"],
         "initial_condition": {
             **initial_condition,
-            "boxsize": initial_condition["rmax"],
-            "time": cosmic_time * units.time_unit,
+            "box_size_comoving": initial_condition["rmax"],
+            "time_cosmic": cosmic_time * units.time_unit,
         },
         "example": {},
         "_code_cosmology": cosmology,

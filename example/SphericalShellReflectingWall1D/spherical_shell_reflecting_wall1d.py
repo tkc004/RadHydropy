@@ -52,7 +52,9 @@ class InnerWallSolver(Solver):
         self._copy_boundary_state(fluid, slice(last + 1, last + 1 + ng), right)
 
 
-def make_initial_condition(ic, code_unit_system):
+def make_initial_condition(config):
+    ic = config["initial_condition"]
+    code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     state = State()
     state.par, state.mesh, state.fluid = State(), State(), State()
     state.par.code_unit_system = type('Units', (), {'CodeUnits': code_unit_system})()
@@ -62,11 +64,11 @@ def make_initial_condition(ic, code_unit_system):
     state.par.nogrid = int(ic["grid_cells"])
     state.par.mesh = type('MeshParameters', (), {'ghost_cells': 0, 'grid_cells': state.par.nogrid})()
     state.par.coordsys = "spherical"
-    state.par.boxsize = np.asarray([float(ic["outer_radius"].to_value(code_unit_system.length_unit))]) * code_unit_system.length_unit
+    state.par.box_size_proper = np.asarray([float(ic["outer_radius"].to_value(code_unit_system.length_unit))]) * code_unit_system.length_unit
     state.par.time_proper_code = np.asarray([0.0]) * code_unit_system.time_unit
     state.par.simulation.time_proper_code = state.par.time_proper_code
     state.par.simulation.coordinate_system = 'spherical'
-    state.par.simulation.box_size = state.par.boxsize
+    state.par.simulation.box_size_proper_code = state.par.box_size_proper
     rmin = float(ic["inner_radius"].to_value(code_unit_system.length_unit))
     rmax = float(ic["outer_radius"].to_value(code_unit_system.length_unit))
     boundary_proper_code = np.linspace(rmin, rmax, state.par.nogrid + 1)
@@ -78,8 +80,8 @@ def make_initial_condition(ic, code_unit_system):
     radius_proper_code = np.asarray(x_proper_code_unyt.to_value(code_unit_system.length_unit))
     shell = (radius_proper_code >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius_proper_code <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
     state.fluid.rho_proper_code = np.where(shell, float(ic["shell_density"]), 0.0)
-    state.fluid.temp_proper_code = np.where(shell, float(ic["temperature"].to_value("K")), 0.0)
-    state.fluid.vel_proper_code = np.where(shell, float(ic["velocity"].to_value(code_unit_system.velocity_unit)), 0.0)
+    state.fluid.temp_proper_code = np.where(shell, float(ic["temperature_proper"].to_value("K")), 0.0)
+    state.fluid.vel_proper_code = np.where(shell, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit)), 0.0)
     state.fluid.mu = np.full(state.par.nogrid, float(ic["mean_molecular_weight"]))
     boundary_proper_code = np.asarray(boundary_proper_code_unyt.to_value(code_unit_system.length_unit), dtype=float)
     x_proper_code = np.asarray(x_proper_code_unyt.to_value(code_unit_system.length_unit), dtype=float)
@@ -151,7 +153,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     outdir = Path(config["par"]["output"]["directory"])
     outdir.mkdir(parents=True, exist_ok=True)
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    initial = make_initial_condition(initial_condition, units)
+    initial = make_initial_condition(config)
     rio.writehdf5(initial, config["par"]["simulation"]["initial_condition_filename"])
     sim = Rsim(config["par"])
     sim.solver = InnerWallSolver()
@@ -186,7 +188,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     final = snapshots[-1]
     r, rho, vel, pre, temp, entropy = final[1:]
     active = rho > float(par_config["hydrodynamics"].get("cfl_density_floor", 0.0))
-    hot = active & (temp > 10.0 * float(initial_condition["temperature"].to_value("K")))
+    hot = active & (temp > 10.0 * float(initial_condition["temperature_proper"].to_value("K")))
     if not np.any(hot):
         raise RuntimeError("finite reflecting wall did not produce post-shock heating")
     data = {"time": np.array([s[0] for s in snapshots]), "radius": r, "rho": np.array([s[2] for s in snapshots]), "velocity": np.array([s[3] for s in snapshots]), "pressure": np.array([s[4] for s in snapshots]), "temperature": np.array([s[5] for s in snapshots]), "entropy": np.array([s[6] for s in snapshots]), "wall_flux": np.asarray(fluxes)}
