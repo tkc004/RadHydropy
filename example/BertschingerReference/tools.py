@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from example import example_utils as eu
 
 
@@ -34,7 +34,9 @@ def make_scale_free_shells(config):
     boundaries = np.linspace(qmin**3, qmax**3, number + 1)**(1.0 / 3.0)
     radius_comoving_code = 0.5 * (boundaries[:-1] + boundaries[1:])
     volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    time_cosmic_code = float(initial_condition['time_cosmic'])
+    time_cosmic_code = quantity_to_value(
+        initial_condition['time_cosmic'], code_unit_system.time_unit
+    )
     scale_factor_dimensionless = float(cosmology.scale_factor(time_cosmic_code))
     hubble_code = float(cosmology.hubble(time_cosmic_code))
     rho_comoving_code = float(cosmology.background_density(time_cosmic_code)) * scale_factor_dimensionless**3
@@ -53,16 +55,19 @@ def make_scale_free_shells(config):
     return shells, delta_mass
 
 
-def physical_velocity(shells, cosmic_time, cosmology):
-    a = float(cosmology.scale_factor(cosmic_time))
-    hubble = float(cosmology.hubble(cosmic_time))
+def peculiar_velocity_proper_code(shells, time_cosmic_code, config):
+    cosmology = config['_cosmology']
+    a = float(cosmology.scale_factor(time_cosmic_code))
+    hubble = float(cosmology.hubble(time_cosmic_code))
     return hubble * a * shells.radius + shells.velocity / a
 
 
-def turnaround_radius(shells, cosmic_time, cosmology):
+def radius_turnaround_proper_code(shells, time_cosmic_code, config):
     """Interpolate the physical radius where the radial velocity vanishes."""
-    radius_proper_code = float(cosmology.scale_factor(cosmic_time)) * shells.radius
-    vel_peculiar_proper_code = physical_velocity(shells, cosmic_time, cosmology)
+    cosmology = config['_cosmology']
+    radius_proper_code = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
+    vel_peculiar_proper_code = peculiar_velocity_proper_code(
+        shells, time_cosmic_code, config)
     # The sorted shell array is ordered from the collapsed/infalling region to
     # the expanding background, so the first turnaround interface is usually
     # a negative-to-positive velocity transition after shell crossing.
@@ -74,13 +79,15 @@ def turnaround_radius(shells, cosmic_time, cosmology):
     return float(radius_proper_code[i] + fraction * (radius_proper_code[i + 1] - radius_proper_code[i]))
 
 
-def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
+def similarity_profiles(shells, time_cosmic_code, config, bins=256):
     """Deposit shell mass into dimensionless Bertschinger profiles."""
-    rta = turnaround_radius(shells, cosmic_time, cosmology)
-    a = float(cosmology.scale_factor(cosmic_time))
-    rho_background = float(cosmology.background_density(cosmic_time))
+    cosmology = config['_cosmology']
+    rta = radius_turnaround_proper_code(shells, time_cosmic_code, config)
+    a = float(cosmology.scale_factor(time_cosmic_code))
+    rho_background = float(cosmology.background_density(time_cosmic_code))
     radius_proper_code = a * shells.radius
-    vel_peculiar_proper_code = physical_velocity(shells, cosmic_time, cosmology)
+    vel_peculiar_proper_code = peculiar_velocity_proper_code(
+        shells, time_cosmic_code, config)
     lam_edges = np.geomspace(max(radius_proper_code.min() / rta, 1.0e-5),
                              radius_proper_code.max() / rta, bins + 1)
     lam = np.sqrt(lam_edges[:-1] * lam_edges[1:])
@@ -93,17 +100,17 @@ def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
         selected = shell_index == index
         if np.any(selected):
             velocity_scaled[index] = np.average(
-                vel_peculiar_proper_code[selected] / (rta / cosmic_time),
+                vel_peculiar_proper_code[selected] / (rta / time_cosmic_code),
                 weights=shells.mass[selected],
             )
     cumulative = np.cumsum(shell_mass)
     mass_scaled = cumulative / ((4.0 * np.pi / 3.0) * rho_background * rta**3)
     return {
         'lambda_dimensionless': lam,
-        'rho_proper': density_contrast,
-        'vel_proper': velocity_scaled,
+        'density_contrast_dimensionless': density_contrast,
+        'vel_scaled_dimensionless': velocity_scaled,
         'mass_scaled_dimensionless': mass_scaled,
-        'turnaround_radius': rta,
+        'radius_turnaround_proper_code': rta,
     }
 
 
@@ -113,6 +120,6 @@ def write_reference(filename, profiles, metadata):
         for key, value in metadata.items():
             header.attrs[key] = value
         for key, value in profiles.items():
-            if key != 'turnaround_radius':
+            if key != 'radius_turnaround_proper_code':
                 handle.create_dataset(key, data=np.asarray(value))
-        header.attrs['TurnaroundRadius'] = float(profiles['turnaround_radius'])
+        header.attrs['TurnaroundRadius'] = float(profiles['radius_turnaround_proper_code'])

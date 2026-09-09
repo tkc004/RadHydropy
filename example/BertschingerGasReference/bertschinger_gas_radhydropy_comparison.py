@@ -26,7 +26,7 @@ from radhydropy.gravity import Gravity
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     MeshGeometryState,
@@ -127,7 +127,7 @@ def build_initial_condition(config):
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     sim.par.hydrodynamics.gamma = 5.0 / 3.0
     grid_cells = int(mesh['grid_cells'])
-    initial_time = float(initial_condition['time_cosmic'])
+    initial_time = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True

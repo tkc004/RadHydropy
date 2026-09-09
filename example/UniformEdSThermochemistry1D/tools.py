@@ -30,7 +30,9 @@ class UniformEdSInitialCondition(Rsim):
         count = int(config["par"]["mesh"]["grid_cells"])
         rmin = quantity_to_value(initial_condition["radius_inner_proper"], code_unit_system.length_unit)
         rmax = quantity_to_value(initial_condition["radius_outer_proper"], code_unit_system.length_unit)
-        initial_time_proper_code = float(initial_condition["time_cosmic"])
+        initial_time_proper_code = quantity_to_value(
+            initial_condition["time_cosmic"], code_unit_system.time_unit
+        )
 
         self.par.mesh.ghost_cells = 0
         self.par.simulation.coordinate_system = "spherical"

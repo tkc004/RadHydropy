@@ -24,7 +24,7 @@ from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 from example_utils import load_nested_example_config
 import plot_entropy_evolution as entropy_plotter
@@ -974,11 +974,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         raise RuntimeError(
             "initial gas/total mass fraction does not match baryon_fraction"
         )
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     temperature_proper = float(np.median(initial.fluid.temp_supercomoving_code)) / float(
-        cosmology.scale_factor(float(initial_condition["time_cosmic"]))
+        cosmology.scale_factor(initial_time)
     ) ** 2
     expected_temperature = float(initial_condition["cmb_temperature_0"]) * (
-        1.0 / float(cosmology.scale_factor(float(initial_condition["time_cosmic"])))
+        1.0 / float(cosmology.scale_factor(initial_time))
     )
     if not np.isclose(temperature_proper, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
@@ -1018,7 +1019,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(initial_condition["time_cosmic"])
     initial_a = float(cosmology.scale_factor(initial_time))
     minimum_temperature = configured_minimum_temperature
     if minimum_temperature is not None:
@@ -1173,7 +1173,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     def save_snapshot(cosmic_time):
         nonlocal previous_halo_mask
-        gas_profile = et.gas_density_profile(sim, cosmic_time, cosmology)
+        gas_profile = et.gas_density_profile(sim, cosmic_time, config)
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
         scale_factor = float(cosmology.scale_factor(cosmic_time))
@@ -1197,7 +1197,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
         gas_profile.update(_instantaneous_source_diagnostics(sim, gas_profile))
         radius_record = et.profiles(
-            sim, dm, cosmic_time, cosmology, initial_condition,
+            sim, dm, cosmic_time, config,
             density_bin_count=example.get("dm_density_bins", 128),
         )
         gas_radius = np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
@@ -1242,7 +1242,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 radius_record[report_key] = np.nan
         gas_profiles.append(gas_profile)
         radius_history.append(radius_record)
-        dm_profile = et.density_profiles(sim, dm, cosmic_time, cosmology)
+        dm_profile = et.density_profiles(sim, dm, cosmic_time, config)
         dm_profile["scale_factor"] = scale_factor
         dm_profiles.append(dm_profile)
         gas_energy_history.append(_energy_cell_state(sim))
@@ -1680,8 +1680,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         virial_temperature,
         temperature_figure,
         minimum_temperature=temperature_plot_ymin,
-        inner_radius=float(initial_condition.get("inner_wall_radius_comoving", initial_condition["radius_inner_comoving"])),
-        box_boundary=float(initial_condition["radius_outer_comoving"]),
+        inner_radius=quantity_to_value(
+            initial_condition.get("inner_wall_radius_comoving", initial_condition["radius_inner_comoving"]),
+            units.length_unit,
+        ),
+        box_boundary=quantity_to_value(
+            initial_condition["radius_outer_comoving"], units.length_unit
+        ),
     )
     specific_angular_momentum_figure = output_dir / (
         figure_prefix + "_SpecificAngularMomentum.jpg"

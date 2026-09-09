@@ -19,7 +19,7 @@ from radhydropy.cosmology import EinsteinDeSitter
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from example_utils import load_nested_example_config
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
 
@@ -70,7 +70,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     radius_comoving_code = et.cell_centres(boundary_comoving_code)
-    initial_time = float(initial_condition["time_cosmic"])
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     scale_factor = float(cosmology.scale_factor(initial_time))
     redshift = 1.0 / scale_factor - 1.0
     length_unit_mpc_h = (

@@ -41,8 +41,8 @@ initial_condition:
   box_size_proper: {value: 2.0, unit: pc}
   radius_inner_comoving: {value: 0.0, unit: pc}
   radius_outer_comoving: {value: 2.0, unit: pc}
-  time_cosmic: 1.0
-  radius_top_hat_comoving: {value: 0.5, unit: pc}
+  time_cosmic: {value: 1.0, unit: pc/(km/s)}
+  radius_perturbation_comoving: {value: 0.5, unit: pc}
   overdensity: 0.005
   temperature_proper: {value: 1.0e-6, unit: K}
   mean_molecular_weight: 1.0

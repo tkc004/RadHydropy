@@ -6,7 +6,6 @@ import os
 import sys
 from pathlib import Path
 
-import h5py
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

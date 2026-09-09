@@ -19,7 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
 
@@ -57,7 +57,7 @@ def main(output_root=None):
     config["par"]['output'] = {**config["par"]['output'], 'directory': str(output_dir), 'filename_prefix': 'Output'}
 
     count = int(config["par"]["mesh"]["grid_cells"])
-    cosmic_time = float(initial_condition["time_cosmic"])
+    cosmic_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     boundary_comoving_code = np.linspace(
@@ -72,7 +72,7 @@ def main(output_root=None):
     rho_background = float(cosmology.background_density(cosmic_time))
     overdensity = float(initial_condition["overdensity"])
     inside = x_comoving_code < float(
-        initial_condition["radius_top_hat_comoving"].to_value(units.length_unit)
+        initial_condition["radius_perturbation_comoving"].to_value(units.length_unit)
     )
     rho_comoving_code = rho_background * (1.0 + overdensity * inside) * scale_factor**3
     enclosed_mass = np.cumsum(rho_comoving_code * volume_comoving_code)

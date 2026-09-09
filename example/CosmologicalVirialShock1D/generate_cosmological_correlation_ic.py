@@ -18,7 +18,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from example_utils import load_nested_example_config
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
 
@@ -75,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
-    initial_time = float(initial_condition["time_cosmic"])
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     scale_factor = float(cosmology.scale_factor(initial_time))
     peculiar_velocity = np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code

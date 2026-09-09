@@ -29,6 +29,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
+from radhydropy.units import quantity_to_value
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
@@ -204,14 +205,16 @@ def _make_matched_initial_state(config):
     # A uniform origin-centred mesh avoids allowing logarithmic innermost-cell
     # truncation error to dominate a deliberately tiny growing-mode signal.
     boundaries = np.linspace(
-        0.0, float(initial_condition["radius_outer_comoving"]), int(par["mesh"]["grid_cells"]) + 1
+        0.0,
+        quantity_to_value(initial_condition["radius_outer_comoving"], code_unit_system.length_unit),
+        int(par["mesh"]["grid_cells"]) + 1,
     )
     coordinates = et.cell_centres(boundaries)
     initial.mesh.boundary_comoving_code = boundaries
     initial.mesh.x_comoving_code = coordinates
     initial.mesh.area_comoving_code = 4.0 * np.pi * boundaries[:-1]**2
     initial.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = float(initial_condition["time_cosmic"])
+    cosmic_time = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
     hubble = float(cosmology.hubble(cosmic_time))
     background_comoving = (
@@ -238,7 +241,10 @@ def _make_matched_initial_state(config):
     )
     initial.fluid.temp_supercomoving_code = np.full(
         int(par["mesh"]["grid_cells"]),
-        float(initial_condition["cie_temperature_proper"]) * scale_factor**2,
+        quantity_to_value(
+            initial_condition["cie_temperature_proper"],
+            code_unit_system.temperature_unit,
+        ) * scale_factor**2,
     )
     et.refresh_typed_initial_condition(initial)
 
@@ -550,7 +556,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(initial_condition["time_cosmic"])
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     final_time = (
         float(final_time_override)
         if final_time_override is not None
@@ -559,7 +565,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if final_time <= initial_time:
         raise ValueError("final cosmic time must exceed the initial time")
     initial_scale_factor = float(cosmology.scale_factor(initial_time))
-    temperature_proper_code = float(initial_condition["cie_temperature_proper"]) * initial_scale_factor**2
+    temperature_proper_code = quantity_to_value(
+        initial_condition["cie_temperature_proper"],
+        code_unit_system.temperature_unit,
+    ) * initial_scale_factor**2
     diagnostic_min = float(example["diagnostic_radius_min_comoving_kpc"])
     diagnostic_max = float(example["diagnostic_radius_max_comoving_kpc"])
     snapshot_count = int(example.get("snapshot_count", 9))

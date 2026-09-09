@@ -21,7 +21,7 @@ from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
 
@@ -88,7 +88,7 @@ def run_case(config, radiative):
     sim.par.dark_matter_background_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     sim.par.gas_background_fraction = float(initial_condition["baryon_fraction"])
 
-    t0 = float(initial_condition["time_cosmic"])
+    t0 = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     tf = float(par["simulation"]["final_time"])
     target = float(cosmology.supercomoving_time(tf))
     cadence = float(par.get("snapshot_cadence", par.get("gas_profile_cadence", 0.1)))
@@ -114,12 +114,12 @@ def run_case(config, radiative):
         sim.Step(dt=dt, mode="hydro_sources" if radiative else "hydro")
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)))
         if cosmic_time >= next_output or cosmic_time >= tf - 1.0e-10:
-            history.append(et.profiles(sim, dm, cosmic_time, cosmology, initial_condition))
+            history.append(et.profiles(sim, dm, cosmic_time, config))
             next_output += cadence
 
     result = {key: np.asarray([row[key] for row in history]) for key in history[0]}
     np.savez(case_dir / "mass_radius_history.npz", **result)
-    final_profile = et.density_profiles(sim, dm, cosmic_time, cosmology)
+    final_profile = et.density_profiles(sim, dm, cosmic_time, config)
     np.savez(case_dir / "density_profile_final.npz", **final_profile)
     return result, final_profile
 

@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import quantity_to_value
 import example_utils as eu
 import tools as et
 
@@ -40,9 +41,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     # First verify that the discretized homogeneous background has no peculiar force.
     homogeneous, _ = et.make_shells(config, overdensity=0.0)
-    tau = cosmology.supercomoving_time(float(initial_condition['time_cosmic']))
+    initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
+    tau = cosmology.supercomoving_time(initial_time)
     a_initial = float(cosmology.scale_factor_from_supercomoving(tau))
-    rho_comoving = float(cosmology.background_density(float(initial_condition['time_cosmic']))) * a_initial**3
+    rho_comoving = float(cosmology.background_density(initial_time)) * a_initial**3
     background_mass = 4.0 * np.pi / 3.0 * rho_comoving * homogeneous.radius**3
     homogeneous_acceleration = homogeneous.acceleration(
         background_enclosed_mass=background_mass,
@@ -54,13 +56,15 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('homogeneous shell acceleration %.6g is nonzero' % homogeneous_error)
 
     shells, boundaries = et.make_shells(config)
-    top_hat_radius = float(initial_condition['radius_top_hat_comoving'])
+    top_hat_radius = quantity_to_value(
+        initial_condition['radius_perturbation_comoving'], units.length_unit
+    )
     inside = shells.radius < top_hat_radius
     target_mass = float(np.sum(shells.mass[inside]))
     # The top-hat is an exact equal-volume boundary, so this is the actual
     # discretized initial perturbation used by the shell masses.
     lagrangian_radius = top_hat_radius
-    lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(float(initial_condition['time_cosmic']))) * float(initial_condition['overdensity']) * lagrangian_radius / 3.0
+    lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(initial_time)) * float(initial_condition['overdensity']) * lagrangian_radius / 3.0
     initial_delta = et.overdensity_inside(lagrangian_radius, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]

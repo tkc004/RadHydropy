@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.units import _gravitational_constant_code
 from example_utils import load_nested_example_config
 import tools as et
@@ -44,7 +44,7 @@ def run_lagrangian_top_hat(config):
     cosmology = config["_cosmology"]
     target_mass = float(initial_condition["target_halo_mass"])
     delta_i = float(initial_condition["initial_overdensity"])
-    initial = float(initial_condition["time_cosmic"])
+    initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     final = float(config["par"]["simulation"]["final_time"])
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
@@ -168,11 +168,11 @@ def run_live_shell_density_profiles(config):
     target_times = np.asarray(
         example.get(
             "dm_only_density_times",
-            [float(initial_condition["time_cosmic"]), 4.0, 8.0, 10.0, 12.0, 14.0, 16.0],
+            [quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit), 4.0, 8.0, 10.0, 12.0, 14.0, 16.0],
         ),
         dtype=float,
     )
-    initial = float(initial_condition["time_cosmic"])
+    initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     final = float(config["par"]["simulation"]["final_time"])
     target_times = np.unique(np.clip(target_times, initial, final))
     tau = float(cosmology.supercomoving_time(initial))
@@ -405,7 +405,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     dead_config["_cosmology"] = cosmology
     shells = et.make_dark_matter(dead_config)
     dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
-    initial = float(initial_condition["time_cosmic"])
+    initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     final = float(config["par"]["final_cosmic_time"])
     time_cosmic_code = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))

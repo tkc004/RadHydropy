@@ -69,11 +69,11 @@ par:
     hydrogen_thermal_coupling: false
     hydrogen_chemistry: false
 initial_condition:
-  radius_inner_comoving: 3.0
-  radius_outer_comoving: 4000.0
+  radius_inner_comoving: {value: 3.0, unit: kpc}
+  radius_outer_comoving: {value: 4000.0, unit: kpc}
   verbal: 1
-  time_cosmic: 0.01418666885
-  radius_perturbation_comoving: 250.0
+  time_cosmic: {value: 0.01418666885, unit: kpc/(km/s)}
+  radius_perturbation_comoving: {value: 250.0, unit: kpc}
   target_halo_mass: 0.0001
   initial_overdensity: 0.3503168317
   rho_proper_profile: linear_correlation
@@ -82,7 +82,7 @@ initial_condition:
   hydrogen_mass_fraction: 0.76
   mu: 0.59
   dark_matter_shells: 2048
-  radius_inner_dark_matter_comoving: 0.01
+  radius_inner_dark_matter_comoving: {value: 0.01, unit: kpc}
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.02
   cmb_equilibrium_initial: true

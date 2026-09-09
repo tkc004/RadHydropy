@@ -19,7 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from example import example_utils as eu
 import tools as et
 from bertschinger_ode import (
@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config["_code_units"] = units
     config["_cosmology"] = cosmology
     shells, delta_mass = et.make_scale_free_shells(config)
-    initial_time = float(initial_condition['time_cosmic'])
+    initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
     time_final_cosmic = float(example['time_final_cosmic'])
     tau = float(cosmology.supercomoving_time(initial_time))
     tau_final_supercomoving = float(
@@ -76,7 +76,8 @@ def main(config_filename=DEFAULT_CONFIG):
         tau += dt
         history_time.append(time_end)
 
-    profiles = et.similarity_profiles(shells, time_final_cosmic, cosmology,
+    config['_cosmology'] = cosmology
+    profiles = et.similarity_profiles(shells, time_final_cosmic, config,
                                       bins=int(example['profile_bins']))
     ode_solution = solve_eq41_self_similar(
         xi_end=float(example['ode_xi_end']),
@@ -88,7 +89,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     splashback_xi, splashback_lambda = first_post_centre_apocentre(ode_solution)
     caustic_xi, caustic_lambda = first_outer_caustic(ode_solution)
-    if not np.all(np.isfinite(profiles['rho_proper'])):
+    if not np.all(np.isfinite(profiles['density_contrast_dimensionless'])):
         raise RuntimeError('similarity density profile contains non-finite values')
     if not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError('shells are not sorted after evolution')
@@ -121,7 +122,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'lambda': ode_solution.lam,
         'lambda_prime': ode_solution.lam_prime,
         'mass': ode_solution.mass,
-        'turnaround_radius': 1.0,
+        'radius_turnaround_dimensionless': 1.0,
     }, {
         'Solution': 'Bertschinger1985_collisionless_shell_ODE',
         'Equation': 'Bertschinger1985_Eq4.1',
@@ -159,9 +160,9 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.close(ode_plot.figure)
     figure = directory / 'BertschingerReference.jpg'
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].loglog(profiles['lambda_dimensionless'], np.maximum(profiles['rho_proper'], 1.0e-12))
+    axes[0].loglog(profiles['lambda_dimensionless'], np.maximum(profiles['density_contrast_dimensionless'], 1.0e-12))
     axes[0].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$\rho/\rho_b$')
-    axes[1].plot(profiles['lambda_dimensionless'], profiles['vel_proper'])
+    axes[1].plot(profiles['lambda_dimensionless'], profiles['vel_scaled_dimensionless'])
     axes[1].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$v/(r_{ta}/t)$')
     for axis in axes:
         axis.grid(alpha=0.25)
@@ -169,7 +170,7 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('Bertschinger collisionless reference generated')
-    print('turnaround radius = %.8g' % profiles['turnaround_radius'])
+    print('turnaround radius = %.8g' % profiles['radius_turnaround_proper_code'])
     print('first post-centre apocentre: xi = %.8g, lambda_sp = %.8g' %
           (splashback_xi, splashback_lambda))
     print('fixed-time outer caustic: xi = %.8g, lambda_c = %.8g' %

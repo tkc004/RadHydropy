@@ -25,9 +25,9 @@ initial_condition:
   number_of_outer_shells: 1024
   radius_inner_dimensionless: 0.0
   radius_outer_dimensionless: 2.0
-  radius_top_hat_comoving: 0.5
+  radius_perturbation_comoving: {value: 0.5, unit: pc}
   overdensity: 0.01
-  time_cosmic: 1.0
+  time_cosmic: {value: 1.0, unit: pc/(km/s)}
   softening: 0.0
 example:
   homogeneous_acceleration_tolerance: 1.0e-7

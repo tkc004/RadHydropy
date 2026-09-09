@@ -61,7 +61,7 @@ def build_initial_condition(config):
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     boxsize_code = quantity_to_value(initial_condition['box_size_proper'], code_units.length_unit)
-    cosmic_time = float(initial_condition['time_cosmic'])
+    cosmic_time = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
     sim.par.simulation.box_size_comoving_code = np.ones(1) * boxsize_code
     sim.par.simulation.coordinate_system = 'spherical'
     scale_factor = cosmology.scale_factor(cosmic_time)
@@ -98,7 +98,9 @@ def build_initial_condition(config):
     rho_background = cosmology.background_density(cosmic_time)
     rho_comoving = rho_background * scale_factor**3
     delta = float(initial_condition['overdensity'])
-    inside = sim.mesh.x_comoving_code < float(initial_condition['radius_top_hat_comoving'])
+    inside = sim.mesh.x_comoving_code < quantity_to_value(
+        initial_condition['radius_perturbation_comoving'], code_units.length_unit
+    )
     sim.fluid.rho_comoving_code = rho_comoving * (1.0 + delta * inside) * np.ones(grid_cells)
     sim.fluid.vel_supercomoving_code = growing_mode_velocity(
         sim.mesh.x_comoving_code, delta, scale_factor, hubble,

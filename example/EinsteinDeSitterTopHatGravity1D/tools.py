@@ -43,7 +43,7 @@ def build_initial_condition(config):
     sim.par.simulation.box_size_comoving_code = np.ones(1) * quantity_to_value(
         initial_condition['box_size_proper'], code_units.length_unit
     )
-    cosmic_time = float(initial_condition['time_cosmic'])
+    cosmic_time = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
     sim.par.simulation.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
     sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
     sim.par.cosmological_expansion = True
@@ -74,7 +74,9 @@ def build_initial_condition(config):
 
     background = cosmology.background_density(cosmic_time)
     background_comoving = background * cosmology.scale_factor(cosmic_time)**3
-    inside = sim.mesh.x_comoving_code < float(initial_condition['radius_top_hat_comoving'])
+    inside = sim.mesh.x_comoving_code < quantity_to_value(
+        initial_condition['radius_perturbation_comoving'], code_units.length_unit
+    )
     sim.fluid.rho_comoving_code = background_comoving * (
         1.0 + float(initial_condition['overdensity']) * inside
     ) * np.ones(grid_cells)

@@ -27,42 +27,33 @@ CASES = {
 }
 
 
-def _config(par_config, initial_condition, example, filename):
+def _write_config(config, filename):
     with filename.open('w') as handle:
-        yaml.safe_dump({'par': {'simulation': {'name': par_config['simulation']['name']},
-                                'output': {'directory': par_config['output']['directory']},
-                                'units': {'CodeUnits': par_config['units']['CodeUnits']}},
-                        'initial_condition': initial_condition, 'example': example}, handle,
-                       sort_keys=False)
+        yaml.safe_dump(config, handle, sort_keys=False)
 
 
 def main():
     base_config = example_tools.load_reference_config(CONFIG)
-    base_par_config = base_config['par']
-    base_initial_condition = base_config['initial_condition']
-    base_example = base_config['example']
     OUTPUT.mkdir(parents=True, exist_ok=True)
     rows = []
     with tempfile.TemporaryDirectory(prefix='radhydropy-caustic-') as temp:
         temp = Path(temp)
         for parameter, values in CASES.items():
             for value in values:
-                par_config = deepcopy(base_par_config)
-                initial_condition = deepcopy(base_initial_condition)
-                example = deepcopy(base_example)
+                config = deepcopy(base_config)
                 if parameter == 'shells':
-                    initial_condition['number_of_shells'] = value
+                    config['initial_condition']['number_of_shells'] = value
                 elif parameter == 'smoothing':
-                    example['caustic_smoothing_bins'] = value
+                    config['example']['caustic_smoothing_bins'] = value
                 else:
-                    initial_condition[parameter] = value
+                    config['initial_condition'][parameter] = value
                 label = '%s_%s' % (parameter, str(value).replace('.', 'p'))
-                par_config['output']['directory'] = str(OUTPUT / label)
-                Path(par_config['output']['directory']).mkdir(parents=True, exist_ok=True)
-                config = temp / (label + '.yaml')
-                _config(par_config, initial_condition, example, config)
-                run_comparison(config)
-                data = np.load(Path(par_config['output']['directory']) /
+                config['par']['output']['directory'] = str(OUTPUT / label)
+                Path(config['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
+                config_filename = temp / (label + '.yaml')
+                _write_config(config, config_filename)
+                run_comparison(config_filename)
+                data = np.load(Path(config['par']['output']['directory']) /
                                 'BertschingerDarkMatterCaustic.npz')
                 selected = data['lambda_caustic'][data['xi'] >= 3.0]
                 rows.append((parameter, float(value), selected.size,

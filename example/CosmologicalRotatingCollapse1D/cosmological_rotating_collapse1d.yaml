@@ -44,8 +44,8 @@ par:
 initial_condition:
   radius_inner_comoving: {value: 0.0, unit: pc}
   radius_outer_comoving: {value: 2.0, unit: pc}
-  time_cosmic: 1.0
-  radius_top_hat_comoving: {value: 0.75, unit: pc}
+  time_cosmic: {value: 1.0, unit: pc/(km/s)}
+  radius_perturbation_comoving: {value: 0.75, unit: pc}
   overdensity: 0.20
   temperature_proper: {value: 1.0e-3, unit: K}
   mean_molecular_weight: 1.0

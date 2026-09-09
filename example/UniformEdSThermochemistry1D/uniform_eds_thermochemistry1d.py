@@ -19,7 +19,7 @@ import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 import copy
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 from tools import UniformEdSInitialCondition, analytic_compton_temperature
 import example_utils as eu
 
@@ -160,17 +160,15 @@ def main():
     compton, sim, physical = run_case(config, atomic_cooling=False)
     atomic, _, _ = run_case(config, atomic_cooling=True)
 
-    initial_time_s = (
-        float(initial_condition["time_cosmic"])
-        * float(units.time_unit.to_value("s"))
-    )
+    initial_time_code = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
+    initial_time_s = initial_time_code * float(units.time_unit.to_value("s"))
     plot_time_s = np.linspace(
         initial_time_s, np.max(compton["time_s"]), 200
     )
     analytic = analytic_compton_temperature(
         compton["time_s"],
         float(initial_condition["temperature_proper"].to_value("K")),
-        float(initial_condition["time_cosmic"]),
+        initial_time_code,
         cosmology,
         float(units.time_unit.to_value("s")),
         float(initial_condition["hydrogen_number_density"].to_value("1/cm**3")),
@@ -183,7 +181,7 @@ def main():
     analytic_plot = analytic_compton_temperature(
         plot_time_s,
         float(initial_condition["temperature_proper"].to_value("K")),
-        float(initial_condition["time_cosmic"]),
+        initial_time_code,
         cosmology,
         float(units.time_unit.to_value("s")),
         float(initial_condition["hydrogen_number_density"].to_value("1/cm**3")),

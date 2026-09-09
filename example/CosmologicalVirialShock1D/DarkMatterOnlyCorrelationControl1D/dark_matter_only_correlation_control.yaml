@@ -22,10 +22,10 @@ par:
     directory: outputs
     density_plot_bins: 48
 initial_condition:
-  radius_inner_comoving: 3.0
-  radius_outer_comoving: 4000.0
-  time_cosmic: 0.01418666885
-  radius_perturbation_comoving: 250.0
+  radius_inner_comoving: {value: 3.0, unit: kpc}
+  radius_outer_comoving: {value: 4000.0, unit: kpc}
+  time_cosmic: {value: 0.01418666885, unit: kpc/(km/s)}
+  radius_perturbation_comoving: {value: 250.0, unit: kpc}
   target_halo_mass: 100.0
   initial_overdensity: 0.0166930693
   rho_proper_profile: linear_correlation
@@ -34,7 +34,7 @@ initial_condition:
   hydrogen_mass_fraction: 0.76
   mu: 0.59
   dark_matter_shells: 256
-  radius_inner_dark_matter_comoving: 0.01
+  radius_inner_dark_matter_comoving: {value: 0.01, unit: kpc}
   dm_specific_angular_momentum: 0.0
   specific_angular_momentum: 1500.0
   softening: 0.01

@@ -19,7 +19,7 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 import tools as et
 
@@ -64,8 +64,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))
-    radius_top_hat_comoving_code = float(initial_condition['radius_top_hat_comoving'])
-    initial_inside = sim.mesh.x_comoving_code[physical] < radius_top_hat_comoving_code
+    radius_perturbation_comoving_code = quantity_to_value(
+        initial_condition['radius_perturbation_comoving'], units.length_unit
+    )
+    initial_inside = sim.mesh.x_comoving_code[physical] < radius_perturbation_comoving_code
     mass_target_comoving_code = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
     initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])
     initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)

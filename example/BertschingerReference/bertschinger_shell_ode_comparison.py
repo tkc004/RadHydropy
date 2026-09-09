@@ -21,6 +21,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import quantity_to_value
 import tools as example_tools
 from bertschinger_ode import (
     first_outer_caustic,
@@ -33,10 +34,12 @@ from shell_orbit_tracker import ShellOrbitTracker
 DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_reference.yaml')
 
 
-def _turnaround_radius(shells, cosmic_time, cosmology):
+def _radius_turnaround_proper_code(shells, time_cosmic_code, config):
     """Return the first velocity sign-change radius, or ``None``."""
-    radius_proper_code = float(cosmology.scale_factor(cosmic_time)) * shells.radius
-    velocity_proper_code = example_tools.physical_velocity(shells, cosmic_time, cosmology)
+    cosmology = config['_cosmology']
+    radius_proper_code = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
+    velocity_proper_code = example_tools.peculiar_velocity_proper_code(
+        shells, time_cosmic_code, config)
     crossing = np.flatnonzero(velocity_proper_code[:-1] * velocity_proper_code[1:] <= 0.0)
     if crossing.size == 0:
         return None
@@ -52,7 +55,7 @@ def _turnaround_radius(shells, cosmic_time, cosmology):
 
 
 def _outer_lagrangian_caustic_radius(
-        shells, initial_q, cosmic_time, cosmology, turnaround,
+        shells, initial_q, time_cosmic_code, config, turnaround,
         smoothing_bins=2.0):
     """Find the outer fold of the Lagrangian map ``r(q)``.
 
@@ -65,14 +68,15 @@ def _outer_lagrangian_caustic_radius(
     if shells.shell_id is None:
         raise RuntimeError('shell identities are required for Lagrangian maps')
     q = initial_q[np.asarray(shells.shell_id, dtype=int)]
-    proper_radius = (float(cosmology.scale_factor(cosmic_time)) *
+    cosmology = config['_cosmology']
+    proper_radius = (float(cosmology.scale_factor(time_cosmic_code)) *
                      np.asarray(shells.radius, dtype=float))
-    physical_velocity = example_tools.physical_velocity(
-        shells, cosmic_time, cosmology)
+    vel_peculiar_proper_code = example_tools.peculiar_velocity_proper_code(
+        shells, time_cosmic_code, config)
     order = np.argsort(q)
     q = q[order]
     proper_radius = proper_radius[order]
-    physical_velocity = physical_velocity[order]
+    vel_peculiar_proper_code = vel_peculiar_proper_code[order]
     lower = max(float(proper_radius.min()), turnaround * 1.0e-4)
     upper = turnaround * (1.0 - 1.0e-6)
     if not lower < upper:
@@ -88,8 +92,8 @@ def _outer_lagrangian_caustic_radius(
     fold_radius = []
     for index in folds:
         fold_radius_proper_code = 0.5 * (proper_radius[index] + proper_radius[index + 1])
-        velocity_left_proper_code = physical_velocity[index]
-        velocity_right_proper_code = physical_velocity[index + 1]
+        velocity_left_proper_code = vel_peculiar_proper_code[index]
+        velocity_right_proper_code = vel_peculiar_proper_code[index + 1]
         if (lower * 1.01 < fold_radius_proper_code < upper and velocity_left_proper_code >= 0.0 and
                 velocity_right_proper_code <= 0.0):
             fold_radius.append(fold_radius_proper_code)
@@ -98,13 +102,14 @@ def _outer_lagrangian_caustic_radius(
     return float(max(fold_radius))
 
 
-def _density_slope_profile(shells, cosmic_time, cosmology, turnaround, bins=192,
+def _density_slope_profile(shells, time_cosmic_code, config, turnaround, bins=192,
                            smoothing_bins=3.0):
     """Return rho(r), its logarithmic slope, and profile splashback radii."""
-    a = float(cosmology.scale_factor(cosmic_time))
+    cosmology = config['_cosmology']
+    a = float(cosmology.scale_factor(time_cosmic_code))
     radius_proper_code = a * np.asarray(shells.radius, dtype=float)
     mass_comoving_code = np.asarray(shells.mass, dtype=float)
-    rho_background = float(cosmology.background_density(cosmic_time))
+    rho_background = float(cosmology.background_density(time_cosmic_code))
     edges = np.geomspace(radius_proper_code.min(), radius_proper_code.max(), int(bins) + 1)
     index = np.clip(np.searchsorted(edges, radius_proper_code) - 1, 0, len(edges) - 2)
     deposited_mass_comoving_code = np.bincount(index, weights=mass_comoving_code, minlength=len(edges) - 1)
@@ -146,12 +151,12 @@ def _density_slope_profile(shells, cosmic_time, cosmology, turnaround, bins=192,
     candidate_indices = np.flatnonzero(candidates)
     splashback_index = int(candidate_indices[np.argmin(slope[candidates])])
     return {
-        'radius_proper': np.exp(log_radius),
-        'rho_proper': np.exp(log_density),
+        'radius_proper_code': np.exp(log_radius),
+        'rho_proper_code': np.exp(log_density),
         'slope': slope,
-        'virial_radius': rvir,
-        'splashback_radius': float(np.exp(log_radius[splashback_index])),
-        'background_density': rho_background,
+        'radius_virial_proper_code': rvir,
+        'radius_splashback_proper_code': float(np.exp(log_radius[splashback_index])),
+        'rho_background_proper_code': rho_background,
     }
 
 
@@ -175,7 +180,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         initial_q, cosmology,
         recent_window_fraction=float(example.get(
             'recent_accretion_window_fraction', 0.5)))
-    initial_time = float(initial_condition['time_cosmic'])
+    initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
     time_comparison_final_cosmic = float(example.get(
         'time_comparison_final_cosmic',
         initial_time * np.exp(float(example['ode_xi_end']))))
@@ -206,11 +211,11 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                     shells.shell_id)
     while tau < tau_comparison_final_supercomoving - 1.0e-12:
         dt = min(timestep, tau_comparison_final_supercomoving - tau)
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
         next_time = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
-        a_start = float(cosmology.scale_factor(cosmic_time))
+        a_start = float(cosmology.scale_factor(time_cosmic_code))
         a_end = float(cosmology.scale_factor(next_time))
-        rho_comoving = float(cosmology.background_density(cosmic_time)) * a_start**3
+        rho_comoving = float(cosmology.background_density(time_cosmic_code)) * a_start**3
         background = 4.0 * np.pi / 3.0 * rho_comoving * shells.radius**3
         tau_start = tau
         actual_dt = shells.step(
@@ -239,34 +244,34 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         snapshot += 1
         if snapshot % snapshot_stride:
             continue
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
-        turnaround = _turnaround_radius(shells, cosmic_time, cosmology)
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
+        turnaround = _radius_turnaround_proper_code(shells, time_cosmic_code, config)
         if turnaround is None or not np.isfinite(turnaround):
             continue
-        radius = float(cosmology.scale_factor(cosmic_time)) * shells.radius
+        radius = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
         selected = slice(None, None, shell_stride)
         xi_values.extend(np.full(radius[selected].shape,
-                                 np.log(cosmic_time / initial_time)))
+                                 np.log(time_cosmic_code / initial_time)))
         lambda_values.extend((radius[selected] / turnaround).tolist())
-        turnaround_values.append((cosmic_time, turnaround))
+        turnaround_values.append((time_cosmic_code, turnaround))
         caustic = _outer_lagrangian_caustic_radius(
-            shells, initial_q, cosmic_time, cosmology,
+            shells, initial_q, time_cosmic_code, config,
             turnaround, smoothing_bins=caustic_smoothing)
         if caustic is not None and np.isfinite(caustic):
-            caustic_values.append((np.log(cosmic_time / initial_time),
+            caustic_values.append((np.log(time_cosmic_code / initial_time),
                                    caustic / turnaround))
-        xi = np.log(cosmic_time / initial_time)
+        xi = np.log(time_cosmic_code / initial_time)
         if (next_profile < profile_targets.size and
                 xi >= profile_targets[next_profile]):
             profile = _density_slope_profile(
-                shells, cosmic_time, cosmology, turnaround,
+                shells, time_cosmic_code, config, turnaround,
                 bins=int(example.get('slope_profile_bins', 192)),
                 smoothing_bins=float(example.get(
                     'slope_smoothing_bins', 3.0)))
             if profile is not None:
                 profile['xi'] = xi
-                profile['time_cosmic'] = cosmic_time
-                profile['turnaround_radius'] = turnaround
+                profile['time_cosmic_code'] = time_cosmic_code
+                profile['radius_turnaround_proper_code'] = turnaround
                 slope_profiles.append(profile)
             next_profile += 1
 
@@ -354,7 +359,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             radius_p16=apocentre_values[:, 2],
             radius_p84=apocentre_values[:, 3],
             number_of_shells=apocentre_values[:, 4],
-            turnaround_radius=apocentre_values[:, 5],
+            radius_turnaround_proper_code=apocentre_values[:, 5],
             lambda_median=apocentre_values[:, 1],
             lambda_p16=apocentre_values[:, 2],
             lambda_p84=apocentre_values[:, 3],
@@ -383,8 +388,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         density_figure, density_axis = plt.subplots(figsize=(8, 5))
         for profile in slope_profiles:
             density_axis.plot(
-                profile['radius_proper'] / profile['virial_radius'],
-                profile['rho_proper'] / profile['background_density'],
+                profile['radius_proper_code'] / profile['radius_virial_proper_code'],
+                profile['rho_proper_code'] / profile['rho_background_proper_code'],
                 linewidth=1.6,
                 label=r'$\xi=%.2f$' % profile['xi'])
         density_axis.axvline(1.0, color='black', linestyle=':',
@@ -404,15 +409,15 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
 
         slope_figure, slope_axis = plt.subplots(figsize=(8, 5))
         for profile in slope_profiles:
-            x = np.log10(profile['radius_proper'] / profile['virial_radius'])
+            x = np.log10(profile['radius_proper_code'] / profile['radius_virial_proper_code'])
             line, = slope_axis.plot(
                 x, profile['slope'],
                 linewidth=1.6,
                 label=r'$\xi=%.2f$' % profile['xi'])
             slope_axis.plot(
-                np.log10(profile['splashback_radius'] /
-                          profile['virial_radius']),
-                np.interp(profile['splashback_radius'], profile['radius_proper'],
+                np.log10(profile['radius_splashback_proper_code'] /
+                          profile['radius_virial_proper_code']),
+                np.interp(profile['radius_splashback_proper_code'], profile['radius_proper_code'],
                           profile['slope']),
                             marker='o', color=line.get_color(),
                             markeredgecolor='black')
@@ -432,14 +437,14 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             Path(config["par"]['output']['directory']) /
             'BertschingerDarkMatterDensitySlope.npz',
             xi=np.asarray([p['xi'] for p in slope_profiles]),
-            radius_proper=np.asarray([p['radius_proper'] for p in slope_profiles], dtype=object),
-            rho_proper=np.asarray([p['rho_proper'] for p in slope_profiles], dtype=object),
+            radius_proper_code=np.asarray([p['radius_proper_code'] for p in slope_profiles], dtype=object),
+            rho_proper_code=np.asarray([p['rho_proper_code'] for p in slope_profiles], dtype=object),
             slope=np.asarray([p['slope'] for p in slope_profiles], dtype=object),
-            virial_radius=np.asarray([p['virial_radius'] for p in slope_profiles]),
-            splashback_radius=np.asarray(
-                [p['splashback_radius'] for p in slope_profiles]),
-            turnaround_radius=np.asarray(
-                [p['turnaround_radius'] for p in slope_profiles]),
+            radius_virial_proper_code=np.asarray([p['radius_virial_proper_code'] for p in slope_profiles]),
+            radius_splashback_proper_code=np.asarray(
+                [p['radius_splashback_proper_code'] for p in slope_profiles]),
+            radius_turnaround_proper_code=np.asarray(
+                [p['radius_turnaround_proper_code'] for p in slope_profiles]),
         )
     if len(caustic_values) or slope_profiles or len(apocentre_values):
         comparison_data = {}
@@ -447,7 +452,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         if slope_profiles:
             slope_xi = np.asarray([p['xi'] for p in slope_profiles])
             slope_lambda = np.asarray([
-                p['splashback_radius'] / p['turnaround_radius']
+                p['radius_splashback_proper_code'] / p['radius_turnaround_proper_code']
                 for p in slope_profiles])
             comparison_axis.plot(
                 slope_xi, slope_lambda, 'o-', color='tab:blue',
@@ -535,8 +540,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     print('recent-apocentre samples = %d' % len(apocentre_values))
     for profile in slope_profiles:
         print('xi = %.4g: R200m = %.8g, Rsp(slope) = %.8g' %
-              (profile['xi'], profile['virial_radius'],
-               profile['splashback_radius']))
+              (profile['xi'], profile['radius_virial_proper_code'],
+               profile['radius_splashback_proper_code']))
     print('ODE splashback: xi = %.8g, lambda = %.8g' %
           (splashback_xi, splashback_lambda))
     print('ODE outer caustic: xi = %.8g, lambda = %.8g' %

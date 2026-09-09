@@ -16,7 +16,7 @@ initial_condition:
   number_of_shells: 4096
   radius_inner_dimensionless: 0.05
   radius_outer_dimensionless: 20.0
-  time_cosmic: 1.0
+  time_cosmic: {value: 1.0, unit: pc/(km/s)}
   perturbation_amplitude: 5.0
   softening: 0.02
 example:

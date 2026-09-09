@@ -21,6 +21,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.units import quantity_to_value
 import tools as example_tools
 from bertschinger_ode import solve_eq41_self_similar
 
@@ -35,7 +36,7 @@ def make_turnaround_shells(config):
     code_unit_system = config['_code_units']
     cosmology = config['_cosmology']
     turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
-    time = float(initial_condition['time_cosmic'])
+    time = quantity_to_value(initial_condition['time_cosmic'], code_unit_system.time_unit)
     scale_factor = float(cosmology.scale_factor(time))
     hubble = float(cosmology.hubble(time))
     background_coefficient = 2.0 / (9.0 * cosmology.gravitational_constant)
@@ -62,7 +63,7 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     config['_code_units'] = units
     config['_cosmology'] = cosmology
     shells, tracked = make_turnaround_shells(config)
-    initial_time = float(initial_condition['time_cosmic'])
+    initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
     final_xi = float(example.get('pre_crossing_final_xi', 0.9))
     match_lambda = float(example.get('pre_crossing_match_lambda', 0.002))
     final_time = initial_time * np.exp(final_xi)

@@ -20,7 +20,7 @@ import numpy as np
 import radhydropy.io as rio
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 import tools as et
 
@@ -80,7 +80,9 @@ def main(config_filename=DEFAULT_CONFIG):
     cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
     rho_background = sim.par.cosmology.background_density(cosmic_time)
     analytic = et.top_hat_acceleration(
-        radius, float(initial_condition['radius_top_hat_comoving']), float(initial_condition['overdensity']),
+        radius,
+        quantity_to_value(initial_condition['radius_perturbation_comoving'], units.length_unit),
+        float(initial_condition['overdensity']),
         rho_background * a**3, a, sim.par.cosmology.gravitational_constant,
     )
     comparison = slice(1, None)

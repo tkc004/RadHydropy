@@ -25,7 +25,7 @@ from radhydropy.cosmology import EinsteinDeSitter
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
 
@@ -41,9 +41,9 @@ def load_correlation_table(config_filename, config):
     return et.load_lcdm_correlation_table(filename)
 
 
-def _snapshot(sim, dm, cosmic_time, cosmology, initial_condition):
-    gas = et.gas_density_profile(sim, cosmic_time, cosmology)
-    radii = et.profiles(sim, dm, cosmic_time, cosmology, initial_condition)
+def _snapshot(sim, dark_matter, time_cosmic_code, config):
+    gas = et.gas_density_profile(sim, time_cosmic_code, config)
+    radii = et.profiles(sim, dark_matter, time_cosmic_code, config)
     return gas, radii
 
 
@@ -53,6 +53,7 @@ def run(config_filename=DEFAULT_CONFIG):
     par = config["par"]
     initial_condition = config["initial_condition"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     gravity = par["gravity"]
     cosmology = EinsteinDeSitter.from_code_units(
         units,
@@ -87,7 +88,7 @@ def run(config_filename=DEFAULT_CONFIG):
     if hasattr(initial.fluid, "xHI"):
         print("initial CMB temperature = %.8g K" % float(np.median(
             np.asarray(initial.fluid.temp_supercomoving_code) /
-            float(cosmology.scale_factor(float(initial_condition["time_cosmic"])))**2
+            float(cosmology.scale_factor(initial_time))**2
         )))
         print("initial electron fraction = %.8g" % float(np.median(
             1.0 - np.asarray(initial.fluid.xHI)
@@ -141,7 +142,6 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = float(initial_condition["time_cosmic"])
     final_time = float(par["simulation"]["final_time"])
     target_tau = float(cosmology.supercomoving_time(final_time))
     cadence = float(par.get("gas_profile_cadence", 0.10))
@@ -150,7 +150,7 @@ def run(config_filename=DEFAULT_CONFIG):
     radius_history = []
 
     def save_snapshot(cosmic_time):
-        gas, radii = _snapshot(sim, dm, cosmic_time, cosmology, initial_condition)
+        gas, radii = _snapshot(sim, dm, cosmic_time, config)
         gas_profiles.append(gas)
         radius_history.append(radii)
 
