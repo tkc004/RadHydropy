@@ -35,15 +35,16 @@ in a ``units`` attribute.
 
 When a snapshot is reloaded with ``CodeUnits`` configured, fields such as
 ``Density`` are converted back into code-unit arrays during
-:func:`radhydropy.io.readhdf5`. The runtime solver therefore sees ``fluid.rho``
-as a plain numeric array in code units, not as a ``unyt`` quantity.
+:func:`radhydropy.io.readhdf5`. The runtime solver therefore sees
+``fluid.rho_proper_code`` or ``fluid.rho_comoving_code`` as a plain numeric
+array in code units, not as a ``unyt`` quantity.
 
 Reading Snapshot Files
 ----------------------
 
-Use :func:`radhydropy.io.readhdf5` to reload a snapshot into a parameter,
-mesh, and fluid object. This is the same function used to load the initial
-condition file.
+Use :func:`radhydropy.io.readhdf5` with ``Rsim(config["par"])`` to reload a
+snapshot into a parameter, mesh, and fluid object. This is the same function
+used to load the initial-condition file.
 
 Practical Notes
 ---------------

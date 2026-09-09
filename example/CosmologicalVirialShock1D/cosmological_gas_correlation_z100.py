@@ -978,7 +978,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     temperature_proper = float(np.median(initial.fluid.temp_supercomoving_code)) / float(
         cosmology.scale_factor(initial_time)
     ) ** 2
-    expected_temperature = float(initial_condition["cmb_temperature_0"]) * (
+    cmb_temperature_0_cgs_K = float(
+        initial_condition["cmb_temperature_0"].to_value(unyt.K)
+    )
+    expected_temperature = cmb_temperature_0_cgs_K * (
         1.0 / float(cosmology.scale_factor(initial_time))
     )
     if not np.isclose(temperature_proper, expected_temperature, rtol=1.0e-8):
@@ -1082,8 +1085,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         # The IC is initialized in CMB equilibrium at the starting redshift,
         # so its physical temperature is T_CMB,0 / a_initial.  Evolve that
         # state adiabatically (T proportional to a^-2) for the outer gas.
-        temperature_initial = float(initial_condition["cmb_temperature_0"]) / initial_a
-        temperature_physical = temperature_initial * (
+        temperature_initial_cgs_K = cmb_temperature_0_cgs_K / initial_a
+        temperature_physical = temperature_initial_cgs_K * (
             initial_a / scale_factor
         ) ** 2
 

@@ -33,7 +33,8 @@ onto the fixed Eulerian cell centers, allowing the saved ``Rsim`` velocity
 profile to be compared directly with the ODE prediction.
 
 The simulation is deliberately configured as a validated cold/pressureless
-case: the YAML sets ``temperature: 1.e-8``, enables dual energy, and disables
+case: the YAML sets ``temperature_proper: {value: 1.e-8, unit: K}``, enables
+dual energy, and disables
 the positivity flux limiter so the cold rotational state is not artificially
 heated by the limiter.
 

@@ -1,10 +1,12 @@
 Examples
 ========
 
-Example scripts live under ``example/``. They construct an initial-condition
-file, run :class:`radhydropy.rsim.Rsim`, and often plot the output. Every
-example uses a mandatory ``CodeUnits`` block in ``par.units`` and writes that
-unit system into the HDF5 initial-condition header before the run starts.
+Example scripts live under ``example/``. Each example uses one complete YAML
+configuration with top-level ``par``, ``initial_condition``, and ``example``
+sections. It constructs an initial-condition file, runs
+:class:`radhydropy.rsim.Rsim`, and often plots the output. Every example uses
+a mandatory ``CodeUnits`` block in ``par.units`` and writes that unit system
+into the HDF5 initial-condition header before the run starts.
 
 Available Examples
 ------------------
@@ -40,10 +42,10 @@ Available Examples
    * - ``example/NFWVirialShock1D``
      - Adiabatic evolution of cosmic-mean gas in Hubble flow through the same
        ``1e8 Msun`` NFW halo, with a Rankine--Hugoniot shock diagnostic.
-   * - ``example/NFWVirialShockPIE1D``
-     - ``3e11 Msun`` virial-shock cooling experiment at ``z=0`` using the HM12
-       photoionization-equilibrium heating and cooling table, with ``1e12``
-       and ``1e11 Msun`` control configurations.
+   * - ``example/PIECoolingNFWHydrostaticRelaxation1D``
+     - HM12 photoionization-equilibrium heating/cooling relaxation of an
+       isothermal hydrostatic atmosphere in a fixed NFW potential, including a
+       separate approximately ``8000 K`` configuration.
    * - ``example/NFWBoundaryDrivenVirialShock1D``
      - Maintained cold PIE inflow onto a fixed ``1e12 Msun`` NFW halo, with an
        adiabatic settling stage followed by an HM12 PIE cooling restart. A
@@ -89,10 +91,11 @@ Available Examples
        benchmark in an Einstein--de Sitter cosmology.
    * - ``example/BertschingerReference``
      - Collisionless radial Bertschinger ``epsilon=1`` similarity reference
+       profiles in an Einstein--de Sitter universe.
    * - ``example/BertschingerGasReference``
      - Standalone Bertschinger ``epsilon=1``, ``gamma=5/3`` collisional-gas
-       similarity equations and accretion-shock jump reference.
-       profiles in an Einstein--de Sitter universe.
+       similarity equations and accretion-shock jump reference profiles in an
+       Einstein--de Sitter universe.
    * - ``example/BallisticInfallSphericalPointMass1D``
      - Spherical ballistic infall in a point-mass potential without including
        the origin. The point-mass helper now converts to code units internally
@@ -101,7 +104,7 @@ Available Examples
      - Cartesian inflow setup.
    * - ``example/InflowSph1D``
      - Spherical inflow setup.
-   * - ``example/HydrogenCooling1D``
+   * - ``example/HydrogenPhotoheating1D``
      - Uniform ionized hydrogen box with cooling and chemistry enabled.
    * - ``example/HydrogenRecombination1D``
      - Fixed-temperature case-B hydrogen recombination box.
@@ -185,8 +188,10 @@ files in the example directory. The typical flow is:
 3. write ``InitialCondition.hdf5`` with that ``CodeUnits`` attached; and
 4. launch ``Rsim`` with ``par``.
 
-If an example reloads snapshots for plotting, it should use the file header
-``CodeUnits`` rather than re-parsing the YAML.
+If an example reloads snapshots for plotting, construct ``Rsim(config["par"])``
+and use the file header ``CodeUnits`` rather than re-parsing physical values
+from YAML. Runtime arrays should remain explicitly named, such as
+``rho_proper_code`` or ``rho_comoving_code``.
 
 
 
@@ -197,7 +202,7 @@ The detailed pages use the strict example format. Configuration examples are
 shown as nested YAML with separate ``par``, ``initial_condition``, and
 ``example`` sections; runtime keys are addressed through their canonical
 ``par.<group>.<key>`` paths. Each page also documents the normal IC-generation
-and ``Rsim`` execution flow, rather than presenting legacy flat parameters.
+and ``Rsim`` execution flow, without obsolete flat parameter forms.
 
 .. toctree::
    :maxdepth: 1

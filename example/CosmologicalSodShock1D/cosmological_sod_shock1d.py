@@ -121,16 +121,22 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     radius_comoving_code, rho_comoving_code, temp_supercomoving_code, _, _ = profiles[-1]
     gamma = float(case_config["par"]["hydrodynamics"]["gamma"])
     pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
-    pressure_left = float(initial_condition["rho_left_proper"]) * float(
+    rho_left_proper_code = float(
+        initial_condition["rho_left_proper"].to_value(units.density_unit)
+    )
+    rho_right_proper_code = float(
+        initial_condition["rho_right_proper"].to_value(units.density_unit)
+    )
+    pressure_left = rho_left_proper_code * float(
         initial_condition["temperature_left_proper"].to_value("K")
     ) * pressure_factor
-    pressure_right = float(initial_condition["rho_right_proper"]) * float(
+    pressure_right = rho_right_proper_code * float(
         initial_condition["temperature_right_proper"].to_value("K")
     ) * pressure_factor
     rho2, rho3, pressure2, velocity2, velocity_tail, velocity_shock, _ = shocktubecal(
         gamma,
-        float(initial_condition["rho_right_proper"]),
-        float(initial_condition["rho_left_proper"]),
+        rho_right_proper_code,
+        rho_left_proper_code,
         pressure_right,
         pressure_left,
     )
@@ -138,10 +144,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"final supercomoving time = {final_tau:.8g}")
     rho_exact, pressure_exact, _ = shocktubeanalyticgraph(
         gamma,
-        float(initial_condition["rho_right_proper"]),
+        rho_right_proper_code,
         rho2,
         rho3,
-        float(initial_condition["rho_left_proper"]),
+        rho_left_proper_code,
         pressure_right,
         pressure2,
         pressure_left,

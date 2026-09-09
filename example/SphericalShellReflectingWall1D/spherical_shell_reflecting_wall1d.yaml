@@ -41,7 +41,7 @@ initial_condition:
   radius_outer_proper: {value: 20.0, unit: kpc}
   shell_inner: {value: 8.0, unit: kpc}
   shell_outer: {value: 10.0, unit: kpc}
-  rho_shell_proper: 1.0
+  rho_shell_proper: {value: 1.0, unit: g/cm**3}
   temperature_proper: {value: 10.0, unit: K}
   vel_proper: {value: -300.0, unit: km/s}
   mean_molecular_weight: 0.59

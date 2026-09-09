@@ -12,8 +12,9 @@ configurations define an internal unit system with ``InternalUnitSystem`` and
 RadHydropy converts the mesh, fluid, gravity, and source-term inputs into that
 code-unit system at startup. This keeps the hot paths in a consistent internal
 unit space even when the YAML files are written in physical units. Example
-helpers can still accept ``unyt`` objects at the boundary, but they should
-move to code units or plain floats internally before repeated evaluation.
+helpers can accept ``unyt`` objects at the boundary, but they must use explicit
+``.to_value(...)`` or ``quantity_to_value(...)`` conversions before repeated
+evaluation; do not rely on ``float(quantity)``.
 
 Minimum Runner
 --------------
@@ -76,7 +77,6 @@ Start with the bundled Sod-shock YAML configuration:
        dtmin: {value: 2.0e-8, unit: s}
        dtmax: {value: 2.0e-1, unit: s}
      output:
-       directory: .
        directory: .
        filename_prefix: Output
        cadence: {value: 0.1, unit: s}

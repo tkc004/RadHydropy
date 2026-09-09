@@ -44,7 +44,6 @@ initial_condition:
   h0: {value: 70.0, unit: km/(s*Mpc)}
   gas_fraction: 0.157
   mu: 0.59
-  rho_ref: {value: 1.0e-27, unit: g/cm**3}
+  rho_reference_proper: {value: 1.0e-27, unit: g/cm**3}
   temperature_proper: {value: 1.0, unit: K}
 example: {}
-

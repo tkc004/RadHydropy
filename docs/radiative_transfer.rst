@@ -223,7 +223,7 @@ entry per group. The source-rate and boundary-flux arrays also have one entry
 per group. The resulting photon density has shape ``(number_of_groups,
 number_of_cells)`` and each group is transported with its own optical depth.
 
-The legacy scalar parameters remain valid. With no group edges, the solver uses
+For single-group runs, with no group edges, the solver uses
 ``hydrogen_sigma_gamma``, ``source_photon_rate``, and
 ``radiative_transfer_boundary_flux`` and returns the traditional one-dimensional
 photon-density array. A single group is represented by two edges, for example

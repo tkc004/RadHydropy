@@ -113,13 +113,24 @@ def build_initial_condition(config):
 
     if "rho_left_proper" in initial_condition:
         left = result.mesh.x_comoving_code < 0.5 * box_size_comoving_code
-        rho_comoving_code = np.where(
-            left, float(initial_condition["rho_left_proper"]),
-            float(initial_condition["rho_right_proper"]),
+        rho_left_proper_code = float(
+            initial_condition["rho_left_proper"].to_value(code_units.density_unit)
         )
-        temp_left = initial_condition["temperature_left_proper"].to_value("K")
-        temp_right = initial_condition["temperature_right_proper"].to_value("K")
-        temp_supercomoving_code = np.where(left, temp_left, temp_right)
+        rho_right_proper_code = float(
+            initial_condition["rho_right_proper"].to_value(code_units.density_unit)
+        )
+        rho_comoving_code = np.where(
+            left, rho_left_proper_code, rho_right_proper_code,
+        )
+        temp_left_proper_code = initial_condition["temperature_left_proper"].to_value(
+            code_units.temperature_unit
+        )
+        temp_right_proper_code = initial_condition["temperature_right_proper"].to_value(
+            code_units.temperature_unit
+        )
+        temp_supercomoving_code = np.where(
+            left, temp_left_proper_code, temp_right_proper_code
+        )
         mu = np.full(grid_cells, float(initial_condition["mu"]))
     else:
         rho_comoving_code = np.asarray(

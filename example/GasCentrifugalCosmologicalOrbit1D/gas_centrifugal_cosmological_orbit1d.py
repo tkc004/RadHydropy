@@ -18,6 +18,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.eos import EOS
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -32,66 +33,83 @@ import example_utils as eu
 
 CONFIG = ROOT / 'gas_centrifugal_cosmological_orbit1d.yaml'
 
-def prepare_initial_condition(config):
-    initial = config["_initial_condition_runtime_state"]
-    boundary_comoving_code = np.asarray(
-        initial.mesh.boundary_comoving_code, dtype=float
+def build_initial_condition(config, specific_j):
+    """Build the typed supercomoving IC from the complete nested config."""
+    par_config = config['par']
+    initial_condition = config['initial_condition']
+    code_unit_system = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
+    count = int(par_config['mesh']['grid_cells'])
+    radius_inner_comoving_code = quantity_to_value(
+        initial_condition['radius_inner_comoving'], code_unit_system.length_unit
     )
-    initial.par.cosmological_expansion = True
-    initial.par.supercomoving_coordinates = True
-    initial.par.coordinate_frame = 'comoving'
-    initial.par.time_coordinate = 'supercomoving'
-    initial.par.velocity_representation = 'supercomoving_peculiar'
-    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, x_comoving_code=initial.mesh.x_comoving_code,
+    radius_outer_comoving_code = quantity_to_value(
+        initial_condition['radius_outer_comoving'], code_unit_system.length_unit
+    )
+    rho_proper_code = quantity_to_value(
+        initial_condition['rho_proper'], code_unit_system.density_unit
+    )
+    temperature_proper_code = quantity_to_value(
+        initial_condition['temperature_proper'], code_unit_system.temperature_unit
+    )
+    result = Rsim(par_config)
+    result.par.cosmological_expansion = True
+    result.par.supercomoving_coordinates = True
+    result.par.coordinate_frame = 'comoving'
+    result.par.time_coordinate = 'supercomoving'
+    result.par.velocity_representation = 'supercomoving_peculiar'
+    result.par.cosmology = config['_cosmology']
+    result.par.tau_supercomoving_code = np.zeros(1)
+    result.par.simulation.tau_supercomoving_code = np.zeros(1)
+    result.par.simulation.box_size_comoving_code = radius_outer_comoving_code
+    boundary_comoving_code = np.linspace(
+        radius_inner_comoving_code, radius_outer_comoving_code, count + 1
+    )
+    x_comoving_code = 0.75 * (
+        boundary_comoving_code[1:]**4 - boundary_comoving_code[:-1]**4
+    ) / (boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3)
+    width_comoving_code = np.diff(boundary_comoving_code)
+    area_comoving_code = 4.0 * np.pi * boundary_comoving_code[:-1]**2
+    volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundary_comoving_code**3)
+    rho_comoving_code = np.full(count, rho_proper_code)
+    vel_supercomoving_code = np.zeros(count)
+    temp_supercomoving_code = np.full(count, temperature_proper_code)
+    mu_dimensionless = np.ones(count)
+    pre_supercomoving_code = temp_supercomoving_code * 0.4
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        x_comoving_code=x_comoving_code,
         boundary_comoving_code=boundary_comoving_code,
-        width_comoving_code=np.diff(boundary_comoving_code),
-        area_comoving_code=4.0 * np.pi * boundary_comoving_code[:-1]**2,
-        volume_comoving_code=4.0 * np.pi / 3.0 * (
-            boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
-        ),
+        width_comoving_code=width_comoving_code,
+        area_comoving_code=area_comoving_code,
+        volume_comoving_code=volume_comoving_code,
     )
-    initial.fluid.rho_comoving_code = initial.fluid.rho_comoving_code
-    initial.fluid.vel_supercomoving_code = initial.fluid.vel_supercomoving_code
-    initial.fluid.temp_supercomoving_code = initial.fluid.temp_supercomoving_code
-    initial.fluid.pre_supercomoving_code = initial.fluid.temp_supercomoving_code * 0.4
-    initial.fluid.tau_supercomoving_code = 0.0
-    initial.fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
-    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, rho_comoving_code=initial.fluid.rho_comoving_code,
-        vel_supercomoving_code=initial.fluid.vel_supercomoving_code,
-        pre_supercomoving_code=initial.fluid.pre_supercomoving_code,
-        temp_supercomoving_code=initial.fluid.temp_supercomoving_code, tau_supercomoving_code=0.0,
-        mu_dimensionless=initial.fluid.mu,
+    result.mesh.boundary_comoving_code = boundary_comoving_code
+    result.mesh.x_comoving_code = x_comoving_code
+    result.mesh.width_comoving_code = width_comoving_code
+    result.mesh.area_comoving_code = area_comoving_code
+    result.mesh.volume_comoving_code = volume_comoving_code
+    result.fluid.rho_comoving_code = rho_comoving_code
+    result.fluid.vel_supercomoving_code = vel_supercomoving_code
+    result.fluid.temp_supercomoving_code = temp_supercomoving_code
+    result.fluid.pre_supercomoving_code = pre_supercomoving_code
+    result.fluid.mu = mu_dimensionless
+    result.fluid.tau_supercomoving_code = 0.0
+    result.fluid.specific_angular_momentum_code = np.asarray(specific_j, dtype=float)
+    result.fluid.eos = EOS(
+        result.par.hydrodynamics.eos_type,
+        result.par.hydrodynamics.gamma,
+        code_unit_system,
     )
-
-
-class CosmologicalInitialCondition(Rsim):
-    def __init__(self, config, specific_j):
-        par_config = config['par']
-        initial_condition = config['initial_condition']
-        code_unit_system = CodeUnits.from_mapping(par_config['units']['CodeUnits'])
-        count = int(par_config['mesh']['grid_cells'])
-        radius_min = float(initial_condition['radius_min'])
-        radius_max = float(initial_condition['radius_max'])
-        rho_comoving_code = float(initial_condition['rho_proper'])
-        temperature_proper_code = quantity_to_value(
-            initial_condition['temperature_proper'], code_unit_system.temperature_unit
-        )
-        temp_supercomoving_code = temperature_proper_code
-        super().__init__(par_config)
-        self.mesh.boundary_comoving_code = np.linspace(radius_min, radius_max, count + 1)
-        self.mesh.x_comoving_code = 0.75 * (
-            self.mesh.boundary_comoving_code[1:]**4 - self.mesh.boundary_comoving_code[:-1]**4
-        ) / (self.mesh.boundary_comoving_code[1:]**3 - self.mesh.boundary_comoving_code[:-1]**3)
-        self.mesh.width_comoving_code = np.diff(self.mesh.boundary_comoving_code)
-        self.mesh.area_comoving_code = 4.0 * np.pi * self.mesh.boundary_comoving_code[:-1]**2
-        self.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_comoving_code**3)
-        self.fluid.rho_comoving_code = np.full(count, rho_comoving_code)
-        self.fluid.vel_supercomoving_code = np.zeros(count)
-        self.fluid.temp_supercomoving_code = np.full(count, temp_supercomoving_code)
-        self.fluid.mu = np.ones(count)
-        self.fluid.specific_angular_momentum_code = np.asarray(specific_j, dtype=float)
+    result.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        SUPERCOMOVING_RUNTIME_FIELDS,
+        rho_comoving_code=rho_comoving_code,
+        vel_supercomoving_code=vel_supercomoving_code,
+        pre_supercomoving_code=pre_supercomoving_code,
+        temp_supercomoving_code=temp_supercomoving_code,
+        tau_supercomoving_code=0.0,
+        mu_dimensionless=mu_dimensionless,
+    )
+    return Rsim.FromComponents(result.par, result.mesh, result.fluid, result.solver)
 
 
 class CosmologicalCentralGravity:
@@ -103,9 +121,9 @@ class CosmologicalCentralGravity:
         self.cosmology = cosmology
         self.tau = 0.0
 
-    def acceleration_on_mesh(self, mesh, rho_comoving_code=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho=None, par=None):
         tau = float(np.asarray(
-            getattr(getattr(par, 'simulation', None), 'time_proper_code', self.tau)
+            getattr(getattr(par, 'simulation', None), 'tau_supercomoving_code', self.tau)
         )) if par is not None else self.tau
         scale_factor = self.cosmology.scale_factor_from_supercomoving(tau)
         radius_comoving_code = np.asarray(mesh.x_comoving_code, dtype=float)
@@ -125,9 +143,7 @@ def run_rsim(config):
         initial_boundary[1:]**4 - initial_boundary[:-1]**4
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
     circular_j_profile = np.full(count, float(j))
-    initial = CosmologicalInitialCondition(config, circular_j_profile)
-    config["_initial_condition_runtime_state"] = initial
-    prepare_initial_condition(config)
+    initial = build_initial_condition(config, circular_j_profile)
     initial.par.cosmology = cosmology
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
@@ -170,8 +186,8 @@ def main(config_filename=CONFIG):
     directory = ROOT / par['output']['directory']
     directory.mkdir(parents=True, exist_ok=True)
     cosmology = EinsteinDeSitter()
-    x0 = float(initial_condition['initial_comoving_radius'])
-    v0 = float(initial_condition['initial_supercomoving_velocity'])
+    x0 = float(initial_condition['radius_initial_comoving'])
+    v0 = float(initial_condition['vel_initial_supercomoving_code'])
     central_mass = float(initial_condition['central_excess_mass'])
     j = float(initial_condition['angular_momentum_fraction_of_circular']) * np.sqrt(
         central_mass * x0
@@ -340,7 +356,9 @@ def main(config_filename=CONFIG):
     sim_axes[0].plot(sim_radius_comoving_code, sim_vel_supercomoving_code, 'o-', label='Rsim Eulerian state')
     sim_axes[0].set_ylabel('supercomoving radial velocity')
     sim_axes[0].set_title('Eulerian profile; ODE check is in the time-history figure')
-    sim_axes[1].plot(sim_radius, sim_j, 'o-', label='saved $J/M$')
+    sim_axes[1].plot(
+        sim_radius_comoving_code, sim_j, 'o-', label='saved $J/M$'
+    )
     sim_axes[1].plot(
         sim_radius_comoving_code, np.full_like(sim_radius_comoving_code, j), '--',
         label='initial constant $j$',

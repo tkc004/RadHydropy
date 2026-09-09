@@ -43,8 +43,8 @@ par:
 initial_condition:
   box_size_comoving: {value: 8.0, unit: cm}
   time_cosmic: {value: 0.0, unit: s}
-  rho_left_proper: 1.0
-  rho_right_proper: 0.125
+  rho_left_proper: {value: 1.0, unit: g/cm**3}
+  rho_right_proper: {value: 0.125, unit: g/cm**3}
   temperature_left_proper: {value: 1.0e-8, unit: K}
   temperature_right_proper: {value: 8.0e-9, unit: K}
   mu: 1.0

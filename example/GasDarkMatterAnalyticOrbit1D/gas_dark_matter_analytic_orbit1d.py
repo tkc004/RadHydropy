@@ -47,7 +47,9 @@ def main(config_filename=DEFAULT_CONFIG):
     softening_length_code = float(initial_condition['softening'])
     specific_angular_momentum_code = float(initial_condition['specific_angular_momentum'])
     initial_radius_code = float(initial_condition['radius_initial_orbit_dimensionless'])
-    initial_velocity_code = float(initial_condition['vel_proper'])
+    initial_velocity_code = quantity_to_value(
+        initial_condition['vel_proper'], code_units.velocity_unit
+    )
 
     def rhs(time_proper_code, state):
         radius_code, velocity_code = state

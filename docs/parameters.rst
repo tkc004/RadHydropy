@@ -36,9 +36,11 @@ Snapshot and initial-condition files still carry units in HDF5, and
 present so it can convert the stored quantities back into code-unit numeric
 arrays when the run starts. There is no cgs fallback in the current workflow.
 
-Example helpers can still accept ``unyt`` quantities at the script boundary,
-but they should convert to code units or plain floats internally before they
-enter any repeated solver loop or gravity calculation.
+Example helpers can accept ``unyt`` quantities at the script boundary, but
+they must convert explicitly with ``quantity.to_value(unit)`` or
+``quantity_to_value`` before values enter repeated solver loops or gravity
+calculations. Do not use ``float(quantity)``: it can silently discard the
+unit conversion that the strict example workflow requires.
 
 The nested YAML form used by migrated examples is:
 
@@ -66,6 +68,19 @@ The nested YAML form used by migrated examples is:
            UnitVelocity_in_cgs: 1.0e5
            UnitCurrent_in_cgs: 1.0
            UnitTemp_in_cgs: 1.0
+
+   initial_condition:
+     grid_cells: 100
+     coordinate_system: cartesian
+     box_size_proper: {value: 1.0, unit: cm}
+     time_proper: {value: 0.0, unit: s}
+     rho_proper: {value: 1.0, unit: g/cm**3}
+     vel_proper: {value: 0.0, unit: cm/s}
+     temperature_proper: {value: 1.0, unit: K}
+     mean_molecular_weight: 1.0
+
+   example:
+     name: parameter-documentation-example
 
 If you already have a :class:`unyt.unit_systems.UnitSystem`, it can also be
 provided as the value of ``par.units.CodeUnits``. The loader converts that
@@ -101,7 +116,7 @@ example, ``energy_diagnostics`` means
      - Grid resolution, ghost zones, and Cartesian area; ghost-cell default is
        ``2``.
    * - ``hydrodynamics``
-     - ``eos_type``, ``gamma``, ``temperature_proper``, ``CFL``, ``order``,
+     - ``eos_type``, ``gamma``, ``CFL``, ``order``,
        ``riemann_solver``, ``flux_limiter``, ``energy_diagnostics``, dual-energy,
        positivity, and
        angular-momentum keys
@@ -157,8 +172,9 @@ example, ``energy_diagnostics`` means
      - Radiative-transfer and radiation-pressure settings. Transfer and
        radiation pressure are disabled by default.
 
-All physical YAML inputs use ``{value: ..., unit: ...}`` mappings. Runtime
-arrays and converted values use explicit ``*_proper_code``,
+All physical YAML inputs use ``{value: ..., unit: ...}`` mappings, including
+values under ``initial_condition`` and ``example`` when they have physical
+units. Runtime arrays and converted values use explicit ``*_proper_code``,
 ``*_comoving_code``, ``*_supercomoving_code``, or ``*_cgs_<unit>`` names.
 ``initial_condition`` and ``example`` remain separate top-level mappings and
 are not part of ``par``.
@@ -482,7 +498,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
      - dimensionless
    * - ``radiation_group_edges_eV``
      - Increasing photon-energy edges. The number of radiation groups is one
-       less than the number of edges. Omit this for legacy single-group mode.
+       less than the number of edges. Omit this for single-group mode.
      - eV
    * - ``radiation_group_sigma_gamma``
      - H I photo-ionization cross-section for each radiation group.

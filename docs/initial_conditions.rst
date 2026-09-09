@@ -35,8 +35,9 @@ Unit-bearing datasets store the unit string in a ``units`` attribute.
 
 When ``CodeUnits`` is enabled, RadHydropy writes fields such as ``Density`` in
 their stored physical units and converts them back into code-unit numeric
-arrays when the file is loaded. In practice this means ``fluid.rho`` is read
-back as a plain array in the runtime code-unit system. ``readhdf5`` now
+arrays when the file is loaded. In practice this means fields are read back as
+explicitly named arrays such as ``fluid.rho_proper_code`` or
+``fluid.rho_comoving_code`` in the runtime code-unit system. ``readhdf5`` now
 requires ``Header.attrs["CodeUnits"]`` to be present and raises an error if it
 is missing.
 

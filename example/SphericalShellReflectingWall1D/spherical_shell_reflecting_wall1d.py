@@ -59,7 +59,10 @@ def make_initial_condition(config):
     radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     shell = (radius_proper_code >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius_proper_code <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
     result.mesh.boundary_proper_code = boundary_proper_code
-    result.fluid.rho_proper_code = np.where(shell, float(ic["rho_shell_proper"]), 0.0)
+    rho_shell_proper_code = float(
+        ic["rho_shell_proper"].to_value(code_unit_system.density_unit)
+    )
+    result.fluid.rho_proper_code = np.where(shell, rho_shell_proper_code, 0.0)
     result.fluid.temp_proper_code = np.where(shell, float(ic["temperature_proper"].to_value("K")), 0.0)
     result.fluid.vel_proper_code = np.where(shell, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit)), 0.0)
     result.fluid.mu = np.full(grid_cells, float(ic["mean_molecular_weight"]))

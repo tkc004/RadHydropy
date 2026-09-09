@@ -44,8 +44,11 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  initial_comoving_radius: 1.0
-  initial_supercomoving_velocity: 0.0
+  radius_inner_comoving: {value: 0.5, unit: pc}
+  radius_outer_comoving: {value: 1.5, unit: pc}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+  radius_initial_comoving: 1.0
+  vel_initial_supercomoving_code: 0.0
   central_excess_mass: 1.0
   angular_momentum_fraction_of_circular: 0.7
   temperature_proper: {value: 1.0e-8, unit: K}

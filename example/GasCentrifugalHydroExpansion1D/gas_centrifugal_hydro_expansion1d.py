@@ -88,7 +88,7 @@ class FixedCentralGravity:
     def __init__(self, central_mass):
         self.central_mass = central_mass
 
-    def acceleration_on_mesh(self, mesh, rho_proper_code=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho=None, par=None):
         radius_proper_code = np.abs(np.asarray(mesh.x_proper_code, dtype=float))
         acceleration = np.zeros_like(radius_proper_code)
         valid = radius_proper_code > 0.0
