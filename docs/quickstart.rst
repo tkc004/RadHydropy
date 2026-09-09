@@ -54,8 +54,57 @@ Runtime Parameters
 
 Start with the bundled Sod-shock YAML configuration:
 
-.. literalinclude:: ../example/SodShock1D/sodshock1d.yaml
-   :language: yaml
+.. code-block:: yaml
+
+   par:
+     simulation:
+       name: SodShock1d
+       initial_condition_filename: InitialCondition.hdf5
+       coordinate_system: cartesian
+       final_time: {value: 1.0, unit: s}
+     mesh:
+       ghost_cells: 2
+       area_proper: {value: 1.0, unit: cm**2}
+     hydrodynamics:
+       eos_type: polytropic
+       gamma: 1.4
+       CFL: 0.1
+       order: 1
+     boundary:
+       condition: Periodic
+     timestep:
+       dtmin: {value: 2.0e-8, unit: s}
+       dtmax: {value: 2.0e-1, unit: s}
+     output:
+       directory: .
+       savedir: .
+       filename_prefix: Output
+       cadence: {value: 0.1, unit: s}
+     diagnostics:
+       verbose: 0
+     units:
+       CodeUnits:
+         name: cgs_unit_system
+         InternalUnitSystem:
+           UnitMass_in_cgs: 1.0
+           UnitLength_in_cgs: 1.0
+           UnitVelocity_in_cgs: 1.0
+           UnitCurrent_in_cgs: 1.0
+           UnitTemp_in_cgs: 1.0
+   initial_condition:
+     grid_cells: 1000
+     coordinate_system: cartesian
+     box_size_proper: {value: 4.0, unit: cm}
+     time_proper: {value: 0.0, unit: s}
+     rho_proper: {value: 1.0, unit: g/cm**3}
+     vel_proper: {value: 0.0, unit: km/s}
+     temperature_proper: {value: 1.5506894880146205e-08, unit: K}
+     mean_molecular_weight: 1.0
+     density_ratio: 0.1
+     temperature_ratio: 0.8
+   example:
+     output_index: 2
+     plot_filename: SodShock1D.jpg
 
 The complete nested ``par`` block controls the solver and run lifecycle. Use
 the current names below; older flat names such as ``timesim``, ``nogrid``, and
