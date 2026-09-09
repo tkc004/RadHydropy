@@ -52,6 +52,11 @@ analytic gravity helpers so the internal math stays float-first.
 Runtime Parameters
 ------------------
 
+Start with the bundled Sod-shock YAML configuration:
+
+.. literalinclude:: ../example/SodShock1D/sodshock1d.yaml
+   :language: yaml
+
 The complete nested ``par`` block controls the solver and run lifecycle. Use
 the current names below; older flat names such as ``timesim``, ``nogrid``, and
 ``boundcond`` are not accepted:

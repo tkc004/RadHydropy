@@ -73,69 +73,80 @@ Common Runtime Keys
 
 The complete reference, including defaults, is maintained in
 ``example/all_parameters_default.yaml``. Its ``par`` mapping is organized in
-the following order; use these nested names in new configurations.
+the following order; use these nested names in new configurations:
 
-``simulation``
-   Run identity, initial-condition path, final time, coordinate frame, and
-   proper/comoving representation flags. Important keys include
-   ``name``, ``initial_condition_filename``, ``coordinate_system``,
-   ``final_time``, ``box_size_proper``, ``box_size_comoving``,
-   ``coordinate_frame``, ``time_coordinate``, and the representation keys.
+.. list-table:: Canonical nested runtime groups
+   :header-rows: 1
+   :widths: 20 42 38
 
-``mesh``
-   ``grid_cells``, ``ghost_cells``, and Cartesian ``area_proper``.
-
-``hydrodynamics``
-   EOS and reconstruction settings: ``eos_type``, ``gamma``,
-   ``temperature_proper``, ``CFL``, ``order``, ``riemann_solver``,
-   ``flux_limiter``, dual-energy controls, positivity floors, and gas angular
-   momentum controls. ``gas_angular_momentum`` and ``gas_rotational_energy``
-   belong here.
-
-``boundary``
-   Boundary ``condition`` plus role-specific inflow/outflow values:
-   ``vel_inflow_proper``, ``rho_inflow_proper``,
-   ``temperature_inflow_proper``, ``vel_outflow_proper``,
-   ``rho_outflow_proper``, and ``temperature_outflow_proper``.
-
-``timestep``
-   ``dtmin``, ``dtmax``, CFL density and temperature floors, cooling/source
-   controls, chemistry/evolution timestep overrides, output intervals, and
-   cosmological timestep settings.
-
-``output``
-   ``directory``, ``savedir``, ``filename_prefix``, ``cadence``,
-   ``time_interval``, and ``time_list_filename``.
-
-``diagnostics``
-   ``verbose``, ``energy_diagnostics``, temperature-jump protection and plot
-   limits, plus ``plot_exclude_outer_cells``.
-
-``units``
-   The mandatory ``CodeUnits`` mapping. Its ``InternalUnitSystem`` specifies
-   the cgs scales used by the numerical runtime.
-
-``thermochemistry``
-   Network selection, CIE/PIE options, hydrogen source integration, Compton
-   heating, cooling floors, tolerances, and metal-table settings.
-
-``chemistry``
-   Species fractions and ionization states, including the hydrogen and
-   helium initial/inflow/outflow fractions and implicit chemistry controls.
-
-``gravity``
-   Self/external/cosmological gravity, potential-energy options, cosmology
-   references, background-boundary reconstruction, and the optional
-   ``gas_core_model``/``radius_core_proper`` configuration.
-
-``dark_matter``
-   Live-shell crossing controls, ``density_bins``, and proper-code
-   ``softening``.
-
-``radiation``
-   Radiation spectra, transfer method and temporal scheme, source/boundary
-   photon rates, radiation groups, C²-Ray tolerances, hydrogen radiation, and
-   radiation-pressure settings.
+   * - Group
+     - Common keys
+     - Purpose and defaults
+   * - ``simulation``
+     - ``name``, ``initial_condition_filename``, ``coordinate_system``,
+       ``final_time``, ``box_size_proper``, ``box_size_comoving``,
+       representation flags
+     - Run identity, IC path, final time, coordinate frame, and proper/comoving
+       runtime representation.
+   * - ``mesh``
+     - ``grid_cells``, ``ghost_cells``, ``area_proper``
+     - Grid resolution, ghost zones, and Cartesian area; ghost-cell default is
+       ``2``.
+   * - ``hydrodynamics``
+     - ``eos_type``, ``gamma``, ``temperature_proper``, ``CFL``, ``order``,
+       ``riemann_solver``, ``flux_limiter``, dual-energy, positivity, and
+       angular-momentum keys
+     - EOS, reconstruction, dual-energy, positivity, and gas-rotation controls.
+       Defaults include ``polytropic``, ``gamma: 1.4``, ``CFL: 0.1``, and
+       ``order: 0``.
+   * - ``boundary``
+     - ``condition``, ``vel_inflow_proper``, ``rho_inflow_proper``,
+       ``temperature_inflow_proper``, and corresponding outflow keys
+     - Boundary condition and role-specific reservoir values. The default
+       condition is ``Periodic``.
+   * - ``timestep``
+     - ``dtmin``, ``dtmax``, source/cooling controls, chemistry/evolution
+       overrides, ``output_interval``, and ``supercomoving_timestep``
+     - Hydro, source, chemistry, output, and cosmological timestep controls.
+   * - ``output``
+     - ``directory``, ``savedir``, ``filename_prefix``, ``cadence``,
+       ``time_interval``, ``time_list_filename``
+     - Snapshot destinations and scheduling. Defaults are ``./``, ``./``,
+       ``Output``, and a ``0.2 s`` cadence.
+   * - ``diagnostics``
+     - ``verbose``, ``energy_diagnostics``, temperature-jump protection, plot
+       limits, ``plot_exclude_outer_cells``
+     - Runtime diagnostics and plotting controls; diagnostics are disabled or
+       zero by default.
+   * - ``units``
+     - ``CodeUnits`` and its ``InternalUnitSystem``
+     - Mandatory internal code-unit scales; the required cgs scale fields are
+       described in the ``Unit System`` section above.
+   * - ``thermochemistry``
+     - Network, CIE/PIE, hydrogen source integration, Compton heating, cooling
+       floors, tolerances, and metal-table keys
+     - Cooling, heating, ionization, source integration, and metal-PIE
+       settings. The default network is ``hydrogen``.
+   * - ``chemistry``
+     - Species fractions, hydrogen/helium ionization states, and implicit
+       chemistry controls
+     - Initial, inflow, and outflow composition plus chemistry solver settings.
+       The default species key is ``H``.
+   * - ``gravity``
+     - Self/external/cosmological gravity, cosmology references, background
+       reconstruction, ``gas_core_model``, ``radius_core_proper``
+     - Gravity and optional pressure-supported core settings. Gravity is
+       disabled by default and the core model is ``none``.
+   * - ``dark_matter``
+     - ``crossing_safety_factor``, ``crossing_batch_fraction``,
+       ``global_timestep_limit``, ``density_bins``, ``softening``
+     - Live-shell integration controls. The default crossing safety factor is
+       ``0.1`` and global timestep limiting is enabled.
+   * - ``radiation``
+     - Spectra, transfer method/scheme, photon rates, radiation groups, C²-Ray,
+       hydrogen radiation, and radiation-pressure keys
+     - Radiative-transfer and radiation-pressure settings. Transfer and
+       radiation pressure are disabled by default.
 
 All physical YAML inputs use ``{value: ..., unit: ...}`` mappings. Runtime
 arrays and converted values use explicit ``*_proper_code``,
