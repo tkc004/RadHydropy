@@ -19,16 +19,33 @@ def spherical_cell_centers(boundary_comoving_code):
     return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
-def growing_mode_velocity(radius, overdensity, scale_factor, hubble):
+def growing_mode_velocity(radius_comoving_code, overdensity, scale_factor, hubble):
     """Supercomoving peculiar velocity for the EdS growing mode."""
-    return -(scale_factor**2 * hubble * overdensity / 3.0) * np.asarray(radius)
+    return -(scale_factor**2 * hubble * overdensity / 3.0) * np.asarray(
+        radius_comoving_code
+    )
 
 
-def enclosed_mass_radius(boundary_comoving_code, density, cell_volume, target_mass):
+def enclosed_mass_radius(
+    boundary_comoving_code,
+    rho_comoving_code,
+    volume_comoving_code,
+    target_mass_comoving_code,
+):
     """Interpolate the radius enclosing ``target_mass`` from cell masses."""
-    cumulative = np.concatenate(([0.0], np.cumsum(np.asarray(density) * cell_volume)))
-    target_mass = float(np.clip(target_mass, cumulative[0], cumulative[-1]))
-    return float(np.interp(target_mass, cumulative, np.asarray(boundary_comoving_code)))
+    cumulative_mass_comoving_code = np.concatenate((
+        [0.0], np.cumsum(np.asarray(rho_comoving_code) * volume_comoving_code)
+    ))
+    target_mass_comoving_code = float(np.clip(
+        target_mass_comoving_code,
+        cumulative_mass_comoving_code[0],
+        cumulative_mass_comoving_code[-1],
+    ))
+    return float(np.interp(
+        target_mass_comoving_code,
+        cumulative_mass_comoving_code,
+        np.asarray(boundary_comoving_code),
+    ))
 
 
 def linear_overdensity(delta_initial, scale_factor, initial_scale_factor):

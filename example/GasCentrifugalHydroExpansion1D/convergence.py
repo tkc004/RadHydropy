@@ -51,7 +51,7 @@ def measure(config):
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
     ode_velocity = reference['vel_proper']
-    ode_j = reference['specific_angular_momentum']
+    ode_j = reference['specific_angular_momentum_proper_code']
     saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
@@ -59,7 +59,7 @@ def measure(config):
     velocity_error = np.max(np.abs(saved_velocity - ode_velocity))
     j_error = np.max(np.abs(saved_j - ode_j))
     simulated_energy = np.sum(saved_energy - central_mass * saved_mass / saved_radius)
-    shell_energy = np.sum(reference['energy'])
+    shell_energy = np.sum(reference['energy_proper_code'])
     energy_error = abs(simulated_energy - shell_energy) / max(abs(shell_energy), 1.0e-12)
     mass_error = abs(np.sum(saved_mass) - np.sum(initial_mass)) / max(
         abs(np.sum(initial_mass)), 1.0e-300

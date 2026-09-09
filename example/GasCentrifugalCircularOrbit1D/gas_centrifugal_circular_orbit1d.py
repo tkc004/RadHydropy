@@ -59,7 +59,7 @@ class FixedCentralGravity:
         self.cosmological = False
         self.dark_matter = None
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho_proper_code=None, par=None):
         radius_proper_code = np.asarray(mesh.x_proper_code, dtype=float)
         return -self.central_mass / radius_proper_code**2
 

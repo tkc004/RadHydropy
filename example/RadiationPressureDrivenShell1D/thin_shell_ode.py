@@ -83,7 +83,9 @@ def _write_initial_condition(config):
     rio.writehdf5(sim, config['par']['simulation']['initial_condition_filename'])
 
 
-def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwargs):
+def _source_step(
+    sim, shell_state, luminosity_cgs_erg_s, photon_energy_cgs_erg, dt, **kwargs
+):
     """Advance one source-only RadHydropy timestep.
 
     The shell has one fixed control volume_proper_code.  We intentionally do not call a
@@ -94,7 +96,7 @@ def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwar
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     interior = sim.par.mesh.ghost_cells
     volume_proper_code = float(np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float))
-    absorbed_rate = luminosity / photon_energy_cgs_erg / volume_proper_code
+    absorbed_rate = luminosity_cgs_erg_s / photon_energy_cgs_erg / volume_proper_code
     source_result = {
         "source_steps": 1,
         "absorbed_photon_rate": np.array([absorbed_rate]),
@@ -107,8 +109,10 @@ def _source_step(sim, shell_state, luminosity, photon_energy_cgs_erg, dt, **kwar
     sim._sync_hydro_state()
     sim.fluid.time_proper_code += dt
     interior = sim.par.mesh.ghost_cells
-    shell_state["vel_proper"] = float(sim.fluid.vel_proper_code[interior])
-    shell_state["radius_proper"] += shell_state["vel_proper"] * float(dt)
+    shell_state["vel_proper_code"] = float(sim.fluid.vel_proper_code[interior])
+    shell_state["radius_proper_code"] += (
+        shell_state["vel_proper_code"] * float(dt)
+    )
     return {"dt": dt, "hydro_steps": 0, "source_steps": 1}
 
 
@@ -132,22 +136,35 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetFluid()
     sim.SetInitFluid()
 
-    luminosity = config["par"]["radiation"]["radiation_pressure_source_luminosity"].to_value(
+    code = sim.par.units.CodeUnits
+    luminosity_cgs_erg_s = config["par"]["radiation"]["radiation_pressure_source_luminosity"].to_value(
         unyt.erg / unyt.s
     )
     photon_energy_cgs_erg = (20.0 * unyt.eV).to_value(unyt.erg)
-    shell_mass = initial["shell_mass"].to_value(unyt.g)
+    shell_mass_cgs_g = initial["shell_mass"].to_value(unyt.g)
     shell_state = {
-        "radius_proper_cgs_cm": initial["radius_shell_initial_proper"].to_value(unyt.cm),
-        "velocity": 0.0,
+        "radius_proper_code": quantity_to_value(
+            initial["radius_shell_initial_proper"], code.length_unit
+        ),
+        "vel_proper_code": 0.0,
     }
-    history = {"time": [], "radius": [], "momentum": []}
+    history = {
+        "time_proper_code": [],
+        "radius_proper_code": [],
+        "momentum_proper_code": [],
+    }
 
     def record(simulation):
         interior = simulation.par.mesh.ghost_cells
-        history["time_proper"].append(float(simulation.fluid.time_proper_code))
-        history["radius_proper"].append(shell_state["radius_proper"])
-        history["momentum"].append(float(simulation.fluid.Mom_code[interior]))
+        history["time_proper_code"].append(
+            float(simulation.fluid.time_proper_code)
+        )
+        history["radius_proper_code"].append(
+            shell_state["radius_proper_code"]
+        )
+        history["momentum_proper_code"].append(
+            float(simulation.fluid.Mom_code[interior])
+        )
 
     record(sim)
 
@@ -155,7 +172,7 @@ def main(config_filename=DEFAULT_CONFIG):
         result = _source_step(
             sim,
             shell_state,
-            luminosity,
+            luminosity_cgs_erg_s,
             photon_energy_cgs_erg,
             dt,
             **kwargs,
@@ -169,35 +186,42 @@ def main(config_filename=DEFAULT_CONFIG):
         step_backend=step_backend,
     )
 
-    time_s = np.asarray(history["time_proper"]) * float(
+    time_proper_cgs_s = np.asarray(history["time_proper_code"]) * float(
         (1.0 * sim.par.units.CodeUnits.time_unit).to_value(unyt.s)
     )
-    radius_cgs_cm = np.asarray(history["radius_proper"])
-    momentum = np.asarray(history["momentum"]) * float(
+    radius_proper_cgs_cm = np.asarray(history["radius_proper_code"]) * float(
+        (1.0 * sim.par.units.CodeUnits.length_unit).to_value(unyt.cm)
+    )
+    momentum_proper_cgs_g_cm_s = np.asarray(
+        history["momentum_proper_code"]
+    ) * float(
         (1.0 * sim.par.units.CodeUnits.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s)
     )
-    force = luminosity / SPEED_OF_LIGHT
-    expected_momentum = force * time_s
-    acceleration = force / shell_mass
-    expected_radius = radius_cgs_cm[0] + 0.5 * acceleration * time_s**2
-    relative_error = np.divide(
-        momentum - expected_momentum,
-        expected_momentum,
-        out=np.zeros_like(momentum),
-        where=expected_momentum != 0.0,
+    force_cgs_dyn = luminosity_cgs_erg_s / SPEED_OF_LIGHT
+    expected_momentum_proper_cgs_g_cm_s = force_cgs_dyn * time_proper_cgs_s
+    acceleration_proper_cgs_cm_s2 = force_cgs_dyn / shell_mass_cgs_g
+    expected_radius_proper_cgs_cm = (
+        radius_proper_cgs_cm[0]
+        + 0.5 * acceleration_proper_cgs_cm_s2 * time_proper_cgs_s**2
+    )
+    relative_momentum_error_dimensionless = np.divide(
+        momentum_proper_cgs_g_cm_s - expected_momentum_proper_cgs_g_cm_s,
+        expected_momentum_proper_cgs_g_cm_s,
+        out=np.zeros_like(momentum_proper_cgs_g_cm_s),
+        where=expected_momentum_proper_cgs_g_cm_s != 0.0,
     )
 
     figure = Path(config["par"]["output"]["savedir"]) / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
-    time_myr = time_s / (1.0 * unyt.Myr).to_value(unyt.s)
+    time_proper_myr = time_proper_cgs_s / (1.0 * unyt.Myr).to_value(unyt.s)
     pc_cm = (1.0 * unyt.pc).to_value(unyt.cm)
     fig, axes = plt.subplots(3, 1, figsize=(7.5, 9.0), sharex=True)
-    axes[0].plot(time_myr, radius_cgs_cm / pc_cm, label="RadHydropy")
-    axes[0].plot(time_myr, expected_radius / pc_cm, "--", label="exact thin-shell")
+    axes[0].plot(time_proper_myr, radius_proper_cgs_cm / pc_cm, label="RadHydropy")
+    axes[0].plot(time_proper_myr, expected_radius_proper_cgs_cm / pc_cm, "--", label="exact thin-shell")
     axes[0].set_ylabel("shell radius [pc]")
-    axes[1].plot(time_myr, momentum, label="RadHydropy shell momentum")
-    axes[1].plot(time_myr, expected_momentum, "--", label=r"$Lt/c$")
+    axes[1].plot(time_proper_myr, momentum_proper_cgs_g_cm_s, label="RadHydropy shell momentum")
+    axes[1].plot(time_proper_myr, expected_momentum_proper_cgs_g_cm_s, "--", label=r"$Lt/c$")
     axes[1].set_ylabel(r"momentum [g cm s$^{-1}$]")
-    axes[2].plot(time_myr, relative_error, label="relative error")
+    axes[2].plot(time_proper_myr, relative_momentum_error_dimensionless, label="relative error")
     axes[2].set_ylabel("momentum relative error")
     axes[2].set_xlabel("time [Myr]")
     for axis in axes:
@@ -206,7 +230,7 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print("final momentum relative error = %.6e" % relative_error[-1])
+    print("final momentum relative error = %.6e" % relative_momentum_error_dimensionless[-1])
     print("figure = %s" % figure)
 
 

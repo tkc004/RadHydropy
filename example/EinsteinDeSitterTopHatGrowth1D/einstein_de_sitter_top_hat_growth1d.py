@@ -64,27 +64,37 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.set_cosmology_model(cosmology)
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))
-    top_hat_radius = float(initial_condition['radius_top_hat_comoving'])
-    initial_inside = sim.mesh.x_comoving_code[physical] < top_hat_radius
-    target_mass = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
+    radius_top_hat_comoving_code = float(initial_condition['radius_top_hat_comoving'])
+    initial_inside = sim.mesh.x_comoving_code[physical] < radius_top_hat_comoving_code
+    mass_target_comoving_code = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
     initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])
     initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)
     initial_delta = float(initial_condition['overdensity'])
-    history = {'a': [], 'delta': [], 'time': []}
+    history = {
+        'scale_factor_dimensionless': [],
+        'overdensity_dimensionless': [],
+        'time_cosmic_code': [],
+    }
 
     def record(state):
         tau = float(np.asarray(state.fluid.tau_supercomoving_code).flat[0])
         a = state.par.cosmology.scale_factor_from_supercomoving(tau)
-        radius = et.enclosed_mass_radius(
+        radius_enclosed_comoving_code = et.enclosed_mass_radius(
             state.mesh.boundary_comoving_code[physical.start:physical.stop + 1],
-            state.fluid.rho_comoving_code[physical], state.mesh.volume_comoving_code[physical], target_mass,
+            state.fluid.rho_comoving_code[physical],
+            state.mesh.volume_comoving_code[physical],
+            mass_target_comoving_code,
         )
         cosmic_time = state.par.cosmology.cosmic_time_from_supercomoving(tau)
         rho_background = state.par.cosmology.background_density(cosmic_time) * a**3
-        mean_density = 3.0 * target_mass / (4.0 * np.pi * radius**3)
-        history['a'].append(float(a))
-        history['delta'].append(float(mean_density / rho_background - 1.0))
-        history['time_proper'].append(float(cosmic_time))
+        mean_density_comoving_code = 3.0 * mass_target_comoving_code / (
+            4.0 * np.pi * radius_enclosed_comoving_code**3
+        )
+        history['scale_factor_dimensionless'].append(float(a))
+        history['overdensity_dimensionless'].append(
+            float(mean_density_comoving_code / rho_background - 1.0)
+        )
+        history['time_cosmic_code'].append(float(cosmic_time))
 
     record(sim)
     sim.Evolve(
@@ -98,11 +108,15 @@ def main(config_filename=DEFAULT_CONFIG):
     final_a = final.par.cosmology.scale_factor_from_supercomoving(final_tau)
     final_cosmic_time = final.par.cosmology.cosmic_time_from_supercomoving(final_tau)
     final_background = final.par.cosmology.background_density(final_cosmic_time) * final_a**3
-    final_radius = et.enclosed_mass_radius(
+    radius_enclosed_final_comoving_code = et.enclosed_mass_radius(
         final.mesh.boundary_comoving_code[final_physical.start:final_physical.stop + 1],
-        final.fluid.rho_comoving_code[final_physical], final.mesh.volume_comoving_code[final_physical], target_mass,
+        final.fluid.rho_comoving_code[final_physical],
+        final.mesh.volume_comoving_code[final_physical],
+        mass_target_comoving_code,
     )
-    measured_delta = 3.0 * target_mass / (4.0 * np.pi * final_radius**3) / final_background - 1.0
+    measured_delta = 3.0 * mass_target_comoving_code / (
+        4.0 * np.pi * radius_enclosed_final_comoving_code**3
+    ) / final_background - 1.0
     expected_delta = et.linear_overdensity(initial_delta, final_a, initial_a)
     relative_error = abs(measured_delta - expected_delta) / expected_delta
     if not np.isfinite(relative_error) or relative_error > float(example['growth_tolerance']):
@@ -111,8 +125,15 @@ def main(config_filename=DEFAULT_CONFIG):
     figure_filename = Path(runtime['output']['savedir']) / 'EinsteinDeSitterTopHatGrowth1D.jpg'
     a_plot = np.linspace(initial_a, final_a, 100)
     plt.figure(figsize=(6, 4))
-    plt.plot(history['a'], history['delta'], 'o', label='simulation')
-    plt.plot(a_plot, initial_delta * a_plot / initial_a, '--', label='linear theory')
+    plt.plot(
+        history['scale_factor_dimensionless'],
+        history['overdensity_dimensionless'],
+        'o', label='simulation',
+    )
+    plt.plot(
+        a_plot, initial_delta * a_plot / initial_a,
+        '--', label='linear theory',
+    )
     plt.xlabel('scale factor $a$')
     plt.ylabel('mean overdensity $\\delta$')
     plt.grid(alpha=0.25)

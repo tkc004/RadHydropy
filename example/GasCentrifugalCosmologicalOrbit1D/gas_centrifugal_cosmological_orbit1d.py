@@ -103,7 +103,7 @@ class CosmologicalCentralGravity:
         self.cosmology = cosmology
         self.tau = 0.0
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho_comoving_code=None, par=None):
         tau = float(np.asarray(
             getattr(getattr(par, 'simulation', None), 'time_proper_code', self.tau)
         )) if par is not None else self.tau

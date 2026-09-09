@@ -47,15 +47,17 @@ def main(config_filename=DEFAULT_CONFIG):
     config["_cosmology"] = cosmology
     shells, delta_mass = et.make_scale_free_shells(config)
     initial_time = float(initial_condition['time_cosmic'])
-    final_time = float(example['final_cosmic_time'])
+    time_final_cosmic = float(example['time_final_cosmic'])
     tau = float(cosmology.supercomoving_time(initial_time))
-    final_tau = float(cosmology.supercomoving_time(final_time))
+    tau_final_supercomoving = float(
+        cosmology.supercomoving_time(time_final_cosmic)
+    )
     history_time = [initial_time]
     history_rta = []
     timestep = float(example['supercomoving_timestep'])
 
-    while tau < final_tau:
-        dt = min(timestep, final_tau - tau)
+    while tau < tau_final_supercomoving:
+        dt = min(timestep, tau_final_supercomoving - tau)
         time_start = float(cosmology.cosmic_time_from_supercomoving(tau))
         time_end = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
         a_start = float(cosmology.scale_factor(time_start))
@@ -74,7 +76,7 @@ def main(config_filename=DEFAULT_CONFIG):
         tau += dt
         history_time.append(time_end)
 
-    profiles = et.similarity_profiles(shells, final_time, cosmology,
+    profiles = et.similarity_profiles(shells, time_final_cosmic, cosmology,
                                       bins=int(example['profile_bins']))
     ode_solution = solve_eq41_self_similar(
         xi_end=float(example['ode_xi_end']),
@@ -101,7 +103,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'CosmologyTRef': cosmology.t_ref,
         'CosmologyARef': cosmology.a_ref,
         'InitialCosmicTime': initial_time,
-        'FinalCosmicTime': final_time,
+        'FinalCosmicTime': time_final_cosmic,
         'PerturbationMass': delta_mass,
         'SimilarityEquation': 'Bertschinger1985_Eq4.1_collisionless_shell',
         'ODEInitialLambda': 1.0,

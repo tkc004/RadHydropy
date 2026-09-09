@@ -52,7 +52,7 @@ def total_energy_error(config):
         np.asarray(saved.Energy_code[active], dtype=float)
         - central_mass * saved_mass / saved_radius
     )
-    ode_total = np.sum(reference['energy'])
+    ode_total = np.sum(reference['energy_proper_code'])
     return abs(saved_total - ode_total) / max(abs(ode_total), 1.0e-12)
 
 

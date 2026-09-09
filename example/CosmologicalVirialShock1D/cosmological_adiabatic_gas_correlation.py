@@ -98,30 +98,34 @@ def run(config_filename=DEFAULT_CONFIG):
             "cosmic baryon fraction"
         )
 
-    local = dict(par)
-    local["simulation"] = dict(par["simulation"])
-    local["simulation"]["initial_condition_filename"] = str(ic_filename)
-    local["output"] = dict(par["output"])
-    local["output"].update({
-        "directory": str(output_dir), "savedir": str(output_dir),
-    })
-    local["thermochemistry"] = dict(par.get("thermochemistry", {}))
-    local["thermochemistry"].update({
+    par["simulation"]["initial_condition_filename"] = str(ic_filename)
+    par["output"]["directory"] = str(output_dir)
+    par["output"]["savedir"] = str(output_dir)
+    par.setdefault("thermochemistry", {}).update({
         "metal_pie_enabled": False,
         "cie_cooling": False,
         "thermochemistry_network": "hydrogen",
     })
-    config = dict(config)
-    config["par"] = local
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    initial_tau = np.asarray(initial.par.tau_supercomoving_code, dtype=float)
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(
+            np.asarray(sim.fluid.tau_supercomoving_code, dtype=float),
+            initial_tau,
+        )
+    ):
+        raise RuntimeError(
+            "cosmological startup clocks disagree after SetInitFluid"
+        )
     sim.par.gravity = Gravity(
         selfgravity=True,
         cosmological=True,

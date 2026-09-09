@@ -23,7 +23,7 @@ initial_condition:
 example:
   cosmology_t_ref: 1.0
   cosmology_a_ref: 1.0
-  final_cosmic_time: 1.1
+  time_final_cosmic: 1.1
   supercomoving_timestep: 0.0005
   crossing_safety_factor: 0.1
   profile_bins: 256
@@ -33,7 +33,7 @@ example:
   ode_angular_momentum: 0.0
   ode_centre_match_lambda: 0.002
   ode_centre_matching_velocity: 2.30
-  comparison_final_cosmic_time: 148.4131591
+  time_comparison_final_cosmic: 148.4131591
   comparison_timestep: 0.002
   comparison_snapshot_stride: 5
   comparison_shell_stride: 16

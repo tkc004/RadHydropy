@@ -88,7 +88,7 @@ class FixedCentralGravity:
     def __init__(self, central_mass):
         self.central_mass = central_mass
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho_proper_code=None, par=None):
         radius_proper_code = np.abs(np.asarray(mesh.x_proper_code, dtype=float))
         acceleration = np.zeros_like(radius_proper_code)
         valid = radius_proper_code > 0.0
@@ -178,7 +178,7 @@ def main(config_filename=CONFIG):
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
     vel_proper_code_reference = reference['vel_proper']
-    ode_j = reference['specific_angular_momentum']
+    ode_j = reference['specific_angular_momentum_proper_code']
     saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
@@ -210,7 +210,7 @@ def main(config_filename=CONFIG):
     saved_total_energy = (
         np.sum(saved_energy) - np.sum(central_mass * saved_mass / saved_radius)
     )
-    ode_total_energy = np.sum(reference['energy'])
+    ode_total_energy = np.sum(reference['energy_proper_code'])
     energy_error = float(abs(saved_total_energy - ode_total_energy))
     energy_scale = max(abs(float(ode_total_energy)), 1.0e-12)
     if energy_error / energy_scale > 2.0e-3:

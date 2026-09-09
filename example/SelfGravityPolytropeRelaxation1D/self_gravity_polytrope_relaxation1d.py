@@ -51,7 +51,7 @@ def _profile(sim, rho_proper_code, pre_proper_code):
     code = sim.par.CodeUnits
     radius_proper_cgs_cm_unyt = radius_proper_code * code.length_unit
     gravity = sim.par.gravity.acceleration_on_mesh(
-        sim.mesh, rho=rho_proper_code, par=sim.par
+        sim.mesh, rho_proper_code, sim.par
     )[interior]
     gravity_cgs = quantity_to_value(
         gravity * code.length_unit / code.time_unit**2,

@@ -58,9 +58,9 @@ def make_dark_matter(config):
         count, float(initial_condition['dark_matter_angular_momentum'])
     )
     return DarkMatterShells(
-        radius=radius_proper_code,
-        velocity=vel_radial_proper_code,
-        mass=np.full(count, initial_condition['dark_matter_mass'] / count),
+        radius_proper_code,
+        vel_radial_proper_code,
+        np.full(count, initial_condition['dark_matter_mass'] / count),
         angular_momentum=angular_momentum,
         softening=initial_condition['dark_matter_softening'],
         code_units=code_units,

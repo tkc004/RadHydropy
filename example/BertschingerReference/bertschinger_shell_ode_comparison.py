@@ -176,17 +176,19 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         recent_window_fraction=float(example.get(
             'recent_accretion_window_fraction', 0.5)))
     initial_time = float(initial_condition['time_cosmic'])
-    final_time = float(example.get(
-        'comparison_final_cosmic_time',
+    time_comparison_final_cosmic = float(example.get(
+        'time_comparison_final_cosmic',
         initial_time * np.exp(float(example['ode_xi_end']))))
     timestep = float(example.get('comparison_timestep', 0.002))
     snapshot_stride = int(example.get('comparison_snapshot_stride', 5))
     shell_stride = int(example.get('comparison_shell_stride', 16))
-    if final_time <= initial_time or timestep <= 0.0:
+    if time_comparison_final_cosmic <= initial_time or timestep <= 0.0:
         raise ValueError('invalid shell comparison time configuration')
 
     tau = float(cosmology.supercomoving_time(initial_time))
-    final_tau = float(cosmology.supercomoving_time(final_time))
+    tau_comparison_final_supercomoving = float(
+        cosmology.supercomoving_time(time_comparison_final_cosmic)
+    )
     snapshot = 0
     xi_values = []
     lambda_values = []
@@ -202,8 +204,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     tracker.observe(initial_time, float(cosmology.scale_factor(initial_time)),
                     shells.radius, shells.velocity, shells.mass,
                     shells.shell_id)
-    while tau < final_tau - 1.0e-12:
-        dt = min(timestep, final_tau - tau)
+    while tau < tau_comparison_final_supercomoving - 1.0e-12:
+        dt = min(timestep, tau_comparison_final_supercomoving - tau)
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
         next_time = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
         a_start = float(cosmology.scale_factor(cosmic_time))
@@ -539,7 +541,9 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
           (splashback_xi, splashback_lambda))
     print('ODE outer caustic: xi = %.8g, lambda = %.8g' %
           (caustic_xi, caustic_lambda))
-    print('simulation time range = %.8g .. %.8g' % (initial_time, final_time))
+    print('simulation time range = %.8g .. %.8g' % (
+        initial_time, time_comparison_final_cosmic
+    ))
     print('figure = %s' % figure)
     return figure
 
