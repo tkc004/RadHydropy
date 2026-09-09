@@ -19,7 +19,7 @@ par:
 initial_condition:
   central_mass: 1.0
   shell_mass: 1.0e-12
-  radius_initial_dimensionless: 0.4
+  radius_initial_orbit_dimensionless: 0.4
   vel_proper: 0.0
   specific_angular_momentum: 0.15
   softening: 0.02

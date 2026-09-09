@@ -24,7 +24,7 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     cosmology = EinsteinDeSitter.from_code_units(units)
     t0 = quantity_to_value(
-        config["par"]['simulation']['initial_time'], units.time_unit
+        config['initial_condition']['time_cosmic'], units.time_unit
     )
     t1 = quantity_to_value(
         config["par"]['simulation']['final_time'], units.time_unit

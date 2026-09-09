@@ -64,5 +64,5 @@ initial_condition:
   vel_inflow_proper: {value: -100.0, unit: km/s}
   vel_outflow_proper: {value: 100.0, unit: km/s}
   temperature_inflow_proper: {value: 1.0e4, unit: K}
-  muini: 0.62
+  mean_molecular_weight: 0.62
 example: {}

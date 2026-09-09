@@ -258,7 +258,7 @@ def run_case(config, label, rotation_factor):
             float(initial_condition["temperature_proper"].to_value(code_unit_system.temperature_unit))
             * scale_factor**2,
         ),
-        "_mu_dimensionless": np.full(count, float(initial_condition["muini"])),
+        "_mu_dimensionless": np.full(count, float(initial_condition["mean_molecular_weight"])),
         "_specific_angular_momentum_code": specific_angular_momentum_code,
         "_initial_tau_supercomoving_code": float(
             cosmology.supercomoving_time(cosmic_time)

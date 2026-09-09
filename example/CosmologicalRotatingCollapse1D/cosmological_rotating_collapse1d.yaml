@@ -49,8 +49,7 @@ initial_condition:
   radius_top_hat_comoving: {value: 0.75, unit: pc}
   overdensity: 0.20
   temperature_proper: {value: 1.0e-3, unit: K}
-  muini: 1.0
+  mean_molecular_weight: 1.0
   moderate_rotation_factor: 0.45
   high_rotation_factor: 0.85
 example: {}
-

@@ -211,13 +211,13 @@ class Testing(unittest.TestCase):
         self.assertAlmostEqual(float(neutral_fraction), 1.0, places=12)
 
     def test_advection_sph1d_analytic_uses_spherical_dilution(self):
-        radius = np.array([0.5, 1.5, 3.0], dtype=float)
-        density = advection_sph_analytic.top_hat_density_profile(
-            radius,
+        radius_proper_code = np.array([0.5, 1.5, 3.0], dtype=float)
+        rho_proper_code = advection_sph_analytic.top_hat_density_profile(
+            radius_proper_code,
             time_proper_code=1.0,
-            velocity=1.0,
-            boxsize=4.0,
-            density_high=10.0,
+            vel_proper_code=1.0,
+            box_size_proper_code=4.0,
+            rho_high_proper_code=10.0,
             density_low_factor=0.1,
             left_fraction=0.25,
             right_fraction=0.75,
@@ -228,7 +228,7 @@ class Testing(unittest.TestCase):
             10.0 * 0.1 * (0.5 / 1.5) ** 2,
             10.0 * (2.0 / 3.0) ** 2,
         ])
-        np.testing.assert_allclose(density, expected, rtol=1e-12, atol=1e-12)
+        np.testing.assert_allclose(rho_proper_code, expected, rtol=1e-12, atol=1e-12)
 
     def test_hydrogen_photoheating1d_uses_yaml_config(self):
         config_filename = (

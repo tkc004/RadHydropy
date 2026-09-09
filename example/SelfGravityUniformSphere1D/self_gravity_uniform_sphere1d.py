@@ -63,10 +63,10 @@ def main(config_filename=DEFAULT_CONFIG):
         par=sim.par,
     )
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    radius = sim.mesh.x_proper_code[interior]
-    rho0 = initial_condition['rho_proper']
-    radius_quantity = np.asarray(radius, dtype=float) * sim.par.CodeUnits.length_unit
-    analytic = et.uniform_sphere_acceleration(radius_quantity, rho0)
+    radius_proper_code = sim.mesh.x_proper_code[interior]
+    rho_proper_cgs_g_cm3_unyt = initial_condition['rho_proper']
+    radius_proper_cgs_cm_unyt = np.asarray(radius_proper_code, dtype=float) * sim.par.CodeUnits.length_unit
+    analytic = et.uniform_sphere_acceleration(radius_proper_cgs_cm_unyt, rho_proper_cgs_g_cm3_unyt)
     numerical_cgs = quantity_to_value(
         numerical[interior]
         * sim.par.CodeUnits.length_unit
@@ -74,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'cm/s**2',
     )
     analytic_cgs = quantity_to_value(analytic, 'cm/s**2')
-    radius_pc = quantity_to_value(radius_quantity, 'pc')
+    radius_proper_pc = quantity_to_value(radius_proper_cgs_cm_unyt, 'pc')
 
     # The first physical cell contains the origin and is intentionally set to
     # zero by the spherical solver's symmetry convention.
@@ -97,13 +97,13 @@ def main(config_filename=DEFAULT_CONFIG):
         'SelfGravityUniformSphere1D.jpg',
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].plot(radius_pc, numerical_cgs, label='numerical')
-    axes[0].plot(radius_pc, analytic_cgs, '--', label='analytic')
+    axes[0].plot(radius_proper_pc, numerical_cgs, label='numerical')
+    axes[0].plot(radius_proper_pc, analytic_cgs, '--', label='analytic')
     axes[0].set_xlabel('radius [pc]')
     axes[0].set_ylabel('acceleration [cm/s$^2$]')
     axes[0].legend()
     axes[0].grid(alpha=0.25)
-    axes[1].plot(radius_pc[comparison], relative_error)
+    axes[1].plot(radius_proper_pc[comparison], relative_error)
     axes[1].set_xlabel('radius [pc]')
     axes[1].set_ylabel('relative error')
     axes[1].grid(alpha=0.25)

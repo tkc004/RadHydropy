@@ -12,7 +12,7 @@ def make_shell(config):
     initial_condition = config['initial_condition']
     code_unit_system = code_units_from_config(config)
     return DarkMatterShells(
-        radius=[initial_condition['radius_initial_dimensionless']],
+        radius=[initial_condition['radius_initial_orbit_dimensionless']],
         velocity=[initial_condition['vel_proper']],
         mass=[initial_condition['shell_mass']],
         angular_momentum=[initial_condition['specific_angular_momentum']],

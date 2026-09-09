@@ -50,7 +50,7 @@ def main(config_filename=DEFAULT_CONFIG):
     central_mass = float(initial_condition['central_mass'])
     softening = float(initial_condition['softening'])
     angular_momentum = float(initial_condition['specific_angular_momentum'])
-    initial_radius = float(initial_condition['radius_initial_dimensionless'])
+    initial_radius = float(initial_condition['radius_initial_orbit_dimensionless'])
     vel_proper = float(initial_condition['vel_proper'])
     energy = 0.5 * vel_proper**2 + effective_potential(
         initial_radius, central_mass, angular_momentum, softening, g_code

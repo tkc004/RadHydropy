@@ -227,7 +227,7 @@ def interior_slice(par):
 
 def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     interior = interior_slice(par)
-    radius = code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm) * unyt.kpc
+    radius_proper_cgs_kpc_unyt = code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
 
     ionized = xHI <= neutral_fraction
@@ -242,20 +242,20 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     x_left = xHI[left]
     x_right = xHI[right]
     if x_right == x_left:
-        return radius[left]
+        return radius_proper_cgs_kpc_unyt[left]
 
     weight = (neutral_fraction - x_left) / (x_right - x_left)
-    return radius[left] + weight * (radius[right] - radius[left])
+    return radius_proper_cgs_kpc_unyt[left] + weight * (radius_proper_cgs_kpc_unyt[right] - radius_proper_cgs_kpc_unyt[left])
 
 
 def mean_ionized_temperature(fluid, par):
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior])
-    temperature = code_quantity_to_cgs(fluid.temp_proper_code[interior], par.units.CodeUnits, 'temperature_cgs_K')
+    temperature_proper_cgs_K = code_quantity_to_cgs(fluid.temp_proper_code[interior], par.units.CodeUnits, 'temperature_cgs_K')
     ionized = 1.0 - xHI
     if np.sum(ionized) <= 0.0:
         return 0.0
-    return float(np.sum(ionized * temperature) / np.sum(ionized))
+    return float(np.sum(ionized * temperature_proper_cgs_K) / np.sum(ionized))
 
 
 def append_history(history, mesh, fluid, par):
@@ -286,15 +286,15 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     example = config.get('example', {})
     interior = interior_slice(par)
     code_units_obj = par.units.CodeUnits
-    radius_kpc = code_quantity_to_cgs(mesh.x_proper_code[interior], code_units_obj, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm)
-    radius = radius_kpc * unyt.kpc
+    radius_proper_cgs_kpc = code_quantity_to_cgs(mesh.x_proper_code[interior], code_units_obj, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm)
+    radius_proper_cgs_kpc_unyt = radius_proper_cgs_kpc * unyt.kpc
     snapshot = history.get('reference_snapshot', None)
     if snapshot is None:
         xHI = np.asarray(fluid.xHI[interior], dtype=float)
         temperature_cgs_K = code_quantity_to_cgs(fluid.temp_proper_code[interior], code_units_obj, 'temperature_cgs_K')
         profile_time_Myr = float(fluid.time_proper_code * code_units_obj.time_unit.to_value(unyt.Myr))
     else:
-        radius_kpc = snapshot['radius_kpc']
+        radius_proper_cgs_kpc = snapshot['radius_kpc']
         xHI = snapshot['xHI']
         temperature_cgs_K = snapshot['temperature_cgs_K']
         profile_time_Myr = snapshot['time_Myr']
@@ -312,7 +312,7 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     alpha_B = thermo.get('hydrogen_alpha_B')
     if alpha_B is not None:
         xHI_analytic = sa.neutral_fraction_profile(
-            radius,
+            radius_proper_cgs_kpc_unyt,
             initial['hydrogen_number_density'],
             thermo['hydrogen_sigma_gamma'],
             alpha_B,
@@ -342,16 +342,16 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
         figsize=(7.4, 8.0),
         gridspec_kw={'height_ratios': [1.4, 1.2, 1.2], 'hspace': 0.34},
     )
-    ax_frac.plot(radius_kpc, np.clip(xHI, 1.0e-6, 1.0), label=r'$x_{\rm HI}$')
-    ax_frac.plot(radius_kpc, np.clip(xHII, 1.0e-6, 1.0), label=r'$x_{\rm HII}$')
+    ax_frac.plot(radius_proper_cgs_kpc, np.clip(xHI, 1.0e-6, 1.0), label=r'$x_{\rm HI}$')
+    ax_frac.plot(radius_proper_cgs_kpc, np.clip(xHII, 1.0e-6, 1.0), label=r'$x_{\rm HII}$')
     if xHI_analytic is not None:
         ax_frac.plot(
-            radius_kpc,
+            radius_proper_cgs_kpc,
             np.clip(xHI_analytic, 1.0e-6, 1.0),
             color='tab:blue', lw=1.4, ls='--', label=r'$x_{\rm HI}$ analytic',
         )
         ax_frac.plot(
-            radius_kpc,
+            radius_proper_cgs_kpc,
             np.clip(xHII_analytic, 1.0e-6, 1.0),
             color='tab:orange', lw=1.4, ls='--', label=r'$x_{\rm HII}$ analytic',
         )
@@ -375,7 +375,7 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
     ax_frac.grid(True, which='both', alpha=0.25)
     ax_frac.legend(frameon=False, loc='center right')
 
-    ax_temp.plot(radius_kpc, temperature_cgs_K, color='tab:red', lw=1.8)
+    ax_temp.plot(radius_proper_cgs_kpc, temperature_cgs_K, color='tab:red', lw=1.8)
     if temperature_reference is not None:
         ax_temp.scatter(
             temperature_reference['radius_kpc'],

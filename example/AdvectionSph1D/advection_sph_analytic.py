@@ -3,27 +3,30 @@
 import numpy as np
 
 
-def gaussian(radius, inverse_width, center):
+def gaussian(radius_proper_code, inverse_width_code, center_proper_code):
     """Return a Gaussian profile."""
 
-    return np.exp(-np.power(inverse_width * (radius - center), 2.0))
+    return np.exp(-np.power(inverse_width_code * (radius_proper_code - center_proper_code), 2.0))
 
 
-def expanding_quantity(geometry_index, alpha, time_proper_code, radius, inverse_width, center):
+def expanding_quantity(geometry_index, alpha_code, time_proper_code,
+                       radius_proper_code, inverse_width_code,
+                       center_proper_code):
     """Return the analytic homologous-expansion profile."""
 
     return (
-        np.exp(-(geometry_index + 1.0) * alpha * time_proper_code)
-        * gaussian(radius * np.exp(-alpha * time_proper_code), inverse_width, center)
+        np.exp(-(geometry_index + 1.0) * alpha_code * time_proper_code)
+        * gaussian(radius_proper_code * np.exp(-alpha_code * time_proper_code),
+                   inverse_width_code, center_proper_code)
     )
 
 
 def top_hat_density_profile(
-    radius,
+    radius_proper_code,
     time_proper_code,
-    velocity,
-    boxsize,
-    density_high,
+    vel_proper_code,
+    box_size_proper_code,
+    rho_high_proper_code,
     density_low_factor=0.01,
     left_fraction=0.25,
     right_fraction=0.75,
@@ -36,30 +39,30 @@ def top_hat_density_profile(
     factor of ``(r0 / r)^2`` where ``r0 = r - v t`` is the launch radius.
     """
 
-    if hasattr(radius, "to_value"):
-        radius = radius.to_value()
-    radius = np.asarray(radius, dtype=float)
+    if hasattr(radius_proper_code, "to_value"):
+        radius_proper_code = radius_proper_code.to_value()
+    radius_proper_code = np.asarray(radius_proper_code, dtype=float)
     if hasattr(time_proper_code, "to_value"):
         time_proper_code = time_proper_code.to_value()
-    if hasattr(velocity, "to_value"):
-        velocity = velocity.to_value()
-    if hasattr(boxsize, "to_value"):
-        boxsize = boxsize.to_value()
-    launch_radius = radius - time_proper_code * velocity
-    rho_proper = density_low_factor * density_high * np.ones_like(radius)
+    if hasattr(vel_proper_code, "to_value"):
+        vel_proper_code = vel_proper_code.to_value()
+    if hasattr(box_size_proper_code, "to_value"):
+        box_size_proper_code = box_size_proper_code.to_value()
+    launch_radius_proper_code = radius_proper_code - time_proper_code * vel_proper_code
+    rho_proper_code = density_low_factor * rho_high_proper_code * np.ones_like(radius_proper_code)
 
-    inside = np.logical_and(launch_radius >= 0.0, launch_radius <= boxsize)
-    rho_proper[
+    inside = np.logical_and(launch_radius_proper_code >= 0.0, launch_radius_proper_code <= box_size_proper_code)
+    rho_proper_code[
         np.logical_and(
-            launch_radius >= left_fraction * boxsize,
-            launch_radius <= right_fraction * boxsize,
+            launch_radius_proper_code >= left_fraction * box_size_proper_code,
+            launch_radius_proper_code <= right_fraction * box_size_proper_code,
         )
-    ] = density_high
+    ] = rho_high_proper_code
 
-    rho = np.zeros_like(radius)
-    positive = radius > 0.0
-    rho[inside & positive] = (
-        rho_proper[inside & positive]
-        * (launch_radius[inside & positive] / radius[inside & positive]) ** 2.0
+    rho_proper_code_result = np.zeros_like(radius_proper_code)
+    positive = radius_proper_code > 0.0
+    rho_proper_code_result[inside & positive] = (
+        rho_proper_code[inside & positive]
+        * (launch_radius_proper_code[inside & positive] / radius_proper_code[inside & positive]) ** 2.0
     )
-    return rho
+    return rho_proper_code_result

@@ -51,7 +51,7 @@ def build_initial_condition(config):
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * rho_proper * unyt.g / unyt.cm**3, code_units.density_unit
     ))
-    result.fluid.mu = np.ones(grid_cells) * initial['muini']
+    result.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
     result.fluid.time_proper_code = 0.0
     result.SetMesh()
     result.fluid.SetUpFluid(result.par, result.mesh)

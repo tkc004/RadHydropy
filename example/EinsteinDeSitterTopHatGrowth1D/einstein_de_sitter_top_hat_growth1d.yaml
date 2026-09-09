@@ -46,6 +46,6 @@ initial_condition:
   radius_top_hat_comoving: {value: 0.5, unit: pc}
   overdensity: 0.005
   temperature_proper: {value: 1.0e-6, unit: K}
-  muini: 1.0
+  mean_molecular_weight: 1.0
 example:
   growth_tolerance: 0.10

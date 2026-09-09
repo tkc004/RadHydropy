@@ -31,6 +31,5 @@ initial_condition:
   time_proper: {value: 0.0, unit: s}
   rho_proper: {value: 1.0e-20, unit: g/cm**3}
   temperature_proper: {value: 10.0, unit: K}
-  muini: 1.0
+  mean_molecular_weight: 1.0
 example: {}
-

@@ -17,15 +17,15 @@ def spherical_cell_centers(boundary_proper_code):
     return 0.75 * (outer**4 - inner**4) / denominator
 
 
-def uniform_sphere_acceleration(radius, rho0):
+def uniform_sphere_acceleration(radius_proper_unyt, rho_proper_cgs_g_cm3_unyt):
     """Return the analytic interior field of a uniform-density sphere."""
-    radius = radius.to(unyt.cm)
-    rho0 = rho0.to(unyt.g / unyt.cm**3)
+    radius_proper_cgs_cm_unyt = radius_proper_unyt.to(unyt.cm)
+    rho_proper_cgs_g_cm3_unyt = rho_proper_cgs_g_cm3_unyt.to(unyt.g / unyt.cm**3)
     return (
         -4.0 * np.pi / 3.0
         * (GRAVITATIONAL_CONSTANT_CGS * unyt.cm**3 / (unyt.g * unyt.s**2))
-        * rho0
-        * radius
+        * rho_proper_cgs_g_cm3_unyt
+        * radius_proper_cgs_cm_unyt
     ).to(unyt.cm / unyt.s**2)
 
 
@@ -65,7 +65,7 @@ def build_initial_condition(config):
 
     sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho_proper'], code_unit_system.density_unit)
     sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['temperature_proper'], code_unit_system.temperature_unit)
-    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
+    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
     sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
     sim.fluid.SetUpFluid(sim.par, sim.mesh)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)

@@ -83,7 +83,7 @@ def build_initial_condition(config):
         initial_condition['temperature_proper'], code_units.temperature_unit
     )
     sim.fluid.temp_supercomoving_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(grid_cells)
-    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['muini'])
+    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
     sim.fluid.vel_supercomoving_code = np.zeros(grid_cells)
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,

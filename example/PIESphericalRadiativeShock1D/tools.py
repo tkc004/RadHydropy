@@ -59,7 +59,7 @@ def build_initial_condition(config):
         inflow_velocity_proper_code,
     ))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * initial['temperature_inflow_proper'], code_units.temperature_unit))
-    result.fluid.mu = np.ones(grid_cells) * initial['muini']
+    result.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
     result.fluid.time_proper_code = 0.0
     result.SetMesh()
     result.fluid.SetUpFluid(result.par, result.mesh)

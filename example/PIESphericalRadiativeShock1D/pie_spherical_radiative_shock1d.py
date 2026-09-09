@@ -125,7 +125,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     final_snapshot = load_output_state(output_files[-1], case_config)
     cooling = None if not pie_enabled else estimate_cooling_length(
         final_snapshot, table, metallicity,
-        float(case['thermochemistry']['hydrogen_mass_fraction']), float(initial['muini']),
+        float(case['thermochemistry']['hydrogen_mass_fraction']), float(initial['mean_molecular_weight']),
     )
     report = case_dir / 'ShockHistory.txt'
     with report.open('w', encoding='utf-8') as stream:

@@ -47,6 +47,6 @@ initial_condition:
   box_size_proper: {value: 0.001, unit: pc}
   time_proper: {value: 0.0, unit: yr}
   temperature_proper: {value: 10000.0, unit: K}
-  muini: 0.62
+  mean_molecular_weight: 0.62
   hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
 example: {}

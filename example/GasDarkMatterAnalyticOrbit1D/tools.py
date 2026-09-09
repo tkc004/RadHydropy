@@ -21,7 +21,7 @@ def make_shell(config):
         return central_mass + 4.0 * np.pi / 3.0 * gas_density * radius_code**3
 
     return DarkMatterShells(
-        radius=[initial_condition['radius_initial_dimensionless']],
+        radius=[initial_condition['radius_initial_orbit_dimensionless']],
         velocity=[initial_condition['vel_proper']],
         mass=[initial_condition['shell_mass']],
         angular_momentum=[initial_condition['specific_angular_momentum']],
