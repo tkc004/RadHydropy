@@ -81,8 +81,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         )
     case_config["_code_cosmology"] = code_cosmology
     case_config["_initial_tau_supercomoving_code"] = 0.0
-    boxsize_code = float(initial_condition["box_size_comoving"].to_value(units.length_unit))
-    case_config["_boundary_start_code"] = -boxsize_code / int(
+    box_size_comoving_code = float(initial_condition["box_size_comoving"].to_value(units.length_unit))
+    case_config["_boundary_start_code"] = -box_size_comoving_code / int(
         case_config["par"]["mesh"]["grid_cells"]
     )
     initial = build_cosmological_initial_condition(case_config)
@@ -118,7 +118,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if not np.max(profiles[-1][2]) > np.max(profiles[0][2]):
         raise RuntimeError("cosmological Sod shock did not heat the gas")
 
-    radius, density, temperature, _, _ = profiles[-1]
+    radius_comoving_code, rho_comoving_code, temp_supercomoving_code, _, _ = profiles[-1]
     gamma = float(case_config["par"]["hydrodynamics"]["gamma"])
     pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
     pressure_left = float(initial_condition["rho_left_proper"]) * float(
@@ -149,12 +149,12 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         velocity_tail,
         velocity_shock,
         final_tau,
-        radius,
+        radius_comoving_code,
         0.5 * float(initial_condition["box_size_comoving"].to_value(units.length_unit)),
     )
     interface = 0.5 * float(initial_condition["box_size_comoving"].to_value(units.length_unit))
-    central = (radius > interface - 2.0) & (radius < interface + 2.0)
-    density_l1 = float(np.mean(np.abs(density[central] - rho_exact[central])))
+    central = (radius_comoving_code > interface - 2.0) & (radius_comoving_code < interface + 2.0)
+    density_l1 = float(np.mean(np.abs(rho_comoving_code[central] - rho_exact[central])))
     if density_l1 > 0.04:
         raise RuntimeError(
             f"cosmological Sod density profile misses exact solution: L1={density_l1:.6g}"
@@ -162,9 +162,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
 
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
     for index in np.unique(np.linspace(0, len(profiles) - 1, 5).astype(int)):
-        radius, density, temperature, _, _ = profiles[index]
-        axes[0].plot(radius, density, label=f"output {index:03d}")
-        axes[1].plot(radius, temperature, label=f"output {index:03d}")
+        radius_comoving_code, rho_comoving_code, temp_supercomoving_code, _, _ = profiles[index]
+        axes[0].plot(radius_comoving_code, rho_comoving_code, label=f"output {index:03d}")
+        axes[1].plot(radius_comoving_code, temp_supercomoving_code, label=f"output {index:03d}")
     axes[0].set_ylabel("comoving density")
     axes[1].set_ylabel("supercomoving temperature")
     axes[1].set_xlabel("comoving coordinate")
@@ -172,8 +172,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     axes[0].grid(alpha=0.25)
     axes[1].grid(alpha=0.25)
     exact_temperature = pressure_exact / np.maximum(rho_exact, 1.0e-30) / pressure_factor
-    axes[0].plot(radius[central], rho_exact[central], "k--", lw=1.2, label="exact final")
-    axes[1].plot(radius[central], exact_temperature[central], "k--", lw=1.2)
+    axes[0].plot(radius_comoving_code[central], rho_exact[central], "k--", lw=1.2, label="exact final")
+    axes[1].plot(radius_comoving_code[central], exact_temperature[central], "k--", lw=1.2)
     axes[0].set_xlim(interface - 2.0, interface + 2.0)
     fig.suptitle("Cosmological Sod shock tube")
     fig.tight_layout()

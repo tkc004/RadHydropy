@@ -150,7 +150,6 @@ def main():
     config = eu.load_nested_example_config(CONFIG)
 
     initial_condition = config["initial_condition"]
-    config["par"]["_example"] = config["example"]
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,

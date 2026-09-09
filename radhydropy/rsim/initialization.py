@@ -273,9 +273,10 @@ def ConvertParametersToCodeUnits(sim):
 def _require_unitless_runtime_parameters(sim):
     """Fail fast if any unitful value leaked into runtime parameters.
 
-    ``par_config`` is deliberately excluded because it preserves the original
-    unit-aware configuration for provenance and output.  ``units`` is also
-    excluded because it contains the code-unit definitions themselves.
+    ``par_config`` and ``nested_par_config`` are deliberately excluded because
+    they preserve the original unit-aware configuration for provenance and
+    output.  ``units`` is also excluded because it contains the code-unit
+    definitions themselves.
     """
     leaked = []
     visited = set()
@@ -308,13 +309,16 @@ def _require_unitless_runtime_parameters(sim):
         elif hasattr(value, "__dict__"):
             for name, child in vars(value).items():
                 if name.startswith("_") or name in {
-                    "par_config", "units", "unit_system", "CodeUnits", "model",
+                    "par_config", "nested_par_config", "units", "unit_system",
+                    "CodeUnits", "model",
                 }:
                     continue
                 visit(child, f"{path}.{name}")
 
     for name, value in vars(sim.par).items():
-        if name in {"par_config", "units", "unit_system", "CodeUnits"}:
+        if name in {
+            "par_config", "nested_par_config", "units", "unit_system", "CodeUnits"
+        }:
             continue
         visit(value, f"par.{name}")
 

@@ -103,15 +103,12 @@ def build_initial_condition(config):
     initial_condition = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    box_size = _physical_value(
-        initial_condition['box_size_proper'], unyt.cm, 'box_size'
+    box_size_proper_unyt = _physical_value(
+        initial_condition['box_size_proper'], unyt.cm, 'box_size_proper'
     ) * unyt.cm
-    time_proper = _physical_value(
-        initial_condition['time_proper'], unyt.s, 'time_proper'
-    ) * unyt.s
-    boundary_proper_code = np.linspace(0.0, 1.0, grid_cells + 1) * quantity_to_value(box_size, code_units.length_unit)
+    boundary_proper_code = np.linspace(0.0, 1.0, grid_cells + 1) * quantity_to_value(box_size_proper_unyt, code_units.length_unit)
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    density_proper_code = quantity_to_value(hydrostatic_density_profile(
+    rho_proper_code = quantity_to_value(hydrostatic_density_profile(
         coordinate_proper_code * code_units.length_unit,
         initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
@@ -119,13 +116,13 @@ def build_initial_condition(config):
         initial_condition['gravity_strength'],
         code_unit_system=code_units,
     ), code_units.density_unit)
-    temperature_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['temperature_proper'], code_units.temperature_unit))
+    temp_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['temperature_proper'], code_units.temperature_unit))
     return make_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
-        rho_proper_code=density_proper_code,
+        rho_proper_code=rho_proper_code,
         vel_proper_code=np.zeros(grid_cells),
-        temp_proper_code=temperature_proper_code,
+        temp_proper_code=temp_proper_code,
         mu_dimensionless=np.full(grid_cells, initial_condition['mean_molecular_weight']),
         area_proper_code=np.ones(grid_cells),
     )
@@ -154,19 +151,19 @@ def plot_snapshot(outfilename, config, **kwargs):
     color = kwargs.get('color', 'C0')
     nghost = int(config["par"].get('mesh', {}).get('ghost_cells', 0))
     boundary_proper_code = rout.mesh.geometry_state.boundary_proper_code
-    xall = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    x_proper_code_all = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     if nghost > 0:
         # The typed mesh geometry stores physical cell boundaries; ghost
         # cells are present only in the fluid arrays returned by the reader.
-        xcoord = xall
-        rho_num = rout.fluid.rho_proper_code[nghost:-nghost]
-        vel_code_num = rout.fluid.vel_proper_code[nghost:-nghost]
+        x_proper_code = x_proper_code_all
+        rho_proper_code = rout.fluid.rho_proper_code[nghost:-nghost]
+        vel_proper_code = rout.fluid.vel_proper_code[nghost:-nghost]
     else:
-        xcoord = xall
-        rho_num = rout.fluid.rho_proper_code
-        vel_code_num = rout.fluid.vel_proper_code
-    rho_analytic = hydrostatic_density_profile(
-        xcoord,
+        x_proper_code = x_proper_code_all
+        rho_proper_code = rout.fluid.rho_proper_code
+        vel_proper_code = rout.fluid.vel_proper_code
+    rho_analytic_cgs_g_cm3_unyt = hydrostatic_density_profile(
+        x_proper_code,
         initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
@@ -174,34 +171,38 @@ def plot_snapshot(outfilename, config, **kwargs):
         code_unit_system=code_units_obj,
     )
     if code_units_obj is not None:
-        x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units)
-        rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units)
-        vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units)
-        xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm') * unyt.cm
-        rho_num_plot = (
-            code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
+        x_units = getattr(x_proper_code, 'units', code_units_obj.length_unit.units)
+        rho_units = getattr(rho_proper_code, 'units', code_units_obj.density_unit.units)
+        vel_units = getattr(vel_proper_code, 'units', code_units_obj.velocity_unit.units)
+        x_proper_cgs_cm_unyt = code_quantity_to_cgs(
+            x_proper_code, code_units_obj, 'length_cgs_cm'
+        ) * unyt.cm
+        rho_proper_cgs_g_cm3_unyt = (
+            code_quantity_to_cgs(rho_proper_code, code_units_obj, 'density_cgs_g_cm3')
             * (unyt.g / unyt.cm**3)
         )
-        vel_num_plot = (
-            code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cgs_cm_s')
+        vel_proper_cgs_cm_s_unyt = (
+            code_quantity_to_cgs(vel_proper_code, code_units_obj, 'velocity_cgs_cm_s')
             * (unyt.cm / unyt.s)
         )
     else:
         x_units = unyt.cm
         rho_units = unyt.g / unyt.cm**3
         vel_units = unyt.cm / unyt.s
-        xplot = xcoord.to(unyt.cm)
-        rho_num_plot = rho_num.to(unyt.g / unyt.cm**3)
-        vel_num_plot = vel_num.to(unyt.cm / unyt.s)
-    rho_plot = rho_analytic.to(unyt.g / unyt.cm**3)
-    zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
-    zero_velocity_plot = zero_velocity.to(unyt.cm / unyt.s)
+        x_proper_cgs_cm_unyt = x_proper_code.to(unyt.cm)
+        rho_proper_cgs_g_cm3_unyt = rho_proper_code.to(unyt.g / unyt.cm**3)
+        vel_proper_cgs_cm_s_unyt = vel_proper_code.to(unyt.cm / unyt.s)
+    rho_analytic_cgs_g_cm3_unyt = rho_analytic_cgs_g_cm3_unyt.to(
+        unyt.g / unyt.cm**3
+    )
+    zero_vel_proper_cgs_cm_s_unyt = np.zeros(len(x_proper_code)) * unyt.cm / unyt.s
+    zero_vel_proper_cgs_cm_s_unyt = zero_vel_proper_cgs_cm_s_unyt.to(unyt.cm / unyt.s)
 
     plt.subplot(1, 2, 1)
-    plt.plot(xplot, rho_num_plot, **kwargs)
+    plt.plot(x_proper_cgs_cm_unyt, rho_proper_cgs_g_cm3_unyt, **kwargs)
     plt.plot(
-        xplot,
-        rho_plot,
+        x_proper_cgs_cm_unyt,
+        rho_analytic_cgs_g_cm3_unyt,
         ls='dashed',
         color=color,
     )
@@ -209,10 +210,10 @@ def plot_snapshot(outfilename, config, **kwargs):
     plt.ylabel(rf"$\rho \; [{rho_units.latex_repr}]$")
 
     plt.subplot(1, 2, 2)
-    plt.plot(xplot, vel_num_plot, **kwargs)
+    plt.plot(x_proper_cgs_cm_unyt, vel_proper_cgs_cm_s_unyt, **kwargs)
     plt.plot(
-        xplot,
-        zero_velocity_plot,
+        x_proper_cgs_cm_unyt,
+        zero_vel_proper_cgs_cm_s_unyt,
         ls='dashed',
         color=color,
     )

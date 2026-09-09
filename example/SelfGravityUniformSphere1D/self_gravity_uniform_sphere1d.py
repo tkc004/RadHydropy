@@ -93,7 +93,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
 
     figure_filename = os.path.join(
-        runtime['output']['directory'],
+        config['par']['output']['directory'],
         'SelfGravityUniformSphere1D.jpg',
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
