@@ -1,0 +1,269 @@
+# Canonical nested RadHydropy parameter reference.
+#
+# This file documents the supported nested `par` configuration surface and
+# the defaults used when a field is omitted.  Optional values are null unless
+# the runtime default is a concrete value.  Replace the example paths and
+# physical inputs for an actual workflow.
+
+par:
+  simulation:
+    name: advection1d
+    initial_condition_filename: /InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 2.0, unit: s}
+    initial_time: null
+    time_proper: {value: 0.0, unit: s}
+    box_size_proper: null
+    box_size_comoving: null
+    cosmological_expansion: false
+    supercomoving_coordinates: false
+    coordinate_frame: physical
+    time_coordinate: cosmic
+    velocity_representation: physical
+    density_representation: physical
+    pressure_representation: physical
+    temperature_representation: physical
+
+  mesh:
+    grid_cells: null
+    ghost_cells: 2
+    area_proper: {value: 1.0, unit: cm**2}
+
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    temperature_proper: {value: 2.7, unit: K}
+    CFL: 0.1
+    order: 0
+    riemann_solver: Rusanov
+    flux_limiter: minmod
+    dual_energy: false
+    dual_energy_eta1: 1.0e-3
+    dual_energy_eta2: 1.0e-1
+    dual_energy_consistency_factor: 1.0e-1
+    dual_energy_entropy_limiter: false
+    dual_energy_pressure_selection: switch
+    dual_energy_pressure_floor: 1.0e-20
+    positivity_preserving: true
+    positivity_density_floor: 0.0
+    positivity_energy_floor: 0.0
+    boundary_mass_loading_timestep: false
+    gas_angular_momentum: false
+    gas_rotational_energy: false
+    angular_momentum_flux_scheme: fct
+    gravity_potential_energy: false
+    hydro_integrator: euler
+    cfl_density_floor: 0.0
+    hydro_temperature_floor: null
+    temperature_jump_error_threshold: 1.0e8
+
+  boundary:
+    condition: Periodic
+    vel_inflow_proper: {value: 1.0, unit: cm/s}
+    rho_inflow_proper: {value: 1.0, unit: g/cm**3}
+    temperature_inflow_proper: {value: 0.0, unit: K}
+    inflow_mu: 1.0
+    vel_outflow_proper: {value: 1.0, unit: cm/s}
+    rho_outflow_proper: {value: 1.0, unit: g/cm**3}
+    temperature_outflow_proper: {value: 0.0, unit: K}
+    outflow_mu: 1.0
+    cosmological_background_reconstruction: false
+
+  timestep:
+    dtmin: {value: 2.0e-8, unit: s}
+    dtmax: {value: 2.0e-1, unit: s}
+    cfl_density_floor: 0.0
+    hydro_temperature_floor: null
+    cooling_safety_factor: 0.1
+    hydrogen_source_CFL: 0.1
+    hydrogen_source_dtmin: {value: 0.0, unit: s}
+    relaxation_damping_time: null
+    chemistry_timestep: null
+    evolution_timestep: null
+    output_interval: null
+    crossing_safety_factor: 0.1
+    supercomoving_timestep: null
+
+  output:
+    directory: ./
+    savedir: ./
+    filename_prefix: Output
+    cadence: {value: 0.2, unit: s}
+    time_interval: null
+    time_list_filename: null
+
+  diagnostics:
+    verbose: 0
+    energy_diagnostics: false
+    temperature_jump_error_threshold: {value: 1.0e8, unit: K}
+    temperature_plot_ymin: null
+    plot_exclude_outer_cells: 0
+
+  units:
+    CodeUnits: null
+
+  thermochemistry:
+    network: hydrogen
+    cie_cooling: false
+    cie_ion_fraction_table: null
+    cie_cooling_table: null
+    cie_abundance_file: null
+    metallicity: 1.0
+    cooling_safety_factor: 0.1
+    cooling_temperature_floor: {value: 100.0, unit: K}
+    hydrogen_chemistry: false
+    hydrogen_recombination: true
+    hydrogen_collisional_ionization: true
+    hydrogen_atomic_cooling: true
+    hydrogen_thermal_coupling: true
+    hydrogen_update_mu: false
+    hydrogen_initial_collisional_equilibrium: false
+    compton_cmb_enabled: false
+    compton_cmb_redshift: 0.0
+    cmb_temperature_0: {value: 2.7255, unit: K}
+    hydrogen_source_solver: hybrid
+    hydrogen_source_CFL: 0.1
+    hydrogen_source_dtmin: {value: 0.0, unit: s}
+    hydrogen_implicit_tolerance: 1.0e-6
+    hydrogen_implicit_absolute_temperature_tolerance: {value: 0.0, unit: K}
+    hydrogen_implicit_convergence_tolerance: 1.0e-3
+    hydrogen_implicit_max_iterations: 32
+    hydrogen_implicit_fallback: explicit
+    hydrogen_hybrid_change_tolerance: 0.1
+    hydrogen_implicit_max_refinements: 4
+    hydrogen_split_implicit_max_subcycles: 100000
+    hydrogen_initial_collisional_equilibrium: false
+    relative_tolerance: 1.0e-3
+    absolute_tolerance: 1.0e-10
+    explicit_tolerance: 0.1
+    hydrogen_alpha_B: null
+    hydrogen_beta: null
+    hydrogen_epsilon_gamma: null
+    hydrogen_ngamma_initial: null
+    hydrogen_sigma_gamma: null
+    metal_pie_enabled: false
+    metal_pie_table_filename: null
+    metal_pie_redshift: 0.0
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0
+    pie_uvbg_implicit_tolerance: 1.0e-3
+    pie_uvbg_implicit_max_retries: 8
+    pie_uvbg_implicit_max_iterations: 64
+    pie_uvbg_implicit_step_doubling: true
+    cases: null
+    mu: null
+    output_count: null
+    temperature_floor: null
+    isothermal_ionized_fraction_threshold: null
+    pie_uvbg_photoionization_timescale: null
+    runaway_density_factor: null
+    verbose: null
+
+  chemistry:
+    key: H
+    hydrogen_mass_fraction: 1.0
+    helium_mass_fraction: 0.0
+    hydrogen_xHI_initial: 1.0
+    hydrogen_xHI_inflow: 1.0
+    hydrogen_xHI_outflow: 1.0
+    hydrogen_helium_xHeI_initial: 1.0
+    hydrogen_helium_xHeII_initial: 0.0
+    hydrogen_helium_xHeIII_initial: 0.0
+    hydrogen_helium_coupled_implicit: true
+    hydrogen_update_mu: false
+    hydrogen_thermal_coupling: true
+    hydrogen_recombination: true
+    hydrogen_collisional_ionization: true
+    hydrogen_source_skip_floor_cells: false
+    hydrogen_source_density_floor: null
+    hydrogen_source_floor_temperature_tolerance: 1.0e-2
+    hydrogen_hybrid_change_tolerance: 0.1
+    hydrogen_implicit_tolerance: 1.0e-6
+    hydrogen_implicit_convergence_tolerance: 1.0e-3
+    hydrogen_implicit_max_iterations: 32
+    hydrogen_implicit_fallback: explicit
+    hydrogen_implicit_max_refinements: 4
+    hydrogen_split_implicit_max_subcycles: 100000
+    hydrogen_implicit_absolute_temperature_tolerance: null
+    hydrogen_implicit_absolute_xhi_tolerance: 0.0
+    hydrogen_implicit_debug: false
+    hydrogen_alpha_B: null
+    hydrogen_beta: null
+
+  gravity:
+    selfgravity: false
+    externalgravity: false
+    potential: null
+    coordinate: null
+    acceleration: null
+    selfgravity_softening: {value: 0.0, unit: cm}
+    selfgravity_boundary_acceleration: {value: 0.0, unit: cm/s**2}
+    cosmological: false
+    cosmological_expansion: false
+    supercomoving_coordinates: false
+    cosmological_gravity: false
+    potential_energy: false
+    cosmological_background_boundary_reconstruction: false
+    cosmology_type: null
+    cosmology_t_ref: 1.0
+    cosmology_a_ref: 1.0
+    cosmology_hubble_ref: null
+    cosmology_omega_m: 0.3
+    cosmology_omega_lambda: 0.7
+    gas_core_model: none
+    radius_core_proper: null
+    gas_core_radius: null
+
+  dark_matter:
+    crossing_safety_factor: 0.1
+    crossing_batch_fraction: 0.0
+    global_timestep_limit: true
+    density_bins: null
+    softening: {value: 0.0, unit: cm}
+
+  radiation:
+    spectrum_filename: null
+    spectrum_total_photon_rate: null
+    radiative_transfer: false
+    radiation_pressure: false
+    radiation_pressure_efficiency: 1.0
+    radiation_pressure_source_luminosity: null
+    radiative_transfer_method: long_characteristics
+    radiative_transfer_temporal_scheme: c2ray
+    radiative_transfer_direction: 1
+    boundary_flux: null
+    source_photon_rate: null
+    boundary_flux_groups: null
+    source_photon_rate_groups: null
+    c2ray_max_iterations: 32
+    c2ray_tolerance: 1.0e-6
+    c2ray_relaxation: 1.0
+    c2ray_nonconvergence: warn
+    c2ray_ode_max_iterations: 24
+    c2ray_ode_tolerance: 1.0e-8
+    number_of_radiation_groups: null
+    group_edges_eV: null
+    group_sigma_gamma: null
+    group_epsilon_gamma: null
+    group_sigma_gamma_HeI: null
+    group_sigma_gamma_HeII: null
+    group_epsilon_gamma_HeI: null
+    group_epsilon_gamma_HeII: null
+    hydrogen_radiation_field: false
+    hydrogen_radiation_evolution: true
+    hydrogen_ngamma_initial: null
+    hydrogen_ngamma_inflow: null
+    hydrogen_ngamma_outflow: null
+    hydrogen_sigma_gamma: null
+    hydrogen_epsilon_gamma: null
+    hydrogen_photon_energy: null
+    stellar_spectrum_type: 1
+    stellar_spectrum_blackbody_temperature_cgs_K: 1.0e5
+    star_emission_rates: null
+    ionizing_photon_energy_cgs_erg: null
+    metal_pie_enabled: false
+    metal_pie_table_filename: null
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0
+    metal_pie_redshift: 0.0
+
+initial_condition: {}
+example: {}

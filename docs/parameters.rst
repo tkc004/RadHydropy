@@ -71,122 +71,77 @@ object into the same ``CodeUnits`` dataclass used by the runtime.
 Common Runtime Keys
 -------------------
 
-.. list-table::
-   :header-rows: 1
-   :widths: 24 54 22
+The complete reference, including defaults, is maintained in
+``example/all_parameters_default.yaml``. Its ``par`` mapping is organized in
+the following order; use these nested names in new configurations.
 
-   * - Key
-     - Meaning
-     - Typical unit
-   * - ``simulation.name``
-     - Simulation name used by scripts and logs.
-     - dimensionless
-   * - ``simulation.initial_condition_filename``
-     - HDF5 initial-condition file path.
-     - path string
-   * - ``output.directory``
-     - Directory for output files.
-     - path string
-   * - ``output.filename_prefix``
-     - Prefix for HDF5 outputs written by :meth:`radhydropy.rsim.Rsim.Run`.
-     - string
-   * - ``simulation.coordinate_system``
-     - Coordinate system. Supported values are ``cartesian`` and ``spherical``.
-     - string
-   * - ``hydrodynamics.eos_type``
-     - Equation-of-state type. Supported values are ``polytropic`` and
-       ``isothermal``.
-     - string
-   * - ``hydrodynamics.gamma``
-     - Adiabatic index for polytropic gas.
-     - dimensionless
-   * - ``hydrodynamics.dual_energy``
-     - Evolve the independent ``InternalEnergy`` variable for cold,
-       kinetic-energy-dominated flows. The default is ``false``.
-     - boolean
-   * - ``hydrodynamics.dual_energy_eta1`` / ``hydrodynamics.dual_energy_eta2``
-     - Bryan-style dual-energy thresholds. ``eta1`` selects the pressure
-       estimate; ``eta2`` controls synchronization to conservative ``E-K``.
-     - dimensionless
-   * - ``hydrodynamics.dual_energy_pressure_selection``
-     - Select ``switch`` for normal dual-energy pressure selection or
-       ``conservative`` to always use admissible ``E-K`` while still evolving
-       ``InternalEnergy``.
-     - string
-   * - ``hydrodynamics.dual_energy_pressure_floor``
-     - Code-unit pressure used only when both conservative and independent
-       thermal-energy estimates are invalid.
-     - pressure
-   * - ``par.diagnostics.energy_diagnostics``
-     - Record per-cell energy-work terms and cumulative energy-audit data.
-       The default is ``false``.
-     - boolean
-   * - ``par.diagnostics.gas_angular_momentum``
-     - Enable signed gas specific-angular-momentum storage and conservative
-       transport. The default is ``false``.
-     - boolean
-   * - ``par.diagnostics.gas_rotational_energy``
-     - Include ``E_rot = J**2/(2*M*r**2)`` in conserved ``Energy``. Requires
-       ``gas_angular_momentum: true`` and a spherical mesh; the default is
-       ``false``.
-     - boolean
-   * - ``par.diagnostics.angular_momentum_flux_scheme``
-     - Angular-momentum transport scheme. ``fct`` uses donor upwind as the
-       low-order base and limits the MUSCL correction face by face; ``donor``
-       selects donor upwind everywhere. The default is ``fct``.
-     - string
-   * - ``par.diagnostics.angular_momentum_energy_margin_fraction``
-     - Local thermal-energy margin for rotating cells. Faces touching cells
-       below this fraction use first-order hydro fluxes; other faces retain
-       MUSCL. The default is ``1e-4``.
-     - dimensionless
-   * - ``par.diagnostics.gravity_potential_energy``
-     - Evolve the opt-in conserved field ``U_phi = M*Phi``. It is initialized
-       from the configured gravity potential, transported with
-       ``F_phi = Phi_face F_M``, and receives the opposite of gravity work.
-       Requires a gravity model providing ``potential_on``; the default is
-       ``false``.
-     - boolean
-   * - ``par.hydrodynamics.temperature_proper``
-     - Default gas/background temperature used for scalar temperature
-       parameters. The default is ``2.7 K``.
-     - temperature
-   * - ``simulation.final_time``
-     - Final simulation time.
-     - time
-   * - ``output.cadence``
-     - Output cadence.
-     - time
-   * - ``output.time_list_filename``
-     - Optional txt file containing explicit output times. The first non-empty
-       row gives the time unit and the remaining rows list the output times.
-     - path string
-   * - ``hydrodynamics.CFL``
-     - Courant factor used by :meth:`radhydropy.solver.Solver.GetTimeStep`.
-     - dimensionless
-   * - ``boundary.condition``
-     - Boundary condition, such as ``Periodic``, ``Open``, ``Reflecting``,
-       ``OpenSph``, ``InflowSph``, or ``OutflowSph``.
-     - string
-   * - ``hydrodynamics.order``
-     - Reconstruction order. ``0`` uses piecewise constant fluxes; ``1`` uses
-       reconstructed states with flux limiting.
-     - dimensionless
-   * - ``mesh.ghost_cells``
-     - Number of ghost cells on each side of the domain.
-     - cells
-   * - ``timestep.dtmin`` / ``timestep.dtmax``
-     - Minimum and maximum allowed timesteps.
-     - time
-   * - ``gas_core_model`` / ``radius_core_proper``
-     - Optional pressure-supported unresolved central core.  Set
-       ``gas_core_model: hydrostatic_fixed`` and choose a spherical core radius
-       to hold the inner cells as a fixed-mass pressure-bearing core.  The
-       default ``none`` preserves ordinary hydro evolution.
-     - string / length
-   * - ``mesh.area_proper``
-     - Cartesian cross-sectional area used to calculate volumes.
-     - area
+``simulation``
+   Run identity, initial-condition path, final time, coordinate frame, and
+   proper/comoving representation flags. Important keys include
+   ``name``, ``initial_condition_filename``, ``coordinate_system``,
+   ``final_time``, ``box_size_proper``, ``box_size_comoving``,
+   ``coordinate_frame``, ``time_coordinate``, and the representation keys.
+
+``mesh``
+   ``grid_cells``, ``ghost_cells``, and Cartesian ``area_proper``.
+
+``hydrodynamics``
+   EOS and reconstruction settings: ``eos_type``, ``gamma``,
+   ``temperature_proper``, ``CFL``, ``order``, ``riemann_solver``,
+   ``flux_limiter``, dual-energy controls, positivity floors, and gas angular
+   momentum controls. ``gas_angular_momentum`` and ``gas_rotational_energy``
+   belong here.
+
+``boundary``
+   Boundary ``condition`` plus role-specific inflow/outflow values:
+   ``vel_inflow_proper``, ``rho_inflow_proper``,
+   ``temperature_inflow_proper``, ``vel_outflow_proper``,
+   ``rho_outflow_proper``, and ``temperature_outflow_proper``.
+
+``timestep``
+   ``dtmin``, ``dtmax``, CFL density and temperature floors, cooling/source
+   controls, chemistry/evolution timestep overrides, output intervals, and
+   cosmological timestep settings.
+
+``output``
+   ``directory``, ``savedir``, ``filename_prefix``, ``cadence``,
+   ``time_interval``, and ``time_list_filename``.
+
+``diagnostics``
+   ``verbose``, ``energy_diagnostics``, temperature-jump protection and plot
+   limits, plus ``plot_exclude_outer_cells``.
+
+``units``
+   The mandatory ``CodeUnits`` mapping. Its ``InternalUnitSystem`` specifies
+   the cgs scales used by the numerical runtime.
+
+``thermochemistry``
+   Network selection, CIE/PIE options, hydrogen source integration, Compton
+   heating, cooling floors, tolerances, and metal-table settings.
+
+``chemistry``
+   Species fractions and ionization states, including the hydrogen and
+   helium initial/inflow/outflow fractions and implicit chemistry controls.
+
+``gravity``
+   Self/external/cosmological gravity, potential-energy options, cosmology
+   references, background-boundary reconstruction, and the optional
+   ``gas_core_model``/``radius_core_proper`` configuration.
+
+``dark_matter``
+   Live-shell crossing controls, ``density_bins``, and proper-code
+   ``softening``.
+
+``radiation``
+   Radiation spectra, transfer method and temporal scheme, source/boundary
+   photon rates, radiation groups, C²-Ray tolerances, hydrogen radiation, and
+   radiation-pressure settings.
+
+All physical YAML inputs use ``{value: ..., unit: ...}`` mappings. Runtime
+arrays and converted values use explicit ``*_proper_code``,
+``*_comoving_code``, ``*_supercomoving_code``, or ``*_cgs_<unit>`` names.
+``initial_condition`` and ``example`` remain separate top-level mappings and
+are not part of ``par``.
 
 If ``output.time_list_filename`` is provided, RadHydropy ignores ``output.cadence`` and
 writes outputs at the explicit times listed in the txt file. The file format is
