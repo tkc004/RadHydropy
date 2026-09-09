@@ -27,7 +27,6 @@ par:
     dtmax: {value: 0.05, unit: s}
   output:
     directory: outputs_high_mach_vacuum_expansion1d
-    savedir: outputs_high_mach_vacuum_expansion1d
     filename_prefix: Output
     cadence: {value: 0.5, unit: s}
   diagnostics:

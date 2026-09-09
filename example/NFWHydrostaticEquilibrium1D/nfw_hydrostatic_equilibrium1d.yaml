@@ -19,7 +19,6 @@ par:
     dtmax: {value: 1.0e5, unit: yr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: nfw_hydrostatic_equilibrium1d_output_times.txt
   units:

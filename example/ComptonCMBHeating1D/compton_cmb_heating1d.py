@@ -239,7 +239,7 @@ def main(config_filename=DEFAULT_CONFIG):
             )
 
     cmb_temperature = 2.7255 * (1.0 + config["par"]['thermochemistry']['compton_cmb_redshift'])
-    figure_filename = Path(config["par"]['output']['savedir']) / 'ComptonCMBHeating1D.jpg'
+    figure_filename = Path(config["par"]['output']['directory']) / 'ComptonCMBHeating1D.jpg'
     figure_filename.parent.mkdir(parents=True, exist_ok=True)
     fig, (temperature_axis, error_axis) = plt.subplots(
         2,

@@ -144,7 +144,7 @@ def main(config_filename=None):
     output_dir = Path(output['directory'])
     eu.clean_previous_outputs(config)
     output_dir.mkdir(parents=True, exist_ok=True)
-    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
     sim = Rsim(config["par"])
     sim.RunAll(outputtime=0)
@@ -157,11 +157,11 @@ def main(config_filename=None):
         figure_stem += '_C2Ray'
     et.save_plot(
         out_mesh, out_fluid, out_par, config,
-        Path(output['savedir']) / f'{figure_stem}.jpg',
+        Path(output['directory']) / f'{figure_stem}.jpg',
     )
     et.save_front_plot(
         history, config,
-        Path(output['savedir']) / f'{figure_stem}_IFront.jpg',
+        Path(output['directory']) / f'{figure_stem}_IFront.jpg',
     )
 
     old_csv = output_dir / 'radial_profile_rhd.csv'

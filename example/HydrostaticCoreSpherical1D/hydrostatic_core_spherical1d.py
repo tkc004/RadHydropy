@@ -41,7 +41,7 @@ def run(config_filename=DEFAULT_CONFIG):
     }
     config["par"]["output"] = {
         **config["par"]["output"], "directory": str(output_dir),
-        "savedir": str(output_dir),
+        "directory": str(output_dir),
     }
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
@@ -75,7 +75,7 @@ def run(config_filename=DEFAULT_CONFIG):
     radius_proper_code = np.asarray(sim.mesh.geometry_state.x_proper_code[first:last], dtype=float)
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     analytic_rho_proper_code = et.analytic_density_code(radius_proper_code, config)
-    core_radius = float(np.asarray(sim.par.gas_core_radius))
+    core_radius = float(np.asarray(sim.par.radius_core_proper))
     halo = radius_proper_code >= core_radius
     relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(analytic_rho_proper_code, 1.0e-300)
     core_cells = radius_proper_code < core_radius

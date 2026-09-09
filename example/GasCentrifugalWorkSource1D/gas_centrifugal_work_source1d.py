@@ -77,7 +77,7 @@ def run_simulation(config):
     initial = InitialCondition(
         config, radius_proper_code,
         quantity_to_value(initial_condition['rho_proper'], units.density_unit),
-        quantity_to_value(initial_condition['radial_velocity'], units.velocity_unit),
+        quantity_to_value(initial_condition['vel_proper'], units.velocity_unit),
         quantity_to_value(example_config['temperature_proper'], units.temperature_unit),
         quantity_to_value(
             initial_condition['specific_angular_momentum'],
@@ -183,7 +183,7 @@ def main(config_filename=CONFIG):
     if abs(final_internal - initial_internal) > 1.0e-11:
         raise RuntimeError('centrifugal work changed cold internal energy')
 
-    figure = ROOT / par['output']['savedir'] / 'GasCentrifugalWorkSource1D.jpg'
+    figure = ROOT / par['output']['directory'] / 'GasCentrifugalWorkSource1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
     # Keep the full history for validation, but sparsify plotted Rsim points

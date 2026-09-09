@@ -86,7 +86,6 @@ par:
 
   output:
     directory: ./  # Directory for snapshots and diagnostics.
-    savedir: ./  # Legacy-compatible output directory alias.
     filename_prefix: Output  # Prefix for snapshot filenames.
     cadence: {value: 0.2, unit: s}  # Time between scheduled outputs.
     time_interval: null  # Alternative output interval when cadence is unset.
@@ -211,7 +210,6 @@ par:
     cosmology_omega_lambda: 0.7  # Dark-energy density parameter.
     gas_core_model: none  # Core model; option: none, fixed_mass, pressure_supported.
     radius_core_proper: null  # Proper radius of the unresolved gas core.
-    gas_core_radius: null  # Compatibility/core-radius input.
 
   dark_matter:
     crossing_safety_factor: 0.1  # Safety factor for shell-crossing timesteps.

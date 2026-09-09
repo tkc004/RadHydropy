@@ -24,7 +24,6 @@ par:
     radius_core_proper: {value: 5.0, unit: pc}
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     time_list_filename: hydrostatic_core_spherical1d_output_times.txt
   units:

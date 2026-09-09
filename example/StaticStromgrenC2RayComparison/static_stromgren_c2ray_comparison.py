@@ -55,7 +55,7 @@ def _run_case(config, tools, label, scheme, steps, root):
     case_dir.mkdir(parents=True, exist_ok=True)
     par_case['simulation']['name'] = f'StaticStromgren_{label}'
     par_case['output']['directory'] = str(case_dir)
-    par_case['output']['savedir'] = str(case_dir)
+    par_case['output']['directory'] = str(case_dir)
     par_case['output']['filename_prefix'] = 'Output'
     par_case['simulation']['initial_condition_filename'] = str(case_dir / 'InitialCondition.hdf5')
     par_case['radiation']['radiative_transfer_temporal_scheme'] = scheme
@@ -165,7 +165,7 @@ def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_compar
     nested = eu.load_nested_example_config(config_filename)
 
     example = nested['example']
-    root = Path(nested["par"]['output']['savedir']) / 'comparison_runs'
+    root = Path(nested["par"]['output']['directory']) / 'comparison_runs'
     root.mkdir(parents=True, exist_ok=True)
     tools = _load_static_tools()
     config = nested
@@ -180,8 +180,8 @@ def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_compar
             nested, tools, f'instantaneous_{steps}',
             'instantaneous', steps, root,
         )
-    figure = Path(nested["par"]['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'
-    summary = Path(nested["par"]['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.csv'
+    figure = Path(nested["par"]['output']['directory']) / 'StaticStromgrenC2RayComparison_IFront.jpg'
+    summary = Path(nested["par"]['output']['directory']) / 'StaticStromgrenC2RayComparison_IFront.csv'
     _plot(histories, config, figure)
     _write_summary(histories, config, summary)
     print(f'comparison figure = {figure}')

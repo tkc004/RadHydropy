@@ -105,7 +105,7 @@ def main():
     # so the horizontal axis also reads forward in cosmic time.
     order = np.argsort(-redshift)
     redshift, xe, temperature = redshift[order], xe[order], temperature[order]
-    output = Path(config["par"]["output"]["savedir"])
+    output = Path(config["par"]["output"]["directory"])
     output.mkdir(parents=True, exist_ok=True)
     np.savez(output / "CosmologicalResidualIonization1D_History.npz",
              redshift=redshift, xe=xe, temperature_cgs_K=temperature)

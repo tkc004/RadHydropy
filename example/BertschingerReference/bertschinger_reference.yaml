@@ -3,7 +3,6 @@ par:
     name: BertschingerReference
   output:
     directory: .
-    savedir: .
   units:
     CodeUnits:
       name: bertschinger_reference_unit_system

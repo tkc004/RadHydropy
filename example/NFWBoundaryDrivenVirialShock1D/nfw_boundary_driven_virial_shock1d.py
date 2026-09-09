@@ -104,7 +104,6 @@ def _run_stage(config, halo, mode, restart=False):
         # Restore the current stage's destinations and schedule after reading
         # the snapshot so PIE outputs are selected and written for this stage.
         sim.par.outdir = stage_config['par']['output']['directory']
-        sim.par.savedir = stage_config['par']['output']['savedir']
         sim.par.outfileprefix = stage_config['par']['output']['filename_prefix']
         sim.par.outputtimefilename = stage_config['par']['output']['time_list_filename']
         sim.par._sync_output_parameters()
@@ -200,8 +199,8 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config["par"]['output']['directory'] = str(
         (config_filename.parent / config["par"]['output']['directory']).resolve()
     )
-    config["par"]['output']['savedir'] = str(
-        (config_filename.parent / config["par"]['output']['savedir']).resolve()
+    config["par"]['output']['directory'] = str(
+        (config_filename.parent / config["par"]['output']['directory']).resolve()
     )
     config["par"]['output']['time_list_filename'] = str(
         (config_filename.parent / config["par"]['output']['time_list_filename']).resolve()
@@ -236,7 +235,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     adiabatic_files = _run_stage(adiabatic_config, halo, 'hydro')
     if not adiabatic_files:
         raise RuntimeError('adiabatic stage produced no snapshots')
-    adiabatic_audit = Path(adiabatic['output']['savedir']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
+    adiabatic_audit = Path(adiabatic['output']['directory']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
     _write_adiabatic_energy_audit(adiabatic_files, code_units, adiabatic_audit)
     if adiabatic_only:
         return
@@ -248,7 +247,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     pie['output']['directory'] = str(
         (config_filename.parent / exampleparams['pie_outdir']).resolve()
     )
-    pie['output']['savedir'] = pie['output']['directory']
+    pie['output']['directory'] = pie['output']['directory']
     pie['output']['time_list_filename'] = str(
         (config_filename.parent / exampleparams['pie_outputtimefilename']).resolve()
     )
@@ -260,13 +259,13 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     if not pie_files:
         raise RuntimeError('PIE stage produced no snapshots')
 
-    savedir = Path(config["par"]['output']['savedir'])
-    savedir.mkdir(parents=True, exist_ok=True)
-    ad_report = savedir / 'NFWBoundaryDrivenVirialShock1D_AdiabaticShockHistory.txt'
-    pie_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEShockHistory.txt'
-    figure = savedir / 'NFWBoundaryDrivenVirialShock1D.jpg'
-    stability_report = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEStability.txt'
-    stability_figure = savedir / 'NFWBoundaryDrivenVirialShock1D_PIEStability.jpg'
+    directory = Path(config["par"]['output']['directory'])
+    directory.mkdir(parents=True, exist_ok=True)
+    ad_report = directory / 'NFWBoundaryDrivenVirialShock1D_AdiabaticShockHistory.txt'
+    pie_report = directory / 'NFWBoundaryDrivenVirialShock1D_PIEShockHistory.txt'
+    figure = directory / 'NFWBoundaryDrivenVirialShock1D.jpg'
+    stability_report = directory / 'NFWBoundaryDrivenVirialShock1D_PIEStability.txt'
+    stability_figure = directory / 'NFWBoundaryDrivenVirialShock1D_PIEStability.jpg'
     adiabatic_times = _scheduled_times_myr(
         adiabatic['output']['time_list_filename'], len(adiabatic_files)
     )

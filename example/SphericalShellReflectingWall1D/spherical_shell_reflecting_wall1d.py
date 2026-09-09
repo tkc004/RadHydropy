@@ -101,7 +101,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
         config["par"]["output"]["directory"] = Path(config["par"]["output"]["directory"]).with_name(
             Path(config["par"]["output"]["directory"]).name + "_" + riemann_solver
         )
-        config["par"]["output"]["savedir"] = config["par"]["output"]["directory"]
+        config["par"]["output"]["directory"] = config["par"]["output"]["directory"]
     outdir = Path(config["par"]["output"]["directory"])
     outdir.mkdir(parents=True, exist_ok=True)
     initial = make_initial_condition(config)

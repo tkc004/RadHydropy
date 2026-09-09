@@ -34,7 +34,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(config["par"]['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
@@ -104,7 +104,7 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('HDF5 restart changed J/M')
 
     radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
-    figure = Path(config["par"]['output']['savedir']) / 'PassiveGasAngularMomentum1D.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     final_density_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
     final_velocity_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
@@ -173,7 +173,7 @@ def main(config_filename=DEFAULT_CONFIG):
         snapshot_total_j - initial_total_j
     ) / max(abs(initial_total_j), np.finfo(float).tiny)
     conservation_figure = (
-        Path(config["par"]['output']['savedir']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
+        Path(config["par"]['output']['directory']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
     )
     conservation_fig, conservation_axes = plt.subplots(1, 2, figsize=(10, 4))
     conservation_axes[0].plot(snapshot_times, snapshot_total_j, 'o-')

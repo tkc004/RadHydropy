@@ -60,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(config)
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
-    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
@@ -88,7 +88,7 @@ def main(config_filename=DEFAULT_CONFIG):
     figure_stem = 'LateHIIRegionExpansion1D'
     if par['radiation'].get('temporal_scheme') == 'c2ray':
         figure_stem += '_C2Ray'
-    figure_filename = Path(output['savedir']) / f'{figure_stem}_IFront.jpg'
+    figure_filename = Path(output['directory']) / f'{figure_stem}_IFront.jpg'
     et.save_front_plot(history, config, figure_filename)
 
     density_figure_filenames = []
@@ -97,7 +97,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         output_specs,
     ):
-        density_figure_filename = Path(output['savedir']) / (
+        density_figure_filename = Path(output['directory']) / (
             f"{figure_stem}_Density_{label}Myr.jpg"
         )
         et.save_density_profile_plot(snapshot, config, density_figure_filename)

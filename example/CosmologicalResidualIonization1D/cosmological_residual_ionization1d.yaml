@@ -3,7 +3,6 @@ par:
     name: CosmologicalResidualIonization1D
   output:
     directory: outputs
-    savedir: outputs
   hydrodynamics:
     gamma: 1.6666666666666667
   chemistry:

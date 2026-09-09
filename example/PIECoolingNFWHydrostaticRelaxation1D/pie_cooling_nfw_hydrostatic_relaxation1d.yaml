@@ -36,7 +36,6 @@ par:
     radiative_transfer: false
   output:
     directory: outputs
-    savedir: .
     filename_prefix: Output
     time_list_filename: pie_cooling_nfw_hydrostatic_relaxation1d_output_times.txt
   units:

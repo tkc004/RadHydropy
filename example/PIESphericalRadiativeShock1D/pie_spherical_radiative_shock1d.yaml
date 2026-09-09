@@ -27,7 +27,6 @@ par:
     dtmax: {value: 0.01, unit: Myr}
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     time_interval: {value: 0.5, unit: Myr}
   units:

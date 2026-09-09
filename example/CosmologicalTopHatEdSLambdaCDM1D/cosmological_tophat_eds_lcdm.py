@@ -52,7 +52,7 @@ def reproduce_reference():
     config_filename = EXAMPLE_ROOT / "cosmological_dark_matter_correlation_z100.yaml"
     config = eu.load_nested_example_config(config_filename)
     reference_config = copy.deepcopy(config)
-    reference_config["par"]["output"]["savedir"] = str(OUTPUT_ROOT / "reference")
+    reference_config["par"]["output"]["directory"] = str(OUTPUT_ROOT / "reference")
     reference_units = CodeUnits.from_mapping(
         reference_config["par"]["units"]["CodeUnits"]
     )

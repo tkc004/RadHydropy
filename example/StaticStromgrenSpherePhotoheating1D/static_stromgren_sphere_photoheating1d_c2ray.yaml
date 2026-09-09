@@ -58,7 +58,6 @@ par:
     radiative_transfer_direction: 1
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_C2Ray
   diagnostics:
     verbose: 0

@@ -288,16 +288,16 @@ class Solver():
 
         The core is a deliberately simple subgrid model: its cell-centred
         primitive state is retained as a pressure-bearing hydrostatic core,
-        while the resolved halo evolves outside ``gas_core_radius``.  It is
+        while the resolved halo evolves outside ``radius_core_proper``.  It is
         not a sink and does not remove gas from the calculation.
         """
         if not self._hydrostatic_core_enabled(par):
             return
         if getattr(mesh, 'coordsys', None) != 'spherical':
             raise ValueError('gas_core_model requires a spherical mesh')
-        radius = getattr(par, 'gas_core_radius', None)
+        radius = getattr(par, 'radius_core_proper', None)
         if radius is None or float(radius) <= 0.0:
-            raise ValueError('gas_core_radius must be positive for gas_core_model')
+            raise ValueError('radius_core_proper must be positive for gas_core_model')
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)
         geometry = self._geometry_state(mesh, par)
@@ -305,7 +305,7 @@ class Solver():
         core_local = coordinate < float(radius)
         if not np.any(core_local) or np.all(core_local):
             raise ValueError(
-                'gas_core_radius must contain at least one, but not all, '
+                'radius_core_proper must contain at least one, but not all, '
                 'resolved cells'
             )
         core = np.zeros(len(geometry.coordinate), dtype=bool)

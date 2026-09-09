@@ -27,7 +27,6 @@ par:
     hydrogen_source_CFL: 0.2
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     cadence: {value: 1.0e4, unit: yr}
   diagnostics:

@@ -3,7 +3,6 @@ par:
     name: BertschingerReference8192
   output:
     directory: .
-    savedir: outputs_caustic_convergence/shells_8192_slope
   units:
     CodeUnits:
       name: bertschinger_reference_unit_system

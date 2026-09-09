@@ -29,7 +29,6 @@ par:
     cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_linear_growth
-    savedir: outputs_linear_growth
     filename_prefix: Output
   units:
     CodeUnits:

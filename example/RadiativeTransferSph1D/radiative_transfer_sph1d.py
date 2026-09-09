@@ -50,7 +50,7 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(nested)
 
     Path(nested["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(nested["par"]['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
@@ -74,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG):
         out_par,
         config,
         str(
-            Path(nested["par"]['output']['savedir'])
+            Path(nested["par"]['output']['directory'])
             / (
                 'RadiativeTransferSph1D_C2Ray.jpg'
                 if nested["par"].get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
@@ -89,7 +89,7 @@ def main(config_filename=DEFAULT_CONFIG):
         if nested["par"].get('radiation', {}).get('radiative_transfer_temporal_scheme', 'c2ray') == 'c2ray'
         else 'RadiativeTransferSph1D.jpg'
     )
-    print('figure = %s' % (Path(nested["par"]['output']['savedir']) / figure_name))
+    print('figure = %s' % (Path(nested["par"]['output']['directory']) / figure_name))
 
 
 def parse_args():

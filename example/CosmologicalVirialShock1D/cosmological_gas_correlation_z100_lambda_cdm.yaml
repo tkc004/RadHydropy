@@ -52,7 +52,6 @@ par:
     hydrogen_mass_fraction: 0.76
   output:
     directory: outputs_correlation_gas_lcdm
-    savedir: outputs_correlation_gas_lcdm
     filename_prefix: Output
   units:
     CodeUnits:

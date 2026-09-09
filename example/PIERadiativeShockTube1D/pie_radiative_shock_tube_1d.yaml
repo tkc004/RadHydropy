@@ -31,7 +31,6 @@ par:
     radiative_transfer: false
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
   units:
     CodeUnits:

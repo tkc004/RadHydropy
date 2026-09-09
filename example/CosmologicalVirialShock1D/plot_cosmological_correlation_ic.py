@@ -52,9 +52,8 @@ def main(config_filename=DEFAULT_CONFIG):
     if not filename.is_absolute():
         filename = config_filename.parent / filename
     with h5py.File(filename, "r") as handle:
-        # The current IC writer stores native code-unit arrays with explicit
-        # snake_case names; the old capitalized paths were from the legacy
-        # HDF5 layout and no longer exist.
+        # Read the canonical native code-unit datasets written by the IC
+        # serializer.
         boundary_comoving_code = handle["Data/boundary_comoving_code"][:] / float(units.length_in_cgs)
         rho_comoving_code = handle["Data/rho_comoving_code"][:] / float(units.density_unit)
         temp_supercomoving_code = handle["Data/temp_supercomoving_code"][:] / float(units.temperature_unit)

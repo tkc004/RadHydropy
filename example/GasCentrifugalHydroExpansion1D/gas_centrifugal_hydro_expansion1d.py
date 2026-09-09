@@ -227,7 +227,7 @@ def main(config_filename=CONFIG):
         pre_proper_code / np.maximum(rho_proper_code, np.finfo(float).tiny),
         central_mass / np.maximum(saved_radius, np.finfo(float).tiny),
     )
-    figure = ROOT / par['output']['savedir'] / 'GasCentrifugalHydroExpansion1D.jpg'
+    figure = ROOT / par['output']['directory'] / 'GasCentrifugalHydroExpansion1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(2, 3, figsize=(15, 7))
     axes = axes.flat

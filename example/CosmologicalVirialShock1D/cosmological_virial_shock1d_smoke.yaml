@@ -29,7 +29,6 @@ par:
     dtmax: 0.01
   output:
     directory: outputs_virial_shock_smoke
-    savedir: outputs_virial_shock_smoke
     filename_prefix: Output
   gravity:
     selfgravity: true

@@ -31,33 +31,22 @@ from sodshock_analytic import shocktubecal, shocktubeanalyticgraph
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
 
-class State:
-    pass
-
-
-def _read_profile(filename, code_unit_system):
-    par, mesh, fluid = State(), State(), State()
-    par.CodeUnits = code_unit_system
-    par.code_unit_system = State()
-    par.code_unit_system.CodeUnits = code_unit_system
-    par.simulation = State()
-    par.simulation.coordinate_system = "cartesian"
-    par.mesh = State()
-    par.mesh.grid_cells = 800
-    par.mesh.ghost_cells = 2
-    rio.readhdf5(par, mesh, fluid, filename)
-    first = int(getattr(par, "noghost", 2))
-    count = int(par.mesh.grid_cells)
+def _read_profile(filename, config):
+    """Read one cosmological snapshot through the canonical typed runtime."""
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    first = int(sim.par.mesh.ghost_cells)
+    count = int(sim.par.mesh.grid_cells)
     return (
         0.5 * np.asarray(
-            mesh.boundary_comoving_code[first:first + count + 1], dtype=float
+            sim.mesh.boundary_comoving_code[first:first + count + 1], dtype=float
         )[:-1] + 0.5 * np.asarray(
-            mesh.boundary_comoving_code[first:first + count + 1], dtype=float
+            sim.mesh.boundary_comoving_code[first:first + count + 1], dtype=float
         )[1:],
-        np.asarray(fluid.rho_comoving_code[first:first + count], dtype=float),
-        np.asarray(fluid.temp_supercomoving_code[first:first + count], dtype=float),
-        float(np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))),
-        float(np.sum(np.asarray(fluid.Energy_code[first:first + count], dtype=float))),
+        np.asarray(sim.fluid.rho_comoving_code[first:first + count], dtype=float),
+        np.asarray(sim.fluid.temp_supercomoving_code[first:first + count], dtype=float),
+        float(np.sum(np.asarray(sim.fluid.Mass_code[first:first + count], dtype=float))),
+        float(np.sum(np.asarray(sim.fluid.Energy_code[first:first + count], dtype=float))),
     )
 
 
@@ -119,7 +108,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     sim.fluid.SetTemperature()
     rio.write_numbered_hdf5(sim, len(outputs))
     outputs = sorted(output_dir.glob("Output_*.hdf5"))
-    profiles = [_read_profile(filename, units) for filename in outputs]
+    profiles = [_read_profile(filename, case_config) for filename in outputs]
     initial_mass, initial_energy = profiles[0][3:5]
     final_mass, final_energy = profiles[-1][3:5]
     if not np.isclose(final_mass, initial_mass, rtol=2.0e-10):
@@ -188,7 +177,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     axes[0].set_xlim(interface - 2.0, interface + 2.0)
     fig.suptitle("Cosmological Sod shock tube")
     fig.tight_layout()
-    figure = Path(output["savedir"]) / "CosmologicalSodShock1D.jpg"
+    figure = Path(output["directory"]) / "CosmologicalSodShock1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")

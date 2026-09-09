@@ -945,7 +945,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
-    output_dir = Path(output["savedir"])
+    output_dir = Path(output["directory"])
     figure_prefix = str(
         example.get("figure_prefix", "CosmologicalGasCorrelationZ100")
     )
@@ -985,7 +985,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
     config["par"]["output"]["directory"] = str(output_dir)
-    config["par"]["output"]["savedir"] = str(output_dir)
+    config["par"]["output"]["directory"] = str(output_dir)
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()

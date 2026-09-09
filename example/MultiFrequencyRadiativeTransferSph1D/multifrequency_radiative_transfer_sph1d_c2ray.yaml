@@ -54,7 +54,6 @@ par:
     radiative_transfer_method: long_characteristics
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_C2Ray
 initial_condition:
   grid_cells: 512
@@ -64,7 +63,7 @@ initial_condition:
 example:
   outdir: .
   outfileprefix: Output_C2Ray
-  savedir: .
+  directory: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg
   reference_radius_unit: {value: 5.4, unit: kpc}
   temperature_reference_filename: TTT1D_Stromgren100Myr.txt

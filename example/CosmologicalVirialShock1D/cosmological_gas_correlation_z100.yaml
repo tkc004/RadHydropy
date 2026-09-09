@@ -41,7 +41,6 @@ par:
     cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_correlation_gas
-    savedir: outputs_correlation_gas
     filename_prefix: Output
   units:
     CodeUnits:

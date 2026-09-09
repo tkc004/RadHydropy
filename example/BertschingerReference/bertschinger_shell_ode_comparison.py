@@ -166,7 +166,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         t_ref=float(example['cosmology_t_ref']),
         a_ref=float(example['cosmology_a_ref']),
     )
-    Path(config["par"]['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
     config["_code_units"] = units
     config["_cosmology"] = cosmology
     shells, _ = example_tools.make_scale_free_shells(config)
@@ -286,7 +286,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     finite = np.isfinite(xi_values) & np.isfinite(lambda_values) & (lambda_values > 0.0)
     lambda_max = float(example.get('comparison_lambda_max', 2.0))
     finite &= lambda_values <= lambda_max
-    figure = Path(config["par"]['output']['savedir']) / 'BertschingerDarkMatterShellsVsODE.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'BertschingerDarkMatterShellsVsODE.jpg'
     fig, axis = plt.subplots(figsize=(8, 5))
     axis.scatter(xi_values[finite], lambda_values[finite], s=1.0, alpha=0.12,
                  label='RadHydropy DarkMatterShells')
@@ -305,7 +305,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                      linewidth=1.5,
                      label='ODE fixed-time outer caustic')
         np.savez(
-            Path(config["par"]['output']['savedir']) / 'BertschingerDarkMatterCaustic.npz',
+            Path(config["par"]['output']['directory']) / 'BertschingerDarkMatterCaustic.npz',
             xi=caustic_values[:, 0], lambda_caustic=caustic_values[:, 1],
             ode_splashback_xi=splashback_xi,
             ode_splashback_lambda=splashback_lambda,
@@ -316,7 +316,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         # Overwrite stale products when the current run has no resolved,
         # phase-space-consistent Lagrangian fold.
         np.savez(
-            Path(config["par"]['output']['savedir']) / 'BertschingerDarkMatterCaustic.npz',
+            Path(config["par"]['output']['directory']) / 'BertschingerDarkMatterCaustic.npz',
             xi=np.empty(0), lambda_caustic=np.empty(0),
             ode_splashback_xi=splashback_xi,
             ode_splashback_lambda=splashback_lambda,
@@ -348,7 +348,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         apocentre_values = np.asarray(bins)
     if len(apocentre_values):
         np.savez(
-            Path(config["par"]['output']['savedir']) / 'BertschingerRecentApocenters.npz',
+            Path(config["par"]['output']['directory']) / 'BertschingerRecentApocenters.npz',
             xi=apocentre_values[:, 0],
             radius_median=apocentre_values[:, 1],
             radius_p16=apocentre_values[:, 2],
@@ -376,7 +376,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         orbit_axis.legend(fontsize=8)
         orbit_figure.tight_layout()
         orbit_figure.savefig(
-            Path(config["par"]['output']['savedir']) /
+            Path(config["par"]['output']['directory']) /
             'BertschingerRecentApocenters.jpg', dpi=200)
         plt.close(orbit_figure)
     if slope_profiles:
@@ -398,7 +398,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         density_axis.legend(fontsize=8)
         density_figure.tight_layout()
         density_figure.savefig(
-            Path(config["par"]['output']['savedir']) /
+            Path(config["par"]['output']['directory']) /
             'BertschingerDarkMatterDensityProfile.jpg', dpi=200)
         plt.close(density_figure)
 
@@ -425,11 +425,11 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         slope_axis.legend(fontsize=8)
         slope_figure.tight_layout()
         slope_figure.savefig(
-            Path(config["par"]['output']['savedir']) /
+            Path(config["par"]['output']['directory']) /
             'BertschingerDarkMatterDensitySlope.jpg', dpi=200)
         plt.close(slope_figure)
         np.savez(
-            Path(config["par"]['output']['savedir']) /
+            Path(config["par"]['output']['directory']) /
             'BertschingerDarkMatterDensitySlope.npz',
             xi=np.asarray([p['xi'] for p in slope_profiles]),
             radius_proper=np.asarray([p['radius_proper'] for p in slope_profiles], dtype=object),
@@ -510,10 +510,10 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         comparison_axis.legend(fontsize=8)
         comparison_figure.tight_layout()
         comparison_figure.savefig(
-            Path(config["par"]['output']['savedir']) /
+            Path(config["par"]['output']['directory']) /
             'BertschingerSplashbackComparison.jpg', dpi=200)
         plt.close(comparison_figure)
-        np.savez(Path(config["par"]['output']['savedir']) /
+        np.savez(Path(config["par"]['output']['directory']) /
                  'BertschingerSplashbackComparison.npz', **comparison_data)
     axis.set_xlim(0.0, float(example['ode_xi_end']))
     axis.set_ylim(0.0, lambda_max)

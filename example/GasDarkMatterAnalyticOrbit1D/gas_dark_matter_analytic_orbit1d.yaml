@@ -4,7 +4,6 @@ par:
     final_time: 0.25
   output:
     directory: .
-    savedir: .
   units:
     CodeUnits:
       name: gas_dark_matter_analytic_orbit_units

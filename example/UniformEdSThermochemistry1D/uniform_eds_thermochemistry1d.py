@@ -42,7 +42,7 @@ def run_case(config, atomic_cooling):
     case_config["par"]["output"]["filename_prefix"] = f"{label}_Output"
     case_config["par"]["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
     case_config["par"]["output"]["directory"] = str(EXAMPLE_ROOT / "outputs")
-    case_config["par"]["output"]["savedir"] = case_config["par"]["output"]["directory"]
+    case_config["par"]["output"]["directory"] = case_config["par"]["output"]["directory"]
     Path(case_config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     source_dt = float(case_config["example"].get("source_timestep", 2.0))
 
@@ -209,7 +209,7 @@ def main():
     if atomic["temperature_cgs_K"][-1] >= compton["temperature_cgs_K"][-1]:
         raise RuntimeError("atomic cooling did not cool below Compton-only run")
 
-    figure = Path(config["par"]["output"]["savedir"]) / "UniformEdSThermochemistry1D.jpg"
+    figure = Path(config["par"]["output"]["directory"]) / "UniformEdSThermochemistry1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton")

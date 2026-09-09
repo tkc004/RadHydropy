@@ -4,7 +4,6 @@ par:
     final_time: 0.6
   output:
     directory: .
-    savedir: .
   timestep:
     output_interval: 0.002
     crossing_safety_factor: 0.1

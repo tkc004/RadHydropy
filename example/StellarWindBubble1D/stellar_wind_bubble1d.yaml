@@ -23,7 +23,6 @@ par:
     dtmax: {value: 1.0e-3, unit: Myr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: stellar_wind_bubble1d_with_metal_output_times.txt
   diagnostics:

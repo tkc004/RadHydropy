@@ -23,7 +23,6 @@ par:
     dtmax: {value: 2.0e-2, unit: s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     cadence: {value: 0.2, unit: s}
   diagnostics:

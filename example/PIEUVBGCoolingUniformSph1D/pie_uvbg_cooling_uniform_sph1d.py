@@ -65,7 +65,7 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
         'output': {
             **case_config['par']['output'],
             'directory': str(output_dir),
-            'savedir': str(output_dir),
+            'directory': str(output_dir),
             'filename_prefix': f'Output_{label}',
         },
     }

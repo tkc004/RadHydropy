@@ -276,7 +276,7 @@ def main(config_filename=DEFAULT_CONFIG):
     output_config = config['par']['output']
     outdir = Path(output_config['directory'])
     outdir.mkdir(parents=True, exist_ok=True)
-    Path(output_config['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(output_config['directory']).mkdir(parents=True, exist_ok=True)
     for filename in output_files(outdir, output_config['filename_prefix']):
         filename.unlink()
     write_initial_condition(
@@ -383,9 +383,9 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.grid(True, which="both", alpha=0.25)
     axis.legend()
     figure.tight_layout()
-    output = Path(output_config["savedir"]) / example["front_plot_filename"]
+    output = Path(output_config["directory"]) / example["front_plot_filename"]
     figure.savefig(output, dpi=180)
-    profile_output = Path(output_config["savedir"]) / example["profile_plot_filename"]
+    profile_output = Path(output_config["directory"]) / example["profile_plot_filename"]
     save_profile_plot(snapshots, profile_output, exponent)
     print(f"wrote {output}")
     print(f"wrote {profile_output}")

@@ -122,7 +122,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.isfinite(relative_error) or relative_error > float(example['growth_tolerance']):
         raise RuntimeError('linear growth error %.6g exceeds tolerance' % relative_error)
 
-    figure_filename = Path(runtime['output']['savedir']) / 'EinsteinDeSitterTopHatGrowth1D.jpg'
+    figure_filename = Path(runtime['output']['directory']) / 'EinsteinDeSitterTopHatGrowth1D.jpg'
     a_plot = np.linspace(initial_a, final_a, 100)
     plt.figure(figsize=(6, 4))
     plt.plot(

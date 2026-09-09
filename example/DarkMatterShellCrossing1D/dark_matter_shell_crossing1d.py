@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(output['savedir']) / 'DarkMatterShellCrossing1D.jpg'
+    figure = Path(output['directory']) / 'DarkMatterShellCrossing1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('crossing-limited steps = %d' % crossings)

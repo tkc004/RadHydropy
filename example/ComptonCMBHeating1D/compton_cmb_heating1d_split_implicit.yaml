@@ -35,7 +35,6 @@ par:
     radiative_transfer: false
   output:
     directory: .
-    savedir: outputs_split_implicit
     filename_prefix: ComptonCMBHeating1D_SplitImplicit_Output
   units:
     CodeUnits:

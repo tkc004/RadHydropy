@@ -36,7 +36,6 @@ par:
     radiative_transfer: false
   output:
     directory: .
-    savedir: outputs_coupled_implicit
     filename_prefix: ComptonCMBHeating1D_CoupledImplicit_Output
   units:
     CodeUnits:

@@ -30,7 +30,7 @@ CASES = {
 def _config(par_config, initial_condition, example, filename):
     with filename.open('w') as handle:
         yaml.safe_dump({'par': {'simulation': {'name': par_config['simulation']['name']},
-                                'output': {'directory': '.', 'savedir': par_config['output']['savedir']},
+                                'output': {'directory': par_config['output']['directory']},
                                 'units': {'CodeUnits': par_config['units']['CodeUnits']}},
                         'initial_condition': initial_condition, 'example': example}, handle,
                        sort_keys=False)
@@ -57,12 +57,12 @@ def main():
                 else:
                     initial_condition[parameter] = value
                 label = '%s_%s' % (parameter, str(value).replace('.', 'p'))
-                par_config['output']['savedir'] = str(OUTPUT / label)
-                Path(par_config['output']['savedir']).mkdir(parents=True, exist_ok=True)
+                par_config['output']['directory'] = str(OUTPUT / label)
+                Path(par_config['output']['directory']).mkdir(parents=True, exist_ok=True)
                 config = temp / (label + '.yaml')
                 _config(par_config, initial_condition, example, config)
                 run_comparison(config)
-                data = np.load(Path(par_config['output']['savedir']) /
+                data = np.load(Path(par_config['output']['directory']) /
                                 'BertschingerDarkMatterCaustic.npz')
                 selected = data['lambda_caustic'][data['xi'] >= 3.0]
                 rows.append((parameter, float(value), selected.size,

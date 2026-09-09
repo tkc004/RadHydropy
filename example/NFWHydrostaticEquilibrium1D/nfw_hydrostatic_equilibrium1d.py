@@ -80,7 +80,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not os.path.exists(final_outfile):
         raise FileNotFoundError(f'Expected evolved snapshot at {final_outfile}')
     figure_filename = os.path.join(
-        par['output']['savedir'],
+        par['output']['directory'],
         'NFWHydrostaticEquilibrium1D.jpg',
     )
     max_relative_error = et.read_and_plot(

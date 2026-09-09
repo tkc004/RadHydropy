@@ -50,12 +50,12 @@ def run_case(config, radiative):
     table = config.get("_pie_table")
     case = "radiative" if radiative else "adiabatic"
     output = par["output"]
-    case_dir = Path(output["savedir"]) / case
+    case_dir = Path(output["directory"]) / case
     case_dir.mkdir(parents=True, exist_ok=True)
     case_config = copy.deepcopy(config)
     case_par = case_config["par"]
     case_par["output"].update({
-        "savedir": str(case_dir), "directory": str(case_dir),
+        "directory": str(case_dir),
     })
     case_par["simulation"]["initial_condition_filename"] = str(case_dir / "InitialCondition.hdf5")
     case_par["thermochemistry"].update({
@@ -225,16 +225,16 @@ def main(config_filename=DEFAULT_CONFIG):
     }
     histories = {key: value[0] for key, value in outputs.items()}
     density_profiles = {key: value[1] for key, value in outputs.items()}
-    figure = Path(par["output"]["savedir"]) / "CosmologicalVirialShock1D.jpg"
+    figure = Path(par["output"]["directory"]) / "CosmologicalVirialShock1D.jpg"
     plot_histories(histories, figure)
-    radius_figure = Path(par["output"]["savedir"]) / "CosmologicalVirialShock1D_Radii.jpg"
+    radius_figure = Path(par["output"]["directory"]) / "CosmologicalVirialShock1D_Radii.jpg"
     plot_radius_histories(histories, radius_figure)
-    density_figure = Path(par["output"]["savedir"]) / "CosmologicalVirialShock1D_Densities.jpg"
+    density_figure = Path(par["output"]["directory"]) / "CosmologicalVirialShock1D_Densities.jpg"
     plot_density_profiles(density_profiles, density_figure)
     print("figure = %s" % figure)
     print("radius figure = %s" % radius_figure)
     print("density figure = %s" % density_figure)
-    print("histories = %s" % (Path(par["output"]["savedir"]) / "{adiabatic,radiative}" / "mass_radius_history.npz"))
+    print("histories = %s" % (Path(par["output"]["directory"]) / "{adiabatic,radiative}" / "mass_radius_history.npz"))
 
 
 if __name__ == "__main__":

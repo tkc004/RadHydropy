@@ -23,7 +23,6 @@ par:
     hydrogen_source_dtmin: {value: 1.0e-12, unit: Myr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: output_times_early.txt
   diagnostics:

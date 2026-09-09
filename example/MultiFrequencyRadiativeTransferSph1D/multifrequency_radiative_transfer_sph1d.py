@@ -177,7 +177,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not ic_filename.is_absolute():
         ic_filename = output_dir / ic_filename
     output_dir.mkdir(parents=True, exist_ok=True)
-    output['savedir'] = str(output_dir)
+    output['directory'] = str(output_dir)
     output['directory'] = str(output_dir)
     par['simulation']['initial_condition_filename'] = str(ic_filename)
     eu.clean_previous_outputs(config)
@@ -195,7 +195,7 @@ def main(config_filename=DEFAULT_CONFIG):
         f"{output.get('filename_prefix', 'Output')}_000.hdf5"
     )
     rio.writehdf5(sim, output_filename)
-    figure_filename = Path(output["savedir"]) / config['example'].get(
+    figure_filename = Path(output["directory"]) / config['example'].get(
         "figure_filename", "MultiFrequencyRadiativeTransferSph1D.jpg"
     )
     _save_plot(output_filename, config, figure_filename, config_filename)

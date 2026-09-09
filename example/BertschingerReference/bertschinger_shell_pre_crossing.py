@@ -114,7 +114,7 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
         centre_match_lambda=match_lambda,
         centre_matching_velocity=float(example['ode_centre_matching_velocity']),
     )
-    figure = Path(config["par"]['output']['savedir']) / 'BertschingerDarkMatterShellPreCrossingVsODE.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'BertschingerDarkMatterShellPreCrossingVsODE.jpg'
     fig, axis = plt.subplots(figsize=(8, 5))
     axis.plot(xi_history, lambda_history, linestyle='None', marker='s',
               markersize=2.5, color='tab:blue', markevery=8,

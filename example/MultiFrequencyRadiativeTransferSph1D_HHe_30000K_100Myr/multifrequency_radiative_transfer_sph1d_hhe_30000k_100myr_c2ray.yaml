@@ -53,7 +53,6 @@ par:
     metallicity: 1.0
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_C2Ray
 initial_condition:
   number_of_cells: 128
@@ -63,7 +62,7 @@ initial_condition:
 example:
   outdir: .
   outfileprefix: Output_C2Ray
-  savedir: .
+  directory: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray_PIE.jpg
   stellar_spectrum_blackbody_temperature_cgs_K: 30000.0
   evolution_timestep: {value: 0.5, unit: Myr}

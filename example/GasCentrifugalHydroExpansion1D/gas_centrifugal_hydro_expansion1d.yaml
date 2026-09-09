@@ -23,7 +23,6 @@ par:
     dtmax: 5.0e-4
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     cadence: 0.005
   units:

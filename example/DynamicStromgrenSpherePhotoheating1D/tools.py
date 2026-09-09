@@ -311,14 +311,8 @@ def recombination_time(config):
     ).to(unyt.Myr)
 
 
-def ionized_sound_speed_from_history(history, gamma):
-    """Return the Spitzer ionized-gas sound speed at 10^4 K.
-
-    ``history`` is retained in the signature for compatibility with existing
-    callers, but the analytic Spitzer comparison must not depend on the
-    simulated final temperature.
-    """
-    del history
+def ionized_sound_speed(gamma):
+    """Return the Spitzer ionized-gas sound speed at 10^4 K."""
     temperature_proper_cgs_K = 1.0e4 * unyt.K
     mu_ionized = 0.5
     return np.sqrt(gamma * unyt.kboltz * temperature_proper_cgs_K / (mu_ionized * unyt.mp)).to(
@@ -378,7 +372,7 @@ def save_front_plot(history, config, figure_filename):
     front_radius = np.asarray(history['front_radius_kpc'])
     radius_stromgren = stromgren_radius(config)
     tau_recombination = recombination_time(config)
-    ci = ionized_sound_speed_from_history(history, 5.0 / 3.0)
+    ci = ionized_sound_speed(5.0 / 3.0)
     spitzer_valid = time_proper_Myr >= tau_recombination
     radius_spitzer = None
     if np.any(spitzer_valid):

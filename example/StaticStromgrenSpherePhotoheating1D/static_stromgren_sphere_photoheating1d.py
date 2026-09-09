@@ -63,7 +63,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 example[key] = str(config_dir / value)
 
     Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(nested['par']['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
     figure_name = 'StaticStromgrenSpherePhotoheating1D.jpg'
     if nested['par']['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
-    figure_filename = Path(nested['par']['output']['savedir']) / figure_name
+    figure_filename = Path(nested['par']['output']['directory']) / figure_name
     et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
 
     print('time = %s' % out_fluid.time_proper_code)

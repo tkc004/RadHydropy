@@ -101,7 +101,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.all(np.isfinite(shells.radius)) or not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError('dark-matter shells became invalid or unsorted')
 
-    figure = Path(config["par"]['output']['savedir']) / 'EinsteinDeSitterDarkMatterShellGrowth1D.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'EinsteinDeSitterDarkMatterShellGrowth1D.jpg'
     a_plot = np.linspace(a_initial, history_a[-1], 200)
     plt.figure(figsize=(6, 4))
     plt.plot(history_a, history_delta, label='shells')

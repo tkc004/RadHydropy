@@ -26,7 +26,6 @@ par:
     cosmology_hubble_ref: 0.07
   output:
     directory: outputs_correlation_lcdm
-    savedir: outputs_correlation_lcdm
     filename_prefix: Output
   units:
     CodeUnits:

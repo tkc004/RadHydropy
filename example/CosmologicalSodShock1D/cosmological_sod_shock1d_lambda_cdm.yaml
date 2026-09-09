@@ -29,7 +29,6 @@ par:
     condition: Periodic
   output:
     directory: outputs_lambda_cdm
-    savedir: outputs_lambda_cdm
     filename_prefix: Output
     cadence: {value: 0.1, unit: s}
   units:

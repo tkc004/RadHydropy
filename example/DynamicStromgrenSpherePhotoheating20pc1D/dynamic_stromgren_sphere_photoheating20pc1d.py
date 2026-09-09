@@ -46,7 +46,7 @@ def main(config_filename=None):
     )
 
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
-    Path(output['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(output['directory']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
 
     sim = Rsim(config['par'])
@@ -64,8 +64,8 @@ def main(config_filename=None):
         'radiative_transfer_temporal_scheme'
     ) == 'c2ray':
         figure_stem += '_C2Ray'
-    figure_filename = Path(output['savedir']) / f'{figure_stem}.jpg'
-    front_figure_filename = Path(output['savedir']) / f'{figure_stem}_IFront.jpg'
+    figure_filename = Path(output['directory']) / f'{figure_stem}.jpg'
+    front_figure_filename = Path(output['directory']) / f'{figure_stem}_IFront.jpg'
     et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
 

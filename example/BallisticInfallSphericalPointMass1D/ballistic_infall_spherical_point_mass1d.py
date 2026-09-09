@@ -74,7 +74,7 @@ def main(config_filename=DEFAULT_CONFIG):
         color='C0',
     )
     figure_filename = os.path.join(
-        nested["par"]['output']['savedir'],
+        nested["par"]['output']['directory'],
         'BallisticInfallSphericalPointMass1D.jpg',
     )
     plt.tight_layout()

@@ -38,7 +38,6 @@ par:
     cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_correlation_gas_tvir1e3_z15_gas1024
-    savedir: outputs_correlation_gas_tvir1e3_z15_gas1024
     filename_prefix: Output
   units:
     CodeUnits:

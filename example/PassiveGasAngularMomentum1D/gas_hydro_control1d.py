@@ -30,7 +30,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(config["par"]['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     config['_code_units'] = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
@@ -46,7 +46,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config["par"]['mesh']['ghost_cells'] + config["par"]['mesh']['grid_cells'],
     )
     radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
-    figure = Path(config["par"]['output']['savedir']) / 'GasHydroControl1D.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'GasHydroControl1D.jpg'
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True)
     for axis, initial_values, final_values, ylabel in (
         (axes[0], initial.fluid.rho_proper_code, sim.fluid.rho_proper_code[interior], 'density [code units]'),

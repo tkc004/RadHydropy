@@ -118,7 +118,7 @@ example, ``energy_diagnostics`` means
        overrides, ``output_interval``, and ``supercomoving_timestep``
      - Hydro, source, chemistry, output, and cosmological timestep controls.
    * - ``output``
-     - ``directory``, ``savedir``, ``filename_prefix``, ``cadence``,
+     - ``directory``, ``filename_prefix``, ``cadence``,
        ``time_interval``, ``time_list_filename``
      - Snapshot destinations and scheduling. Defaults are ``./``, ``./``,
        ``Output``, and a ``0.2 s`` cadence.

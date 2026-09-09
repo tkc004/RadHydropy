@@ -4,7 +4,6 @@ par:
     final_time: 14.4
   output:
     directory: outputs_correlation
-    savedir: outputs_correlation
     filename_prefix: Output
   gravity:
     cosmology_type: einstein_de_sitter

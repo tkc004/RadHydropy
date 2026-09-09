@@ -68,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
     profile_figure = et.make_profile_figure(snapshots, config)
     profile_figure_filename = os.path.join(
-        output_config['savedir'],
+        output_config['directory'],
         f'{figure_prefix}_profiles.jpg',
     )
     profile_figure.savefig(profile_figure_filename, dpi=200)
@@ -77,7 +77,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
     radius_figure = et.make_radius_figure(snapshots, config)
     radius_figure_filename = os.path.join(
-        output_config['savedir'],
+        output_config['directory'],
         f'{figure_prefix}_radius.jpg',
     )
     radius_figure.savefig(radius_figure_filename, dpi=200)
@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     velocity_figure = et.make_velocity_figure(snapshots, config)
     if velocity_figure is not None:
         velocity_figure_filename = os.path.join(
-            output_config['savedir'],
+            output_config['directory'],
             f'{figure_prefix}_velocity.jpg',
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
@@ -97,7 +97,7 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     pressure_figure = et.make_pressure_figure(snapshots, config)
     if pressure_figure is not None:
         pressure_figure_filename = os.path.join(
-            output_config['savedir'],
+            output_config['directory'],
             f'{figure_prefix}_pressure.jpg',
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)

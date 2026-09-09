@@ -48,7 +48,7 @@ def main(config_filename=DEFAULT_CONFIG):
     example = config.get('example', {})
     eu.clean_previous_outputs(config)
     Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(nested['par']['output']['savedir']).mkdir(parents=True, exist_ok=True)
+    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
@@ -67,9 +67,9 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(sim, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
-    figure_filename = Path(nested['par']['output']['savedir']) / 'StaticStromgrenSphere1D.jpg'
-    front_figure_filename = Path(nested['par']['output']['savedir']) / 'StaticStromgrenSphere1D_IFront.jpg'
-    budget_figure_filename = Path(nested['par']['output']['savedir']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
+    figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D.jpg'
+    front_figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D_IFront.jpg'
+    budget_figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
 
     et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
     et.save_front_history_plot(front_history, config, front_figure_filename)

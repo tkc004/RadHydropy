@@ -494,7 +494,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         bool(par["hydrodynamics"].get("smooth_dm_force_for_gas", True))
         if smooth_force_override is None else bool(smooth_force_override)
     )
-    output_dir = Path(par["output"]["savedir"])
+    output_dir = Path(par["output"]["directory"])
     if not output_dir.is_absolute():
         output_dir = config_filename.parent / output_dir
     if output_suffix:
@@ -523,7 +523,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     local = copy.deepcopy(par)
     local["simulation"]["initial_condition_filename"] = str(ic_filename)
     local["output"].update({
-        "directory": str(output_dir), "savedir": str(output_dir),
+        "directory": str(output_dir),
     })
     config["par"] = local
     sim = Rsim(config["par"])

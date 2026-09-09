@@ -15,7 +15,6 @@ par:
     evolution_timestep: {value: 1000.0, unit: yr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
   units:
     CodeUnits:

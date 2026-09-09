@@ -21,7 +21,7 @@ patterns include:
 Role-specific geometric parameters follow the same convention, for example
 ``radius_inner_proper``, ``radius_outer_proper``, ``radius_core_proper``, and
 ``radius_injection_proper``. Do not reintroduce generic keys such as
-``initial_radius``, ``inner_radius``, ``outer_radius``, or ``gas_core_radius``.
+``initial_radius``, ``inner_radius``, or ``outer_radius``.
 
 Unit-bearing values are written as ``value`` / ``unit`` pairs in YAML. The
 shared ``example_utils.load_nested_example_config`` helper converts them to

@@ -96,7 +96,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     )
     case_config['par']['output'].update({
         'directory': str(output_dir),
-        'savedir': str(output_dir),
+        'directory': str(output_dir),
         'filename_prefix': f'Output_{label}',
     })
     output_prefix = case_config['par']['output']['filename_prefix']

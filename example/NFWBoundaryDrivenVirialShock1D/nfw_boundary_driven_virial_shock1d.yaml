@@ -19,7 +19,6 @@ par:
     dtmax: {value: 2.0, unit: Myr}
   output:
     directory: outputs/adiabatic
-    savedir: outputs
     filename_prefix: Output
     time_list_filename: adiabatic_output_times.txt
   units:

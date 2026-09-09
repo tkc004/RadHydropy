@@ -30,7 +30,6 @@ par:
     cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_correlation_gas_chemistry_no_thermal_coupling
-    savedir: outputs_correlation_gas_chemistry_no_thermal_coupling
     filename_prefix: Output
   units:
     CodeUnits:

@@ -112,7 +112,7 @@ def main(config_filename=DEFAULT_CONFIG):
             clean_outputs(case_dir)
             case_config = {'par': {**par,
                 'simulation': {**par['simulation'], 'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5')},
-                'output': {**par['output'], 'directory': str(case_dir), 'savedir': str(case_dir), 'filename_prefix': 'Output'}},
+                'output': {**par['output'], 'directory': str(case_dir), 'filename_prefix': 'Output'}},
                 'initial_condition': {**initial_condition,
                                       'hydrogen_number_density': density / unyt.cm**3,
                                       'temperature_proper': temperature_proper * unyt.K},

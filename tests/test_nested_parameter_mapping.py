@@ -136,7 +136,7 @@ def test_nested_unitful_settings_are_converted_to_code_units():
         "gravity": {
             "cosmology_t_ref": 5.0e13 * unyt.s,
             "cosmology_hubble_ref": 2.0e-13 / unyt.s,
-            "gas_core_radius": 6.0e18 * unyt.cm,
+            "radius_core_proper": 6.0e18 * unyt.cm,
         },
         "radiation": {
             "radiative_transfer_boundary_flux":
@@ -195,7 +195,7 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     assert sim.par.output.cadence == pytest.approx(4.0)
     assert sim.par.cosmology_t_ref == pytest.approx(5.0)
     assert sim.par.cosmology_hubble_ref == pytest.approx(2.0)
-    assert sim.par.gas_core_radius == pytest.approx(6.0)
+    assert sim.par.radius_core_proper == pytest.approx(6.0)
     assert sim.par.radiation.boundary_flux == pytest.approx(5.0e49)
     assert sim.par.radiation.source_photon_rate == pytest.approx(7.0)
     assert sim.par.radiation.spectrum_total_photon_rate == pytest.approx(8.0)

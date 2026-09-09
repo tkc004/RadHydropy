@@ -32,21 +32,21 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     if dual_energy is not None:
         config["par"]["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            config["par"]["output"]["savedir"] = str(
-                Path(config["par"]["output"]["savedir"]).with_name(
-                    Path(config["par"]["output"]["savedir"]).name + "_no_dual_energy"
+            config["par"]["output"]["directory"] = str(
+                Path(config["par"]["output"]["directory"]).with_name(
+                    Path(config["par"]["output"]["directory"]).name + "_no_dual_energy"
                 )
             )
-            config["par"]["output"]["directory"] = config["par"]["output"]["savedir"]
+            config["par"]["output"]["directory"] = config["par"]["output"]["directory"]
     if pressure_selection is not None:
         config["par"]["hydrodynamics"]["dual_energy"] = True
         config["par"]["hydrodynamics"]["dual_energy_pressure_selection"] = pressure_selection
-        config["par"]["output"]["savedir"] = str(
-            Path(config["par"]["output"]["savedir"]).with_name(
-                Path(config["par"]["output"]["savedir"]).name + "_conservative_pressure"
+        config["par"]["output"]["directory"] = str(
+            Path(config["par"]["output"]["directory"]).with_name(
+                Path(config["par"]["output"]["directory"]).name + "_conservative_pressure"
             )
         )
-        config["par"]["output"]["directory"] = config["par"]["output"]["savedir"]
+        config["par"]["output"]["directory"] = config["par"]["output"]["directory"]
     output = Path(config["par"]["output"]["directory"])
     output.mkdir(parents=True, exist_ok=True)
     code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])

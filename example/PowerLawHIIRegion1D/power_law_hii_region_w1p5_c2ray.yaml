@@ -61,7 +61,6 @@ par:
         UnitTemp_in_cgs: 1.0
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_PowerLawHIIRegion1D_w1p5_C2Ray
     time_list_filename: output_times_w1p5.txt
 initial_condition:

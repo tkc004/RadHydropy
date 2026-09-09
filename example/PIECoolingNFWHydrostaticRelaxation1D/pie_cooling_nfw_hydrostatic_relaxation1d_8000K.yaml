@@ -23,7 +23,6 @@ par:
     dtmax: {value: 2.0, unit: Myr}
   output:
     directory: outputs_8000K
-    savedir: .
     filename_prefix: Output
     time_list_filename: pie_cooling_nfw_hydrostatic_relaxation1d_output_times.txt
   units:

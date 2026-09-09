@@ -66,7 +66,6 @@ par:
     hydrogen_mass_fraction: 0.76
   output:
     directory: outputs_correlation_gas_compton_atomic_lcdm
-    savedir: outputs_correlation_gas_compton_atomic_lcdm
     filename_prefix: Output
   units:
     CodeUnits:

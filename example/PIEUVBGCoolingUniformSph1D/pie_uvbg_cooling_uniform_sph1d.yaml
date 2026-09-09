@@ -16,7 +16,6 @@ par:
     condition: OpenSph
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     time_interval: {value: 5.0e-06, unit: yr}
   units:

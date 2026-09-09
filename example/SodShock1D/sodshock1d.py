@@ -60,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
         mfc='none',
         markevery=5,
     )
-    figure_filename = os.path.join(output['savedir'], exampleparams['plot_filename'])
+    figure_filename = os.path.join(output['directory'], exampleparams['plot_filename'])
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()

@@ -65,7 +65,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
     )
 
-    figure_filename = Path(output['savedir']) / exampleparams['plot_filename']
+    figure_filename = Path(output['directory']) / exampleparams['plot_filename']
     et.save_history_plot(
         history,
         str(figure_filename),

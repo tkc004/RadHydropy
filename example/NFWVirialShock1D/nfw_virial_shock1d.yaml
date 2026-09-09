@@ -19,7 +19,6 @@ par:
     dtmax: {value: 2.0, unit: Myr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: nfw_virial_shock1d_output_times.txt
   units:

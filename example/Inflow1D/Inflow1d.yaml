@@ -24,7 +24,6 @@ par:
     dtmax: {value: 2.0e-3, unit: s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: output_times.txt
     cadence: {value: 0.1, unit: s}

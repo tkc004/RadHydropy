@@ -44,7 +44,6 @@ par:
     radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
   units:
     CodeUnits:

@@ -127,7 +127,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if not np.isclose(final_energy, initial_energy, rtol=2.0e-5, atol=2.0e-10):
         raise RuntimeError("spherical reflecting benchmark lost total energy")
 
-    figure = Path(output["savedir"]) / "SphericalConvergingShock1D.jpg"
+    figure = Path(output["directory"]) / "SphericalConvergingShock1D.jpg"
     selected = np.unique(np.linspace(0, len(profiles) - 1, min(6, len(profiles))).astype(int))
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
     for index in selected:

@@ -27,7 +27,6 @@ par:
     dtmax: {value: 200.0, unit: Myr}
   output:
     directory: outputs_correlation_gas_pie_z10_z01
-    savedir: outputs_correlation_gas_pie_z10_z01
     filename_prefix: Output
   units:
     CodeUnits:

@@ -31,7 +31,6 @@ par:
     dtmax: 0.01
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
   units:
     CodeUnits:

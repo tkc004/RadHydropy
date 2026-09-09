@@ -59,7 +59,7 @@ def load_example_config(config_filename):
         simulation['initial_condition_filename'] = _resolve_path(
             simulation['initial_condition_filename'], config_filename.parent
         )
-    for key in ('directory', 'savedir', 'time_list_filename'):
+    for key in ('directory', 'time_list_filename'):
         if key in output:
             output[key] = _resolve_path(output[key], config_filename.parent)
 

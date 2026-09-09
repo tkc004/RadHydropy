@@ -101,7 +101,7 @@ def run():
             initial_condition_filename=str(ic_filename),
             final_time=final_tau * units.time_unit,
         )
-        case_config["par"]["output"].update(directory=str(output_dir), savedir=str(output_dir))
+        case_config["par"]["output"].update(directory=str(output_dir))
         case_config["par"]["gravity"].update(
             cosmology_type=cosmology_type,
             cosmology_t_ref=physical.age_0 / time_unit_gyr,

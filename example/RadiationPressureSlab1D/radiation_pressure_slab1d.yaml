@@ -28,7 +28,6 @@ par:
     dtmax: {value: 5.0e2, unit: s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
   chemistry:
     hydrogen_chemistry: true

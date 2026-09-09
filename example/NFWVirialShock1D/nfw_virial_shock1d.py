@@ -76,7 +76,7 @@ def main(config_filename=DEFAULT_CONFIG):
         and name.endswith('.hdf5')
     ]
     figure_filename = os.path.join(
-        par['output']['savedir'],
+        par['output']['directory'],
         'NFWVirialShock1D.jpg',
     )
     et.plot_snapshots(output_files, config, config, figure_filename)
@@ -86,7 +86,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
     )
     rh_filename = os.path.join(
-        par['output']['savedir'],
+        par['output']['directory'],
         'NFWVirialShock1D_RankineHugoniot.txt',
     )
     et.write_rankine_hugoniot_report(rh_rows, rh_filename)

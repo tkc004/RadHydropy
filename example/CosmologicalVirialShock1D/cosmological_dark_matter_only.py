@@ -117,9 +117,9 @@ def run_lagrangian_top_hat(config):
         history_time.append(cosmic_end)
         history_radius.append(physical_radius)
 
-    savedir = Path(config["par"]["output"]["savedir"])
-    figure = savedir / "CosmologicalTopHatDarkMatterOnly.jpg"
-    savedir.mkdir(parents=True, exist_ok=True)
+    directory = Path(config["par"]["output"]["directory"])
+    figure = directory / "CosmologicalTopHatDarkMatterOnly.jpg"
+    directory.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7, 4))
     plt.plot(history_time, history_radius, label="numerical top-hat radius")
     plt.axvline(turnaround_time, color="tab:red", ls="--", label="analytic turnaround time")
@@ -277,7 +277,7 @@ def run_live_shell_density_profiles(config):
         / ((4.0 * np.pi / 3.0) * virial_overdensity
            * np.asarray([float(cosmology.background_density(time_cosmic_code)) for time_cosmic_code in times]))
     ) ** (1.0 / 3.0)
-    output_dir = Path(config["par"]["output"]["savedir"])
+    output_dir = Path(config["par"]["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     data_file = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.npz"
     figure = output_dir / "CosmologicalDarkMatterOnlyDensityProfiles.jpg"
@@ -505,9 +505,9 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
 
     if not np.all(np.isfinite(shells.radius)) or np.any(np.diff(shells.radius) < 0.0):
         raise RuntimeError("dark-matter-only shells became invalid or unsorted")
-    savedir = Path(config["par"]["output"]["savedir"])
-    savedir.mkdir(parents=True, exist_ok=True)
-    figure = savedir / "CosmologicalDarkMatterOnly.jpg"
+    directory = Path(config["par"]["output"]["directory"])
+    directory.mkdir(parents=True, exist_ok=True)
+    figure = directory / "CosmologicalDarkMatterOnly.jpg"
     plt.figure(figsize=(6, 4))
     plt.plot(history_time, history_inner_radius)
     plt.xlabel("cosmic time [code units]")

@@ -43,7 +43,6 @@ par:
       unit: Myr
   output:
     directory: /Users/tsangkeungchan/Programs/RadHydropy/RadHydropy/example/CosmologicalVirialShock1D/outputs_short_B_wall_no_thermalization
-    savedir: /Users/tsangkeungchan/Programs/RadHydropy/RadHydropy/example/CosmologicalVirialShock1D/outputs_short_B_wall_no_thermalization
     filename_prefix: Output
   units:
     CodeUnits:

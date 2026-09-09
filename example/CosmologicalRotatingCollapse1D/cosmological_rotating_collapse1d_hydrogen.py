@@ -42,7 +42,7 @@ def main(output_root=None):
     }
     config["par"]["simulation"] = {**config["par"]["simulation"], "final_time": 1.0}
     if output_root is not None:
-        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root), "savedir": str(output_root)}
+        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root)}
 
     units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     config["par"]["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
@@ -54,7 +54,7 @@ def main(output_root=None):
     output_dir = ROOT / config["par"]['output']['directory'] / 'hydrogen_source_rotation'
     output_dir.mkdir(parents=True, exist_ok=True)
     config["par"]['simulation'] = {**config["par"]['simulation'], 'initial_condition_filename': str(output_dir / 'InitialCondition.hdf5')}
-    config["par"]['output'] = {**config["par"]['output'], 'directory': str(output_dir), 'savedir': str(output_dir), 'filename_prefix': 'Output'}
+    config["par"]['output'] = {**config["par"]['output'], 'directory': str(output_dir), 'filename_prefix': 'Output'}
 
     count = int(config["par"]["mesh"]["grid_cells"])
     cosmic_time = float(initial_condition["time_cosmic"])

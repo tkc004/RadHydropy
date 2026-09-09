@@ -20,7 +20,6 @@ par:
     dtmax: 1.0
   output:
     directory: outputs_correlation
-    savedir: outputs_correlation
     filename_prefix: Output
   units:
     CodeUnits:

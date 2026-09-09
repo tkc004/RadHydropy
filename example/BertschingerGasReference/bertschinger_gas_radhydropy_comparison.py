@@ -375,12 +375,12 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Run(mode='hydro')
 
     numerical = _similarity_profiles(sim, reference)
-    initial_output = Path(output['savedir']) / 'BertschingerGasReference_RadHydroInitialCondition.jpg'
+    initial_output = Path(output['directory']) / 'BertschingerGasReference_RadHydroInitialCondition.jpg'
     _plot_comparison(initial_numerical, reference, initial_output, 'RadHydro IC')
-    comparison_output = Path(output['savedir']) / 'BertschingerGasReference_RadHydroComparison.jpg'
+    comparison_output = Path(output['directory']) / 'BertschingerGasReference_RadHydroComparison.jpg'
     analytic_profiles = _plot_comparison(numerical, reference, comparison_output, 'RadHydro final')
 
-    report = Path(output['savedir']) / 'BertschingerGasReference_RadHydroComparison.txt'
+    report = Path(output['directory']) / 'BertschingerGasReference_RadHydroComparison.txt'
     lam = numerical['lambda_dimensionless']
     with report.open('w', encoding='utf-8') as stream:
         stream.write('final_time_cosmic_code %.12g\n' % numerical['time_cosmic_code'])

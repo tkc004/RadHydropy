@@ -19,7 +19,6 @@ par:
     dtmax: {value: 1.0e12, unit: s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: ballistic_infall_spherical_point_mass1d_output_times.txt
   diagnostics:

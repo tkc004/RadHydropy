@@ -167,8 +167,8 @@ def main(config_filename=CONFIG):
     par = config['par']
     initial_condition = config['initial_condition']
     example_config = config['example']
-    savedir = ROOT / par['output']['savedir']
-    savedir.mkdir(parents=True, exist_ok=True)
+    directory = ROOT / par['output']['directory']
+    directory.mkdir(parents=True, exist_ok=True)
     cosmology = EinsteinDeSitter()
     x0 = float(initial_condition['initial_comoving_radius'])
     v0 = float(initial_condition['initial_supercomoving_velocity'])
@@ -257,7 +257,7 @@ def main(config_filename=CONFIG):
         axis.legend()
     fig.suptitle('Cosmological gas centrifugal eccentric-orbit check')
     fig.tight_layout()
-    figure = savedir / 'GasCentrifugalCosmologicalOrbit1D.jpg'
+    figure = directory / 'GasCentrifugalCosmologicalOrbit1D.jpg'
     fig.savefig(figure, dpi=180)
     plt.close(fig)
 
@@ -334,7 +334,7 @@ def main(config_filename=CONFIG):
         sim_pre_supercomoving_code / np.maximum(sim_rho_comoving_code, np.finfo(float).tiny),
         central_mass / np.maximum(sim_radius_comoving_code, np.finfo(float).tiny),
     )
-    simulation_figure = savedir / 'GasCentrifugalCosmologicalOrbit1D_simulation.jpg'
+    simulation_figure = directory / 'GasCentrifugalCosmologicalOrbit1D_simulation.jpg'
     sim_fig, sim_axes = plt.subplots(2, 2, figsize=(11, 7))
     sim_axes = sim_axes.flat
     sim_axes[0].plot(sim_radius_comoving_code, sim_vel_supercomoving_code, 'o-', label='Rsim Eulerian state')

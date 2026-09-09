@@ -84,7 +84,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
         'name': f"PIESphericalRadiativeShock1D_{label}",
         'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5'),
     })
-    case['output'].update({'directory': str(case_dir), 'savedir': str(case_dir), 'filename_prefix': 'Output'})
+    case['output'].update({'directory': str(case_dir), 'filename_prefix': 'Output'})
     case['thermochemistry']['metallicity'] = metallicity
     case['thermochemistry']['metal_pie_enabled'] = pie_enabled
     if not pie_enabled:

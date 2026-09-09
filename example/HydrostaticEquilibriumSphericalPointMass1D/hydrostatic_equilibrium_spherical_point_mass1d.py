@@ -83,7 +83,7 @@ def main(config_filename=DEFAULT_CONFIG):
         color='C0',
     )
     figure_filename = os.path.join(
-        par['output']['savedir'],
+        par['output']['directory'],
         'HydrostaticEquilibriumSphericalPointMass1D.jpg',
     )
     plt.tight_layout()

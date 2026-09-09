@@ -30,7 +30,6 @@ par:
     hydrogen_source_dtmin: {value: 0.0, unit: Myr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: output_times.txt
   chemistry:

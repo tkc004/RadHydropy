@@ -64,7 +64,7 @@ def run(config_filename=DEFAULT_CONFIG):
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
 
-    output_dir = Path(par["output"]["savedir"])
+    output_dir = Path(par["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
@@ -100,7 +100,7 @@ def run(config_filename=DEFAULT_CONFIG):
 
     par["simulation"]["initial_condition_filename"] = str(ic_filename)
     par["output"]["directory"] = str(output_dir)
-    par["output"]["savedir"] = str(output_dir)
+    par["output"]["directory"] = str(output_dir)
     par.setdefault("thermochemistry", {}).update({
         "metal_pie_enabled": False,
         "cie_cooling": False,

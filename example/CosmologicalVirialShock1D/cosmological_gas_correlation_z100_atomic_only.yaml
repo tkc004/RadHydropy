@@ -30,7 +30,6 @@ par:
     cosmological_background_boundary_reconstruction: true
   output:
     directory: outputs_correlation_gas_compton_atomic_atomic_only
-    savedir: outputs_correlation_gas_compton_atomic_atomic_only
     filename_prefix: Output
   units:
     CodeUnits:

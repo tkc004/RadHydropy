@@ -113,7 +113,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.set_yscale('log')
     axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(config["par"]['output']['savedir']) / 'GasDarkMatterShellCoupling1D.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'GasDarkMatterShellCoupling1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('dark-matter shells = %d' % dark_matter.number_of_shells)

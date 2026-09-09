@@ -53,7 +53,7 @@ def _core_problem(model="hydrostatic_fixed"):
     fluid.temp_proper_code = fluid.temp_code
     par = parameter_namespace(
         gas_core_model=model,
-        gas_core_radius=10.0,
+        radius_core_proper=10.0,
         noghost=1,
         nogrid=4,
     )

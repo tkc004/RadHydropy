@@ -48,7 +48,6 @@ par:
     metallicity: 1.0
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
   units:
     CodeUnits:

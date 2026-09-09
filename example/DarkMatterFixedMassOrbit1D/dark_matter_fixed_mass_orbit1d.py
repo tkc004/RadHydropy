@@ -119,7 +119,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(config["par"]['output']['savedir']) / 'DarkMatterFixedMassOrbit1D.jpg'
+    figure = Path(config["par"]['output']['directory']) / 'DarkMatterFixedMassOrbit1D.jpg'
     fig.savefig(figure, dpi=200)
     plt.close(fig)
     print('figure = %s' % figure)

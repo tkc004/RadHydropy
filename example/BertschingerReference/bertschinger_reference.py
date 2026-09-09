@@ -93,8 +93,8 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError('shells are not sorted after evolution')
 
-    savedir = Path(par['output']['savedir'])
-    output = savedir / 'BertschingerReference.hdf5'
+    directory = Path(par['output']['directory'])
+    output = directory / 'BertschingerReference.hdf5'
     et.write_reference(output, profiles, {
         'Solution': 'Bertschinger1985_collisionless_radial',
         'SimilarityEpsilon': 1.0,
@@ -115,7 +115,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'ODECentreMatchingVelocity': float(
             example['ode_centre_matching_velocity']),
     })
-    output_ode = savedir / 'BertschingerEq41ODE.hdf5'
+    output_ode = directory / 'BertschingerEq41ODE.hdf5'
     et.write_reference(output_ode, {
         'xi': ode_solution.xi,
         'lambda': ode_solution.lam,
@@ -143,7 +143,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'OuterCausticXi': caustic_xi,
         'OuterCausticLambda': caustic_lambda,
     })
-    ode_figure = savedir / 'BertschingerEq41XiLambda.jpg'
+    ode_figure = directory / 'BertschingerEq41XiLambda.jpg'
     ode_plot = plot_xi_lambda(ode_solution)
     ode_plot.plot(splashback_xi, splashback_lambda, marker='*', markersize=11,
                   color='tab:red', markeredgecolor='black',
@@ -157,7 +157,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ode_plot.figure.clf()
     import matplotlib.pyplot as plt
     plt.close(ode_plot.figure)
-    figure = savedir / 'BertschingerReference.jpg'
+    figure = directory / 'BertschingerReference.jpg'
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].loglog(profiles['lambda_dimensionless'], np.maximum(profiles['rho_proper'], 1.0e-12))
     axes[0].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$\rho/\rho_b$')

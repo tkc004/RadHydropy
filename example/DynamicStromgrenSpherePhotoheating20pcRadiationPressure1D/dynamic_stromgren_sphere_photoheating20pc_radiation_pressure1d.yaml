@@ -23,7 +23,6 @@ par:
     hydrogen_source_dtmin: {value: 1.0e-20, unit: Myr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_RadiationPressure
     time_list_filename: output_times_radiation_pressure.txt
   chemistry:

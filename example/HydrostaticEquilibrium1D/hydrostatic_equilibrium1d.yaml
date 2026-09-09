@@ -22,7 +22,6 @@ par:
     dtmax: {value: 1.0e7, unit: s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     time_list_filename: hydrostatic_equilibrium1d_output_times.txt
     cadence: {value: 1.0e-6, unit: Myr}

@@ -3,7 +3,6 @@ par:
     name: BertschingerReference16384
   output:
     directory: .
-    savedir: outputs_caustic_convergence/shells_16384
   units:
     CodeUnits:
       name: bertschinger_reference_unit_system

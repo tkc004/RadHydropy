@@ -19,7 +19,6 @@ par:
     dtmax: {value: 1.0e6, unit: yr}
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     time_list_filename: pie_uvbg_photoionization_timescale_1d_output_times.txt
     time_interval: {value: 1.0e4, unit: yr}

@@ -509,7 +509,6 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.gravity.model is None
     assert par.gravity.potential_energy is False
     assert par.output.directory == par.outdir
-    assert par.output.savedir == par.savedir
     assert par.output.filename_prefix == par.outfileprefix
     assert par.simulation.name == par.simname
     assert par.simulation.coordinate_system == "cartesian"

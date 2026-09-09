@@ -18,7 +18,6 @@ par:
     dtmax: {value: 1.0e17, unit: s}
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     cadence: {value: 1.0, unit: s}
   gravity:

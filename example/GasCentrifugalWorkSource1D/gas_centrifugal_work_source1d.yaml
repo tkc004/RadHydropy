@@ -21,7 +21,6 @@ par:
     dtmax: {value: 1.0e-3, unit: s}
   output:
     directory: outputs
-    savedir: outputs
     filename_prefix: Output
     cadence: {value: 0.05, unit: s}
   units:
@@ -36,7 +35,7 @@ par:
 initial_condition:
   radius_proper: {value: 1.0, unit: cm}
   rho_proper: {value: 1.0, unit: g/cm**3}
-  radial_velocity: {value: -0.2, unit: cm/s}
+  vel_proper: {value: -0.2, unit: cm/s}
   specific_angular_momentum: {value: 0.7, unit: cm**2/s}
 example:
   temperature_proper: {value: 1.0e-8, unit: K}

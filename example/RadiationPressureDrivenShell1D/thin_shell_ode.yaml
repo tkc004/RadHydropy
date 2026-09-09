@@ -18,7 +18,6 @@ par:
     dtmax: {value: 10.0, unit: yr}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_ThinShellODE
     cadence: {value: 2.0e3, unit: yr}
   radiation:

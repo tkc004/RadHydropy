@@ -208,7 +208,7 @@ def run_case(config, label, rotation_factor):
     par["simulation"] = dict(par["simulation"])
     par["simulation"]["initial_condition_filename"] = str(output_dir / "InitialCondition.hdf5")
     par["output"] = dict(par["output"])
-    par["output"].update(directory=str(output_dir), savedir=str(output_dir), filename_prefix="Output")
+    par["output"].update(directory=str(output_dir), filename_prefix="Output")
     count = int(par["mesh"]["grid_cells"])
     cosmic_time = float(initial_condition["time_cosmic"])
     scale_factor = float(cosmology.scale_factor(cosmic_time))
@@ -352,7 +352,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     if nogrid_override is not None:
         config["par"]["mesh"] = {**config["par"]["mesh"], "grid_cells": int(nogrid_override)}
     if output_root_override is not None:
-        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root_override), "savedir": str(output_root_override)}
+        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root_override)}
     if cfl_override is not None:
         config["par"]["hydrodynamics"] = {**config["par"]["hydrodynamics"], "CFL": float(cfl_override)}
     if positivity_override is not None:
@@ -403,7 +403,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         label: np.load(directory / "history.npz")
         for label, (_, _, directory) in by_label.items()
     }
-    output_root = ROOT / config["par"]["output"]["savedir"]
+    output_root = ROOT / config["par"]["output"]["directory"]
     figure = output_root / "CosmologicalRotatingCollapse1D.jpg"
     plt.figure(figsize=(7, 4))
     for label in ("nonrotating", "moderate", "high"):

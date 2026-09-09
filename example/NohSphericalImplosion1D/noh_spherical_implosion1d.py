@@ -91,13 +91,13 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     if dual_energy is not None:
         base_par_config["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            base_par_config["output"]["savedir"] = str(
-                Path(base_par_config["output"]["savedir"]).with_name(
-                    Path(base_par_config["output"]["savedir"]).name + "_no_dual_energy"
+            base_par_config["output"]["directory"] = str(
+                Path(base_par_config["output"]["directory"]).with_name(
+                    Path(base_par_config["output"]["directory"]).name + "_no_dual_energy"
                 )
             )
-            base_par_config["output"]["directory"] = base_par_config["output"]["savedir"]
-    root = Path(base_par_config["output"]["savedir"])
+            base_par_config["output"]["directory"] = base_par_config["output"]["directory"]
+    root = Path(base_par_config["output"]["directory"])
     root.mkdir(parents=True, exist_ok=True)
     units = CodeUnits.from_mapping(base_par_config["units"]["CodeUnits"])
     all_profiles = {}
@@ -108,7 +108,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         output = root / f"resolution_{resolution}"
         output.mkdir(parents=True, exist_ok=True)
         par_config["output"]["directory"] = str(output)
-        par_config["output"]["savedir"] = str(output)
+        par_config["output"]["directory"] = str(output)
         par_config["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
         initial_condition["grid_cells"] = resolution
         par_config["mesh"]["grid_cells"] = resolution

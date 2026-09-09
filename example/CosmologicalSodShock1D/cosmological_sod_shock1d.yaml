@@ -25,7 +25,6 @@ par:
     condition: Periodic
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
     cadence: {value: 0.1, unit: s}
   units:

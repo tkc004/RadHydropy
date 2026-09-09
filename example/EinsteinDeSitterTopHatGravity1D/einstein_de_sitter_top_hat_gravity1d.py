@@ -90,7 +90,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.isfinite(max_error) or max_error > 5.0e-3:
         raise RuntimeError('top-hat gravity error %.6g exceeds tolerance' % max_error)
 
-    filename = os.path.join(runtime['output']['savedir'], 'EinsteinDeSitterTopHatGravity1D.jpg')
+    filename = os.path.join(runtime['output']['directory'], 'EinsteinDeSitterTopHatGravity1D.jpg')
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(radius, numerical[physical], label='numerical')
     axes[0].plot(radius, analytic, '--', label='analytic')

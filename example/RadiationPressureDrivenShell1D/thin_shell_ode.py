@@ -211,7 +211,7 @@ def main(config_filename=DEFAULT_CONFIG):
         where=expected_momentum_proper_cgs_g_cm_s != 0.0,
     )
 
-    figure = Path(config["par"]["output"]["savedir"]) / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
+    figure = Path(config["par"]["output"]["directory"]) / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
     time_proper_myr = time_proper_cgs_s / (1.0 * unyt.Myr).to_value(unyt.s)
     pc_cm = (1.0 * unyt.pc).to_value(unyt.cm)
     fig, axes = plt.subplots(3, 1, figsize=(7.5, 9.0), sharex=True)

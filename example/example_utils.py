@@ -51,7 +51,7 @@ def load_nested_example_config(config_filename):
             par['simulation']['initial_condition_filename'], config_filename.parent
         )
     for values in (par, example):
-        for key in ('output_directory', 'savedir', 'outputtimefilename'):
+        for key in ('output_directory', 'directory', 'outputtimefilename'):
             if key in values:
                 values[key] = _resolve_path(values[key], config_filename.parent)
     if 'thermochemistry' in par:
@@ -61,7 +61,7 @@ def load_nested_example_config(config_filename):
                 filename, config_filename.parent
             )
         output = par.get('output', {})
-        for key in ('directory', 'savedir', 'time_list_filename'):
+        for key in ('directory', 'time_list_filename'):
             if key in output:
                 output[key] = _resolve_path(output[key], config_filename.parent)
     return {

@@ -17,7 +17,6 @@ par:
     cosmology_a_ref: 1.0
   output:
     directory: .
-    savedir: .
     filename_prefix: Output
   units:
     CodeUnits:

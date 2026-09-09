@@ -50,7 +50,6 @@ par:
     radiative_transfer_source_photon_rate: {value: 5.0e48, unit: 1/s}
   output:
     directory: .
-    savedir: .
     filename_prefix: Output_SingleFrequency
 initial_condition:
   grid_cells: 512

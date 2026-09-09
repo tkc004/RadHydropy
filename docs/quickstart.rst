@@ -77,7 +77,7 @@ Start with the bundled Sod-shock YAML configuration:
        dtmax: {value: 2.0e-1, unit: s}
      output:
        directory: .
-       savedir: .
+       directory: .
        filename_prefix: Output
        cadence: {value: 0.1, unit: s}
      diagnostics:
@@ -123,7 +123,7 @@ the current names below; older flat names such as ``timesim``, ``nogrid``, and
 * ``par.timestep.dtmin`` and ``par.timestep.dtmax`` constrain the step size.
 * ``par.output.directory``, ``filename_prefix``, ``cadence`` (or
   ``time_interval``), and optional ``time_list_filename`` control saved
-  snapshots; ``savedir`` is an
+  snapshots; ``directory`` is an
   example-workflow output location.
 * ``par.units.CodeUnits`` is mandatory and defines the internal unit system.
 

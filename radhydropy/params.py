@@ -20,7 +20,6 @@ refparams = {
     'outdeltatime':2.0*unyt.s *0.1,
     'time_interval': None,
     'outputtimefilename': None,
-    'savedir':'./',
     'figure_prefix': None,
     'final_cosmic_time': None,
     'gas_profile_cadence': None,
@@ -179,7 +178,7 @@ refparams = {
     # Optional pressure-supported unresolved central core.  The default keeps
     # the ordinary cell-centred hydro evolution unchanged.
     'gas_core_model': 'none',
-    'gas_core_radius': None,
+    'radius_core_proper': None,
     'hydrogen_update_mu': False,
     'hydrogen_thermal_coupling': True,
     'energy_diagnostics': False,
@@ -387,7 +386,6 @@ class OutputParameters:
     """Structured view of snapshot destinations and scheduling settings."""
 
     directory: str = './'
-    savedir: str = './'
     filename_prefix: str = 'Output'
     cadence: object = None
     time_list_filename: object = None
@@ -683,7 +681,7 @@ class Par:
             },
             'units': {'CodeUnits': 'CodeUnits'},
             'output': {
-                'directory': 'outdir', 'savedir': 'savedir',
+                'directory': 'outdir',
                 'filename_prefix': 'outfileprefix', 'cadence': 'outdeltatime',
                 'time_interval': 'time_interval',
                 'time_list_filename': 'outputtimefilename',
@@ -703,8 +701,7 @@ class Par:
                 'cosmology_omega_lambda': 'cosmology_omega_lambda',
                 'cosmological_background_boundary_reconstruction': 'cosmological_background_boundary_reconstruction',
                 'gas_core_model': 'gas_core_model',
-                'radius_core_proper': 'gas_core_radius',
-                'gas_core_radius': 'gas_core_radius',
+                'radius_core_proper': 'radius_core_proper',
             },
             'dark_matter': {
                 'softening': 'dark_matter_softening',
@@ -999,7 +996,6 @@ class Par:
     def _sync_output_parameters(self):
         self.output = OutputParameters(
             directory=self.outdir,
-            savedir=self.savedir,
             filename_prefix=self.outfileprefix,
             cadence=self.outdeltatime,
             time_list_filename=self.outputtimefilename,

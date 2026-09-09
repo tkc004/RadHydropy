@@ -128,8 +128,8 @@ def main(config_filename=CONFIG):
     par = config['par']
     initial_condition = config['initial_condition']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    savedir = ROOT / par['output']['savedir']
-    savedir.mkdir(parents=True, exist_ok=True)
+    directory = ROOT / par['output']['directory']
+    directory.mkdir(parents=True, exist_ok=True)
     (initial_sim, simulation, saved_mesh, saved_fluid, active,
      simulation_initial_mass, simulation_initial_energy) = run_rsim(config)
 
@@ -384,7 +384,7 @@ def main(config_filename=CONFIG):
         axis.legend()
     fig.suptitle('Gas centrifugal circular and eccentric orbit checks')
     fig.tight_layout()
-    figure = savedir / 'GasCentrifugalCircularOrbit1D.jpg'
+    figure = directory / 'GasCentrifugalCircularOrbit1D.jpg'
     fig.savefig(figure, dpi=180)
     plt.close(fig)
     print('circular and eccentric orbit analytic checks passed')
