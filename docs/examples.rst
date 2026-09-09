@@ -193,6 +193,12 @@ If an example reloads snapshots for plotting, it should use the file header
 Detailed Example Pages
 ----------------------
 
+The detailed pages use the strict example format. Configuration examples are
+shown as nested YAML with separate ``par``, ``initial_condition``, and
+``example`` sections; runtime keys are addressed through their canonical
+``par.<group>.<key>`` paths. Each page also documents the normal IC-generation
+and ``Rsim`` execution flow, rather than presenting legacy flat parameters.
+
 .. toctree::
    :maxdepth: 1
 

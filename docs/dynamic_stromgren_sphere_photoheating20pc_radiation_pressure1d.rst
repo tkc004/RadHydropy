@@ -12,9 +12,11 @@ radiation pressure:
 
 .. code-block:: yaml
 
-   radiative_transfer: true
-   radiation_pressure: true
-   radiation_pressure_efficiency: 1.0
+   par:
+     radiation:
+       radiative_transfer: true
+       radiation_pressure: true
+       radiation_pressure_efficiency: 1.0
 
 Thermo-chemistry calculates the absorbed photon rate. The radiation-pressure
 source then converts the absorbed photon energy into momentum and applies it
@@ -137,4 +139,3 @@ The run also writes:
 
 For the underlying momentum-deposition equations and the isolated
 source-conservation test, see :doc:`radiation_pressure`.
-

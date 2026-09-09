@@ -30,17 +30,21 @@ settings are:
 
 .. code-block:: yaml
 
-   coordsys: spherical
-   cosmology_type: einstein_de_sitter
-   cosmological_expansion: true
-   supercomoving_coordinates: true
-   selfgravity: true
-   dual_energy: true
-   dual_energy_eta1: 1.0e-3
-   dual_energy_eta2: 1.0e-1
-   dual_energy_entropy_limiter: false
-   riemann_solver: Rusanov
-   energy_diagnostics: true
+   par:
+     simulation:
+       coordinate_system: spherical
+     hydrodynamics:
+       dual_energy: true
+       dual_energy_eta1: 1.0e-3
+       dual_energy_eta2: 1.0e-1
+       dual_energy_entropy_limiter: false
+       riemann_solver: Rusanov
+       energy_diagnostics: true
+     gravity:
+       selfgravity: true
+       cosmological_expansion: true
+       supercomoving_coordinates: true
+       cosmology_type: einstein_de_sitter
 
 The entropy limiter is deliberately disabled in this reference run.  It is
 an experimental auxiliary-energy correction and can overestimate pressure in
@@ -81,7 +85,8 @@ The main adiabatic diagnostics are:
 Energy diagnostics
 ~~~~~~~~~~~~~~~~~~
 
-With ``energy_diagnostics: true``, RadHydropy records the gas energy per cell
+With ``par.hydrodynamics.energy_diagnostics: true``, RadHydropy records the
+gas energy per cell
 and the dark-matter energy per shell.  The audit also records gravitational
 work, compression work, shock work, thermochemistry work, boundary exchange,
 and dual-energy recovery events.  This makes a halo-only budget possible even
@@ -116,16 +121,19 @@ CMB, and thermal coupling:
 
 .. code-block:: yaml
 
-   thermochemistry_network: hydrogen
-   hydrogen_chemistry: true
-   hydrogen_atomic_cooling: true
-   hydrogen_recombination: true
-   hydrogen_collisional_ionization: true
-   hydrogen_thermal_coupling: true
-   compton_cmb_enabled: true
-   compton_cmb_redshift: 100.0
-   energy_diagnostics: true
-   dual_energy_entropy_limiter: false
+   par:
+     hydrodynamics:
+       energy_diagnostics: true
+       dual_energy_entropy_limiter: false
+     thermochemistry:
+       thermochemistry_network: hydrogen
+       hydrogen_chemistry: true
+       hydrogen_atomic_cooling: true
+       hydrogen_recombination: true
+       hydrogen_collisional_ionization: true
+       hydrogen_thermal_coupling: true
+       compton_cmb_enabled: true
+       compton_cmb_redshift: 100.0
 
 The current comparison output is in
 ``outputs_correlation_gas_compton_atomic_aligned_recheck``.  It was evolved

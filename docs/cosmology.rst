@@ -137,9 +137,11 @@ conversions from the HDF5 cosmology header.
 
 Enable the mode with::
 
-   cosmological_expansion: true
-   supercomoving_coordinates: true
-   cosmology_type: einstein_de_sitter
+   par:
+     gravity:
+       cosmological_expansion: true
+       supercomoving_coordinates: true
+       cosmology_type: einstein_de_sitter
 
 The HDF5 ``Header`` records the coordinate, time, velocity, density, pressure,
 and temperature representations. Dataset attributes record the physical

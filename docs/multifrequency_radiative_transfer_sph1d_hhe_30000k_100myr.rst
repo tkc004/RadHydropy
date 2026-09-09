@@ -55,8 +55,9 @@ Its photon-energy edges are
 
 The five groups use H I, He I, and He II group-averaged cross-sections and
 photoheating energies stored in the spectrum file. The YAML parameter
-``radiation_spectrum_total_photon_rate`` rescales the spectrum to the desired
-total source rate without changing the relative group emission rates.
+``par.radiation.radiation_spectrum_total_photon_rate`` rescales the spectrum
+to the desired total source rate without changing the relative group emission
+rates.
 
 Metal PIE coupling
 ------------------
@@ -65,9 +66,11 @@ Metal cooling is enabled in the YAML file with:
 
 .. code-block:: yaml
 
-   metal_pie_enabled: true
-   metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
-   metallicity: 1.0
+   par:
+     radiation:
+       metal_pie_enabled: true
+       metal_pie_table_filename: ../../../metal_pie_table/metal_pie_table_Z1_metals.h5
+       metallicity: 1.0
 
 The source update follows this sequence:
 

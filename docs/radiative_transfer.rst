@@ -3,7 +3,7 @@ Long-Characteristic Radiative Transfer
 
 RadHydropy includes an optional one-dimensional long-characteristic ray tracer
 for hydrogen ionizing photons. The module is disabled by default and is enabled
-with ``radiative_transfer=True``. When enabled, it computes a finite-volume
+with ``par.radiation.radiative_transfer: true``. When enabled, it computes a finite-volume
 cell-averaged photon number density and writes it to ``fluid.ngamma`` before
 the hydrogen source terms use ``n_gamma`` for photo-ionization and
 photo-heating.
@@ -94,12 +94,12 @@ The implementation lives in :mod:`radhydropy.radiative_transfer`. The runner
 calls ``Solver.ApplyRadiativeTransfer`` after the hydrodynamic update and
 before ``Solver.AddHydrogenSources``. Inside the hydrogen source subcycling,
 the ray trace is repeated so the photon field responds to the current neutral
-fraction. When ``radiative_transfer=True``, the local analytic
-``hydrogen_radiation_evolution`` sink is ignored to avoid double attenuation:
+fraction. When ``par.radiation.radiative_transfer: true``, the local analytic
+``par.thermochemistry.hydrogen_radiation_evolution`` sink is ignored to avoid double attenuation:
 the ray tracer supplies ``n_gamma`` instead.
 
 The default C²-Ray temporal scheme is selected with
-``radiative_transfer_temporal_scheme: c2ray``. It processes cells in causal
+``par.radiation.radiative_transfer_temporal_scheme: c2ray``. It processes cells in causal
 source-to-boundary order. For each cell it iterates the time-averaged neutral
 fraction, computes the conservative absorbed photon rate, relaxes the local
 hydrogen chemistry over the source timestep, and only then passes the outgoing
@@ -145,20 +145,22 @@ cells rather than as an all-mesh vector operation.
 
 The implementation supports scalar and multigroup source rates and reuses the
 shared transport geometry. The current thermo-chemistry coupling is limited
-to ``thermochemistry_network: hydrogen``. The ordinary instantaneous scheme
+to ``par.thermochemistry.thermochemistry_network: hydrogen``. The ordinary instantaneous scheme
 remains the default and is used for H/He runs.
 
 The C²-Ray controls are:
 
 .. code-block:: yaml
 
-   radiative_transfer_temporal_scheme: c2ray
-   radiative_transfer_c2ray_max_iterations: 32
-   radiative_transfer_c2ray_tolerance: 1.0e-6
-   radiative_transfer_c2ray_relaxation: 1.0
-   radiative_transfer_c2ray_nonconvergence: raise
+   par:
+     radiation:
+       radiative_transfer_temporal_scheme: c2ray
+       radiative_transfer_c2ray_max_iterations: 32
+       radiative_transfer_c2ray_tolerance: 1.0e-6
+       radiative_transfer_c2ray_relaxation: 1.0
+       radiative_transfer_c2ray_nonconvergence: raise
 
-``radiative_transfer_c2ray_relaxation`` is between zero and one; one uses the
+``par.radiation.radiative_transfer_c2ray_relaxation`` is between zero and one; one uses the
 new iterate directly, while smaller values under-relax the opacity update.
 The nonconvergence policy can be ``warn``, ``raise``, or a silent fallback
 after the iteration limit. For production runs, ``raise`` is useful when an
@@ -209,10 +211,12 @@ groups is ``len(radiation_group_edges_eV) - 1``. For example,
 
 .. code-block:: yaml
 
-   radiation_group_edges_eV: [13.6, 24.6, 54.4, 10000.0]
-   radiation_group_sigma_gamma: [2.99e-18, 5.66e-19, 7.84e-20]
-   radiation_group_epsilon_gamma: [6.17e-12, 2.81e-11, 7.77e-11]
-   radiative_transfer_source_photon_rate_groups: [2.24e48, 2.48e48, 2.94e47]
+   par:
+     radiation:
+       radiation_group_edges_eV: [13.6, 24.6, 54.4, 10000.0]
+       radiation_group_sigma_gamma: [2.99e-18, 5.66e-19, 7.84e-20]
+       radiation_group_epsilon_gamma: [6.17e-12, 2.81e-11, 7.77e-11]
+       radiative_transfer_source_photon_rate_groups: [2.24e48, 2.48e48, 2.94e47]
 
 creates three groups. Cross-sections and excess photoheating energies have one
 entry per group. The source-rate and boundary-flux arrays also have one entry

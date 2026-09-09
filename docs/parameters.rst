@@ -18,7 +18,7 @@ Every run must define a mandatory ``par.units.CodeUnits`` block.
 
 Cosmological initial conditions and outputs carry their cosmology and variable
 representation in the HDF5 ``Header``. When
-``supercomoving_coordinates: true`` is selected, the file stores comoving
+``par.gravity.supercomoving_coordinates: true`` is selected, the file stores comoving
 radius, supercomoving time, comoving density, supercomoving velocity, and
 supercomoving thermodynamic variables. The loader restores this mode from the
 header, including the Einstein--de Sitter reference time and scale factor.
@@ -114,7 +114,7 @@ the following order; use these nested names in new configurations:
      - Snapshot destinations and scheduling. Defaults are ``./``, ``./``,
        ``Output``, and a ``0.2 s`` cadence.
    * - ``diagnostics``
-     - ``verbose``, ``energy_diagnostics``, temperature-jump protection, plot
+     - ``par.diagnostics.verbose``, ``par.hydrodynamics.energy_diagnostics``, temperature-jump protection, plot
        limits, ``plot_exclude_outer_cells``
      - Runtime diagnostics and plotting controls; diagnostics are disabled or
        zero by default.
@@ -177,7 +177,9 @@ interpretation, not for the normal production path. Enable them in
 
 .. code-block:: yaml
 
-   energy_diagnostics: true
+   par:
+     hydrodynamics:
+       energy_diagnostics: true
 
 When enabled, RadHydropy records energy changes for each physical gas cell
 over every accepted hydro/source step. The tracked terms include:
@@ -242,12 +244,16 @@ state parameters:
 Thermo-Chemistry Keys
 ---------------------
 
+The keys in this section are members of ``par.thermochemistry`` unless a
+different group is stated explicitly.
+
 Thermo-chemistry is disabled by default. The active network is selected by
-``thermochemistry_network``; available networks are ``hydrogen``,
+``par.thermochemistry.thermochemistry_network``; available networks are ``hydrogen``,
 ``hydrogen_helium``, ``cie_cooling``, and ``pie_uvbg_cooling``.
-The species composition preset is selected separately with ``chemistry_key``
+The species composition preset is selected separately with
+``par.chemistry.chemistry_key``
 and currently supports values such as ``H`` and ``HHe``. Set
-``hydrogen_chemistry=True`` to evolve the neutral hydrogen fraction
+``par.thermochemistry.hydrogen_chemistry: true`` to evolve the neutral hydrogen fraction
 ``xHI = nHI / nH`` and apply the associated line, ionization, bremsstrahlung,
 and case-B recombination cooling source terms. Source terms are subcycled
 inside each hydrodynamic step: the thermal equation is advanced explicitly
@@ -267,7 +273,7 @@ are not advected as independent fluid fields.
    * - Key
      - Meaning
      - Typical unit
-   * - ``thermochemistry_network``
+   * - ``par.thermochemistry.thermochemistry_network``
      - Thermo-chemistry network name: ``hydrogen``, ``hydrogen_helium``,
        ``cie_cooling``, or ``pie_uvbg_cooling``.
      - string
@@ -295,7 +301,7 @@ are not advected as independent fluid fields.
    * - ``chemistry_key``
      - Composition preset name used by :mod:`radhydropy.chemistry`.
      - string
-   * - ``hydrogen_chemistry``
+   * - ``par.thermochemistry.hydrogen_chemistry``
      - Enable hydrogen thermal and neutral-fraction source terms.
      - boolean
    * - ``hydrogen_mass_fraction``
@@ -376,7 +382,7 @@ are not advected as independent fluid fields.
    * - ``hydrogen_sigma_gamma``
      - Hydrogen photo-ionization cross-section.
      - area
-   * - ``metal_pie_enabled``
+   * - ``par.thermochemistry.metal_pie_enabled``
      - Add optional metal PIE heating and cooling to the coupled H/He source
        update. Metals do not change the mean molecular mass or H/He opacity.
      - boolean
@@ -408,7 +414,9 @@ are not advected as independent fluid fields.
 Radiative Transfer Keys
 -----------------------
 
-Set ``radiative_transfer=True`` to compute ``fluid.ngamma`` from the optional
+The keys in this section are members of ``par.radiation``.
+
+Set ``par.radiation.radiative_transfer: true`` to compute ``fluid.ngamma`` from the optional
 one-dimensional long-characteristic ray tracer before the hydrogen source terms
 are applied. See :doc:`radiative_transfer` for the implementation details.
 
@@ -419,7 +427,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
    * - Key
      - Meaning
      - Typical unit
-   * - ``radiative_transfer``
+   * - ``par.radiation.radiative_transfer``
      - Enable optional long-characteristic radiative transfer.
      - boolean
    * - ``radiative_transfer_method``
@@ -428,7 +436,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
    * - ``radiative_transfer_temporal_scheme``
      - ``c2ray`` (default) for causal, time-averaged C²-Ray source integration,
        or ``instantaneous`` for the existing update. With
-       ``thermochemistry_network: hydrogen_helium``, it also enables the
+       ``par.thermochemistry.thermochemistry_network: hydrogen_helium``, it also enables the
        coupled H/He C²-Ray update.
      - string
    * - ``radiative_transfer_c2ray_max_iterations``
@@ -490,6 +498,8 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
 Direct Radiation Pressure Keys
 -------------------------------
 
+The keys in this section are members of ``par.radiation``.
+
 Direct radiation pressure uses the absorbed photon rate returned by the
 thermo-chemistry source update. It is applied afterward as a momentum source;
 thermo-chemistry itself only updates the absorbed-photon bookkeeping and the
@@ -503,11 +513,11 @@ the dedicated dynamic example.
    * - Key
      - Meaning
      - Typical unit
-   * - ``radiation_pressure``
+   * - ``par.radiation.radiation_pressure``
      - Enable momentum deposition from absorbed photons. The default is
        ``false``.
      - boolean
-   * - ``radiation_pressure_efficiency``
+   * - ``par.radiation.radiation_pressure_efficiency``
      - Dimensionless coupling efficiency multiplying the absorbed photon
        momentum. ``1.0`` transfers all absorbed photon momentum to the gas.
      - dimensionless
@@ -522,11 +532,13 @@ The standard 20 pc radiation-pressure example uses:
 
 .. code-block:: yaml
 
-   radiative_transfer: true
-   radiation_pressure: true
-   radiation_pressure_efficiency: 1.0
+   par:
+     radiation:
+       radiative_transfer: true
+       radiation_pressure: true
+       radiation_pressure_efficiency: 1.0
 
-The example-specific ``radiation_pressure_source_luminosity`` key used by the
+The example-specific ``example.radiation_pressure_source_luminosity`` key used by the
 isolated thin-shell benchmark is not a core solver parameter; it supplies the
 synthetic source luminosity for that example's source-only step backend.
 
@@ -591,10 +603,12 @@ adds their accelerations before updating gas momentum and energy. A live
 Cosmology Keys
 --------------
 
+The keys in this section are members of ``par.gravity``.
+
 Cosmological expansion supports Einstein--de Sitter and flat matter--Lambda
 backgrounds and can be combined with supercomoving coordinates. The cosmology
 object is constructed automatically by :class:`radhydropy.params.Par` when
-``cosmological_expansion`` is enabled.
+``par.gravity.cosmological_expansion`` is enabled.
 
 .. list-table::
    :header-rows: 1
@@ -603,19 +617,19 @@ object is constructed automatically by :class:`radhydropy.params.Par` when
    * - Key
      - Meaning
      - Typical unit
-   * - ``cosmological_expansion``
+   * - ``par.gravity.cosmological_expansion``
      - Enable cosmological expansion and construct the configured background
        cosmology.
      - boolean
-   * - ``cosmological_gravity``
+   * - ``par.gravity.cosmological_gravity``
      - Enable density-contrast cosmological gravity. The homogeneous background
        is subtracted from the enclosed mass.
      - boolean
-   * - ``supercomoving_coordinates``
+   * - ``par.gravity.supercomoving_coordinates``
      - Store and evolve comoving coordinates, supercomoving time, comoving
        density, peculiar velocity, and supercomoving thermodynamic variables.
      - boolean
-   * - ``cosmology_type``
+   * - ``par.gravity.cosmology_type``
      - Background model: ``einstein_de_sitter`` or ``lambda_cdm`` (also accepted
        as ``EinsteinDeSitter`` or ``LambdaCDM``).
      - string
@@ -666,12 +680,14 @@ For a supercomoving run, set at minimum:
 
 .. code-block:: yaml
 
-   cosmological_expansion: true
-   cosmological_gravity: true
-   supercomoving_coordinates: true
-   cosmology_type: einstein_de_sitter
-   cosmology_t_ref: 1.0
-   cosmology_a_ref: 1.0
+   par:
+     gravity:
+       cosmological_expansion: true
+       cosmological_gravity: true
+       supercomoving_coordinates: true
+       cosmology_type: einstein_de_sitter
+       cosmology_t_ref: 1.0
+       cosmology_a_ref: 1.0
 
 Angular momentum in supercomoving coordinates
 ----------------------------------------------

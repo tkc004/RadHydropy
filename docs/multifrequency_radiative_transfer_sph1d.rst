@@ -132,8 +132,8 @@ The H/He variant can use the same causal update with
      --config multifrequency_radiative_transfer_sph1d_hhe_100myr_c2ray.yaml
 
 This selects the H/He C²-Ray path because it sets
-``thermochemistry_network`` to ``hydrogen_helium`` and
-``radiative_transfer_temporal_scheme`` to ``c2ray``.
+``par.thermochemistry.thermochemistry_network`` to ``hydrogen_helium`` and
+``par.radiation.radiative_transfer_temporal_scheme`` to ``c2ray``.
 It writes ``Output_C2Ray_*.hdf5`` and
 ``MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray.jpg``. In each cell,
 the local coupled H/He and thermal solve uses the transmitted multifrequency

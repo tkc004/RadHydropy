@@ -2,7 +2,7 @@ Direct Radiation Pressure
 =========================
 
 RadHydropy can convert the momentum of absorbed photons into a gas momentum
-source. This is enabled with ``radiation_pressure: true`` and is separate from
+source. This is enabled with ``par.radiation.radiation_pressure: true`` and is separate from
 the thermo-chemistry update.
 
 Physical model
@@ -16,7 +16,7 @@ the deposited momentum rate is
    \dot{p}_{\rm rad} = \epsilon\,s\,
    \frac{\dot{N}_{\rm abs} E_\gamma}{c},
 
-where ``epsilon`` is ``radiation_pressure_efficiency`` and ``s`` is the ray
+where ``epsilon`` is ``par.radiation.radiation_pressure_efficiency`` and ``s`` is the ray
 direction (``+1`` or ``-1``). For multiple photon groups, RadHydropy sums the
 energy-weighted contribution from every group.
 
@@ -66,8 +66,10 @@ The basic controls are:
 
 .. code-block:: yaml
 
-   radiation_pressure: true
-   radiation_pressure_efficiency: 1.0
+   par:
+     radiation:
+       radiation_pressure: true
+       radiation_pressure_efficiency: 1.0
 
 The efficiency is dimensionless. A value of one transfers all absorbed photon
 momentum to the gas; smaller values model incomplete coupling. The source
@@ -114,4 +116,3 @@ the dynamic Strömgren-sphere example:
 In that case the total radial gas momentum need not equal ``Lt/c`` because gas
 pressure, hydrodynamic fluxes, shell mass changes, and spherical geometry also
 contribute to the radial momentum diagnostic.
-

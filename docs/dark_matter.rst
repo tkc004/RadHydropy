@@ -79,7 +79,8 @@ only changes the timing of crossing resolution.
 Cosmological coupling
 ---------------------
 
-With ``cosmological_gravity`` and supercomoving coordinates enabled, gas and
+With ``par.gravity.cosmological_gravity`` and
+``par.gravity.supercomoving_coordinates`` enabled, gas and
 dark matter use one common excess-mass field. For a shell at comoving radius
 ``x``,
 

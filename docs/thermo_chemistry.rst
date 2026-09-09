@@ -11,7 +11,7 @@ and radiative-transfer updates through :class:`radhydropy.rsim.Rsim`.
 Activation and Coupling
 -----------------------
 
-The source-term network is selected with ``thermochemistry_network``. The
+The source-term network is selected with ``par.thermochemistry.thermochemistry_network``. The
 available networks are ``hydrogen``, ``hydrogen_helium``, ``cie_cooling``,
 and ``pie_uvbg_cooling``.
 The hydrogen network
@@ -28,7 +28,8 @@ Git LFS and clone the data repository when the tables are not already present::
    git lfs install
    git clone https://github.com/tkc004/RadhydropyData.git
 
-Use ``cie_ion_fraction_table`` and ``cie_cooling_table`` to point a CIE run
+Use ``par.thermochemistry.cie_ion_fraction_table`` and
+``par.thermochemistry.cie_cooling_table`` to point a CIE run
 to the downloaded files.
 
 In the standard coupled update, RadHydropy:
@@ -50,19 +51,19 @@ Useful Runtime Parameters
 The full parameter table lives in :doc:`parameters`. The thermo-chemistry
 controls most commonly used by the bundled examples are:
 
-* ``thermochemistry_network``: selects ``hydrogen``, ``hydrogen_helium``,
+* ``par.thermochemistry.thermochemistry_network``: selects ``hydrogen``, ``hydrogen_helium``,
   ``cie_cooling``, or ``pie_uvbg_cooling``.
-* ``chemistry_key``: selects the composition preset, such as ``H`` or
+* ``par.chemistry.chemistry_key``: selects the composition preset, such as ``H`` or
   ``HHe``.
-* ``hydrogen_chemistry``: enables hydrogen thermal and neutral-fraction
+* ``par.thermochemistry.hydrogen_chemistry``: enables hydrogen thermal and neutral-fraction
   updates.
-* ``hydrogen_mass_fraction``: hydrogen mass fraction used to compute ``nH``.
-* ``hydrogen_update_mu``: updates the mean molecular weight from ``xHI``.
-* ``hydrogen_thermal_coupling``: applies heating and cooling to the gas energy.
-* ``compton_cmb_enabled``: adds optional Compton heating/cooling from the CMB.
-* ``compton_cmb_redshift``: redshift used to calculate the CMB temperature.
-* ``cmb_temperature_0``: present-day CMB temperature, default ``2.7255 K``.
-* ``hydrogen_collisional_ionization``: includes collisional ionization.
+* ``par.chemistry.hydrogen_mass_fraction``: hydrogen mass fraction used to compute ``nH``.
+* ``par.thermochemistry.hydrogen_update_mu``: updates the mean molecular weight from ``xHI``.
+* ``par.thermochemistry.hydrogen_thermal_coupling``: applies heating and cooling to the gas energy.
+* ``par.thermochemistry.compton_cmb_enabled``: adds optional Compton heating/cooling from the CMB.
+* ``par.thermochemistry.compton_cmb_redshift``: redshift used to calculate the CMB temperature.
+* ``par.thermochemistry.cmb_temperature_0``: present-day CMB temperature, default ``2.7255 K``.
+* ``par.thermochemistry.hydrogen_collisional_ionization``: includes collisional ionization.
 * ``hydrogen_source_CFL`` and ``hydrogen_source_dtmin``: control source
   subcycling.
 * ``hydrogen_source_solver``: select ``hybrid`` (the default),
@@ -91,7 +92,8 @@ controls most commonly used by the bundled examples are:
   the local photon field update when ray tracing is not active.
 * ``hydrogen_ngamma_initial`` and ``hydrogen_sigma_gamma``: initial photon
   density and photo-ionization opacity.
-* ``metal_pie_enabled`` and ``metal_pie_table_filename``: enable PIE heating
+* ``par.thermochemistry.metal_pie_enabled`` and
+  ``par.thermochemistry.metal_pie_table_filename``: enable PIE heating
   and cooling and select the HDF5 PIE table.
 * ``metal_pie_redshift``: redshift used by the HM12 PIE UV-background table.
 * ``pie_uvbg_implicit_tolerance`` and ``pie_uvbg_implicit_max_retries``:
@@ -148,12 +150,14 @@ Enable it with:
 
 .. code-block:: yaml
 
-   thermochemistry_network: pie_uvbg_cooling
-   hydrogen_chemistry: true
-   metal_pie_enabled: true
-   metal_pie_table_filename: metal_pie_hm12_total.h5
-   metallicity: 1.0
-   metal_pie_redshift: 0.0
+   par:
+     thermochemistry:
+       thermochemistry_network: pie_uvbg_cooling
+       hydrogen_chemistry: true
+       metal_pie_enabled: true
+       metal_pie_table_filename: metal_pie_hm12_total.h5
+       metallicity: 1.0
+       metal_pie_redshift: 0.0
 
 The HM12 HDF5 cooling table is distributed separately through Git LFS in
 `tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. If the
@@ -180,9 +184,11 @@ rates from an HDF5 table without evolving a metal network. Enable it with:
 
 .. code-block:: yaml
 
-   metal_pie_enabled: true
-   metal_pie_table_filename: path/to/metal_pie_table_Z1_metals.h5
-   metallicity: 1.0
+   par:
+     thermochemistry:
+       metal_pie_enabled: true
+       metal_pie_table_filename: path/to/metal_pie_table_Z1_metals.h5
+       metallicity: 1.0
 
 For each local source update, the multigroup H/He radiation field is traced,
 then the ionization parameter is estimated as
