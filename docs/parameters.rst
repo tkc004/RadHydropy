@@ -78,6 +78,11 @@ The complete reference, including defaults, is maintained in
 ``example/all_parameters_default.yaml``. Its ``par`` mapping is organized in
 the following order; use these nested names in new configurations:
 
+The key names in the table are relative to the group in the first column. For
+example, ``energy_diagnostics`` means
+``par.hydrodynamics.energy_diagnostics``, while ``radiation_pressure`` means
+``par.radiation.radiation_pressure``.
+
 .. list-table:: Canonical nested runtime groups
    :header-rows: 1
    :widths: 20 42 38
@@ -97,7 +102,8 @@ the following order; use these nested names in new configurations:
        ``2``.
    * - ``hydrodynamics``
      - ``eos_type``, ``gamma``, ``temperature_proper``, ``CFL``, ``order``,
-       ``riemann_solver``, ``flux_limiter``, dual-energy, positivity, and
+       ``riemann_solver``, ``flux_limiter``, ``energy_diagnostics``, dual-energy,
+       positivity, and
        angular-momentum keys
      - EOS, reconstruction, dual-energy, positivity, and gas-rotation controls.
        Defaults include ``polytropic``, ``gamma: 1.4``, ``CFL: 0.1``, and
@@ -117,7 +123,7 @@ the following order; use these nested names in new configurations:
      - Snapshot destinations and scheduling. Defaults are ``./``, ``./``,
        ``Output``, and a ``0.2 s`` cadence.
    * - ``diagnostics``
-     - ``par.diagnostics.verbose``, ``par.hydrodynamics.energy_diagnostics``, temperature-jump protection, plot
+     - ``verbose``, temperature-jump protection, plot
        limits, ``plot_exclude_outer_cells``
      - Runtime diagnostics and plotting controls; diagnostics are disabled or
        zero by default.
@@ -176,7 +182,7 @@ Energy Diagnostics
 
 Energy diagnostics are intended for conservation checks and physical-flow
 interpretation, not for the normal production path. Enable them in
-``par`` with:
+``par.hydrodynamics`` with:
 
 .. code-block:: yaml
 
@@ -222,7 +228,7 @@ Boundary-Specific Keys
 ----------------------
 
 The spherical inflow and outflow boundary conditions use additional primitive
-state parameters:
+state parameters. These keys belong to the ``par.boundary`` group:
 
 .. list-table::
    :header-rows: 1
@@ -247,16 +253,17 @@ state parameters:
 Thermo-Chemistry Keys
 ---------------------
 
-The keys in this section are members of ``par.thermochemistry`` unless a
-different group is stated explicitly.
+The keys in this section belong to two groups: runtime source-network controls
+are in ``par.thermochemistry``, while composition and species-state controls
+are in ``par.chemistry``.
 
 Thermo-chemistry is disabled by default. The active network is selected by
-``par.thermochemistry.thermochemistry_network``; available networks are ``hydrogen``,
+``thermochemistry_network``; available networks are ``hydrogen``,
 ``hydrogen_helium``, ``cie_cooling``, and ``pie_uvbg_cooling``.
 The species composition preset is selected separately with
 ``par.chemistry.chemistry_key``
 and currently supports values such as ``H`` and ``HHe``. Set
-``par.thermochemistry.hydrogen_chemistry: true`` to evolve the neutral hydrogen fraction
+``hydrogen_chemistry: true`` to evolve the neutral hydrogen fraction
 ``xHI = nHI / nH`` and apply the associated line, ionization, bremsstrahlung,
 and case-B recombination cooling source terms. Source terms are subcycled
 inside each hydrodynamic step: the thermal equation is advanced explicitly
@@ -276,7 +283,7 @@ are not advected as independent fluid fields.
    * - Key
      - Meaning
      - Typical unit
-   * - ``par.thermochemistry.thermochemistry_network``
+   * - ``thermochemistry_network``
      - Thermo-chemistry network name: ``hydrogen``, ``hydrogen_helium``,
        ``cie_cooling``, or ``pie_uvbg_cooling``.
      - string
@@ -304,7 +311,7 @@ are not advected as independent fluid fields.
    * - ``chemistry_key``
      - Composition preset name used by :mod:`radhydropy.chemistry`.
      - string
-   * - ``par.thermochemistry.hydrogen_chemistry``
+   * - ``hydrogen_chemistry``
      - Enable hydrogen thermal and neutral-fraction source terms.
      - boolean
    * - ``hydrogen_mass_fraction``
@@ -385,7 +392,7 @@ are not advected as independent fluid fields.
    * - ``hydrogen_sigma_gamma``
      - Hydrogen photo-ionization cross-section.
      - area
-   * - ``par.thermochemistry.metal_pie_enabled``
+   * - ``metal_pie_enabled``
      - Add optional metal PIE heating and cooling to the coupled H/He source
        update. Metals do not change the mean molecular mass or H/He opacity.
      - boolean
@@ -417,9 +424,9 @@ are not advected as independent fluid fields.
 Radiative Transfer Keys
 -----------------------
 
-The keys in this section are members of ``par.radiation``.
+The keys in this section belong to the ``par.radiation`` group.
 
-Set ``par.radiation.radiative_transfer: true`` to compute ``fluid.ngamma`` from the optional
+Set ``radiative_transfer: true`` to compute ``fluid.ngamma`` from the optional
 one-dimensional long-characteristic ray tracer before the hydrogen source terms
 are applied. See :doc:`radiative_transfer` for the implementation details.
 
@@ -430,7 +437,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
    * - Key
      - Meaning
      - Typical unit
-   * - ``par.radiation.radiative_transfer``
+   * - ``radiative_transfer``
      - Enable optional long-characteristic radiative transfer.
      - boolean
    * - ``radiative_transfer_method``
@@ -439,7 +446,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
    * - ``radiative_transfer_temporal_scheme``
      - ``c2ray`` (default) for causal, time-averaged C²-Ray source integration,
        or ``instantaneous`` for the existing update. With
-       ``par.thermochemistry.thermochemistry_network: hydrogen_helium``, it also enables the
+       ``thermochemistry_network: hydrogen_helium``, it also enables the
        coupled H/He C²-Ray update.
      - string
    * - ``radiative_transfer_c2ray_max_iterations``
@@ -501,7 +508,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
 Direct Radiation Pressure Keys
 -------------------------------
 
-The keys in this section are members of ``par.radiation``.
+The keys in this section belong to the ``par.radiation`` group.
 
 Direct radiation pressure uses the absorbed photon rate returned by the
 thermo-chemistry source update. It is applied afterward as a momentum source;
@@ -516,11 +523,11 @@ the dedicated dynamic example.
    * - Key
      - Meaning
      - Typical unit
-   * - ``par.radiation.radiation_pressure``
+   * - ``radiation_pressure``
      - Enable momentum deposition from absorbed photons. The default is
        ``false``.
      - boolean
-   * - ``par.radiation.radiation_pressure_efficiency``
+   * - ``radiation_pressure_efficiency``
      - Dimensionless coupling efficiency multiplying the absorbed photon
        momentum. ``1.0`` transfers all absorbed photon momentum to the gas.
      - dimensionless
@@ -553,7 +560,9 @@ Gravity Keys
 
 Gravity source terms are disabled by default. They can combine external
 gravity, gas self-gravity, cosmological gravity, and live dark-matter shells.
-See :doc:`gravity` and :doc:`dark_matter` for the source models.
+These keys belong to the ``par.gravity`` group. Dark-matter shell controls are
+in ``par.dark_matter``. See :doc:`gravity` and :doc:`dark_matter` for the
+source models.
 
 .. list-table::
    :header-rows: 1
@@ -606,12 +615,13 @@ adds their accelerations before updating gas momentum and energy. A live
 Cosmology Keys
 --------------
 
-The keys in this section are members of ``par.gravity``.
+The cosmology keys in this section belong to the ``par.gravity`` group. The
+coordinate-representation keys are in ``par.simulation``.
 
 Cosmological expansion supports Einstein--de Sitter and flat matter--Lambda
 backgrounds and can be combined with supercomoving coordinates. The cosmology
 object is constructed automatically by :class:`radhydropy.params.Par` when
-``par.gravity.cosmological_expansion`` is enabled.
+``cosmological_expansion`` is enabled.
 
 .. list-table::
    :header-rows: 1
@@ -620,19 +630,19 @@ object is constructed automatically by :class:`radhydropy.params.Par` when
    * - Key
      - Meaning
      - Typical unit
-   * - ``par.gravity.cosmological_expansion``
+   * - ``cosmological_expansion``
      - Enable cosmological expansion and construct the configured background
        cosmology.
      - boolean
-   * - ``par.gravity.cosmological_gravity``
+   * - ``cosmological_gravity``
      - Enable density-contrast cosmological gravity. The homogeneous background
        is subtracted from the enclosed mass.
      - boolean
-   * - ``par.gravity.supercomoving_coordinates``
+   * - ``supercomoving_coordinates``
      - Store and evolve comoving coordinates, supercomoving time, comoving
        density, peculiar velocity, and supercomoving thermodynamic variables.
      - boolean
-   * - ``par.gravity.cosmology_type``
+   * - ``cosmology_type``
      - Background model: ``einstein_de_sitter`` or ``lambda_cdm`` (also accepted
        as ``EinsteinDeSitter`` or ``LambdaCDM``).
      - string
