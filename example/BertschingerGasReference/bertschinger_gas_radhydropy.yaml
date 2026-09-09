@@ -48,9 +48,9 @@ par:
     cosmology_a_ref: 1.0
     externalgravity: false
 initial_condition:
-  box_size_proper: {value: 800.0, unit: kpc}
-  radius_inner_proper: {value: 0.15, unit: kpc}
-  radius_outer_proper: {value: 800.0, unit: kpc}
+  box_size_comoving: {value: 800.0, unit: kpc}
+  radius_inner_comoving: {value: 0.15, unit: kpc}
+  radius_outer_comoving: {value: 800.0, unit: kpc}
   time_cosmic: 0.1
   perturbation_amplitude: 5.0
   mean_molecular_weight: 0.6

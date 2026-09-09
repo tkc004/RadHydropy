@@ -157,9 +157,9 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.close(ode_plot.figure)
     figure = savedir / 'BertschingerReference.jpg'
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].loglog(profiles['lambda'], np.maximum(profiles['rho_proper'], 1.0e-12))
+    axes[0].loglog(profiles['lambda_dimensionless'], np.maximum(profiles['rho_proper'], 1.0e-12))
     axes[0].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$\rho/\rho_b$')
-    axes[1].plot(profiles['lambda'], profiles['vel_proper'])
+    axes[1].plot(profiles['lambda_dimensionless'], profiles['vel_proper'])
     axes[1].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$v/(r_{ta}/t)$')
     for axis in axes:
         axis.grid(alpha=0.25)

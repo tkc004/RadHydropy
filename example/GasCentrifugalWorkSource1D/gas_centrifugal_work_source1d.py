@@ -47,10 +47,10 @@ def prepare_initial_condition(config):
 
 
 class InitialCondition(Rsim):
-    def __init__(self, par_config, radius_proper_code, rho_proper_code,
+    def __init__(self, config, radius_proper_code, rho_proper_code,
                  vel_proper_code, temp_proper_code,
                  specific_j, code_unit_system):
-        super().__init__(par_config)
+        super().__init__(config['par'])
         self.par.mesh.grid_cells = 1
         self.par.mesh.ghost_cells = 0
         self.par.simulation.coordinate_system = 'spherical'
@@ -75,7 +75,7 @@ def run_simulation(config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     radius_proper_code = quantity_to_value(initial_condition['radius_proper'], units.length_unit)
     initial = InitialCondition(
-        par, radius_proper_code,
+        config, radius_proper_code,
         quantity_to_value(initial_condition['rho_proper'], units.density_unit),
         quantity_to_value(initial_condition['radial_velocity'], units.velocity_unit),
         quantity_to_value(example_config['temperature_proper'], units.temperature_unit),

@@ -48,9 +48,9 @@ def _load_static_tools():
     return tools
 
 
-def _run_case(base_runtime, initial_condition, tools, label, scheme, steps, root):
-    par_case = deepcopy(base_runtime)
-    initial_condition_case = deepcopy(initial_condition)
+def _run_case(config, tools, label, scheme, steps, root):
+    case_config = deepcopy(config)
+    par_case = case_config['par']
     case_dir = root / label
     case_dir.mkdir(parents=True, exist_ok=True)
     par_case['simulation']['name'] = f'StaticStromgren_{label}'
@@ -60,11 +60,6 @@ def _run_case(base_runtime, initial_condition, tools, label, scheme, steps, root
     par_case['simulation']['initial_condition_filename'] = str(case_dir / 'InitialCondition.hdf5')
     par_case['radiation']['radiative_transfer_temporal_scheme'] = scheme
     par_case['timestep']['chemistry_timestep'] = par_case['simulation']['final_time'] / steps
-    case_config = {
-        'par': par_case,
-        'initial_condition': initial_condition_case,
-        'example': {},
-    }
     tools.write_initial_condition(case_config)
 
     sim = Rsim(case_config['par'])
@@ -169,7 +164,6 @@ def _write_summary(histories, config, filename):
 def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_comparison.yaml')):
     nested = eu.load_nested_example_config(config_filename)
 
-    initial_condition = nested['initial_condition']
     example = nested['example']
     root = Path(nested["par"]['output']['savedir']) / 'comparison_runs'
     root.mkdir(parents=True, exist_ok=True)
@@ -178,12 +172,12 @@ def main(config_filename=Path(__file__).with_name('static_stromgren_c2ray_compar
     histories = {}
     c2ray_steps = int(example['comparison_c2ray_steps'])
     histories[f'c2ray_{c2ray_steps}'] = _run_case(
-        nested["par"], initial_condition, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
+        nested, tools, f'c2ray_{c2ray_steps}', 'c2ray', c2ray_steps, root,
     )
     for steps in example['comparison_instantaneous_steps']:
         steps = int(steps)
         histories[f'instantaneous_{steps}'] = _run_case(
-            nested["par"], initial_condition, tools, f'instantaneous_{steps}',
+            nested, tools, f'instantaneous_{steps}',
             'instantaneous', steps, root,
         )
     figure = Path(nested["par"]['output']['savedir']) / 'StaticStromgrenC2RayComparison_IFront.jpg'

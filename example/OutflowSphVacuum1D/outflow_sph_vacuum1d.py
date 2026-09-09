@@ -74,22 +74,25 @@ def run(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('outflow did not fill any physical vacuum cells')
     figure = Path(output['directory']) / exampleparams['plot_filename']
     analytic_label_used = False
-    for time, rho, _, boundary in profiles:
-        radius = 0.5 * (boundary[1:] + boundary[:-1])
-        radius = radius[first:first + active_count]
-        rho = rho[first:first + active_count]
-        positive = rho > 0.0
+    for time_proper_code, rho_proper_code, _, boundary_proper_code in profiles:
+        radius_proper_code = 0.5 * (
+            boundary_proper_code[1:] + boundary_proper_code[:-1]
+        )
+        radius_proper_code = radius_proper_code[first:first + active_count]
+        rho_proper_code = rho_proper_code[first:first + active_count]
+        positive = rho_proper_code > 0.0
         if np.any(positive):
             line, = plt.loglog(
-                radius[positive], rho[positive], label=f't={time:.2f} s'
+                radius_proper_code[positive], rho_proper_code[positive],
+                label=f't={time_proper_code:.2f} s'
             )
             analytic, front = tools.analytic_density_profile(
-                radius, time, config,
-                cell_faces=boundary[first:first + active_count + 1],
+                radius_proper_code, time_proper_code, config,
+                cell_faces=boundary_proper_code[first:first + active_count + 1],
             )
             label = 'cold analytic profile' if not analytic_label_used else None
             plt.loglog(
-                radius, analytic, '--', color=line.get_color(), alpha=0.65,
+                radius_proper_code, analytic, '--', color=line.get_color(), alpha=0.65,
                 label=label,
             )
             if not analytic_label_used:

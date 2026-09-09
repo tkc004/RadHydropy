@@ -7,19 +7,19 @@ from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import quantity_to_value
 
 
-def analytic_density_profile(radius, time_proper_code, config, cell_faces=None):
+def analytic_density_profile(radius_proper_code, time_proper_code, config, cell_faces=None):
     """Cold spherical outflow profile, sampled as cell averages when given."""
-    radius = np.asarray(radius, dtype=float)
+    radius_proper_code = np.asarray(radius_proper_code, dtype=float)
     initial = config['initial_condition']
     boundary = config['par']['boundary']
     injection_radius = float(initial['radius_injection_proper'])
     density_outflow = float(boundary['rho_outflow_proper'])
     velocity_outflow = float(boundary['vel_outflow_proper'])
     front = injection_radius + velocity_outflow * float(time_proper_code)
-    profile = np.full_like(radius, np.nan, dtype=float)
+    profile = np.full_like(radius_proper_code, np.nan, dtype=float)
     if cell_faces is None:
-        inside = (radius >= injection_radius) & (radius <= front)
-        profile[inside] = density_outflow * (injection_radius / radius[inside])**2
+        inside = (radius_proper_code >= injection_radius) & (radius_proper_code <= front)
+        profile[inside] = density_outflow * (injection_radius / radius_proper_code[inside])**2
         return profile, front
     faces = np.asarray(cell_faces, dtype=float)
     left = np.maximum(faces[:-1], injection_radius)

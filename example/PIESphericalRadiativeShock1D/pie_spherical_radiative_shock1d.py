@@ -74,9 +74,11 @@ class CollidingStreamsSolver(Solver):
             self._copy_boundary_state(fluid, side, state)
 
 
-def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
-    case = copy.deepcopy(base_par)
-    case_dir = Path(base_par['output']['directory']).resolve() / label
+def _run_case(config, label, title, pie_enabled, metallicity, table):
+    case_config = copy.deepcopy(config)
+    case = case_config['par']
+    initial = case_config['initial_condition']
+    case_dir = Path(case['output']['directory']).resolve() / label
     case_dir.mkdir(parents=True, exist_ok=True)
     case['simulation'].update({
         'name': f"PIESphericalRadiativeShock1D_{label}",
@@ -90,12 +92,7 @@ def _run_case(base_par, initial, label, title, pie_enabled, metallicity, table):
 
     code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
 
-    case_config = {
-        'par': case,
-        'initial_condition': initial,
-        'example': {},
-        '_code_units': code_units,
-    }
+    case_config['_code_units'] = code_units
     eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(
         case_config
@@ -170,7 +167,7 @@ def main(config_filename=DEFAULT_CONFIG):
     table = MetalPIETable(thermo['metal_pie_table_filename'])
     Path(par['output']['directory']).mkdir(parents=True, exist_ok=True)
     results = [
-        _run_case(par, initial, label, title, pie_enabled, metallicity, table)
+        _run_case(config, label, title, pie_enabled, metallicity, table)
         for label, title, pie_enabled, metallicity in CASES
     ]
 

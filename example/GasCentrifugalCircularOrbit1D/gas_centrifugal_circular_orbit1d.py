@@ -67,9 +67,9 @@ class FixedCentralGravity:
 class CircularInitialCondition(Rsim):
     """HDF5-compatible spherical circular-orbit initial condition."""
 
-    def __init__(self, par_config, count, radius_min, radius_max, rho_proper_code, pre_proper_code,
+    def __init__(self, config, count, radius_min, radius_max, rho_proper_code, pre_proper_code,
                  central_mass, code_unit_system):
-        super().__init__(par_config)
+        super().__init__(config['par'])
         self.mesh.boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
         self.mesh.x_proper_code = 0.75 * (
             self.mesh.boundary_proper_code[1:]**4 - self.mesh.boundary_proper_code[:-1]**4
@@ -91,7 +91,7 @@ def run_rsim(config):
     initial_condition = config['initial_condition']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial = CircularInitialCondition(
-        par, int(par['mesh']['grid_cells']),
+        config, int(par['mesh']['grid_cells']),
         quantity_to_value(initial_condition['radius_inner_proper'], units.length_unit),
         quantity_to_value(initial_condition['radius_outer_proper'], units.length_unit),
         quantity_to_value(initial_condition['rho_proper'], units.density_unit),

@@ -58,9 +58,9 @@ def spherical_centers(boundary_proper_code):
 
 
 class InitialCondition(Rsim):
-    def __init__(self, par_config, count, radius_min, radius_max, rho_proper_code, temp_proper_code,
+    def __init__(self, config, count, radius_min, radius_max, rho_proper_code, temp_proper_code,
                  central_mass, rotation_factor, code_unit_system):
-        super().__init__(par_config)
+        super().__init__(config['par'])
         self.par.mesh.ghost_cells = 0
         boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
         radius_proper_code = spherical_centers(boundary_proper_code)
@@ -112,7 +112,7 @@ def run_simulation(config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
     initial = InitialCondition(
-        par, count,
+        config, count,
         quantity_to_value(initial_condition['radius_inner_proper'], units.length_unit),
         quantity_to_value(initial_condition['radius_outer_proper'], units.length_unit),
         quantity_to_value(initial_condition['rho_proper'], units.density_unit),

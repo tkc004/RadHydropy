@@ -40,17 +40,15 @@ def make_scale_free_shells(config):
     rho_comoving_code = float(cosmology.background_density(time_cosmic_code)) * scale_factor_dimensionless**3
     mass_comoving_code = rho_comoving_code * volume_comoving_code
     perturbation_amplitude = float(initial_condition['perturbation_amplitude'])
-    delta_mass = 4.0 * np.pi / 3.0 * rho_comoving * perturbation_amplitude
+    delta_mass = 4.0 * np.pi / 3.0 * rho_comoving_code * perturbation_amplitude
     delta = perturbation_amplitude / radius_comoving_code**3
     vel_supercomoving_code = -scale_factor_dimensionless**2 * hubble_code * delta * radius_comoving_code / 3.0
     shells = DarkMatterShells(
-        radius=radius_comoving_code,
-        velocity=vel_supercomoving_code,
-        mass=mass_comoving_code,
-        shell_id=np.arange(number),
-        fixed_enclosed_mass=delta_mass,
-        softening=float(initial_condition['softening']),
-        code_units=code_unit_system,
+        radius_comoving_code,
+        vel_supercomoving_code,
+        mass_comoving_code,
+        shell_id=np.arange(number), fixed_enclosed_mass=delta_mass,
+        softening=float(initial_condition['softening']), code_units=code_unit_system,
     )
     return shells, delta_mass
 
@@ -101,10 +99,10 @@ def similarity_profiles(shells, cosmic_time, cosmology, bins=256):
     cumulative = np.cumsum(shell_mass)
     mass_scaled = cumulative / ((4.0 * np.pi / 3.0) * rho_background * rta**3)
     return {
-        'lambda': lam,
+        'lambda_dimensionless': lam,
         'rho_proper': density_contrast,
         'vel_proper': velocity_scaled,
-        'mass': mass_scaled,
+        'mass_scaled_dimensionless': mass_scaled,
         'turnaround_radius': rta,
     }
 
