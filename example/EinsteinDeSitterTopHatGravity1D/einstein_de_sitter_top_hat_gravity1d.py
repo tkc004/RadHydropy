@@ -74,13 +74,13 @@ def main(config_filename=DEFAULT_CONFIG):
         sim.mesh, sim.fluid.rho_comoving_code, sim.par
     )
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    radius = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
+    radius_comoving_code = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
     tau = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     a = sim.par.cosmology.scale_factor_from_supercomoving(tau)
     cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
     rho_background = sim.par.cosmology.background_density(cosmic_time)
     analytic = et.top_hat_acceleration(
-        radius,
+        radius_comoving_code,
         quantity_to_value(initial_condition['radius_perturbation_comoving'], units.length_unit),
         float(initial_condition['overdensity']),
         rho_background * a**3, a, sim.par.cosmology.gravitational_constant,
@@ -97,11 +97,11 @@ def main(config_filename=DEFAULT_CONFIG):
         'EinsteinDeSitterTopHatGravity1D.jpg',
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].plot(radius, numerical[physical], label='numerical')
-    axes[0].plot(radius, analytic, '--', label='analytic')
+    axes[0].plot(radius_comoving_code, numerical[physical], label='numerical')
+    axes[0].plot(radius_comoving_code, analytic, '--', label='analytic')
     axes[0].set(xlabel='comoving radius [code length]', ylabel='supercomoving acceleration')
     axes[0].legend(); axes[0].grid(alpha=0.25)
-    axes[1].plot(radius[comparison], error)
+    axes[1].plot(radius_comoving_code[comparison], error)
     axes[1].set(xlabel='comoving radius [code length]', ylabel='relative error')
     axes[1].grid(alpha=0.25)
     fig.tight_layout(); fig.savefig(filename, dpi=200); plt.close(fig)

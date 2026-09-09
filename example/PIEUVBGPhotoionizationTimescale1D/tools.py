@@ -39,9 +39,14 @@ def build_initial_condition(config):
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * initial['temperature_proper'], code_units.temperature_unit
     ))
-    rho = float(initial['hydrogen_number_density'].to_value(1 / unyt.cm**3)) * float(initial['proton_mass_g']) / float(initial['hydrogen_mass_fraction'])
+    rho_proper_cgs_g_cm3 = (
+        float(initial['hydrogen_number_density'].to_value(1 / unyt.cm**3))
+        * float(initial['proton_mass_g'])
+        / float(initial['hydrogen_mass_fraction'])
+    )
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * rho * unyt.g / unyt.cm**3, code_units.density_unit
+        np.ones(grid_cells) * rho_proper_cgs_g_cm3 * unyt.g / unyt.cm**3,
+        code_units.density_unit,
     ))
     result.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
     result.fluid.time_proper_code = 0.0

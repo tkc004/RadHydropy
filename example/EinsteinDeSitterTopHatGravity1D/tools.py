@@ -16,19 +16,23 @@ def spherical_cell_centers(boundary_comoving_code):
     return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
-def top_hat_acceleration(radius, top_hat_radius, overdensity, rho_background,
+def top_hat_acceleration(radius_comoving_code, radius_top_hat_comoving_code,
+                         overdensity_dimensionless, rho_background_comoving_code,
                          scale_factor, gravitational_constant):
     """Analytic supercomoving acceleration from a spherical density excess."""
-    radius = np.asarray(radius, dtype=float)
-    enclosed_radius = np.minimum(radius, float(top_hat_radius))
+    radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
+    enclosed_radius_comoving_code = np.minimum(
+        radius_comoving_code, float(radius_top_hat_comoving_code)
+    )
     acceleration = (
         -4.0 * np.pi / 3.0
         * gravitational_constant
         * scale_factor
-        * float(overdensity) * float(rho_background)
-        * enclosed_radius**3 / np.maximum(radius, 1.0e-300)**2
+        * float(overdensity_dimensionless) * float(rho_background_comoving_code)
+        * enclosed_radius_comoving_code**3
+        / np.maximum(radius_comoving_code, 1.0e-300)**2
     )
-    return np.where(radius > 0.0, acceleration, 0.0)
+    return np.where(radius_comoving_code > 0.0, acceleration, 0.0)
 
 
 def build_initial_condition(config):

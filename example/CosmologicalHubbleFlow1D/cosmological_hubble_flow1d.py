@@ -150,9 +150,9 @@ def run():
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
         x_comoving_code = sim.mesh.x_comoving_code[first:last]
-        velocity = sim.fluid.vel_supercomoving_code[first:last]
+        vel_supercomoving_code = sim.fluid.vel_supercomoving_code[first:last]
         positions = code_values(x_comoving_code, units.length_unit)
-        peculiar = code_values(velocity, units.velocity_unit)
+        peculiar = code_values(vel_supercomoving_code, units.velocity_unit)
         proper_velocity_code = final_hubble * final_a * positions + peculiar / final_a
         expected_hubble_code = (
             physical.hubble(final_time_gyr)

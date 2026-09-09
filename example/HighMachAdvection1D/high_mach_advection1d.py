@@ -14,7 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import radhydropy.io as rio
 
 import tools as et
@@ -104,7 +104,10 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         temp_proper_code=np.asarray(temp_proper_code_history),
     )
     times = np.asarray([item["time_proper_code"] for item in history])
-    radius_scale = max(float(np.asarray(initial_condition["box_size_proper"])), 1.0)
+    radius_scale_proper_code = max(
+        quantity_to_value(initial_condition["box_size_proper"], code_units.length_unit),
+        1.0,
+    )
 
     def save_profile_map(values, filename, title, colorbar_label, **image_kwargs):
         values = np.asarray(values)
@@ -113,7 +116,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         log_values[positive] = np.log10(values[positive])
         figure, axis = plt.subplots(figsize=(7.5, 5.0))
         image = axis.pcolormesh(
-            np.asarray(entropy_radius_proper_code) / radius_scale,
+            np.asarray(entropy_radius_proper_code) / radius_scale_proper_code,
             times,
             np.ma.masked_invalid(log_values),
             shading="auto",

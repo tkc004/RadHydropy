@@ -96,7 +96,7 @@ class UniformEdSInitialCondition(Rsim):
 def analytic_compton_temperature(
     cosmic_times_s,
     temperature_proper_cgs_K,
-    initial_cosmic_time,
+    time_cosmic_cgs_s,
     cosmology,
     time_unit_s,
     hydrogen_density_cgs_cm3,
@@ -111,7 +111,7 @@ def analytic_compton_temperature(
 
     from radhydropy.thermo_networks.compton import cmb_compton_rate
 
-    rho = (
+    rho_proper_cgs_g_cm3 = (
         hydrogen_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
     )
     ne = hydrogen_density_cgs_cm3 * (1.0 - xHI)
@@ -124,23 +124,23 @@ def analytic_compton_temperature(
     # a^-4.  At z=0, source_slope is C * ne * T0^5.
     coefficient = source_slope / cmb_temperature_0_cgs_K
     temperature_coefficient = (
-        (gamma - 1.0) * mu * PROTON_MASS_CGS / rho
+        (gamma - 1.0) * mu * PROTON_MASS_CGS / rho_proper_cgs_g_cm3
         / float(unyt.kb.to_value("erg/K"))
         * coefficient
     )
 
-    initial_time_s = float(initial_cosmic_time) * time_unit_s
-    final_time_s = float(np.max(cosmic_times_s))
+    initial_time_cosmic_cgs_s = float(time_cosmic_cgs_s) * time_unit_s
+    final_time_cosmic_cgs_s = float(np.max(cosmic_times_s))
 
-    def rhs(time_s, values):
-        time_proper_code = time_s / time_unit_s
+    def rhs(time_cosmic_cgs_s_value, values):
+        time_proper_code = time_cosmic_cgs_s_value / time_unit_s
         scale_factor = float(cosmology.scale_factor(time_proper_code))
         cmb_temperature = cmb_temperature_0_cgs_K / scale_factor
         return [temperature_coefficient * scale_factor ** -4 * (cmb_temperature - values[0])]
 
     solution = solve_ivp(
         rhs,
-        (initial_time_s, final_time_s),
+        (initial_time_cosmic_cgs_s, final_time_cosmic_cgs_s),
         [temperature_proper_cgs_K],
         t_eval=np.asarray(cosmic_times_s, dtype=float),
         rtol=1.0e-10,

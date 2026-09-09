@@ -93,20 +93,9 @@ def write_initial_condition(config, filename):
 
 
 def load_output_state(filename, config):
-    from radhydropy.fluid import Fluid
-    from radhydropy.mesh import Mesh
-    from radhydropy.params import Par
-
-    par = Par(config['par'])
-    mesh = Mesh()
-    fluid = Fluid()
-    rio.readhdf5(par, mesh, fluid, filename)
-    ghost_cells = par.mesh.ghost_cells
-    grid_cells = par.mesh.grid_cells
-    if ghost_cells > 0:
-        mesh.boundary_proper_code = mesh.boundary_proper_code[ghost_cells:-ghost_cells]
-    mesh.SetUpMesh(par)
-    return par, mesh, fluid
+    sim = Rsim(config["par"])
+    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    return sim.par, sim.mesh, sim.fluid
 
 
 def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):

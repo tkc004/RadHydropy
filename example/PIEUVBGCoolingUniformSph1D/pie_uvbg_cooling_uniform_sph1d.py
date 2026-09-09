@@ -103,9 +103,11 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     if len(snapshots) < 2:
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
-    temperature = float(case_config['initial_condition']["temperature_proper"].to_value(unyt.K))
+    temperature_proper_cgs_K = float(
+        case_config['initial_condition']["temperature_proper"].to_value(unyt.K)
+    )
     heating, cooling = table.rates(
-        temperature,
+        temperature_proper_cgs_K,
         hydrogen_density_cgs_cm3,
         metallicity=case_config['par']['thermochemistry']["metallicity"],
         redshift=case_config['par']['thermochemistry']["metal_pie_redshift"],

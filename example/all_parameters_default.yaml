@@ -89,7 +89,6 @@ par:
     filename_prefix: Output  # Prefix for snapshot filenames.
     cadence: {value: 0.2, unit: s}  # Time between scheduled outputs.
     time_interval: null  # Alternative output interval when cadence is unset.
-    time_list_filename: null  # Optional text file containing explicit output times.
 
   diagnostics:
     verbose: 0  # Logging level; larger values print more diagnostics.
@@ -99,7 +98,14 @@ par:
     plot_exclude_outer_cells: 0  # Number of outer cells omitted from plots.
 
   units:
-    CodeUnits: null  # Required unit-system mapping; null is only a template placeholder.
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMassInCGS: 1.0
+        UnitLengthInCGS: 1.0
+        UnitVelocityInCGS: 1.0
+        UnitCurrentInCGS: 1.0
+        UnitTempInCGS: 1.0
 
   thermochemistry:
     network: hydrogen  # Network; option: hydrogen, hydrogen_helium, cie_cooling, pie_uvbg_cooling.
@@ -131,7 +137,6 @@ par:
     hydrogen_hybrid_change_tolerance: 0.1  # Hybrid explicit-trial change threshold.
     hydrogen_implicit_max_refinements: 4  # Maximum implicit timestep refinements.
     hydrogen_split_implicit_max_subcycles: 100000  # Maximum split-implicit subcycles.
-    hydrogen_initial_collisional_equilibrium: false  # Initialize from collisional equilibrium.
     relative_tolerance: 1.0e-3  # Relative tolerance for network integration.
     absolute_tolerance: 1.0e-10  # Absolute tolerance for network integration.
     explicit_tolerance: 0.1  # Explicit source-update tolerance.

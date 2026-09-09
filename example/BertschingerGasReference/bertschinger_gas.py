@@ -48,15 +48,19 @@ def exterior_solution(lambda_values, theta_points=20000):
     tau, dtau = _collapse_parametric(theta)
     lam = 0.5 * (1.0 - np.cos(theta)) * tau**(-ALPHA)
     # v/(r_ta/t), obtained by differentiating r=A(1-cos(theta)).
-    vel = (np.sin(theta) * tau) / (2.0 * dtau) * tau**(-ALPHA)
-    mass = TURNAROUND_MASS * tau**(-2.0 / 3.0)
+    vel_dimensionless = (np.sin(theta) * tau) / (2.0 * dtau) * tau**(-ALPHA)
+    mass_dimensionless = TURNAROUND_MASS * tau**(-2.0 / 3.0)
     order = np.argsort(lam)
-    lam, mass, vel = lam[order], mass[order], vel[order]
-    density = np.gradient(mass, lam) / (3.0 * lam**2)
+    lam, mass_dimensionless, vel_dimensionless = (
+        lam[order], mass_dimensionless[order], vel_dimensionless[order]
+    )
+    density_dimensionless = np.gradient(mass_dimensionless, lam) / (3.0 * lam**2)
     requested = np.asarray(lambda_values, dtype=float)
     if np.any((requested < lam[0]) | (requested > lam[-1])):
         raise ValueError('requested exterior lambda is outside the tabulated range')
-    return tuple(np.interp(requested, lam, values) for values in (density, vel, mass))
+    return tuple(np.interp(requested, lam, values) for values in (
+        density_dimensionless, vel_dimensionless, mass_dimensionless
+    ))
 
 
 def _gas_rhs(lam, state, gamma=GAMMA):

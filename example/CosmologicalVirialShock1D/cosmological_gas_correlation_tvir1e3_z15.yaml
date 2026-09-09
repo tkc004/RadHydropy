@@ -48,7 +48,6 @@ par:
         UnitVelocity_in_cgs: 1.0e5
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-  gravity:
     selfgravity: true
     cosmological_expansion: true
     supercomoving_coordinates: true
@@ -96,4 +95,3 @@ example:
   gas_profile_cadence: 0.05
   linear_correlation_table_filename: outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5
   minimum_temperature:
-
