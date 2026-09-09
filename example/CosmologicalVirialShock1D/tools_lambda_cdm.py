@@ -37,7 +37,7 @@ def cell_centres(boundary_comoving_code):
     return 0.75 * (outer**4 - inner**4) / np.maximum(outer**3 - inner**3, 1.0e-300)
 
 
-def perturbation_radius(config):
+def radius_perturbation_comoving_code(config):
     """Return the comoving top-hat radius for the requested halo mass."""
     initial_condition = config["initial_condition"]
     code_unit_system = config["_code_unit_system"]
@@ -127,14 +127,14 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
     cosmology = config["_cosmology"]
     correlation_table = config.get("_correlation_table")
     radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
-    target_radius = perturbation_radius(config)
+    radius_perturbation_comoving_code_value = radius_perturbation_comoving_code(config)
     overdensity = float(initial_condition["initial_overdensity"])
     profile = str(initial_condition.get("rho_proper_profile", "top_hat")).lower()
     if profile == "top_hat":
-        inside = radius_comoving_code < target_radius
+        inside = radius_comoving_code < radius_perturbation_comoving_code_value
         delta = overdensity * inside
         mean_delta = overdensity * np.where(
-            inside, 1.0, (target_radius / np.maximum(radius_comoving_code, 1.0e-30)) ** 3
+            inside, 1.0, (radius_perturbation_comoving_code_value / np.maximum(radius_comoving_code, 1.0e-30)) ** 3
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
@@ -150,19 +150,19 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
         )
         target_mean_xi = float(
             _correlation_profile(
-                np.array([target_radius]), correlation_table,
+                np.array([radius_perturbation_comoving_code_value]), correlation_table,
                 length_unit_mpc_h,
             )[1][0]
         )
     else:
         correlation_length = float(
-            initial_condition.get("correlation_length", 0.5 * target_radius)
+            initial_condition.get("correlation_length", 0.5 * radius_perturbation_comoving_code_value)
         )
         xi = np.exp(-(radius_comoving_code / max(correlation_length, 1.0e-30)) ** 2)
         mean_xi = _gaussian_correlation_mean(radius_comoving_code, correlation_length)
         target_mean_xi = float(
             _gaussian_correlation_mean(
-                np.array([target_radius]), correlation_length
+                np.array([radius_perturbation_comoving_code_value]), correlation_length
             )[0]
         )
     if target_mean_xi <= 0.0:

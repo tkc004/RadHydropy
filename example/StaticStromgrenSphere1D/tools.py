@@ -110,7 +110,8 @@ def build_static_problem(config):
     return sim.par, sim.mesh, sim.fluid, sim.solver
 
 
-def _refresh_mesh_geometry(mesh, par):
+def _refresh_mesh_geometry(mesh, config):
+    par = config['_output_par']
     """Recompute derived mesh geometry from an already ghosted boundary."""
     mesh.width_proper_code = mesh.boundary_proper_code[1:] - mesh.boundary_proper_code[:-1]
     mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
@@ -169,7 +170,8 @@ def load_output_state(outputfilename, config):
     fluid.time_proper_code = par.time_proper_code
     if hasattr(fluid, 'ngamma_code'):
         fluid.ngamma_code = np.asarray(fluid.ngamma_code, dtype=float)
-    _refresh_mesh_geometry(mesh, par)
+    config['_output_par'] = par
+    _refresh_mesh_geometry(mesh, config)
     fluid.SetPressure()
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -190,28 +192,32 @@ def interior_slice(par):
     return slice(first, first + par.mesh.grid_cells)
 
 
-def _density_cgs_g_cm3(values, par):
+def _density_cgs_g_cm3(values, config):
+    par = config['_output_par']
     return code_quantity_to_cgs(values, par.units.CodeUnits, 'density_cgs_g_cm3')
 
 
-def _volume_cgs_cm3(values, par):
+def _volume_cgs_cm3(values, config):
+    par = config['_output_par']
     return code_quantity_to_cgs(values, par.units.CodeUnits, 'volume_cgs_cm3')
 
 
-def _radius_kpc(values, par):
+def _radius_kpc(values, config):
+    par = config['_output_par']
     return code_quantity_to_cgs(values, par.units.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm)
 
 
-def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
+def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
+    par = config['_output_par']
     interior = interior_slice(par)
-    radius = _radius_kpc(mesh.x_proper_code[interior], par) * unyt.kpc
+    radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
 
     ionized = xHI <= neutral_fraction
     if not np.any(ionized):
         return 0.0 * unyt.kpc
     if np.all(ionized):
-        return _radius_kpc(mesh.boundary_proper_code[interior.stop], par) * unyt.kpc
+        return _radius_kpc(mesh.boundary_proper_code[interior.stop], config) * unyt.kpc
 
     outer_ionized_index = np.where(ionized)[0][-1]
     left = outer_ionized_index
@@ -219,36 +225,39 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     x_left = xHI[left]
     x_right = xHI[right]
     if x_right == x_left:
-        return radius[left]
+        return radius_proper_kpc[left]
 
     weight = (neutral_fraction - x_left) / (x_right - x_left)
-    return radius[left] + weight * (radius[right] - radius[left])
+    return radius_proper_kpc[left] + weight * (radius_proper_kpc[right] - radius_proper_kpc[left])
 
 
-def ionized_hydrogen_atoms(mesh, fluid, par):
+def ionized_hydrogen_atoms(mesh, fluid, config):
+    par = config['_output_par']
     interior = interior_slice(par)
     nH = rth._cgs_hydrogen_number_density(
-        _density_cgs_g_cm3(fluid.rho_proper_code[interior], par),
+        _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
-    volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], par)
+    volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], config)
     return float(np.sum(ionized_fraction * nH * volume_cgs_cm3))
 
 
-def photons_in_volume(mesh, fluid, par):
+def photons_in_volume(mesh, fluid, config):
+    par = config['_output_par']
     interior = interior_slice(par)
     photon_density_cgs_cm3 = code_quantity_to_cgs(
         fluid.ngamma_code[interior], par.units.CodeUnits, 'number_density_cgs_cm3'
     )
-    volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], par)
+    volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], config)
     return float(np.sum(photon_density_cgs_cm3 * volume_cgs_cm3))
 
 
-def total_recombination_rate(mesh, fluid, par):
+def total_recombination_rate(mesh, fluid, config):
+    par = config['_output_par']
     interior = interior_slice(par)
     nH = rth._cgs_hydrogen_number_density(
-        _density_cgs_g_cm3(fluid.rho_proper_code[interior], par),
+        _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
     )
     ionized_fraction = 1.0 - np.asarray(fluid.xHI[interior])
@@ -256,24 +265,25 @@ def total_recombination_rate(mesh, fluid, par):
         par.chemistry.alpha_B
         * ionized_fraction**2
         * nH**2
-        * _volume_cgs_cm3(mesh.volume_proper_code[interior], par)
+        * _volume_cgs_cm3(mesh.volume_proper_code[interior], config)
     )
     return float(rate) / unyt.s
 
 
-def append_history(history, mesh, fluid, par, config, recombined_photons):
+def append_history(history, mesh, fluid, config, recombined_photons):
+    par = config['_output_par']
     radiation = config['par']['radiation']
     time_Myr = float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr))
     history['time_Myr'].append(time_Myr)
     history['front_radius_kpc'].append(
-        ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
+        ionization_front_position(mesh, fluid, config).to_value(unyt.kpc)
     )
     history['injected_photons'].append(
         (radiation['source_photon_rate'] * time_Myr * unyt.Myr).to_value('')
     )
-    history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, par))
+    history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, config))
     history['recombined_photons'].append(recombined_photons)
-    history['volume_photons'].append(photons_in_volume(mesh, fluid, par))
+    history['volume_photons'].append(photons_in_volume(mesh, fluid, config))
     history['accounted_photons'].append(
         history['ionized_atoms'][-1]
         + history['recombined_photons'][-1]
@@ -288,13 +298,13 @@ def save_plot(mesh, fluid, config, figure_filename):
     thermo = config['par']['thermochemistry']
     example = config.get('example', {})
     interior = interior_slice(par)
-    radius_kpc = _radius_kpc(mesh.x_proper_code[interior], par)
-    radius = radius_kpc * unyt.kpc
+    radius_kpc = _radius_kpc(mesh.x_proper_code[interior], config)
+    radius_proper_kpc = radius_kpc * unyt.kpc
     plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = 1.0 - xHI
     xHI_analytic = sa.neutral_fraction_profile(
-        radius,
+        radius_proper_kpc,
         initial['hydrogen_number_density'],
         thermo['hydrogen_sigma_gamma'],
         thermo['hydrogen_alpha_B'],
@@ -366,9 +376,9 @@ def save_front_history_plot(history, config, figure_filename):
     time_Myr = np.asarray(history['time_Myr'])
     front_radius_kpc = np.asarray(history['front_radius_kpc'])
     plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
-    time = time_Myr * unyt.Myr
+    time_myr = time_Myr * unyt.Myr
     analytic_front = sa.ionization_front_radius(
-        time,
+        time_myr,
         radiation['source_photon_rate'],
         initial['hydrogen_number_density'],
         thermo['hydrogen_alpha_B'],

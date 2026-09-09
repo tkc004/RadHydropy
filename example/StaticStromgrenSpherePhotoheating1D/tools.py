@@ -176,7 +176,8 @@ def write_initial_condition(config):
     rio.writehdf5(sim, filename)
 
 
-def _refresh_mesh_geometry(mesh, par):
+def _refresh_mesh_geometry(mesh, config):
+    par = config['_output_par']
     """Recompute derived mesh geometry from an already ghosted boundary."""
     mesh.width_proper_code = mesh.boundary_proper_code[1:] - mesh.boundary_proper_code[:-1]
     mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
@@ -216,7 +217,8 @@ def _refresh_mesh_geometry(mesh, par):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    _refresh_mesh_geometry(mesh, par)
+    config['_output_par'] = par
+    _refresh_mesh_geometry(mesh, config)
     return par, mesh, fluid
 
 
@@ -225,7 +227,8 @@ def interior_slice(par):
     return slice(first, first + par.mesh.grid_cells)
 
 
-def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
+def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
+    par = config['_output_par']
     interior = interior_slice(par)
     radius_proper_cgs_kpc_unyt = code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
@@ -248,7 +251,8 @@ def ionization_front_position(mesh, fluid, par, neutral_fraction=0.5):
     return radius_proper_cgs_kpc_unyt[left] + weight * (radius_proper_cgs_kpc_unyt[right] - radius_proper_cgs_kpc_unyt[left])
 
 
-def mean_ionized_temperature(fluid, par):
+def mean_ionized_temperature(fluid, config):
+    par = config['_output_par']
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior])
     temperature_proper_cgs_K = code_quantity_to_cgs(fluid.temp_proper_code[interior], par.units.CodeUnits, 'temperature_cgs_K')
@@ -258,12 +262,13 @@ def mean_ionized_temperature(fluid, par):
     return float(np.sum(ionized * temperature_proper_cgs_K) / np.sum(ionized))
 
 
-def append_history(history, mesh, fluid, par):
+def append_history(history, mesh, fluid, config):
+    par = config['_output_par']
     history['time_Myr'].append(float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr)))
     history['front_radius_kpc'].append(
-        ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
+        ionization_front_position(mesh, fluid, config).to_value(unyt.kpc)
     )
-    history['mean_ionized_temp_cgs_K'].append(mean_ionized_temperature(fluid, par))
+    history['mean_ionized_temp_cgs_K'].append(mean_ionized_temperature(fluid, config))
 
 
 def load_log_reference_profile(filename, radius_unit):
@@ -278,7 +283,8 @@ def load_log_reference_profile(filename, radius_unit):
     }
 
 
-def save_plot(mesh, fluid, par, history, config, figure_filename):
+def save_plot(mesh, fluid, history, config, figure_filename):
+    par = config['_output_par']
 
     radiation = config["par"]['radiation']
     thermo = config["par"]['thermochemistry']

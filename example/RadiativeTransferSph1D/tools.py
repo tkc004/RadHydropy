@@ -75,7 +75,8 @@ def build_static_problem(config):
 build_problem = build_static_problem
 
 
-def _refresh_mesh_geometry(mesh, par):
+def _refresh_mesh_geometry(mesh, config):
+    par = config['_output_par']
     mesh.width_proper_code = (
         mesh.boundary_proper_code[1:] - mesh.boundary_proper_code[:-1]
     )
@@ -115,7 +116,8 @@ def _refresh_mesh_geometry(mesh, par):
 def load_output_state(outputfilename, config):
     par, mesh, fluid, _ = build_static_problem(config)
     rio.readhdf5(par, mesh, fluid, outputfilename)
-    _refresh_mesh_geometry(mesh, par)
+    config['_output_par'] = par
+    _refresh_mesh_geometry(mesh, config)
     return par, mesh, fluid
 
 

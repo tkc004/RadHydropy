@@ -923,11 +923,11 @@ class Testing(unittest.TestCase):
             1.0e49,
         )
         self.assertEqual(
-            config['example']['wind_mass_loss_rate'].to_value(unyt.Msun / unyt.yr),
+            config['example']['wind_mass_loss_rate_proper'].to_value(unyt.Msun / unyt.yr),
             1.0e-6,
         )
         self.assertEqual(
-            config['example']['wind_velocity'].to_value(unyt.km / unyt.s),
+            config['example']['wind_velocity_proper'].to_value(unyt.km / unyt.s),
             1000.0,
         )
 
@@ -954,7 +954,11 @@ class Testing(unittest.TestCase):
             xHI=np.array([0.1, 0.2, 0.8, 0.2, 0.9]),
         )
 
-        front = tools.ionization_front_position(mesh, fluid, par)
+        front = tools.ionization_front_position(
+            mesh,
+            fluid,
+            {'_output_par': par},
+        )
 
         self.assertAlmostEqual(front, 2.5)
 

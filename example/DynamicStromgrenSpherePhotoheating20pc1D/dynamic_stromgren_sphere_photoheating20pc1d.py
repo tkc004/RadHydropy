@@ -59,6 +59,7 @@ def main(config_filename=None):
     out_par, out_mesh, out_fluid = et.load_output_state(
         outputfilenames[-1], config
     )
+    config['_output_par'] = out_par
     figure_stem = 'DynamicStromgrenSpherePhotoheating20pc1D'
     if config['par']['radiation'].get(
         'radiative_transfer_temporal_scheme'
@@ -66,7 +67,7 @@ def main(config_filename=None):
         figure_stem += '_C2Ray'
     figure_filename = Path(output['directory']) / f'{figure_stem}.jpg'
     front_figure_filename = Path(output['directory']) / f'{figure_stem}_IFront.jpg'
-    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
+    et.save_plot(out_mesh, out_fluid, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
 
     rhd_csv_filename = Path(output['directory']) / 'radial_profile_rhd.csv'

@@ -35,11 +35,11 @@ _BASE_BUILD_STATIC_PROBLEM = _template.build_static_problem
 def _wind_density(config):
     """Return the inner-boundary density implied by the requested mass loss."""
     example = config['example']
-    mass_loss_rate = example['wind_mass_loss_rate'].to(unyt.g / unyt.s)
-    wind_velocity = example['wind_velocity'].to(unyt.cm / unyt.s)
+    mass_loss_rate = example['wind_mass_loss_rate_proper'].to(unyt.g / unyt.s)
+    wind_velocity_proper_unyt = example['wind_velocity_proper'].to(unyt.cm / unyt.s)
     injection_radius_proper_cgs_cm_unyt = example['radius_injection_proper'].to(unyt.cm)
     return mass_loss_rate / (
-        4.0 * np.pi * injection_radius_proper_cgs_cm_unyt**2 * wind_velocity
+        4.0 * np.pi * injection_radius_proper_cgs_cm_unyt**2 * wind_velocity_proper_unyt
     )
 
 
@@ -51,8 +51,8 @@ def build_static_problem(config):
     example = config['example']
     par.boundary.condition = 'OutflowSph'
     par.boundary.rho_outflow_proper = _wind_density(config)
-    par.boundary.vel_outflow_proper = example['wind_velocity']
-    par.boundary.temperature_outflow_proper = example['wind_temperature']
+    par.boundary.vel_outflow_proper = example['wind_velocity_proper']
+    par.boundary.temperature_outflow_proper = example['wind_temperature_proper']
     par.boundary.outflow_mu = example['wind_mu']
 
     box_size_proper_cgs_cm = initial['box_size_proper'].to_value(unyt.cm)
@@ -96,10 +96,10 @@ def build_static_problem(config):
             _wind_density(config), par.units.CodeUnits.density_unit
         )
         wind_velocity_proper_code = quantity_to_value(
-            example['wind_velocity'], par.units.CodeUnits.velocity_unit
+            example['wind_velocity_proper'], par.units.CodeUnits.velocity_unit
         )
         wind_temperature_proper_code = quantity_to_value(
-            example['wind_temperature'], par.units.CodeUnits.temperature_unit
+            example['wind_temperature_proper'], par.units.CodeUnits.temperature_unit
         )
         fluid.rho_proper_code[active_slice] = wind_density_proper_code * (
             injection_radius_proper_code / cell_center_proper_code

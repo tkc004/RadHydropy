@@ -143,7 +143,7 @@ def _run_case(
     )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history['time_Myr']) * myr_seconds
-    temperature = np.asarray(history['mean_ionized_temp_cgs_K'])
+    temperature_cgs_K = np.asarray(history['mean_ionized_temp_cgs_K'])
     if example.get('compare_compton_analytic', True):
         analytic = _analytic_temperature(
             time_s,
@@ -152,12 +152,12 @@ def _run_case(
             float(case_initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3)),
             float(case_initial_condition['xHI']),
         )
-        relative_error = np.abs((temperature - analytic) / analytic)
+        relative_error = np.abs((temperature_cgs_K - analytic) / analytic)
         print('%s: max relative error=%.6e' % (label, np.max(relative_error)))
     else:
-        analytic = np.full_like(temperature, np.nan)
+        analytic = np.full_like(temperature_cgs_K, np.nan)
         print('%s: analytic Compton-only comparison disabled' % label)
-    return time_s, temperature, analytic
+    return time_s, temperature_cgs_K, analytic
 
 
 def _timestep_difference(coarse_history, fine_history):

@@ -140,50 +140,50 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused, halo):
     virial_radius_kpc = halo['virial_radius'].to_value(unyt.kpc)
     shock_positions = []
     shock_indices = []
-    for _, radius, _, temperature, _ in profiles:
-        index, position = _locate_shock(radius, temperature, virial_radius_kpc)
+    for _, radius_proper_kpc, _, temperature_proper_K, _ in profiles:
+        index, position = _locate_shock(radius_proper_kpc, temperature_proper_K, virial_radius_kpc)
         shock_indices.append(index)
         shock_positions.append(position)
 
     rows = []
     for snapshot_index in range(1, len(profiles) - 1):
-        time_myr, radius, density, temperature, velocity = profiles[snapshot_index]
-        previous_time = profiles[snapshot_index - 1][0]
-        next_time = profiles[snapshot_index + 1][0]
-        dt_myr = next_time - previous_time
-        if dt_myr <= 0.0:
+        time_proper_myr, radius_proper_kpc, density_proper_cgs_g_cm3, temperature_proper_K, velocity_proper_km_s = profiles[snapshot_index]
+        previous_time_proper_myr = profiles[snapshot_index - 1][0]
+        next_time_proper_myr = profiles[snapshot_index + 1][0]
+        dt_proper_myr = next_time_proper_myr - previous_time_proper_myr
+        if dt_proper_myr <= 0.0:
             continue
         shock_speed = (
             shock_positions[snapshot_index + 1]
             - shock_positions[snapshot_index - 1]
-        ) / dt_myr * 977.792221
+        ) / dt_proper_myr * 977.792221
         index = shock_indices[snapshot_index]
-        if index < 5 or index + 5 > len(radius):
+        if index < 5 or index + 5 > len(radius_proper_kpc):
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)
-        rho_upstream = float(np.median(density[upstream]))
-        rho_downstream = float(np.median(density[downstream]))
-        temp_upstream = float(np.median(temperature[upstream]))
-        temp_downstream = float(np.median(temperature[downstream]))
-        velocity_upstream = float(np.median(velocity[upstream]))
+        rho_upstream = float(np.median(density_proper_cgs_g_cm3[upstream]))
+        rho_downstream = float(np.median(density_proper_cgs_g_cm3[downstream]))
+        temperature_upstream_K = float(np.median(temperature_proper_K[upstream]))
+        temperature_downstream_K = float(np.median(temperature_proper_K[downstream]))
+        velocity_upstream_km_s = float(np.median(velocity_proper_km_s[upstream]))
         sound_speed = np.sqrt(
-            gamma * BOLTZMANN_CONSTANT_CGS * temp_upstream
+            gamma * BOLTZMANN_CONSTANT_CGS * temperature_upstream_K
             / (mu * PROTON_MASS_CGS)
         ) / 1.0e5
-        mach_number = abs(velocity_upstream - shock_speed) / max(sound_speed, 1.0e-30)
+        mach_number = abs(velocity_upstream_km_s - shock_speed) / max(sound_speed, 1.0e-30)
         predicted_density, predicted_temperature = rankine_hugoniot_ratios(
             mach_number, gamma
         )
         rows.append({
-            'time_Myr': time_myr,
+            'time_Myr': time_proper_myr,
             'shock_radius_kpc': shock_positions[snapshot_index],
             'shock_radius_over_R200': shock_positions[snapshot_index] / virial_radius_kpc,
             'shock_speed_km_s': shock_speed,
             'mach_number': mach_number,
             'measured_density_ratio': rho_downstream / max(rho_upstream, 1.0e-99),
             'predicted_density_ratio': float(predicted_density),
-            'measured_temperature_ratio': temp_downstream / max(temp_upstream, 1.0e-99),
+            'measured_temperature_ratio': temperature_downstream_K / max(temperature_upstream_K, 1.0e-99),
             'predicted_temperature_ratio': float(predicted_temperature),
         })
     return rows
@@ -236,8 +236,8 @@ def plot_snapshots(filenames, config, _unused, halo, figure_filename):
     axes[0].text(2.0 * virial_radius, 0.04, '2R200', transform=axes[0].get_xaxis_transform(), ha='center')
     axes[1].axhline(virial_temperature, color='red', ls=':', label=r'$T_{vir}$')
     axes[1].legend(frameon=False, fontsize=8)
-    mass = halo['mass'].to_value(unyt.Msun)
-    fig.suptitle('Adiabatic virial shock around %.2g Msun NFW halo' % mass)
+    halo_mass_msun = halo['mass'].to_value(unyt.Msun)
+    fig.suptitle('Adiabatic virial shock around %.2g Msun NFW halo' % halo_mass_msun)
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)

@@ -65,7 +65,7 @@ par:
 
 initial_condition:
   source_photon_rate: {value: 1.0e49, unit: 1/s}
-  rho_initial: {value: 5.21e-21, unit: g/cm**3}
+  rho_proper: {value: 5.21e-21, unit: g/cm**3}
   temperature_neutral_proper: {value: 1.0e3, unit: K}
   temperature_ionized_proper: {value: 1.0e4, unit: K}
   ionized_sound_speed: {value: 12.85, unit: km/s}

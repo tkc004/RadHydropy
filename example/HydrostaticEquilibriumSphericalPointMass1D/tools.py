@@ -51,7 +51,7 @@ def spherical_cell_centers(boundary_proper_code):
 
 def point_mass_hydrostatic_density_profile(
     x_proper_code,
-    rho_ref,
+    rho_reference_proper,
     temperature_proper_code,
     mu,
     point_mass,
@@ -79,12 +79,12 @@ def point_mass_hydrostatic_density_profile(
         point_mass_value = np.asarray(point_mass, dtype=float) * code_unit_scales(code_unit_system)["mass_g"]
     else:
         point_mass_value = float(point_mass)
-    if hasattr(rho_ref, "to_value"):
-        rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
+    if hasattr(rho_reference_proper, "to_value"):
+        rho_value = rho_reference_proper.to_value(unyt.g / unyt.cm**3)
     elif code_unit_system is not None:
-        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
+        rho_value = np.asarray(rho_reference_proper, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
     else:
-        rho_value = float(rho_ref)
+        rho_value = float(rho_reference_proper)
     phi_ref = -GRAVITATIONAL_CONSTANT_CGS * point_mass_value / reference_radius_value
     phi = -GRAVITATIONAL_CONSTANT_CGS * point_mass_value / coord_value
     exponent = -(phi - phi_ref) / c_s2_value

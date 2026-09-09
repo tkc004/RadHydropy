@@ -31,7 +31,7 @@ def build_problem(config):
     ) * unyt.cm
     boundary_proper_code = boundary_proper_cgs_cm_unyt.to_value(code_units.length_unit)
     density_proper_code = np.ones(grid_cells) * quantity_to_value(
-        initial['rho_initial'], code_units.density_unit
+        initial['rho_proper'], code_units.density_unit
     )
     temperature_proper_code = np.ones(grid_cells) * quantity_to_value(
         initial['temperature_neutral_proper'], code_units.temperature_unit
@@ -106,10 +106,11 @@ def load_labeled_density_snapshots(outputfilenames, config, output_specs):
         if label is None:
             continue
         out_par, out_mesh, out_fluid = load_output_state(outputfilenames[index], config)
+        config['_output_par'] = out_par
         snapshots.append(
             (
                 label,
-                density_snapshot(out_mesh, out_fluid, out_par),
+                density_snapshot(out_mesh, out_fluid, config),
             )
         )
     return snapshots
@@ -127,7 +128,8 @@ def interior_slice(par):
     return slice(ghost_cells, ghost_cells + grid_cells)
 
 
-def refresh_state(mesh, fluid, par, solver):
+def refresh_state(mesh, fluid, config, solver):
+    par = config['_output_par']
     solver.SetBoundary(mesh, fluid, par)
     solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
 
@@ -141,7 +143,8 @@ def apply_piecewise_isothermal_state(sim, config):
         initial_condition['temperature_neutral_proper'],
         initial_condition['temperature_ionized_proper'],
     )
-    refresh_state(mesh, fluid, par, solver)
+    config['_output_par'] = par
+    refresh_state(mesh, fluid, config, solver)
 
 
 def time_myr(value, code_unit_system):
@@ -261,7 +264,8 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
             rho_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
             xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
             vmax = np.max(np.abs(vel_proper_code)) / 1.0e5
-            front_radius = ionization_front_position(sim.mesh, sim.fluid, sim.par)
+            config['_output_par'] = sim.par
+            front_radius = ionization_front_position(sim.mesh, sim.fluid, config)
             print(
                 '--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
                 % (
@@ -310,7 +314,8 @@ def _scalar_in_unit(value, unit):
     return float(np.reshape(values, -1)[0])
 
 
-def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
+def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
+    par = config['_output_par']
     interior = interior_slice(par)
     radius_proper_pc = _value_in_unit(mesh.x_proper_code[interior], unyt.pc)
     xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
@@ -333,9 +338,10 @@ def ionization_front_position(mesh, fluid, par, ionized_fraction=0.5):
     return radius_proper_pc[left] + weight * (radius_proper_pc[right] - radius_proper_pc[left])
 
 
-def append_history(history, mesh, fluid, par):
+def append_history(history, mesh, fluid, config):
+    par = config['_output_par']
     history['time_Myr'].append(_scalar_in_unit(fluid.time_proper_code, unyt.Myr))
-    history['front_radius_pc'].append(ionization_front_position(mesh, fluid, par))
+    history['front_radius_pc'].append(ionization_front_position(mesh, fluid, config))
 
 
 def load_history_from_outputs(outputfilenames, config):
@@ -345,11 +351,13 @@ def load_history_from_outputs(outputfilenames, config):
     }
     for outputfilename in outputfilenames:
         par, mesh, fluid = load_output_state(outputfilename, config)
-        append_history(history, mesh, fluid, par)
+        config['_output_par'] = par
+        append_history(history, mesh, fluid, config)
     return history
 
 
-def density_snapshot(mesh, fluid, par):
+def density_snapshot(mesh, fluid, config):
+    par = config['_output_par']
     interior = interior_slice(par)
     ngamma_code = np.asarray(fluid.ngamma_code)
     if ngamma_code.ndim > 1:
@@ -380,7 +388,7 @@ def front_radius_at_time(history, time_proper_code):
 def stromgren_radius(config):
     config = config['initial_condition']
     nH = rth._cgs_hydrogen_number_density(
-        config['rho_initial'].to_value(unyt.g / unyt.cm**3),
+        config['rho_proper'].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
     ) * (1.0 / unyt.cm**3)
     radius_stromgren_proper_unyt = (

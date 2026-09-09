@@ -111,16 +111,16 @@ def _plot(histories, config, filename):
         )
     initial = config['initial_condition']
     example = config['example']
-    time = np.linspace(0.0, config['par']['simulation']['final_time'].to_value(unyt.Myr), 1200) * unyt.Myr
+    time_myr = np.linspace(0.0, config['par']['simulation']['final_time'].to_value(unyt.Myr), 1200) * unyt.Myr
     analytic = sa.ionization_front_radius(
-        time, example['source_photon_rate'], initial['hydrogen_number_density'],
+        time_myr, example['source_photon_rate'], initial['hydrogen_number_density'],
         example['alpha_B_coefficient'],
     ).to_value(unyt.kpc)
     radius_stromgren = sa.stromgren_radius(
         example['source_photon_rate'], initial['hydrogen_number_density'],
         example['alpha_B_coefficient'],
     ).to_value(unyt.kpc)
-    ax.plot(time.to_value(unyt.Myr), analytic, 'k-', lw=2.0, label='Analytic $R_I(t)$')
+    ax.plot(time_myr.to_value(unyt.Myr), analytic, 'k-', lw=2.0, label='Analytic $R_I(t)$')
     ax.axhline(radius_stromgren, color='0.3', lw=1.0, ls=':', label='$R_S$')
     ax_difference.axhline(0.0, color='0.3', lw=1.0, ls=':', label='Reference')
     ax.set_ylabel('Ionization-front radius [kpc]')

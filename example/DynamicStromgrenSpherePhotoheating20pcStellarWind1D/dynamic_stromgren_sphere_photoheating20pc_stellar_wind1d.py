@@ -50,13 +50,13 @@ def _pressure_diagnostic(snapshot, config):
     shell_index = int(np.argmax(hydrogen_number_density_cgs_cm3))
     shell_radius_pc = float(radius_pc[shell_index])
     if shell_radius_pc <= 0.0:
-        wind_pressure = 0.0
+        wind_pressure_proper_cgs_dyn_cm2 = 0.0
     else:
         example = config['example']
-        mdot = example['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
-        wind_velocity = example['wind_velocity'].to_value(unyt.cm / unyt.s)
+        mdot = example['wind_mass_loss_rate_proper'].to_value(unyt.g / unyt.s)
+        wind_velocity_proper_cgs_cm_s = example['wind_velocity_proper'].to_value(unyt.cm / unyt.s)
         shell_radius_cgs_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
-        wind_pressure = mdot * wind_velocity / (
+        wind_pressure_proper_cgs_dyn_cm2 = mdot * wind_velocity_proper_cgs_cm_s / (
             4.0 * np.pi * shell_radius_cgs_cm**2
         )
 
@@ -81,7 +81,7 @@ def _pressure_diagnostic(snapshot, config):
         else 0.0
     )
     time_myr = float(np.asarray(et._to_myr(fluid.time_proper_code, par)))
-    return time_myr, wind_pressure, gas_pressure, shell_radius_pc
+    return time_myr, wind_pressure_proper_cgs_dyn_cm2, gas_pressure, shell_radius_pc
 
 
 def pressure_diagnostic_from_profile(profile, config):
@@ -93,10 +93,10 @@ def pressure_diagnostic_from_profile(profile, config):
     shell_index = 2 + int(np.argmax(hydrogen_number_density_cgs_cm3[2:]))
     shell_radius_pc = float(radius_pc[shell_index])
     example = config['example']
-    mdot = example['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
-    wind_velocity = example['wind_velocity'].to_value(unyt.cm / unyt.s)
+    mdot = example['wind_mass_loss_rate_proper'].to_value(unyt.g / unyt.s)
+    wind_velocity_proper_cgs_cm_s = example['wind_velocity_proper'].to_value(unyt.cm / unyt.s)
     shell_radius_cgs_cm = shell_radius_pc * (1.0 * unyt.pc).to_value(unyt.cm)
-    wind_pressure = mdot * wind_velocity / (4.0 * np.pi * shell_radius_cgs_cm**2)
+    wind_pressure_proper_cgs_dyn_cm2 = mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * shell_radius_cgs_cm**2)
     photoheated = (np.arange(radius_pc.size) >= 2) & (
         np.arange(radius_pc.size) < shell_index
     ) & (temperature_proper_cgs_K > 500.0)
@@ -108,7 +108,7 @@ def pressure_diagnostic_from_profile(profile, config):
         )
     ) if np.any(photoheated) else 0.0
     time_myr = float(Path(profile).stem.rsplit('_', 1)[-1].replace('Myr', ''))
-    return time_myr, wind_pressure, gas_pressure, shell_radius_pc
+    return time_myr, wind_pressure_proper_cgs_dyn_cm2, gas_pressure, shell_radius_pc
 
 
 def save_pressure_ratio_plot(diagnostics, output_dir):

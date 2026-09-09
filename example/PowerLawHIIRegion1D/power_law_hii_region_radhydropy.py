@@ -98,7 +98,8 @@ def load_output_state(filename, config):
     return sim.par, sim.mesh, sim.fluid
 
 
-def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
+def front_radius_cgs_cm(mesh, fluid, config, neutral_fraction=0.5):
+    par = config['_output_par']
     first = par.mesh.ghost_cells
     interior = slice(first, first + par.mesh.grid_cells)
     radius_proper_cgs_cm = np.asarray(
@@ -120,7 +121,7 @@ def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
 def shock_radius_cgs_cm(
     mesh,
     fluid,
-    par,
+    config,
     core_number_density=1.0e6,
     core_radius_cgs_cm=2.1e16,
     density_power_law_exponent=1.0,
@@ -133,6 +134,7 @@ def shock_radius_cgs_cm(
     therefore not mistaken for a shock.  This is a profile diagnostic, not a
     replacement for a Riemann shock detector.
     """
+    par = config['_output_par']
     first = par.mesh.ghost_cells
     interior = slice(first, first + par.mesh.grid_cells)
     radius_cgs_cm = np.asarray(
@@ -144,7 +146,7 @@ def shock_radius_cgs_cm(
         dtype=float,
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
-    front = front_radius_cgs_cm(mesh, fluid, par)
+    front = front_radius_cgs_cm(mesh, fluid, config)
     if not np.isfinite(front):
         return np.nan
 
@@ -300,12 +302,13 @@ def main(config_filename=DEFAULT_CONFIG):
         time_s = code_quantity_to_cgs(fluid.time_proper_code, par.units.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)
         times_yr.append(time_yr)
-        radii_cm.append(front_radius_cgs_cm(mesh, fluid, par))
+        config['_output_par'] = par
+        radii_cm.append(front_radius_cgs_cm(mesh, fluid, config))
         shock_radii_cm.append(
             shock_radius_cgs_cm(
                 mesh,
                 fluid,
-                par,
+                config,
                 core_number_density=nc,
                 core_radius_cgs_cm=rc,
                 density_power_law_exponent=exponent,

@@ -85,10 +85,10 @@ def build_initial_condition(config):
         1.0 + float(initial_condition['overdensity']) * inside
     ) * np.ones(grid_cells)
     gamma = 5.0 / 3.0
-    temperature = quantity_to_value(
+    temperature_cgs_K = quantity_to_value(
         initial_condition['temperature_proper'], code_units.temperature_unit
     )
-    sim.fluid.temp_supercomoving_code = temperature * cosmology.scale_factor(cosmic_time)**2 * np.ones(grid_cells)
+    sim.fluid.temp_supercomoving_code = temperature_cgs_K * cosmology.scale_factor(cosmic_time)**2 * np.ones(grid_cells)
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
     sim.fluid.vel_supercomoving_code = np.zeros(grid_cells)
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(

@@ -90,14 +90,14 @@ def main(config_filename=DEFAULT_CONFIG):
     numerical_time = [0.0]
     numerical_radius_dimensionless = [shell.radius[0]]
     numerical_energy = [shell.specific_energy()[0]]
-    time = 0.0
-    while time < reference.t[-1]:
+    time_dimensionless = 0.0
+    while time_dimensionless < reference.t[-1]:
         dt = min(
             float(config["par"]['timestep']['output_interval']) / 4.0,
-            reference.t[-1] - time,
+            reference.t[-1] - time_dimensionless,
         )
-        time += shell.step(dt)
-        numerical_time.append(time)
+        time_dimensionless += shell.step(dt)
+        numerical_time.append(time_dimensionless)
         numerical_radius_dimensionless.append(shell.radius[0])
         numerical_energy.append(shell.specific_energy()[0])
 

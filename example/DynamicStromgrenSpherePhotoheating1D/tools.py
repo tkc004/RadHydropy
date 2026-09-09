@@ -224,9 +224,10 @@ def interior_slice(par):
 def ionization_front_position(
     mesh,
     fluid,
-    par,
+    config,
     neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
 ):
+    par = config['_output_par']
     interior = interior_slice(par)
     radius_proper_kpc = _to_kpc(mesh.x_proper_code[interior], par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
@@ -251,7 +252,8 @@ def ionization_front_position(
     return radius_proper_kpc[left] + weight * (radius_proper_kpc[right] - radius_proper_kpc[left])
 
 
-def mean_ionized_temperature(fluid, par):
+def mean_ionized_temperature(fluid, config):
+    par = config['_output_par']
     interior = interior_slice(par)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
@@ -261,17 +263,18 @@ def mean_ionized_temperature(fluid, par):
     return float(np.sum(ionized_weight * temperature_proper_cgs_K) / np.sum(ionized_weight))
 
 
-def append_history(history, mesh, fluid, par):
+def append_history(history, mesh, fluid, config):
+    par = config['_output_par']
     history['time_Myr'].append(_to_myr(fluid.time_proper_code, par))
     history['front_radius_kpc'].append(
         ionization_front_position(
             mesh,
             fluid,
-            par,
+            config,
             neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
         )
     )
-    history['mean_ionized_temperature_cgs_K'].append(mean_ionized_temperature(fluid, par))
+    history['mean_ionized_temperature_cgs_K'].append(mean_ionized_temperature(fluid, config))
 
 
 def load_history_from_outputs(outputfilenames, config):
@@ -282,7 +285,8 @@ def load_history_from_outputs(outputfilenames, config):
     }
     for outputfilename in outputfilenames:
         par, mesh, fluid = load_output_state(outputfilename, config)
-        append_history(history, mesh, fluid, par)
+        config['_output_par'] = par
+        append_history(history, mesh, fluid, config)
     return history
 
 
@@ -432,7 +436,8 @@ def save_front_plot(history, config, figure_filename):
     plt.close(fig)
 
 
-def save_plot(mesh, fluid, par, config, figure_filename):
+def save_plot(mesh, fluid, config, figure_filename):
+    par = config['_output_par']
     example = config.get('example', {})
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.x_proper_code[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)

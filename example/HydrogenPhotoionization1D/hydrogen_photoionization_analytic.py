@@ -6,11 +6,11 @@ import unyt
 import radhydropy.thermo_networks.hydrogen as rth
 
 
-def recombination_rate(temperature, hydrogen_number_density):
+def recombination_rate(temperature_proper_unyt, hydrogen_number_density_proper_unyt):
     """Return ``nH alpha_B``."""
 
-    alpha_B = rth._cgs_alpha_B(temperature.to_value(unyt.K))
-    nH = hydrogen_number_density.to(1.0 / unyt.cm**3)
+    alpha_B = rth._cgs_alpha_B(temperature_proper_unyt.to_value(unyt.K))
+    nH = hydrogen_number_density_proper_unyt.to(1.0 / unyt.cm**3)
     # `_cgs_alpha_B` returns a bare recombination coefficient in cm^3/s.
     # Attach the missing units before multiplying by the number density so the
     # result carries a rate dimension and can be safely converted to 1/s.
@@ -33,8 +33,8 @@ def photoionization_rate(photon_number_density, sigma_gamma):
 def neutral_fraction(
     time_proper_code,
     initial_neutral_fraction,
-    temperature,
-    hydrogen_number_density,
+    temperature_proper_unyt,
+    hydrogen_number_density_proper_unyt,
     photon_number_density,
     sigma_gamma,
 ):
@@ -42,8 +42,8 @@ def neutral_fraction(
 
     time_proper_code = np.asarray(time_proper_code) * unyt.yr
     rate_rec = recombination_rate(
-        temperature,
-        hydrogen_number_density,
+        temperature_proper_unyt,
+        hydrogen_number_density_proper_unyt,
     ).to_value(1.0 / unyt.s)
     rate_photo = photoionization_rate(
         photon_number_density,

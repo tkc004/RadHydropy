@@ -68,19 +68,19 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_delta = et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]
-    final_cosmic_time = float(config["par"]['simulation']['final_time'])
-    final_tau = float(cosmology.supercomoving_time(final_cosmic_time))
-    time = float(tau)
+    final_cosmic_time_code = float(config["par"]['simulation']['final_time'])
+    final_tau = float(cosmology.supercomoving_time(final_cosmic_time_code))
+    time_supercomoving_code = float(tau)
     dt = float(timestep['supercomoving_timestep'])
-    while time < final_tau:
-        step = min(dt, final_tau - time)
-        time_end = time + step
-        a_start = float(cosmology.scale_factor_from_supercomoving(time))
-        a_end = float(cosmology.scale_factor_from_supercomoving(time_end))
-        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(time))
+    while time_supercomoving_code < final_tau:
+        step = min(dt, final_tau - time_supercomoving_code)
+        time_supercomoving_end_code = time_supercomoving_code + step
+        a_start = float(cosmology.scale_factor_from_supercomoving(time_supercomoving_code))
+        a_end = float(cosmology.scale_factor_from_supercomoving(time_supercomoving_end_code))
+        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(time_supercomoving_code))
         rho_start = float(cosmology.background_density(cosmic_start)) * a_start**3
         background = 4.0 * np.pi / 3.0 * rho_start * shells.radius**3
-        cosmic_end = float(cosmology.cosmic_time_from_supercomoving(time_end))
+        cosmic_end = float(cosmology.cosmic_time_from_supercomoving(time_supercomoving_end_code))
         rho_end = float(cosmology.background_density(cosmic_end)) * a_end**3
         shells.step(
             step,
@@ -94,7 +94,7 @@ def main(config_filename=DEFAULT_CONFIG):
             lagrangian_radius_comoving_code, lagrangian_velocity, step, target_mass,
             rho_start, rho_end, a_start, a_end, units,
         )
-        time = time_end
+        time_supercomoving_code = time_supercomoving_end_code
         history_a.append(a_end)
         history_delta.append(et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_end))
 

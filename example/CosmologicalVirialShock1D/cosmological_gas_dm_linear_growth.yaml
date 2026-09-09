@@ -27,6 +27,13 @@ par:
     dtmax: 1.0
   gravity:
     cosmological_background_boundary_reconstruction: true
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
   output:
     directory: outputs_linear_growth
     filename_prefix: Output
@@ -39,13 +46,6 @@ par:
         UnitVelocity_in_cgs: 1.0e5
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-    selfgravity: true
-    cosmological_expansion: true
-    supercomoving_coordinates: true
-    cosmological_gravity: true
-    cosmology_type: einstein_de_sitter
-    cosmology_t_ref: 14.4
-    cosmology_a_ref: 1.0
   thermochemistry:
     hydrogen_collisional_ionization: false
     compton_cmb_enabled: false
@@ -75,6 +75,6 @@ initial_condition:
   cie_temperature_proper: 0.0001
 example:
   snapshot_count: 7
-  diagnostic_radius_min_comoving_kpc: 20.0
-  diagnostic_radius_max_comoving_kpc: 200.0
+  diagnostic_radius_min_comoving_code: 20.0
+  diagnostic_radius_max_comoving_code: 200.0
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

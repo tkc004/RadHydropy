@@ -80,19 +80,19 @@ def _history(example_dir, config_filename):
 
 def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
     no_pressure = _history(no_pressure_dir, no_pressure_dir / NO_PRESSURE_CONFIG.name)
-    pressure = _history(pressure_dir, pressure_dir / PRESSURE_CONFIG.name)
+    pressure_history = _history(pressure_dir, pressure_dir / PRESSURE_CONFIG.name)
     no_pressure = no_pressure[np.argsort(no_pressure[:, 0])]
-    pressure = pressure[np.argsort(pressure[:, 0])]
+    pressure_history = pressure_history[np.argsort(pressure_history[:, 0])]
 
-    common_times = np.intersect1d(pressure[:, 0], no_pressure[:, 0])
+    common_times = np.intersect1d(pressure_history[:, 0], no_pressure[:, 0])
     if common_times.size == 0:
         raise ValueError('The two examples have no snapshots at matching times.')
-    pressure = pressure[np.isin(pressure[:, 0], common_times)]
+    pressure_history = pressure_history[np.isin(pressure_history[:, 0], common_times)]
     no_pressure = no_pressure[np.isin(no_pressure[:, 0], common_times)]
-    pressure = pressure[np.argsort(pressure[:, 0])]
+    pressure_history = pressure_history[np.argsort(pressure_history[:, 0])]
     no_pressure = no_pressure[np.argsort(no_pressure[:, 0])]
 
-    energy_difference = pressure[:, 3] - no_pressure[:, 3]
+    energy_difference = pressure_history[:, 3] - no_pressure[:, 3]
     relative_difference = np.zeros_like(energy_difference)
     nonzero = no_pressure[:, 3] != 0.0
     relative_difference[nonzero] = energy_difference[nonzero] / no_pressure[nonzero, 3]

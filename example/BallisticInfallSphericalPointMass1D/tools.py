@@ -21,17 +21,17 @@ def spherical_cell_centers(boundary_proper_code):
 
 def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
     scales = code_unit_scales(code_unit_system) if code_unit_system is not None else None
-    mass = point_mass.to_value(unyt.g) if hasattr(point_mass, "to_value") else float(point_mass) * (scales["mass_g"] if scales else 1)
+    point_mass_g = point_mass.to_value(unyt.g) if hasattr(point_mass, "to_value") else float(point_mass) * (scales["mass_g"] if scales else 1)
     soft = softening.to_value(unyt.cm) if hasattr(softening, "to_value") else float(softening) * (scales["length_cgs_cm"] if scales else 1)
     def acceleration(x_proper_code):
-        radius = x_proper_code.to_value(code_unit_system.length_unit) if hasattr(x_proper_code, "to_value") and code_unit_system is not None else np.asarray(x_proper_code, dtype=float)
-        if scales is not None: radius = radius * scales["length_cgs_cm"]
-        radius = np.maximum(radius, soft)
-        return (-GRAVITATIONAL_CONSTANT_CGS * mass / radius**2) * ACCELERATION_UNIT
+        radius_cgs_cm = x_proper_code.to_value(code_unit_system.length_unit) if hasattr(x_proper_code, "to_value") and code_unit_system is not None else np.asarray(x_proper_code, dtype=float)
+        if scales is not None: radius_cgs_cm = radius_cgs_cm * scales["length_cgs_cm"]
+        radius_cgs_cm = np.maximum(radius_cgs_cm, soft)
+        return (-GRAVITATIONAL_CONSTANT_CGS * point_mass_g / radius_cgs_cm**2) * ACCELERATION_UNIT
     return acceleration
 
-def ballistic_density_profile(x_proper_code, rho_ref):
-    return np.ones(np.shape(x_proper_code), dtype=float) * rho_ref
+def ballistic_density_profile(x_proper_code, rho_reference_proper_code):
+    return np.ones(np.shape(x_proper_code), dtype=float) * rho_reference_proper_code
 
 def ballistic_velocity_profile(x_proper_code, point_mass, time_proper_code, softening=0.0, code_unit_system=None):
     t = time_seconds(time_proper_code, code_unit_system) * unyt.s if code_unit_system is not None else float(time_proper_code) * unyt.s

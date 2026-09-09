@@ -84,11 +84,12 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(mainrun, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
+    config['_output_par'] = out_par
     figure_name = 'StaticStromgrenSpherePhotoheating1D.jpg'
     if nested['par']['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
     figure_filename = Path(nested['par']['output']['directory']) / figure_name
-    et.save_plot(out_mesh, out_fluid, out_par, history, config, figure_filename)
+    et.save_plot(out_mesh, out_fluid, history, config, figure_filename)
 
     print('time = %s' % out_fluid.time_proper_code)
     if nested['par']['thermochemistry'].get('hydrogen_alpha_B') is None:

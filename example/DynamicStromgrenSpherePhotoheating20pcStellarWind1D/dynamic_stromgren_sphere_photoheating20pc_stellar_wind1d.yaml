@@ -79,9 +79,9 @@ initial_condition:
 example:
   plot_radius_max: {value: 20.0, unit: pc}
   reference_radius_unit: {value: 20.0, unit: pc}
-  wind_mass_loss_rate: {value: 1.0e-6, unit: Msun/yr}
-  wind_velocity: {value: 1000.0, unit: km/s}
-  wind_temperature: {value: 100.0, unit: K}
+  wind_mass_loss_rate_proper: {value: 1.0e-6, unit: Msun/yr}
+  wind_velocity_proper: {value: 1000.0, unit: km/s}
+  wind_temperature_proper: {value: 100.0, unit: K}
   wind_mu: 0.62
   radius_injection_proper: {value: 0.05, unit: pc}
   wind_injection_cells: 2

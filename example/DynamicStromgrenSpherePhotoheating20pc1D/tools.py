@@ -24,8 +24,9 @@ for _name, _value in vars(_template).items():
         globals()[_name] = _value
 
 
-def save_plot(mesh, fluid, par, config, figure_filename):
+def save_plot(mesh, fluid, config, figure_filename):
     """Save the 20 pc profile plot with a linear velocity axis."""
+    par = config['_output_par']
     example_config = config['example']
     interior = interior_slice(par)
     radius_pc = _to_kpc(mesh.x_proper_code[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)

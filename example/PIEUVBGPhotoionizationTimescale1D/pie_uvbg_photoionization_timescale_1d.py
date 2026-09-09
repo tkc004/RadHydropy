@@ -33,13 +33,15 @@ from tools import build_initial_condition, clean_outputs, load_history
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_photoionization_timescale_1d.yaml"
 
 
-def _equilibrium_temperature(table, density, redshift, metallicity):
+def _equilibrium_temperature(
+    table, hydrogen_number_density_cgs_cm3, redshift, metallicity
+):
     temperatures = np.logspace(
         table.log_temperature[0], table.log_temperature[-1], 4096
     )
     heating, cooling = table.rates(
         temperatures,
-        density,
+        hydrogen_number_density_cgs_cm3,
         redshift=redshift,
         metallicity=metallicity,
     )
@@ -100,21 +102,21 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     temperature_propers = (1.0e3, 1.0e4, 2.0e4, 1.0e5)
-    densities = (0.1, 1.0, 10.0)
+    hydrogen_number_densities_cgs_cm3 = (0.1, 1.0, 10.0)
     results = []
-    for density in densities:
+    for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
         equilibrium_temperature = _equilibrium_temperature(
-            table, density, redshift, metallicity
+            table, hydrogen_number_density_cgs_cm3, redshift, metallicity
         )
         for temperature_proper in temperature_propers:
-            case_name = f"nH_{density:g}_T_{temperature_proper:g}"
+            case_name = f"nH_{hydrogen_number_density_cgs_cm3:g}_T_{temperature_proper:g}"
             case_dir = output_dir / case_name
             clean_outputs(case_dir)
             case_config = {'par': {**par,
                 'simulation': {**par['simulation'], 'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5')},
                 'output': {**par['output'], 'directory': str(case_dir), 'filename_prefix': 'Output'}},
                 'initial_condition': {**initial_condition,
-                                      'hydrogen_number_density': density / unyt.cm**3,
+                                      'hydrogen_number_density': hydrogen_number_density_cgs_cm3 / unyt.cm**3,
                                       'temperature_proper': temperature_proper * unyt.K},
                 'example': config['example']}
             ric = _write_initial_condition(case_config, case_dir)
@@ -135,9 +137,9 @@ def main(config_filename=DEFAULT_CONFIG):
             # the saved snapshots from that list.
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[:len(history)]
-            temperature = np.array([item["temperature_cgs_K"] for item in history])
+            temperature_cgs_K = np.array([item["temperature_cgs_K"] for item in history])
             timescale_ratio = time_yr / photoionization_timescale_yr
-            error = np.abs(temperature - equilibrium_temperature) / equilibrium_temperature
+            error = np.abs(temperature_cgs_K - equilibrium_temperature) / equilibrium_temperature
             results.append(
                 {
                     "label": rf"$n_H={density:g},\ T_0={temperature_proper:.0e}$",

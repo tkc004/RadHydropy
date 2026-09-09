@@ -190,7 +190,7 @@ def main(config_filename=CONFIG):
     cosmology = EinsteinDeSitter()
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     x0_comoving_code = quantity_to_value(
-        initial_condition['radius_initial_comoving'], code_units.length_unit
+        initial_condition['radius_orbit_comoving'], code_units.length_unit
     )
     v0_supercomoving_code = quantity_to_value(
         initial_condition['vel_initial_proper'], code_units.velocity_unit

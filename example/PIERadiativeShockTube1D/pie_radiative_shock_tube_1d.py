@@ -40,7 +40,7 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
 
 def _run_case(
-    config, label, metallicity, hydrogen_density, table,
+    config, label, metallicity, hydrogen_number_density_cgs_cm3, table,
     adiabatic=False,
 ):
 
@@ -61,7 +61,7 @@ def _run_case(
     output_prefix = case_config['par']['output']['filename_prefix']
     case_config['par']['thermochemistry']['metallicity'] = metallicity
     case_initial = dict(initial)
-    case_initial['hydrogen_number_density'] = hydrogen_density * unyt.cm**-3
+    case_initial['hydrogen_number_density'] = hydrogen_number_density_cgs_cm3 * unyt.cm**-3
     code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config = {
         'par': case_config['par'],
@@ -245,9 +245,9 @@ def main(config_filename=DEFAULT_CONFIG):
         ('adiabatic_control', 1.0, 1.0e-3, True),
     ]
     results = []
-    for label, metallicity, hydrogen_density, adiabatic in cases:
+    for label, metallicity, hydrogen_number_density_cgs_cm3, adiabatic in cases:
         result = _run_case(
-            config, label, metallicity, hydrogen_density,
+            config, label, metallicity, hydrogen_number_density_cgs_cm3,
             table, adiabatic
         )
         if adiabatic:

@@ -54,7 +54,7 @@ def _read_profile(filename, config):
     pressure_proper_code = eos.pressure(
         rho_proper_code, temp_proper_code, mu
     )
-    mass = float(
+    total_mass_code = float(
         np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))
         if hasattr(fluid, "Mass_code")
         else np.sum(rho_proper_code * volume_proper_code[first:first + count])
@@ -112,15 +112,15 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     profiles = profiles[:13]
     initial_mass, initial_energy = profiles[0][4:6]
     final_mass, final_energy = profiles[-1][4:6]
-    temperature_proper = profiles[0][3]
-    final_temperature = profiles[-1][3]
+    temperature_proper_code = profiles[0][3]
+    final_temperature_proper_code = profiles[-1][3]
     thermal_energy = []
     for profile in profiles:
         thermal_energy.append(profile[6])
     thermal_energy = np.asarray(thermal_energy)
     if not thermal_energy[-1] > thermal_energy[0]:
         raise RuntimeError("converging flow did not increase thermal energy")
-    if not np.max(final_temperature) > 5.0 * np.max(temperature_proper):
+    if not np.max(final_temperature_proper_code) > 5.0 * np.max(temperature_proper_code):
         raise RuntimeError("converging flow did not produce a resolved central shock")
     if not np.isclose(final_mass, initial_mass, rtol=2.0e-6):
         raise RuntimeError("spherical reflecting benchmark lost mass")

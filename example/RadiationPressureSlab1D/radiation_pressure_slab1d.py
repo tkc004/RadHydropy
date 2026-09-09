@@ -93,12 +93,14 @@ def write_initial_condition(config):
     rio.writehdf5(sim, config['par']['simulation']['initial_condition_filename'])
 
 
-def _total_momentum(fluid, par):
+def _total_momentum(fluid, config):
+    par = config['_output_par']
     interior = slice(par.mesh.ghost_cells, par.mesh.ghost_cells + par.mesh.grid_cells)
     return float(np.sum(np.asarray(fluid.Mom_code[interior], dtype=float)))
 
 
-def _absorbed_momentum(source_result, mesh, par, dt):
+def _absorbed_momentum(source_result, mesh, config, dt):
+    par = config['_output_par']
     absorbed = source_result.get("absorbed_photon_rate")
     energies = source_result.get("photon_energy_cgs_erg")
     if absorbed is None or energies is None:
@@ -131,9 +133,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    config['_output_par'] = sim.par
 
     time_s = [0.0]
-    gas_momentum = [_total_momentum(sim.fluid, sim.par)]
+    gas_momentum = [_total_momentum(sim.fluid, config)]
     expected_momentum = [0.0]
     expected = 0.0
     sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
@@ -161,10 +164,10 @@ def main(config_filename=DEFAULT_CONFIG):
             source_result,
         )
         sim._sync_hydro_state()
-        expected += _absorbed_momentum(source_result, sim.mesh, sim.par, dt)
+        expected += _absorbed_momentum(source_result, sim.mesh, config, dt)
 
         time_s.append(float(np.asarray(sim.fluid.time_proper_code)))
-        gas_momentum.append(_total_momentum(sim.fluid, sim.par))
+        gas_momentum.append(_total_momentum(sim.fluid, config))
         expected_momentum.append(expected)
 
     time_cgs_s_unyt = np.asarray(time_s) * unyt.s

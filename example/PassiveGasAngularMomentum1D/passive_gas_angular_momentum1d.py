@@ -103,7 +103,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ):
         raise RuntimeError('HDF5 restart changed J/M')
 
-    radius = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
+    radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     figure = Path(config["par"]['output']['directory']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
     final_density_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
@@ -118,17 +118,17 @@ def main(config_filename=DEFAULT_CONFIG):
         (axes[1, 0], temperature_proper_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
     )
     for axis, initial_values, final_values, ylabel in hydro_plots:
-        axis.plot(radius, initial_values, '--', label='initial')
-        axis.plot(radius, final_values, 'o', ms=3, label='final')
+        axis.plot(radius_proper_code, initial_values, '--', label='initial')
+        axis.plot(radius_proper_code, final_values, 'o', ms=3, label='final')
         axis.set_ylabel(ylabel)
         axis.grid(alpha=0.25)
 
-    axes[1, 1].plot(radius, initial_j, '--', label='initial j')
-    axes[1, 1].plot(radius, final_j, 'o', ms=3, label='final j = J/M')
+    axes[1, 1].plot(radius_proper_code, initial_j, '--', label='initial j')
+    axes[1, 1].plot(radius_proper_code, final_j, 'o', ms=3, label='final j = J/M')
     axes[1, 1].set_ylabel('angular momentum [code units]')
     axes[1, 1].grid(alpha=0.25)
     j_axis = axes[1, 1].twinx()
-    j_axis.plot(radius, conserved_j, ':', lw=1.2, color='tab:red', label='stored J')
+    j_axis.plot(radius_proper_code, conserved_j, ':', lw=1.2, color='tab:red', label='stored J')
     j_axis.set_ylabel('extensive J [code mass·length$^2$/code time]', color='tab:red')
     j_axis.tick_params(axis='y', labelcolor='tab:red')
     for axis in axes[1, :]:

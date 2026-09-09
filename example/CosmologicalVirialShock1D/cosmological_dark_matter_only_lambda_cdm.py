@@ -53,7 +53,7 @@ def run_lagrangian_top_hat(config):
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
-    radius_comoving_code = et.perturbation_radius(config)
+    radius_comoving_code = et.radius_perturbation_comoving_code(config)
     vel_supercomoving_code = -a_initial**2 * h_initial * delta_i * radius_comoving_code / 3.0
     angular_momentum = float(initial_condition.get("dm_specific_angular_momentum", 0.0))
     g_code = _gravitational_constant_code(code_unit_system)

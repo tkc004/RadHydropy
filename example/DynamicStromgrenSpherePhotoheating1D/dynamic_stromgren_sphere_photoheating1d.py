@@ -57,6 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
     outputfilenames = et.output_files(output['directory'], output['filename_prefix'])
     history = et.load_history_from_outputs(outputfilenames, config)
     out_par, out_mesh, out_fluid = et.load_output_state(outputfilenames[-1], config)
+    config['_output_par'] = out_par
 
     figure_stem = 'DynamicStromgrenSpherePhotoheating1D'
     if config['par']['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
@@ -65,7 +66,7 @@ def main(config_filename=DEFAULT_CONFIG):
     front_figure_filename = (
         Path(output['directory']) / f'{figure_stem}_IFront.jpg'
     )
-    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
+    et.save_plot(out_mesh, out_fluid, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
 
     print('time = %s' % out_fluid.time_proper_code)

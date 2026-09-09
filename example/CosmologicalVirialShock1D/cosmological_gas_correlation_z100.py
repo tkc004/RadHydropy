@@ -975,7 +975,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "initial gas/total mass fraction does not match baryon_fraction"
         )
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    temperature_proper = float(np.median(initial.fluid.temp_supercomoving_code)) / float(
+    temperature_proper_cgs_K = float(np.median(initial.fluid.temp_supercomoving_code)) / float(
         cosmology.scale_factor(initial_time)
     ) ** 2
     cmb_temperature_0_cgs_K = float(
@@ -984,7 +984,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     expected_temperature = cmb_temperature_0_cgs_K * (
         1.0 / float(cosmology.scale_factor(initial_time))
     )
-    if not np.isclose(temperature_proper, expected_temperature, rtol=1.0e-8):
+    if not np.isclose(temperature_proper_cgs_K, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
 
     config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
@@ -1766,7 +1766,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ]),
     )
     print("initial gas fraction = %.8g" % measured_fraction)
-    print("initial gas temperature = %.8g K" % temperature_proper)
+    print("initial gas temperature = %.8g K" % temperature_proper_cgs_K)
     print("final cosmic time = %.8g Gyr" % times[-1])
     dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
     dm_total_mass = np.asarray([

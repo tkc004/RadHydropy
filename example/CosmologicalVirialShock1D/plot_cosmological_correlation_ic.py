@@ -94,10 +94,10 @@ def main(config_filename=DEFAULT_CONFIG):
     else:
         expected_temperature = float(initial_condition.get("cie_temperature_proper", 10.0))
 
-    target_radius = et.perturbation_radius(config)
-    clipped_edges = np.clip(boundary_comoving_code, 0.0, target_radius)
+    radius_perturbation_comoving_code = et.radius_perturbation_comoving_code(config)
+    clipped_edges = np.clip(boundary_comoving_code, 0.0, radius_perturbation_comoving_code)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(clipped_edges**3)
-    target_volume = 4.0 * np.pi / 3.0 * target_radius**3
+    target_volume = 4.0 * np.pi / 3.0 * radius_perturbation_comoving_code**3
     target_mean_delta = np.sum(
         (rho_comoving_code - rho_background * scale_factor**3 * fb) * shell_volume
     ) / (rho_background * scale_factor**3 * fb * target_volume)
@@ -163,7 +163,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     print("figure = %s" % output)
     print("scale factor = %.12g, redshift = %.8g" % (scale_factor, redshift))
-    print("target radius = %.8g code lengths" % target_radius)
+    print("target radius = %.8g code lengths" % radius_perturbation_comoving_code)
     print("target enclosed overdensity = %.12g (requested %.12g)" % (
         target_mean_delta, float(initial_condition["initial_overdensity"])
     ))

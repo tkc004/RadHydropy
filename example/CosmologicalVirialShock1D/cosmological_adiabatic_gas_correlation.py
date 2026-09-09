@@ -142,8 +142,8 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    final_time = float(par["simulation"]["final_time"])
-    target_tau = float(cosmology.supercomoving_time(final_time))
+    final_cosmic_time_code = float(par["simulation"]["final_time"])
+    target_tau = float(cosmology.supercomoving_time(final_cosmic_time_code))
     cadence = float(par.get("gas_profile_cadence", 0.10))
     next_snapshot = initial_time
     gas_profiles = []
@@ -178,7 +178,7 @@ def run(config_filename=DEFAULT_CONFIG):
                 % (steps, cosmic_time, dt, dm.crossing_timestep()),
                 flush=True,
             )
-        if cosmic_time >= next_snapshot or cosmic_time >= final_time - 1.0e-10:
+        if cosmic_time >= next_snapshot or cosmic_time >= final_cosmic_time_code - 1.0e-10:
             save_snapshot(cosmic_time)
             while next_snapshot <= cosmic_time + 1.0e-12:
                 next_snapshot += cadence

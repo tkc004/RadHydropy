@@ -569,8 +569,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         initial_condition["cie_temperature_proper"],
         code_unit_system.temperature_unit,
     ) * initial_scale_factor**2
-    diagnostic_min = float(example["diagnostic_radius_min_comoving_kpc"])
-    diagnostic_max = float(example["diagnostic_radius_max_comoving_kpc"])
+    diagnostic_min = float(example["diagnostic_radius_min_comoving_code"])
+    diagnostic_max = float(example["diagnostic_radius_max_comoving_code"])
     snapshot_count = int(example.get("snapshot_count", 9))
     snapshot_times = np.geomspace(initial_time, final_time, snapshot_count)
     snapshot_taus = np.asarray(cosmology.supercomoving_time(snapshot_times), dtype=float)

@@ -34,6 +34,13 @@ par:
     dtmax: {value: 200.0, unit: Myr}
   gravity:
     cosmological_background_boundary_reconstruction: true
+    selfgravity: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmological_gravity: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: 14.4
+    cosmology_a_ref: 1.0
   output:
     directory: outputs_correlation_gas_compton_atomic_m1e11
     filename_prefix: Output
@@ -46,13 +53,6 @@ par:
         UnitVelocity_in_cgs: 1.0e5
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-    selfgravity: true
-    cosmological_expansion: true
-    supercomoving_coordinates: true
-    cosmological_gravity: true
-    cosmology_type: einstein_de_sitter
-    cosmology_t_ref: 14.4
-    cosmology_a_ref: 1.0
   thermochemistry:
     hydrogen_source_solver: split_implicit
     hydrogen_implicit_absolute_temperature_tolerance: {value: 0.1, unit: K}
