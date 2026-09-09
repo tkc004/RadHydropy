@@ -64,39 +64,45 @@ class FixedCentralGravity:
         return -self.central_mass / radius_proper_code**2
 
 
-class CircularInitialCondition(Rsim):
-    """HDF5-compatible spherical circular-orbit initial condition."""
-
-    def __init__(self, config, count, radius_min, radius_max, rho_proper_code, pre_proper_code,
-                 central_mass, code_unit_system):
-        super().__init__(config['par'])
-        self.mesh.boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
-        self.mesh.x_proper_code = 0.75 * (
-            self.mesh.boundary_proper_code[1:]**4 - self.mesh.boundary_proper_code[:-1]**4
-        ) / (self.mesh.boundary_proper_code[1:]**3 - self.mesh.boundary_proper_code[:-1]**3)
-        self.mesh.width_proper_code = np.diff(self.mesh.boundary_proper_code)
-        self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1]**2
-        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code**3)
-        self.fluid.rho_proper_code = np.full(count, rho_proper_code)
-        self.fluid.vel_proper_code = np.zeros(count)
-        self.fluid.temp_proper_code = np.full(count, pre_proper_code * 0.4)
-        self.fluid.mu = np.ones(count)
-        self.fluid.specific_angular_momentum_code = np.sqrt(
-            central_mass * self.mesh.x_proper_code
-        )
+def build_initial_condition(config, count, radius_inner_proper_code,
+                            radius_outer_proper_code, rho_proper_code,
+                            pressure_proper_code, central_mass_proper_code):
+    """Build the typed proper-code IC from the complete nested config."""
+    result = Rsim(config['par'])
+    result.mesh.boundary_proper_code = np.linspace(
+        radius_inner_proper_code, radius_outer_proper_code, count + 1
+    )
+    result.mesh.x_proper_code = 0.75 * (
+        result.mesh.boundary_proper_code[1:]**4
+        - result.mesh.boundary_proper_code[:-1]**4
+    ) / (
+        result.mesh.boundary_proper_code[1:]**3
+        - result.mesh.boundary_proper_code[:-1]**3
+    )
+    result.mesh.width_proper_code = np.diff(result.mesh.boundary_proper_code)
+    result.mesh.area_proper_code = 4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2
+    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary_proper_code**3)
+    result.fluid.rho_proper_code = np.full(count, rho_proper_code)
+    result.fluid.vel_proper_code = np.zeros(count)
+    result.fluid.temp_proper_code = np.full(count, pressure_proper_code * 0.4)
+    result.fluid.mu = np.ones(count)
+    result.fluid.specific_angular_momentum_code = np.sqrt(
+        central_mass_proper_code * result.mesh.x_proper_code
+    )
+    return result
 
 
 def run_rsim(config):
     par = config['par']
     initial_condition = config['initial_condition']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    initial = CircularInitialCondition(
+    initial = build_initial_condition(
         config, int(par['mesh']['grid_cells']),
         quantity_to_value(initial_condition['radius_inner_proper'], units.length_unit),
         quantity_to_value(initial_condition['radius_outer_proper'], units.length_unit),
         quantity_to_value(initial_condition['rho_proper'], units.density_unit),
         quantity_to_value(initial_condition['pressure_proper'], units.pressure_unit),
-        quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit), units,
+        quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit),
     )
     config["_initial_condition_runtime_state"] = initial
     prepare_initial_condition(config)

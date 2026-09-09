@@ -55,5 +55,5 @@ initial_condition:
   hydrogen_mass_fraction: 0.7
   proton_mass_g: 1.67262192369e-24
   hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
-  vini: {value: 0.0, unit: cm/s}
+  vel_proper: {value: 0.0, unit: cm/s}
 example: {}

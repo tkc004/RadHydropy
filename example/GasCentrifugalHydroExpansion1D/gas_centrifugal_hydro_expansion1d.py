@@ -57,28 +57,35 @@ def spherical_centers(boundary_proper_code):
     ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
 
 
-class InitialCondition(Rsim):
-    def __init__(self, config, count, radius_min, radius_max, rho_proper_code, temp_proper_code,
-                 central_mass, rotation_factor, code_unit_system):
-        super().__init__(config['par'])
-        self.par.mesh.ghost_cells = 0
-        boundary_proper_code = np.linspace(radius_min, radius_max, count + 1)
-        radius_proper_code = spherical_centers(boundary_proper_code)
-        self.mesh.boundary_proper_code = boundary_proper_code
-        self.mesh.x_proper_code = radius_proper_code
-        self.mesh.width_proper_code = np.diff(boundary_proper_code)
-        self.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
-        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
-        self.fluid.rho_proper_code = np.full(count, rho_proper_code)
-        self.fluid.vel_proper_code = np.zeros(count)
-        self.fluid.temp_proper_code = np.full(count, temp_proper_code)
-        self.fluid.mu = np.ones(count)
-        self.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(central_mass * radius_proper_code)
-        self.mesh.geometry_state = MeshGeometryState.from_arrays(
+def build_initial_condition(config, count, radius_inner_proper_code,
+                            radius_outer_proper_code, rho_proper_code,
+                            temperature_proper_code, central_mass_proper_code,
+                            rotation_factor):
+    """Build the typed proper-code IC from the complete nested config."""
+    result = Rsim(config['par'])
+    result.par.mesh.ghost_cells = 0
+    boundary_proper_code = np.linspace(
+        radius_inner_proper_code, radius_outer_proper_code, count + 1
+    )
+    radius_proper_code = spherical_centers(boundary_proper_code)
+    result.mesh.boundary_proper_code = boundary_proper_code
+    result.mesh.x_proper_code = radius_proper_code
+    result.mesh.width_proper_code = np.diff(boundary_proper_code)
+    result.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
+    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
+    result.fluid.rho_proper_code = np.full(count, rho_proper_code)
+    result.fluid.vel_proper_code = np.zeros(count)
+    result.fluid.temp_proper_code = np.full(count, temperature_proper_code)
+    result.fluid.mu = np.ones(count)
+    result.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(
+        central_mass_proper_code * radius_proper_code
+    )
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS, x_proper_code=radius_proper_code, boundary_proper_code=boundary_proper_code,
-            width_proper_code=self.mesh.width_proper_code, area_proper_code=self.mesh.area_proper_code,
-            volume_proper_code=self.mesh.volume_proper_code,
+            width_proper_code=result.mesh.width_proper_code, area_proper_code=result.mesh.area_proper_code,
+            volume_proper_code=result.mesh.volume_proper_code,
         )
+    return result
 
 
 class FixedCentralGravity:
@@ -111,7 +118,7 @@ def run_simulation(config):
     initial_condition = config['initial_condition']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
-    initial = InitialCondition(
+    initial = build_initial_condition(
         config, count,
         quantity_to_value(initial_condition['radius_inner_proper'], units.length_unit),
         quantity_to_value(initial_condition['radius_outer_proper'], units.length_unit),
@@ -119,7 +126,6 @@ def run_simulation(config):
         quantity_to_value(initial_condition['temperature_proper'], units.temperature_unit),
         quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit),
         float(initial_condition['rotation_factor']),
-        units,
     )
     config["_initial_condition_runtime_state"] = initial
     prepare_initial_condition(config)
@@ -177,7 +183,7 @@ def main(config_filename=CONFIG):
         rotation_factor,
         samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
     )
-    vel_proper_code_reference = reference['vel_proper']
+    vel_proper_code_reference = reference['vel_proper_code']
     ode_j = reference['specific_angular_momentum_proper_code']
     saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)

@@ -59,13 +59,13 @@ def build_initial_condition(config):
     sim.fluid.time_proper_code = float(
         np.asarray(quantity_to_value(initial_config['time_proper'], code_units.time_unit))
     )
-    boundary_proper_cgs_cm = np.linspace(
+    boundary_proper_unyt = np.linspace(
         initial_config['radius_injection_proper'],
         initial_config['radius_injection_proper'] + initial_config['box_size_proper'],
         grid_cells + 1,
     )
     sim.mesh.boundary_proper_code = as_named_array(
-        quantity_to_value(boundary_proper_cgs_cm, code_units.length_unit)
+        quantity_to_value(boundary_proper_unyt, code_units.length_unit)
     )
     boundary_values = sim.mesh.boundary_proper_code
     width_values = np.diff(boundary_values)
@@ -84,9 +84,18 @@ def build_initial_condition(config):
         area_proper_code=area_values,
         volume_proper_code=volume_values,
     )
-    sim.fluid.rho_proper_code = initial_config['rho_proper'] * np.ones(grid_cells)
-    sim.fluid.vel_proper_code = initial_config['vel_proper'] * np.ones(grid_cells)
-    sim.fluid.temp_proper_code = initial_config['temperature_proper'] * np.ones(grid_cells)
+    rho_proper_unyt = initial_config['rho_proper'] * np.ones(grid_cells)
+    vel_proper_unyt = initial_config['vel_proper'] * np.ones(grid_cells)
+    temp_proper_unyt = initial_config['temperature_proper'] * np.ones(grid_cells)
+    sim.fluid.rho_proper_code = as_named_array(
+        quantity_to_value(rho_proper_unyt, code_units.density_unit)
+    )
+    sim.fluid.vel_proper_code = as_named_array(
+        quantity_to_value(vel_proper_unyt, code_units.velocity_unit)
+    )
+    sim.fluid.temp_proper_code = as_named_array(
+        quantity_to_value(temp_proper_unyt, code_units.temperature_unit)
+    )
     sim.fluid.mu = initial_config['mean_molecular_weight'] * np.ones(grid_cells)
     sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
     for name, unit in (

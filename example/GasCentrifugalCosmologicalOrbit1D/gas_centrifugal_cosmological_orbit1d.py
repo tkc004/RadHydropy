@@ -150,12 +150,14 @@ def run_rsim(config):
     rio.writehdf5(initial, filename)
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
-    gravity = CosmologicalCentralGravity(float(initial_condition['central_excess_mass']), cosmology)
+    gravity = CosmologicalCentralGravity(
+        float(initial_condition['central_excess_mass_dimensionless']), cosmology
+    )
     sim.par.gravity = gravity
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    initial_tau = np.asarray(initial.par.tau_supercomoving_code, dtype=float)
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
@@ -186,11 +188,16 @@ def main(config_filename=CONFIG):
     directory = ROOT / par['output']['directory']
     directory.mkdir(parents=True, exist_ok=True)
     cosmology = EinsteinDeSitter()
-    x0 = float(initial_condition['radius_initial_comoving'])
-    v0 = float(initial_condition['vel_initial_supercomoving_code'])
-    central_mass = float(initial_condition['central_excess_mass'])
+    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    x0_comoving_code = quantity_to_value(
+        initial_condition['radius_initial_comoving'], code_units.length_unit
+    )
+    v0_supercomoving_code = quantity_to_value(
+        initial_condition['vel_initial_proper'], code_units.velocity_unit
+    )
+    central_mass = float(initial_condition['central_excess_mass_dimensionless'])
     j = float(initial_condition['angular_momentum_fraction_of_circular']) * np.sqrt(
-        central_mass * x0
+        central_mass * x0_comoving_code
     )
     final_tau = float(par['simulation']['final_time'])
     config['_cosmology'] = cosmology
@@ -219,7 +226,7 @@ def main(config_filename=CONFIG):
     reference = solve_ivp(
         rhs,
         (0.0, final_tau),
-        (x0, v0),
+        (x0_comoving_code, v0_supercomoving_code),
         rtol=1.0e-11,
         atol=1.0e-13,
         dense_output=True,
@@ -227,7 +234,7 @@ def main(config_filename=CONFIG):
     dt = float(example_config['timestep'])
     times = np.arange(0.0, final_tau + 0.5 * dt, dt)
     numerical = np.empty((2, len(times)))
-    numerical[:, 0] = (x0, v0)
+    numerical[:, 0] = (x0_comoving_code, v0_supercomoving_code)
     for index in range(len(times) - 1):
         state = numerical[:, index]
         k1 = np.asarray(rhs(times[index], state))
@@ -311,7 +318,8 @@ def main(config_filename=CONFIG):
             )
 
         shell_reference = solve_ivp(
-            shell_rhs, (0.0, final_tau), (initial_radius_comoving_code, v0),
+            shell_rhs, (0.0, final_tau),
+            (initial_radius_comoving_code, v0_supercomoving_code),
             rtol=1.0e-10, atol=1.0e-12,
         )
         ode_final[:, index] = shell_reference.y[:, -1]

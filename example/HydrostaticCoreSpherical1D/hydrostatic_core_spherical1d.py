@@ -19,7 +19,7 @@ import radhydropy.io as rio
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
 
@@ -30,7 +30,7 @@ def run(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
     initial_condition = config["initial_condition"]
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    initial = et.InitialCondition(config)
+    initial = et.build_initial_condition(config)
     output_dir = Path(config["par"]["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, output_dir / "InitialCondition.hdf5")
@@ -75,10 +75,12 @@ def run(config_filename=DEFAULT_CONFIG):
     radius_proper_code = np.asarray(sim.mesh.geometry_state.x_proper_code[first:last], dtype=float)
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     analytic_rho_proper_code = et.analytic_density_code(radius_proper_code, config)
-    core_radius = float(np.asarray(sim.par.radius_core_proper))
-    halo = radius_proper_code >= core_radius
+    core_radius_proper_code = quantity_to_value(
+        config["par"]["gravity"]["radius_core_proper"], units.length_unit
+    )
+    halo = radius_proper_code >= core_radius_proper_code
     relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(analytic_rho_proper_code, 1.0e-300)
-    core_cells = radius_proper_code < core_radius
+    core_cells = radius_proper_code < core_radius_proper_code
     core_last = np.flatnonzero(core_cells)[-1]
     pressure_mismatch = abs(
         float(sim.fluid.pre_proper_code[first + core_last])
@@ -96,7 +98,7 @@ def run(config_filename=DEFAULT_CONFIG):
     plt.figure(figsize=(7.0, 5.0))
     plt.loglog(radius_pc, rho_proper_code, label="simulation")
     plt.loglog(radius_pc, analytic_rho_proper_code, "--", label="analytic")
-    plt.axvline(core_radius * float(units.length_in_cgs) / 3.085677581e18,
+    plt.axvline(core_radius_proper_code * float(units.length_in_cgs) / 3.085677581e18,
                 color="0.4", ls=":", label="core radius")
     plt.xlabel("radius [pc]")
     plt.ylabel("density [code units]")
