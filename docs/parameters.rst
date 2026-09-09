@@ -7,6 +7,9 @@ mapping. The mapping mirrors the runtime object: ``simulation``, ``mesh``,
 are parameter groups. Missing values are filled from
 :data:`radhydropy.params.refparams`.
 
+See :doc:`all_parameters_default` for the complete annotated YAML template,
+including defaults and options for each parameter.
+
 For example, use ``par.mesh.grid_cells`` and
 ``par.simulation.final_time`` in code. ``Par`` exposes the nested runtime
 groups and does not provide the former flat runtime aliases.

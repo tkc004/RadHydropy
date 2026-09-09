@@ -7,263 +7,263 @@
 
 par:
   simulation:
-    name: advection1d
-    initial_condition_filename: /InitialCondition.hdf5
-    coordinate_system: cartesian
-    final_time: {value: 2.0, unit: s}
-    initial_time: null
-    time_proper: {value: 0.0, unit: s}
-    box_size_proper: null
-    box_size_comoving: null
-    cosmological_expansion: false
-    supercomoving_coordinates: false
-    coordinate_frame: physical
-    time_coordinate: cosmic
-    velocity_representation: physical
-    density_representation: physical
-    pressure_representation: physical
-    temperature_representation: physical
+    name: advection1d  # Run name used in metadata and output labels.
+    initial_condition_filename: /InitialCondition.hdf5  # HDF5 IC path.
+    coordinate_system: cartesian  # Geometry; option: cartesian, spherical.
+    final_time: {value: 2.0, unit: s}  # Stop time, with an explicit unit.
+    initial_time: null  # Optional runtime start time; null uses the IC time.
+    time_proper: {value: 0.0, unit: s}  # Proper time associated with the IC.
+    box_size_proper: null  # Proper domain size; required for proper-coordinate ICs.
+    box_size_comoving: null  # Comoving domain size; used for cosmological ICs.
+    cosmological_expansion: false  # Enable cosmological expansion; option: true, false.
+    supercomoving_coordinates: false  # Use supercomoving variables; option: true, false.
+    coordinate_frame: physical  # Coordinate frame; option: physical, comoving.
+    time_coordinate: cosmic  # Time variable; option: cosmic, supercomoving.
+    velocity_representation: physical  # Velocity representation; option: physical, supercomoving.
+    density_representation: physical  # Density representation; option: physical, comoving.
+    pressure_representation: physical  # Pressure representation; option: physical, supercomoving.
+    temperature_representation: physical  # Temperature representation; option: physical, supercomoving.
 
   mesh:
-    grid_cells: null
-    ghost_cells: 2
-    area_proper: {value: 1.0, unit: cm**2}
+    grid_cells: null  # Number of active cells; set this for a concrete run.
+    ghost_cells: 2  # Number of ghost cells on each boundary.
+    area_proper: {value: 1.0, unit: cm**2}  # Cartesian cell-face area.
 
   hydrodynamics:
-    eos_type: polytropic
-    gamma: 1.4
-    temperature_proper: {value: 2.7, unit: K}
-    CFL: 0.1
-    order: 0
-    riemann_solver: Rusanov
-    flux_limiter: minmod
-    dual_energy: false
-    dual_energy_eta1: 1.0e-3
-    dual_energy_eta2: 1.0e-1
-    dual_energy_consistency_factor: 1.0e-1
-    dual_energy_entropy_limiter: false
-    dual_energy_pressure_selection: switch
-    dual_energy_pressure_floor: 1.0e-20
-    positivity_preserving: true
-    positivity_density_floor: 0.0
-    positivity_energy_floor: 0.0
-    boundary_mass_loading_timestep: false
-    gas_angular_momentum: false
-    gas_rotational_energy: false
-    angular_momentum_flux_scheme: fct
-    gravity_potential_energy: false
-    hydro_integrator: euler
-    cfl_density_floor: 0.0
-    hydro_temperature_floor: null
-    temperature_jump_error_threshold: 1.0e8
+    eos_type: polytropic  # Equation of state; option: polytropic.
+    gamma: 1.4  # Adiabatic index.
+    temperature_proper: {value: 2.7, unit: K}  # Default proper gas temperature.
+    CFL: 0.1  # Courant number controlling the hydro timestep.
+    order: 0  # Reconstruction order; option: 0, 1, 2.
+    riemann_solver: Rusanov  # Flux solver; option: Rusanov, HLLC, exact.
+    flux_limiter: minmod  # Slope limiter; option: minmod, vanleer, MC, superbee.
+    dual_energy: false  # Evolve an auxiliary thermal-energy variable.
+    dual_energy_eta1: 1.0e-3  # First dual-energy switch threshold.
+    dual_energy_eta2: 1.0e-1  # Second dual-energy switch threshold.
+    dual_energy_consistency_factor: 1.0e-1  # Conservative/auxiliary consistency tolerance.
+    dual_energy_entropy_limiter: false  # Apply the entropy limiter; option: true, false.
+    dual_energy_pressure_selection: switch  # Pressure source; option: switch, conservative, internal.
+    dual_energy_pressure_floor: 1.0e-20  # Minimum dimensionless pressure estimate.
+    positivity_preserving: true  # Limit updates that would create invalid states.
+    positivity_density_floor: 0.0  # Minimum density floor in code units.
+    positivity_energy_floor: 0.0  # Minimum total-energy floor in code units.
+    boundary_mass_loading_timestep: false  # Limit dt when boundary mass enters cells.
+    gas_angular_momentum: false  # Evolve gas specific angular momentum.
+    gas_rotational_energy: false  # Include rotational energy in the gas energy.
+    angular_momentum_flux_scheme: fct  # Angular-momentum flux; option: fct, upwind.
+    gravity_potential_energy: false  # Include gravitational potential energy diagnostics.
+    hydro_integrator: euler  # Hydro integrator; option: euler, rk2, rk3.
+    cfl_density_floor: 0.0  # Density floor used by CFL protection.
+    hydro_temperature_floor: null  # Optional proper temperature floor.
+    temperature_jump_error_threshold: 1.0e8  # Temperature-jump warning threshold.
 
   boundary:
-    condition: Periodic
-    vel_inflow_proper: {value: 1.0, unit: cm/s}
-    rho_inflow_proper: {value: 1.0, unit: g/cm**3}
-    temperature_inflow_proper: {value: 0.0, unit: K}
-    inflow_mu: 1.0
-    vel_outflow_proper: {value: 1.0, unit: cm/s}
-    rho_outflow_proper: {value: 1.0, unit: g/cm**3}
-    temperature_outflow_proper: {value: 0.0, unit: K}
-    outflow_mu: 1.0
-    cosmological_background_reconstruction: false
+    condition: Periodic  # Boundary type; option: Periodic, Open, Reflecting, OpenSph, InflowSph, OutflowSph.
+    vel_inflow_proper: {value: 1.0, unit: cm/s}  # Proper inflow velocity.
+    rho_inflow_proper: {value: 1.0, unit: g/cm**3}  # Proper inflow density.
+    temperature_inflow_proper: {value: 0.0, unit: K}  # Proper inflow temperature.
+    inflow_mu: 1.0  # Inflow mean molecular weight.
+    vel_outflow_proper: {value: 1.0, unit: cm/s}  # Proper outflow velocity.
+    rho_outflow_proper: {value: 1.0, unit: g/cm**3}  # Proper outflow density.
+    temperature_outflow_proper: {value: 0.0, unit: K}  # Proper outflow temperature.
+    outflow_mu: 1.0  # Outflow mean molecular weight.
+    cosmological_background_reconstruction: false  # Reconstruct the cosmological background at boundaries.
 
   timestep:
-    dtmin: {value: 2.0e-8, unit: s}
-    dtmax: {value: 2.0e-1, unit: s}
-    cfl_density_floor: 0.0
-    hydro_temperature_floor: null
-    cooling_safety_factor: 0.1
-    hydrogen_source_CFL: 0.1
-    hydrogen_source_dtmin: {value: 0.0, unit: s}
-    relaxation_damping_time: null
-    chemistry_timestep: null
-    evolution_timestep: null
-    output_interval: null
-    crossing_safety_factor: 0.1
-    supercomoving_timestep: null
+    dtmin: {value: 2.0e-8, unit: s}  # Minimum allowed timestep.
+    dtmax: {value: 2.0e-1, unit: s}  # Maximum allowed timestep.
+    cfl_density_floor: 0.0  # Density floor used in timestep estimates.
+    hydro_temperature_floor: null  # Optional temperature-floor timestep control.
+    cooling_safety_factor: 0.1  # Fraction of the local cooling time per step.
+    hydrogen_source_CFL: 0.1  # Source-term Courant factor.
+    hydrogen_source_dtmin: {value: 0.0, unit: s}  # Minimum hydrogen-source substep.
+    relaxation_damping_time: null  # Optional relaxation damping timescale.
+    chemistry_timestep: null  # Optional fixed chemistry timestep.
+    evolution_timestep: null  # Optional fixed evolution timestep.
+    output_interval: null  # Optional fixed output interval.
+    crossing_safety_factor: 0.1  # Dark-matter shell-crossing safety factor.
+    supercomoving_timestep: null  # Optional fixed supercomoving timestep.
 
   output:
-    directory: ./
-    savedir: ./
-    filename_prefix: Output
-    cadence: {value: 0.2, unit: s}
-    time_interval: null
-    time_list_filename: null
+    directory: ./  # Directory for snapshots and diagnostics.
+    savedir: ./  # Legacy-compatible output directory alias.
+    filename_prefix: Output  # Prefix for snapshot filenames.
+    cadence: {value: 0.2, unit: s}  # Time between scheduled outputs.
+    time_interval: null  # Alternative output interval when cadence is unset.
+    time_list_filename: null  # Optional text file containing explicit output times.
 
   diagnostics:
-    verbose: 0
-    energy_diagnostics: false
-    temperature_jump_error_threshold: {value: 1.0e8, unit: K}
-    temperature_plot_ymin: null
-    plot_exclude_outer_cells: 0
+    verbose: 0  # Logging level; larger values print more diagnostics.
+    energy_diagnostics: false  # Record per-cell and per-shell energy audits.
+    temperature_jump_error_threshold: {value: 1.0e8, unit: K}  # Temperature-jump diagnostic threshold.
+    temperature_plot_ymin: null  # Optional lower bound for temperature plots.
+    plot_exclude_outer_cells: 0  # Number of outer cells omitted from plots.
 
   units:
-    CodeUnits: null
+    CodeUnits: null  # Required unit-system mapping; null is only a template placeholder.
 
   thermochemistry:
-    network: hydrogen
-    cie_cooling: false
-    cie_ion_fraction_table: null
-    cie_cooling_table: null
-    cie_abundance_file: null
-    metallicity: 1.0
-    cooling_safety_factor: 0.1
-    cooling_temperature_floor: {value: 100.0, unit: K}
-    hydrogen_chemistry: false
-    hydrogen_recombination: true
-    hydrogen_collisional_ionization: true
-    hydrogen_atomic_cooling: true
-    hydrogen_thermal_coupling: true
-    hydrogen_update_mu: false
-    hydrogen_initial_collisional_equilibrium: false
-    compton_cmb_enabled: false
-    compton_cmb_redshift: 0.0
-    cmb_temperature_0: {value: 2.7255, unit: K}
-    hydrogen_source_solver: hybrid
-    hydrogen_source_CFL: 0.1
-    hydrogen_source_dtmin: {value: 0.0, unit: s}
-    hydrogen_implicit_tolerance: 1.0e-6
-    hydrogen_implicit_absolute_temperature_tolerance: {value: 0.0, unit: K}
-    hydrogen_implicit_convergence_tolerance: 1.0e-3
-    hydrogen_implicit_max_iterations: 32
-    hydrogen_implicit_fallback: explicit
-    hydrogen_hybrid_change_tolerance: 0.1
-    hydrogen_implicit_max_refinements: 4
-    hydrogen_split_implicit_max_subcycles: 100000
-    hydrogen_initial_collisional_equilibrium: false
-    relative_tolerance: 1.0e-3
-    absolute_tolerance: 1.0e-10
-    explicit_tolerance: 0.1
-    hydrogen_alpha_B: null
-    hydrogen_beta: null
-    hydrogen_epsilon_gamma: null
-    hydrogen_ngamma_initial: null
-    hydrogen_sigma_gamma: null
-    metal_pie_enabled: false
-    metal_pie_table_filename: null
-    metal_pie_redshift: 0.0
-    metal_pie_photoheating_max_density_cgs_cm3: 50.0
-    pie_uvbg_implicit_tolerance: 1.0e-3
-    pie_uvbg_implicit_max_retries: 8
-    pie_uvbg_implicit_max_iterations: 64
-    pie_uvbg_implicit_step_doubling: true
-    cases: null
-    mu: null
-    output_count: null
-    temperature_floor: null
-    isothermal_ionized_fraction_threshold: null
-    pie_uvbg_photoionization_timescale: null
-    runaway_density_factor: null
-    verbose: null
+    network: hydrogen  # Network; option: hydrogen, hydrogen_helium, cie_cooling, pie_uvbg_cooling.
+    cie_cooling: false  # Enable CHIANTI CIE cooling.
+    cie_ion_fraction_table: null  # CIE ion-fraction table path.
+    cie_cooling_table: null  # CIE cooling table path.
+    cie_abundance_file: null  # Optional CIE abundance file.
+    metallicity: 1.0  # Metallicity in solar units.
+    cooling_safety_factor: 0.1  # Maximum fraction of a cooling time per substep.
+    cooling_temperature_floor: {value: 100.0, unit: K}  # Minimum cooling temperature.
+    hydrogen_chemistry: false  # Evolve neutral hydrogen chemistry.
+    hydrogen_recombination: true  # Include hydrogen recombination.
+    hydrogen_collisional_ionization: true  # Include collisional ionization.
+    hydrogen_atomic_cooling: true  # Include primordial atomic cooling.
+    hydrogen_thermal_coupling: true  # Couple source heating/cooling to energy.
+    hydrogen_update_mu: false  # Update mean molecular weight from ionization.
+    hydrogen_initial_collisional_equilibrium: false  # Initialize H in collisional equilibrium.
+    compton_cmb_enabled: false  # Couple gas thermally to the CMB.
+    compton_cmb_redshift: 0.0  # Redshift used for the CMB temperature.
+    cmb_temperature_0: {value: 2.7255, unit: K}  # Present-day CMB temperature.
+    hydrogen_source_solver: hybrid  # Solver; option: hybrid, explicit, coupled_implicit, trust_region, split_implicit.
+    hydrogen_source_CFL: 0.1  # Source-term subcycling Courant factor.
+    hydrogen_source_dtmin: {value: 0.0, unit: s}  # Minimum source-term substep.
+    hydrogen_implicit_tolerance: 1.0e-6  # Relative tolerance for implicit chemistry.
+    hydrogen_implicit_absolute_temperature_tolerance: {value: 0.0, unit: K}  # Absolute temperature tolerance.
+    hydrogen_implicit_convergence_tolerance: 1.0e-3  # Nonlinear convergence tolerance.
+    hydrogen_implicit_max_iterations: 32  # Maximum implicit iterations.
+    hydrogen_implicit_fallback: explicit  # Failure fallback; option: explicit, error.
+    hydrogen_hybrid_change_tolerance: 0.1  # Hybrid explicit-trial change threshold.
+    hydrogen_implicit_max_refinements: 4  # Maximum implicit timestep refinements.
+    hydrogen_split_implicit_max_subcycles: 100000  # Maximum split-implicit subcycles.
+    hydrogen_initial_collisional_equilibrium: false  # Initialize from collisional equilibrium.
+    relative_tolerance: 1.0e-3  # Relative tolerance for network integration.
+    absolute_tolerance: 1.0e-10  # Absolute tolerance for network integration.
+    explicit_tolerance: 0.1  # Explicit source-update tolerance.
+    hydrogen_alpha_B: null  # Optional case-B recombination coefficient.
+    hydrogen_beta: null  # Optional collisional-ionization coefficient.
+    hydrogen_epsilon_gamma: null  # Optional excess photoionization energy.
+    hydrogen_ngamma_initial: null  # Initial photon number density.
+    hydrogen_sigma_gamma: null  # Hydrogen photoionization cross-section.
+    metal_pie_enabled: false  # Enable metal PIE heating/cooling.
+    metal_pie_table_filename: null  # Metal PIE table path.
+    metal_pie_redshift: 0.0  # Redshift for the metal PIE table.
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0  # Maximum PIE photoheating density.
+    pie_uvbg_implicit_tolerance: 1.0e-3  # PIE implicit-step tolerance.
+    pie_uvbg_implicit_max_retries: 8  # Maximum PIE step retries.
+    pie_uvbg_implicit_max_iterations: 64  # Maximum PIE nonlinear iterations.
+    pie_uvbg_implicit_step_doubling: true  # Compare one full step with two half-steps.
+    cases: null  # Optional named thermochemistry cases.
+    mu: null  # Optional fixed mean molecular weight.
+    output_count: null  # Optional source-output count.
+    temperature_floor: null  # Optional network temperature floor.
+    isothermal_ionized_fraction_threshold: null  # Optional ionized-fraction threshold.
+    pie_uvbg_photoionization_timescale: null  # Optional PIE photoionization timescale.
+    runaway_density_factor: null  # Optional runaway-density diagnostic factor.
+    verbose: null  # Optional network verbosity level.
 
   chemistry:
-    key: H
-    hydrogen_mass_fraction: 1.0
-    helium_mass_fraction: 0.0
-    hydrogen_xHI_initial: 1.0
-    hydrogen_xHI_inflow: 1.0
-    hydrogen_xHI_outflow: 1.0
-    hydrogen_helium_xHeI_initial: 1.0
-    hydrogen_helium_xHeII_initial: 0.0
-    hydrogen_helium_xHeIII_initial: 0.0
-    hydrogen_helium_coupled_implicit: true
-    hydrogen_update_mu: false
-    hydrogen_thermal_coupling: true
-    hydrogen_recombination: true
-    hydrogen_collisional_ionization: true
-    hydrogen_source_skip_floor_cells: false
-    hydrogen_source_density_floor: null
-    hydrogen_source_floor_temperature_tolerance: 1.0e-2
-    hydrogen_hybrid_change_tolerance: 0.1
-    hydrogen_implicit_tolerance: 1.0e-6
-    hydrogen_implicit_convergence_tolerance: 1.0e-3
-    hydrogen_implicit_max_iterations: 32
-    hydrogen_implicit_fallback: explicit
-    hydrogen_implicit_max_refinements: 4
-    hydrogen_split_implicit_max_subcycles: 100000
-    hydrogen_implicit_absolute_temperature_tolerance: null
-    hydrogen_implicit_absolute_xhi_tolerance: 0.0
-    hydrogen_implicit_debug: false
-    hydrogen_alpha_B: null
-    hydrogen_beta: null
+    key: H  # Composition preset; option: H, HHe.
+    hydrogen_mass_fraction: 1.0  # Hydrogen mass fraction.
+    helium_mass_fraction: 0.0  # Helium mass fraction.
+    hydrogen_xHI_initial: 1.0  # Initial neutral-hydrogen fraction.
+    hydrogen_xHI_inflow: 1.0  # Neutral fraction imposed at inflow.
+    hydrogen_xHI_outflow: 1.0  # Neutral fraction imposed at outflow.
+    hydrogen_helium_xHeI_initial: 1.0  # Initial neutral-helium fraction.
+    hydrogen_helium_xHeII_initial: 0.0  # Initial singly ionized-helium fraction.
+    hydrogen_helium_xHeIII_initial: 0.0  # Initial doubly ionized-helium fraction.
+    hydrogen_helium_coupled_implicit: true  # Couple H/He species in one implicit solve.
+    hydrogen_update_mu: false  # Update mean molecular weight from species fractions.
+    hydrogen_thermal_coupling: true  # Couple chemistry heating/cooling to gas energy.
+    hydrogen_recombination: true  # Include recombination.
+    hydrogen_collisional_ionization: true  # Include collisional ionization.
+    hydrogen_source_skip_floor_cells: false  # Skip source updates below the density floor.
+    hydrogen_source_density_floor: null  # Density below which source updates are skipped.
+    hydrogen_source_floor_temperature_tolerance: 1.0e-2  # Floor-temperature tolerance.
+    hydrogen_hybrid_change_tolerance: 0.1  # Hybrid source-solver threshold.
+    hydrogen_implicit_tolerance: 1.0e-6  # Relative implicit-solver tolerance.
+    hydrogen_implicit_convergence_tolerance: 1.0e-3  # Nonlinear convergence tolerance.
+    hydrogen_implicit_max_iterations: 32  # Maximum implicit iterations.
+    hydrogen_implicit_fallback: explicit  # Failure fallback; option: explicit, error.
+    hydrogen_implicit_max_refinements: 4  # Maximum timestep refinements.
+    hydrogen_split_implicit_max_subcycles: 100000  # Maximum split-implicit subcycles.
+    hydrogen_implicit_absolute_temperature_tolerance: null  # Absolute temperature tolerance.
+    hydrogen_implicit_absolute_xhi_tolerance: 0.0  # Absolute neutral-fraction tolerance.
+    hydrogen_implicit_debug: false  # Enable implicit-solver diagnostics.
+    hydrogen_alpha_B: null  # Optional case-B recombination coefficient.
+    hydrogen_beta: null  # Optional collisional-ionization coefficient.
 
   gravity:
-    selfgravity: false
-    externalgravity: false
-    potential: null
-    coordinate: null
-    acceleration: null
-    selfgravity_softening: {value: 0.0, unit: cm}
-    selfgravity_boundary_acceleration: {value: 0.0, unit: cm/s**2}
-    cosmological: false
-    cosmological_expansion: false
-    supercomoving_coordinates: false
-    cosmological_gravity: false
-    potential_energy: false
-    cosmological_background_boundary_reconstruction: false
-    cosmology_type: null
-    cosmology_t_ref: 1.0
-    cosmology_a_ref: 1.0
-    cosmology_hubble_ref: null
-    cosmology_omega_m: 0.3
-    cosmology_omega_lambda: 0.7
-    gas_core_model: none
-    radius_core_proper: null
-    gas_core_radius: null
+    selfgravity: false  # Include gas self-gravity.
+    externalgravity: false  # Include an external gravitational field.
+    potential: null  # External potential callback or specification.
+    coordinate: null  # Coordinate array used by the external potential.
+    acceleration: null  # External acceleration callback or array.
+    selfgravity_softening: {value: 0.0, unit: cm}  # Self-gravity softening length.
+    selfgravity_boundary_acceleration: {value: 0.0, unit: cm/s**2}  # Boundary acceleration.
+    cosmological: false  # Enable cosmological gravity mode.
+    cosmological_expansion: false  # Evolve the cosmological scale factor.
+    supercomoving_coordinates: false  # Use supercomoving coordinate variables.
+    cosmological_gravity: false  # Include the cosmological background field.
+    potential_energy: false  # Track gravitational potential energy.
+    cosmological_background_boundary_reconstruction: false  # Reconstruct background force at boundaries.
+    cosmology_type: null  # Cosmology; option: einstein_de_sitter, lambda_cdm.
+    cosmology_t_ref: 1.0  # Reference cosmic time in code units.
+    cosmology_a_ref: 1.0  # Reference scale factor.
+    cosmology_hubble_ref: null  # Reference Hubble parameter.
+    cosmology_omega_m: 0.3  # Matter density parameter.
+    cosmology_omega_lambda: 0.7  # Dark-energy density parameter.
+    gas_core_model: none  # Core model; option: none, fixed_mass, pressure_supported.
+    radius_core_proper: null  # Proper radius of the unresolved gas core.
+    gas_core_radius: null  # Compatibility/core-radius input.
 
   dark_matter:
-    crossing_safety_factor: 0.1
-    crossing_batch_fraction: 0.0
-    global_timestep_limit: true
-    density_bins: null
-    softening: {value: 0.0, unit: cm}
+    crossing_safety_factor: 0.1  # Safety factor for shell-crossing timesteps.
+    crossing_batch_fraction: 0.0  # Fraction of shells allowed to cross per batch.
+    global_timestep_limit: true  # Apply the shell-crossing limit globally.
+    density_bins: null  # Optional number of dark-matter density bins.
+    softening: {value: 0.0, unit: cm}  # Dark-matter force-softening length.
 
   radiation:
-    spectrum_filename: null
-    spectrum_total_photon_rate: null
-    radiative_transfer: false
-    radiation_pressure: false
-    radiation_pressure_efficiency: 1.0
-    radiation_pressure_source_luminosity: null
-    radiative_transfer_method: long_characteristics
-    radiative_transfer_temporal_scheme: c2ray
-    radiative_transfer_direction: 1
-    boundary_flux: null
-    source_photon_rate: null
-    boundary_flux_groups: null
-    source_photon_rate_groups: null
-    c2ray_max_iterations: 32
-    c2ray_tolerance: 1.0e-6
-    c2ray_relaxation: 1.0
-    c2ray_nonconvergence: warn
-    c2ray_ode_max_iterations: 24
-    c2ray_ode_tolerance: 1.0e-8
-    number_of_radiation_groups: null
-    group_edges_eV: null
-    group_sigma_gamma: null
-    group_epsilon_gamma: null
-    group_sigma_gamma_HeI: null
-    group_sigma_gamma_HeII: null
-    group_epsilon_gamma_HeI: null
-    group_epsilon_gamma_HeII: null
-    hydrogen_radiation_field: false
-    hydrogen_radiation_evolution: true
-    hydrogen_ngamma_initial: null
-    hydrogen_ngamma_inflow: null
-    hydrogen_ngamma_outflow: null
-    hydrogen_sigma_gamma: null
-    hydrogen_epsilon_gamma: null
-    hydrogen_photon_energy: null
-    stellar_spectrum_type: 1
-    stellar_spectrum_blackbody_temperature_cgs_K: 1.0e5
-    star_emission_rates: null
-    ionizing_photon_energy_cgs_erg: null
-    metal_pie_enabled: false
-    metal_pie_table_filename: null
-    metal_pie_photoheating_max_density_cgs_cm3: 50.0
-    metal_pie_redshift: 0.0
+    spectrum_filename: null  # HDF5 radiation-spectrum path.
+    spectrum_total_photon_rate: null  # Total photon rate used to rescale a spectrum.
+    radiative_transfer: false  # Enable radiative transfer.
+    radiation_pressure: false  # Deposit absorbed-photon momentum.
+    radiation_pressure_efficiency: 1.0  # Fraction of photon momentum coupled to gas.
+    radiation_pressure_source_luminosity: null  # Example-only synthetic source luminosity.
+    radiative_transfer_method: long_characteristics  # Method; option: long_characteristics.
+    radiative_transfer_temporal_scheme: c2ray  # Scheme; option: c2ray, instantaneous.
+    radiative_transfer_direction: 1  # Ray direction; option: 1, -1.
+    boundary_flux: null  # Scalar incident photon-number flux.
+    source_photon_rate: null  # Scalar central-source photon rate.
+    boundary_flux_groups: null  # Per-group incident photon fluxes.
+    source_photon_rate_groups: null  # Per-group source photon rates.
+    c2ray_max_iterations: 32  # Maximum C²-Ray opacity iterations.
+    c2ray_tolerance: 1.0e-6  # C²-Ray convergence tolerance.
+    c2ray_relaxation: 1.0  # C²-Ray opacity relaxation factor.
+    c2ray_nonconvergence: warn  # Policy; option: warn, raise, fallback.
+    c2ray_ode_max_iterations: 24  # Maximum C²-Ray ODE iterations.
+    c2ray_ode_tolerance: 1.0e-8  # C²-Ray ODE tolerance.
+    number_of_radiation_groups: null  # Number of photon groups.
+    group_edges_eV: null  # Photon-group energy edges in eV.
+    group_sigma_gamma: null  # Group-averaged H I cross-sections.
+    group_epsilon_gamma: null  # Group-averaged excess energies.
+    group_sigma_gamma_HeI: null  # Group-averaged He I cross-sections.
+    group_sigma_gamma_HeII: null  # Group-averaged He II cross-sections.
+    group_epsilon_gamma_HeI: null  # Group-averaged He I excess energies.
+    group_epsilon_gamma_HeII: null  # Group-averaged He II excess energies.
+    hydrogen_radiation_field: false  # Evolve/store the hydrogen photon field.
+    hydrogen_radiation_evolution: true  # Evolve the local analytic photon sink.
+    hydrogen_ngamma_initial: null  # Initial photon number density.
+    hydrogen_ngamma_inflow: null  # Inflow photon number density.
+    hydrogen_ngamma_outflow: null  # Outflow photon number density.
+    hydrogen_sigma_gamma: null  # Scalar H I photoionization cross-section.
+    hydrogen_epsilon_gamma: null  # Scalar H I excess photoheating energy.
+    hydrogen_photon_energy: null  # Scalar photon energy.
+    stellar_spectrum_type: 1  # Spectrum type identifier.
+    stellar_spectrum_blackbody_temperature_cgs_K: 1.0e5  # Blackbody temperature in K.
+    star_emission_rates: null  # Optional emission rates by group.
+    ionizing_photon_energy_cgs_erg: null  # Ionizing photon energy in erg.
+    metal_pie_enabled: false  # Enable radiation-coupled metal PIE cooling.
+    metal_pie_table_filename: null  # Metal PIE table path.
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0  # Maximum PIE photoheating density.
+    metal_pie_redshift: 0.0  # Redshift used by the PIE table.
 
 initial_condition: {}
 example: {}

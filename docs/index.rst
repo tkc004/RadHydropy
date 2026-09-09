@@ -35,6 +35,7 @@ The package is organized around a small simulation workflow:
    radiation_pressure
    radiation_spectrum_generator
    examples
+   all_parameters_default
 
 .. toctree::
    :maxdepth: 2

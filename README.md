@@ -204,27 +204,27 @@ radiative-transfer source terms without a hydrodynamic update.
 ## Project Layout
 
 ```text
-radhydropy/
-  analysis.py            plotting helpers
-  eos.py                 equation-of-state helpers
-  example_config.py      example YAML parameter loaders
-  fluid.py               primitive and conserved fluid state helpers
-  gravity.py             gravity helpers and potentials
-  chemistry.py           composition selector for chemistry modules
-  chemistry_species/      species microphysics helpers
-  io.py                  HDF5 read/write helpers
-  mesh.py                mesh and geometry setup
-  params.py              default runtime parameters
-  radiative_transfer.py  one-dimensional radiative-transfer routines
-  rsim/                  high-level simulation runner and execution components
-  solver.py              finite-volume update operations
-  thermo_chemistry.py    thermo-chemistry source terms
-  thermo_networks/       thermo-network implementations
-  utils.py               numerical and thermodynamic utilities
-
-example/                 runnable example problems
-tests/                   unit tests
-docs/                    Sphinx documentation
+RadHydropy/
+  radhydropy/             solver package
+    rsim/                 high-level run orchestration and lifecycle
+    solver/               finite-volume updates, fluxes, sources, and timesteps
+    thermo_networks/      hydrogen, H/He, CIE, PIE, Compton, and C²-Ray networks
+    chemistry_species/    species microphysics
+    params.py             nested runtime parameters and defaults
+    example_config.py     nested YAML configuration loading
+    io.py                 HDF5 initial-condition and snapshot I/O
+  example/                runnable example problems and configurations
+    all_parameters_default.yaml
+                          complete nested ``par`` defaults
+    example_utils.py      shared IC-driven example loader and helpers
+    <ExampleName>/        scripts, strict nested YAML, plots, and diagnostics
+  docs/                   Sphinx documentation and detailed example pages
+  tests/                  unit and regression tests
+  tools/                  spectrum-generation and supporting tools
+  .github/workflows/      documentation deployment workflow
+  .codex/skills/          repository-local RadHydropy skill guidance
+  pyproject.toml          package metadata and documentation dependencies
+  README.md               project overview and usage guide
 ```
 
 ## Documentation
