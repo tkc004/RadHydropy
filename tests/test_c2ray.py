@@ -51,7 +51,7 @@ def make_par():
         hydrogen_sigma_gamma=1.0e-18,
         hydrogen_epsilon_gamma=0.0,
         radiative_transfer_boundary_flux=1.0e18,
-        radiative_transfer_source_photon_rate=0.0,
+        source_photon_rate=0.0,
         radiative_transfer_direction=1,
         radiative_transfer_c2ray_max_iterations=32,
         radiative_transfer_c2ray_tolerance=1.0e-8,

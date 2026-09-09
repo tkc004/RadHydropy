@@ -78,7 +78,7 @@ The group attributes include ``number_of_radiation_groups``,
 
 The generated file can be consumed by the runtime using
 ``radiation_spectrum_filename``. To override the total rate without
-regenerating the file, use ``radiation_spectrum_total_photon_rate`` in YAML;
+regenerating the file, use ``spectrum_total_photon_rate`` in YAML;
 RadHydropy rescales all ionizing groups by one common factor and preserves the
 relative spectrum. See :doc:`radiative_transfer` and
 :doc:`multifrequency_radiative_transfer_sph1d` for runtime examples.

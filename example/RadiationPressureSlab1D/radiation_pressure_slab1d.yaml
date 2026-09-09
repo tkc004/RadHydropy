@@ -52,7 +52,7 @@ par:
     radiative_transfer_method: long_characteristics
     radiative_transfer_temporal_scheme: instantaneous
     radiative_transfer_boundary_flux: {value: 1.0e12, unit: 1/(cm**2*s)}
-    radiative_transfer_source_photon_rate: {value: 0.0, unit: 1/s}
+    source_photon_rate: {value: 0.0, unit: 1/s}
     radiative_transfer_direction: 1
     radiation_pressure: true
     radiation_pressure_efficiency: 1.0

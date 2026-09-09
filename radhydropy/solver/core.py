@@ -158,8 +158,8 @@ class Solver():
             )
             source_groups = getattr(
                 par,
-                'radiative_transfer_source_photon_rate_groups',
-                getattr(par, 'radiative_transfer_source_photon_rate', 0.0),
+                'source_photon_rate_groups',
+                getattr(par, 'source_photon_rate', 0.0),
             )
             if hasattr(sigma_groups, 'to_value'):
                 sigma_groups = sigma_groups.to_value(CGS_AREA_UNIT)
@@ -211,7 +211,7 @@ class Solver():
             return result
         sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA_CGS_CM2)
         boundary_value = rrt._parameter_value(par, 'radiative_transfer_boundary_flux', 0.0)
-        source_value = rrt._parameter_value(par, 'radiative_transfer_source_photon_rate', 0.0)
+        source_value = rrt._parameter_value(par, 'source_photon_rate', 0.0)
         if hasattr(sigma_value, 'to_value'):
             sigma_gamma_cgs_cm2 = _as_cgs_float(sigma_value, CGS_AREA_UNIT)
         else:

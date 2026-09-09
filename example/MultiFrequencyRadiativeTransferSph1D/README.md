@@ -56,7 +56,7 @@ The path is resolved relative to the YAML file.
 The HDF5 file stores the relative source spectrum. The optional YAML setting
 
 ```yaml
-radiation_spectrum_total_photon_rate:
+spectrum_total_photon_rate:
   value: 5.0e48
   unit: 1/s
 ```

@@ -212,8 +212,8 @@ refparams = {
     'radiative_transfer_c2ray_ode_tolerance': 1.0e-8,
     'radiative_transfer_boundary_flux': 0.0 / (unyt.cm**2 * unyt.s),
     'radiative_transfer_boundary_flux_groups': None,
-    'radiative_transfer_source_photon_rate': 0.0 / unyt.s,
-    'radiative_transfer_source_photon_rate_groups': None,
+    'source_photon_rate': 0.0 / unyt.s,
+    'source_photon_rate_groups': None,
     'radiation_group_edges_eV': None,
     'radiation_group_sigma_gamma': None,
     'radiation_group_epsilon_gamma': None,
@@ -226,7 +226,7 @@ refparams = {
     'stellar_spectrum_blackbody_temperature_cgs_K': 1.0e5,
     'ionizing_photon_energy_cgs_erg': None,
     'radiation_spectrum_filename': None,
-    'radiation_spectrum_total_photon_rate': None,
+    'spectrum_total_photon_rate': None,
     'metal_pie_enabled': False,
     'metal_pie_table_filename': None,
     'metal_pie_table': None,
@@ -715,8 +715,7 @@ class Par:
                 'radiative_transfer_direction': 'radiative_transfer_direction',
                 'boundary_flux': 'radiative_transfer_boundary_flux',
                 'radiative_transfer_boundary_flux': 'radiative_transfer_boundary_flux',
-                'source_photon_rate': 'radiative_transfer_source_photon_rate',
-                'radiative_transfer_source_photon_rate': 'radiative_transfer_source_photon_rate',
+                'source_photon_rate': 'source_photon_rate',
                 'radiative_transfer': 'radiative_transfer',
                 'radiation_pressure': 'radiation_pressure',
                 'radiation_pressure_efficiency': 'radiation_pressure_efficiency',
@@ -744,9 +743,9 @@ class Par:
                 'hydrogen_epsilon_gamma': 'hydrogen_epsilon_gamma',
                 'hydrogen_photon_energy': 'hydrogen_photon_energy',
                 'radiation_spectrum_filename': 'radiation_spectrum_filename',
-                'radiation_spectrum_total_photon_rate': 'radiation_spectrum_total_photon_rate',
+                'spectrum_total_photon_rate': 'spectrum_total_photon_rate',
                 'radiative_transfer_boundary_flux_groups': 'radiative_transfer_boundary_flux_groups',
-                'radiative_transfer_source_photon_rate_groups': 'radiative_transfer_source_photon_rate_groups',
+                'source_photon_rate_groups': 'source_photon_rate_groups',
                 'radiation_group_sigma_gamma': 'radiation_group_sigma_gamma',
                 'radiation_group_epsilon_gamma': 'radiation_group_epsilon_gamma',
                 'radiation_group_sigma_gamma_HeI': 'radiation_group_sigma_gamma_HeI',
@@ -865,7 +864,7 @@ class Par:
             'temperature_inflow_proper', 'temperature_outflow_proper', 'mu_inflow',
             'mu_outflow', 'dtmin', 'dtmax', 'CodeUnits',
             'radiative_transfer_boundary_flux',
-            'radiative_transfer_source_photon_rate',
+            'source_photon_rate',
             'radiative_transfer_direction',
         }
         for key, default in refparams.items():
@@ -1117,7 +1116,7 @@ class Par:
     def _sync_radiation_parameters(self):
         self.radiation = RadiationParameters(
             spectrum_filename=self.radiation_spectrum_filename,
-            spectrum_total_photon_rate=self.radiation_spectrum_total_photon_rate,
+            spectrum_total_photon_rate=self.spectrum_total_photon_rate,
             radiative_transfer=self.radiative_transfer,
             radiation_pressure=self.radiation_pressure,
             metal_pie_enabled=self.metal_pie_enabled,
@@ -1135,9 +1134,9 @@ class Par:
             radiative_transfer_temporal_scheme=self.radiative_transfer_temporal_scheme,
             radiative_transfer_direction=self._parameter('radiative_transfer_direction'),
             boundary_flux=self._parameter('radiative_transfer_boundary_flux'),
-            source_photon_rate=self._parameter('radiative_transfer_source_photon_rate'),
+            source_photon_rate=self._parameter('source_photon_rate'),
             boundary_flux_groups=self.radiative_transfer_boundary_flux_groups,
-            source_photon_rate_groups=self.radiative_transfer_source_photon_rate_groups,
+            source_photon_rate_groups=self.source_photon_rate_groups,
             c2ray_max_iterations=self.radiative_transfer_c2ray_max_iterations,
             c2ray_tolerance=self.radiative_transfer_c2ray_tolerance,
             c2ray_relaxation=self.radiative_transfer_c2ray_relaxation,
@@ -1273,7 +1272,7 @@ class Par:
             power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
             rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
             energies = np.asarray(self.ionizing_photon_energy_cgs_erg, dtype=float) * unyt.erg
-            total_rate = getattr(self, 'radiation_spectrum_total_photon_rate', None)
+            total_rate = getattr(self, 'spectrum_total_photon_rate', None)
             if total_rate is not None:
                 if hasattr(total_rate, 'to_value'):
                     target_rate_s = float(total_rate.to_value(1.0 / unyt.s))
@@ -1292,7 +1291,7 @@ class Par:
                 self.star_emission_rates[1:] *= target_rate_s / current_rate_s
                 self.par_config['star_emission_rates'] = self.star_emission_rates
                 rates = self.star_emission_rates * power_unit
-            self.radiative_transfer_source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
+            self.source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
             self.radiative_transfer_boundary_flux_groups = np.zeros(
                 self.number_of_radiation_groups
             ) / (unyt.cm**2 * unyt.s)

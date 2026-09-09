@@ -630,7 +630,7 @@ def source_state(mesh, fluid, par):
         default=DEFAULT_SIGMA_GAMMA_CGS_CM2,
     )
     source_rate = _optional_numeric_value(
-        _parameter_value(par, 'radiative_transfer_source_photon_rate'),
+        _parameter_value(par, 'source_photon_rate'),
         code.time_unit ** -1,
         default=0.0,
     )
@@ -1150,7 +1150,7 @@ def _fast_source_state(mesh, fluid, par):
             else None
         ),
         'source_rate_s': _optional_numeric_value(
-            _parameter_value(par, 'radiative_transfer_source_photon_rate'),
+            _parameter_value(par, 'source_photon_rate'),
             1.0 / code.time_unit,
             default=0.0,
         ),

@@ -46,7 +46,7 @@ par:
     radiative_transfer_c2ray_relaxation: 1.0
     radiative_transfer_c2ray_nonconvergence: warn
     radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
-    radiative_transfer_source_photon_rate: {value: 5.0e49, unit: 1/s}
+    source_photon_rate: {value: 5.0e49, unit: 1/s}
     radiative_transfer_direction: 1
     hydrogen_radiation_field: false
     hydrogen_radiation_evolution: false

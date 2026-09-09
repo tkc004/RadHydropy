@@ -98,7 +98,7 @@ def main(config_filename=DEFAULT_CONFIG):
         print(
             'stromgren radius = %s'
             % sa.stromgren_radius(
-                nested['par']['radiation']['radiative_transfer_source_photon_rate'],
+                nested['par']['radiation']['source_photon_rate'],
                 initial['hydrogen_number_density'],
                 nested['par']['thermochemistry']['hydrogen_alpha_B'],
             ).to(unyt.kpc)
@@ -107,7 +107,7 @@ def main(config_filename=DEFAULT_CONFIG):
             'analytic front radius = %s'
             % sa.ionization_front_radius(
                 nested['par']['simulation']['final_time'],
-                nested['par']['radiation']['radiative_transfer_source_photon_rate'],
+                nested['par']['radiation']['source_photon_rate'],
                 initial['hydrogen_number_density'],
                 nested['par']['thermochemistry']['hydrogen_alpha_B'],
             ).to(unyt.kpc)

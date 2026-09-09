@@ -58,11 +58,11 @@ generated with::
 Total source normalization
 --------------------------
 
-The optional parameter ``radiation_spectrum_total_photon_rate`` overrides the
+The optional parameter ``spectrum_total_photon_rate`` overrides the
 total ionizing photon injection rate while preserving the relative group
 spectrum::
 
-   radiation_spectrum_total_photon_rate:
+   spectrum_total_photon_rate:
      value: 5.0e48
      unit: 1/s
 

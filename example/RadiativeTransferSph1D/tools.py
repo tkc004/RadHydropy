@@ -127,7 +127,7 @@ def write_initial_condition(config):
 
 def save_plot(mesh, fluid, par, config, figure_filename):
     radiation = config['par']['radiation']
-    source_photon_rate = radiation['radiative_transfer_source_photon_rate']
+    source_photon_rate = radiation['source_photon_rate']
     code_units_obj = par.units.CodeUnits
     interior = slice(par.mesh.ghost_cells, par.mesh.ghost_cells + par.mesh.grid_cells)
     radius_values = mesh.x_proper_code[interior]

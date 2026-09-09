@@ -41,7 +41,7 @@ Its attributes include ``number_of_radiation_groups``,
 The optional YAML parameter below rescales all ionizing groups while preserving
 their relative spectrum::
 
-   radiation_spectrum_total_photon_rate:
+   spectrum_total_photon_rate:
      value: 5.0e48
      unit: 1/s
 

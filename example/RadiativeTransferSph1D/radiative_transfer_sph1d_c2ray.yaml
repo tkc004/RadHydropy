@@ -44,7 +44,7 @@ par:
     radiative_transfer_c2ray_relaxation: 1.0
     radiative_transfer_c2ray_nonconvergence: raise
     radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
-    radiative_transfer_source_photon_rate: {value: 1.0e49, unit: 1/s}
+    source_photon_rate: {value: 1.0e49, unit: 1/s}
     radiative_transfer_direction: 1
 initial_condition:
   box_size_proper: {value: 1.0, unit: pc}

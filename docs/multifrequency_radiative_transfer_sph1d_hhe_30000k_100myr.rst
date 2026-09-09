@@ -55,7 +55,7 @@ Its photon-energy edges are
 
 The five groups use H I, He I, and He II group-averaged cross-sections and
 photoheating energies stored in the spectrum file. The YAML parameter
-``par.radiation.radiation_spectrum_total_photon_rate`` rescales the spectrum
+``par.radiation.spectrum_total_photon_rate`` rescales the spectrum
 to the desired total source rate without changing the relative group emission
 rates.
 

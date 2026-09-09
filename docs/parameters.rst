@@ -472,7 +472,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
      - Incident photon number flux for Cartesian rays or spherical boundary
        illumination.
      - ``cm^-2 s^-1``
-   * - ``radiative_transfer_source_photon_rate``
+   * - ``source_photon_rate``
      - Spherical source photon rate. Prefer this for radial traces starting at
        ``r = 0``.
      - ``s^-1``
@@ -490,7 +490,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
    * - ``radiation_group_epsilon_gamma``
      - Excess photoheating energy for each radiation group.
      - erg per group
-   * - ``radiative_transfer_source_photon_rate_groups``
+   * - ``source_photon_rate_groups``
      - Spherical source photon rate for each radiation group.
      - ``s^-1`` per group
    * - ``radiative_transfer_boundary_flux_groups``
@@ -500,7 +500,7 @@ are applied. See :doc:`radiative_transfer` for the implementation details.
      - HDF5 file containing the ``RadiationSpectrum`` group and spectrum
        datasets. It is loaded during startup and after IC header restoration.
      - path
-   * - ``radiation_spectrum_total_photon_rate``
+   * - ``spectrum_total_photon_rate``
      - Optional total ionizing photon rate. It rescales all ionizing HDF5
        groups by one common factor while preserving the spectrum.
      - ``s^-1``

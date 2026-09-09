@@ -47,7 +47,7 @@ par:
     radiative_transfer: true
     radiation_spectrum_filename:
     radiative_transfer_method: long_characteristics
-    radiative_transfer_source_photon_rate: {value: 5.0e48, unit: 1/s}
+    source_photon_rate: {value: 5.0e48, unit: 1/s}
   output:
     directory: .
     filename_prefix: Output_SingleFrequency

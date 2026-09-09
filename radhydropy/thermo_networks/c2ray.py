@@ -108,11 +108,11 @@ def _group_parameters(par):
         boundary_flux = getattr(radiation, "boundary_flux", 0.0)
     source_rate = getattr(
         par,
-        "radiative_transfer_source_photon_rate_groups",
+        "source_photon_rate_groups",
         None,
     )
     if source_rate is None:
-        source_rate = getattr(par, "radiative_transfer_source_photon_rate", None)
+        source_rate = getattr(par, "source_photon_rate", None)
     if source_rate is None:
         source_rate = getattr(radiation, "source_photon_rate", 0.0)
     boundary_flux = quantity_or_code_to_cgs(

@@ -591,8 +591,8 @@ def trace_photon_density(state, par):
         )
         source_groups = getattr(
             par,
-            "radiative_transfer_source_photon_rate_groups",
-            _parameter_value(par, "radiative_transfer_source_photon_rate", 0.0),
+            "source_photon_rate_groups",
+            _parameter_value(par, "source_photon_rate", 0.0),
         )
         if hasattr(sigma_groups, "to_value"):
             sigma_groups = sigma_groups.to_value(CGS_AREA_UNIT)
@@ -650,7 +650,7 @@ def trace_photon_density(state, par):
         "photon_flux_per_cgs_cm2_s",
     )
     source_photon_rate = _quantity_or_code_to_cgs(
-        _parameter_value(par, "radiative_transfer_source_photon_rate", 0.0),
+        _parameter_value(par, "source_photon_rate", 0.0),
         code,
         PHOTON_RATE_UNIT,
         "photon_rate_per_s",

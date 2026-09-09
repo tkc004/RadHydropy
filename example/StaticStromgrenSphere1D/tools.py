@@ -269,7 +269,7 @@ def append_history(history, mesh, fluid, par, config, recombined_photons):
         ionization_front_position(mesh, fluid, par).to_value(unyt.kpc)
     )
     history['injected_photons'].append(
-        (radiation['radiative_transfer_source_photon_rate'] * time_Myr * unyt.Myr).to_value('')
+        (radiation['source_photon_rate'] * time_Myr * unyt.Myr).to_value('')
     )
     history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, par))
     history['recombined_photons'].append(recombined_photons)
@@ -297,12 +297,12 @@ def save_plot(mesh, fluid, par, config, figure_filename):
         initial['hydrogen_number_density'],
         thermo['hydrogen_sigma_gamma'],
         thermo['hydrogen_alpha_B'],
-        radiation['radiative_transfer_source_photon_rate'],
+        radiation['source_photon_rate'],
         inner_radius=example['analytic_inner_radius'],
     )
     xHII_analytic = 1.0 - xHI_analytic
     radius_stromgren = sa.stromgren_radius(
-        radiation['radiative_transfer_source_photon_rate'],
+        radiation['source_photon_rate'],
         initial['hydrogen_number_density'],
         thermo['hydrogen_alpha_B'],
     ).to(unyt.kpc)
@@ -368,12 +368,12 @@ def save_front_history_plot(history, config, figure_filename):
     time = time_Myr * unyt.Myr
     analytic_front = sa.ionization_front_radius(
         time,
-        radiation['radiative_transfer_source_photon_rate'],
+        radiation['source_photon_rate'],
         initial['hydrogen_number_density'],
         thermo['hydrogen_alpha_B'],
     ).to_value(unyt.kpc)
     radius_stromgren = sa.stromgren_radius(
-        radiation['radiative_transfer_source_photon_rate'],
+        radiation['source_photon_rate'],
         initial['hydrogen_number_density'],
         thermo['hydrogen_alpha_B'],
     ).to_value(unyt.kpc)

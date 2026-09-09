@@ -60,8 +60,8 @@ def parameter_namespace(**values):
         temporal_scheme=values.get("radiative_transfer_temporal_scheme"),
         direction=values.get("radiative_transfer_direction", 1),
         boundary_flux=values.get("radiative_transfer_boundary_flux"),
-        source_photon_rate=values.get("radiative_transfer_source_photon_rate"),
+        source_photon_rate=values.get("source_photon_rate"),
         boundary_flux_groups=values.get("radiative_transfer_boundary_flux_groups"),
-        source_photon_rate_groups=values.get("radiative_transfer_source_photon_rate_groups"),
+        source_photon_rate_groups=values.get("source_photon_rate_groups"),
     )
     return par

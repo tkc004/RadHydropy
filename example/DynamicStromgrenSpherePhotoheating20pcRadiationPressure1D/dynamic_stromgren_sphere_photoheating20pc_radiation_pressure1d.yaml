@@ -51,7 +51,7 @@ par:
     hydrogen_epsilon_gamma: {value: 6.33, unit: eV}
     hydrogen_photon_energy: {value: 20.0, unit: eV}
     radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
-    radiative_transfer_source_photon_rate: {value: 1.0e49, unit: 1/s}
+    source_photon_rate: {value: 1.0e49, unit: 1/s}
     radiative_transfer_direction: 1
     radiation_pressure: true
     radiation_pressure_efficiency: 1.0

@@ -316,18 +316,18 @@ def save_plot(mesh, fluid, par, history, config, figure_filename):
             initial['hydrogen_number_density'],
             thermo['hydrogen_sigma_gamma'],
             alpha_B,
-            radiation['radiative_transfer_source_photon_rate'],
+            radiation['source_photon_rate'],
             inner_radius=example['analytic_inner_radius'],
         )
         xHII_analytic = 1.0 - xHI_analytic
         radius_stromgren = sa.stromgren_radius(
-            radiation['radiative_transfer_source_photon_rate'],
+            radiation['source_photon_rate'],
             initial['hydrogen_number_density'],
             alpha_B,
         ).to(unyt.kpc)
         analytic_front = sa.ionization_front_radius(
             np.asarray(history['time_Myr']) * unyt.Myr,
-            radiation['radiative_transfer_source_photon_rate'],
+            radiation['source_photon_rate'],
             initial['hydrogen_number_density'],
             alpha_B,
         ).to_value(unyt.kpc)

@@ -141,11 +141,11 @@ def test_nested_unitful_settings_are_converted_to_code_units():
         "radiation": {
             "radiative_transfer_boundary_flux":
                 5.0 / (unyt.cm**2 * unyt.s),
-            "radiative_transfer_source_photon_rate": 7.0e-13 / unyt.s,
-            "radiation_spectrum_total_photon_rate": 8.0e-13 / unyt.s,
+            "source_photon_rate": 7.0e-13 / unyt.s,
+            "spectrum_total_photon_rate": 8.0e-13 / unyt.s,
             "radiative_transfer_boundary_flux_groups":
                 np.array([1.0e-13, 2.0e-13]) / (unyt.cm**2 * unyt.s),
-            "radiative_transfer_source_photon_rate_groups":
+            "source_photon_rate_groups":
                 np.array([3.0e-13, 4.0e-13]) / unyt.s,
             "hydrogen_ngamma_initial": 9.0e-18 / unyt.cm**3,
             "hydrogen_ngamma_inflow": 1.0e-17 / unyt.cm**3,

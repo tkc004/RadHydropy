@@ -44,7 +44,7 @@ par:
     radiative_transfer_c2ray_ode_max_iterations: 24
     radiative_transfer_c2ray_nonconvergence: raise
     radiative_transfer_c2ray_ode_tolerance: 1.0e-08
-    radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
+    spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
     radiative_transfer_temporal_scheme: c2ray
     radiative_transfer_direction: 1
     radiative_transfer: true

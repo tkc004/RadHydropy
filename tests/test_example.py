@@ -351,7 +351,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['thermochemistry']['hydrogen_chemistry'], False)
         self.assertEqual(par_config['radiation']['radiative_transfer'], True)
         self.assertEqual(
-            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
         self.assertIn('CodeUnits', par_config['units'])
@@ -391,7 +391,7 @@ class Testing(unittest.TestCase):
         self.assertFalse(par_config['thermochemistry']['hydrogen_initial_collisional_equilibrium'])
         self.assertEqual(par_config['chemistry']['hydrogen_xHI_initial'], 0.9988)
         self.assertEqual(
-            par_config['radiation']['radiation_spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['spectrum_total_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
         )
         spectrum_filename = (
@@ -592,7 +592,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
         self.assertEqual(par_config['timestep']['chemistry_timestep'].to_value(unyt.Myr), 5.0)
         self.assertEqual(
-            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['source_photon_rate'].to_value(1.0 / unyt.s),
             5.0e48,
         )
         self.assertEqual(
@@ -650,7 +650,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
         self.assertEqual(par_config['timestep']['evolution_timestep'].to_value(unyt.Myr), 1.0)
         self.assertEqual(config['example']['reference_time'].to_value(unyt.Myr), 100.0)
-        self.assertEqual(par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s), 5.0e48)
+        self.assertEqual(par_config['radiation']['source_photon_rate'].to_value(1.0 / unyt.s), 5.0e48)
         self.assertIsNone(par_config['thermochemistry']['hydrogen_alpha_B'])
         self.assertIsNone(par_config['thermochemistry']['hydrogen_beta'])
         self.assertTrue(par_config['thermochemistry']['hydrogen_collisional_ionization'])
@@ -803,7 +803,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par['mesh']['grid_cells'], 1024)
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.kpc), 20.0)
         self.assertEqual(
-            par['radiation']['radiative_transfer_source_photon_rate'].to_value(
+            par['radiation']['source_photon_rate'].to_value(
                 1.0 / unyt.s
             ),
             5.0e48,
@@ -846,7 +846,7 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 1.0)
         self.assertEqual(
-            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 20.0)
@@ -919,7 +919,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['mesh']['grid_cells'], 128)
         self.assertEqual(initial_condition['box_size_proper'].to_value(unyt.pc), 20.0)
         self.assertEqual(
-            par_config['radiation']['radiative_transfer_source_photon_rate'].to_value(1.0 / unyt.s),
+            par_config['radiation']['source_photon_rate'].to_value(1.0 / unyt.s),
             1.0e49,
         )
         self.assertEqual(

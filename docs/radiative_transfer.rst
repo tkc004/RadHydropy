@@ -191,7 +191,7 @@ Useful parameters are:
      - Incident photon number flux used for Cartesian beams or spherical
        boundary illumination.
      - ``cm^-2 s^-1``
-   * - ``radiative_transfer_source_photon_rate``
+   * - ``source_photon_rate``
      - Photon number rate for a spherical point/source luminosity. Use this
        when the inner radial face is at ``r = 0``.
      - ``s^-1``
@@ -216,7 +216,7 @@ groups is ``len(radiation_group_edges_eV) - 1``. For example,
        radiation_group_edges_eV: [13.6, 24.6, 54.4, 10000.0]
        radiation_group_sigma_gamma: [2.99e-18, 5.66e-19, 7.84e-20]
        radiation_group_epsilon_gamma: [6.17e-12, 2.81e-11, 7.77e-11]
-       radiative_transfer_source_photon_rate_groups: [2.24e48, 2.48e48, 2.94e47]
+       source_photon_rate_groups: [2.24e48, 2.48e48, 2.94e47]
 
 creates three groups. Cross-sections and excess photoheating energies have one
 entry per group. The source-rate and boundary-flux arrays also have one entry
@@ -224,7 +224,7 @@ per group. The resulting photon density has shape ``(number_of_groups,
 number_of_cells)`` and each group is transported with its own optical depth.
 
 The legacy scalar parameters remain valid. With no group edges, the solver uses
-``hydrogen_sigma_gamma``, ``radiative_transfer_source_photon_rate``, and
+``hydrogen_sigma_gamma``, ``source_photon_rate``, and
 ``radiative_transfer_boundary_flux`` and returns the traditional one-dimensional
 photon-density array. A single group is represented by two edges, for example
 ``radiation_group_edges_eV: [13.6, 10000.0]``.
@@ -248,7 +248,7 @@ standard datasets are:
 
 The group metadata must include ``number_of_radiation_groups`` and
 ``number_of_group_edges``. The optional
-``radiation_spectrum_total_photon_rate`` YAML parameter rescales all ionizing
+``spectrum_total_photon_rate`` YAML parameter rescales all ionizing
 groups by a common factor while preserving their relative spectrum. If it is
 omitted, the normalization stored in ``star_emission_rates`` is used.
 

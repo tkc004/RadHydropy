@@ -161,7 +161,7 @@ class Testing(unittest.TestCase):
             radiation_group_sigma_gamma_HeI=np.array([0.0, 2.0]) * unyt.cm**2,
             radiation_group_sigma_gamma_HeII=np.array([0.0, 0.0]) * unyt.cm**2,
             radiative_transfer_boundary_flux_groups=np.array([10.0, 20.0]) / (unyt.cm**2 * unyt.s),
-            radiative_transfer_source_photon_rate_groups=np.zeros(2) / unyt.s,
+            source_photon_rate_groups=np.zeros(2) / unyt.s,
             radiative_transfer_direction=1,
         )
 
@@ -222,7 +222,7 @@ class Testing(unittest.TestCase):
             hydrogen_mass_fraction=1.0,
             hydrogen_sigma_gamma=1.0 * unyt.cm**2,
             radiative_transfer_boundary_flux=10.0 / (unyt.cm**2 * unyt.s),
-            radiative_transfer_source_photon_rate=0.0 / unyt.s,
+            source_photon_rate=0.0 / unyt.s,
             radiative_transfer_direction=1,
         )
 
@@ -263,7 +263,7 @@ class Testing(unittest.TestCase):
             hydrogen_mass_fraction=1.0,
             hydrogen_sigma_gamma=0.5,
             radiative_transfer_boundary_flux=0.0,
-            radiative_transfer_source_photon_rate=3.0,
+            source_photon_rate=3.0,
             radiative_transfer_direction=1,
         )
 

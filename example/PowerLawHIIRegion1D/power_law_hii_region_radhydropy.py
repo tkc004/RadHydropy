@@ -327,7 +327,7 @@ def main(config_filename=DEFAULT_CONFIG):
         config['par']['simulation']['final_time'].to_value(unyt.yr)
     )
     source_rate_s = config['par']['radiation'][
-        'radiative_transfer_source_photon_rate'
+        'source_photon_rate'
     ].to_value(1.0 / unyt.s)
     analytic_time_s, analytic_radius_cgs_cm, _ = analytic.calculate_front(
         source_rate_s,

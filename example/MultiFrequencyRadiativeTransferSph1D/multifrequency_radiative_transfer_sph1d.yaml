@@ -36,7 +36,7 @@ par:
     radiative_transfer_method: long_characteristics
     radiative_transfer_direction: 1
     radiation_spectrum_filename: ../../tools/radiation_spectrum_generator/radiation_spectrum_BB100000K_5groups_HHe.h5
-    radiation_spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
+    spectrum_total_photon_rate: {value: 5.0e48, unit: 1/s}
   output:
     directory: .
     filename_prefix: Output

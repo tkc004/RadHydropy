@@ -292,7 +292,7 @@ def stromgren_radius(config):
     radiation = config['par']['radiation']
     radius_proper_kpc = (
         3.0
-        * radiation['radiative_transfer_source_photon_rate']
+        * radiation['source_photon_rate']
         / (
             4.0
             * np.pi

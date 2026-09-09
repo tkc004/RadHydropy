@@ -192,7 +192,7 @@ def make_code_par(boundcond='Periodic'):
     par.radiative_transfer = False
     par.radiative_transfer_method = 'long_characteristics'
     par.radiative_transfer_boundary_flux = 0.0
-    par.radiative_transfer_source_photon_rate = 0.0
+    par.source_photon_rate = 0.0
     par.radiative_transfer_direction = 1
     par.mesh.grid_cells = par.nogrid
     par.mesh.ghost_cells = par.noghost
@@ -1481,7 +1481,7 @@ class Testing(unittest.TestCase):
         par.radiative_transfer = True
         par.radiative_transfer_method = 'long_characteristics'
         par.radiative_transfer_boundary_flux = 1.0e15
-        par.radiative_transfer_source_photon_rate = 0.0
+        par.source_photon_rate = 0.0
         par.radiative_transfer_direction = 1
         par.hydrogen_sigma_gamma = 1.0e-18
         mesh = make_code_mesh()
