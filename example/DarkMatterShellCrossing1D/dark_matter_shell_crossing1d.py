@@ -37,16 +37,16 @@ def main(config_filename=DEFAULT_CONFIG):
     output = config["par"]['output']
     code_units = et.code_units_from_config(config)
     shells = et.make_shells(config)
-    time = 0.0
-    history_time = [time]
+    time_proper_code = 0.0
+    history_time_proper_code = [time_proper_code]
     history_radius = [shells.radius.copy()]
     history_energy = [np.sum(shells.mass * shells.specific_energy())]
     crossings = 0
 
-    while time < config["par"]['simulation']['final_time']:
+    while time_proper_code < config["par"]['simulation']['final_time']:
         dt = min(
             float(timestep['output_interval']) / 4.0,
-            float(config["par"]['simulation']['final_time']) - time,
+            float(config["par"]['simulation']['final_time']) - time_proper_code,
         )
         predicted = shells.crossing_timestep(
             safety_factor=float(timestep['crossing_safety_factor'])
@@ -57,8 +57,8 @@ def main(config_filename=DEFAULT_CONFIG):
             dt,
             crossing_safety_factor=float(timestep['crossing_safety_factor']),
         )
-        time += actual_dt
-        history_time.append(time)
+        time_proper_code += actual_dt
+        history_time_proper_code.append(time_proper_code)
         history_radius.append(shells.radius.copy())
         history_energy.append(np.sum(shells.mass * shells.specific_energy()))
 
@@ -68,12 +68,12 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('dark-matter shell radii became non-finite')
     if not np.all(np.diff(history_radius, axis=1) >= 0.0):
         raise RuntimeError('dark-matter shells are not sorted after evolution')
-    if not np.isclose(np.sum(shells.mass), float(initial_condition['total_mass'])):
+    if not np.isclose(np.sum(shells.mass), float(initial_condition['total_mass_dimensionless'])):
         raise RuntimeError('dark-matter shell mass was not conserved')
 
     radius_unit = code_units.length_unit
     radius_pc = quantity_to_value(history_radius * radius_unit, 'pc')
-    time_myr = np.asarray(history_time) * code_units.time_unit.to_value('Myr')
+    time_myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value('Myr')
     energy_fractional_change = np.abs(
         (history_energy - history_energy[0]) / max(abs(history_energy[0]), np.finfo(float).tiny)
     )

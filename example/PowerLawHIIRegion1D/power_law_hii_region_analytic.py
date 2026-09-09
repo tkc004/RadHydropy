@@ -26,10 +26,15 @@ CI = 1.285e6  # cm s**-1, sound speed for T=1e4 K and mu=0.5
 SECONDS_PER_YEAR = 365.25 * 24.0 * 3600.0
 
 
-def density(radius_cgs_cm, nc, rc, w):
+def hydrogen_number_density_cgs_cm3(radius_cgs_cm, core_number_density_cgs_cm3,
+                                    core_radius_cgs_cm, density_power_law_exponent):
     """Return the neutral hydrogen number density in cm**-3."""
     radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
-    return nc * np.where(radius_cgs_cm < rc, 1.0, (radius_cgs_cm / rc) ** (-w))
+    return core_number_density_cgs_cm3 * np.where(
+        radius_cgs_cm < core_radius_cgs_cm,
+        1.0,
+        (radius_cgs_cm / core_radius_cgs_cm) ** (-density_power_law_exponent),
+    )
 
 
 def recombination_integral(radius_cgs_cm, nc, rc, w):
@@ -52,7 +57,10 @@ def front_speed(radius_cgs_cm, q_star, nc, rc, w):
     available = q_star - 4.0 * np.pi * ALPHA_B * recombination_integral(
         radius_cgs_cm, nc, rc, w
     )
-    return available / (4.0 * np.pi * radius_cgs_cm**2 * density(radius_cgs_cm, nc, rc, w))
+    return available / (
+        4.0 * np.pi * radius_cgs_cm**2
+        * hydrogen_number_density_cgs_cm3(radius_cgs_cm, nc, rc, w)
+    )
 
 
 def formation_front(q_star, nc, rc, w, radius_max, samples=20000):
@@ -62,7 +70,9 @@ def formation_front(q_star, nc, rc, w, radius_max, samples=20000):
     Integrating dt/dR avoids a timestep-dependent front solver and is the
     direct thin-front analytic construction used for the reference plot.
     """
-    radius = np.geomspace(max(rc * 1.0e-8, radius_max * 1.0e-10), radius_max, samples)
+    radius_proper_cgs_cm = np.geomspace(
+        max(rc * 1.0e-8, radius_max * 1.0e-10), radius_max, samples
+    )
     # Resolve the finite Strömgren root explicitly.  A logarithmic grid can
     # otherwise jump from a positive front speed to a negative one and miss
     # the 2*c_i formation-to-expansion transition.
@@ -70,10 +80,10 @@ def formation_front(q_star, nc, rc, w, radius_max, samples=20000):
         radius_max, nc, rc, w
     )
     available_at_min = q_star - 4.0 * np.pi * ALPHA_B * recombination_integral(
-        radius[0], nc, rc, w
+        radius_proper_cgs_cm[0], nc, rc, w
     )
     if available_at_min > 0.0 and available_at_max < 0.0:
-        lo, hi = radius[0], radius_max
+        lo, hi = radius_proper_cgs_cm[0], radius_max
         for _ in range(80):
             mid = 0.5 * (lo + hi)
             available = q_star - 4.0 * np.pi * ALPHA_B * recombination_integral(
@@ -83,18 +93,23 @@ def formation_front(q_star, nc, rc, w, radius_max, samples=20000):
                 lo = mid
             else:
                 hi = mid
-        radius = np.geomspace(radius[0], lo * (1.0 - 1.0e-10), samples)
-    speed = front_speed(radius, q_star, nc, rc, w)
-    positive = speed > 0.0
+        radius_proper_cgs_cm = np.geomspace(
+            radius_proper_cgs_cm[0], lo * (1.0 - 1.0e-10), samples
+        )
+    front_speed_cgs_cm_s = front_speed(radius_proper_cgs_cm, q_star, nc, rc, w)
+    positive = front_speed_cgs_cm_s > 0.0
     if not np.any(positive):
         raise ValueError("the source cannot ionize even the innermost radius")
     last = np.flatnonzero(positive)[-1] + 1
-    radius = radius[:last]
-    speed = speed[:last]
-    dt_dr = 1.0 / speed
-    time = np.zeros_like(radius)
-    time[1:] = np.cumsum(0.5 * (dt_dr[1:] + dt_dr[:-1]) * np.diff(radius))
-    return time, radius, speed
+    radius_proper_cgs_cm = radius_proper_cgs_cm[:last]
+    front_speed_cgs_cm_s = front_speed_cgs_cm_s[:last]
+    dt_dr_s_cm = 1.0 / front_speed_cgs_cm_s
+    time_proper_cgs_s = np.zeros_like(radius_proper_cgs_cm)
+    time_proper_cgs_s[1:] = np.cumsum(
+        0.5 * (dt_dr_s_cm[1:] + dt_dr_s_cm[:-1])
+        * np.diff(radius_proper_cgs_cm)
+    )
+    return time_proper_cgs_s, radius_proper_cgs_cm, front_speed_cgs_cm_s
 
 
 def matched_expansion(time_s, radius_w, w):
@@ -142,9 +157,11 @@ def champagne_expansion(time_s, radius_start, w, rc, absolute_time_s=None):
 
 
 def calculate_front(q_star, nc, rc, w, end_time_yr):
-    radius_max = 10.0 * 3.085677581e18  # 10 pc, beyond the plotted range
-    time, radius, speed = formation_front(q_star, nc, rc, w, radius_max)
-    end_time_s = end_time_yr * SECONDS_PER_YEAR
+    radius_max_proper_cgs_cm = 10.0 * 3.085677581e18
+    time_proper_cgs_s, radius_proper_cgs_cm, front_speed_cgs_cm_s = formation_front(
+        q_star, nc, rc, w, radius_max_proper_cgs_cm
+    )
+    end_time_proper_cgs_s = end_time_yr * SECONDS_PER_YEAR
 
     # The paper defines the end of formation when the R-type front slows to
     # approximately 2 c_i.  If it never does, the cloud is density bounded in
@@ -153,46 +170,69 @@ def calculate_front(q_star, nc, rc, w, end_time_yr):
         # Equations (24)--(26) use t measured from the start of the analytic
         # expansion. Do not shift time to an arbitrary plotting radius; the
         # y-axis lower limit simply hides the smaller-radius part.
-        late_time = np.geomspace(1.0e2 * SECONDS_PER_YEAR, end_time_s, 1200)
-        late_radius = champagne_expansion(
-            late_time,
+        late_time_proper_cgs_s = np.geomspace(
+            1.0e2 * SECONDS_PER_YEAR, end_time_proper_cgs_s, 1200
+        )
+        late_radius_proper_cgs_cm = champagne_expansion(
+            late_time_proper_cgs_s,
             rc,
             w,
             rc,
-            absolute_time_s=late_time,
+            absolute_time_s=late_time_proper_cgs_s,
         )
-        return late_time, late_radius, False
+        return late_time_proper_cgs_s, late_radius_proper_cgs_cm, False
 
-    if front_speed(radius[-1], q_star, nc, rc, w) > 2.0 * CI:
-        formation_mask = time <= end_time_s
-        return time[formation_mask], radius[formation_mask], False
+    if front_speed(radius_proper_cgs_cm[-1], q_star, nc, rc, w) > 2.0 * CI:
+        formation_mask = time_proper_cgs_s <= end_time_proper_cgs_s
+        return (
+            time_proper_cgs_s[formation_mask],
+            radius_proper_cgs_cm[formation_mask],
+            False,
+        )
 
-    lo, hi = radius[0], radius[-1]
+    lo, hi = radius_proper_cgs_cm[0], radius_proper_cgs_cm[-1]
     for _ in range(80):
         mid = 0.5 * (lo + hi)
         if front_speed(mid, q_star, nc, rc, w) > 2.0 * CI:
             lo = mid
         else:
             hi = mid
-    radius_w = 0.5 * (lo + hi)
+    radius_w_proper_cgs_cm = 0.5 * (lo + hi)
 
     # Reintegrate only to R_w.  Integrating all the way to the static
     # Strömgren root would include the logarithmically divergent time there.
-    radius = np.geomspace(radius[0], radius_w, 12000)
-    speed = front_speed(radius, q_star, nc, rc, w)
-    dt_dr = 1.0 / speed
-    time = np.zeros_like(radius)
-    time[1:] = np.cumsum(0.5 * (dt_dr[1:] + dt_dr[:-1]) * np.diff(radius))
-    time_w = time[-1]
-    formation_mask = time <= min(time_w, end_time_s)
-    time = time[formation_mask]
-    radius = radius[formation_mask]
-    if time_w > end_time_s:
-        return time, radius, False
-    late_time = np.linspace(time_w, end_time_s, 1200)
-    late_radius = matched_expansion(late_time - time_w, radius_w, w)
-    keep = time < time_w
-    return np.concatenate((time[keep], late_time)), np.concatenate((radius[keep], late_radius)), True
+    radius_proper_cgs_cm = np.geomspace(
+        radius_proper_cgs_cm[0], radius_w_proper_cgs_cm, 12000
+    )
+    front_speed_cgs_cm_s = front_speed(radius_proper_cgs_cm, q_star, nc, rc, w)
+    dt_dr_s_cm = 1.0 / front_speed_cgs_cm_s
+    time_proper_cgs_s = np.zeros_like(radius_proper_cgs_cm)
+    time_proper_cgs_s[1:] = np.cumsum(
+        0.5 * (dt_dr_s_cm[1:] + dt_dr_s_cm[:-1])
+        * np.diff(radius_proper_cgs_cm)
+    )
+    time_w_proper_cgs_s = time_proper_cgs_s[-1]
+    formation_mask = time_proper_cgs_s <= min(
+        time_w_proper_cgs_s, end_time_proper_cgs_s
+    )
+    time_proper_cgs_s = time_proper_cgs_s[formation_mask]
+    radius_proper_cgs_cm = radius_proper_cgs_cm[formation_mask]
+    if time_w_proper_cgs_s > end_time_proper_cgs_s:
+        return time_proper_cgs_s, radius_proper_cgs_cm, False
+    late_time_proper_cgs_s = np.linspace(
+        time_w_proper_cgs_s, end_time_proper_cgs_s, 1200
+    )
+    late_radius_proper_cgs_cm = matched_expansion(
+        late_time_proper_cgs_s - time_w_proper_cgs_s,
+        radius_w_proper_cgs_cm,
+        w,
+    )
+    keep = time_proper_cgs_s < time_w_proper_cgs_s
+    return (
+        np.concatenate((time_proper_cgs_s[keep], late_time_proper_cgs_s)),
+        np.concatenate((radius_proper_cgs_cm[keep], late_radius_proper_cgs_cm)),
+        True,
+    )
 
 
 def main():
@@ -209,13 +249,15 @@ def main():
 
     figure, axis = plt.subplots(figsize=(7.5, 5.5))
     for w in args.exponents:
-        time, radius, trapped = calculate_front(q_star, nc, rc, w, end_time_yr)
+        time_proper_cgs_s, radius_proper_cgs_cm, trapped = calculate_front(
+            q_star, nc, rc, w, end_time_yr
+        )
         label = rf"$w={w:g}$"
         if not trapped and w > 1.5:
             label += " (champagne)"
         axis.plot(
-            time[1:] / SECONDS_PER_YEAR,
-            radius[1:],
+            time_proper_cgs_s[1:] / SECONDS_PER_YEAR,
+            radius_proper_cgs_cm[1:],
             label=label,
         )
 

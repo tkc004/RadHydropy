@@ -36,8 +36,11 @@ def make_initial_condition(config):
         config['par']['units']['CodeUnits']
     )
     ic = config['initial_condition']
-    n = int(ic["grid_cells"]); rmax = float(ic["box_size_proper"].to_value(code_unit_system.length_unit))
-    boundary_proper_code = np.linspace(0.0, rmax, n + 1)
+    n = int(ic["grid_cells"])
+    box_size_proper_code = float(
+        ic["box_size_proper"].to_value(code_unit_system.length_unit)
+    )
+    boundary_proper_code = np.linspace(0.0, box_size_proper_code, n + 1)
     return make_canonical_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
@@ -145,11 +148,13 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
 
     selected = sorted(all_profiles)
     final = {resolution: all_profiles[resolution][-1] for resolution in selected}
-    rmax = float(base_initial_condition["box_size_proper"].to_value(units.length_unit))
+    box_size_proper_code = float(
+        base_initial_condition["box_size_proper"].to_value(units.length_unit)
+    )
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex="col")
     for resolution in selected:
         profile = final[resolution]
-        radius_proper_code = profile["radius_proper_code"] / rmax
+        radius_proper_code = profile["radius_proper_code"] / box_size_proper_code
         axes[0, 0].plot(radius_proper_code, profile["rho_proper_code"], label=f"N={resolution}")
         axes[0, 1].plot(radius_proper_code, profile["temp_proper_code"], label=f"N={resolution}")
         axes[1, 0].plot(radius_proper_code, profile["vel_proper_code"])

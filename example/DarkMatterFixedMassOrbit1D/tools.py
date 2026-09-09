@@ -14,9 +14,9 @@ def make_shell(config):
     return DarkMatterShells(
         radius=[initial_condition['radius_initial_orbit_dimensionless']],
         velocity=[initial_condition['vel_proper']],
-        mass=[initial_condition['shell_mass']],
-        angular_momentum=[initial_condition['specific_angular_momentum']],
-        softening=initial_condition['softening'],
-        fixed_enclosed_mass=initial_condition['central_mass'],
+        mass=[initial_condition['shell_mass_dimensionless']],
+        angular_momentum=[initial_condition['specific_angular_momentum_dimensionless']],
+        softening=initial_condition['softening_dimensionless'],
+        fixed_enclosed_mass=initial_condition['central_mass_dimensionless'],
         code_units=code_unit_system,
     )

@@ -101,7 +101,7 @@ def load_output_state(filename, config):
 def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
     first = par.mesh.ghost_cells
     interior = slice(first, first + par.mesh.grid_cells)
-    radius = np.asarray(
+    radius_proper_cgs_cm = np.asarray(
         code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
@@ -112,7 +112,9 @@ def front_radius_cgs_cm(mesh, fluid, par, neutral_fraction=0.5):
     left = int(crossings[0])
     right = left + 1
     weight = (neutral_fraction - xhi[left]) / (xhi[right] - xhi[left])
-    return radius[left] + weight * (radius[right] - radius[left])
+    return radius_proper_cgs_cm[left] + weight * (
+        radius_proper_cgs_cm[right] - radius_proper_cgs_cm[left]
+    )
 
 
 def shock_radius_cgs_cm(
@@ -137,7 +139,7 @@ def shock_radius_cgs_cm(
         code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
-    rho_cgs = np.asarray(
+    rho_proper_cgs_g_cm3 = np.asarray(
         code_quantity_to_cgs(fluid.rho_proper_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"),
         dtype=float,
     )
@@ -152,7 +154,9 @@ def shock_radius_cgs_cm(
         core_radius_cgs_cm,
         density_power_law_exponent,
     )
-    compression = rho_cgs / (initial_nh * (1.0 * unyt.mp).to_value(unyt.g))
+    compression = rho_proper_cgs_g_cm3 / (
+        initial_nh * (1.0 * unyt.mp).to_value(unyt.g)
+    )
     neutral = (radius_cgs_cm > front) & (xhi > 0.5)
     candidates = np.where(neutral & (compression > 1.05))[0]
     if candidates.size == 0:

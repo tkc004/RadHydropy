@@ -13,19 +13,19 @@ def code_units_from_config(config):
 def make_shell(config):
     initial_condition = config['initial_condition']
     code_unit_system = code_units_from_config(config)
-    central_mass = float(initial_condition['central_dark_matter_mass'])
-    gas_density = float(initial_condition['uniform_gas_density'])
+    central_mass_dimensionless = float(initial_condition['central_dark_matter_mass_dimensionless'])
+    gas_density_dimensionless = float(initial_condition['uniform_gas_density_dimensionless'])
 
     def enclosed_mass(radius_code):
         radius_code = np.asarray(radius_code, dtype=float)
-        return central_mass + 4.0 * np.pi / 3.0 * gas_density * radius_code**3
+        return central_mass_dimensionless + 4.0 * np.pi / 3.0 * gas_density_dimensionless * radius_code**3
 
     return DarkMatterShells(
         radius=[initial_condition['radius_initial_orbit_dimensionless']],
         velocity=[initial_condition['vel_proper']],
-        mass=[initial_condition['shell_mass']],
-        angular_momentum=[initial_condition['specific_angular_momentum']],
-        softening=initial_condition['softening'],
+        mass=[initial_condition['shell_mass_dimensionless']],
+        angular_momentum=[initial_condition['specific_angular_momentum_dimensionless']],
+        softening=initial_condition['softening_dimensionless'],
         fixed_enclosed_mass=enclosed_mass,
         code_units=code_unit_system,
     )
@@ -35,7 +35,7 @@ def enclosed_mass(radius_code, config):
     initial_condition = config['initial_condition']
     radius_code = np.asarray(radius_code, dtype=float)
     return (
-        float(initial_condition['central_dark_matter_mass'])
+        float(initial_condition['central_dark_matter_mass_dimensionless'])
         + 4.0 * np.pi / 3.0
-        * float(initial_condition['uniform_gas_density']) * radius_code**3
+        * float(initial_condition['uniform_gas_density_dimensionless']) * radius_code**3
     )

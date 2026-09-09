@@ -42,10 +42,10 @@ def main(config_filename=DEFAULT_CONFIG):
         GRAVITATIONAL_CONSTANT_CGS * code_units.mass_in_cgs
         / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
     )
-    central_mass = float(initial_condition['central_dark_matter_mass'])
-    gas_density = float(initial_condition['uniform_gas_density'])
-    softening_length_code = float(initial_condition['softening'])
-    specific_angular_momentum_code = float(initial_condition['specific_angular_momentum'])
+    central_mass_dimensionless = float(initial_condition['central_dark_matter_mass_dimensionless'])
+    gas_density_dimensionless = float(initial_condition['uniform_gas_density_dimensionless'])
+    softening_length_dimensionless = float(initial_condition['softening_dimensionless'])
+    specific_angular_momentum_dimensionless = float(initial_condition['specific_angular_momentum_dimensionless'])
     initial_radius_code = float(initial_condition['radius_initial_orbit_dimensionless'])
     initial_velocity_code = quantity_to_value(
         initial_condition['vel_proper'], code_units.velocity_unit
@@ -54,10 +54,10 @@ def main(config_filename=DEFAULT_CONFIG):
     def rhs(time_proper_code, state):
         radius_code, velocity_code = state
         radius_safe_code = max(radius_code, np.finfo(float).tiny)
-        enclosed_mass_code = central_mass + 4.0 * np.pi / 3.0 * gas_density * radius_code**3
+        enclosed_mass_code = central_mass_dimensionless + 4.0 * np.pi / 3.0 * gas_density_dimensionless * radius_code**3
         acceleration = (
-            -g_code * enclosed_mass_code / (radius_code + softening_length_code)**2
-            + specific_angular_momentum_code**2 / (radius_safe_code + softening_length_code)**3
+            -g_code * enclosed_mass_code / (radius_code + softening_length_dimensionless)**2
+            + specific_angular_momentum_dimensionless**2 / (radius_safe_code + softening_length_dimensionless)**3
         )
         return velocity_code, acceleration
 

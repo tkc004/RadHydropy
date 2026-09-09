@@ -53,9 +53,15 @@ def make_initial_condition(config):
         [float(ic["radius_outer_proper"].to_value(code_unit_system.length_unit))]
     )
     result.par.simulation.time_proper_code = 0.0
-    rmin = float(ic["radius_inner_proper"].to_value(code_unit_system.length_unit))
-    rmax = float(ic["radius_outer_proper"].to_value(code_unit_system.length_unit))
-    boundary_proper_code = np.linspace(rmin, rmax, grid_cells + 1)
+    radius_inner_proper_code = float(
+        ic["radius_inner_proper"].to_value(code_unit_system.length_unit)
+    )
+    radius_outer_proper_code = float(
+        ic["radius_outer_proper"].to_value(code_unit_system.length_unit)
+    )
+    boundary_proper_code = np.linspace(
+        radius_inner_proper_code, radius_outer_proper_code, grid_cells + 1
+    )
     radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     shell = (radius_proper_code >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius_proper_code <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
     result.mesh.boundary_proper_code = boundary_proper_code

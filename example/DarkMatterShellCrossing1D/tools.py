@@ -10,21 +10,21 @@ def make_shells(config):
     initial_condition = config['initial_condition']
     code_unit_system = code_units_from_config(config)
     number = int(initial_condition['number_of_shells'])
-    radius = np.linspace(
+    radius_dimensionless = np.linspace(
         initial_condition['radius_inner_dimensionless'], initial_condition['radius_outer_dimensionless'], number
     )
-    mass = np.full(number, initial_condition['total_mass'] / number)
-    velocity = initial_condition['velocity_scale_dimensionless'] * radius
-    angular_momentum = (
+    mass_dimensionless = np.full(number, initial_condition['total_mass_dimensionless'] / number)
+    velocity_dimensionless = initial_condition['velocity_scale_dimensionless'] * radius_dimensionless
+    angular_momentum_dimensionless = (
         initial_condition['angular_momentum_fraction']
-        * np.sqrt(radius)
+        * np.sqrt(radius_dimensionless)
     )
     return DarkMatterShells(
-        radius,
-        velocity,
-        mass,
-        angular_momentum=angular_momentum,
-        softening=initial_condition['softening'],
+        radius_dimensionless,
+        velocity_dimensionless,
+        mass_dimensionless,
+        angular_momentum=angular_momentum_dimensionless,
+        softening=initial_condition['softening_dimensionless'],
         code_units=code_unit_system,
     )
 

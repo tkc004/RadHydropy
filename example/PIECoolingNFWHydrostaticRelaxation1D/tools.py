@@ -36,10 +36,14 @@ def build_initial_condition(config):
     sim = Rsim(config['par'])
     code_units = sim.par.units.CodeUnits
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    rmin = initial['radius_inner_proper']
-    rmax = initial['radius_outer_proper']
+    radius_inner_proper_unyt = initial['radius_inner_proper']
+    radius_outer_proper_unyt = initial['radius_outer_proper']
     boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(rmin, rmax, grid_cells + 1), code_units.length_unit
+        np.linspace(
+            radius_inner_proper_unyt,
+            radius_outer_proper_unyt,
+            grid_cells + 1,
+        ), code_units.length_unit
     ))
     volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
     x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)

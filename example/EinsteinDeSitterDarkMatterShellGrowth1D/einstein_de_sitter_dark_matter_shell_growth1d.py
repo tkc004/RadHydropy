@@ -56,16 +56,16 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('homogeneous shell acceleration %.6g is nonzero' % homogeneous_error)
 
     shells, boundaries = et.make_shells(config)
-    top_hat_radius = quantity_to_value(
+    radius_top_hat_comoving_code = quantity_to_value(
         initial_condition['radius_perturbation_comoving'], units.length_unit
     )
-    inside = shells.radius < top_hat_radius
+    inside = shells.radius < radius_top_hat_comoving_code
     target_mass = float(np.sum(shells.mass[inside]))
     # The top-hat is an exact equal-volume boundary, so this is the actual
     # discretized initial perturbation used by the shell masses.
-    lagrangian_radius = top_hat_radius
-    lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(initial_time)) * float(initial_condition['overdensity']) * lagrangian_radius / 3.0
-    initial_delta = et.overdensity_inside(lagrangian_radius, target_mass, rho_comoving)
+    lagrangian_radius_comoving_code = radius_top_hat_comoving_code
+    lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(initial_time)) * float(initial_condition['overdensity']) * lagrangian_radius_comoving_code / 3.0
+    initial_delta = et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]
     final_cosmic_time = float(config["par"]['simulation']['final_time'])
@@ -90,13 +90,13 @@ def main(config_filename=DEFAULT_CONFIG):
             scale_factor_end=a_end,
             cosmological=True,
         )
-        lagrangian_radius, lagrangian_velocity = et.step_lagrangian_boundary(
-            lagrangian_radius, lagrangian_velocity, step, target_mass,
+        lagrangian_radius_comoving_code, lagrangian_velocity = et.step_lagrangian_boundary(
+            lagrangian_radius_comoving_code, lagrangian_velocity, step, target_mass,
             rho_start, rho_end, a_start, a_end, units,
         )
         time = time_end
         history_a.append(a_end)
-        history_delta.append(et.overdensity_inside(lagrangian_radius, target_mass, rho_end))
+        history_delta.append(et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_end))
 
     expected = initial_delta * history_a[-1] / a_initial
     relative_error = abs(history_delta[-1] - expected) / abs(expected)

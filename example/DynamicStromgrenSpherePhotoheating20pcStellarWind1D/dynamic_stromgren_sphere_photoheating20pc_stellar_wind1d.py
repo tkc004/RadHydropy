@@ -38,12 +38,16 @@ def _pressure_diagnostic(snapshot, config):
     par, mesh, fluid = et.load_output_state(snapshot, config)
     interior = et.interior_slice(par)
     radius_pc = et._to_kpc(mesh.x_proper_code[interior], par) * 1000.0
-    density = et._to_number_density(fluid.rho_proper_code[interior], par)
-    pressure = et._to_pressure(fluid.pre_proper_code[interior], par)
+    hydrogen_number_density_cgs_cm3 = et._to_number_density(
+        fluid.rho_proper_code[interior], par
+    )
+    pressure_proper_cgs_erg_cm3 = et._to_pressure(
+        fluid.pre_proper_code[interior], par
+    )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
 
     # The wind shell is the strongest density peak outside the injection cell.
-    shell_index = int(np.argmax(density))
+    shell_index = int(np.argmax(hydrogen_number_density_cgs_cm3))
     shell_radius_pc = float(radius_pc[shell_index])
     if shell_radius_pc <= 0.0:
         wind_pressure = 0.0
@@ -67,7 +71,12 @@ def _pressure_diagnostic(snapshot, config):
         ambient_ionized = xhi < 0.5
     weighted_volume = float(np.sum(volume_cgs_cm3[ambient_ionized]))
     gas_pressure = (
-        float(np.sum(pressure[ambient_ionized] * volume_cgs_cm3[ambient_ionized]) / weighted_volume)
+        float(
+            np.sum(
+                pressure_proper_cgs_erg_cm3[ambient_ionized]
+                * volume_cgs_cm3[ambient_ionized]
+            ) / weighted_volume
+        )
         if weighted_volume > 0.0
         else 0.0
     )
@@ -79,9 +88,9 @@ def pressure_diagnostic_from_profile(profile, config):
     """Estimate the same pressures from a saved radial-profile CSV."""
     fields = np.genfromtxt(profile, delimiter=',', names=True)
     radius_pc = np.asarray(fields['RADIUS_PC'], dtype=float)
-    density = np.asarray(fields['DENSITY_CM3'], dtype=float)
-    temperature = np.asarray(fields['TEMP_cgs_K'], dtype=float)
-    shell_index = 2 + int(np.argmax(density[2:]))
+    hydrogen_number_density_cgs_cm3 = np.asarray(fields['DENSITY_CM3'], dtype=float)
+    temperature_proper_cgs_K = np.asarray(fields['TEMP_cgs_K'], dtype=float)
+    shell_index = 2 + int(np.argmax(hydrogen_number_density_cgs_cm3[2:]))
     shell_radius_pc = float(radius_pc[shell_index])
     example = config['example']
     mdot = example['wind_mass_loss_rate'].to_value(unyt.g / unyt.s)
@@ -90,9 +99,13 @@ def pressure_diagnostic_from_profile(profile, config):
     wind_pressure = mdot * wind_velocity / (4.0 * np.pi * shell_radius_cgs_cm**2)
     photoheated = (np.arange(radius_pc.size) >= 2) & (
         np.arange(radius_pc.size) < shell_index
-    ) & (temperature > 500.0)
+    ) & (temperature_proper_cgs_K > 500.0)
     gas_pressure = float(
-        np.mean(density[photoheated] * unyt.kb.to_value(unyt.erg / unyt.K) * temperature[photoheated])
+        np.mean(
+            hydrogen_number_density_cgs_cm3[photoheated]
+            * unyt.kb.to_value(unyt.erg / unyt.K)
+            * temperature_proper_cgs_K[photoheated]
+        )
     ) if np.any(photoheated) else 0.0
     time_myr = float(Path(profile).stem.rsplit('_', 1)[-1].replace('Myr', ''))
     return time_myr, wind_pressure, gas_pressure, shell_radius_pc

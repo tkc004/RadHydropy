@@ -28,20 +28,26 @@ class UniformEdSInitialCondition(Rsim):
         super().__init__(config["par"])
         initial_condition = config["initial_condition"]
         count = int(config["par"]["mesh"]["grid_cells"])
-        rmin = quantity_to_value(initial_condition["radius_inner_proper"], code_unit_system.length_unit)
-        rmax = quantity_to_value(initial_condition["radius_outer_proper"], code_unit_system.length_unit)
+        radius_inner_proper_code = quantity_to_value(
+            initial_condition["radius_inner_proper"], code_unit_system.length_unit
+        )
+        radius_outer_proper_code = quantity_to_value(
+            initial_condition["radius_outer_proper"], code_unit_system.length_unit
+        )
         initial_time_proper_code = quantity_to_value(
             initial_condition["time_cosmic"], code_unit_system.time_unit
         )
 
         self.par.mesh.ghost_cells = 0
         self.par.simulation.coordinate_system = "spherical"
-        self.par.simulation.box_size_comoving_code = np.asarray([rmax])
+        self.par.simulation.box_size_comoving_code = np.asarray([radius_outer_proper_code])
         self.par.simulation.time_proper_code = initial_time_proper_code
         self.par.cosmology = cosmology
         self.par.time_proper_code = np.asarray([initial_time_proper_code])
 
-        self.mesh.boundary_proper_code = np.linspace(rmin, rmax, count + 1)
+        self.mesh.boundary_proper_code = np.linspace(
+            radius_inner_proper_code, radius_outer_proper_code, count + 1
+        )
         self.mesh.x_proper_code = 0.75 * (
             self.mesh.boundary_proper_code[1:] ** 4
             - self.mesh.boundary_proper_code[:-1] ** 4

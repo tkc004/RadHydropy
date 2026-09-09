@@ -30,10 +30,12 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 )
 
 
-def effective_potential(radius, mass, angular_momentum, softening, g_code):
+def effective_potential(radius_dimensionless, mass_dimensionless,
+                        angular_momentum_dimensionless,
+                        softening_dimensionless, g_code):
     return (
-        -g_code * mass / (radius + softening)
-        + 0.5 * angular_momentum**2 / radius**2
+        -g_code * mass_dimensionless / (radius_dimensionless + softening_dimensionless)
+        + 0.5 * angular_momentum_dimensionless**2 / radius_dimensionless**2
     )
 
 
@@ -47,25 +49,27 @@ def main(config_filename=DEFAULT_CONFIG):
         6.67430e-8 * code_units.mass_in_cgs
         / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
     )
-    central_mass = float(initial_condition['central_mass'])
-    softening = float(initial_condition['softening'])
-    angular_momentum = float(initial_condition['specific_angular_momentum'])
+    central_mass_dimensionless = float(initial_condition['central_mass_dimensionless'])
+    softening_dimensionless = float(initial_condition['softening_dimensionless'])
+    angular_momentum_dimensionless = float(initial_condition['specific_angular_momentum_dimensionless'])
     initial_radius = float(initial_condition['radius_initial_orbit_dimensionless'])
     vel_proper_code = quantity_to_value(
         initial_condition['vel_proper'], code_units.velocity_unit
     )
-    energy = 0.5 * vel_proper_code**2 + effective_potential(
-        initial_radius, central_mass, angular_momentum, softening, g_code
+    energy_dimensionless = 0.5 * vel_proper_code**2 + effective_potential(
+        initial_radius, central_mass_dimensionless,
+        angular_momentum_dimensionless, softening_dimensionless, g_code
     )
 
     def rhs(time_proper_code, state):
-        radius, velocity = state
-        radius_safe = max(radius, np.finfo(float).tiny)
+        radius_dimensionless, velocity_dimensionless = state
+        radius_safe_dimensionless = max(radius_dimensionless, np.finfo(float).tiny)
         acceleration = (
-            -g_code * central_mass / (radius + softening)**2
-            + angular_momentum**2 / radius_safe**3
+            -g_code * central_mass_dimensionless
+            / (radius_dimensionless + softening_dimensionless)**2
+            + angular_momentum_dimensionless**2 / radius_safe_dimensionless**3
         )
-        return velocity, acceleration
+        return velocity_dimensionless, acceleration
 
     def event_radius_floor(time_proper_code, state):
         return state[0] - 0.02
@@ -84,7 +88,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     numerical_time = [0.0]
-    numerical_radius = [shell.radius[0]]
+    numerical_radius_dimensionless = [shell.radius[0]]
     numerical_energy = [shell.specific_energy()[0]]
     time = 0.0
     while time < reference.t[-1]:
@@ -94,19 +98,19 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         time += shell.step(dt)
         numerical_time.append(time)
-        numerical_radius.append(shell.radius[0])
+        numerical_radius_dimensionless.append(shell.radius[0])
         numerical_energy.append(shell.specific_energy()[0])
 
     numerical_time = np.asarray(numerical_time)
-    numerical_radius = np.asarray(numerical_radius)
+    numerical_radius_dimensionless = np.asarray(numerical_radius_dimensionless)
     numerical_energy = np.asarray(numerical_energy)
     reference_radius = reference.sol(numerical_time)[0]
-    radius_error = np.max(np.abs(numerical_radius - reference_radius))
+    radius_error = np.max(np.abs(numerical_radius_dimensionless - reference_radius))
     energy_error = np.max(np.abs(numerical_energy - numerical_energy[0]))
     print('maximum radius error = %.6g code lengths' % radius_error)
     print('maximum shell-energy drift = %.6g code velocity squared' % energy_error)
 
-    radius_pc = quantity_to_value(numerical_radius * code_units.length_unit, 'pc')
+    radius_pc = quantity_to_value(numerical_radius_dimensionless * code_units.length_unit, 'pc')
     reference_pc = quantity_to_value(reference_radius * code_units.length_unit, 'pc')
     time_myr = quantity_to_value(numerical_time * code_units.time_unit, 'Myr')
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))

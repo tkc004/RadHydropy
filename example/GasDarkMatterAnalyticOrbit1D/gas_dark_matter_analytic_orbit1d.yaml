@@ -16,10 +16,10 @@ par:
 example:
   output_interval: 0.0005
 initial_condition:
-  central_dark_matter_mass: 0.15
-  uniform_gas_density: 0.20
+  central_dark_matter_mass_dimensionless: 0.15
+  uniform_gas_density_dimensionless: 0.20
   radius_initial_orbit_dimensionless: 0.55
   vel_proper: {value: 0.0, unit: km/s}
-  specific_angular_momentum: 0.16
-  softening: 0.02
-  shell_mass: 1.0e-12
+  specific_angular_momentum_dimensionless: 0.16
+  softening_dimensionless: 0.02
+  shell_mass_dimensionless: 1.0e-12

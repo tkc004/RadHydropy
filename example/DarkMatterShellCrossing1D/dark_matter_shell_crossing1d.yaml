@@ -20,8 +20,8 @@ initial_condition:
   number_of_shells: 32
   radius_inner_dimensionless: 0.08
   radius_outer_dimensionless: 0.8
-  total_mass: 1.0
+  total_mass_dimensionless: 1.0
   velocity_scale_dimensionless: -0.55
   angular_momentum_fraction: 0.15
-  softening: 0.02
+  softening_dimensionless: 0.02
 example: {}
