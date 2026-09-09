@@ -18,36 +18,41 @@ class ShellOrbitTracker:
         self.previous = None
         self.latest_time = None
 
-    def _r200m(self, radius, mass, cosmic_time):
-        order = np.argsort(radius)
-        radius = np.asarray(radius)[order]
-        mass = np.asarray(mass)[order]
-        mean_density = np.cumsum(mass) / (4.0 * np.pi / 3.0 * radius**3)
+    def _r200m(self, radius_comoving_code, mass_comoving_code, cosmic_time):
+        order = np.argsort(radius_comoving_code)
+        radius_comoving_code = np.asarray(radius_comoving_code)[order]
+        mass_comoving_code = np.asarray(mass_comoving_code)[order]
+        mean_density_comoving_code = np.cumsum(mass_comoving_code) / (
+            4.0 * np.pi / 3.0 * radius_comoving_code**3
+        )
         target = 200.0 * float(self.cosmology.background_density(cosmic_time))
         crossing = np.flatnonzero(
-            (mean_density[:-1] >= target) & (mean_density[1:] < target))
+            (mean_density_comoving_code[:-1] >= target)
+            & (mean_density_comoving_code[1:] < target))
         if not crossing.size:
             return None
         index = int(crossing[-1])
         return float(np.exp(np.interp(
-            np.log(target), np.log(mean_density[index:index + 2][::-1]),
-            np.log(radius[index:index + 2][::-1]))))
+            np.log(target),
+            np.log(mean_density_comoving_code[index:index + 2][::-1]),
+            np.log(radius_comoving_code[index:index + 2][::-1]))))
 
-    def observe(self, cosmic_time, scale_factor, radius, velocity, mass,
+    def observe(self, cosmic_time, scale_factor, radius_comoving_code,
+                vel_supercomoving_code, mass_comoving_code,
                 shell_id):
         """Consume one accepted solver state, preserving shell identities."""
         if shell_id is None:
             raise ValueError('ShellOrbitTracker requires persistent shell IDs')
         ids = np.asarray(shell_id, dtype=int)
-        radius = np.asarray(radius, dtype=float)
-        velocity = np.asarray(velocity, dtype=float)
-        mass = np.asarray(mass, dtype=float)
-        proper_radius = float(scale_factor) * radius
-        physical_velocity = (
-            float(self.cosmology.hubble(cosmic_time)) * proper_radius +
-            velocity / float(scale_factor))
-        r200m = self._r200m(radius, mass, cosmic_time)
-        current = {int(i): (proper_radius[j], physical_velocity[j])
+        radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
+        vel_supercomoving_code = np.asarray(vel_supercomoving_code, dtype=float)
+        mass_comoving_code = np.asarray(mass_comoving_code, dtype=float)
+        radius_proper_code = float(scale_factor) * radius_comoving_code
+        vel_proper_code = (
+            float(self.cosmology.hubble(cosmic_time)) * radius_proper_code +
+            vel_supercomoving_code / float(scale_factor))
+        r200m = self._r200m(radius_comoving_code, mass_comoving_code, cosmic_time)
+        current = {int(i): (radius_proper_code[j], vel_proper_code[j])
                    for j, i in enumerate(ids)}
         if self.previous is not None:
             previous_time, previous, previous_r200m = self.previous
@@ -98,7 +103,7 @@ class ShellOrbitTracker:
         return np.asarray(values, dtype=float)
 
     def first_apocenter_events(self):
-        """Return ``(time, radius, accretion_time)`` for completed events."""
+        """Return ``(time_cosmic, radius_proper, accretion_time)`` for events."""
         events = []
         for event in self.events.values():
             if event['apocentre'] is None:

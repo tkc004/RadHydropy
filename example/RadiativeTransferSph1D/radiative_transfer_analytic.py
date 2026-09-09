@@ -26,33 +26,39 @@ def finite_volume_density(boundary_proper_code, volume_proper_code, source_photo
     else:
         volume_cgs_cm3 = code_quantity_to_cgs(volume_proper_code, code_unit_system, 'volume_cgs_cm3')
     if hasattr(source_photon_rate, 'to_value'):
-        source_rate_s = source_photon_rate.to_value(1.0 / unyt.s)
+        source_photon_rate_cgs_s = source_photon_rate.to_value(1.0 / unyt.s)
     else:
-        source_rate_s = (
+        source_photon_rate_cgs_s = (
             np.asarray(source_photon_rate, dtype=float)
             * code_unit_scales(code_unit_system)['photon_rate_per_s']
         )
     dr = boundary_cgs_cm[1:] - boundary_cgs_cm[:-1]
     speed_of_light = SPEED_OF_LIGHT_CGS
-    density = source_rate_s * dr / volume_cgs_cm3 / speed_of_light
-    return density * (1.0 / unyt.cm**3)
+    photon_number_density_cgs_cm3 = source_photon_rate_cgs_s * dr / volume_cgs_cm3 / speed_of_light
+    return photon_number_density_cgs_cm3 * (1.0 / unyt.cm**3)
 
 
-def point_density(radius, source_photon_rate, code_unit_system):
+def point_photon_number_density(
+    radius_proper_unyt, source_photon_rate, code_unit_system
+):
     """Return pointwise ``Q / (4 pi r^2 c)`` photon density."""
 
     code_unit_system = _normalize_code_units(code_unit_system)
-    if hasattr(radius, 'to_value'):
-        radius_cgs_cm = radius.to_value(unyt.cm)
+    if hasattr(radius_proper_unyt, 'to_value'):
+        radius_proper_cgs_cm = radius_proper_unyt.to_value(unyt.cm)
     else:
-        radius_cgs_cm = code_quantity_to_cgs(radius, code_unit_system, 'length_cgs_cm')
+        radius_proper_cgs_cm = code_quantity_to_cgs(
+            radius_proper_unyt, code_unit_system, 'length_cgs_cm'
+        )
     if hasattr(source_photon_rate, 'to_value'):
-        source_rate_s = source_photon_rate.to_value(1.0 / unyt.s)
+        source_photon_rate_cgs_s = source_photon_rate.to_value(1.0 / unyt.s)
     else:
-        source_rate_s = (
+        source_photon_rate_cgs_s = (
             np.asarray(source_photon_rate, dtype=float)
             * code_unit_scales(code_unit_system)['photon_rate_per_s']
         )
     speed_of_light = SPEED_OF_LIGHT_CGS
-    density = source_rate_s / (4.0 * np.pi * radius_cgs_cm**2 * speed_of_light)
-    return density * (1.0 / unyt.cm**3)
+    photon_number_density_cgs_cm3 = source_photon_rate_cgs_s / (
+        4.0 * np.pi * radius_proper_cgs_cm**2 * speed_of_light
+    )
+    return photon_number_density_cgs_cm3 * (1.0 / unyt.cm**3)

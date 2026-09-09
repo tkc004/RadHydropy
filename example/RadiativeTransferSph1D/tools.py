@@ -132,9 +132,9 @@ def save_plot(mesh, fluid, par, config, figure_filename):
     interior = slice(par.mesh.ghost_cells, par.mesh.ghost_cells + par.mesh.grid_cells)
     radius_values = mesh.x_proper_code[interior]
     if hasattr(radius_values, 'to_value'):
-        radius = radius_values.to_value(unyt.pc) * unyt.pc
+        radius_proper_unyt = radius_values.to_value(unyt.pc) * unyt.pc
     else:
-        radius = (
+        radius_proper_unyt = (
             code_quantity_to_cgs(radius_values, code_units_obj, 'length_cgs_cm')
             / PC_IN_CM
         ) * unyt.pc
@@ -176,7 +176,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
         else float(np.asarray(r_max.to_value(unyt.pc), dtype=float)),
         512,
     ) * unyt.pc
-    analytic_point = rta.point_density(
+    analytic_point = rta.point_photon_number_density(
         radius_line,
         source_photon_rate,
         code_unit_system=code_units_obj,
@@ -188,7 +188,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
 
     fig, ax = plt.subplots(figsize=(7.0, 4.8))
     ax.plot(
-        radius.to_value(unyt.pc),
+        radius_proper_unyt.to_value(unyt.pc),
         simulated.to_value(1.0 / unyt.cm**3),
         marker='o',
         ms=3.0,
@@ -200,7 +200,7 @@ def save_plot(mesh, fluid, par, config, figure_filename):
         ),
     )
     ax.plot(
-        radius.to_value(unyt.pc),
+        radius_proper_unyt.to_value(unyt.pc),
         analytic_fv.to_value(1.0 / unyt.cm**3),
         color='black',
         lw=2.0,

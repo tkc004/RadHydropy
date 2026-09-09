@@ -15,22 +15,22 @@ def analytic_density_profile(radius_proper_code, time_proper_code, config, cell_
     injection_radius = float(initial['radius_injection_proper'])
     density_outflow = float(boundary['rho_outflow_proper'])
     velocity_outflow = float(boundary['vel_outflow_proper'])
-    front = injection_radius + velocity_outflow * float(time_proper_code)
+    front_radius_proper_code = injection_radius + velocity_outflow * float(time_proper_code)
     profile = np.full_like(radius_proper_code, np.nan, dtype=float)
     if cell_faces is None:
-        inside = (radius_proper_code >= injection_radius) & (radius_proper_code <= front)
+        inside = (radius_proper_code >= injection_radius) & (radius_proper_code <= front_radius_proper_code)
         profile[inside] = density_outflow * (injection_radius / radius_proper_code[inside])**2
-        return profile, front
+        return profile, front_radius_proper_code
     faces = np.asarray(cell_faces, dtype=float)
     left = np.maximum(faces[:-1], injection_radius)
-    right = np.minimum(faces[1:], front)
+    right = np.minimum(faces[1:], front_radius_proper_code)
     inside = right > left
     volume_factor = faces[1:]**3 - faces[:-1]**3
     profile[inside] = (
         3.0 * density_outflow * injection_radius**2
         * (right[inside] - left[inside]) / volume_factor[inside]
     )
-    return profile, front
+    return profile, front_radius_proper_code
 
 
 def build_initial_condition(config):

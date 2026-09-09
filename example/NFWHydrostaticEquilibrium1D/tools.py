@@ -27,18 +27,18 @@ def nfw_halo_parameters(
     h0=DEFAULT_H0,
 ):
     """Return ``R_delta``, ``r_s``, ``rho_s``, and ``T_vir`` for an NFW halo."""
-    mass = halo_mass.to(unyt.g)
+    halo_mass_proper_g = halo_mass.to(unyt.g)
     h0_cgs = h0.to(1.0 / unyt.s)
     rho_critical = 3.0 * h0_cgs**2 / (8.0 * np.pi * GRAVITATIONAL_CONSTANT)
     virial_radius = (
-        3.0 * mass / (4.0 * np.pi * overdensity * rho_critical)
+        3.0 * halo_mass_proper_g / (4.0 * np.pi * overdensity * rho_critical)
     ) ** (1.0 / 3.0)
     scale_radius = virial_radius / float(concentration)
     shape = np.log1p(concentration) - concentration / (1.0 + concentration)
-    scale_density = mass / (4.0 * np.pi * scale_radius**3 * shape)
-    circular_velocity_squared = GRAVITATIONAL_CONSTANT * mass / virial_radius
+    scale_density = halo_mass_proper_g / (4.0 * np.pi * scale_radius**3 * shape)
+    circular_velocity_squared = GRAVITATIONAL_CONSTANT * halo_mass_proper_g / virial_radius
     return {
-        'mass': mass,
+        'mass': halo_mass_proper_g,
         'redshift': float(redshift),
         'overdensity': float(overdensity),
         'concentration': float(concentration),
@@ -52,12 +52,12 @@ def nfw_halo_parameters(
 
 def virial_temperature(halo, mu=0.59):
     """Return the gas virial temperature using ``kT=mu mp V_vir^2/2``."""
-    velocity = halo['virial_velocity'].to(unyt.cm / unyt.s)
-    temperature = (
-        float(mu) * PROTON_MASS_CGS * velocity.value**2
+    virial_velocity_cgs_cm_s = halo['virial_velocity'].to(unyt.cm / unyt.s)
+    virial_temperature_proper_K = (
+        float(mu) * PROTON_MASS_CGS * virial_velocity_cgs_cm_s.value**2
         / (2.0 * BOLTZMANN_CONSTANT_CGS)
     ) * unyt.K
-    return temperature
+    return virial_temperature_proper_K
 
 
 def spherical_cell_centers(boundary_proper_code):
@@ -68,11 +68,11 @@ def spherical_cell_centers(boundary_proper_code):
     return 0.75 * (outer**4 - inner**4) / denominator
 
 
-def nfw_enclosed_mass(radius, halo):
+def nfw_enclosed_mass(radius_proper_unyt, halo):
     """Return the NFW dark-matter mass enclosed by ``radius``."""
-    radius = radius.to(unyt.cm)
+    radius_proper_cgs_cm = radius_proper_unyt.to(unyt.cm)
     scale_radius = halo['scale_radius'].to(unyt.cm)
-    x = radius / scale_radius
+    x = radius_proper_cgs_cm / scale_radius
     c = halo['concentration']
     shape = np.log1p(c) - c / (1.0 + c)
     return halo['mass'] * (
@@ -81,10 +81,10 @@ def nfw_enclosed_mass(radius, halo):
 
 
 def hydrostatic_density_profile(
-    radius,
-    boundaries,
+    radius_proper_unyt,
+    boundaries_proper_unyt,
     halo,
-    temperature,
+    temperature_proper_unyt,
     mu,
     gas_fraction=DEFAULT_BARYON_FRACTION,
 ):
@@ -94,18 +94,18 @@ def hydrostatic_density_profile(
     with ``P=rho*k*T/(mu*m_p)``. Its normalization is selected so the gas mass
     over the supplied spherical mesh equals ``gas_fraction * halo['mass']``.
     """
-    radius = radius.to(unyt.cm)
-    boundaries = boundaries.to(unyt.cm)
-    temperature_cgs_K = temperature.to_value(unyt.K)
+    radius_proper_cgs_cm_unyt = radius_proper_unyt.to(unyt.cm)
+    boundaries_proper_cgs_cm_unyt = boundaries_proper_unyt.to(unyt.cm)
+    temperature_proper_cgs_K = temperature_proper_unyt.to_value(unyt.K)
     potential = nfw_potential(
-        radius,
+        radius_proper_cgs_cm_unyt,
         halo['scale_density'],
         halo['scale_radius'],
     ).to_value(unyt.cm**2 / unyt.s**2)
-    beta = float(mu) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * temperature_cgs_K)
+    beta = float(mu) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * temperature_proper_cgs_K)
     shape = np.exp(-beta * (potential - potential[0]))
     shell_volume = 4.0 * np.pi / 3.0 * (
-        boundaries[1:].value**3 - boundaries[:-1].value**3
+        boundaries_proper_cgs_cm_unyt[1:].value**3 - boundaries_proper_cgs_cm_unyt[:-1].value**3
     )
     gas_mass = float(gas_fraction) * halo['mass'].to_value(unyt.g)
     normalization = gas_mass / np.sum(shape * shell_volume)
@@ -129,12 +129,12 @@ def build_initial_condition(config):
         initial_condition['overdensity'],
         initial_condition['h0'],
     )
-    temperature = virial_temperature(halo, initial_condition['mu'])
+    temperature_proper_unyt = virial_temperature(halo, initial_condition['mu'])
     density_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
         coordinate_unyt,
         boundary_unyt,
         halo,
-        temperature,
+        temperature_proper_unyt,
         initial_condition['mu'],
         initial_condition['gas_fraction'],
     )
@@ -143,11 +143,11 @@ def build_initial_condition(config):
         boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
         rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
         vel_proper_code=np.zeros(grid_cells),
-        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature, code_units.temperature_unit)),
+        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature_proper_unyt, code_units.temperature_unit)),
         mu_dimensionless=np.full(grid_cells, initial_condition['mu']),
     )
 
-def read_and_plot(outfilename, config, halo, temperature, figure_filename):
+def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_filename):
     """Read the evolved snapshot and plot its NFW hydrostatic residuals."""
     initial_condition = config['initial_condition']
     par = config['par']
@@ -161,24 +161,24 @@ def read_and_plot(outfilename, config, halo, temperature, figure_filename):
         code_units,
         'length_cgs_cm',
     ) * unyt.cm
-    radius_all = spherical_cell_centers(boundary_cgs)
+    radius_proper_cgs_cm_all_unyt = spherical_cell_centers(boundary_cgs)
     first = nghost
     last = first + int(par['mesh']['grid_cells'])
-    radius = radius_all[first:last]
+    radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_all_unyt[first:last]
     rho_proper_code = rout.fluid.rho_proper_code[first:last]
-    velocity = rout.fluid.vel_proper_code[first:last]
+    vel_proper_code = rout.fluid.vel_proper_code[first:last]
     rho_expected = hydrostatic_density_profile(
-        radius_all,
+        radius_proper_cgs_cm_all_unyt,
         boundary_cgs,
         halo,
-        temperature,
+        temperature_proper_unyt,
         initial_condition['mu'],
         initial_condition['gas_fraction'],
     )[first:last]
-    radius_kpc = quantity_to_value(radius, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
+    radius_kpc = quantity_to_value(radius_proper_cgs_cm_unyt, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
     rho_cgs = code_quantity_to_cgs(rho_proper_code, code_units, 'density_cgs_g_cm3')
     rho_expected_cgs = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
-    velocity_km_s = code_quantity_to_cgs(velocity, code_units, 'velocity_cgs_cm_s') / 1.0e5
+    velocity_km_s = code_quantity_to_cgs(vel_proper_code, code_units, 'velocity_cgs_cm_s') / 1.0e5
 
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.5))
     axes[0].plot(radius_kpc, rho_expected_cgs, color='black', lw=2.0, label='analytic HSE')

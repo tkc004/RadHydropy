@@ -101,10 +101,10 @@ def run():
         density_code = rho_proper_cgs / density_unit
         case_config = copy.deepcopy(config)
         case_config["_code_cosmology"] = code_cosmology
-        case_config["initial_condition"] = {
-            "box_size_comoving": 4.0 * units.length_unit,
-            "time_cosmic": initial_time * units.time_unit,
-        }
+        case_config["initial_condition"].update(
+            box_size_comoving=4.0 * units.length_unit,
+            time_cosmic=initial_time * units.time_unit,
+        )
         case_config["_rho_comoving_code"] = np.full(
             int(config["par"]["mesh"]["grid_cells"]),
             density_code * initial_scale_factor**3,
@@ -120,7 +120,6 @@ def run():
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        case_config["par"] = copy.deepcopy(config["par"])
         case_config["par"]["simulation"].update(
             name=f"CosmologicalDensityEvolution1D_{label}",
             initial_condition_filename=str(ic_filename),

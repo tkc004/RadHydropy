@@ -49,8 +49,8 @@ def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
 
 
 def hydrostatic_density_profile(
-    coordinate,
-    rho_ref,
+    coordinate_proper_code,
+    rho_reference_proper_unyt,
     temperature_proper_code,
     mu,
     gravity_strength,
@@ -59,18 +59,18 @@ def hydrostatic_density_profile(
     """Return the exact isothermal hydrostatic density profile."""
     c_s2 = sound_speed_squared(temperature_proper_code, mu, code_unit_system=code_unit_system)
     c_s2_value = c_s2.to_value(unyt.cm**2 / unyt.s**2)
-    if hasattr(coordinate, "to_value"):
-        coord_value = coordinate.to_value(unyt.cm)
+    if hasattr(coordinate_proper_code, "to_value"):
+        coord_value = coordinate_proper_code.to_value(unyt.cm)
     elif code_unit_system is not None:
-        coord_value = np.asarray(coordinate, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
+        coord_value = np.asarray(coordinate_proper_code, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
-        coord_value = np.asarray(coordinate, dtype=float)
-    if hasattr(rho_ref, "to_value"):
-        rho_value = rho_ref.to_value(unyt.g / unyt.cm**3)
+        coord_value = np.asarray(coordinate_proper_code, dtype=float)
+    if hasattr(rho_reference_proper_unyt, "to_value"):
+        rho_value = rho_reference_proper_unyt.to_value(unyt.g / unyt.cm**3)
     elif code_unit_system is not None:
-        rho_value = np.asarray(rho_ref, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
+        rho_value = np.asarray(rho_reference_proper_unyt, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
     else:
-        rho_value = float(rho_ref)
+        rho_value = float(rho_reference_proper_unyt)
     if hasattr(gravity_strength, "to_value"):
         gravity_value = gravity_strength.to_value(unyt.cm / unyt.s**2)
     elif code_unit_system is not None:

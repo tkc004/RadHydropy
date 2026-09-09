@@ -91,31 +91,33 @@ def point_mass_hydrostatic_density_profile(
     return rho_value * np.exp(exponent) * DENSITY_UNIT
 
 
-def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
+def point_mass_acceleration(
+    point_mass_proper_g, softening_proper_unyt=0.0, code_unit_system=None
+):
     """Return a callable for a point-mass gravitational acceleration field."""
-    if hasattr(point_mass, "to_value"):
-        point_mass = point_mass.to_value(unyt.g)
+    if hasattr(point_mass_proper_g, "to_value"):
+        point_mass_proper_g = point_mass_proper_g.to_value(unyt.g)
     elif code_unit_system is not None:
-        point_mass = np.asarray(point_mass, dtype=float) * code_unit_scales(code_unit_system)["mass_g"]
+        point_mass_proper_g = np.asarray(point_mass_proper_g, dtype=float) * code_unit_scales(code_unit_system)["mass_g"]
     else:
-        point_mass = float(point_mass)
-    if hasattr(softening, "to_value"):
-        softening = softening.to_value(unyt.cm)
+        point_mass_proper_g = float(point_mass_proper_g)
+    if hasattr(softening_proper_unyt, "to_value"):
+        softening_proper_cgs_cm = softening_proper_unyt.to_value(unyt.cm)
     elif code_unit_system is not None:
-        softening = np.asarray(softening, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
+        softening_proper_cgs_cm = np.asarray(softening_proper_unyt, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
-        softening = float(softening)
+        softening_proper_cgs_cm = float(softening_proper_unyt)
 
     def _acceleration(x_proper_code):
         if hasattr(x_proper_code, "to_value"):
-            radius = x_proper_code.to_value(unyt.cm)
+            radius_proper_cgs_cm = x_proper_code.to_value(unyt.cm)
         elif code_unit_system is not None:
-            radius = np.asarray(x_proper_code, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
+            radius_proper_cgs_cm = np.asarray(x_proper_code, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
         else:
-            radius = np.asarray(x_proper_code, dtype=float)
-        radius = np.maximum(radius, softening)
+            radius_proper_cgs_cm = np.asarray(x_proper_code, dtype=float)
+        radius_proper_cgs_cm = np.maximum(radius_proper_cgs_cm, softening_proper_cgs_cm)
         return (
-            -GRAVITATIONAL_CONSTANT_CGS * point_mass / radius**2
+            -GRAVITATIONAL_CONSTANT_CGS * point_mass_proper_g / radius_proper_cgs_cm**2
         ) * ACCELERATION_UNIT
 
     return _acceleration
@@ -206,27 +208,27 @@ def plot_snapshot(outfilename, config, **kwargs):
     if nghost > 0:
         # Mesh geometry contains physical cells; only fluid arrays carry
         # ghost cells after HDF5 reload.
-        xcoord = xall
+        coordinate_proper_code = xall
         rho_num = rout.fluid.rho_proper_code[nghost:-nghost]
         vel_code_num = rout.fluid.vel_proper_code[nghost:-nghost]
     else:
-        xcoord = xall
+        coordinate_proper_code = xall
         rho_num = rout.fluid.rho_proper_code
         vel_code_num = rout.fluid.vel_proper_code
     rho_analytic = point_mass_hydrostatic_density_profile(
-        xcoord,
+        coordinate_proper_code,
         config['initial_condition']['rho_reference_proper'],
         config['initial_condition']['temperature_proper'],
         config['initial_condition']['mean_molecular_weight'],
         config['initial_condition']['point_mass'],
-        reference_radius=xcoord[0],
+        reference_radius=coordinate_proper_code[0],
         code_unit_system=code_units_obj,
     )
-    zero_velocity = np.zeros(len(xcoord)) * unyt.cm / unyt.s
-    x_units = getattr(xcoord, 'units', code_units_obj.length_unit.units if code_units_obj is not None else unyt.cm)
+    zero_velocity = np.zeros(len(coordinate_proper_code)) * unyt.cm / unyt.s
+    x_units = getattr(coordinate_proper_code, 'units', code_units_obj.length_unit.units if code_units_obj is not None else unyt.cm)
     rho_units = getattr(rho_num, 'units', code_units_obj.density_unit.units if code_units_obj is not None else unyt.g / unyt.cm**3)
     vel_units = getattr(vel_code_num, 'units', code_units_obj.velocity_unit.units if code_units_obj is not None else unyt.cm / unyt.s)
-    xplot = code_quantity_to_cgs(xcoord, code_units_obj, 'length_cgs_cm')
+    xplot = code_quantity_to_cgs(coordinate_proper_code, code_units_obj, 'length_cgs_cm')
     rho_num_plot = code_quantity_to_cgs(rho_num, code_units_obj, 'density_cgs_g_cm3')
     rho_analytic_plot = quantity_to_value(rho_analytic, unyt.g / unyt.cm**3)
     vel_num_plot = code_quantity_to_cgs(vel_code_num, code_units_obj, 'velocity_cgs_cm_s')

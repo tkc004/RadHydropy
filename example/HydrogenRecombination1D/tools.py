@@ -149,7 +149,7 @@ def save_history_plot(history, filename, config, target_neutral_fraction):
         dense_time_yr = np.linspace(time_yr.min(), time_yr.max(), 400)
     else:
         dense_time_yr = time_yr
-    dense_analytic = hra.ionized_fraction(
+    dense_analytic = hra.ionized_fraction_dimensionless(
         dense_time_yr,
         initial['neutral_fraction'],
         initial['temperature_proper'],

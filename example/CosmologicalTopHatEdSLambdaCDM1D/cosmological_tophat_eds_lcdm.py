@@ -68,29 +68,54 @@ def reproduce_reference():
     reference_example.run_lagrangian_top_hat(reference_config)
 
 
-def reference_step(radius, velocity, dt, a_start, a_end, g_code, mass, rho_comoving):
+def reference_step(
+    radius_comoving_code,
+    vel_supercomoving_code,
+    dt_supercomoving_code,
+    a_start_dimensionless,
+    a_end_dimensionless,
+    gravity_constant_code,
+    mass_comoving_code,
+    rho_comoving_code,
+):
     """Match the staggered leapfrog update in CosmologicalVirialShock1D."""
     def acceleration(r, a):
-        background_mass = 4.0 * np.pi / 3.0 * rho_comoving * r**3
-        return -g_code * a * (mass - background_mass) / max(r**2, 1.0e-30)
+        background_mass_comoving_code = 4.0 * np.pi / 3.0 * rho_comoving_code * r**3
+        return -gravity_constant_code * a * (
+            mass_comoving_code - background_mass_comoving_code
+        ) / max(r**2, 1.0e-30)
 
-    velocity_half = velocity + 0.5 * dt * acceleration(radius, a_start)
-    radius_new = radius + dt * velocity_half
-    return radius_new, velocity_half + 0.5 * dt * acceleration(radius_new, a_end)
+    vel_half_supercomoving_code = vel_supercomoving_code + 0.5 * dt_supercomoving_code * acceleration(
+        radius_comoving_code, a_start_dimensionless
+    )
+    radius_new_comoving_code = radius_comoving_code + dt_supercomoving_code * vel_half_supercomoving_code
+    return radius_new_comoving_code, vel_half_supercomoving_code + 0.5 * dt_supercomoving_code * acceleration(
+        radius_new_comoving_code, a_end_dimensionless
+    )
 
 
-def analytic_turnaround(t_initial, radius, velocity, cosmology, g_code, mass):
+def analytic_turnaround(
+    time_cosmic_code,
+    radius_comoving_code,
+    vel_supercomoving_code,
+    cosmology,
+    gravity_constant_code,
+    mass_comoving_code,
+):
     """Locate the proper-radius turnaround from the continuous top-hat ODE."""
-    a_initial = float(cosmology.scale_factor(t_initial))
-    h_initial = float(cosmology.hubble(t_initial))
-    proper_radius = a_initial * radius
-    proper_velocity = h_initial * proper_radius + velocity / a_initial
+    a_initial_dimensionless = float(cosmology.scale_factor(time_cosmic_code))
+    hubble_initial_code = float(cosmology.hubble(time_cosmic_code))
+    radius_proper_code = a_initial_dimensionless * radius_comoving_code
+    vel_proper_code = (
+        hubble_initial_code * radius_proper_code
+        + vel_supercomoving_code / a_initial_dimensionless
+    )
     hubble_ref = float(cosmology.hubble(cosmology.t_ref))
     lambda_acceleration = float(getattr(cosmology, "omega_lambda", 0.0)) * hubble_ref**2
 
     def rhs(time_cosmic_code, state):
         r, v = state
-        return v, -g_code * mass / max(r**2, 1.0e-30) + lambda_acceleration * r
+        return v, -gravity_constant_code * mass_comoving_code / max(r**2, 1.0e-30) + lambda_acceleration * r
 
     def turnaround_event(time_cosmic_code, state):
         return state[1]
@@ -98,7 +123,7 @@ def analytic_turnaround(t_initial, radius, velocity, cosmology, g_code, mass):
     turnaround_event.direction = -1.0
     turnaround_event.terminal = True
     solution = solve_ivp(
-        rhs, (t_initial, cosmology.t_ref), (proper_radius, proper_velocity),
+        rhs, (time_cosmic_code, cosmology.t_ref), (radius_proper_code, vel_proper_code),
         rtol=1.0e-11, atol=1.0e-11, events=turnaround_event, max_step=0.01,
     )
     if not solution.t_events[0].size:
@@ -122,54 +147,104 @@ def run_case(label, code_class, omega_m, omega_lambda, final_scale_factor, targe
         )
     ti = float(cosmology.cosmic_time_from_scale_factor(ai))
     tf = float(cosmology.cosmic_time_from_scale_factor(af))
-    tau_i = float(cosmology.supercomoving_time(ti))
-    tau_f = float(cosmology.supercomoving_time(tf))
-    g_code = _gravitational_constant_code(code_units)
-    delta = initial_overdensity
-    _, ai_code, hi_code = cosmology.background_state_from_supercomoving(tau_i)
-    rho_comoving = float(cosmology.background_density(ti)) * ai**3
-    mass = target_mass
-    radius = (mass / ((4.0 * np.pi / 3.0) * rho_comoving * (1.0 + delta))) ** (1.0 / 3.0)
-    velocity = -ai_code**2 * hi_code * delta * radius / 3.0
+    tau_initial_supercomoving_code = float(cosmology.supercomoving_time(ti))
+    tau_final_supercomoving_code = float(cosmology.supercomoving_time(tf))
+    gravity_constant_code = _gravitational_constant_code(code_units)
+    overdensity_dimensionless = initial_overdensity
+    _, ai_code, hubble_initial_code = cosmology.background_state_from_supercomoving(
+        tau_initial_supercomoving_code
+    )
+    rho_comoving_code = float(cosmology.background_density(ti)) * ai**3
+    mass_comoving_code = target_mass
+    radius_comoving_code = (
+        mass_comoving_code
+        / ((4.0 * np.pi / 3.0) * rho_comoving_code * (1.0 + overdensity_dimensionless))
+    ) ** (1.0 / 3.0)
+    vel_supercomoving_code = (
+        -ai_code**2
+        * hubble_initial_code
+        * overdensity_dimensionless
+        * radius_comoving_code
+        / 3.0
+    )
     shell = DarkMatterShells(
-        radius=[radius], velocity=[velocity], mass=[mass],
-        fixed_enclosed_mass=mass, code_units=code_units,
+        [radius_comoving_code], [vel_supercomoving_code], [mass_comoving_code],
+        fixed_enclosed_mass=mass_comoving_code, code_units=code_units,
     )
     # The EdS value reproduces the established reference figure.  LCDM uses
     # a larger step because its supercomoving inversion is numerical.
-    timestep = 0.0005 if code_class is CodeEdS else 0.05
-    tau = tau_i
-    direct_radius, direct_velocity = radius, velocity
-    history = [(tau, ti, ai_code, ai_code * radius, ai_code * direct_radius)]
-    while tau < tau_f - 1.0e-14:
-        dt = min(timestep, tau_f - tau)
-        cosmic_start, a_start, _ = cosmology.background_state_from_supercomoving(tau)
-        cosmic_end, a_end, _ = cosmology.background_state_from_supercomoving(tau + dt)
+    timestep_supercomoving_code = 0.0005 if code_class is CodeEdS else 0.05
+    tau_supercomoving_code = tau_initial_supercomoving_code
+    direct_radius_comoving_code = radius_comoving_code
+    direct_vel_supercomoving_code = vel_supercomoving_code
+    history = [(
+        tau_supercomoving_code, ti, ai_code, ai_code * radius_comoving_code,
+        ai_code * direct_radius_comoving_code,
+    )]
+    while tau_supercomoving_code < tau_final_supercomoving_code - 1.0e-14:
+        dt_supercomoving_code = min(
+            timestep_supercomoving_code,
+            tau_final_supercomoving_code - tau_supercomoving_code,
+        )
+        _, a_start_dimensionless, _ = cosmology.background_state_from_supercomoving(
+            tau_supercomoving_code
+        )
+        cosmic_end, a_end_dimensionless, _ = cosmology.background_state_from_supercomoving(
+            tau_supercomoving_code + dt_supercomoving_code
+        )
         shell.step(
-            dt, background_enclosed_mass=lambda r: 4.0 * np.pi / 3.0 * rho_comoving * np.asarray(r)**3,
-            scale_factor=a_start, scale_factor_end=a_end, cosmological=True,
+            dt_supercomoving_code,
+            background_enclosed_mass=lambda radius_shell_comoving_code: (
+                4.0 * np.pi / 3.0 * rho_comoving_code
+                * np.asarray(radius_shell_comoving_code)**3
+            ),
+            scale_factor=a_start_dimensionless,
+            scale_factor_end=a_end_dimensionless,
+            cosmological=True,
         )
-        direct_radius, direct_velocity = reference_step(
-            direct_radius, direct_velocity, dt, a_start, a_end,
-            g_code, mass, rho_comoving,
+        direct_radius_comoving_code, direct_vel_supercomoving_code = reference_step(
+            direct_radius_comoving_code,
+            direct_vel_supercomoving_code,
+            dt_supercomoving_code,
+            a_start_dimensionless,
+            a_end_dimensionless,
+            gravity_constant_code,
+            mass_comoving_code,
+            rho_comoving_code,
         )
-        tau += dt
-        history.append((tau, cosmic_end, a_end, a_end * shell.radius[0], a_end * direct_radius))
+        tau_supercomoving_code += dt_supercomoving_code
+        history.append((
+            tau_supercomoving_code,
+            cosmic_end,
+            a_end_dimensionless,
+            a_end_dimensionless * shell.radius[0],
+            a_end_dimensionless * direct_radius_comoving_code,
+        ))
     history = np.asarray(history)
     maximum_error = float(np.max(np.abs(history[:, 3] - history[:, 4])))
-    analytic = analytic_turnaround(ti, radius, velocity, cosmology, g_code, mass)
+    analytic = analytic_turnaround(
+        ti,
+        radius_comoving_code,
+        vel_supercomoving_code,
+        cosmology,
+        gravity_constant_code,
+        mass_comoving_code,
+    )
     if code_class is CodeEdS:
-        collapse_time = ti * (1.686 / delta) ** 1.5
-        analytic_time = 0.5 * collapse_time
-        analytic_density = float(cosmology.background_density(analytic_time))
-        analytic_radius = (
-            mass / ((4.0 * np.pi / 3.0) * (9.0 * np.pi**2 / 16.0) * analytic_density)
+        collapse_time_cosmic_code = ti * (1.686 / overdensity_dimensionless) ** 1.5
+        analytic_time_cosmic_code = 0.5 * collapse_time_cosmic_code
+        analytic_density_comoving_code = float(cosmology.background_density(analytic_time_cosmic_code))
+        analytic_radius_proper_code = (
+            mass_comoving_code
+            / ((4.0 * np.pi / 3.0) * (9.0 * np.pi**2 / 16.0) * analytic_density_comoving_code)
         ) ** (1.0 / 3.0)
         print(
-            f"{label}: EdS closed-form turnaround t={analytic_time:.12g}, "
-            f"r={analytic_radius:.12g}"
+            f"{label}: EdS closed-form turnaround t={analytic_time_cosmic_code:.12g}, "
+            f"r={analytic_radius_proper_code:.12g}"
         )
-    _, final_a, final_h = cosmology.background_state_from_supercomoving(tau)
+    _, final_a, final_h = cosmology.background_state_from_supercomoving(
+        tau_supercomoving_code
+    )
     print(f"{label}: a_final={final_a:.12g}, H_final={final_h:.12g}, "
           f"final_proper_radius={history[-1][3]:.12g}, reference_radius={history[-1][4]:.12g}, "
           f"max_radius_error={maximum_error:.6e}")

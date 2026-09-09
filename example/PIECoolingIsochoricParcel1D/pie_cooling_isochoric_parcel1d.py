@@ -6,7 +6,6 @@ import os
 import sys
 from pathlib import Path
 
-import h5py
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -65,21 +64,22 @@ def _equilibrium_temperature(table, hydrogen_number_density_cgs_cm3, metallicity
 
 def _snapshot(filename, config, time_proper_Myr=None):
     eu._require_complete_example_config(config, '_snapshot')
-    with h5py.File(filename, 'r') as handle:
-        data = handle['Data']
-        header = handle['Header']
-        noghost = int(header.attrs.get('GhostCells', 0))
-        nogrid = int(header.attrs['GridCells'])
-        first = noghost
-        last = first + nogrid
-        return {
-            'time_proper_Myr': (
-                float(header['time_proper_code'][()]) / SECONDS_PER_MYR
-                if time_proper_Myr is None else float(time_proper_Myr)
-            ),
-            'rho_proper_code': np.asarray(data['rho_proper_code'][()])[first:last],
-            'temp_proper_code': np.asarray(data['temp_proper_code'][()])[first:last],
-        }
+    snapshot = Rsim(config["par"])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, filename)
+    first = int(snapshot.par.mesh.ghost_cells)
+    last = first + int(snapshot.par.mesh.grid_cells)
+    code_units = snapshot.par.units.CodeUnits
+    snapshot_time_proper_Myr = (
+        float(snapshot.fluid.time_proper_code) * code_units.time_unit.to_value(unyt.Myr)
+    )
+    return {
+        'time_proper_Myr': (
+            snapshot_time_proper_Myr
+            if time_proper_Myr is None else float(time_proper_Myr)
+        ),
+        'rho_proper_code': np.asarray(snapshot.fluid.rho_proper_code)[first:last],
+        'temp_proper_code': np.asarray(snapshot.fluid.temp_proper_code)[first:last],
+    }
 
 
 def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, table):

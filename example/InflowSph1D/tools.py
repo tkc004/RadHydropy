@@ -60,7 +60,7 @@ def plot_snapshot(outfilename, config, **kwargs):
     code_units_obj = config['_code_units']
     rout.par.unit_system = code_units_obj.unit_system
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    time = rout.fluid.time_proper_code * code_units_obj.time_unit
+    time_proper_unyt = rout.fluid.time_proper_code * code_units_obj.time_unit
     first = int(rout.par.mesh.ghost_cells)
     last = first + int(rout.par.mesh.grid_cells)
     boundary_proper_code = rout.mesh.boundary_proper_code
@@ -70,17 +70,17 @@ def plot_snapshot(outfilename, config, **kwargs):
              **kwargs)
     plt.ylim(ymax=10.1)
     plt.axvline(
-        x=ia.front_position(
+        x=ia.front_position_proper_unyt(
             initial['box_size_proper'],
-            time,
+            time_proper_unyt,
             config["par"]['boundary']['vel_inflow_proper'],
         ),
         color=kwargs['color'],
         ls='dashed',
     )
-    rhoana = ia.density_profile(
+    rho_analytic_proper_unyt = ia.density_profile_proper_unyt(
         x_proper_code[first:last] * code_units_obj.length_unit,
         config["par"]['boundary']['rho_inflow_proper'],
         initial['box_size_proper'],
     )
-    plt.plot(x_proper_code[first:last] * code_units_obj.length_unit, rhoana, ls='dashed', color='k')
+    plt.plot(x_proper_code[first:last] * code_units_obj.length_unit, rho_analytic_proper_unyt, ls='dashed', color='k')

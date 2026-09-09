@@ -35,20 +35,20 @@ DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_reference.yaml')
 
 def _turnaround_radius(shells, cosmic_time, cosmology):
     """Return the first velocity sign-change radius, or ``None``."""
-    radius = float(cosmology.scale_factor(cosmic_time)) * shells.radius
-    velocity = example_tools.physical_velocity(shells, cosmic_time, cosmology)
-    crossing = np.flatnonzero(velocity[:-1] * velocity[1:] <= 0.0)
+    radius_proper_code = float(cosmology.scale_factor(cosmic_time)) * shells.radius
+    velocity_proper_code = example_tools.physical_velocity(shells, cosmic_time, cosmology)
+    crossing = np.flatnonzero(velocity_proper_code[:-1] * velocity_proper_code[1:] <= 0.0)
     if crossing.size == 0:
         return None
     # After shell crossing there can be several sign changes. The
     # Bertschinger turnaround scale is the outermost infall/expansion
     # interface, not the innermost central bounce.
     index = int(crossing[-1])
-    denominator = velocity[index] - velocity[index + 1]
+    denominator = velocity_proper_code[index] - velocity_proper_code[index + 1]
     if denominator == 0.0:
-        return float(radius[index])
-    fraction = velocity[index] / denominator
-    return float(radius[index] + fraction * (radius[index + 1] - radius[index]))
+        return float(radius_proper_code[index])
+    fraction = velocity_proper_code[index] / denominator
+    return float(radius_proper_code[index] + fraction * (radius_proper_code[index + 1] - radius_proper_code[index]))
 
 
 def _outer_lagrangian_caustic_radius(
@@ -87,12 +87,12 @@ def _outer_lagrangian_caustic_radius(
                            (derivative[1:] < 0.0))
     fold_radius = []
     for index in folds:
-        radius = 0.5 * (proper_radius[index] + proper_radius[index + 1])
-        velocity_left = physical_velocity[index]
-        velocity_right = physical_velocity[index + 1]
-        if (lower * 1.01 < radius < upper and velocity_left >= 0.0 and
-                velocity_right <= 0.0):
-            fold_radius.append(radius)
+        fold_radius_proper_code = 0.5 * (proper_radius[index] + proper_radius[index + 1])
+        velocity_left_proper_code = physical_velocity[index]
+        velocity_right_proper_code = physical_velocity[index + 1]
+        if (lower * 1.01 < fold_radius_proper_code < upper and velocity_left_proper_code >= 0.0 and
+                velocity_right_proper_code <= 0.0):
+            fold_radius.append(fold_radius_proper_code)
     if not fold_radius:
         return None
     return float(max(fold_radius))
@@ -102,40 +102,40 @@ def _density_slope_profile(shells, cosmic_time, cosmology, turnaround, bins=192,
                            smoothing_bins=3.0):
     """Return rho(r), its logarithmic slope, and profile splashback radii."""
     a = float(cosmology.scale_factor(cosmic_time))
-    radius = a * np.asarray(shells.radius, dtype=float)
-    mass = np.asarray(shells.mass, dtype=float)
+    radius_proper_code = a * np.asarray(shells.radius, dtype=float)
+    mass_comoving_code = np.asarray(shells.mass, dtype=float)
     rho_background = float(cosmology.background_density(cosmic_time))
-    edges = np.geomspace(radius.min(), radius.max(), int(bins) + 1)
-    index = np.clip(np.searchsorted(edges, radius) - 1, 0, len(edges) - 2)
-    deposited = np.bincount(index, weights=mass, minlength=len(edges) - 1)
-    volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
-    density = deposited / np.maximum(volume, 1.0e-300)
+    edges = np.geomspace(radius_proper_code.min(), radius_proper_code.max(), int(bins) + 1)
+    index = np.clip(np.searchsorted(edges, radius_proper_code) - 1, 0, len(edges) - 2)
+    deposited_mass_comoving_code = np.bincount(index, weights=mass_comoving_code, minlength=len(edges) - 1)
+    shell_volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(edges**3)
+    density_proper_code = deposited_mass_comoving_code / np.maximum(shell_volume_proper_code, 1.0e-300)
     # First smooth the density profile itself, then differentiate its
     # logarithm. Smoothing deposited mass instead changes the radial measure
     # before the density is formed.
-    density = gaussian_filter1d(density, float(smoothing_bins),
+    density_proper_code = gaussian_filter1d(density_proper_code, float(smoothing_bins),
                                 mode='nearest')
-    valid = density > 0.0
+    valid = density_proper_code > 0.0
     log_radius = np.log(np.sqrt(edges[:-1] * edges[1:]))
     log_density = np.full_like(log_radius, np.nan)
-    log_density[valid] = np.log(density[valid])
+    log_density[valid] = np.log(density_proper_code[valid])
     valid_indices = np.flatnonzero(valid)
     if valid_indices.size < 8:
         return None
     slope = np.gradient(log_density, log_radius)
 
-    cumulative = np.cumsum(mass)
-    mean_density = cumulative / (4.0 * np.pi / 3.0 * radius**3)
+    cumulative_mass_comoving_code = np.cumsum(mass_comoving_code)
+    mean_density_proper_code = cumulative_mass_comoving_code / (4.0 * np.pi / 3.0 * radius_proper_code**3)
     crossing = np.flatnonzero(
-        (mean_density[:-1] >= 200.0 * rho_background) &
-        (mean_density[1:] < 200.0 * rho_background))
+        (mean_density_proper_code[:-1] >= 200.0 * rho_background) &
+        (mean_density_proper_code[1:] < 200.0 * rho_background))
     if not crossing.size:
         return None
     virial_index = int(crossing[-1])
     rvir = float(np.exp(np.interp(
         np.log(200.0 * rho_background),
-        np.log(mean_density[virial_index:virial_index + 2][::-1]),
-        np.log(radius[virial_index:virial_index + 2][::-1])))
+        np.log(mean_density_proper_code[virial_index:virial_index + 2][::-1]),
+        np.log(radius_proper_code[virial_index:virial_index + 2][::-1])))
     )
     candidates = (valid & (np.exp(log_radius) > 1.05 * rvir) &
                   (np.exp(log_radius) < 0.95 * turnaround))

@@ -50,7 +50,7 @@ def main(config_filename=DEFAULT_CONFIG):
         initial_condition['overdensity'],
         initial_condition['h0'],
     )
-    temperature = et.virial_temperature(halo, initial_condition['mu'])
+    temperature_proper_unyt = et.virial_temperature(halo, initial_condition['mu'])
 
     config['_code_units'] = code_units
     initial_state = et.build_initial_condition(config)
@@ -87,14 +87,14 @@ def main(config_filename=DEFAULT_CONFIG):
         final_outfile,
         config,
         halo,
-        temperature,
+        temperature_proper_unyt,
         figure_filename,
     )
     print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
     print('r_s = %.6g kpc' % halo['scale_radius'].to_value(unyt.kpc))
     print('V200 = %.6g km/s' % halo['virial_velocity'].to_value(unyt.km / unyt.s))
-    print('Tvir = %.6g K' % temperature.to_value(unyt.K))
+    print('Tvir = %.6g K' % temperature_proper_unyt.to_value(unyt.K))
     print('maximum density relative error = %.6g' % max_relative_error)
     print('figure = %s' % figure_filename)
 

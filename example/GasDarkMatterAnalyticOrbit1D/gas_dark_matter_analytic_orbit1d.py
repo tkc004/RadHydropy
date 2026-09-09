@@ -44,55 +44,55 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     central_mass = float(initial_condition['central_dark_matter_mass'])
     gas_density = float(initial_condition['uniform_gas_density'])
-    softening = float(initial_condition['softening'])
-    angular_momentum = float(initial_condition['specific_angular_momentum'])
-    initial_radius = float(initial_condition['radius_initial_orbit_dimensionless'])
-    vel_proper = float(initial_condition['vel_proper'])
+    softening_length_code = float(initial_condition['softening'])
+    specific_angular_momentum_code = float(initial_condition['specific_angular_momentum'])
+    initial_radius_code = float(initial_condition['radius_initial_orbit_dimensionless'])
+    initial_velocity_code = float(initial_condition['vel_proper'])
 
     def rhs(time_proper_code, state):
-        radius, velocity = state
-        radius_safe = max(radius, np.finfo(float).tiny)
-        enclosed = central_mass + 4.0 * np.pi / 3.0 * gas_density * radius**3
+        radius_code, velocity_code = state
+        radius_safe_code = max(radius_code, np.finfo(float).tiny)
+        enclosed_mass_code = central_mass + 4.0 * np.pi / 3.0 * gas_density * radius_code**3
         acceleration = (
-            -g_code * enclosed / (radius + softening)**2
-            + angular_momentum**2 / (radius_safe + softening)**3
+            -g_code * enclosed_mass_code / (radius_code + softening_length_code)**2
+            + specific_angular_momentum_code**2 / (radius_safe_code + softening_length_code)**3
         )
-        return velocity, acceleration
+        return velocity_code, acceleration
 
     reference = solve_ivp(
         rhs,
         (0.0, float(config["par"]['simulation']['final_time'])),
-        [initial_radius, vel_proper],
+        [initial_radius_code, initial_velocity_code],
         rtol=1.0e-11,
         atol=1.0e-13,
         max_step=float(example['output_interval']) / 4.0,
         dense_output=True,
     )
 
-    time = 0.0
-    numerical_time = [time]
-    numerical_radius = [shell.radius[0]]
-    numerical_velocity = [shell.velocity[0]]
-    while time < reference.t[-1]:
-        dt = min(float(example['output_interval']) / 4.0, reference.t[-1] - time)
-        time += shell.step(dt)
-        numerical_time.append(time)
-        numerical_radius.append(shell.radius[0])
-        numerical_velocity.append(shell.velocity[0])
+    time_code = 0.0
+    numerical_time_code = [time_code]
+    numerical_radius_code = [shell.radius[0]]
+    numerical_velocity_code = [shell.velocity[0]]
+    while time_code < reference.t[-1]:
+        timestep_code = min(float(example['output_interval']) / 4.0, reference.t[-1] - time_code)
+        time_code += shell.step(timestep_code)
+        numerical_time_code.append(time_code)
+        numerical_radius_code.append(shell.radius[0])
+        numerical_velocity_code.append(shell.velocity[0])
 
-    numerical_time = np.asarray(numerical_time)
-    numerical_radius = np.asarray(numerical_radius)
-    numerical_velocity = np.asarray(numerical_velocity)
-    reference_state = reference.sol(numerical_time)
-    radius_error = np.max(np.abs(numerical_radius - reference_state[0]))
-    velocity_error = np.max(np.abs(numerical_velocity - reference_state[1]))
+    numerical_time_code = np.asarray(numerical_time_code)
+    numerical_radius_code = np.asarray(numerical_radius_code)
+    numerical_velocity_code = np.asarray(numerical_velocity_code)
+    reference_state = reference.sol(numerical_time_code)
+    radius_error = np.max(np.abs(numerical_radius_code - reference_state[0]))
+    velocity_error = np.max(np.abs(numerical_velocity_code - reference_state[1]))
     print('maximum radius error = %.6g code lengths' % radius_error)
     print('maximum velocity error = %.6g code velocities' % velocity_error)
 
-    time_myr = quantity_to_value(numerical_time * code_units.time_unit, 'Myr')
-    radius_pc = quantity_to_value(numerical_radius * code_units.length_unit, 'pc')
+    time_myr = quantity_to_value(numerical_time_code * code_units.time_unit, 'Myr')
+    radius_pc = quantity_to_value(numerical_radius_code * code_units.length_unit, 'pc')
     reference_pc = quantity_to_value(reference_state[0] * code_units.length_unit, 'pc')
-    velocity_kms = quantity_to_value(numerical_velocity * code_units.velocity_unit, 'km/s')
+    velocity_kms = quantity_to_value(numerical_velocity_code * code_units.velocity_unit, 'km/s')
     reference_kms = quantity_to_value(reference_state[1] * code_units.velocity_unit, 'km/s')
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(time_myr, radius_pc, label='shell integrator')
