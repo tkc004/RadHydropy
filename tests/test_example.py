@@ -965,6 +965,22 @@ class Testing(unittest.TestCase):
             with h5py.File(hdf5_filename, 'w') as hdf5:
                 header = hdf5.create_group('Header')
                 header.attrs['noghost'] = 1
+                header.attrs['CodeUnits'] = (
+                    'name: cgs_unit_system\n'
+                    'InternalUnitSystem:\n'
+                    '  UnitMass_in_cgs: 1.0\n'
+                    '  UnitLength_in_cgs: 1.0\n'
+                    '  UnitVelocity_in_cgs: 1.0\n'
+                    '  UnitCurrent_in_cgs: 1.0\n'
+                    '  UnitTemp_in_cgs: 1.0\n'
+                )
+                header.attrs['GridCells'] = 3
+                header.attrs['GhostCells'] = 1
+                header.attrs['CoordinateSystem'] = 'cartesian'
+                time_dataset = header.create_dataset('time_proper_code', data=0.0)
+                time_dataset.attrs['units'] = 's'
+                box_dataset = header.create_dataset('box_size_proper_code', data=4.0e18)
+                box_dataset.attrs['units'] = 'cm'
                 data = hdf5.create_group('Data')
                 boundary = data.create_dataset(
                     'boundary_proper_code',
@@ -987,11 +1003,11 @@ class Testing(unittest.TestCase):
                 )
                 temperature.attrs['units'] = 'K'
 
-            config = {
-                'par': {},
-                'initial_condition': {},
-                'example': {},
-            }
+            config = example_utils.load_nested_example_config(
+                EXAMPLE_ROOT / 'Advection1D' / 'advection1d.yaml'
+            )
+            config['par']['mesh']['grid_cells'] = 3
+            config['par']['mesh']['ghost_cells'] = 1
             written = example_utils.write_radial_profile_csv(
                 hdf5_filename,
                 config,

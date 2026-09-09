@@ -176,7 +176,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
 
 def refresh_typed_initial_condition(result):
     """Synchronize typed runtime states after an IC array update."""
-    code_unit_system = result.par.CodeUnits
+    code_unit_system = result.par.units.CodeUnits
     result.fluid.pre_supercomoving_code = EOS(
         "polytropic", 5.0 / 3.0, code_unit_system
     ).pressure(
@@ -515,8 +515,8 @@ def profiles(sim, dm, cosmic_time, cosmology, ic, density_bin_count=128):
 
     if np.isfinite(rvir) and rvir > 0.0 and np.isfinite(mvir):
         temperature_factor = float(
-            sim.par.CodeUnits.boltzmann_code
-            / sim.par.CodeUnits.proton_mass_code
+            sim.par.units.CodeUnits.boltzmann_code
+            / sim.par.units.CodeUnits.proton_mass_code
         )
         tvir = float(
             float(ic.get("mu", 0.59))
@@ -635,7 +635,7 @@ def profiles(sim, dm, cosmic_time, cosmology, ic, density_bin_count=128):
     if np.isfinite(rdisc):
         rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
     return {
-        "time_cosmic_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
         "rvir_kpc": rvir,
         "rtarget_kpc": rtarget,
         "rho_crit_code": rho_crit,
@@ -672,7 +672,7 @@ def density_profiles(sim, dm, cosmic_time, cosmology):
     dm_volume = 4.0 * np.pi / 3.0 * np.diff(dm_edges**3)
     dm_density = dm_mass / np.maximum(dm_volume, 1.0e-30)
     return {
-        "time_cosmic_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
         "dm_mean_density_code": float(cosmology.background_density(cosmic_time)),
         "gas_radius_kpc": gas["radius_proper_kpc"],
         "gas_rho_proper_code": gas["rho_proper_code"],
@@ -710,7 +710,7 @@ def gas_density_profile(sim, cosmic_time, cosmology):
         sim.fluid.rho_comoving_code[first:last], dtype=float
     )
     return {
-        "time_cosmic_Gyr": float(cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
         "scale_factor": scale_factor,
         "radius_comoving_kpc": radius_comoving,
         "radius_proper_kpc": scale_factor * radius_comoving,

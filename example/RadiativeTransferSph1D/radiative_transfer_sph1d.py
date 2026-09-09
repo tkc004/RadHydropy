@@ -68,10 +68,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     output_filename = Path(nested["par"]['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
+    config['_output_par'] = out_par
     relative_error = et.save_plot(
         out_mesh,
         out_fluid,
-        out_par,
         config,
         str(
             Path(nested["par"]['output']['directory'])

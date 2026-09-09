@@ -39,7 +39,7 @@ def _radiation_impulse(sim, source_result, dt):
         absorbed = absorbed[None, :]
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
     interior = et.interior_slice(sim.par)
-    code = CodeUnits.from_mapping(sim.par.CodeUnits)
+    code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
         sim.mesh.volume_proper_code[interior], dtype=float
     ) * float(
@@ -56,7 +56,7 @@ def _radiation_impulse(sim, source_result, dt):
 
 def _total_radial_momentum(sim):
     interior = et.interior_slice(sim.par)
-    code = CodeUnits.from_mapping(sim.par.CodeUnits)
+    code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     momentum_cgs = float((1.0 * code.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s))
     return float(np.sum(np.asarray(sim.fluid.Mom_code[interior], dtype=float)) * momentum_cgs)
 
@@ -69,7 +69,7 @@ def _pressure_diagnostics(sim, source_result):
     over the ionized region, using ``1 - xHI`` as the ionization weight.
     """
     interior = et.interior_slice(sim.par)
-    code = CodeUnits.from_mapping(sim.par.CodeUnits)
+    code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
         sim.mesh.volume_proper_code[interior], dtype=float
     ) * float(
@@ -150,7 +150,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 sim.last_source_result,
                 sim.last_source_dt,
             )
-        code = CodeUnits.from_mapping(sim.par.CodeUnits)
+        code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
         time_s = float(np.asarray(sim.fluid.time_proper_code)) * float(
             (1.0 * code.time_unit).to_value(unyt.s)
         )

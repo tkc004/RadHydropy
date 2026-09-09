@@ -131,7 +131,7 @@ def run(config_filename=DEFAULT_CONFIG):
         cosmological=True,
         cosmology=sim.par.cosmology,
         dark_matter=dm,
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
     sim.par.dark_matter = dm
     # The gas density already contains only f_b of the homogeneous matter

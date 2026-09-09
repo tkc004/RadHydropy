@@ -83,5 +83,5 @@ example:
   wind_velocity: {value: 1000.0, unit: km/s}
   wind_temperature: {value: 100.0, unit: K}
   wind_mu: 0.62
-  rinj: {value: 0.05, unit: pc}
+  radius_injection_proper: {value: 0.05, unit: pc}
   wind_injection_cells: 2

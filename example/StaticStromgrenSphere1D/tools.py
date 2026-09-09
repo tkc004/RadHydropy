@@ -281,7 +281,8 @@ def append_history(history, mesh, fluid, par, config, recombined_photons):
     )
 
 
-def save_plot(mesh, fluid, par, config, figure_filename):
+def save_plot(mesh, fluid, config, figure_filename):
+    par = config['_output_par']
     radiation = config['par']['radiation']
     initial = config['initial_condition']
     thermo = config['par']['thermochemistry']

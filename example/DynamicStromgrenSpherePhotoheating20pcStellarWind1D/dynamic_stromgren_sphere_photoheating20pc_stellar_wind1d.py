@@ -56,7 +56,7 @@ def _pressure_diagnostic(snapshot, config):
             4.0 * np.pi * shell_radius_cgs_cm**2
         )
 
-    code = CodeUnits.from_mapping(par.CodeUnits)
+    code = CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(mesh.volume_proper_code[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )

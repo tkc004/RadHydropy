@@ -7,7 +7,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-import h5py
 EXAMPLE_DIR = Path(__file__).resolve().parent
 EXAMPLE_ROOT = EXAMPLE_DIR.parent
 PROJECT_ROOT = EXAMPLE_ROOT.parent
@@ -127,31 +126,32 @@ def _run_stage(config, halo, mode, restart=False):
     ))
 
 
-def _write_adiabatic_energy_audit(files, code_unit_system, filename):
+def _write_adiabatic_energy_audit(files, config, filename):
     """Write the open-boundary total-energy budget for an adiabatic stage."""
     if len(files) < 2:
         raise RuntimeError('energy audit requires at least two snapshots')
 
     def snapshot_energy(path):
-        with h5py.File(path, 'r') as handle:
-            header = handle['Header']
-            data = handle['Data']
-            first = int(header.attrs.get('GhostCells', 2))
-            count = int(header.attrs['GridCells'])
-            energy = np.asarray(data['Energy_code'][first:first + count], dtype=float)
-            energy_unit = code_unit_system.energy_unit
-            energy_scale = (1.0 * energy_unit).to_value(unyt.erg)
-            total_energy = float(np.sum(energy) * energy_scale)
-            time = (
-                float(np.asarray(header['time_proper_code'][()]))
-                * code_unit_system.time_unit
-            ).to_value(unyt.Myr)
-            boundary = float(header.attrs.get('CumulativeHydroBoundaryEnergyCode', 0.0))
-            gravity = float(header.attrs.get('CumulativeGravityWorkCode', 0.0))
-            return time, total_energy, boundary, gravity
+        snapshot = Rsim(config['par'])
+        rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(path))
+        first = int(snapshot.par.mesh.ghost_cells)
+        last = first + int(snapshot.par.mesh.grid_cells)
+        code_unit_system = snapshot.par.units.CodeUnits
+        energy_cgs_erg = (
+            np.asarray(snapshot.fluid.Energy_code[first:last], dtype=float)
+            * float(code_unit_system.energy_unit.to_value(unyt.erg))
+        )
+        time_proper_cgs_s = (
+            float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
+            * float(code_unit_system.time_unit.to_value(unyt.s))
+        )
+        boundary = float(getattr(snapshot.par, 'CumulativeHydroBoundaryEnergyCode', 0.0))
+        gravity = float(getattr(snapshot.par, 'CumulativeGravityWorkCode', 0.0))
+        return time_proper_cgs_s / float((1.0 * unyt.Myr).to_value(unyt.s)), float(np.sum(energy_cgs_erg)), boundary, gravity
 
     initial = snapshot_energy(files[0])
     final = snapshot_energy(files[-1])
+    code_unit_system = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     energy_scale = code_unit_system.energy_unit.to_value(unyt.erg)
     delta_energy = final[1] - initial[1]
     boundary_work = (final[2] - initial[2]) * energy_scale
@@ -236,7 +236,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     if not adiabatic_files:
         raise RuntimeError('adiabatic stage produced no snapshots')
     adiabatic_audit = Path(adiabatic['output']['directory']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
-    _write_adiabatic_energy_audit(adiabatic_files, code_units, adiabatic_audit)
+    _write_adiabatic_energy_audit(adiabatic_files, adiabatic_config, adiabatic_audit)
     if adiabatic_only:
         return
 

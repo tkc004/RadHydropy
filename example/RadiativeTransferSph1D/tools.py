@@ -125,7 +125,8 @@ def write_initial_condition(config):
     rio.writehdf5(Rsim.FromComponents(par, mesh, fluid, solver), icfilename)
 
 
-def save_plot(mesh, fluid, par, config, figure_filename):
+def save_plot(mesh, fluid, config, figure_filename):
+    par = config['_output_par']
     radiation = config['par']['radiation']
     source_photon_rate = radiation['source_photon_rate']
     code_units_obj = par.units.CodeUnits

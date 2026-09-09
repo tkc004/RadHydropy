@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-import h5py
 import numpy as np
 import unyt
 
 from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
+import radhydropy.io as rio
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import quantity_to_value
 from basic_hydro_utils import finalize_initial_condition
@@ -63,21 +63,25 @@ def clean_outputs(output_dir):
         initial.unlink()
 
 
-def load_history(output_dir):
+def load_history(output_dir, config):
     history = []
     for filename in sorted(output_dir.glob("Output_*.hdf5")):
-        with h5py.File(filename, "r") as handle:
-            header = handle["Header"]
-            data = handle["Data"]
-            noghost = int(header.attrs.get("GhostCells", 0))
-            nogrid = int(header.attrs["GridCells"])
-            interior = slice(noghost, noghost + nogrid)
-            history.append(
-                {
-                    "filename": Path(filename),
-                    "time_s": float(header.attrs.get("Time", 0.0)),
-                    "temperature_cgs_K": float(np.mean(data["temp_proper_code"][interior])),
-                    "density_cgs_g_cm3": float(np.mean(data["rho_proper_code"][interior])),
-                }
-            )
+        snapshot = Rsim(config["par"])
+        rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+        first = int(snapshot.par.mesh.ghost_cells)
+        last = first + int(snapshot.par.mesh.grid_cells)
+        code_units = snapshot.par.units.CodeUnits
+        history.append(
+            {
+                "filename": Path(filename),
+                "time_s": float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
+                * float(code_units.time_unit.to_value(unyt.s)),
+                "temperature_cgs_K": float(np.mean(
+                    snapshot.fluid.temp_proper_code[first:last]
+                )) * float(code_units.temperature_unit.to_value(unyt.K)),
+                "density_cgs_g_cm3": float(np.mean(
+                    snapshot.fluid.rho_proper_code[first:last]
+                )) * float(code_units.density_unit.to_value(unyt.g / unyt.cm**3)),
+            }
+        )
     return history

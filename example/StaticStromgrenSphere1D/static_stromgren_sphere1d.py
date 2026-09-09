@@ -67,11 +67,12 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.writehdf5(sim, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
+    config['_output_par'] = out_par
     figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D.jpg'
     front_figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D_IFront.jpg'
     budget_figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
 
-    et.save_plot(out_mesh, out_fluid, out_par, config, figure_filename)
+    et.save_plot(out_mesh, out_fluid, config, figure_filename)
     et.save_front_history_plot(front_history, config, front_figure_filename)
     photon_budget = et.save_photon_budget_plot(
         front_history,

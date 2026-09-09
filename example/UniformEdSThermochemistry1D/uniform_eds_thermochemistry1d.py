@@ -122,7 +122,7 @@ def run_case(config, atomic_cooling):
         cosmic_time = float(np.asarray(sim.fluid.time_proper_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(cosmic_time))
         history["time_s"].append(
-            cosmic_time * float(sim.par.CodeUnits.time_unit.to_value("s"))
+            cosmic_time * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
         )
         history["scale_factor"].append(scale_factor)
         history["temperature_cgs_K"].append(

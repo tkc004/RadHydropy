@@ -31,9 +31,7 @@ DEFAULT_CONFIG = Path(__file__).with_name(
 
 
 def load_correlation_table(config_filename, config):
-    filename = config.get("example", {}).get("linear_correlation_table_filename")
-    if filename is None:
-        filename = config.get("par", {}).get("linear_correlation_table_filename")
+    filename = config["example"].get("linear_correlation_table_filename")
     if not filename:
         return None
     filename = Path(filename)
@@ -84,7 +82,7 @@ def run_case(config, radiative):
     sim.fluid.SetFluidTime(initial_tau)
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
-        dark_matter=dm, code_units=sim.par.CodeUnits,
+        dark_matter=dm, code_units=sim.par.units.CodeUnits,
     )
     sim.par.dark_matter = dm
     sim.par.dark_matter_background_fraction = 1.0 - float(initial_condition["baryon_fraction"])

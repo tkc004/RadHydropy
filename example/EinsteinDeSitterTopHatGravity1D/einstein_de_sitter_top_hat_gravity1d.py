@@ -68,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.set_cosmology_model(cosmology)
     sim.par.gravity = Gravity(
         selfgravity=True, externalgravity=False, cosmological=True,
-        cosmology=sim.par.cosmology, code_units=sim.par.CodeUnits,
+        cosmology=sim.par.cosmology, code_units=sim.par.units.CodeUnits,
     )
     numerical = sim.par.gravity.acceleration_on_mesh(
         sim.mesh, sim.fluid.rho_comoving_code, sim.par

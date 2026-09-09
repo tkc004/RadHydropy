@@ -67,7 +67,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    et.apply_piecewise_isothermal_state(sim.mesh, sim.fluid, sim.par, sim.solver, config)
+    et.apply_piecewise_isothermal_state(sim, config)
     et.print_startup_diagnostics(sim, config, initial_condition)
 
     output_specs = exampleparams['output_snapshots']

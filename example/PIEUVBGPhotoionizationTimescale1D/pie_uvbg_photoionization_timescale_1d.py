@@ -127,7 +127,7 @@ def main(config_filename=DEFAULT_CONFIG):
             # This is a one-cell source-only parcel; a hydro gradient cannot
             # be evaluated on its single active cell.
             sim.Run(outputtime=0, mode="sources")
-            history = load_history(case_dir)
+            history = load_history(case_dir, case_config)
             if len(history) < 2:
                 raise RuntimeError(f"expected evolved snapshots in {case_dir}")
             # The legacy HDF5 time attribute is zero in this cgs setup. The

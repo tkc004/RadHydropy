@@ -1,18 +1,30 @@
 """Plot the H/He snapshot against the supplied reference profiles."""
 
 import argparse
+import sys
 from pathlib import Path
 
-import h5py
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = EXAMPLE_ROOT.parent
+for path in (PROJECT_ROOT, EXAMPLE_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+import example_utils as eu
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+import unyt
+
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE / "Output_000.hdf5"
 FIGURE = HERE / "HHe_multifrequency_snapshot_vs_reference.jpg"
+CONFIG = HERE / "multifrequency_radiative_transfer_sph1d_hhe_100myr.yaml"
 HYDROGEN_MASS_FRACTION = 0.75
 HELIUM_MASS_FRACTION = 0.25
 HELIUM_TO_HYDROGEN_NUMBER_RATIO = (
@@ -20,26 +32,29 @@ HELIUM_TO_HYDROGEN_NUMBER_RATIO = (
 )
 
 
-def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE):
+def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
+         config_filename=CONFIG):
     snapshot_filename = Path(snapshot_filename)
     figure_filename = Path(figure_filename)
-    with h5py.File(snapshot_filename, "r") as handle:
-        header = handle["Header"]
-        data = handle["Data"]
-        temperature_proper_code = np.asarray(data["temp_proper_code"])
-        xhi = np.asarray(data["xHI"])
-        xhei = np.asarray(data["xHeI"])
-        xheii = np.asarray(data["xHeII"])
-        xheiii = np.asarray(data["xHeIII"])
-        boundary_proper_code = np.asarray(data["boundary_proper_code"])
-        ghost_cells = int(header.attrs.get("GhostCells", 0))
-        grid_cells = int(header.attrs["GridCells"])
+    config = eu.load_nested_example_config(config_filename)
+    snapshot = Rsim(config["par"])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(snapshot_filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    last = first + int(snapshot.par.mesh.grid_cells)
+    code_units = snapshot.par.units.CodeUnits
+    temperature_proper_code = np.asarray(snapshot.fluid.temp_proper_code)
+    xhi = np.asarray(snapshot.fluid.xHI)
+    xhei = np.asarray(snapshot.fluid.xHeI)
+    xheii = np.asarray(snapshot.fluid.xHeII)
+    xheiii = np.asarray(snapshot.fluid.xHeIII)
+    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)
 
-    interior = slice(ghost_cells, ghost_cells + grid_cells)
-    radius = (
-        0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])[interior]
-        / 5.4
+    interior = slice(first, last)
+    radius_proper_code = 0.5 * (
+        boundary_proper_code[:-1] + boundary_proper_code[1:]
     )
+    radius_proper_code = radius_proper_code[interior]
+    radius = radius_proper_code * float(code_units.length_unit.to_value(unyt.kpc)) / 5.4
     snapshot = {
         "H I": xhi[interior],
         "H II": 1.0 - xhi[interior],
@@ -75,7 +90,14 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE):
 
     temperature_axis = axes[1, 2]
     temperature_axis.clear()
-    temperature_axis.plot(radius, np.clip(temperature_proper_code[interior], 1.0, None),
+    temperature_axis.plot(
+        radius,
+        np.clip(
+            temperature_proper_code[interior]
+            * float(code_units.temperature_unit.to_value(unyt.K)),
+            1.0,
+            None,
+        ),
                            color="tab:red", label=snapshot_label)
     temperature_reference = np.loadtxt(
         HERE / "TTT1D_Stromgren100Myr_HHe.txt", delimiter=","

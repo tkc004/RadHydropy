@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 import sys
 
-import h5py
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -17,6 +16,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
 from example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits
 import tools as et
@@ -51,13 +52,22 @@ def main(config_filename=DEFAULT_CONFIG):
     filename = Path(par["simulation"]["initial_condition_filename"])
     if not filename.is_absolute():
         filename = config_filename.parent / filename
-    with h5py.File(filename, "r") as handle:
-        # Read the canonical native code-unit datasets written by the IC
-        # serializer.
-        boundary_comoving_code = handle["Data/boundary_comoving_code"][:] / float(units.length_in_cgs)
-        rho_comoving_code = handle["Data/rho_comoving_code"][:] / float(units.density_unit)
-        temp_supercomoving_code = handle["Data/temp_supercomoving_code"][:] / float(units.temperature_unit)
-        vel_supercomoving_code = handle["Data/vel_supercomoving_code"][:] / float(units.velocity_unit)
+    snapshot = Rsim(config["par"])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    last = first + int(snapshot.par.mesh.grid_cells)
+    boundary_comoving_code = np.asarray(
+        snapshot.mesh.boundary_comoving_code[first:last + 1], dtype=float
+    )
+    rho_comoving_code = np.asarray(
+        snapshot.fluid.rho_comoving_code[first:last], dtype=float
+    )
+    temp_supercomoving_code = np.asarray(
+        snapshot.fluid.temp_supercomoving_code[first:last], dtype=float
+    )
+    vel_supercomoving_code = np.asarray(
+        snapshot.fluid.vel_supercomoving_code[first:last], dtype=float
+    )
 
     radius_comoving_code = et.cell_centres(boundary_comoving_code)
     initial_time = float(initial_condition["time_cosmic"])

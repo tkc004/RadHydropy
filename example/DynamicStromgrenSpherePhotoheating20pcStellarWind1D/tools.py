@@ -37,9 +37,9 @@ def _wind_density(config):
     example = config['example']
     mass_loss_rate = example['wind_mass_loss_rate'].to(unyt.g / unyt.s)
     wind_velocity = example['wind_velocity'].to(unyt.cm / unyt.s)
-    injection_radius = example['rinj'].to(unyt.cm)
+    injection_radius_proper_cgs_cm_unyt = example['radius_injection_proper'].to(unyt.cm)
     return mass_loss_rate / (
-        4.0 * np.pi * injection_radius**2 * wind_velocity
+        4.0 * np.pi * injection_radius_proper_cgs_cm_unyt**2 * wind_velocity
     )
 
 
@@ -56,14 +56,14 @@ def build_static_problem(config):
     par.boundary.outflow_mu = example['wind_mu']
 
     box_size_proper_cgs_cm = initial['box_size_proper'].to_value(unyt.cm)
-    rinj_cm = example['rinj'].to_value(unyt.cm)
+    injection_radius_proper_cgs_cm = example['radius_injection_proper'].to_value(unyt.cm)
     boundary_proper_cgs_cm_unyt = np.linspace(
-        rinj_cm,
-        rinj_cm + box_size_proper_cgs_cm,
+        injection_radius_proper_cgs_cm,
+        injection_radius_proper_cgs_cm + box_size_proper_cgs_cm,
         config['par']['mesh']['grid_cells'] + 1,
     ) * unyt.cm
     mesh.boundary_proper_code = quantity_to_value(
-        boundary_proper_cgs_cm_unyt, par.CodeUnits.length_unit
+        boundary_proper_cgs_cm_unyt, par.units.CodeUnits.length_unit
     )
     mesh.width_proper_code = np.diff(mesh.boundary_proper_code)
     mesh.area_proper_code = 4.0 * np.pi * mesh.boundary_proper_code[:-1] ** 2
@@ -90,16 +90,16 @@ def build_static_problem(config):
             + mesh.boundary_proper_code[first_active + 1:first_active + wind_cells + 1]
         )
         injection_radius_proper_code = quantity_to_value(
-            example['rinj'], par.CodeUnits.length_unit
+            example['radius_injection_proper'], par.units.CodeUnits.length_unit
         )
         wind_density_proper_code = quantity_to_value(
-            _wind_density(config), par.CodeUnits.density_unit
+            _wind_density(config), par.units.CodeUnits.density_unit
         )
         wind_velocity_proper_code = quantity_to_value(
-            example['wind_velocity'], par.CodeUnits.velocity_unit
+            example['wind_velocity'], par.units.CodeUnits.velocity_unit
         )
         wind_temperature_proper_code = quantity_to_value(
-            example['wind_temperature'], par.CodeUnits.temperature_unit
+            example['wind_temperature'], par.units.CodeUnits.temperature_unit
         )
         fluid.rho_proper_code[active_slice] = wind_density_proper_code * (
             injection_radius_proper_code / cell_center_proper_code

@@ -54,7 +54,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         selfgravity=True,
         externalgravity=False,
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
 
     numerical = sim.par.gravity.acceleration_on_mesh(
@@ -65,12 +65,12 @@ def main(config_filename=DEFAULT_CONFIG):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius_proper_code = sim.mesh.x_proper_code[interior]
     rho_proper_cgs_g_cm3_unyt = initial_condition['rho_proper']
-    radius_proper_cgs_cm_unyt = np.asarray(radius_proper_code, dtype=float) * sim.par.CodeUnits.length_unit
+    radius_proper_cgs_cm_unyt = np.asarray(radius_proper_code, dtype=float) * sim.par.units.CodeUnits.length_unit
     analytic = et.uniform_sphere_acceleration(radius_proper_cgs_cm_unyt, rho_proper_cgs_g_cm3_unyt)
     numerical_cgs = quantity_to_value(
         numerical[interior]
-        * sim.par.CodeUnits.length_unit
-        / sim.par.CodeUnits.time_unit**2,
+        * sim.par.units.CodeUnits.length_unit
+        / sim.par.units.CodeUnits.time_unit**2,
         'cm/s**2',
     )
     analytic_cgs = quantity_to_value(analytic, 'cm/s**2')

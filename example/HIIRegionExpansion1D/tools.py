@@ -132,7 +132,8 @@ def refresh_state(mesh, fluid, par, solver):
     solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
 
 
-def apply_piecewise_isothermal_state(mesh, fluid, par, solver, config):
+def apply_piecewise_isothermal_state(sim, config):
+    mesh, fluid, par, solver = sim.mesh, sim.fluid, sim.par, sim.solver
     initial_condition = config['initial_condition']
     fluid.eos.apply_piecewise_isothermal_state(
         fluid,
@@ -292,10 +293,7 @@ def make_piecewise_isothermal_step_backend(sim, config):
             advect_chemistry=advect_chemistry,
         )
         apply_piecewise_isothermal_state(
-            sim.mesh,
-            sim.fluid,
-            sim.par,
-            sim.solver,
+            sim,
             config,
         )
         return result

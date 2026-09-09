@@ -66,7 +66,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         selfgravity=True,
         dark_matter=dark_matter,
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
     sim.par.dark_matter = dark_matter
     sim.Run(mode='hydro')
@@ -76,11 +76,11 @@ def main(config_filename=DEFAULT_CONFIG):
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
     )
     radius_pc = quantity_to_value(
-        np.asarray(sim.mesh.x_proper_code[interior]) * sim.par.CodeUnits.length_unit,
+        np.asarray(sim.mesh.x_proper_code[interior]) * sim.par.units.CodeUnits.length_unit,
         'pc',
     )
     rho_gas_proper_cgs_g_cm3 = quantity_to_value(
-        np.asarray(sim.fluid.rho_proper_code[interior]) * sim.par.CodeUnits.density_unit,
+        np.asarray(sim.fluid.rho_proper_code[interior]) * sim.par.units.CodeUnits.density_unit,
         'g/cm**3',
     )
     physical_boundaries = np.asarray(
@@ -94,9 +94,9 @@ def main(config_filename=DEFAULT_CONFIG):
         np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
         * (4.0 * np.pi / 3.0)
         * (physical_boundaries[1:]**3 - physical_boundaries[:-1]**3)
-    ) * sim.par.CodeUnits.mass_unit
+    ) * sim.par.units.CodeUnits.mass_unit
     final_gas_mass = float(gas_mass.to_value('g'))
-    final_dm_mass = dark_matter.total_mass * sim.par.CodeUnits.mass_in_cgs
+    final_dm_mass = dark_matter.total_mass * sim.par.units.CodeUnits.mass_in_cgs
     gas_mass_error = abs(final_gas_mass - initial_gas_mass) / initial_gas_mass
     dm_mass_error = abs(final_dm_mass - initial_dm_mass) / initial_dm_mass
     if gas_mass_error > 1.0e-12 or dm_mass_error > 1.0e-12:

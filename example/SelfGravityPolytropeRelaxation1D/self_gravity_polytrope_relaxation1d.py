@@ -48,7 +48,7 @@ class PolytropeSolver(Solver):
 def _profile(sim, rho_proper_code, pre_proper_code):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
-    code = sim.par.CodeUnits
+    code = sim.par.units.CodeUnits
     radius_proper_cgs_cm_unyt = radius_proper_code * code.length_unit
     gravity = sim.par.gravity.acceleration_on_mesh(
         sim.mesh, rho_proper_code, sim.par
@@ -96,7 +96,7 @@ def main(config_filename=DEFAULT_CONFIG):
     # read and convert it to the active code-time representation before the
     # first damped step.
     sim.par.relaxation_damping_time = config['example']['relaxation_damping_time'].to_value(
-        sim.par.CodeUnits.time_unit
+        sim.par.units.CodeUnits.time_unit
     )
     sim.SetMesh()
     sim.SetFluid()
@@ -113,7 +113,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         selfgravity=True,
         externalgravity=False,
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
 
     def damped_step(**kwargs):
@@ -138,9 +138,9 @@ def main(config_filename=DEFAULT_CONFIG):
     final = et.read_output(output, config)
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     k_poly_cgs = et.polytropic_constant(initial_mapping['radius_polytropic_proper'])
-    radius_proper_cgs_cm_unyt = np.asarray(final.mesh.x_proper_code[interior], dtype=float) * sim.par.CodeUnits.length_unit
-    rho_final = np.asarray(final.fluid.rho_proper_code[interior], dtype=float) * sim.par.CodeUnits.density_unit
-    pressure_final = np.asarray(final.fluid.pre_proper_code[interior], dtype=float) * sim.par.CodeUnits.pressure_unit
+    radius_proper_cgs_cm_unyt = np.asarray(final.mesh.x_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.length_unit
+    rho_final = np.asarray(final.fluid.rho_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.density_unit
+    pressure_final = np.asarray(final.fluid.pre_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.pressure_unit
     rho_expected_proper_cgs_g_cm3_unyt = et.equilibrium_density(
         radius_proper_cgs_cm_unyt,
         initial_mapping['rho_central_proper'],
@@ -157,7 +157,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rho_final_cgs = quantity_to_value(rho_final, 'g/cm**3')
     rho_expected_cgs = quantity_to_value(rho_expected_proper_cgs_g_cm3_unyt, 'g/cm**3')
     velocity_cgs = quantity_to_value(
-        np.asarray(final.fluid.vel_proper_code[interior], dtype=float) * sim.par.CodeUnits.velocity_unit,
+        np.asarray(final.fluid.vel_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.velocity_unit,
         'cm/s',
     )
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))

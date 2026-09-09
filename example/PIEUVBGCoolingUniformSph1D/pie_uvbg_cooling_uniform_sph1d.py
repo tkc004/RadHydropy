@@ -6,7 +6,6 @@ import os
 import sys
 from pathlib import Path
 
-import h5py
 import matplotlib
 import numpy as np
 import unyt
@@ -36,19 +35,24 @@ CASES = {"diffuse": 1.0, "self_shielded": 100.0}
 
 def _snapshot(filename, config):
     eu._require_complete_example_config(config, '_snapshot')
-    with h5py.File(filename, "r") as handle:
-        data = handle["Data"]
-        header = handle["Header"]
-        noghost = int(header.attrs.get("GhostCells", 0))
-        nogrid = int(header.attrs["GridCells"])
-        first = noghost
-        last = first + nogrid
-        boundary_proper_code = np.asarray(data["boundary_proper_code"][()])[first : last + 1]
-        return {
-            "radius_proper_code": 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:]),
-            "rho_proper_code": np.asarray(data["rho_proper_code"][()])[first:last],
-            "temp_proper_code": np.asarray(data["temp_proper_code"][()])[first:last],
-        }
+    snapshot = Rsim(config["par"])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    first = int(snapshot.par.mesh.ghost_cells)
+    last = first + int(snapshot.par.mesh.grid_cells)
+    boundary_proper_code = np.asarray(
+        snapshot.mesh.boundary_proper_code[first:last + 1], dtype=float
+    )
+    return {
+        "radius_proper_code": 0.5 * (
+            boundary_proper_code[:-1] + boundary_proper_code[1:]
+        ),
+        "rho_proper_code": np.asarray(
+            snapshot.fluid.rho_proper_code[first:last], dtype=float
+        ),
+        "temp_proper_code": np.asarray(
+            snapshot.fluid.temp_proper_code[first:last], dtype=float
+        ),
+    }
 
 
 def _run_case(config, label, hydrogen_density_cgs_cm3, table):

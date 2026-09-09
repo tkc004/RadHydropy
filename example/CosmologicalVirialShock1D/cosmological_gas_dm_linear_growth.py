@@ -107,8 +107,8 @@ class LinearGrowthDiagnosticSolver(Solver):
         return factor
 
 
-def _load_correlation_table(config_filename, example):
-    filename = Path(example["linear_correlation_table_filename"])
+def _load_correlation_table(config_filename, config):
+    filename = Path(config["example"]["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
     return et.load_lcdm_correlation_table(filename)
@@ -288,7 +288,7 @@ def _snapshot(sim, dm, cosmic_time, config,
     ) - 1.0
 
     length_unit_mpc_h = (
-        float(sim.par.CodeUnits.length_in_cgs)
+        float(sim.par.units.CodeUnits.length_in_cgs)
         / 3.0856775814913673e24
         * float(initial_condition.get("correlation_h", 0.674))
     )
@@ -335,7 +335,7 @@ def _snapshot(sim, dm, cosmic_time, config,
 
     return {
         "time_cosmic_Gyr": float(
-            cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")
+            cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
         ),
         "scale_factor": scale_factor,
         "growth_factor": growth,
@@ -489,7 +489,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         t_ref=float(gravity["cosmology_t_ref"]),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
-    correlation_table = _load_correlation_table(config_filename, example)
+    correlation_table = _load_correlation_table(config_filename, config)
     smooth_force = (
         bool(par["hydrodynamics"].get("smooth_dm_force_for_gas", True))
         if smooth_force_override is None else bool(smooth_force_override)
@@ -543,7 +543,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         cosmological=True,
         cosmology=sim.par.cosmology,
         dark_matter=gravity_dm,
-        code_units=sim.par.CodeUnits,
+        code_units=sim.par.units.CodeUnits,
     )
     sim.par.dark_matter = dm
     baryon_fraction = float(initial_condition["baryon_fraction"])

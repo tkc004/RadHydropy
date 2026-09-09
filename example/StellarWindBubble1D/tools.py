@@ -16,7 +16,7 @@ import weaver_analytic as wa
 def _time_proper(rout):
     return unyt.unyt_quantity(
         float(np.asarray(rout.fluid.time_proper_code)),
-        rout.par.CodeUnits.time_unit,
+        rout.par.units.CodeUnits.time_unit,
     )
 
 

@@ -1012,7 +1012,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
     sim.par.gravity = Gravity(
         selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
-        dark_matter=dm_for_gas, code_units=sim.par.CodeUnits,
+        dark_matter=dm_for_gas, code_units=sim.par.units.CodeUnits,
     )
     sim.par.dark_matter = dm
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
@@ -1191,7 +1191,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         signed_velocity_km_s = (
             np.asarray(physical_velocity, dtype=float)
-            * float(sim.par.CodeUnits.velocity_in_cgs) / 1.0e5
+            * float(sim.par.units.CodeUnits.velocity_in_cgs) / 1.0e5
         )
         gas_profile["radial_velocity_physical_km_s"] = signed_velocity_km_s
         gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
@@ -1283,7 +1283,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     ))) if hasattr(sim.fluid, "AngularMomentum_code") else 0.0
     energy_audit = {
         "step": [0],
-        "time_cosmic_Gyr": [initial_time * sim.par.CodeUnits.time_unit.to_value("Gyr")],
+        "time_cosmic_Gyr": [initial_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")],
         "dt": [0.0],
         "scale_factor": [initial_a],
         **{key: [value] for key, value in audit_initial.items()},
@@ -1419,7 +1419,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             energy_audit[key].append(value)
         energy_audit["step"].append(steps)
         energy_audit["time_cosmic_Gyr"].append(
-            cosmic_time * sim.par.CodeUnits.time_unit.to_value("Gyr")
+            cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
         )
         energy_audit["dt"].append(dt)
         energy_audit["scale_factor"].append(
@@ -1533,7 +1533,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ]),
         np.asarray([
             item["mvir"] for item in radius_history
-        ]) * float(sim.par.CodeUnits.mass_in_cgs) / 1.98847e33,
+        ]) * float(sim.par.units.CodeUnits.mass_in_cgs) / 1.98847e33,
         scale_factors,
         baryon_fraction_figure,
         float(initial_condition["baryon_fraction"]),
@@ -1706,8 +1706,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     plot_temperature_density_evolution(
         times, plot_density, plot_temperature, temperature_density_figure, ymin=0.1,
         density_to_nH_cgs_cm3=(
-            float(sim.par.CodeUnits.mass_in_cgs)
-            / float(sim.par.CodeUnits.length_in_cgs) ** 3
+            float(sim.par.units.CodeUnits.mass_in_cgs)
+            / float(sim.par.units.CodeUnits.length_in_cgs) ** 3
             * float(initial_condition["hydrogen_mass_fraction"])
             / PROTON_MASS_CGS
         ),
