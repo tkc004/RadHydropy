@@ -307,25 +307,49 @@ def update_used_parameters_yaml(path, par_config=None, initial_condition=None):
         existing=existing,
     )
     with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
+        yaml.safe_dump(payload, handle, sort_keys=False, default_flow_style=False)
     return path
 
 
 def write_used_parameters(path, par):
     """Write the active runtime parameters to a YAML file."""
     path = Path(path)
-    payload = {
-        "par": {
+    nested_par_config = getattr(par, "nested_par_config", None)
+    if isinstance(nested_par_config, dict):
+        runtime_parameters = {
+            group: _yaml_config_value(nested_par_config.get(group, {}))
+            for group in (
+                "simulation", "mesh", "hydrodynamics", "boundary", "timestep",
+                "output", "diagnostics", "units", "thermochemistry", "chemistry",
+                "gravity", "dark_matter", "radiation",
+            )
+        }
+        runtime_parameters.update(
+            {
+                key: _yaml_config_value(value)
+                for key, value in nested_par_config.items()
+                if key not in runtime_parameters
+            }
+        )
+    else:
+        # Retain serialization for programmatically constructed legacy
+        # namespaces, while all YAML-driven ``Par`` instances use the nested
+        # configuration preserved by ``Par``.
+        runtime_parameters = {
             key: parameter_tree(value)
             for key, value in sorted(vars(par).items())
-            if not key.startswith("_") and key not in {"par_config", "initial_condition"}
-        },
+            if not key.startswith("_")
+            and key not in {"par_config", "initial_condition"}
+        }
+    payload = {
+        "par": runtime_parameters,
         "initial_condition": parameter_tree(
             getattr(par, "initial_condition", None)
         ),
+        "example": {},
     }
     with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=True, default_flow_style=False)
+        yaml.safe_dump(payload, handle, sort_keys=False, default_flow_style=False)
     return path
 
 

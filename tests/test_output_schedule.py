@@ -13,6 +13,7 @@ import unyt
 import yaml
 
 from radhydropy.rsim import Rsim
+from radhydropy.params import Par
 import radhydropy.io as rio
 
 
@@ -183,6 +184,28 @@ class Testing(unittest.TestCase):
                 self.assertIsNone(payload['initial_condition'])
             finally:
                 os.chdir(cwd)
+
+    def test_used_parameters_preserves_nested_runtime_groups(self):
+        par = Par({
+            'simulation': {'name': 'nested-test'},
+            'units': {'CodeUnits': CODE_UNITS},
+        })
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / 'used_parameters.yaml'
+            rio.write_used_parameters(path, par)
+            payload = yaml.safe_load(path.read_text())
+
+        self.assertEqual(
+            list(payload['par']),
+            [
+                'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
+                'output', 'diagnostics', 'units', 'thermochemistry',
+                'chemistry', 'gravity', 'dark_matter', 'radiation',
+            ],
+        )
+        self.assertEqual(payload['par']['simulation']['name'], 'nested-test')
+        self.assertNotIn('simname', payload['par'])
+        self.assertEqual(set(payload), {'par', 'initial_condition', 'example'})
 
     def test_parameter_tree_converts_numpy_scalars(self):
         self.assertEqual(rio.parameter_tree(np.int64(256)), 256)

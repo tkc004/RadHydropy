@@ -1,5 +1,6 @@
 """Default simulation parameters and parameter container."""
 
+import copy
 import warnings
 from dataclasses import dataclass
 
@@ -580,6 +581,15 @@ class Par:
 
     def __init__(self, params) -> None:
         params = self._validate_mapping(params)
+        self.nested_par_config = (
+            copy.deepcopy(params)
+            if any(isinstance(params.get(group), dict) for group in (
+                'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
+                'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
+                'diagnostics', 'gravity', 'dark_matter',
+            ))
+            else None
+        )
         params = self._flatten_nested_parameters(params)
         self._validate_keys(params)
         self.par_config = dict(params)
