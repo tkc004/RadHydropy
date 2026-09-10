@@ -101,8 +101,8 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     output_prefix = case_config['par']['output']['filename_prefix']
     case_initial_condition = dict(initial_condition)
     case_initial_condition.update({
-        'hydrogen_density_cgs_cm3': hydrogen_number_density_cgs_cm3,
-        'temperature_unyt': temperature_proper_cgs_K * unyt.K,
+        'hydrogen_number_density': hydrogen_number_density_cgs_cm3 / unyt.cm**3,
+        'temperature_proper': temperature_proper_cgs_K * unyt.K,
     })
     case_config['par']['thermochemistry']['metallicity'] = thermo['metallicity']
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -131,14 +131,14 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
     if len(snapshots) < 2:
         raise RuntimeError(f'expected snapshots in {output_dir}')
-    initial_rate = float(_net_rate(
+    initial_net_rate_cgs_erg_cm3_s = float(_net_rate(
         table, temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, thermo['metallicity'], thermo['metal_pie_redshift']
     ))
     rho_proper_cgs_g_cm3 = hydrogen_number_density_cgs_cm3 * PROTON_MASS_G / thermo['hydrogen_mass_fraction']
     thermal_energy = rho_proper_cgs_g_cm3 * BOLTZMANN_ERG_cgs_K * temperature_proper_cgs_K / (
         (hydro['gamma'] - 1.0) * initial_condition['mean_molecular_weight'] * PROTON_MASS_G
     )
-    thermal_time = thermal_energy / max(abs(initial_rate), 1.0e-99) / SECONDS_PER_MYR
+    thermal_time_proper_Myr = thermal_energy / max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99) / SECONDS_PER_MYR
     equilibrium = _equilibrium_temperature(
         table, hydrogen_number_density_cgs_cm3, thermo['metallicity'], thermo['metal_pie_redshift'],
         initial_condition['mean_molecular_weight']
@@ -146,10 +146,10 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     return {
         'label': label,
         'hydrogen_number_density_cgs_cm3': hydrogen_number_density_cgs_cm3,
-        'temperature_initial_cgs_K': temperature_proper_cgs_K,
-        'initial_rate': initial_rate,
-        'thermal_time_Myr': thermal_time,
-        'temperature_equilibrium_cgs_K': equilibrium,
+        'temperature_initial_proper_cgs_K': temperature_proper_cgs_K,
+        'initial_net_rate_cgs_erg_cm3_s': initial_net_rate_cgs_erg_cm3_s,
+        'thermal_time_proper_Myr': thermal_time_proper_Myr,
+        'temperature_equilibrium_proper_cgs_K': equilibrium,
         'snapshots': snapshots,
     }
 
@@ -157,8 +157,8 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
 def _write_report(results, config, filename):
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(
-            'case nH_cgs_cm3 T_initial_cgs_K T_final_cgs_K T_equilibrium_cgs_K '
-            'initial_net_rate_cgs_erg_cm3_s initial_thermal_time_Myr '
+            'case nH_cgs_cm3 T_initial_proper_cgs_K T_final_proper_cgs_K T_equilibrium_proper_cgs_K '
+            'initial_net_rate_cgs_erg_cm3_s thermal_time_proper_Myr '
             'density_relative_change\n'
         )
         for result in results:
@@ -167,9 +167,9 @@ def _write_report(results, config, filename):
             density_change = np.median(final['rho_proper_code']) / np.median(initial['rho_proper_code']) - 1.0
             report.write(
                 '%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n' % (
-                    result['label'], result['hydrogen_number_density_cgs_cm3'], result['temperature_initial_cgs_K'],
-                    np.median(final['temp_proper_code']), result['temperature_equilibrium_cgs_K'],
-                    result['initial_rate'], result['thermal_time_Myr'], density_change,
+                    result['label'], result['hydrogen_number_density_cgs_cm3'], result['temperature_initial_proper_cgs_K'],
+                    np.median(final['temp_proper_code']), result['temperature_equilibrium_proper_cgs_K'],
+                    result['initial_net_rate_cgs_erg_cm3_s'], result['thermal_time_proper_Myr'], density_change,
                 )
             )
 
@@ -216,7 +216,7 @@ def _plot(results, config, filename):
             markersize=3.0,
             label='_nolegend_',
         )
-        initial_rate = float(_net_rate(
+        initial_net_rate_cgs_erg_cm3_s = float(_net_rate(
             TABLE,
             result['temperature_initial_cgs_K'],
             result['hydrogen_number_density_cgs_cm3'],
@@ -225,7 +225,7 @@ def _plot(results, config, filename):
         )) / result['hydrogen_number_density_cgs_cm3'] ** 2
         right_markers.append((
             result['temperature_initial_cgs_K'],
-            max(abs(initial_rate), 1.0e-99),
+            max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99),
             line.get_color(),
         ))
     for temperature_proper_cgs_K, rate, color in right_markers:

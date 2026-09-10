@@ -146,11 +146,11 @@ def analyze_snapshot(filename, config, halo, temperature_virial_unyt):
         'vel_peculiar_proper_km_s': vel_peculiar_proper_km_s,
         'pressure_cgs_erg_cm3': pre_proper_cgs_erg_cm3,
         'force_residual': force_residual,
-        'atmosphere_mass_Msun': atmosphere_mass / unyt.Msun.to_value(unyt.g),
+        'atmosphere_mass_proper_Msun': atmosphere_mass / unyt.Msun.to_value(unyt.g),
         'central_rho_proper_cgs_g_cm3': float(np.median(rho_proper_cgs_g_cm3[central])),
         'central_temperature_proper_cgs_K': float(np.median(temperature_proper_cgs_K[central])),
         'minimum_temperature_proper_cgs_K': float(np.min(temperature_proper_cgs_K)),
-        'temperature_virial_K': temperature_virial_unyt.to_value(unyt.K),
+        'temperature_virial_proper_K': temperature_virial_unyt.to_value(unyt.K),
     }
 
 
@@ -158,15 +158,16 @@ def write_report(results, filename, temperature_floor):
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(
             'time_proper_Myr central_rho_proper_cgs_g_cm3 central_temperature_proper_cgs_K '
-            'minimum_temperature_proper_cgs_K atmosphere_mass_Msun max_abs_force_residual '
-            'temperature_floor_cgs_K floor_reached\n'
+            'minimum_temperature_proper_cgs_K atmosphere_mass_proper_Msun '
+            'force_residual_max_dimensionless temperature_floor_proper_cgs_K '
+            'temperature_floor_reached\n'
         )
         for row in results:
             report.write(
                 '%.8g %.8g %.8g %.8g %.8g %.8g %.8g %s\n' % (
                     row['time_proper_Myr'], row['central_rho_proper_cgs_g_cm3'],
                     row['central_temperature_proper_cgs_K'], row['minimum_temperature_proper_cgs_K'],
-                    row['atmosphere_mass_Msun'],
+                    row['atmosphere_mass_proper_Msun'],
                     np.nanmax(np.abs(row['force_residual'])),
                     temperature_floor, row['minimum_temperature_proper_cgs_K'] <= temperature_floor * 1.01,
                 )

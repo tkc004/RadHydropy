@@ -1,4 +1,4 @@
-time_Myr central_density_cgs_g_cm3 central_temperature_cgs_K minimum_temperature_cgs_K atmosphere_mass_Msun max_abs_force_residual temperature_floor_cgs_K floor_reached
+time_proper_Myr central_rho_proper_cgs_g_cm3 central_temperature_proper_cgs_K minimum_temperature_proper_cgs_K atmosphere_mass_proper_Msun force_residual_max_dimensionless temperature_floor_proper_cgs_K temperature_floor_reached
 0 2.4049087e-26 5000.1703 5000.1703 19168372 0.2390833 100 False
 1 2.4071102e-26 6587.4205 5001.5209 19167443 0.54787495 100 False
 10 2.4318093e-26 8947.9296 5013.7209 19159744 1.0322171 100 False

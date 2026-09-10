@@ -72,54 +72,54 @@ def _case_diagnostics(config_filename):
         files, times, halo, table, config, initial_condition['mu']
     )
     stability_by_time = {row['time_proper_Myr']: row for row in stability}
-    shock_radius = []
-    gamma_eff = []
+    shock_radius_over_R200_dimensionless = []
+    gamma_eff_dimensionless = []
     for filename, time in zip(files, times):
         snapshot = load_output_state(filename, config)
         index = locate_shock(
             snapshot, halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
         )
-        shock_radius.append(
+        shock_radius_over_R200_dimensionless.append(
             np.nan if index is None else snapshot['radius_proper_kpc'][index]
             / halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
         )
         row = stability_by_time.get(float(time))
-        gamma_eff.append(np.nan if row is None else row['gamma_eff'])
+        gamma_eff_dimensionless.append(np.nan if row is None else row['gamma_eff_dimensionless'])
     return {
-        'mass_Msun': halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun),
+        'mass_proper_Msun': halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun),
         'label': r'$10^{12}\,M_\odot$' if halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun) > 5e11
         else (r'$3\times10^{11}\,M_\odot$' if halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun) > 2e11
               else r'$10^{11}\,M_\odot$'),
-        'times_Myr': np.asarray(times),
-        'shock_radius': np.asarray(shock_radius),
-        'gamma_eff': np.asarray(gamma_eff),
+        'times_proper_Myr': np.asarray(times),
+        'shock_radius_over_R200_dimensionless': np.asarray(shock_radius_over_R200_dimensionless),
+        'gamma_eff_dimensionless': np.asarray(gamma_eff_dimensionless),
     }
 
 
 def _write_summary(cases, filename):
     with Path(filename).open('w', encoding='utf-8') as stream:
-        stream.write('halo_mass_Msun time_proper_Myr shock_radius_over_R200 gamma_eff status\n')
+        stream.write('halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n')
         for case in cases:
-            for time, radius, gamma_eff in zip(
-                case['times_Myr'], case['shock_radius'], case['gamma_eff']
+            for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(
+                case['times_proper_Myr'], case['shock_radius_over_R200_dimensionless'], case['gamma_eff_dimensionless']
             ):
-                if not np.isfinite(radius):
+                if not np.isfinite(radius_dimensionless):
                     status = 'no_resolved_virial_shock'
-                elif np.isfinite(gamma_eff) and gamma_eff < GAMMA_CRITICAL:
+                elif np.isfinite(gamma_eff_dimensionless) and gamma_eff_dimensionless < GAMMA_CRITICAL:
                     status = 'unstable'
                 else:
                     status = 'supported'
                 stream.write(
-                    f"{case['mass_Msun']:.8g} {time:.8g} {radius:.8g} "
-                    f"{gamma_eff:.8g} {status}\n"
+                    f"{case['mass_proper_Msun']:.8g} {time_proper_Myr:.8g} {radius_dimensionless:.8g} "
+                    f"{gamma_eff_dimensionless:.8g} {status}\n"
                 )
 
 
 def _plot(cases, filename):
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.8), sharex=True)
     for case in cases:
-        axes[0].plot(case['times_Myr'], case['shock_radius'], 'o-', label=case['label'])
-        axes[1].plot(case['times_Myr'], case['gamma_eff'], 'o-', label=case['label'])
+        axes[0].plot(case['times_proper_Myr'], case['shock_radius_over_R200_dimensionless'], 'o-', label=case['label'])
+        axes[1].plot(case['times_proper_Myr'], case['gamma_eff_dimensionless'], 'o-', label=case['label'])
     axes[0].axhspan(0.5, 1.2, color='tab:green', alpha=0.08)
     axes[0].set_ylabel(r'$r_{\rm shock}/R_{200}$')
     axes[1].axhline(5.0 / 3.0, color='black', ls=':', label=r'$5/3$')

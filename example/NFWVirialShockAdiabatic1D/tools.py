@@ -179,30 +179,32 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
             'time_proper_Myr': time_proper_Myr,
             'shock_radius_proper_kpc': shock_positions[snapshot_index],
             'shock_radius_over_R200': shock_positions[snapshot_index] / virial_radius_proper_kpc,
-            'shock_speed_km_s': shock_speed,
-            'mach_number': mach_number,
-            'measured_density_ratio': density_downstream_proper_cgs_g_cm3 / max(density_upstream_proper_cgs_g_cm3, 1.0e-99),
-            'predicted_density_ratio': float(predicted_density),
-            'measured_temperature_ratio': temperature_downstream_proper_K / max(temperature_upstream_proper_K, 1.0e-99),
-            'predicted_temperature_ratio': float(predicted_temperature),
+            'shock_speed_proper_km_s': shock_speed,
+            'mach_number_dimensionless': mach_number,
+            'density_ratio_measured_dimensionless': density_downstream_proper_cgs_g_cm3 / max(density_upstream_proper_cgs_g_cm3, 1.0e-99),
+            'density_ratio_predicted_dimensionless': float(predicted_density),
+            'temperature_ratio_measured_dimensionless': temperature_downstream_proper_K / max(temperature_upstream_proper_K, 1.0e-99),
+            'temperature_ratio_predicted_dimensionless': float(predicted_temperature),
         })
     return rows
 
 
 def write_rankine_hugoniot_report(rows, filename):
     header = (
-        'time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200 shock_speed_km_s '
-        'Mach rho_ratio_measured rho_ratio_RH T_ratio_measured T_ratio_RH\n'
+        'time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200 shock_speed_proper_km_s '
+        'mach_number_dimensionless density_ratio_measured_dimensionless '
+        'density_ratio_predicted_dimensionless temperature_ratio_measured_dimensionless '
+        'temperature_ratio_predicted_dimensionless\n'
     )
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(header)
         for row in rows:
             report.write(
                 '%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g '
-                '%(shock_radius_over_R200).8g %(shock_speed_km_s).8g '
-                '%(mach_number).8g %(measured_density_ratio).8g '
-                '%(predicted_density_ratio).8g %(measured_temperature_ratio).8g '
-                '%(predicted_temperature_ratio).8g\n' % row
+                '%(shock_radius_over_R200).8g %(shock_speed_proper_km_s).8g '
+                '%(mach_number_dimensionless).8g %(density_ratio_measured_dimensionless).8g '
+                '%(density_ratio_predicted_dimensionless).8g %(temperature_ratio_measured_dimensionless).8g '
+                '%(temperature_ratio_predicted_dimensionless).8g\n' % row
             )
 
 

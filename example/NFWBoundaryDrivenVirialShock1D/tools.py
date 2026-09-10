@@ -200,18 +200,18 @@ def locate_shock(snapshot, r200_kpc):
     score = np.abs(np.diff(np.log(entropy_proper_cgs_arb))) + np.maximum(
         -np.diff(np.log(rho_proper_cgs_g_cm3)), 0.0
     )
-    density_ratio = rho_proper_cgs_g_cm3[:-1] / rho_proper_cgs_g_cm3[1:]
-    temperature_ratio = temperature_proper_cgs_K[:-1] / temperature_proper_cgs_K[1:]
+    density_ratio_dimensionless = rho_proper_cgs_g_cm3[:-1] / rho_proper_cgs_g_cm3[1:]
+    temperature_ratio_dimensionless = temperature_proper_cgs_K[:-1] / temperature_proper_cgs_K[1:]
     vel_peculiar_proper_km_s = snapshot.get('vel_peculiar_proper_km_s')
     decelerating = (
-        np.ones_like(density_ratio, dtype=bool)
+        np.ones_like(density_ratio_dimensionless, dtype=bool)
         if vel_peculiar_proper_km_s is None else np.asarray(vel_peculiar_proper_km_s[:-1] - vel_peculiar_proper_km_s[1:] > 0.0)
     )
     candidate = (
         (radius_proper_kpc[:-1] > 0.1 * r200_kpc)
         & (radius_proper_kpc[:-1] < 2.0 * r200_kpc)
-        & (density_ratio > 1.02)
-        & (temperature_ratio > 1.02)
+        & (density_ratio_dimensionless > 1.02)
+        & (temperature_ratio_dimensionless > 1.02)
         & decelerating
     )
     if not np.any(candidate):
@@ -243,11 +243,11 @@ def shock_history(filenames, halo, config, times_myr=None):
         rows.append({
             'time_proper_Myr': snapshot['time_proper_Myr'],
             'shock_radius_proper_kpc': float(snapshot['radius_proper_kpc'][index]),
-            'shock_radius_over_R200': float(snapshot['radius_proper_kpc'][index] / r200),
-            'density_ratio': density_inner_proper_cgs_g_cm3 / max(density_outer_proper_cgs_g_cm3, 1.0e-99),
-            'temperature_ratio': temperature_inner_proper_cgs_K / max(temperature_outer_proper_cgs_K, 1.0),
-            'velocity_inner_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][inner])),
-            'velocity_outer_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][outer])),
+            'shock_radius_over_R200_dimensionless': float(snapshot['radius_proper_kpc'][index] / r200),
+            'density_ratio_dimensionless': density_inner_proper_cgs_g_cm3 / max(density_outer_proper_cgs_g_cm3, 1.0e-99),
+            'temperature_ratio_dimensionless': temperature_inner_proper_cgs_K / max(temperature_outer_proper_cgs_K, 1.0),
+            'velocity_inner_proper_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][inner])),
+            'velocity_outer_proper_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][outer])),
         })
     return rows
 
@@ -255,15 +255,15 @@ def shock_history(filenames, halo, config, times_myr=None):
 def write_report(rows, filename):
     with Path(filename).open('w', encoding='utf-8') as stream:
         stream.write(
-            'time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200 density_ratio '
-            'temperature_ratio velocity_inner_km_s velocity_outer_km_s\n'
+            'time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200_dimensionless density_ratio_dimensionless '
+            'temperature_ratio_dimensionless velocity_inner_proper_km_s velocity_outer_proper_km_s\n'
         )
         for row in rows:
             stream.write(
                 '%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g '
-                '%(shock_radius_over_R200).8g %(density_ratio).8g '
-                '%(temperature_ratio).8g %(velocity_inner_km_s).8g '
-                '%(velocity_outer_km_s).8g\n' % row
+                '%(shock_radius_over_R200_dimensionless).8g %(density_ratio_dimensionless).8g '
+                '%(temperature_ratio_dimensionless).8g %(velocity_inner_proper_km_s).8g '
+                '%(velocity_outer_proper_km_s).8g\n' % row
             )
 
 
@@ -335,15 +335,15 @@ def pie_stability_diagnostics(
         ) / KM_S_TO_CM_S
         mach = relative_speed / max(sound_speed, 1.0e-30)
         mach2 = mach**2
-        density_ratio = (gamma + 1.0) * mach2 / (
+        density_ratio_dimensionless = (gamma + 1.0) * mach2 / (
             (gamma - 1.0) * mach2 + 2.0
         )
         pressure_ratio = (
             2.0 * gamma * mach2 - (gamma - 1.0)
         ) / (gamma + 1.0)
-        rho_analytic = rho0 * density_ratio
+        rho_analytic = rho0 * density_ratio_dimensionless
         pressure_analytic = _gas_pressure(rho0, temp0, mu) * pressure_ratio
-        temp_analytic = temp0 * pressure_ratio / max(density_ratio, 1.0e-30)
+        temp_analytic = temp0 * pressure_ratio / max(density_ratio_dimensionless, 1.0e-30)
         ram_pressure = rho0 * (relative_speed * KM_S_TO_CM_S)**2
 
         rho1, temp1, pressure1 = downstream[i]
@@ -391,36 +391,36 @@ def pie_stability_diagnostics(
         )
         rows.append({
             'time_proper_Myr': float(times_myr[i]),
-            'shock_radius_over_R200': float(radii[i] / r200),
-            'shock_speed_km_s': float(shock_speed),
-            'mach_number': float(mach),
-            'postshock_pressure_cgs_erg_cm3': float(pressure1),
-            'analytic_postshock_pressure_cgs_erg_cm3': float(pressure_analytic),
-            'ram_pressure_cgs_erg_cm3': float(ram_pressure),
-            'postshock_to_ram_pressure': float(pressure1 / max(ram_pressure, 1.0e-99)),
-            'analytic_postshock_to_ram_pressure': float(
+            'shock_radius_over_R200_dimensionless': float(radii[i] / r200),
+            'shock_speed_proper_km_s': float(shock_speed),
+            'mach_number_dimensionless': float(mach),
+            'postshock_pressure_proper_cgs_erg_cm3': float(pressure1),
+            'analytic_postshock_pressure_proper_cgs_erg_cm3': float(pressure_analytic),
+            'ram_pressure_proper_cgs_erg_cm3': float(ram_pressure),
+            'postshock_to_ram_pressure_ratio_dimensionless': float(pressure1 / max(ram_pressure, 1.0e-99)),
+            'analytic_postshock_to_ram_pressure_ratio_dimensionless': float(
                 pressure_analytic / max(ram_pressure, 1.0e-99)
             ),
             'postshock_temperature_proper_cgs_K': float(temp1),
             'analytic_postshock_temperature_proper_cgs_K': float(temp_analytic),
             'cooling_time_proper_Myr': float(cooling_time),
             'analytic_cooling_time_proper_Myr': float(analytic_cooling_time),
-            'gamma_eff': float(gamma_eff),
-            'gamma_eff_analytic': float(gamma_eff_analytic),
-            'gamma_critical': GAMMA_CRITICAL,
+            'gamma_eff_dimensionless': float(gamma_eff),
+            'gamma_eff_analytic_dimensionless': float(gamma_eff_analytic),
+            'gamma_critical_dimensionless': GAMMA_CRITICAL,
         })
     return rows
 
 
 def write_stability_report(rows, filename):
     keys = (
-        'time_proper_Myr', 'shock_radius_over_R200', 'shock_speed_km_s', 'mach_number',
-        'postshock_pressure_cgs_erg_cm3', 'analytic_postshock_pressure_cgs_erg_cm3',
-        'ram_pressure_cgs_erg_cm3', 'postshock_to_ram_pressure',
-        'analytic_postshock_to_ram_pressure',
+        'time_proper_Myr', 'shock_radius_over_R200_dimensionless', 'shock_speed_proper_km_s', 'mach_number_dimensionless',
+        'postshock_pressure_proper_cgs_erg_cm3', 'analytic_postshock_pressure_proper_cgs_erg_cm3',
+        'ram_pressure_proper_cgs_erg_cm3', 'postshock_to_ram_pressure_ratio_dimensionless',
+        'analytic_postshock_to_ram_pressure_ratio_dimensionless',
         'postshock_temperature_proper_cgs_K', 'analytic_postshock_temperature_proper_cgs_K',
-        'cooling_time_proper_Myr', 'analytic_cooling_time_proper_Myr', 'gamma_eff',
-        'gamma_eff_analytic', 'gamma_critical',
+        'cooling_time_proper_Myr', 'analytic_cooling_time_proper_Myr', 'gamma_eff_dimensionless',
+        'gamma_eff_analytic_dimensionless', 'gamma_critical_dimensionless',
     )
     with Path(filename).open('w', encoding='utf-8') as stream:
         stream.write(' '.join(keys) + '\n')
@@ -439,16 +439,16 @@ def plot_stability_diagnostics(rows, filename):
     else:
         time_proper_Myr = np.asarray([row['time_proper_Myr'] for row in rows])
         panels = (
-            ('postshock_pressure_cgs_erg_cm3', 'analytic_postshock_pressure_cgs_erg_cm3',
+            ('postshock_pressure_proper_cgs_erg_cm3', 'analytic_postshock_pressure_proper_cgs_erg_cm3',
              r'$P_1$ [erg cm$^{-3}$]', True),
-            ('postshock_to_ram_pressure', 'analytic_postshock_to_ram_pressure',
+            ('postshock_to_ram_pressure_ratio_dimensionless', 'analytic_postshock_to_ram_pressure_ratio_dimensionless',
              r'$P_1/P_{\rm ram}$', False),
             ('postshock_temperature_proper_cgs_K', 'analytic_postshock_temperature_proper_cgs_K',
              r'$T_1$ [K]', True),
             ('cooling_time_proper_Myr', 'analytic_cooling_time_proper_Myr',
              r'$t_{\rm cool}$ [Myr]', True),
-            ('gamma_eff', 'gamma_eff_analytic', r'$\gamma_{\rm eff}$', False),
-            ('shock_radius_over_R200', 'shock_radius_over_R200',
+            ('gamma_eff_dimensionless', 'gamma_eff_analytic_dimensionless', r'$\gamma_{\rm eff}$', False),
+            ('shock_radius_over_R200_dimensionless', 'shock_radius_over_R200_dimensionless',
              r'$r_{\rm shock}/R_{200}$', False),
         )
         for axis, (measured, analytic, ylabel, logarithmic) in zip(axes.flat, panels):
@@ -499,7 +499,7 @@ def plot_comparison(
         if history:
             axes[row, 3].plot(
                 [item['time_proper_Myr'] for item in history],
-                [item['shock_radius_over_R200'] for item in history],
+                [item['shock_radius_over_R200_dimensionless'] for item in history],
                 marker='o', ms=3,
             )
         axes[row, 0].set_ylabel(f'{label}\n' + r'$\rho$ [g cm$^{-3}$]')

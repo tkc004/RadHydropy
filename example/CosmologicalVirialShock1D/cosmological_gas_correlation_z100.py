@@ -545,14 +545,14 @@ def plot_dark_matter_density_evolution(
     for index, color in zip(selected, colors):
         profile = dm_profiles[index]
         scale_factor = float(profile["scale_factor"])
-        radius_comoving_code = np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
-        rho_comoving_code = np.asarray(profile["dm_rho_proper_code"], dtype=float)
+        radius_proper_kpc = np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
+        rho_proper_code = np.asarray(profile["dm_rho_proper_code"], dtype=float)
         mass_shell_comoving_code = np.asarray(profile["dm_mass_comoving_code"], dtype=float)
         mass_core_comoving_code = float(profile.get("dm_central_core_mass", 0.0))
         core_radius_comoving_code = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
-        comoving_radius = radius_comoving_code / scale_factor
+        comoving_radius = radius_proper_kpc / scale_factor
         valid = (
-            np.isfinite(comoving_radius) & np.isfinite(rho_comoving_code)
+            np.isfinite(comoving_radius) & np.isfinite(rho_proper_code)
             & np.isfinite(mass_shell_comoving_code) & (comoving_radius > 0.0) & (mass_shell_comoving_code > 0.0)
         )
         radius_shell_comoving_code = comoving_radius[valid]
@@ -818,7 +818,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     )
     radius_proper_cgs_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
     velocity_cgs_cm_s = np.asarray(
-        gas_profile["radial_velocity_physical_km_s"], dtype=float
+            gas_profile["radial_velocity_proper_km_s"], dtype=float
     ) * 1.0e5
     divergence = np.gradient(radius_proper_cgs_cm**2 * velocity_cgs_cm_s, radius_proper_cgs_cm) / np.maximum(radius_proper_cgs_cm, 1.0e-30)**2
     rho_dot = -rho_comoving_code * divergence
@@ -1188,11 +1188,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
         scale_factor = float(cosmology.scale_factor(time_cosmic_code))
-        gas_profile["temperature_physical_cgs_K"] = (
+        gas_profile["temperature_proper_cgs_K"] = (
             np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / scale_factor**2
         )
         if hasattr(sim.fluid, "specific_angular_momentum_code"):
-            gas_profile["specific_angular_momentum"] = np.asarray(
+            gas_profile["specific_angular_momentum_comoving_code"] = np.asarray(
                 sim.fluid.specific_angular_momentum_code[first:last], dtype=float
             ).copy()
         physical_velocity = cosmology.physical_velocity(
@@ -1204,8 +1204,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             np.asarray(physical_velocity, dtype=float)
             * float(sim.par.units.CodeUnits.velocity_in_cgs) / 1.0e5
         )
-        gas_profile["radial_velocity_physical_km_s"] = signed_velocity_km_s
-        gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
+        gas_profile["radial_velocity_proper_km_s"] = signed_velocity_km_s
+        gas_profile["velocity_proper_km_s"] = np.abs(signed_velocity_km_s)
         gas_profile.update(_instantaneous_source_diagnostics(sim, gas_profile))
         radius_record = et.profiles(
             sim, dm, time_cosmic_code, config,
@@ -1477,17 +1477,17 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     radius_comoving_code = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
     rho_comoving_code = np.asarray([item["rho_proper_code"] for item in gas_profiles])
     temperature_proper_cgs_K = np.asarray(
-        [item["temperature_physical_cgs_K"] for item in gas_profiles]
+        [item["temperature_proper_cgs_K"] for item in gas_profiles]
     )
     vel_supercomoving_code = np.asarray(
-        [item["velocity_physical_km_s"] for item in gas_profiles]
+        [item["velocity_proper_km_s"] for item in gas_profiles]
     )
-    specific_angular_momentum = np.asarray(
-        [item.get("specific_angular_momentum", np.zeros_like(radius_comoving_code))
+    specific_angular_momentum_comoving_code = np.asarray(
+        [item.get("specific_angular_momentum_comoving_code", np.zeros_like(radius_comoving_code))
          for item in gas_profiles]
     )
     radial_velocity = np.asarray(
-        [item["radial_velocity_physical_km_s"] for item in gas_profiles]
+        [item["radial_velocity_proper_km_s"] for item in gas_profiles]
     )
     scale_factors = np.asarray([item["scale_factor"] for item in gas_profiles])
     plot_exclude_outer_cells = max(
@@ -1503,9 +1503,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         trimmed = dict(profile)
         for key in (
             "radius_proper_kpc", "rho_proper_code",
-            "temperature_physical_cgs_K", "velocity_physical_km_s",
-            "radial_velocity_physical_km_s",
-            "specific_angular_momentum",
+            "temperature_proper_cgs_K", "velocity_proper_km_s",
+            "radial_velocity_proper_km_s",
+            "specific_angular_momentum_comoving_code",
         ):
             if key in trimmed:
                 trimmed[key] = np.asarray(trimmed[key])[:plot_cell_count]
@@ -1523,10 +1523,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     data_file = output_dir / (figure_prefix + ".npz")
     np.savez(data_file, **history,
              radius_comoving_kpc=radius_comoving_code, rho_proper_code=rho_comoving_code,
-             temperature_physical_cgs_K=temperature_proper_cgs_K,
-             velocity_physical_km_s=vel_supercomoving_code,
-             radial_velocity_physical_km_s=radial_velocity,
-             specific_angular_momentum=specific_angular_momentum,
+             temperature_proper_cgs_K=temperature_proper_cgs_K,
+             velocity_proper_km_s=vel_supercomoving_code,
+             radial_velocity_proper_km_s=radial_velocity,
+             specific_angular_momentum_comoving_code=specific_angular_momentum_comoving_code,
              q_cgs_erg_cm3_s=np.asarray([item["q_cgs_erg_cm3_s"] for item in gas_profiles]),
              rho_dot_cgs_g_cm3_s=np.asarray([item["rho_dot_cgs_g_cm3_s"] for item in gas_profiles]),
              specific_energy_cgs_erg_g=np.asarray([item["specific_energy_cgs_erg_g"] for item in gas_profiles]),

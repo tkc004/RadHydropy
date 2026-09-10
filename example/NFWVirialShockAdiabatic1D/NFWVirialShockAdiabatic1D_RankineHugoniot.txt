@@ -1,4 +1,4 @@
-time_Myr shock_radius_kpc shock_radius_over_R200 shock_speed_km_s Mach rho_ratio_measured rho_ratio_RH T_ratio_measured T_ratio_RH
+time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200 mach_number_dimensionless shock_speed_proper_km_s density_ratio_measured_dimensionless density_ratio_predicted_dimensionless temperature_ratio_measured_dimensionless temperature_ratio_predicted_dimensionless
 250 103.9514 0.50394097 28.255681 65.689062 1.0133079 3.997221 1.5148006 1349.329
 500 118.40011 0.5739862 106.74463 73.409886 16.742258 3.9977745 438.81154 1684.941
 750 158.53591 0.76855861 147.55983 93.147202 8.7758949 3.9986174 863.09846 2712.2503

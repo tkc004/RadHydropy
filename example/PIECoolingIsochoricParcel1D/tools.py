@@ -13,8 +13,10 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     thermochemistry = config['par']['thermochemistry']
     code_units = config['_code_units']
-    density_cgs_cm3 = initial.get('hydrogen_density_cgs_cm3', 1.0)
-    temperature_unyt = initial.get('temperature_unyt', initial['temperature_proper'])
+    hydrogen_number_density_unyt = initial.get(
+        'hydrogen_number_density', 1.0 / unyt.cm**3
+    )
+    temperature_proper_unyt = initial['temperature_proper']
     hydrogen_mass_fraction = float(thermochemistry['hydrogen_mass_fraction'])
     grid_cells = int(config['par']['mesh']['grid_cells'])
     result = Rsim(config['par'])
@@ -35,9 +37,12 @@ def build_initial_condition(config):
     )
     result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells, dtype=float))
     result.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * temperature_unyt, code_units.temperature_unit
+        np.ones(grid_cells) * temperature_proper_unyt, code_units.temperature_unit
     ))
-    rho_cgs_g_cm3 = density_cgs_cm3 * unyt.mp.to_value(unyt.g) / hydrogen_mass_fraction
+    hydrogen_number_density_cgs_cm3 = hydrogen_number_density_unyt.to_value(
+        1.0 / unyt.cm**3
+    )
+    rho_cgs_g_cm3 = hydrogen_number_density_cgs_cm3 * unyt.mp.to_value(unyt.g) / hydrogen_mass_fraction
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(
         np.ones(grid_cells) * rho_cgs_g_cm3 * unyt.g / unyt.cm**3,
         code_units.density_unit,

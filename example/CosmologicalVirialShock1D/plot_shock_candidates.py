@@ -80,15 +80,15 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     comoving_radius = np.asarray(data["radius_comoving_kpc"], dtype=float)
     proper_radius = comoving_radius[None, :] * scale[:, None]
     rho_comoving_code = np.asarray(data["rho_proper_code"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(data["temperature_physical_cgs_K"], dtype=float)
-    vel_supercomoving_code = np.asarray(data["radial_velocity_physical_km_s"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(data["temperature_proper_cgs_K"], dtype=float)
+    vel_proper_km_s = np.asarray(data["radial_velocity_proper_km_s"], dtype=float)
     count = max(3, comoving_radius.size - max(0, int(exclude_outer_cells)))
-    comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_supercomoving_code = (
+    comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_proper_km_s = (
         array[..., :count] for array in
-        (comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_supercomoving_code)
+        (comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_proper_km_s)
     )
 
-    divergence = _spherical_divergence(proper_radius, vel_supercomoving_code)
+    divergence = _spherical_divergence(proper_radius, vel_proper_km_s)
     entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (float(gamma) - 1.0)
     midpoint_radius = 0.5 * (comoving_radius[1:] + comoving_radius[:-1])
     density_jump = np.log10(
@@ -106,7 +106,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     pair_sound_speed = 0.5 * (sound_speed[:, 1:] + sound_speed[:, :-1])
     valid_temperature_pair = (temperature_proper_cgs_K[:, 1:] > 1.0) & (temperature_proper_cgs_K[:, :-1] > 1.0)
     velocity_jump_mach = np.divide(
-        np.abs(vel_supercomoving_code[:, 1:] - vel_supercomoving_code[:, :-1]),
+        np.abs(vel_proper_km_s[:, 1:] - vel_proper_km_s[:, :-1]),
         pair_sound_speed,
         out=np.full_like(pair_sound_speed, np.nan),
         where=(pair_sound_speed > 0.0) & valid_temperature_pair,

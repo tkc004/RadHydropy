@@ -97,9 +97,9 @@ def main(config_filename=DEFAULT_CONFIG):
     for row in rh_rows:
         print(
             'RH t=%(time_proper_Myr).0f Myr, r_shock=%(shock_radius_proper_kpc).3g kpc, '
-            'Mach=%(mach_number).3g, rho=%(measured_density_ratio).3g/'
-            '%(predicted_density_ratio).3g, T=%(measured_temperature_ratio).3g/'
-            '%(predicted_temperature_ratio).3g' % row
+            'Mach=%(mach_number_dimensionless).3g, rho=%(density_ratio_measured_dimensionless).3g/'
+            '%(density_ratio_predicted_dimensionless).3g, T=%(temperature_ratio_measured_dimensionless).3g/'
+            '%(temperature_ratio_predicted_dimensionless).3g' % row
         )
     print('Rankine-Hugoniot report = %s' % rh_filename)
     print('figure = %s' % figure_filename)

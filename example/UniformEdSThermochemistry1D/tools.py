@@ -59,9 +59,9 @@ def build_initial_condition(config):
         result.mesh.boundary_proper_code ** 3
     )
 
-    hydrogen_density_cgs_cm3 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))
+    hydrogen_number_density_cgs_cm3 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))
     hydrogen_mass_fraction = float(initial_condition["hydrogen_mass_fraction"])
-    rho_cgs_g_cm3 = hydrogen_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
+    rho_cgs_g_cm3 = hydrogen_number_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
     rho_proper_code = rho_cgs_g_cm3 / float(code_unit_system.density_unit.to_value("g/cm**3"))
     temperature_cgs_K = float(initial_condition["temperature_proper"].to_value("K"))
     temperature_proper_code = temperature_cgs_K / float(code_unit_system.temperature_unit.to_value("K"))
@@ -104,7 +104,7 @@ def analytic_compton_temperature(
     time_cosmic_cgs_s,
     cosmology,
     time_unit_s,
-    hydrogen_density_cgs_cm3,
+    hydrogen_number_density_cgs_cm3,
     hydrogen_mass_fraction,
     xHI,
     gamma,
@@ -117,9 +117,9 @@ def analytic_compton_temperature(
     from radhydropy.thermo_networks.compton import cmb_compton_rate
 
     rho_proper_cgs_g_cm3 = (
-        hydrogen_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
+        hydrogen_number_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
     )
-    ne = hydrogen_density_cgs_cm3 * (1.0 - xHI)
+    ne = hydrogen_number_density_cgs_cm3 * (1.0 - xHI)
     source_slope = float(
         cmb_compton_rate(
             np.asarray([0.0]), np.asarray([ne]), enabled=True, redshift=0.0

@@ -25,16 +25,16 @@ def spherical_cell_centers(boundary_proper_code):
 
 
 def point_mass_density(
-    radius_unyt, rho_ref_unyt, temperature_unyt, mu_dimensionless,
+    radius_proper_unyt, rho_reference_proper_unyt, temperature_proper_unyt, mu_dimensionless,
     point_mass_unyt, reference_radius_unyt,
 ):
     """Exact isothermal hydrostatic density around a point mass."""
-    radius_proper_cgs_cm = np.asarray(radius_unyt.to_value(unyt.cm), dtype=float)
+    radius_proper_cgs_cm = np.asarray(radius_proper_unyt.to_value(unyt.cm), dtype=float)
     ref_cm = float(reference_radius_unyt.to_value(unyt.cm))
-    rho_ref_cgs = float(rho_ref_unyt.to_value(unyt.g / unyt.cm**3))
+    rho_ref_cgs = float(rho_reference_proper_unyt.to_value(unyt.g / unyt.cm**3))
     mass_g = float(point_mass_unyt.to_value(unyt.g))
     sound_speed_squared = (
-        BOLTZMANN_CONSTANT_CGS * float(temperature_unyt.to_value(unyt.K))
+        BOLTZMANN_CONSTANT_CGS * float(temperature_proper_unyt.to_value(unyt.K))
         / (float(mu_dimensionless) * PROTON_MASS_CGS)
     )
     potential_difference = (

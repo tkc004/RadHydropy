@@ -22,6 +22,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 from basic_hydro_utils import finalize_initial_condition
 
@@ -69,7 +70,9 @@ def make_initial_condition(config):
         ic["rho_shell_proper"].to_value(code_unit_system.density_unit)
     )
     result.fluid.rho_proper_code = np.where(shell, rho_shell_proper_code, 0.0)
-    result.fluid.temp_proper_code = np.where(shell, float(ic["temperature_proper"].to_value("K")), 0.0)
+    result.fluid.temp_proper_code = np.where(
+        shell, quantity_to_value(ic["temperature_proper"], code_unit_system.temperature_unit), 0.0
+    )
     result.fluid.vel_proper_code = np.where(shell, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit)), 0.0)
     result.fluid.mu = np.full(grid_cells, float(ic["mean_molecular_weight"]))
     result.SetMesh()
@@ -125,14 +128,19 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     first = int(sim.par.mesh.ghost_cells)
     wall_face = first
     snapshots, fluxes = [], []
-    target = float(config["par"]["simulation"]["final_time"].to_value("s"))
-    output_dt = float(config["par"]["output"]["cadence"].to_value("s"))
+    code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    target_proper_code = quantity_to_value(
+        config["par"]["simulation"]["final_time"], code_unit_system.time_unit
+    )
+    output_cadence_proper_code = quantity_to_value(
+        config["par"]["output"]["cadence"], code_unit_system.time_unit
+    )
     next_output = 0.0
-    while float(sim.fluid.time_proper_code) < target:
+    while float(sim.fluid.time_proper_code) < target_proper_code:
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, sim.par)
-        dt = sim.GetStepTime(final_time=target)
+        dt = sim.GetStepTime(final_time=target_proper_code)
         sim.solver.SetInterFaceFlux(
             sim.mesh, sim.fluid, config["par"]['boundary']['condition'],
             method=config["par"]["hydrodynamics"]["riemann_solver"], order=0,
@@ -142,13 +150,17 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
         time_proper_code = float(sim.fluid.time_proper_code)
         if time_proper_code >= next_output - 1.0e-12:
             snapshots.append((time_proper_code,) + _profile(sim))
-            next_output += output_dt
+            next_output += output_cadence_proper_code
 
     snapshots.append((float(sim.fluid.time_proper_code),) + _profile(sim))
     final = snapshots[-1]
     radius_proper_code, rho_proper_code, vel_proper_code, pre_proper_code, temp_proper_code, entropy_dimensionless = final[1:]
     active = rho_proper_code > float(config["par"]["hydrodynamics"].get("cfl_density_floor", 0.0))
-    hot = active & (temp_proper_code > 10.0 * float(initial_condition["temperature_proper"].to_value("K")))
+    hot = active & (
+        temp_proper_code > 10.0 * quantity_to_value(
+            initial_condition["temperature_proper"], code_unit_system.temperature_unit
+        )
+    )
     if not np.any(hot):
         raise RuntimeError("finite reflecting wall did not produce post-shock heating")
     data = {"time_proper_code": np.array([s[0] for s in snapshots]), "radius_proper_code": radius_proper_code, "rho_proper_code": np.array([s[2] for s in snapshots]), "vel_proper_code": np.array([s[3] for s in snapshots]), "pre_proper_code": np.array([s[4] for s in snapshots]), "temp_proper_code": np.array([s[5] for s in snapshots]), "entropy_dimensionless": np.array([s[6] for s in snapshots]), "flux_proper_code": np.asarray(fluxes)}

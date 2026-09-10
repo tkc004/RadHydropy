@@ -76,8 +76,8 @@ def load_output_state(outputfilename, config):
         mesh.width_proper_code = boundary_proper_code[1:] - boundary_proper_code[:-1]
         mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
         mesh.x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-        mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * float(
-            np.asarray(par.mesh.area_proper, dtype=float)
+        mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(
+            par.mesh.area_proper, code_units.area_unit
         )
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
     elif par.simulation.coordinate_system == 'spherical':

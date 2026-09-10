@@ -118,9 +118,9 @@ def main(config_filename=DEFAULT_CONFIG):
 
     def damped_step(**kwargs):
         result = sim.Step(**kwargs)
-        dt = float(np.asarray(result['dt'], dtype=float))
-        damping_time = float(np.asarray(sim.par.relaxation_damping_time, dtype=float))
-        sim.fluid.Mom_code *= np.exp(-dt / damping_time)
+        dt_proper_code = float(np.asarray(result['dt'], dtype=float))
+        damping_time_proper_code = float(sim.par.relaxation_damping_time)
+        sim.fluid.Mom_code *= np.exp(-dt_proper_code / damping_time_proper_code)
         sim.solver.SetPrimitive(sim.mesh, sim.fluid, verbose=0)
         sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
         return result

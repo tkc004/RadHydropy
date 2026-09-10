@@ -55,7 +55,7 @@ def _snapshot(filename, config):
     }
 
 
-def _run_case(config, label, hydrogen_density_cgs_cm3, table):
+def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     initial_mapping = config['initial_condition']
     output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,7 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config['initial_condition'] = {
         **initial_mapping,
-        'hydrogen_number_density': hydrogen_density_cgs_cm3 / unyt.cm**3,
+        'hydrogen_number_density': hydrogen_number_density_cgs_cm3 / unyt.cm**3,
         'hydrogen_mass_fraction': case_config['par']['thermochemistry']['hydrogen_mass_fraction'],
         'proton_mass_g': float(unyt.mp.to_value(unyt.g)),
         'vel_proper': 0.0 * unyt.cm / unyt.s,
@@ -100,16 +100,16 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     )
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
-        hydrogen_density_cgs_cm3,
+        hydrogen_number_density_cgs_cm3,
         metallicity=case_config['par']['thermochemistry']["metallicity"],
         redshift=case_config['par']['thermochemistry']["metal_pie_redshift"],
     )
-    if hydrogen_density_cgs_cm3 > case_config['par']['thermochemistry']["metal_pie_photoheating_max_density_cgs_cm3"]:
+    if hydrogen_number_density_cgs_cm3 > case_config['par']['thermochemistry']["metal_pie_photoheating_max_density_cgs_cm3"]:
         heating_used = 0.0
     else:
         heating_used = heating
     print(
-        f"{label}: nH={hydrogen_density_cgs_cm3:g} cm^-3, "
+        f"{label}: nH={hydrogen_number_density_cgs_cm3:g} cm^-3, "
         f"table heating={heating:.6e}, used heating={heating_used:.6e}, "
         f"cooling={cooling:.6e}, net={heating_used - cooling:.6e} "
         "erg cm^-3 s^-1"

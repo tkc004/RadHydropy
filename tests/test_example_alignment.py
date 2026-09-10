@@ -90,6 +90,22 @@ AMBIGUOUS_PHYSICAL_NAMES = {
     "cosmic_time",
 }
 
+# These spellings appeared in generated case configurations or serialized
+# diagnostics rather than source YAML.  They therefore need a separate check
+# from the YAML-input audit below.
+FORBIDDEN_GENERATED_CONFIG_NAMES = {
+    "hydrogen_density_cgs_cm3",
+    "temperature_unyt",
+}
+
+FORBIDDEN_DIAGNOSTIC_NAMES = {
+    "initial_rate",
+    "thermal_time_Myr",
+    "temperature_physical_cgs_K",
+    "radial_velocity_physical_km_s",
+    "velocity_physical_km_s",
+}
+
 PHYSICAL_NAME_PREFIXES = (
     "density",
     "mass",
@@ -174,6 +190,13 @@ def _yaml_files() -> list[Path]:
 
 def _python_files() -> list[Path]:
     return sorted(EXAMPLE_ROOT.rglob("*.py"))
+
+
+def _text_report_files() -> list[Path]:
+    return sorted(
+        path for path in EXAMPLE_ROOT.rglob("*.txt")
+        if "outputs" not in path.parts
+    )
 
 
 def _walk_mapping(value):
@@ -415,6 +438,79 @@ def test_diagnostic_keys_and_physical_parameters_use_representation_names():
                             f"ambiguous physical keyword: {keyword.arg}"
                         )
 
+    assert not failures, "\n".join(failures)
+
+
+def test_generated_example_configs_do_not_use_legacy_quantity_names():
+    """Generated case mappings must follow the nested semantic config API."""
+    failures = []
+    for filename in _python_files():
+        if "PIECoolingIsochoricParcel1D" not in filename.parts:
+            continue
+        source = filename.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(filename))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and node.id in FORBIDDEN_GENERATED_CONFIG_NAMES:
+                failures.append(f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: {node.id}")
+            elif isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_GENERATED_CONFIG_NAMES:
+                failures.append(f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: {node.attr}")
+            elif isinstance(node, ast.Constant) and node.value in FORBIDDEN_GENERATED_CONFIG_NAMES:
+                failures.append(f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: {node.value}")
+    assert not failures, "\n".join(failures)
+
+
+def test_known_diagnostic_names_identify_representation_and_units():
+    """Catch physical report fields missed by prefix-only name heuristics."""
+    failures = []
+    for filename in _python_files():
+        source = filename.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(filename))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and node.id in FORBIDDEN_DIAGNOSTIC_NAMES:
+                failures.append(f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: {node.id}")
+            elif isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_DIAGNOSTIC_NAMES:
+                failures.append(f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: {node.attr}")
+            elif isinstance(node, ast.Constant) and node.value in FORBIDDEN_DIAGNOSTIC_NAMES:
+                failures.append(f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: {node.value}")
+    assert not failures, "\n".join(failures)
+
+
+def test_text_report_headers_use_representation_and_unit_names():
+    """Text diagnostics must obey the same naming contract as Python mappings."""
+    forbidden = {
+        "time_Myr", "shock_radius_kpc", "shock_speed_km_s", "Mach",
+        "rho_ratio_measured", "rho_ratio_RH", "T_ratio_measured", "T_ratio_RH",
+        "central_density_g_cm3", "central_temperature_K", "minimum_temperature_K",
+        "atmosphere_mass_Msun", "max_abs_force_residual", "temperature_floor_K",
+        "floor_reached",
+    }
+    failures = []
+    for filename in _text_report_files():
+        header = filename.read_text(encoding="utf-8").splitlines()
+        if not header:
+            continue
+        names = set(header[0].split()) & forbidden
+        if names:
+            failures.append(
+                f"{filename.relative_to(REPO_ROOT)}: ambiguous report field(s): "
+                f"{', '.join(sorted(names))}"
+            )
+    assert not failures, "\n".join(failures)
+
+
+def test_cosmological_diagnostics_do_not_mix_coordinate_representations():
+    """A comoving diagnostic must not be populated from proper-radius fields."""
+    filename = EXAMPLE_ROOT / "CosmologicalVirialShock1D" / "cosmological_gas_correlation_z100.py"
+    source = filename.read_text(encoding="utf-8")
+    required_assignments = (
+        'radius_proper_kpc = np.asarray(profile["dm_radius_proper_kpc"]',
+        'rho_proper_code = np.asarray(profile["dm_rho_proper_code"]',
+    )
+    failures = [
+        f"{filename.relative_to(REPO_ROOT)}: proper DM diagnostic lost its proper representation: {text}"
+        for text in required_assignments
+        if text not in source
+    ]
     assert not failures, "\n".join(failures)
 
 

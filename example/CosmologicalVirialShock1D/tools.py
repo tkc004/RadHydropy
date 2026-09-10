@@ -300,12 +300,12 @@ def build_initial_condition(config):
     return result
 
 
-def pie_temperature(table, hydrogen_density_cgs_cm3, redshift, fallback=1.0e4):
+def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
     temperature_proper_cgs_K = 10.0**logt
     heating, cooling = table.rates(
-        temperature_proper_cgs_K, hydrogen_density_cgs_cm3, metallicity=1.0, redshift=redshift
+        temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity=1.0, redshift=redshift
     )
     net = np.asarray(heating) - np.asarray(cooling)
     crossings = np.flatnonzero(net[:-1] * net[1:] <= 0.0)
