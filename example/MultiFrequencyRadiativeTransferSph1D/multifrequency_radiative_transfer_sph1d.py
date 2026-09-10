@@ -73,7 +73,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     x_proper_code = 0.5 * (
         boundary_proper_code[:-1] + boundary_proper_code[1:]
     )
-    radius_kpc = (
+    radius_proper_kpc = (
         x_proper_code[interior] * code.length_unit
     ).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
@@ -97,11 +97,11 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
 
     fig, axes = plt.subplots(3, 1, figsize=(7.0, 8.5), sharex=True)
     neutral_line, = axes[0].plot(
-        radius_kpc, xHI, color="tab:blue", label=r"$x_{\rm HI}$"
+        radius_proper_kpc, xHI, color="tab:blue", label=r"$x_{\rm HI}$"
     )
     if xhi_reference is not None:
         axes[0].scatter(
-            xhi_reference["radius_kpc"],
+            xhi_reference["radius_proper_kpc"],
             xhi_reference["value"],
             s=16,
             facecolors="none",
@@ -114,7 +114,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     axes[0].grid(True, which="both", alpha=0.25)
     ionized_axis = axes[0].twinx()
     ionized_line, = ionized_axis.plot(
-        radius_kpc,
+        radius_proper_kpc,
         xHII,
         color="tab:orange",
         linestyle="--",
@@ -130,10 +130,10 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         frameon=False,
         loc="best",
     )
-    axes[1].plot(radius_kpc, temperature_cgs_K, color="tab:red")
+    axes[1].plot(radius_proper_kpc, temperature_cgs_K, color="tab:red")
     if temperature_reference is not None:
         axes[1].scatter(
-            temperature_reference["radius_kpc"],
+            temperature_reference["radius_proper_kpc"],
             temperature_reference["value"],
             s=16,
             facecolors="none",
@@ -147,7 +147,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         axes[1].legend(frameon=False)
     photon_axis = axes[2]
     for group, values in enumerate(ngamma_cgs_cm3):
-        photon_axis.plot(radius_kpc, values, label=f"group {group + 1}")
+        photon_axis.plot(radius_proper_kpc, values, label=f"group {group + 1}")
     photon_axis.set_yscale("log")
     photon_axis.set_xlabel("Radius [kpc]")
     photon_axis.set_ylabel(r"$n_\gamma$ [cm$^{-3}$]")

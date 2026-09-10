@@ -167,10 +167,10 @@ def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction
     cooling_length_cgs_cm = abs(vel_peculiar_proper_cgs_cm_s) * cooling_time_s
     cell_width_cgs_cm = float(np.median(np.diff(radius_proper_cgs_cm)))
     return {
-        'shock_radius_kpc': shock_kpc,
+        'shock_radius_proper_kpc': shock_kpc,
         'post_density_cgs_g_cm3': density_proper_cgs_g_cm3,
         'post_temperature_cgs_K': temperature_proper_cgs_K,
-        'cooling_time_Myr': cooling_time_s / SECONDS_PER_MYR,
-        'cooling_length_kpc': cooling_length_cgs_cm / KPC_CM,
+        'cooling_time_proper_Myr': cooling_time_s / SECONDS_PER_MYR,
+        'cooling_length_proper_kpc': cooling_length_cgs_cm / KPC_CM,
         'cooling_cells': cooling_length_cgs_cm / cell_width_cgs_cm,
     }

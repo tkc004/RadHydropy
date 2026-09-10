@@ -266,8 +266,8 @@ def mean_ionized_temperature(fluid, config):
 
 def append_history(history, mesh, fluid, config):
     par = config['_output_par']
-    history['time_Myr'].append(float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr)))
-    history['front_radius_kpc'].append(
+    history['time_proper_Myr'].append(float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr)))
+    history['front_radius_proper_kpc'].append(
         ionization_front_position(mesh, fluid, config).to_value(unyt.kpc)
     )
     history['mean_ionized_temp_cgs_K'].append(mean_ionized_temperature(fluid, config))
@@ -280,7 +280,7 @@ def load_log_reference_profile(filename, radius_unit):
     if data.ndim == 1:
         data = data.reshape(1, -1)
     return {
-        'radius_kpc': data[:, 0] * radius_unit.to_value(unyt.kpc),
+        'radius_proper_kpc': data[:, 0] * radius_unit.to_value(unyt.kpc),
         'value': 10.0**data[:, 1],
     }
 
@@ -300,12 +300,12 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     if snapshot is None:
         xHI = np.asarray(fluid.xHI[interior], dtype=float)
         temperature_cgs_K = code_quantity_to_cgs(fluid.temp_proper_code[interior], code_units_obj, 'temperature_cgs_K')
-        profile_time_Myr = float(fluid.time_proper_code * code_units_obj.time_unit.to_value(unyt.Myr))
+        profile_time_proper_Myr = float(fluid.time_proper_code * code_units_obj.time_unit.to_value(unyt.Myr))
     else:
-        radius_proper_cgs_kpc = snapshot['radius_kpc']
+        radius_proper_cgs_kpc = snapshot['radius_proper_kpc']
         xHI = snapshot['xHI']
         temperature_cgs_K = snapshot['temperature_cgs_K']
-        profile_time_Myr = snapshot['time_Myr']
+        profile_time_proper_Myr = snapshot['time_proper_Myr']
     xHII = 1.0 - xHI
     plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
     reference_radius_unit = example.get('reference_radius_unit', 5.4 * unyt.kpc)
@@ -334,7 +334,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
             alpha_B,
         ).to(unyt.kpc)
         analytic_front = sa.ionization_front_radius(
-            np.asarray(history['time_Myr']) * unyt.Myr,
+            np.asarray(history['time_proper_Myr']) * unyt.Myr,
             radiation['source_photon_rate'],
             initial['hydrogen_number_density'],
             alpha_B,
@@ -365,7 +365,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
         )
     if neutral_fraction_reference is not None:
         ax_frac.scatter(
-            neutral_fraction_reference['radius_kpc'],
+            neutral_fraction_reference['radius_proper_kpc'],
             np.clip(neutral_fraction_reference['value'], 1.0e-6, 1.0),
             s=18,
             color='black',
@@ -379,14 +379,14 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     ax_frac.set_ylim(1.0e-6, 1.2)
     ax_frac.set_yscale('log')
     ax_frac.set_ylabel('Hydrogen fraction')
-    ax_frac.set_title('Radial profiles at %.0f Myr' % profile_time_Myr)
+    ax_frac.set_title('Radial profiles at %.0f Myr' % profile_time_proper_Myr)
     ax_frac.grid(True, which='both', alpha=0.25)
     ax_frac.legend(frameon=False, loc='center right')
 
     ax_temp.plot(radius_proper_cgs_kpc, temperature_cgs_K, color='tab:red', lw=1.8)
     if temperature_reference is not None:
         ax_temp.scatter(
-            temperature_reference['radius_kpc'],
+            temperature_reference['radius_proper_kpc'],
             temperature_reference['value'],
             s=18,
             color='black',
@@ -404,17 +404,17 @@ def save_plot(mesh, fluid, history, config, figure_filename):
         ax_temp.legend(frameon=False, loc='upper right')
 
     ax_front.plot(
-        history['time_Myr'],
-        history['front_radius_kpc'],
+        history['time_proper_Myr'],
+        history['front_radius_proper_kpc'],
         color='tab:blue',
         lw=2.0,
         label=r'$x_{\rm HI}=0.5$',
     )
     if analytic_front is not None:
-        ax_front.plot(history['time_Myr'], analytic_front, color='black', lw=1.6, ls='--', label=r'$R_I(t)$ fixed-$T$ reference')
+        ax_front.plot(history['time_proper_Myr'], analytic_front, color='black', lw=1.6, ls='--', label=r'$R_I(t)$ fixed-$T$ reference')
     if radius_stromgren is not None:
         ax_front.axhline(radius_stromgren.to_value(unyt.kpc), color='0.25', lw=1.2, ls=':')
-    ax_front.set_xlim(0.0, history['time_Myr'][-1])
+    ax_front.set_xlim(0.0, history['time_proper_Myr'][-1])
     ax_front.set_ylim(0.0, plot_radius_max)
     ax_front.set_xlabel('Time [Myr]')
     ax_front.set_ylabel('I-front radius [kpc]')

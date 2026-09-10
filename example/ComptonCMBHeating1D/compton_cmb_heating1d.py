@@ -139,7 +139,7 @@ def _run_case(
             ))
         )
     history = {
-        'time_Myr': np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
+        'time_proper_Myr': np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
         'mean_ionized_temp_cgs_K': np.asarray(temperatures),
     }
     print(
@@ -147,7 +147,7 @@ def _run_case(
         (label, len(times_s) - 1, source_steps)
     )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
-    time_s = np.asarray(history['time_Myr']) * myr_seconds
+    time_s = np.asarray(history['time_proper_Myr']) * myr_seconds
     temperature_cgs_K = np.asarray(history['mean_ionized_temp_cgs_K'])
     if example.get('compare_compton_analytic', True):
         analytic = _analytic_temperature(

@@ -248,8 +248,8 @@ def mean_ionized_temperature(fluid, config):
 
 
 def append_history(history, mesh, fluid, config):
-    history['time_Myr'].append(_to_myr(fluid.time_proper_code, config))
-    history['front_radius_kpc'].append(
+    history['time_proper_Myr'].append(_to_myr(fluid.time_proper_code, config))
+    history['front_radius_proper_kpc'].append(
         ionization_front_position(
             mesh,
             fluid,
@@ -262,8 +262,8 @@ def append_history(history, mesh, fluid, config):
 
 def load_history_from_outputs(outputfilenames, config):
     history = {
-        'time_Myr': [],
-        'front_radius_kpc': [],
+        'time_proper_Myr': [],
+        'front_radius_proper_kpc': [],
         'mean_ionized_temperature_cgs_K': [],
     }
     for outputfilename in outputfilenames:
@@ -334,7 +334,7 @@ def load_reference_profile(filename, radius_unit, log_value=False):
     if log_value:
         value = 10.0**value
     return {
-        'radius_kpc': data[:, 0] * radius_unit.to_value(unyt.kpc),
+        'radius_proper_kpc': data[:, 0] * radius_unit.to_value(unyt.kpc),
         'value': value,
     }
 
@@ -343,7 +343,7 @@ def scatter_reference(ax, reference, label='ZEUS-MP'):
     if reference is None:
         return
     ax.scatter(
-        reference['radius_kpc'],
+        reference['radius_proper_kpc'],
         reference['value'],
         s=20,
         color='black',
@@ -355,8 +355,8 @@ def scatter_reference(ax, reference, label='ZEUS-MP'):
 
 def save_front_plot(history, config, figure_filename):
     example = config.get('example', {})
-    time_proper_Myr = np.asarray(history['time_Myr']) * unyt.Myr
-    front_radius = np.asarray(history['front_radius_kpc'])
+    time_proper_Myr = np.asarray(history['time_proper_Myr']) * unyt.Myr
+    front_radius_proper_kpc = np.asarray(history['front_radius_proper_kpc'])
     radius_stromgren = stromgren_radius(config)
     tau_recombination = recombination_time(config)
     ci = ionized_sound_speed(5.0 / 3.0)
@@ -373,7 +373,7 @@ def save_front_plot(history, config, figure_filename):
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
         time_proper_Myr.to_value(unyt.Myr),
-        front_radius,
+        front_radius_proper_kpc,
         color='tab:blue',
         lw=2.0,
         label=r'RadHydropy $x_{\rm HI}=0.5$',
@@ -459,7 +459,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         neutral_fraction_reference,
     ):
         if reference is not None:
-            reference['radius_kpc'] *= reference_radius_scale
+            reference['radius_proper_kpc'] *= reference_radius_scale
 
     fig, axes = plt.subplots(5, 1, figsize=(7.4, 11.0), sharex=True)
     axes[0].plot(radius_pc, number_density, color='tab:blue', lw=1.8, label='RadHydropy')

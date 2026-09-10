@@ -46,12 +46,12 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     density_cgs_g_cm3 = np.asarray(initial.fluid.rho_proper_code, dtype=float) * code_units.density_unit.to_value('g/cm**3')
     boundary_cgs_cm = np.asarray(initial.mesh.boundary_proper_code, dtype=float) * code_units.length_unit.to_value('cm')
-    initial_gas_mass = float(np.sum(
+    initial_gas_mass_cgs_g = float(np.sum(
         density_cgs_g_cm3 * (4.0 * np.pi / 3.0)
         * (boundary_cgs_cm[1:]**3 - boundary_cgs_cm[:-1]**3)
     ))
     dark_matter = et.make_dark_matter(config)
-    initial_dm_mass = dark_matter.total_mass * code_units.mass_in_cgs
+    initial_dm_mass_cgs_g = dark_matter.total_mass * code_units.mass_in_cgs
 
     sim = Rsim(config["par"])
     rio.readhdf5(
@@ -90,19 +90,19 @@ def main(config_filename=DEFAULT_CONFIG):
         ],
         dtype=float,
     )
-    gas_mass = np.sum(
+    gas_mass_proper_code = np.sum(
         np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
         * (4.0 * np.pi / 3.0)
         * (physical_boundaries[1:]**3 - physical_boundaries[:-1]**3)
     ) * sim.par.units.CodeUnits.mass_unit
-    final_gas_mass = float(gas_mass.to_value('g'))
-    final_dm_mass = dark_matter.total_mass * sim.par.units.CodeUnits.mass_in_cgs
-    gas_mass_error = abs(final_gas_mass - initial_gas_mass) / initial_gas_mass
-    dm_mass_error = abs(final_dm_mass - initial_dm_mass) / initial_dm_mass
-    if gas_mass_error > 1.0e-12 or dm_mass_error > 1.0e-12:
+    final_gas_mass_cgs_g = float(gas_mass_proper_code.to_value('g'))
+    final_dm_mass_cgs_g = dark_matter.total_mass * sim.par.units.CodeUnits.mass_in_cgs
+    gas_mass_error_dimensionless = abs(final_gas_mass_cgs_g - initial_gas_mass_cgs_g) / initial_gas_mass_cgs_g
+    dm_mass_error_dimensionless = abs(final_dm_mass_cgs_g - initial_dm_mass_cgs_g) / initial_dm_mass_cgs_g
+    if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:
         raise RuntimeError(
             'mass conservation failed: gas %.6g, dark matter %.6g'
-            % (gas_mass_error, dm_mass_error)
+            % (gas_mass_error_dimensionless, dm_mass_error_dimensionless)
         )
     fig, axis = plt.subplots(figsize=(5, 4))
     axis.plot(radius_pc, rho_proper, '--', label='initial')

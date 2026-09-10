@@ -163,11 +163,11 @@ def run():
         peculiar_error = float(np.max(np.abs(peculiar)))
         proper_velocity_kms = proper_velocity_code * CODE_VELOCITY_CM_S / 1.0e5
         expected_velocity_kms = expected_velocity_code * CODE_VELOCITY_CM_S / 1.0e5
-        radius_kpc = positions * CODE_LENGTH_CM / float((1.0 * unyt.kpc).to_value('cm'))
+        radius_proper_kpc = positions * CODE_LENGTH_CM / float((1.0 * unyt.kpc).to_value('cm'))
         histories.append({
             "label": label,
             "physical": physical,
-            "radius_kpc": radius_kpc,
+            "radius_proper_kpc": radius_proper_kpc,
             "velocity_kms": proper_velocity_kms,
             "expected_velocity_kms": expected_velocity_kms,
         })
@@ -193,14 +193,14 @@ def run():
             for scale_factor in scale_factors
         ])
         hubble = np.asarray([physical.hubble(float(time_gyr)) for time_gyr in times_gyr])
-        radius_mpc = history["radius_kpc"][[-1]][0] / 1000.0
+        radius_mpc = history["radius_proper_kpc"][[-1]][0] / 1000.0
         velocity_kms = hubble * scale_factors * radius_mpc
         flow_axis.plot(scale_factors, velocity_kms, label=history["label"])
         relative_error = np.abs(
             (history["velocity_kms"] - history["expected_velocity_kms"])
             / np.maximum(np.abs(history["expected_velocity_kms"]), 1.0e-30)
         )
-        error_axis.plot(history["radius_kpc"], relative_error, marker="o", label=history["label"])
+        error_axis.plot(history["radius_proper_kpc"], relative_error, marker="o", label=history["label"])
     flow_axis.set_ylabel("proper Hubble velocity [km/s]")
     flow_axis.set_title("Homogeneous Hubble-flow evolution")
     flow_axis.grid(alpha=0.25)

@@ -129,17 +129,17 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     )
     report = case_dir / 'ShockHistory.txt'
     with report.open('w', encoding='utf-8') as stream:
-        stream.write('time_Myr shock_radius_kpc\n')
+        stream.write('time_proper_Myr shock_radius_proper_kpc\n')
         for time_proper_Myr, radius_proper_kpc in history:
             stream.write(f'{time_proper_Myr:.8g} {radius_proper_kpc:.8g}\n')
         stream.write('\nfinal_cooling_diagnostics\n')
         if cooling is None:
-            stream.write('cooling_length_kpc nan\n')
+            stream.write('cooling_length_proper_kpc nan\n')
         else:
             stream.write(
-                'cooling_time_Myr %.8g\ncooling_length_kpc %.8g\n'
+                'cooling_time_proper_Myr %.8g\ncooling_length_proper_kpc %.8g\n'
                 'cooling_cells %.8g\n' % (
-                    cooling['cooling_time_Myr'], cooling['cooling_length_kpc'],
+                    cooling['cooling_time_proper_Myr'], cooling['cooling_length_proper_kpc'],
                     cooling['cooling_cells'],
                 )
             )

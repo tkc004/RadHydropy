@@ -114,7 +114,7 @@ def main(config_filename=DEFAULT_CONFIG):
             ).to(unyt.kpc)
         )
     print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_cgs_K'][-1])
-    print('front radius = %.3e kpc' % history['front_radius_kpc'][-1])
+    print('front radius = %.3e kpc' % history['front_radius_proper_kpc'][-1])
     print('evolution steps = %d' % history['evolution_steps'])
     print('IC file = %s' % nested['par']['simulation']['initial_condition_filename'])
     print('output file = %s' % output_filename)
