@@ -119,8 +119,11 @@ def conservative_shell_remap(
     if shell_edge_proper_code is None:
         shell_edge_proper_code = np.empty(len(radius_proper_code) + 1, dtype=float)
         if len(radius_proper_code) == 1:
-            width = max(0.5 * radius_proper_code[0], np.finfo(float).tiny)
-            shell_edge_proper_code[:] = (radius_proper_code[0] - width, radius_proper_code[0] + width)
+            half_width_proper_code = max(0.5 * radius_proper_code[0], np.finfo(float).tiny)
+            shell_edge_proper_code[:] = (
+                radius_proper_code[0] - half_width_proper_code,
+                radius_proper_code[0] + half_width_proper_code,
+            )
         else:
             shell_edge_proper_code[1:-1] = 0.5 * (radius_proper_code[:-1] + radius_proper_code[1:])
             shell_edge_proper_code[0] = max(0.0, radius_proper_code[0] - 0.5 * (radius_proper_code[1] - radius_proper_code[0]))

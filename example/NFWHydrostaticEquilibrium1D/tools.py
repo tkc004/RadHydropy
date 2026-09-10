@@ -160,20 +160,20 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
     rout = Rsim(config["par"])
     rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     nghost = int(par['mesh']['ghost_cells'])
-    boundary_cgs = code_quantity_to_cgs(
+    boundary_proper_cgs_cm_unyt = code_quantity_to_cgs(
         rout.mesh.boundary_proper_code,
         code_units,
         'length_cgs_cm',
     ) * unyt.cm
-    radius_proper_cgs_cm_all_unyt = spherical_cell_centers(boundary_cgs)
+    radius_proper_cgs_cm_all_unyt = spherical_cell_centers(boundary_proper_cgs_cm_unyt)
     first = nghost
     last = first + int(par['mesh']['grid_cells'])
     radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_all_unyt[first:last]
     rho_proper_code = rout.fluid.rho_proper_code[first:last]
     vel_proper_code = rout.fluid.vel_proper_code[first:last]
-    rho_expected = hydrostatic_density_profile(
+    rho_expected_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
         radius_proper_cgs_cm_all_unyt,
-        boundary_cgs,
+        boundary_proper_cgs_cm_unyt,
         halo,
         temperature_proper_unyt,
         initial_condition['mu'],
@@ -181,7 +181,9 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
     )[first:last]
     radius_proper_kpc = quantity_to_value(radius_proper_cgs_cm_unyt, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
     rho_proper_cgs_g_cm3 = code_quantity_to_cgs(rho_proper_code, code_units, 'density_cgs_g_cm3')
-    rho_expected_proper_cgs_g_cm3 = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
+    rho_expected_proper_cgs_g_cm3 = quantity_to_value(
+        rho_expected_proper_cgs_g_cm3_unyt, unyt.g / unyt.cm**3
+    )
     vel_proper_km_s = code_quantity_to_cgs(vel_proper_code, code_units, 'velocity_cgs_cm_s') / 1.0e5
 
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.5))

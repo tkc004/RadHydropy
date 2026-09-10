@@ -549,7 +549,7 @@ def plot_dark_matter_density_evolution(
         rho_comoving_code = np.asarray(profile["dm_rho_proper_code"], dtype=float)
         mass_shell_comoving_code = np.asarray(profile["dm_mass_comoving_code"], dtype=float)
         mass_core_comoving_code = float(profile.get("dm_central_core_mass", 0.0))
-        core_radius = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
+        core_radius_comoving_code = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
         comoving_radius = radius_comoving_code / scale_factor
         valid = (
             np.isfinite(comoving_radius) & np.isfinite(rho_comoving_code)
@@ -562,8 +562,8 @@ def plot_dark_matter_density_evolution(
         mass_in_bin, _ = np.histogram(
             radius_shell_comoving_code, bins=bin_edges, weights=shell_mass_comoving_code
         )
-        if mass_core_comoving_code > 0.0 and core_radius > 0.0:
-            core_bin = int(np.searchsorted(bin_edges, core_radius, side="right") - 1)
+        if mass_core_comoving_code > 0.0 and core_radius_comoving_code > 0.0:
+            core_bin = int(np.searchsorted(bin_edges, core_radius_comoving_code, side="right") - 1)
             if 0 <= core_bin < mass_in_bin.size:
                 mass_in_bin[core_bin] += mass_core_comoving_code
         bin_volume = (
@@ -999,6 +999,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
+    ):
+        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
     # IC/HDF5 restoration serializes the PIE table as metadata.  Rehydrate
     # the interpolation object before the run switches to the PIE network.
     metal_table = getattr(sim.par, "metal_pie_table", None)

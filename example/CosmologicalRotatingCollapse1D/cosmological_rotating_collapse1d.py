@@ -44,7 +44,7 @@ def integrate_shell_reference(initial, config, scale_factors):
     """Integrate pressureless physical shell orbits for comparison only."""
     cosmology = config["_code_cosmology"]
     radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
-    mass = np.cumsum(
+    mass_comoving_code = np.cumsum(
         np.asarray(initial.fluid.rho_comoving_code, dtype=float)
         * np.asarray(initial.mesh.volume_comoving_code, dtype=float)
     )
@@ -62,7 +62,7 @@ def integrate_shell_reference(initial, config, scale_factors):
     requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float)**1.5
     cosmic_times = np.unique(requested_times)
     reference = np.empty((len(cosmic_times), len(radius_comoving_code)), dtype=float)
-    for shell, shell_mass in enumerate(mass):
+    for shell, shell_mass in enumerate(mass_comoving_code):
         def rhs(time_cosmic_code, state):
             radius_shell_proper_code, velocity_shell_proper_code = state
             if radius_shell_proper_code <= 0.0:
@@ -276,6 +276,12 @@ def run_case(config, label, rotation_factor):
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
+    ):
+        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
     sim.par.cosmology = cosmology
     active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     target_mass = np.cumsum(

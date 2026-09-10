@@ -20,8 +20,8 @@ def build_initial_condition(config):
     grid_cells = int(initial['grid_cells'])
     sim.par.mesh.grid_cells = grid_cells
     start = initial['radius_injection_proper'].to_value(code_units.length_unit)
-    width = initial['box_size_proper'].to_value(code_units.length_unit)
-    sim.mesh.boundary_proper_code = as_named_array(np.linspace(start, start + width, grid_cells + 1))
+    width_proper_code = initial['box_size_proper'].to_value(code_units.length_unit)
+    sim.mesh.boundary_proper_code = as_named_array(np.linspace(start, start + width_proper_code, grid_cells + 1))
     sim.fluid.vel_proper_code = as_named_array(np.full(
         grid_cells, initial['vel_proper'].to_value(code_units.velocity_unit)
     ))

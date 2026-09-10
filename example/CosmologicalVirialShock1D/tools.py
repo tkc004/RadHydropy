@@ -384,9 +384,9 @@ def make_dark_matter(config):
     vel_supercomoving_code = -a**2 * hubble * mean_delta * radius_comoving_code / 3.0
     central_core_mass = None
     if central_core_model:
-        core_radius = central_core_radius
+        core_radius_comoving_code = central_core_radius
         _, core_mean_delta = density_contrast_profile(
-            np.asarray([core_radius]),
+            np.asarray([core_radius_comoving_code]),
             config,
             length_unit_mpc_h=(
                 float(code_unit_system.length_in_cgs)
@@ -400,7 +400,7 @@ def make_dark_matter(config):
         central_core_mass = max(
             0.0,
             rho_comoving_code * dm_fraction * float(core_mean_delta[0])
-            * 4.0 * np.pi / 3.0 * core_radius**3,
+            * 4.0 * np.pi / 3.0 * core_radius_comoving_code**3,
         )
     shell_softening = (
         quantity_to_value(initial_condition["softening"], code_unit_system.length_unit)

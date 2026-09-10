@@ -114,6 +114,12 @@ def main(output_root=None):
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
+    ):
+        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
     sim.par.set_cosmology_model(cosmology)
 
     first = int(sim.par.mesh.ghost_cells)

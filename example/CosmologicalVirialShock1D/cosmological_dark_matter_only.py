@@ -422,7 +422,9 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     time_cosmic_code = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))
-    target_mass = float(initial_condition["target_halo_mass"])
+    target_mass = quantity_to_value(
+        initial_condition["target_halo_mass"], units.mass_unit
+    )
     target_dm_mass = target_mass * (1.0 - float(initial_condition["baryon_fraction"]))
     delta_i = float(initial_condition["initial_overdensity"])
     delta_c = 1.686

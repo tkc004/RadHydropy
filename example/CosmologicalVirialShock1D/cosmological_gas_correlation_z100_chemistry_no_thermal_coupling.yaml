@@ -81,7 +81,7 @@ initial_condition:
   specific_angular_momentum: 1500.0
   dm_specific_angular_momentum: 0.02
   cmb_equilibrium_initial: true
-  cmb_temperature_0: 2.7255
+  cmb_temperature_0: {value: 2.7255, unit: K}
   cmb_residual_electron_fraction: 0.0002
 example:
   figure_prefix: CosmologicalGasCorrelationZ100_ChemistryNoThermalCoupling

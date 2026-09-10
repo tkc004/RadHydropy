@@ -161,6 +161,12 @@ def run_rsim(config):
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
+    ):
+        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
     sim.par.gravity = gravity
     sim.par.set_cosmology_model(cosmology)
     sim.Run(outputtime=0, mode='hydro')

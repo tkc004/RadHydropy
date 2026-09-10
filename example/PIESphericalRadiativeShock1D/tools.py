@@ -35,12 +35,12 @@ def build_initial_condition(config):
         np.linspace(initial['radius_inner_proper'], initial['radius_outer_proper'], grid_cells + 1), code_units.length_unit
     ))
     result.mesh.boundary_proper_code = boundary_proper_code
-    width = np.diff(boundary_proper_code)
+    width_proper_code = np.diff(boundary_proper_code)
     x_proper_code = 0.75 * (boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4) / (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
     volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
-        width_proper_code=width, area_proper_code=4.0 * np.pi * boundary_proper_code[:-1] ** 2, volume_proper_code=volume_proper_code,
+        width_proper_code=width_proper_code, area_proper_code=4.0 * np.pi * boundary_proper_code[:-1] ** 2, volume_proper_code=volume_proper_code,
     )
     rho_proper_unyt = (
         initial['hydrogen_number_density'] * unyt.mp

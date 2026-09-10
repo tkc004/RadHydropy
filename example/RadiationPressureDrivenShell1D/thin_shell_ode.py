@@ -51,14 +51,14 @@ def _build_initial_condition(config):
         code.length_unit,
     ))
     area_proper_code = quantity_to_value(config["par"]['mesh']['area_proper'], code.area_unit)
-    width = np.diff(boundary_proper_code)
-    volume_proper_code = width * area_proper_code
+    width_proper_code = np.diff(boundary_proper_code)
+    volume_proper_code = width_proper_code * area_proper_code
     sim.mesh.boundary_proper_code = boundary_proper_code
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
         x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
         boundary_proper_code=boundary_proper_code,
-        width_proper_code=width,
+        width_proper_code=width_proper_code,
         area_proper_code=np.ones(1) * area_proper_code,
         volume_proper_code=volume_proper_code,
     )

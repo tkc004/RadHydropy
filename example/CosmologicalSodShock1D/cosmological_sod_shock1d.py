@@ -99,6 +99,12 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
+    ):
+        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
     sim.par.set_cosmology_model(initial.par.cosmology)
     sim.Run(outputtime=0)
     outputs = sorted(output_dir.glob("Output_*.hdf5"))

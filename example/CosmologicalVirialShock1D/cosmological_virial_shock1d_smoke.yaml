@@ -60,7 +60,7 @@ par:
     hydrogen_atomic_cooling: true
     hydrogen_thermal_coupling: true
     compton_cmb_enabled: true
-    cmb_temperature_0: 2.7255
+    cmb_temperature_0: {value: 2.7255, unit: K}
     metal_pie_redshift: 10.0
     metallicity: 0.01
 initial_condition:
@@ -80,7 +80,7 @@ initial_condition:
   dm_specific_angular_momentum: 0.0
   specific_angular_momentum: 0.0
   cmb_equilibrium_initial: true
-  cmb_temperature_0: 2.7255
+  cmb_temperature_0: {value: 2.7255, unit: K}
   cmb_residual_electron_fraction: 0.0002
   uv_background_on_redshift: 10.0
   cie_temperature_proper: 0.0001

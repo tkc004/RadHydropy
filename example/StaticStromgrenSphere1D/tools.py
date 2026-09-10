@@ -76,7 +76,7 @@ def build_static_problem(config):
         code_units.length_unit,
     ))
     boundary_proper_code = sim.mesh.boundary_proper_code
-    width = np.diff(boundary_proper_code)
+    width_proper_code = np.diff(boundary_proper_code)
     volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
     x_proper_code = 0.75 * (boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4) / (
         boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
@@ -86,7 +86,7 @@ def build_static_problem(config):
         PROPER_RUNTIME_FIELDS,
         x_proper_code=x_proper_code,
         boundary_proper_code=boundary_proper_code,
-        width_proper_code=width,
+        width_proper_code=width_proper_code,
         area_proper_code=area_proper_code,
         volume_proper_code=volume_proper_code,
     )

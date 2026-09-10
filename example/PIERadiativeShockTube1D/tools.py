@@ -32,7 +32,7 @@ def build_initial_condition(config):
     boundary_proper_code = as_named_array(quantity_to_value(
         np.linspace(0.0 * box_size_proper_unyt, box_size_proper_unyt, grid_cells + 1), code_units.length_unit
     ))
-    width = np.diff(boundary_proper_code)
+    width_proper_code = np.diff(boundary_proper_code)
     x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     midpoint_proper_code = quantity_to_value(
         0.5 * box_size_proper_unyt, code_units.length_unit
@@ -40,7 +40,7 @@ def build_initial_condition(config):
     result.mesh.boundary_proper_code = boundary_proper_code
     result.mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
-        width_proper_code=width, area_proper_code=np.ones(grid_cells), volume_proper_code=width,
+        width_proper_code=width_proper_code, area_proper_code=np.ones(grid_cells), volume_proper_code=width_proper_code,
     )
     collision_velocity_proper_code = quantity_to_value(
         initial['vel_collision_proper'], code_units.velocity_unit

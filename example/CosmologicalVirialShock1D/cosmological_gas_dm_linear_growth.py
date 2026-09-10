@@ -565,6 +565,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
+    if not (
+        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
+        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
+        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
+    ):
+        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
     gravity_dm = SmoothEnclosedMassForGas(dm) if smooth_force else dm
     sim.par.gravity = Gravity(
         selfgravity=True,
