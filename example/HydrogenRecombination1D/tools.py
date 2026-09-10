@@ -75,7 +75,7 @@ def mean_temperature(sim):
             code_quantity_to_cgs(
                 sim.fluid.temp_proper_code[interior],
                 getattr(sim.par.units, 'CodeUnits', None),
-                'temperature_cgs_K',
+                'temperature_proper_cgs_K',
             )
         )
         * unyt.K
@@ -99,7 +99,7 @@ def time_value(sim, code_unit_system):
 
 
 def load_history_from_outputs(outputfiles, config):
-    history = {'time_yr': [], 'temperature_cgs_K': [], 'ionized_fraction': []}
+    history = {'time_proper_yr': [], 'temperature_proper_cgs_K': [], 'ionized_fraction': []}
     initial = config['initial_condition']
 
     interior = slice(0, initial['grid_cells'])
@@ -109,13 +109,13 @@ def load_history_from_outputs(outputfiles, config):
         rout = Rsim(config['par'])
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-        history['time_yr'].append(time_value(rout, unyt.yr))
-        history['temperature_cgs_K'].append(
+        history['time_proper_yr'].append(time_value(rout, unyt.yr))
+        history['temperature_proper_cgs_K'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.temp_proper_code[interior],
                     code_units_obj,
-                    'temperature_cgs_K',
+                    'temperature_proper_cgs_K',
                 )
             )
         )
@@ -143,12 +143,12 @@ def run_hydrogen_recombination(sim, target_neutral_fraction, outputtime=0):
 
 def save_history_plot(history, filename, config, target_neutral_fraction):
     initial = config['initial_condition']
-    time_yr = np.asarray(history['time_yr'])
+    time_proper_yr = np.asarray(history['time_proper_yr'])
     ionized_fraction = np.asarray(history['ionized_fraction'])
-    if time_yr.size > 1:
-        dense_time_yr = np.linspace(time_yr.min(), time_yr.max(), 400)
+    if time_proper_yr.size > 1:
+        dense_time_yr = np.linspace(time_proper_yr.min(), time_proper_yr.max(), 400)
     else:
-        dense_time_yr = time_yr
+        dense_time_yr = time_proper_yr
     dense_analytic = hra.ionized_fraction_dimensionless(
         dense_time_yr,
         initial['neutral_fraction'],
@@ -158,7 +158,7 @@ def save_history_plot(history, filename, config, target_neutral_fraction):
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
     ax.plot(
-        time_yr,
+        time_proper_yr,
         ionized_fraction,
         color='tab:blue',
         marker='o',

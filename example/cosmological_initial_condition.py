@@ -27,23 +27,10 @@ def build_initial_condition(config):
     code_units = result.par.units.CodeUnits
     grid_cells = int(par["mesh"]["grid_cells"])
     box_size_comoving_code = float(
-        initial_condition.get(
-            "box_size_comoving", par["simulation"].get("box_size_comoving", 1.0)
-        ).to_value(code_units.length_unit)
-        if hasattr(
-            initial_condition.get(
-                "box_size_comoving", par["simulation"].get("box_size_comoving", 1.0)
-            ),
-            "to_value",
-        )
-        else initial_condition.get(
-            "box_size_comoving", par["simulation"].get("box_size_comoving", 1.0)
-        )
+        initial_condition["box_size_comoving"].to_value(code_units.length_unit)
     )
     initial_time_code = float(
-        initial_condition.get("time_cosmic", 0.0).to_value(code_units.time_unit)
-        if hasattr(initial_condition.get("time_cosmic", 0.0), "to_value")
-        else initial_condition.get("time_cosmic", 0.0)
+        initial_condition["time_cosmic"].to_value(code_units.time_unit)
     )
     initial_tau_supercomoving_code = config.get(
         "_initial_tau_supercomoving_code"

@@ -118,7 +118,7 @@ def strong_shock_expectation(gamma, upstream_velocity_cgs_cm_s, mu):
 def cooling_length_estimate(
     table,
     temperature_proper_cgs_K,
-    density_cgs_g_cm3,
+    rho_proper_cgs_g_cm3,
     hydrogen_mass_fraction,
     mu,
     gamma,
@@ -127,7 +127,7 @@ def cooling_length_estimate(
     post_velocity_cgs_cm_s,
 ):
     """Estimate l_cool = u_post * t_cool using the net PIE rate."""
-    hydrogen_number_density_cgs_cm3 = density_cgs_g_cm3 * hydrogen_mass_fraction / PROTON_MASS_G
+    hydrogen_number_density_cgs_cm3 = rho_proper_cgs_g_cm3 * hydrogen_mass_fraction / PROTON_MASS_G
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
         hydrogen_number_density_cgs_cm3,
@@ -135,7 +135,7 @@ def cooling_length_estimate(
         redshift=redshift,
     )
     net_cooling = max(float(np.asarray(cooling) - np.asarray(heating)), 1.0e-99)
-    thermal_energy = 1.5 * density_cgs_g_cm3 * BOLTZMANN_ERG_cgs_K * temperature_proper_cgs_K / (
+    thermal_energy = 1.5 * rho_proper_cgs_g_cm3 * BOLTZMANN_ERG_cgs_K * temperature_proper_cgs_K / (
         mu * PROTON_MASS_G
     )
     cooling_time_s = thermal_energy / net_cooling

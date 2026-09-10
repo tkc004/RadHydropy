@@ -125,13 +125,13 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetInitFluid()
 
     momentum_history = {
-        "time_s": [0.0],
+        "time_proper_cgs_s": [0.0],
         "gas_momentum": [_total_radial_momentum(sim, config)],
         "radiation_momentum": [0.0],
     }
     radiation_pressure, gas_pressure = _pressure_diagnostics(sim, None, config)
     pressure_history = {
-        "time_s": [0.0],
+        "time_proper_cgs_s": [0.0],
         "radiation_pressure": [radiation_pressure],
         "gas_pressure": [gas_pressure],
     }
@@ -155,13 +155,13 @@ def main(config_filename=DEFAULT_CONFIG):
         time_s = float(np.asarray(sim.fluid.time_proper_code)) * float(
             (1.0 * code.time_unit).to_value(unyt.s)
         )
-        momentum_history["time_s"].append(time_s)
+        momentum_history["time_proper_cgs_s"].append(time_s)
         momentum_history["gas_momentum"].append(_total_radial_momentum(sim, config))
         momentum_history["radiation_momentum"].append(radiation_momentum)
         radiation_pressure, gas_pressure = _pressure_diagnostics(
             sim, sim.last_source_result, config
         )
-        pressure_history["time_s"].append(time_s)
+        pressure_history["time_proper_cgs_s"].append(time_s)
         pressure_history["radiation_pressure"].append(radiation_pressure)
         pressure_history["gas_pressure"].append(gas_pressure)
         return result
@@ -189,7 +189,7 @@ def main(config_filename=DEFAULT_CONFIG):
         Path(output['directory']) / f"{figure_stem}_IFront.jpg",
     )
 
-    time_proper_Myr = np.asarray(momentum_history["time_s"]) / (1.0 * unyt.Myr).to_value(unyt.s)
+    time_proper_Myr = np.asarray(momentum_history["time_proper_cgs_s"]) / (1.0 * unyt.Myr).to_value(unyt.s)
     momentum_unit = unyt.g * unyt.cm / unyt.s
     gas = np.asarray(momentum_history["gas_momentum"])
     radiation = np.asarray(momentum_history["radiation_momentum"])
@@ -204,7 +204,7 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.savefig(momentum_figure, dpi=180)
     plt.close()
 
-    pressure_time_myr = np.asarray(pressure_history["time_s"]) / (
+    pressure_time_myr = np.asarray(pressure_history["time_proper_cgs_s"]) / (
         1.0 * unyt.Myr
     ).to_value(unyt.s)
     radiation_pressure = np.asarray(pressure_history["radiation_pressure"])

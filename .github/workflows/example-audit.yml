@@ -1,0 +1,27 @@
+name: Example contract audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  example-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install package and test dependencies
+        run: python -m pip install -e ".[test]"
+
+      - name: Audit all example contracts
+        run: python -m pytest -q tests/test_example_alignment.py

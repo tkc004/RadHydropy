@@ -11,7 +11,8 @@ def build_initial_condition(config):
     rho_proper_code=np.where(left, initial.get("rho_left_proper",initial.get("rho_proper", 1.0)), initial.get("rho_right_proper",initial.get("rho_proper", 1.0)))
     vel_proper_code=np.full(n,quantity_to_value(initial["vel_proper"],units.velocity_unit)); mu=np.full(n,initial["mean_molecular_weight"])
     if "temperature_left_proper" in initial or "temperature_right_proper" in initial:
-        temp_proper_code=np.where(left,initial.get("temperature_left_proper",initial.get("temperature_proper",0)),initial.get("temperature_right_proper",initial.get("temperature_proper",0)))
+        zero_temperature_proper_unyt = 0.0 * units.temperature_unit
+        temp_proper_code=np.where(left,initial.get("temperature_left_proper",initial.get("temperature_proper",zero_temperature_proper_unyt)),initial.get("temperature_right_proper",initial.get("temperature_proper",zero_temperature_proper_unyt)))
     elif "pressure_initial_proper" in initial:
         rho_left = quantity_to_value(initial["rho_left_proper"], units.density_unit)
         pressure_proper_code = quantity_to_value(initial["pressure_initial_proper"], units.pressure_unit)

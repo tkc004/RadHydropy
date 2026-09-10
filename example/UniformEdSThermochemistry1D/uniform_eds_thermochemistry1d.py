@@ -94,8 +94,8 @@ def run_case(config, atomic_cooling):
 
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     history = {
-        "time_s": [],
-        "temperature_cgs_K": [],
+        "time_cosmic_cgs_s": [],
+        "temperature_proper_cgs_K": [],
         "scale_factor": [],
         "source_solver": [],
         "relative_change": [],
@@ -121,11 +121,11 @@ def run_case(config, atomic_cooling):
         result = sim.Step(**kwargs)
         time_cosmic_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
         scale_factor = float(sim.par.cosmology.scale_factor(time_cosmic_code))
-        history["time_s"].append(
+        history["time_cosmic_cgs_s"].append(
             time_cosmic_code * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
         )
         history["scale_factor"].append(scale_factor)
-        history["temperature_cgs_K"].append(
+        history["temperature_proper_cgs_K"].append(
             float(np.mean(sim.fluid.temp_proper_code[physical]))
         )
         history["source_solver"].append(result.get("source_solver", "explicit"))
@@ -163,10 +163,10 @@ def main():
     initial_time_code = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     initial_time_s = initial_time_code * float(units.time_unit.to_value("s"))
     plot_time_s = np.linspace(
-        initial_time_s, np.max(compton["time_s"]), 200
+        initial_time_s, np.max(compton["time_cosmic_cgs_s"]), 200
     )
     analytic = analytic_compton_temperature(
-        compton["time_s"],
+        compton["time_cosmic_cgs_s"],
         float(initial_condition["temperature_proper"].to_value("K")),
         initial_time_code,
         cosmology,
@@ -191,7 +191,7 @@ def main():
         float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K")),
         1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
     )
-    error = np.max(np.abs(compton["temperature_cgs_K"] - analytic) / analytic)
+    temperature_relative_error_dimensionless = np.max(np.abs(compton["temperature_proper_cgs_K"] - analytic) / analytic)
     print(f"Compton-only maximum relative error: {error:.6e}")
     for label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
         choices, counts = np.unique(history["source_solver"], return_counts=True)
@@ -201,17 +201,17 @@ def main():
         print(f"{label} hybrid source choices: {summary}")
     if error > 2.0e-3:
         raise RuntimeError("Compton-only EdS comparison failed")
-    if not np.all(np.isfinite(atomic["temperature_cgs_K"])):
+    if not np.all(np.isfinite(atomic["temperature_proper_cgs_K"])):
         raise RuntimeError("atomic+Compton run produced non-finite temperature")
-    if atomic["temperature_cgs_K"][-1] >= compton["temperature_cgs_K"][-1]:
+    if atomic["temperature_proper_cgs_K"][-1] >= compton["temperature_proper_cgs_K"][-1]:
         raise RuntimeError("atomic cooling did not cool below Compton-only run")
 
     figure = Path(config["par"]["output"]["directory"]) / "UniformEdSThermochemistry1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton")
-    plt.plot(compton["time_s"] / (1.0e6 * 365.25 * 86400.0), compton["temperature_cgs_K"], "o", ms=3, label="Rsim Compton")
-    plt.plot(atomic["time_s"] / (1.0e6 * 365.25 * 86400.0), atomic["temperature_cgs_K"], "--", label="Rsim atomic + Compton")
+    plt.plot(compton["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0), compton["temperature_proper_cgs_K"], "o", ms=3, label="Rsim Compton")
+    plt.plot(atomic["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0), atomic["temperature_proper_cgs_K"], "--", label="Rsim atomic + Compton")
     plt.xlabel("cosmic time [Myr]")
     plt.ylabel("physical temperature [K]")
     plt.yscale("log")

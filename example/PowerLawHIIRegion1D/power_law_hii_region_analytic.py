@@ -112,7 +112,7 @@ def formation_front(q_star, nc, rc, w, radius_max, samples=20000):
     return time_proper_cgs_s, radius_proper_cgs_cm, front_speed_cgs_cm_s
 
 
-def matched_expansion(time_s, radius_w, w):
+def matched_expansion(time_proper_cgs_s, radius_w_proper_cgs_cm, w):
     """D-type expansion approximation for w <= 3/2.
 
     It is normalized to the standard Spitzer solution at w=0 and preserves
@@ -122,10 +122,10 @@ def matched_expansion(time_s, radius_w, w):
     if w > 1.5:
         raise ValueError("the trapped D-type approximation is only for w <= 3/2")
     exponent = 4.0 / (7.0 - 2.0 * w)
-    return radius_w * (1.0 + (7.0 - 2.0 * w) * CI * time_s / (4.0 * radius_w)) ** exponent
+    return radius_w_proper_cgs_cm * (1.0 + (7.0 - 2.0 * w) * CI * time_proper_cgs_s / (4.0 * radius_w_proper_cgs_cm)) ** exponent
 
 
-def champagne_expansion(time_s, radius_start, w, rc, absolute_time_s=None):
+def champagne_expansion(time_proper_cgs_s, radius_start_proper_cgs_cm, w, rc_proper_cgs_cm, absolute_time_proper_cgs_s=None):
     """Return the paper's approximate champagne-phase core radius.
 
     Franco et al. use r ~= r_c + [1 + sqrt(3/(3-w))] c_i t for
@@ -136,23 +136,23 @@ def champagne_expansion(time_s, radius_start, w, rc, absolute_time_s=None):
         r = r_c [1 + sqrt(4/(w-3)) * (delta+2-w)/2 * c_i*t/r_c]
             ** (2/(delta+2-w)).
     """
-    time_s = np.asarray(time_s, dtype=float)
+    time_proper_cgs_s = np.asarray(time_proper_cgs_s, dtype=float)
     if 1.5 < w < 3.0:
         velocity_factor = 1.0 + np.sqrt(3.0 / (3.0 - w))
-        return radius_start + velocity_factor * CI * time_s
+        return radius_start_proper_cgs_cm + velocity_factor * CI * time_proper_cgs_s
     if np.isclose(w, 3.0):
-        if absolute_time_s is None:
-            absolute_time_s = time_s
+        if absolute_time_proper_cgs_s is None:
+            absolute_time_proper_cgs_s = time_proper_cgs_s
         # Franco et al. Eq. (25): the fit to the w=3 isothermal champagne
         # expansion for the expanded core.
-        return 3.2 * rc * (CI * absolute_time_s / rc) ** 1.1
+        return 3.2 * rc_proper_cgs_cm * (CI * absolute_time_proper_cgs_s / rc_proper_cgs_cm) ** 1.1
     delta = 2.8 + 0.55 * (w - 3.0)
-    if absolute_time_s is None:
-        absolute_time_s = time_s
+    if absolute_time_proper_cgs_s is None:
+        absolute_time_proper_cgs_s = time_proper_cgs_s
     exponent_denominator = delta + 2.0 - w
     factor = np.sqrt(4.0 / (w - 3.0)) * exponent_denominator / 2.0
-    return rc * (
-        1.0 + factor * CI * absolute_time_s / rc
+    return rc_proper_cgs_cm * (
+        1.0 + factor * CI * absolute_time_proper_cgs_s / rc_proper_cgs_cm
     ) ** (2.0 / exponent_denominator)
 
 
@@ -178,7 +178,7 @@ def calculate_front(q_star, nc, rc, w, end_time_yr):
             rc,
             w,
             rc,
-            absolute_time_s=late_time_proper_cgs_s,
+            absolute_time_proper_cgs_s=late_time_proper_cgs_s,
         )
         return late_time_proper_cgs_s, late_radius_proper_cgs_cm, False
 

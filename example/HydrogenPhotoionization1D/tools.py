@@ -77,7 +77,7 @@ def mean_temperature(sim):
     temp_values = code_quantity_to_cgs(
         sim.fluid.temp_proper_code[interior],
         code_units_obj,
-        'temperature_cgs_K',
+        'temperature_proper_cgs_K',
     )
     return np.mean(temp_values) * unyt.K
 
@@ -109,7 +109,7 @@ def time_value(sim, code_unit_system):
 
 
 def load_history_from_outputs(outputfiles, config):
-    history = {'time_yr': [], 'temperature_cgs_K': [], 'xHI': [], 'ngamma_cgs_cm3': []}
+    history = {'time_proper_yr': [], 'temperature_proper_cgs_K': [], 'xHI': [], 'ngamma_proper_cgs_cm3': []}
     initial = config['initial_condition']
 
     interior = slice(0, initial['grid_cells'])
@@ -119,18 +119,18 @@ def load_history_from_outputs(outputfiles, config):
         rout = Rsim(config['par'])
         rout.par.unit_system = code_units_obj.unit_system
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-        history['time_yr'].append(time_value(rout, unyt.yr))
-        history['temperature_cgs_K'].append(
+        history['time_proper_yr'].append(time_value(rout, unyt.yr))
+        history['temperature_proper_cgs_K'].append(
             np.mean(
                 code_quantity_to_cgs(
                 rout.fluid.temp_proper_code[interior],
                     code_units_obj,
-                    'temperature_cgs_K',
+                    'temperature_proper_cgs_K',
                 )
             )
         )
         history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
-        history['ngamma_cgs_cm3'].append(
+        history['ngamma_proper_cgs_cm3'].append(
             np.mean(
                 code_quantity_to_cgs(
                 rout.fluid.ngamma_code[interior],
@@ -150,9 +150,9 @@ def output_files(output_directory, output_filename_prefix):
 def save_history_plot(history, filename, config, target_xHI):
     initial = config['initial_condition']
 
-    time_yr = np.asarray(history['time_yr'])
+    time_proper_yr = np.asarray(history['time_proper_yr'])
     xHI = np.asarray(history['xHI'])
-    positive_time_yr = time_yr[time_yr > 0.0]
+    positive_time_yr = time_proper_yr[time_proper_yr > 0.0]
     if positive_time_yr.size > 0:
         dense_time_yr = np.logspace(
             np.log10(max(positive_time_yr.min() * 0.1, 1.0e-6)),
@@ -160,7 +160,7 @@ def save_history_plot(history, filename, config, target_xHI):
             400,
         )
     else:
-        dense_time_yr = np.maximum(time_yr, 1.0e-6)
+        dense_time_yr = np.maximum(time_proper_yr, 1.0e-6)
     analytic = hpa.neutral_fraction(
         dense_time_yr,
         initial['neutral_fraction'],
@@ -172,7 +172,7 @@ def save_history_plot(history, filename, config, target_xHI):
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
     ax.plot(
-        time_yr,
+        time_proper_yr,
         xHI,
         color='tab:blue',
         marker='o',

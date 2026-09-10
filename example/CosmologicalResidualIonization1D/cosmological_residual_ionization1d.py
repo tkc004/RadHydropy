@@ -47,16 +47,16 @@ def evolve(config):
     initial_xe = float(initial_condition["initial_xe"])
     temperature_proper_cgs_K = float(initial_condition["temperature_proper"].to_value("K"))
 
-    def rates(time_s, values):
+    def rates(time_cosmic_cgs_s, values):
         xHI = float(np.clip(values[0], 1.0e-12, 1.0 - 1.0e-12))
         temperature_proper_cgs_K = max(float(values[1]), 1.0e-6)
-        scale_factor = (time_s / t_ref_s) ** (2.0 / 3.0)
+        scale_factor = (time_cosmic_cgs_s / t_ref_s) ** (2.0 / 3.0)
         redshift = 1.0 / scale_factor - 1.0
         nH = nH0 * scale_factor ** -3
         rho_proper_cgs_g_cm3 = nH * PROTON_MASS_CGS / hydrogen_fraction
         state = {
             "rho_cgs_g_cm3": np.asarray([rho_proper_cgs_g_cm3]),
-            "temperature_cgs_K": np.asarray([temperature_proper_cgs_K]),
+            "temperature_proper_cgs_K": np.asarray([temperature_proper_cgs_K]),
             "xHI": np.asarray([xHI]),
             "hydrogen_mass_fraction": hydrogen_fraction,
             "recombination": True,
@@ -73,7 +73,7 @@ def evolve(config):
         dxhi_dt = float(ionization_fraction_rate(state, None)[0])
         q = float(thermal_rate(state, None)[0])
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))
-        hubble = 2.0 / (3.0 * time_s)
+        hubble = 2.0 / (3.0 * time_cosmic_cgs_s)
         adiabatic = -2.0 * hubble * temperature_proper_cgs_K
         source = (gamma - 1.0) * mu * PROTON_MASS_CGS * q / (
             rho_proper_cgs_g_cm3 * BOLTZMANN_CONSTANT_CGS
@@ -91,8 +91,8 @@ def evolve(config):
     )
     if not solution.success:
         raise RuntimeError(solution.message)
-    time_s = solution.t
-    scale_factor = (time_s / t_ref_s) ** (2.0 / 3.0)
+    time_cosmic_cgs_s = solution.t
+    scale_factor = (time_cosmic_cgs_s / t_ref_s) ** (2.0 / 3.0)
     redshift = 1.0 / scale_factor - 1.0
     xe = 1.0 - np.clip(solution.y[0], 0.0, 1.0)
     temperature_proper_cgs_K = np.maximum(solution.y[1], 0.0)
@@ -113,7 +113,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     np.savez(output / "CosmologicalResidualIonization1D_History.npz",
              redshift=redshift, xe=xe,
-             temperature_cgs_K=temperature_proper_cgs_K)
+             temperature_proper_cgs_K=temperature_proper_cgs_K)
 
     figure = output / "CosmologicalResidualIonization1D_xe_temperature.jpg"
     fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.2))

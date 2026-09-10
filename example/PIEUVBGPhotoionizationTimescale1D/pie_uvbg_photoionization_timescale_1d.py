@@ -137,12 +137,12 @@ def main(config_filename=DEFAULT_CONFIG):
             # the saved snapshots from that list.
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[:len(history)]
-            temperature_cgs_K = np.array([item["temperature_cgs_K"] for item in history])
+            temperature_proper_cgs_K = np.array([item["temperature_proper_cgs_K"] for item in history])
             time_over_photoionization_timescale_dimensionless = (
                 time_yr / photoionization_timescale_yr
             )
             temperature_error_dimensionless = (
-                np.abs(temperature_cgs_K - temperature_equilibrium_cgs_K)
+                np.abs(temperature_proper_cgs_K - temperature_equilibrium_cgs_K)
                 / temperature_equilibrium_cgs_K
             )
             results.append(
@@ -155,7 +155,7 @@ def main(config_filename=DEFAULT_CONFIG):
                     "time_over_photoionization_timescale_dimensionless": (
                         time_over_photoionization_timescale_dimensionless
                     ),
-                    "temperature_cgs_K": temperature_cgs_K,
+                    "temperature_proper_cgs_K": temperature_proper_cgs_K,
                     "temperature_error_dimensionless": temperature_error_dimensionless,
                 }
             )
@@ -184,7 +184,7 @@ def main(config_filename=DEFAULT_CONFIG):
             label = rf"$T_0={result['temperature_initial_proper_K']:.0e}\ {{\rm K}}$"
             ax_temp.plot(
                 result["time_cgs_yr"],
-                result["temperature_cgs_K"],
+                result["temperature_proper_cgs_K"],
                 color="tab:blue",
                 linestyle=linestyle,
                 linewidth=1.4,

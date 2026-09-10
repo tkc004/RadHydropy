@@ -80,12 +80,12 @@ def load_history(output_dir, config):
         history.append(
             {
                 "filename": Path(filename),
-                "time_s": float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
+                "time_proper_cgs_s": float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
                 * float(code_units.time_unit.to_value(unyt.s)),
-                "temperature_cgs_K": float(np.mean(
+                "temperature_proper_cgs_K": float(np.mean(
                     snapshot.fluid.temp_proper_code[first:last]
                 )) * float(code_units.temperature_unit.to_value(unyt.K)),
-                "density_cgs_g_cm3": float(np.mean(
+                "rho_proper_cgs_g_cm3": float(np.mean(
                     snapshot.fluid.rho_proper_code[first:last]
                 )) * float(code_units.density_unit.to_value(unyt.g / unyt.cm**3)),
             }

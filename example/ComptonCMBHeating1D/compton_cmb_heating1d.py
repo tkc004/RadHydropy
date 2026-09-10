@@ -47,7 +47,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('compton_cmb_heating1d.yaml'
 
 
 def _analytic_temperature(
-    time_s,
+    time_proper_cgs_s,
     temperature_proper,
     redshift,
     nH_cgs_cm3,
@@ -76,7 +76,7 @@ def _analytic_temperature(
     )
     return cmb_temperature + (
         temperature_proper - cmb_temperature
-    ) * np.exp(-temperature_rate_coefficient * time_s)
+    ) * np.exp(-temperature_rate_coefficient * time_proper_cgs_s)
 
 
 def _run_case(

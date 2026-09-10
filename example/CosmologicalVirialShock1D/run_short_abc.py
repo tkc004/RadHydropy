@@ -74,7 +74,6 @@ def _case_config(base_config, case_name, final_time):
     config["par"]["simulation"]["final_time"] = float(final_time) * units.time_unit
     config["par"]["output"].update({
         "directory": str(output_dir),
-        "directory": str(output_dir),
         # Keep the shared correlation table resolvable after placing the
         # effective YAML inside the case output directory.
     })

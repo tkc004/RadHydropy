@@ -369,7 +369,7 @@ def density_snapshot(mesh, fluid, config):
     return {
         'time_proper_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
         'radius_proper_pc': _value_in_unit(mesh.x_proper_code[interior], unyt.pc).copy(),
-        'density_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
+        'rho_proper_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
         'radiation_density_cgs_cm3': _value_in_unit(
             ngamma_code[interior], 1.0 / unyt.cm**3
         ).copy(),
@@ -528,7 +528,7 @@ def save_front_plot(history, config, figure_filename):
 def save_density_profile_plot(snapshot, config, figure_filename):
     time_proper_unyt = snapshot['time_proper_Myr'] * unyt.Myr
     radius_proper_pc = np.asarray(snapshot['radius_proper_pc'])
-    density_cgs_g_cm3 = np.asarray(snapshot['density_cgs_g_cm3'])
+    rho_proper_cgs_g_cm3 = np.asarray(snapshot['rho_proper_cgs_g_cm3'])
     radiation_density_cgs_cm3 = np.asarray(snapshot['radiation_density_cgs_cm3'])
     spitzer_radius_pc = spitzer_radius(time_proper_unyt, config).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = hosokawa_inutsuka_radius(
@@ -544,7 +544,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     )
     ax.plot(
         radius_proper_pc,
-        density_cgs_g_cm3,
+        rho_proper_cgs_g_cm3,
         color='tab:blue',
         lw=2.0,
         label='RadHydropy',
@@ -576,7 +576,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.set_ylabel(r'Density [g cm$^{-3}$]')
     ax.set_title('Density profile at %.3f Myr' % snapshot['time_proper_Myr'])
     ax.set_xlim(0.0, config['initial_condition']['box_size_proper'].to_value(unyt.pc))
-    positive_density = density_cgs_g_cm3[density_cgs_g_cm3 > 0.0]
+    positive_density = rho_proper_cgs_g_cm3[rho_proper_cgs_g_cm3 > 0.0]
     if positive_density.size:
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_density)))
         ymax = 10.0 ** np.ceil(np.log10(1.2 * np.max(positive_density)))

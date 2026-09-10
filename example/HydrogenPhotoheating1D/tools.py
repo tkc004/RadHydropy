@@ -120,7 +120,7 @@ def mean_temperature(sim):
             code_quantity_to_cgs(
                 sim.fluid.temp_proper_code[interior],
                 code_units_obj,
-                'temperature_cgs_K',
+                'temperature_proper_cgs_K',
             )
         )
         * unyt.K
@@ -154,7 +154,7 @@ def time_value(sim, code_unit_system):
 
 
 def load_history_from_outputs(outputfiles, config):
-    history = {'time_yr': [], 'temperature_cgs_K': [], 'xHI': [], 'ngamma_cgs_cm3': []}
+    history = {'time_proper_yr': [], 'temperature_proper_cgs_K': [], 'xHI': [], 'ngamma_proper_cgs_cm3': []}
     initial = config['initial_condition']
 
     code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
@@ -165,18 +165,18 @@ def load_history_from_outputs(outputfiles, config):
         rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
         first = int(rout.par.mesh.ghost_cells)
         interior = slice(first, first + int(rout.par.mesh.grid_cells))
-        history['time_yr'].append(time_value(rout, unyt.yr))
-        history['temperature_cgs_K'].append(
+        history['time_proper_yr'].append(time_value(rout, unyt.yr))
+        history['temperature_proper_cgs_K'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.temp_proper_code[interior],
                     code_units_obj,
-                    'temperature_cgs_K',
+                    'temperature_proper_cgs_K',
                 )
             )
         )
         history['xHI'].append(float(np.mean(rout.fluid.xHI[interior])))
-        history['ngamma_cgs_cm3'].append(
+        history['ngamma_proper_cgs_cm3'].append(
             np.mean(
                 code_quantity_to_cgs(
                     rout.fluid.ngamma_code[interior],
@@ -254,13 +254,13 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
             dt = source_switch_time - time_proper
 
         if time_proper < source_switch_time:
-            ngamma_cgs_cm3 = float(
+            ngamma_proper_cgs_cm3 = float(
                 np.asarray(photon_density_on.to_value(1.0 / unyt.cm**3), dtype=float)
             )
         else:
-            ngamma_cgs_cm3 = 0.0
+            ngamma_proper_cgs_cm3 = 0.0
         sim.fluid.ngamma_code[:] = (
-            ngamma_cgs_cm3 * unyt.cm**-3
+            ngamma_proper_cgs_cm3 * unyt.cm**-3
         ).to_value(sim.par.units.CodeUnits.number_density_unit)
 
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
@@ -292,10 +292,10 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
 
 
 def save_history_plot(history, filename, reference):
-    time_yr = np.asarray(history['time_yr'])
-    temperature_cgs_K = np.asarray(history['temperature_cgs_K'])
+    time_proper_yr = np.asarray(history['time_proper_yr'])
+    temperature_proper_cgs_K = np.asarray(history['temperature_proper_cgs_K'])
     xHI = np.maximum(np.asarray(history['xHI']), 1.0e-12)
-    plot_time_yr = np.maximum(time_yr, 1.0e-6)
+    plot_time_yr = np.maximum(time_proper_yr, 1.0e-6)
     xHI_reference = hpr.neutral_fraction_reference(
         reference['hydrogen_number_density_cgs_cm3_unyt'],
         reference['sigma_gamma_cgs_cm2'],
@@ -313,7 +313,7 @@ def save_history_plot(history, filename, reference):
     )
     ax_temp.plot(
         plot_time_yr,
-        temperature_cgs_K,
+        temperature_proper_cgs_K,
         color='tab:red',
         lw=2.0,
         label='Temperature',

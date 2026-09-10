@@ -41,7 +41,6 @@ def run(config_filename=DEFAULT_CONFIG):
     }
     config["par"]["output"] = {
         **config["par"]["output"], "directory": str(output_dir),
-        "directory": str(output_dir),
     }
     sim = Rsim(config["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
