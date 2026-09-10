@@ -91,20 +91,20 @@ def load_output_state(filename, config):
         first:first + count + 1
     ]
     return {
-        'time_Myr': (
+        'time_proper_Myr': (
             float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
             * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
         ),
-        'boundary_cgs_cm': boundary_proper_code * float(
+        'boundary_proper_cgs_cm': boundary_proper_code * float(
             code_units.length_unit.to_value('cm')
         ),
-        'density_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
+        'rho_proper_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
             code_units.density_unit.to_value('g/cm**3')
         ),
-        'velocity_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
+        'vel_peculiar_proper_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
             code_units.velocity_unit.to_value('cm/s')
         ),
-        'temperature_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
+        'temperature_proper_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
             code_units.temperature_unit.to_value('K')
         ),
     }
@@ -112,9 +112,9 @@ def load_output_state(filename, config):
 
 def shock_radius(snapshot):
     """Locate the strongest compression near the colliding-stream interface."""
-    boundary_proper_code = snapshot['boundary_cgs_cm']
-    centers = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-    density_proper_cgs_g_cm3 = np.maximum(snapshot['density_cgs_g_cm3'], 1.0e-99)
+    boundary_proper_cgs_cm = snapshot['boundary_proper_cgs_cm']
+    centers = 0.5 * (boundary_proper_cgs_cm[1:] + boundary_proper_cgs_cm[:-1])
+    density_proper_cgs_g_cm3 = np.maximum(snapshot['rho_proper_cgs_g_cm3'], 1.0e-99)
     gradient = np.abs(np.diff(np.log(density_proper_cgs_g_cm3)))
     start = max(2, int(0.2 * len(gradient)))
     stop = min(len(gradient) - 1, int(0.9 * len(gradient)))
@@ -127,7 +127,7 @@ def shock_history(filenames, config, output_interval_myr=None):
     for filename in filenames:
         snapshot = load_output_state(filename, config)
         if output_interval_myr is None:
-            time_myr = snapshot['time_Myr']
+            time_myr = snapshot['time_proper_Myr']
         else:
             # Current HDF5 output headers do not preserve the evolving time
             # for this non-cosmological run.  The numbered output and the
@@ -143,18 +143,18 @@ def shock_history(filenames, config, output_interval_myr=None):
 
 def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction, mu):
     """Estimate post-shock cooling length and cooling time from one snapshot."""
-    radius_proper_cgs_cm = snapshot['boundary_cgs_cm']
+    radius_proper_cgs_cm = snapshot['boundary_proper_cgs_cm']
     centers = 0.5 * (radius_proper_cgs_cm[1:] + radius_proper_cgs_cm[:-1])
     shock_kpc = shock_radius(snapshot)
     shock_index = int(np.argmin(np.abs(centers / KPC_CM - shock_kpc)))
     left = slice(max(0, shock_index - 4), shock_index)
     right = slice(shock_index + 1, min(len(centers), shock_index + 5))
-    left_temperature = float(np.median(snapshot['temperature_cgs_K'][left]))
-    right_temperature = float(np.median(snapshot['temperature_cgs_K'][right]))
+    left_temperature = float(np.median(snapshot['temperature_proper_cgs_K'][left]))
+    right_temperature = float(np.median(snapshot['temperature_proper_cgs_K'][right]))
     post_slice = right if right_temperature >= left_temperature else left
-    density_proper_cgs_g_cm3 = float(np.median(snapshot['density_cgs_g_cm3'][post_slice]))
-    temperature_proper_cgs_K = float(np.median(snapshot['temperature_cgs_K'][post_slice]))
-    vel_peculiar_proper_cgs_cm_s = float(np.median(np.abs(snapshot['velocity_cgs_cm_s'][post_slice])))
+    density_proper_cgs_g_cm3 = float(np.median(snapshot['rho_proper_cgs_g_cm3'][post_slice]))
+    temperature_proper_cgs_K = float(np.median(snapshot['temperature_proper_cgs_K'][post_slice]))
+    vel_peculiar_proper_cgs_cm_s = float(np.median(np.abs(snapshot['vel_peculiar_proper_cgs_cm_s'][post_slice])))
     n_h = hydrogen_mass_fraction * density_proper_cgs_g_cm3 / PROTON_MASS_G
     heating, cooling = table.rates(
         temperature_proper_cgs_K, n_h, metallicity=metallicity, redshift=0.0

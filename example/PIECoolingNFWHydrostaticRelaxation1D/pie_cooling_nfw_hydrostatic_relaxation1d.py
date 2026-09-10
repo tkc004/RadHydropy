@@ -89,7 +89,7 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-            sim.mesh.x_proper_code, halo['scale_density'], halo['scale_radius'],
+        sim.mesh.x_proper_code, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt'],
             code_units=sim.par.units.CodeUnits,
         ),
         coordinate=sim.mesh.x_proper_code.copy(),
@@ -108,18 +108,18 @@ def main(config_filename=DEFAULT_CONFIG):
     results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt)
                for name in outputs]
     for result, scheduled_time in zip(results, scheduled_times):
-        result['time_Myr'] = scheduled_time
+        result['time_proper_Myr'] = scheduled_time
     result_stem = par['simulation']['name']
     report = EXAMPLE_DIR / f'{result_stem}_Report.txt'
     figure = EXAMPLE_DIR / f'{result_stem}.jpg'
     et.write_report(results, report, floor)
     et.plot_results(results, halo, figure)
-    print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
-    print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
+    print('halo mass = %.6g Msun' % halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun))
+    print('R200 = %.6g kpc' % halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc))
     print('Tvir = %.6g K' % temperature_virial_unyt.to_value(unyt.K))
-    print('central T final = %.6g K' % results[-1]['central_temperature_cgs_K'])
-    print('central density final = %.6g g/cm^3' % results[-1]['central_density_cgs_g_cm3'])
-    print('temperature floor reached = %s' % (results[-1]['minimum_temperature_cgs_K'] <= 1.01 * floor))
+    print('central T final = %.6g K' % results[-1]['central_temperature_proper_cgs_K'])
+    print('central density final = %.6g g/cm^3' % results[-1]['central_rho_proper_cgs_g_cm3'])
+    print('temperature floor reached = %s' % (results[-1]['minimum_temperature_proper_cgs_K'] <= 1.01 * floor))
     print('figure = %s' % figure)
     print('report = %s' % report)
 

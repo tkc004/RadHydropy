@@ -181,15 +181,15 @@ def main(config_filename=DEFAULT_CONFIG):
         for index, time_myr in zip(sample_indices, sample_times):
             snapshot = load_output_state(result['snapshots'][index], result['config'])
             radius_proper_cgs_cm = (
-                0.5 * (snapshot['boundary_cgs_cm'][1:] + snapshot['boundary_cgs_cm'][:-1])
+                0.5 * (snapshot['boundary_proper_cgs_cm'][1:] + snapshot['boundary_proper_cgs_cm'][:-1])
                 / 3.0856775814913673e21
             )
             label = f'{time_myr:.2g} Myr'
             axes[row, 0].plot(
-                radius_proper_cgs_cm, snapshot['density_cgs_g_cm3'], label=label,
+                radius_proper_cgs_cm, snapshot['rho_proper_cgs_g_cm3'], label=label,
             )
             axes[row, 1].plot(
-                radius_proper_cgs_cm, snapshot['temperature_cgs_K'], label=label,
+                radius_proper_cgs_cm, snapshot['temperature_proper_cgs_K'], label=label,
             )
         axes[row, 2].plot(
             result['history'][:, 0], result['history'][:, 1],

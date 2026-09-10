@@ -63,8 +63,8 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         potential=nfw_potential(
             sim.mesh.geometry_state.x_proper_code,
-            halo['scale_density'],
-            halo['scale_radius'],
+            halo['rho_scale_cgs_g_cm3_unyt'],
+            halo['radius_scale_proper_kpc_unyt'],
             code_units=code_units,
         ),
         coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
@@ -95,13 +95,13 @@ def main(config_filename=DEFAULT_CONFIG):
     et.plot_snapshots(output_files, config, config, halo, figure_filename)
     et.write_rankine_hugoniot_report(rows, report_filename)
 
-    virial_radius = halo['virial_radius'].to_value(unyt.kpc)
-    virial_velocity = halo['virial_velocity'].to_value(unyt.km / unyt.s)
+    virial_radius = halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
+    virial_velocity = halo['vel_virial_proper_km_s_unyt'].to_value(unyt.km / unyt.s)
     virial_temperature = et.virial_temperature(
         halo,
         initial_condition['mu'],
     ).to_value(unyt.K)
-    print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
+    print('halo mass = %.6g Msun' % halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun))
     print('R200 = %.6g kpc' % virial_radius)
     print('4 R200 = %.6g kpc' % (4.0 * virial_radius))
     print('V200 = %.6g km/s' % virial_velocity)
@@ -110,7 +110,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('Rankine-Hugoniot checks = %d' % len(rows))
     for row in rows:
         print(
-            'RH t=%(time_Myr).0f Myr, r_shock=%(shock_radius_kpc).3g kpc, '
+            'RH t=%(time_proper_Myr).0f Myr, r_shock=%(shock_radius_proper_kpc).3g kpc, '
             'Mach=%(mach_number).3g, rho=%(measured_density_ratio).3g/'
             '%(predicted_density_ratio).3g, T=%(measured_temperature_ratio).3g/'
             '%(predicted_temperature_ratio).3g' % row

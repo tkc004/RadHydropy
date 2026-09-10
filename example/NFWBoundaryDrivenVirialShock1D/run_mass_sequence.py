@@ -71,24 +71,24 @@ def _case_diagnostics(config_filename):
     stability = pie_stability_diagnostics(
         files, times, halo, table, config, initial_condition['mu']
     )
-    stability_by_time = {row['time_Myr']: row for row in stability}
+    stability_by_time = {row['time_proper_Myr']: row for row in stability}
     shock_radius = []
     gamma_eff = []
     for filename, time in zip(files, times):
         snapshot = load_output_state(filename, config)
         index = locate_shock(
-            snapshot, halo['virial_radius'].to_value(unyt.kpc)
+            snapshot, halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
         )
         shock_radius.append(
-            np.nan if index is None else snapshot['radius_kpc'][index]
-            / halo['virial_radius'].to_value(unyt.kpc)
+            np.nan if index is None else snapshot['radius_proper_kpc'][index]
+            / halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
         )
         row = stability_by_time.get(float(time))
         gamma_eff.append(np.nan if row is None else row['gamma_eff'])
     return {
-        'mass_Msun': halo['mass'].to_value(unyt.Msun),
-        'label': r'$10^{12}\,M_\odot$' if halo['mass'].to_value(unyt.Msun) > 5e11
-        else (r'$3\times10^{11}\,M_\odot$' if halo['mass'].to_value(unyt.Msun) > 2e11
+        'mass_Msun': halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun),
+        'label': r'$10^{12}\,M_\odot$' if halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun) > 5e11
+        else (r'$3\times10^{11}\,M_\odot$' if halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun) > 2e11
               else r'$10^{11}\,M_\odot$'),
         'times_Myr': np.asarray(times),
         'shock_radius': np.asarray(shock_radius),
@@ -98,7 +98,7 @@ def _case_diagnostics(config_filename):
 
 def _write_summary(cases, filename):
     with Path(filename).open('w', encoding='utf-8') as stream:
-        stream.write('halo_mass_Msun time_Myr shock_radius_over_R200 gamma_eff status\n')
+        stream.write('halo_mass_Msun time_proper_Myr shock_radius_over_R200 gamma_eff status\n')
         for case in cases:
             for time, radius, gamma_eff in zip(
                 case['times_Myr'], case['shock_radius'], case['gamma_eff']

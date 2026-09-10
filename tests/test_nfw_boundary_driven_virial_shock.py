@@ -33,9 +33,9 @@ def test_shock_locator_selects_hot_compressed_inner_state():
     density[radius < 180.0] *= 4.0
     temperature[radius < 180.0] *= 40.0
     snapshot = {
-        'radius_kpc': radius,
-        'density_cgs_g_cm3': density,
-        'temperature_cgs_K': temperature,
+        'radius_proper_kpc': radius,
+        'rho_proper_cgs_g_cm3': density,
+        'temperature_proper_cgs_K': temperature,
     }
     index = TOOLS.locate_shock(snapshot, 200.0)
     assert index is not None
@@ -49,10 +49,10 @@ def test_shock_locator_rejects_cold_inner_cooling_front():
     density[radius < 180.0] *= 4.0
     temperature[radius < 180.0] = 1.0e4
     snapshot = {
-        'radius_kpc': radius,
-        'density_cgs_g_cm3': density,
-        'temperature_cgs_K': temperature,
-        'velocity_km_s': np.ones(128) * -100.0,
+        'radius_proper_kpc': radius,
+        'rho_proper_cgs_g_cm3': density,
+        'temperature_proper_cgs_K': temperature,
+        'vel_peculiar_proper_km_s': np.ones(128) * -100.0,
     }
     assert TOOLS.locate_shock(snapshot, 200.0) is None
 

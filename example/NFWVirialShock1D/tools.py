@@ -92,23 +92,23 @@ def _snapshot_profiles(filename, config):
     density_proper_cgs_g_cm3 = code_quantity_to_cgs(
         rout.fluid.rho_proper_code[first:last],
         code_units,
-        'density_cgs_g_cm3',
+        'rho_proper_cgs_g_cm3',
     )
     temperature_proper_cgs_K = code_quantity_to_cgs(
         rout.fluid.temp_proper_code[first:last],
         code_units,
-        'temperature_cgs_K',
+        'temperature_proper_cgs_K',
     )
-    velocity_km_s = code_quantity_to_cgs(
+    vel_peculiar_proper_km_s = code_quantity_to_cgs(
         rout.fluid.vel_proper_code[first:last],
         code_units,
         'velocity_cgs_cm_s',
     ) / 1.0e5
-    time_myr = time_seconds(rout.fluid.time_proper_code, code_units) / float(
+    time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / float(
         (1.0 * unyt.Myr).to_value(unyt.s)
     )
-    radius_kpc = radius_proper_cgs_cm.to_value(unyt.kpc)
-    return time_myr, radius_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, velocity_km_s
+    radius_proper_kpc = radius_proper_cgs_cm.to_value(unyt.kpc)
+    return time_proper_Myr, radius_proper_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, vel_peculiar_proper_km_s
 
 
 def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
@@ -149,7 +149,7 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
     rows = []
     kpc_per_myr_to_km_s = 977.792221
     for snapshot_index in range(1, len(profiles) - 1):
-        time_myr, radius_proper_cgs_cm, density_proper_cgs_g_cm3, temperature_proper_cgs_K, vel_peculiar_proper_cgs_cm_s = profiles[snapshot_index]
+        time_proper_Myr, radius_proper_cgs_cm, density_proper_cgs_g_cm3, temperature_proper_cgs_K, vel_peculiar_proper_cgs_cm_s = profiles[snapshot_index]
         previous_time = profiles[snapshot_index - 1][0]
         next_time = profiles[snapshot_index + 1][0]
         dt_myr = next_time - previous_time
@@ -181,8 +181,8 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
             gamma,
         )
         rows.append({
-            'time_Myr': time_myr,
-            'shock_radius_kpc': shock_positions[snapshot_index],
+            'time_proper_Myr': time_proper_Myr,
+            'shock_radius_proper_kpc': shock_positions[snapshot_index],
             'shock_speed_km_s': shock_speed,
             'mach_number': mach_number,
             'measured_density_ratio': rho_downstream / max(rho_upstream, 1.0e-99),
@@ -197,7 +197,7 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
 def write_rankine_hugoniot_report(rows, filename):
     """Write the shock-jump comparison as a text table."""
     header = (
-        'time_Myr shock_radius_kpc shock_speed_km_s Mach '
+        'time_proper_Myr shock_radius_proper_kpc shock_speed_km_s Mach '
         'rho_ratio_measured rho_ratio_RH T_ratio_measured T_ratio_RH '
         'v_downstream_km_s'
     )
@@ -205,7 +205,7 @@ def write_rankine_hugoniot_report(rows, filename):
         report.write(header + '\n')
         for row in rows:
             report.write(
-                '%(time_Myr).8g %(shock_radius_kpc).8g '
+                '%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g '
                 '%(shock_speed_km_s).8g %(mach_number).8g '
                 '%(measured_density_ratio).8g %(predicted_density_ratio).8g '
                 '%(measured_temperature_ratio).8g %(predicted_temperature_ratio).8g '
@@ -225,15 +225,15 @@ def plot_snapshots(filenames, config, _unused, figure_filename):
         initial_condition['overdensity'],
         initial_condition['h0'],
     )
-    virial_radius_kpc = halo['virial_radius'].to_value(unyt.kpc)
+    virial_radius_proper_kpc = halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
     for color, filename in zip(colors, filenames):
-        time_myr, radius_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, _ = _snapshot_profiles(
+        time_proper_Myr, radius_proper_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, _ = _snapshot_profiles(
             filename,
             config,
         )
-        label = f'{time_myr:.0f} Myr'
-        axes[0].plot(radius_kpc, density_proper_cgs_g_cm3, color=color, label=label)
-        axes[1].plot(radius_kpc, temperature_proper_cgs_K, color=color, label=label)
+        label = f'{time_proper_Myr:.0f} Myr'
+        axes[0].plot(radius_proper_kpc, density_proper_cgs_g_cm3, color=color, label=label)
+        axes[1].plot(radius_proper_kpc, temperature_proper_cgs_K, color=color, label=label)
     axes[0].set_yscale('log')
     axes[1].set_yscale('log')
     axes[0].set_xlabel('r [kpc]')
@@ -241,12 +241,12 @@ def plot_snapshots(filenames, config, _unused, figure_filename):
     axes[0].set_ylabel(r'$\rho$ [g cm$^{-3}$]')
     axes[1].set_ylabel('T [K]')
     for axis in axes:
-        axis.axvline(virial_radius_kpc, color='black', ls=':', alpha=0.6)
-        axis.axvline(2.0 * virial_radius_kpc, color='black', ls='--', alpha=0.6)
+        axis.axvline(virial_radius_proper_kpc, color='black', ls=':', alpha=0.6)
+        axis.axvline(2.0 * virial_radius_proper_kpc, color='black', ls='--', alpha=0.6)
         axis.grid(True, which='both', alpha=0.25)
         axis.legend(frameon=False, fontsize=8)
-    axes[0].text(virial_radius_kpc, 0.04, 'R200', transform=axes[0].get_xaxis_transform(), ha='center')
-    axes[0].text(2.0 * virial_radius_kpc, 0.04, '2R200', transform=axes[0].get_xaxis_transform(), ha='center')
+    axes[0].text(virial_radius_proper_kpc, 0.04, 'R200', transform=axes[0].get_xaxis_transform(), ha='center')
+    axes[0].text(2.0 * virial_radius_proper_kpc, 0.04, '2R200', transform=axes[0].get_xaxis_transform(), ha='center')
     axes[1].axhline(2.7255, color='black', ls='--', alpha=0.6, label='CMB')
     axes[1].legend(frameon=False, fontsize=8)
     fig.suptitle('Virial shock around a 1e8 Msun NFW halo')

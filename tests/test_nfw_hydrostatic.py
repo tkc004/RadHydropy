@@ -19,10 +19,13 @@ SPEC.loader.exec_module(TOOLS)
 
 def test_nfw_parameters_recover_halo_mass():
     halo = TOOLS.nfw_halo_parameters(1.0e8 * unyt.Msun)
-    enclosed = TOOLS.nfw_enclosed_mass(halo['virial_radius'], halo)
+    enclosed = TOOLS.nfw_enclosed_mass(halo['radius_virial_proper_kpc_unyt'], halo)
 
     assert np.isclose(enclosed.to_value(unyt.Msun), 1.0e8, rtol=1.0e-12)
-    assert np.isclose(halo['scale_radius'].to_value(unyt.kpc), 0.1 * halo['virial_radius'].to_value(unyt.kpc))
+    assert np.isclose(
+        halo['radius_scale_proper_kpc_unyt'].to_value(unyt.kpc),
+        0.1 * halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc),
+    )
 
 
 def test_hydrostatic_profile_has_the_expected_pressure_gradient():

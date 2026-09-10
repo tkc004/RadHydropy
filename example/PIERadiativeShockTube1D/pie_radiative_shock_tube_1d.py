@@ -105,10 +105,10 @@ def _shock_diagnostics(result, table, config):
     # output here made the report and cooling-length overlays describe the
     # barely developed initial transient rather than the displayed shock.
     shock_snapshot = snapshot
-    rho_proper_cgs_g_cm3 = shock_snapshot['density_cgs_g_cm3']
-    temperature_proper_cgs_K = shock_snapshot['temperature_cgs_K']
-    vel_proper_cgs_cm_s = shock_snapshot['velocity_cgs_cm_s']
-    boundary_proper_cgs_cm = shock_snapshot['boundary_cgs_cm']
+    rho_proper_cgs_g_cm3 = shock_snapshot['rho_proper_cgs_g_cm3']
+    temperature_proper_cgs_K = shock_snapshot['temperature_proper_cgs_K']
+    vel_proper_cgs_cm_s = shock_snapshot['vel_peculiar_proper_cgs_cm_s']
+    boundary_proper_cgs_cm = shock_snapshot['boundary_proper_cgs_cm']
     centers_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[1:] + boundary_proper_cgs_cm[:-1])
     center_proper_cgs_cm = 0.5 * np.max(boundary_proper_cgs_cm)
     right = (centers_proper_cgs_cm > center_proper_cgs_cm) & (centers_proper_cgs_cm < center_proper_cgs_cm + 0.45 * np.max(boundary_proper_cgs_cm))
@@ -143,13 +143,13 @@ def _shock_diagnostics(result, table, config):
             gamma, result['metallicity'], float(thermo['metal_pie_redshift']),
             post_velocity,
         )
-    final_boundary_proper_cgs_cm = snapshot['boundary_cgs_cm']
+    final_boundary_proper_cgs_cm = snapshot['boundary_proper_cgs_cm']
     final_centers_proper_cgs_cm = 0.5 * (final_boundary_proper_cgs_cm[1:] + final_boundary_proper_cgs_cm[:-1])
     final_centers_proper_cgs_cm -= center_proper_cgs_cm
     hot_layer = (
         (final_centers_proper_cgs_cm > 0.0)
         & (final_centers_proper_cgs_cm < centers_proper_cgs_cm[shock_index] - center_proper_cgs_cm)
-        & (snapshot['temperature_cgs_K'] > 0.9 * post_temperature)
+        & (snapshot['temperature_proper_cgs_K'] > 0.9 * post_temperature)
     )
     measured_length = (
         centers_proper_cgs_cm[shock_index] - np.min(final_centers_proper_cgs_cm[hot_layer])
@@ -177,7 +177,7 @@ def _plot(results, filename):
     for index, result in enumerate(results):
         data = result['snapshot']
         x_kpc = (
-            0.5 * (data['boundary_cgs_cm'][1:] + data['boundary_cgs_cm'][:-1])
+            0.5 * (data['boundary_proper_cgs_cm'][1:] + data['boundary_proper_cgs_cm'][:-1])
             / KPC_CM
         )
         x_kpc -= 0.5 * np.max(x_kpc)
@@ -185,11 +185,11 @@ def _plot(results, filename):
         label = result['label']
         color = colors[index % len(colors)]
         result['_plot_color'] = color
-        axes[0, 0].plot(x_kpc, data['density_cgs_g_cm3'], style, color=color, label=label)
-        axes[0, 1].plot(x_kpc, data['temperature_cgs_K'], style, color=color, label=label)
-        axes[1, 0].plot(x_kpc, data['velocity_cgs_cm_s'] / 1.0e5, style, color=color, label=label)
+        axes[0, 0].plot(x_kpc, data['rho_proper_cgs_g_cm3'], style, color=color, label=label)
+        axes[0, 1].plot(x_kpc, data['temperature_proper_cgs_K'], style, color=color, label=label)
+        axes[1, 0].plot(x_kpc, data['vel_peculiar_proper_cgs_cm_s'] / 1.0e5, style, color=color, label=label)
         axes[1, 1].plot(
-            x_kpc, data['temperature_cgs_K'] / result['post_temperature_cgs_K'],
+            x_kpc, data['temperature_proper_cgs_K'] / result['post_temperature_cgs_K'],
             style, color=color, label=label,
         )
     for result in results:

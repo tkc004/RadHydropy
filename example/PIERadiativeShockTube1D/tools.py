@@ -84,20 +84,20 @@ def load_output_state(filename, config):
         first:first + count + 1
     ]
     return {
-        'time_Myr': (
+        'time_proper_Myr': (
             float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
             * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
         ),
-        'boundary_cgs_cm': boundary_proper_code * float(
+        'boundary_proper_cgs_cm': boundary_proper_code * float(
             code_units.length_unit.to_value('cm')
         ),
-        'density_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
+        'rho_proper_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
             code_units.density_unit.to_value('g/cm**3')
         ),
-        'velocity_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
+        'vel_peculiar_proper_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
             code_units.velocity_unit.to_value('cm/s')
         ),
-        'temperature_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
+        'temperature_proper_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
             code_units.temperature_unit.to_value('K')
         ),
     }

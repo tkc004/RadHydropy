@@ -114,7 +114,7 @@ def _run_stage(config, halo, mode, restart=False):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-            sim.mesh.geometry_state.x_proper_code, halo['scale_density'], halo['scale_radius'],
+            sim.mesh.geometry_state.x_proper_code, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt'],
             code_units=sim.par.units.CodeUnits,
         ),
         coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
@@ -292,8 +292,8 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     write_stability_report(stability, stability_report)
     plot_stability_diagnostics(stability, stability_figure)
 
-    print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
-    print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
+    print('halo mass = %.6g Msun' % halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun))
+    print('R200 = %.6g kpc' % halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc))
     print('Tvir = %.6g K' % virial_temperature(halo, initial_condition['mu']).to_value(unyt.K))
     print('outer PIE temperature = %.6g K' % inflow['temperature_inflow_proper'].to_value(unyt.K))
     print('adiabatic snapshots = %d; PIE snapshots = %d' % (

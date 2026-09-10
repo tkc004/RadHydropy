@@ -4,47 +4,52 @@ import numpy as np
 import unyt
 
 
-def stromgren_radius(source_photon_rate, hydrogen_number_density, alpha_B):
+def stromgren_radius(source_photon_rate_unyt, hydrogen_number_density_unyt, alpha_B_unyt):
     """Return the on-the-spot Stromgren radius."""
 
     radius_cubed = (
         3.0
-        * source_photon_rate
-        / (4.0 * np.pi * alpha_B * hydrogen_number_density**2)
+        * source_photon_rate_unyt
+        / (4.0 * np.pi * alpha_B_unyt * hydrogen_number_density_unyt**2)
     )
     return radius_cubed**(1.0 / 3.0)
 
 
 def stromgren_optical_depth(
-    source_photon_rate,
-    hydrogen_number_density,
-    sigma_gamma,
-    alpha_B,
+    source_photon_rate_unyt,
+    hydrogen_number_density_unyt,
+    sigma_gamma_unyt,
+    alpha_B_unyt,
 ):
     """Return ``tau_S = nH sigma_gamma R_S``."""
 
     radius_stromgren_proper_unyt = stromgren_radius(
-        source_photon_rate,
-        hydrogen_number_density,
-        alpha_B,
+        source_photon_rate_unyt,
+        hydrogen_number_density_unyt,
+        alpha_B_unyt,
     )
-    return (hydrogen_number_density * sigma_gamma * radius_stromgren_proper_unyt).to_value('')
+    return (hydrogen_number_density_unyt * sigma_gamma_unyt * radius_stromgren_proper_unyt).to_value('')
 
 
-def recombination_time(hydrogen_number_density, alpha_B):
+def recombination_time(hydrogen_number_density_unyt, alpha_B_unyt):
     """Return the case-B recombination time."""
 
-    return (1.0 / (alpha_B * hydrogen_number_density)).to(unyt.Myr)
+    return (1.0 / (alpha_B_unyt * hydrogen_number_density_unyt)).to(unyt.Myr)
 
 
-def ionization_front_radius(time_proper_code, source_photon_rate, hydrogen_number_density, alpha_B):
+def ionization_front_radius(
+    time_proper_code,
+    source_photon_rate_unyt,
+    hydrogen_number_density_unyt,
+    alpha_B_unyt,
+):
     """Return ``R_I(t) = R_S [1 - exp(-t / tau_r)]^(1/3)``."""
 
     radius_stromgren_proper_unyt = stromgren_radius(
-        source_photon_rate, hydrogen_number_density, alpha_B
+        source_photon_rate_unyt, hydrogen_number_density_unyt, alpha_B_unyt
     )
     time_recombination_proper_unyt = recombination_time(
-        hydrogen_number_density, alpha_B
+        hydrogen_number_density_unyt, alpha_B_unyt
     )
     value = 1.0 - np.exp(
         -(time_proper_code / time_recombination_proper_unyt).to_value('')
@@ -54,10 +59,10 @@ def ionization_front_radius(time_proper_code, source_photon_rate, hydrogen_numbe
 
 def neutral_fraction_profile(
     radius_proper_unyt,
-    hydrogen_number_density,
-    sigma_gamma,
-    alpha_B,
-    source_photon_rate,
+    hydrogen_number_density_unyt,
+    sigma_gamma_unyt,
+    alpha_B_unyt,
+    source_photon_rate_unyt,
     inner_radius_proper_unyt=0.1 * unyt.kpc,
     nsteps=60000,
 ):
@@ -72,12 +77,12 @@ def neutral_fraction_profile(
     radius_proper_cgs_cm_unyt = radius_proper_unyt.to(unyt.cm)
     inner_radius_proper_cgs_cm_unyt = inner_radius_proper_unyt.to(unyt.cm)
     x_analytic = (
-        hydrogen_number_density
-        * alpha_B
+        hydrogen_number_density_unyt
+        * alpha_B_unyt
         * 4.0
         * np.pi
-        / sigma_gamma
-        / source_photon_rate
+        / sigma_gamma_unyt
+        / source_photon_rate_unyt
         * radius_proper_cgs_cm_unyt**2
     ).to_value('')
     x_analytic = np.clip(x_analytic, 1.0e-300, 1.0 - 1.0e-12)
@@ -88,23 +93,23 @@ def neutral_fraction_profile(
 
     optical_depth_start = (
         inner_radius_proper_cgs_cm_unyt
-        * hydrogen_number_density
-        * sigma_gamma
+        * hydrogen_number_density_unyt
+        * sigma_gamma_unyt
     ).to_value('')
     optical_depth_end = (
         np.amax(radius_proper_cgs_cm_unyt[integrate])
-        * hydrogen_number_density
-        * sigma_gamma
+        * hydrogen_number_density_unyt
+        * sigma_gamma_unyt
     ).to_value('')
     optical_depth_grid = np.linspace(optical_depth_start, optical_depth_end, nsteps)
     x_grid = np.empty_like(optical_depth_grid)
     x_grid[0] = (
-        hydrogen_number_density
-        * alpha_B
+        hydrogen_number_density_unyt
+        * alpha_B_unyt
         * 4.0
         * np.pi
-        / sigma_gamma
-        / source_photon_rate
+        / sigma_gamma_unyt
+        / source_photon_rate_unyt
         * inner_radius_proper_cgs_cm_unyt**2
     ).to_value('')
 
@@ -128,8 +133,8 @@ def neutral_fraction_profile(
 
     optical_depth_target = (
         radius_proper_cgs_cm_unyt[integrate]
-        * hydrogen_number_density
-        * sigma_gamma
+        * hydrogen_number_density_unyt
+        * sigma_gamma_unyt
     ).to_value('')
     x_analytic[integrate] = np.interp(
         optical_depth_target,

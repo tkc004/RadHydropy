@@ -60,8 +60,8 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         potential=nfw_potential(
             sim.mesh.geometry_state.x_proper_code,
-            halo['scale_density'],
-            halo['scale_radius'],
+            halo['rho_scale_cgs_g_cm3_unyt'],
+            halo['radius_scale_proper_kpc_unyt'],
             code_units=code_units,
         ),
         coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
@@ -90,14 +90,14 @@ def main(config_filename=DEFAULT_CONFIG):
         'NFWVirialShock1D_RankineHugoniot.txt',
     )
     et.write_rankine_hugoniot_report(rh_rows, rh_filename)
-    print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
-    print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
+    print('halo mass = %.6g Msun' % halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun))
+    print('R200 = %.6g kpc' % halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc))
     print('Tvir = %.6g K' % et.NFW.virial_temperature(halo, initial_condition['mu']).to_value(unyt.K))
     print('snapshots = %d' % len(output_files))
     print('Rankine-Hugoniot checks = %d' % len(rh_rows))
     for row in rh_rows:
         print(
-            'RH t=%(time_Myr).0f Myr, r_shock=%(shock_radius_kpc).3g kpc, '
+            'RH t=%(time_proper_Myr).0f Myr, r_shock=%(shock_radius_proper_kpc).3g kpc, '
             'Mach=%(mach_number).3g, rho=%(measured_density_ratio).3g/'
             '%(predicted_density_ratio).3g, T=%(measured_temperature_ratio).3g/'
             '%(predicted_temperature_ratio).3g' % row
