@@ -48,8 +48,6 @@ def _read_profile(filename, config):
     velocity_proper_code = np.asarray(fluid.vel_proper_code[first:first + count], dtype=float)
     temp_proper_code = np.asarray(fluid.temp_proper_code[first:first + count], dtype=float)
     mu = np.asarray(fluid.mu[first:first + count], dtype=float)
-    rho_proper = rho_proper_code
-    temp_proper = temp_proper_code
     eos = EOS("polytropic", gamma=1.4, code_units=code_unit_system)
     pressure_proper_code = eos.pressure(
         rho_proper_code, temp_proper_code, mu
@@ -79,7 +77,7 @@ def _read_profile(filename, config):
         rho_proper_code,
         velocity_proper_code,
         temp_proper_code,
-        mass,
+        total_mass_code,
         total_energy_proper_code,
         thermal,
     )
@@ -131,9 +129,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     selected = np.unique(np.linspace(0, len(profiles) - 1, min(6, len(profiles))).astype(int))
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
     for index in selected:
-        radius, rho, velocity, temp, _, _, _ = profiles[index]
-        axes[0].plot(radius, rho, label=f"output {index:03d}")
-        axes[1].plot(radius, temp, label=f"output {index:03d}")
+        radius_proper_code, rho_proper_code, velocity_proper_code, temp_proper_code, _, _, _ = profiles[index]
+        axes[0].plot(radius_proper_code, rho_proper_code, label=f"output {index:03d}")
+        axes[1].plot(radius_proper_code, temp_proper_code, label=f"output {index:03d}")
     axes[0].set_ylabel("density [code units]")
     axes[1].set_ylabel("temperature [code units]")
     axes[1].set_xlabel("radius [code length]")
@@ -150,7 +148,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
     print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
     print(f"thermal energy increase = {thermal_energy[-1] / thermal_energy[0]:.6e}")
-    print(f"central temperature amplification = {np.max(final_temperature) / np.max(temperature_proper):.6e}")
+    print(
+        "central temperature amplification = "
+        f"{np.max(final_temperature_proper_code) / np.max(temperature_proper_code):.6e}"
+    )
     return figure
 
 

@@ -36,13 +36,13 @@ os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 def _pressure_diagnostic(snapshot, config):
     """Return shell wind pressure, photoheated gas pressure, and shell radius."""
     par, mesh, fluid = et.load_output_state(snapshot, config)
-    interior = et.interior_slice(par)
-    radius_pc = et._to_kpc(mesh.x_proper_code[interior], par) * 1000.0
+    interior = et.interior_slice(config)
+    radius_pc = et._to_kpc(mesh.x_proper_code[interior], config) * 1000.0
     hydrogen_number_density_cgs_cm3 = et._to_number_density(
-        fluid.rho_proper_code[interior], par
+        fluid.rho_proper_code[interior], config
     )
     pressure_proper_cgs_erg_cm3 = et._to_pressure(
-        fluid.pre_proper_code[interior], par
+        fluid.pre_proper_code[interior], config
     )
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
 
@@ -80,7 +80,7 @@ def _pressure_diagnostic(snapshot, config):
         if weighted_volume > 0.0
         else 0.0
     )
-    time_myr = float(np.asarray(et._to_myr(fluid.time_proper_code, par)))
+    time_myr = float(np.asarray(et._to_myr(fluid.time_proper_code, config)))
     return time_myr, wind_pressure_proper_cgs_dyn_cm2, gas_pressure, shell_radius_pc
 
 

@@ -24,74 +24,62 @@ from basic_hydro_utils import make_initial_condition
 IONIZATION_FRONT_NEUTRAL_FRACTION = 0.5
 
 
-def _to_kpc(values, par):
+def _to_kpc(values, config):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.kpc), dtype=float)
-    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
-    if code is None:
-        return np.asarray(values, dtype=float)
+    code = config['_output_par'].units.CodeUnits
     return np.asarray(
         code_quantity_to_cgs(values, code, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm),
         dtype=float,
     )
 
 
-def _to_myr(values, par):
+def _to_myr(values, config):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.Myr), dtype=float)
-    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
-    if code is None:
-        return np.asarray(values, dtype=float)
+    code = config['_output_par'].units.CodeUnits
     return np.asarray(
         code_quantity_to_cgs(values, code, 'time_s') / (1.0 * unyt.Myr).to_value(unyt.s),
         dtype=float,
     )
 
 
-def _to_km_s(values, par):
+def _to_km_s(values, config):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.km / unyt.s), dtype=float)
-    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
-    if code is None:
-        return np.asarray(values, dtype=float)
+    code = config['_output_par'].units.CodeUnits
     return np.asarray(
         code_quantity_to_cgs(values, code, 'velocity_cgs_cm_s') / (1.0 * unyt.km).to_value(unyt.cm),
         dtype=float,
     )
 
 
-def _to_number_density(values, par):
+def _to_number_density(values, config):
     if hasattr(values, 'to_value'):
         density_proper_cgs_g_cm3 = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
         return density_proper_cgs_g_cm3 / (1.0 * unyt.mp).to_value(unyt.g)
-    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
-    if code is None:
-        return np.asarray(values, dtype=float)
+    code = config['_output_par'].units.CodeUnits
     return np.asarray(
         code_quantity_to_cgs(values, code, 'density_cgs_g_cm3') / (1.0 * unyt.mp).to_value(unyt.g),
         dtype=float,
     )
 
 
-def _to_pressure(values, par):
+def _to_pressure(values, config):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.g / unyt.cm / unyt.s**2), dtype=float)
-    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
-    if code is None:
-        return np.asarray(values, dtype=float)
+    code = config['_output_par'].units.CodeUnits
     return np.asarray(code_quantity_to_cgs(values, code, 'pressure_cgs_erg_cm3'), dtype=float)
 
 
-def _to_temperature(values, par):
+def _to_temperature(values, config):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.K), dtype=float)
-    code = getattr(getattr(par, 'units', None), 'CodeUnits', None)
-    if code is None:
-        return np.asarray(values, dtype=float)
+    code = config['_output_par'].units.CodeUnits
     return np.asarray(code_quantity_to_cgs(values, code, 'temperature_cgs_K'), dtype=float)
 
 
-def _attach_proper_runtime_states(par, mesh, fluid):
+def _attach_proper_runtime_states(config, mesh, fluid):
     """Attach unitless proper-code geometry and fluid states for HDF5."""
     boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
     width_proper_code = np.diff(boundary_proper_code)
@@ -216,7 +204,8 @@ def output_files(outdir, outfileprefix):
     return sorted(filenames)
 
 
-def interior_slice(par):
+def interior_slice(config):
+    par = config['_output_par']
     first = int(par.mesh.ghost_cells)
     return slice(first, first + int(par.mesh.grid_cells))
 
@@ -227,9 +216,8 @@ def ionization_front_position(
     config,
     neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
 ):
-    par = config['_output_par']
-    interior = interior_slice(par)
-    radius_proper_kpc = _to_kpc(mesh.x_proper_code[interior], par)
+    interior = interior_slice(config)
+    radius_proper_kpc = _to_kpc(mesh.x_proper_code[interior], config)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
     if np.all(xHI > neutral_fraction):
@@ -253,10 +241,9 @@ def ionization_front_position(
 
 
 def mean_ionized_temperature(fluid, config):
-    par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], config)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
@@ -264,8 +251,7 @@ def mean_ionized_temperature(fluid, config):
 
 
 def append_history(history, mesh, fluid, config):
-    par = config['_output_par']
-    history['time_Myr'].append(_to_myr(fluid.time_proper_code, par))
+    history['time_Myr'].append(_to_myr(fluid.time_proper_code, config))
     history['front_radius_kpc'].append(
         ionization_front_position(
             mesh,
@@ -437,15 +423,14 @@ def save_front_plot(history, config, figure_filename):
 
 
 def save_plot(mesh, fluid, config, figure_filename):
-    par = config['_output_par']
     example = config.get('example', {})
-    interior = interior_slice(par)
-    radius_pc = _to_kpc(mesh.x_proper_code[interior], par) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho_proper_code[interior], par)
-    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], par)
+    interior = interior_slice(config)
+    radius_pc = _to_kpc(mesh.x_proper_code[interior], config) * (1.0 * unyt.kpc).to_value(unyt.pc)
+    number_density = _to_number_density(fluid.rho_proper_code[interior], config)
+    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], par)
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
+    pressure_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], config)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], config)
     plot_radius_max = example['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

@@ -54,7 +54,9 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
         boundary_proper_code[:-1] + boundary_proper_code[1:]
     )
     radius_proper_code = radius_proper_code[interior]
-    radius = radius_proper_code * float(code_units.length_unit.to_value(unyt.kpc)) / 5.4
+    radius_proper_kpc = (
+        radius_proper_code * float(code_units.length_unit.to_value(unyt.kpc)) / 5.4
+    )
     snapshot = {
         "H I": xhi[interior],
         "H II": 1.0 - xhi[interior],
@@ -77,7 +79,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
     )
     fig, axes = plt.subplots(2, 3, figsize=(13.0, 7.5), sharex=True)
     for axis, (species, reference_name) in zip(axes.flat, references.items()):
-        axis.plot(radius, np.clip(snapshot[species], 1.0e-12, 1.0),
+        axis.plot(radius_proper_kpc, np.clip(snapshot[species], 1.0e-12, 1.0),
                   color="tab:blue", label=snapshot_label)
         reference = np.loadtxt(HERE / reference_name, delimiter=",")
         axis.scatter(reference[:, 0], 10.0 ** reference[:, 1],
@@ -91,7 +93,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
     temperature_axis = axes[1, 2]
     temperature_axis.clear()
     temperature_axis.plot(
-        radius,
+        radius_proper_kpc,
         np.clip(
             temperature_proper_code[interior]
             * float(code_units.temperature_unit.to_value(unyt.K)),

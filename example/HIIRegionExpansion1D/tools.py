@@ -121,17 +121,18 @@ def output_files(outdir, outfileprefix):
     return sorted(glob.glob(pattern))
 
 
-def interior_slice(par):
-    mesh = getattr(par, 'mesh', None)
-    ghost_cells = getattr(mesh, 'ghost_cells', getattr(par, 'noghost', 0))
-    grid_cells = getattr(mesh, 'grid_cells', getattr(par, 'nogrid', None))
+def interior_slice(config):
+    par = config['_output_par']
+    mesh = par.mesh
+    ghost_cells = int(mesh.ghost_cells)
+    grid_cells = int(mesh.grid_cells)
     return slice(ghost_cells, ghost_cells + grid_cells)
 
 
 def refresh_state(mesh, fluid, config, solver):
     par = config['_output_par']
     solver.SetBoundary(mesh, fluid, par)
-    solver.SetConserved(mesh, fluid, verbose=getattr(par, 'verbose', 0))
+    solver.SetConserved(mesh, fluid, verbose=par.verbose)
 
 
 def apply_piecewise_isothermal_state(sim, config):
@@ -155,7 +156,8 @@ def time_myr(value, code_unit_system):
 def print_startup_diagnostics(sim, config, initial_condition):
     """Print the main physical scales before the long run starts."""
     initial_condition = config['initial_condition']
-    interior = interior_slice(sim.par)
+    config['_output_par'] = sim.par
+    interior = interior_slice(config)
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
     vel_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
     temp_proper_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
@@ -244,7 +246,8 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
     base_step_backend = make_piecewise_isothermal_step_backend(sim, config)
     code_units_obj = sim.par.units.CodeUnits
     state = {'count': 0}
-    interior = interior_slice(sim.par)
+    config['_output_par'] = sim.par
+    interior = interior_slice(config)
 
     def step_backend(dt=None, mode='hydro_sources', advect_chemistry=True):
         step_index = state['count']
@@ -316,7 +319,7 @@ def _scalar_in_unit(value, unit):
 
 def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     radius_proper_pc = _value_in_unit(mesh.x_proper_code[interior], unyt.pc)
     xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
 
@@ -358,7 +361,7 @@ def load_history_from_outputs(outputfilenames, config):
 
 def density_snapshot(mesh, fluid, config):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     ngamma_code = np.asarray(fluid.ngamma_code)
     if ngamma_code.ndim > 1:
         ngamma_code = np.sum(ngamma_code, axis=0)

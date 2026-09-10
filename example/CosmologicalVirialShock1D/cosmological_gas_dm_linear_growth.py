@@ -263,7 +263,9 @@ def _make_matched_initial_state(config):
 
 
 def _snapshot(sim, dm, cosmic_time, config,
-              initial_scale_factor, diagnostic_min, diagnostic_max):
+              initial_scale_factor,
+              diagnostic_radius_inner_comoving_code,
+              diagnostic_radius_outer_comoving_code):
     cosmology = config["_cosmology"]
     initial_condition = config["initial_condition"]
     first = int(sim.par.mesh.ghost_cells)
@@ -320,15 +322,19 @@ def _snapshot(sim, dm, cosmic_time, config,
 
     density_signal = np.abs(delta_analytic) > 1.0e-7
     gas_valid = (
-        (x >= diagnostic_min) & (x <= diagnostic_max) & density_signal
+        (x >= diagnostic_radius_inner_comoving_code)
+        & (x <= diagnostic_radius_outer_comoving_code)
+        & density_signal
     )
     dm_density_analytic = growth * dm_mean_delta_initial
     dm_density_valid = (
-        (dm_x >= diagnostic_min) & (dm_x <= diagnostic_max)
+        (dm_x >= diagnostic_radius_inner_comoving_code)
+        & (dm_x <= diagnostic_radius_outer_comoving_code)
         & (np.abs(dm_density_analytic) > 1.0e-7)
     )
     dm_velocity_valid = (
-        (dm_x >= diagnostic_min) & (dm_x <= diagnostic_max)
+        (dm_x >= diagnostic_radius_inner_comoving_code)
+        & (dm_x <= diagnostic_radius_outer_comoving_code)
         & (np.abs(dm_velocity_analytic) > 1.0e-12)
     )
     velocity_valid = gas_valid & (np.abs(gas_velocity_analytic) > 1.0e-12)
@@ -372,7 +378,8 @@ def _snapshot(sim, dm, cosmic_time, config,
 
 
 def _save_outputs(history, output_dir, force_mode, positivity_factors,
-                  diagnostic_min, diagnostic_max):
+                  diagnostic_radius_inner_comoving_code,
+                  diagnostic_radius_outer_comoving_code):
     output_dir.mkdir(parents=True, exist_ok=True)
     data = {
         key: np.asarray([snapshot[key] for snapshot in history])
@@ -386,8 +393,14 @@ def _save_outputs(history, output_dir, force_mode, positivity_factors,
     final = history[-1]
     radius_comoving_code = final["radius_comoving_kpc"]
     dm_radius = final["dm_radius_comoving_kpc"]
-    gas_plot = (radius_comoving_code >= diagnostic_min) & (radius_comoving_code <= diagnostic_max)
-    dm_plot = (dm_radius >= diagnostic_min) & (dm_radius <= diagnostic_max)
+    gas_plot = (
+        (radius_comoving_code >= diagnostic_radius_inner_comoving_code)
+        & (radius_comoving_code <= diagnostic_radius_outer_comoving_code)
+    )
+    dm_plot = (
+        (dm_radius >= diagnostic_radius_inner_comoving_code)
+        & (dm_radius <= diagnostic_radius_outer_comoving_code)
+    )
     figure, axes = plt.subplots(2, 2, figsize=(11.0, 8.0))
     axes[0, 0].plot(radius_comoving_code[gas_plot], final["delta_bar_analytic"][gas_plot], "k-", label="analytic")
     axes[0, 0].plot(radius_comoving_code[gas_plot], final["delta_bar_gas"][gas_plot], "C0--", label="gas")
@@ -569,8 +582,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         initial_condition["cie_temperature_proper"],
         code_unit_system.temperature_unit,
     ) * initial_scale_factor**2
-    diagnostic_min = float(example["diagnostic_radius_min_comoving_code"])
-    diagnostic_max = float(example["diagnostic_radius_max_comoving_code"])
+    diagnostic_radius_inner_comoving_code = quantity_to_value(
+        example["radius_diagnostic_inner_comoving"],
+        code_unit_system.length_unit,
+    )
+    diagnostic_radius_outer_comoving_code = quantity_to_value(
+        example["radius_diagnostic_outer_comoving"],
+        code_unit_system.length_unit,
+    )
     snapshot_count = int(example.get("snapshot_count", 9))
     snapshot_times = np.geomspace(initial_time, final_time, snapshot_count)
     snapshot_taus = np.asarray(cosmology.supercomoving_time(snapshot_times), dtype=float)
@@ -584,7 +603,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     history = [_snapshot(
         sim, dm, initial_time, config,
-        initial_scale_factor, diagnostic_min, diagnostic_max,
+        initial_scale_factor,
+        diagnostic_radius_inner_comoving_code,
+        diagnostic_radius_outer_comoving_code,
     )]
     steps = 0
     for target_tau in snapshot_taus[1:]:
@@ -621,13 +642,16 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         history.append(_snapshot(
             sim, dm, cosmic_time, config,
-            initial_scale_factor, diagnostic_min, diagnostic_max,
+                    initial_scale_factor,
+                    diagnostic_radius_inner_comoving_code,
+                    diagnostic_radius_outer_comoving_code,
         ))
 
     force_mode = "volume_linear" if smooth_force else "raw_step"
     data, figure, report = _save_outputs(
         history, output_dir, force_mode, diagnostic_solver.positivity_factors,
-        diagnostic_min, diagnostic_max,
+        diagnostic_radius_inner_comoving_code,
+        diagnostic_radius_outer_comoving_code,
     )
     final = history[-1]
     print("steps = %d" % steps)

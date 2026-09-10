@@ -248,11 +248,13 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         turnaround = _radius_turnaround_proper_code(shells, time_cosmic_code, config)
         if turnaround is None or not np.isfinite(turnaround):
             continue
-        radius = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
+        radius_proper_code = (
+            float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
+        )
         selected = slice(None, None, shell_stride)
-        xi_values.extend(np.full(radius[selected].shape,
+        xi_values.extend(np.full(radius_proper_code[selected].shape,
                                  np.log(time_cosmic_code / initial_time)))
-        lambda_values.extend((radius[selected] / turnaround).tolist())
+        lambda_values.extend((radius_proper_code[selected] / turnaround).tolist())
         turnaround_values.append((time_cosmic_code, turnaround))
         caustic = _outer_lagrangian_caustic_radius(
             shells, initial_q, time_cosmic_code, config,

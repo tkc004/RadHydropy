@@ -6,7 +6,7 @@ import unyt
 from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def build_initial_condition(config):
@@ -16,19 +16,30 @@ def build_initial_condition(config):
     mesh = config["par"]['mesh']
     code_units = config['_code_units']
     result = Rsim(config['par'])
+    time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
+    box_size_proper_code = quantity_to_value(
+        initial['box_size_proper'], code_units.length_unit
+    )
+    temperature_proper_code = quantity_to_value(
+        initial['temperature_proper'], code_units.temperature_unit
+    )
     result.par.mesh.grid_cells = int(mesh['grid_cells'])
     result.par.simulation.coordinate_system = simulation['coordinate_system']
-    result.par.simulation.time_proper_code = initial['time_proper']
-    result.par.simulation.box_size_proper_code = initial['box_size_proper']
+    result.par.simulation.time_proper_code = time_proper_code
+    result.par.simulation.box_size_proper_code = box_size_proper_code
     result.mesh.boundary_proper_code = np.linspace(
         0.0, 1.0, result.par.mesh.grid_cells + 1
-    ) * initial['box_size_proper']
+    ) * box_size_proper_code
     density_proper_cgs_g_cm3_unyt = (
         np.ones(result.par.mesh.grid_cells) * initial['hydrogen_number_density'] * unyt.mp
     )
-    result.fluid.rho_proper_code = density_proper_cgs_g_cm3_unyt
+    result.fluid.rho_proper_code = quantity_to_value(
+        density_proper_cgs_g_cm3_unyt, code_units.density_unit
+    )
     result.fluid.vel_proper_code = np.zeros(result.par.mesh.grid_cells, dtype=float)
-    result.fluid.temp_proper_code = np.ones(result.par.mesh.grid_cells) * initial['temperature_proper']
+    result.fluid.temp_proper_code = np.full(
+        result.par.mesh.grid_cells, temperature_proper_code
+    )
     result.fluid.xHI = np.ones(result.par.mesh.grid_cells) * initial['xHI']
     result.fluid.mu = np.ones(result.par.mesh.grid_cells) * initial['mean_molecular_weight']
     result.SetMesh()

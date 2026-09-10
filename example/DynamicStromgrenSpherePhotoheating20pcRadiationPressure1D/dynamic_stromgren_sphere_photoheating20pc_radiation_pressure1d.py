@@ -29,7 +29,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name(
 )
 
 
-def _radiation_impulse(sim, source_result, dt):
+def _radiation_impulse(sim, source_result, dt, config):
     absorbed = source_result.get("absorbed_photon_rate")
     energies = source_result.get("photon_energy_cgs_erg")
     if absorbed is None or energies is None:
@@ -38,7 +38,7 @@ def _radiation_impulse(sim, source_result, dt):
     if absorbed.ndim == 1:
         absorbed = absorbed[None, :]
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
-    interior = et.interior_slice(sim.par)
+    interior = et.interior_slice(config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
         sim.mesh.volume_proper_code[interior], dtype=float
@@ -54,21 +54,21 @@ def _radiation_impulse(sim, source_result, dt):
     )
 
 
-def _total_radial_momentum(sim):
-    interior = et.interior_slice(sim.par)
+def _total_radial_momentum(sim, config):
+    interior = et.interior_slice(config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     momentum_cgs = float((1.0 * code.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s))
     return float(np.sum(np.asarray(sim.fluid.Mom_code[interior], dtype=float)) * momentum_cgs)
 
 
-def _pressure_diagnostics(sim, source_result):
+def _pressure_diagnostics(sim, source_result, config):
     """Estimate radiation and photoheated-gas pressures in cgs units.
 
     The radiation pressure is the absorbed luminosity divided by the area of
     the ionization front and by ``c``.  The gas pressure is volume-weighted
     over the ionized region, using ``1 - xHI`` as the ionization weight.
     """
-    interior = et.interior_slice(sim.par)
+    interior = et.interior_slice(config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
         sim.mesh.volume_proper_code[interior], dtype=float
@@ -76,7 +76,7 @@ def _pressure_diagnostics(sim, source_result):
         (1.0 * code.volume_unit).to_value(unyt.cm**3)
     )
     pressure_cgs = et._to_pressure(
-        sim.fluid.pre_proper_code[interior], sim.par
+        sim.fluid.pre_proper_code[interior], config
     )
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
     weighted_volume = float(np.sum(volume_cgs_cm3 * ionized_weight))
@@ -97,7 +97,7 @@ def _pressure_diagnostics(sim, source_result):
         absorbed_luminosity = float(
             np.sum(np.sum(absorbed * energies[:, None], axis=0) * volume_cgs_cm3)
         )
-        front_kpc = et.ionization_front_position(sim.mesh, sim.fluid, sim.par)
+        front_kpc = et.ionization_front_position(sim.mesh, sim.fluid, config)
         front_cm = front_kpc * float((1.0 * unyt.kpc).to_value(unyt.cm))
         if front_cm > 0.0:
             radiation_pressure = absorbed_luminosity / (
@@ -126,10 +126,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     momentum_history = {
         "time_s": [0.0],
-        "gas_momentum": [_total_radial_momentum(sim)],
+        "gas_momentum": [_total_radial_momentum(sim, config)],
         "radiation_momentum": [0.0],
     }
-    radiation_pressure, gas_pressure = _pressure_diagnostics(sim, None)
+    radiation_pressure, gas_pressure = _pressure_diagnostics(sim, None, config)
     pressure_history = {
         "time_s": [0.0],
         "radiation_pressure": [radiation_pressure],
@@ -149,15 +149,18 @@ def main(config_filename=DEFAULT_CONFIG):
                 sim,
                 sim.last_source_result,
                 sim.last_source_dt,
+                config,
             )
         code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
         time_s = float(np.asarray(sim.fluid.time_proper_code)) * float(
             (1.0 * code.time_unit).to_value(unyt.s)
         )
         momentum_history["time_s"].append(time_s)
-        momentum_history["gas_momentum"].append(_total_radial_momentum(sim))
+        momentum_history["gas_momentum"].append(_total_radial_momentum(sim, config))
         momentum_history["radiation_momentum"].append(radiation_momentum)
-        radiation_pressure, gas_pressure = _pressure_diagnostics(sim, sim.last_source_result)
+        radiation_pressure, gas_pressure = _pressure_diagnostics(
+            sim, sim.last_source_result, config
+        )
         pressure_history["time_s"].append(time_s)
         pressure_history["radiation_pressure"].append(radiation_pressure)
         pressure_history["gas_pressure"].append(gas_pressure)

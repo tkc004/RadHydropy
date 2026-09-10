@@ -75,6 +75,6 @@ initial_condition:
   cie_temperature_proper: 0.0001
 example:
   snapshot_count: 7
-  diagnostic_radius_min_comoving_code: 20.0
-  diagnostic_radius_max_comoving_code: 200.0
+  radius_diagnostic_inner_comoving: {value: 20.0, unit: kpc}
+  radius_diagnostic_outer_comoving: {value: 200.0, unit: kpc}
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

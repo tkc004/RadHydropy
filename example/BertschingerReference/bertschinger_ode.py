@@ -141,26 +141,27 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
     branches = []
     max_step = float(xi_end) / max(1000, 2 * int(points))
 
-    def branch_roots(radius):
+    def branch_roots(radius_dimensionless):
         roots = []
         for branch in branches:
-            if branch['minimum'] <= radius <= branch['maximum']:
-                roots.append(float(branch['time_of_radius'](radius)))
+            if branch['minimum'] <= radius_dimensionless <= branch['maximum']:
+                roots.append(float(branch['time_of_radius'](radius_dimensionless)))
         return roots
 
-    def rhs(time_cosmic_code, state):
-        radius, radial_velocity = state
-        radius = max(float(radius), centre_match_lambda)
-        roots = branch_roots(radius)
-        roots.append(float(time_cosmic_code))
+    def rhs(similarity_time_dimensionless, state):
+        radius_dimensionless, radial_velocity_dimensionless = state
+        radius_dimensionless = max(float(radius_dimensionless), centre_match_lambda)
+        roots = branch_roots(radius_dimensionless)
+        roots.append(float(similarity_time_dimensionless))
         roots.sort()
-        mass = turnaround_mass_normalization * sum(
+        enclosed_mass_dimensionless = turnaround_mass_normalization * sum(
             (-1.0) ** index
             * np.exp(-2.0 * similarity_exponent * root / 3.0)
             for index, root in enumerate(roots))
-        return [radial_velocity,
-                -7.0 / 9.0 * radial_velocity + 8.0 / 81.0 * radius
-                - 2.0 / 9.0 * mass / radius**2]
+        return [radial_velocity_dimensionless,
+                -7.0 / 9.0 * radial_velocity_dimensionless
+                + 8.0 / 81.0 * radius_dimensionless
+                - 2.0 / 9.0 * enclosed_mass_dimensionless / radius_dimensionless**2]
 
     def centre_event(time_cosmic_code, state):
         return state[0] - centre_match_lambda
@@ -178,40 +179,41 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
         from scipy.interpolate import PchipInterpolator
 
         order = np.argsort(solution.y[0])
-        radius = solution.y[0][order]
-        time = solution.t[order]
-        unique = np.concatenate(([True], np.diff(radius) > 1.0e-12))
+        radius_dimensionless = solution.y[0][order]
+        similarity_time_dimensionless = solution.t[order]
+        unique = np.concatenate(([True], np.diff(radius_dimensionless) > 1.0e-12))
         if np.count_nonzero(unique) < 2:
             # At the resolution cutoff, a rapidly shrinking late branch can
             # be represented by a single solver point.  It carries no new
             # radial interval and is safely omitted from the closure.
             return
         branch = {
-            'minimum': float(radius[unique][0]),
-            'maximum': float(radius[unique][-1]),
+            'minimum': float(radius_dimensionless[unique][0]),
+            'maximum': float(radius_dimensionless[unique][-1]),
             'time_of_radius': PchipInterpolator(
-                radius[unique], time[unique], extrapolate=False),
+                radius_dimensionless[unique], similarity_time_dimensionless[unique],
+                extrapolate=False),
         }
         branches.append(branch)
 
-    output_time = []
+    output_similarity_time_dimensionless = []
     output_state = []
-    time = 0.0
+    similarity_time_dimensionless = 0.0
     state = np.array([1.0, -8.0 / 9.0])
     outbound = False
-    while time < xi_end - 1.0e-12:
+    while similarity_time_dimensionless < xi_end - 1.0e-12:
         event = apocentre_event if outbound else centre_event
         solution = solve_ivp(
-            rhs, (time, float(xi_end)), state, events=event,
+            rhs, (similarity_time_dimensionless, float(xi_end)), state, events=event,
             rtol=2.0e-10, atol=1.0e-12, max_step=max_step, method='RK45')
         if solution.t.size == 0:
             raise RuntimeError('empty Bertschinger phase-space branch')
-        output_time.extend(solution.t.tolist())
+        output_similarity_time_dimensionless.extend(solution.t.tolist())
         output_state.extend(solution.y.T.tolist())
         save_branch(solution)
-        time = float(solution.t[-1])
+        similarity_time_dimensionless = float(solution.t[-1])
         state = solution.y[:, -1].copy()
-        if time >= xi_end - 1.0e-12:
+        if similarity_time_dimensionless >= xi_end - 1.0e-12:
             break
         if not solution.t_events[0].size:
             raise RuntimeError('Bertschinger branch did not reach its event')
@@ -226,17 +228,23 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
             state[1] = float(centre_matching_velocity)
             outbound = True
 
-    output_time = np.asarray(output_time)
+    output_similarity_time_dimensionless = np.asarray(
+        output_similarity_time_dimensionless
+    )
     output_state = np.asarray(output_state)
-    unique = np.concatenate(([True], np.diff(output_time) > 1.0e-12))
-    output_time = output_time[unique]
+    unique = np.concatenate((
+        [True], np.diff(output_similarity_time_dimensionless) > 1.0e-12
+    ))
+    output_similarity_time_dimensionless = output_similarity_time_dimensionless[unique]
     output_state = output_state[unique]
     sample_time = np.linspace(0.0, float(xi_end), int(points))
-    output_lam = np.interp(sample_time, output_time, output_state[:, 0])
+    output_lam = np.interp(
+        sample_time, output_similarity_time_dimensionless, output_state[:, 0]
+    )
     output_velocity = np.interp(sample_time, output_time, output_state[:, 1])
     output_mass = np.empty_like(sample_time)
-    for index, radius in enumerate(output_lam):
-        roots = branch_roots(float(radius))
+    for index, radius_dimensionless in enumerate(output_lam):
+        roots = branch_roots(float(radius_dimensionless))
         roots.sort()
         output_mass[index] = turnaround_mass_normalization * sum(
             (-1.0) ** root_index

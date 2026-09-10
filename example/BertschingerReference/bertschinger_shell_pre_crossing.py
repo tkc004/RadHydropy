@@ -35,15 +35,22 @@ def make_turnaround_shells(config):
     initial_condition = config['initial_condition']
     code_unit_system = config['_code_units']
     cosmology = config['_cosmology']
-    turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
-    time = quantity_to_value(initial_condition['time_cosmic'], code_unit_system.time_unit)
-    scale_factor = float(cosmology.scale_factor(time))
-    hubble = float(cosmology.hubble(time))
+    radius_turnaround_comoving_code = float(
+        initial_condition.get('pre_crossing_turnaround_radius', 1.0)
+    )
+    time_cosmic_code = quantity_to_value(
+        initial_condition['time_cosmic'], code_unit_system.time_unit
+    )
+    scale_factor_dimensionless = float(cosmology.scale_factor(time_cosmic_code))
+    hubble_code = float(cosmology.hubble(time_cosmic_code))
     background_coefficient = 2.0 / (9.0 * cosmology.gravitational_constant)
     turnaround_mass = (9.0 * np.pi * np.pi / 16.0) * background_coefficient
-    fixed_total_mass = lambda r: turnaround_mass + background_coefficient * np.asarray(r) * np.asarray(r) * np.asarray(r)
-    shells = DarkMatterShells(radius=np.asarray([turnaround_radius]),
-                              velocity=np.asarray([-scale_factor * scale_factor * hubble * turnaround_radius]),
+    fixed_total_mass = lambda radius_comoving_code: (
+        turnaround_mass + background_coefficient * np.asarray(radius_comoving_code) ** 3
+    )
+    shells = DarkMatterShells(
+                              radius=np.asarray([radius_turnaround_comoving_code]),
+                              velocity=np.asarray([-scale_factor_dimensionless**2 * hubble_code * radius_turnaround_comoving_code]),
                               mass=np.asarray([1.0e-12]),
                               fixed_enclosed_mass=fixed_total_mass,
                               softening=float(initial_condition.get('pre_crossing_softening', 1.0e-3)),
@@ -72,13 +79,15 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     final_tau = float(cosmology.supercomoving_time(final_time))
     xi_history = [0.0]
     lambda_history = [1.0]
-    turnaround_radius = float(initial_condition.get('pre_crossing_turnaround_radius', 1.0))
+    radius_turnaround_comoving_code = float(
+        initial_condition.get('pre_crossing_turnaround_radius', 1.0)
+    )
     while tau < final_tau - 1.0e-12:
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
-        scale_factor = float(cosmology.scale_factor(cosmic_time))
-        rho_comoving = float(cosmology.background_density(cosmic_time)) * scale_factor**3
-        background_coefficient = 4.0 * np.pi / 3.0 * rho_comoving
-        background = lambda radius: background_coefficient * np.asarray(radius)**3
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
+        scale_factor_dimensionless = float(cosmology.scale_factor(time_cosmic_code))
+        rho_comoving_code = float(cosmology.background_density(time_cosmic_code)) * scale_factor_dimensionless**3
+        background_coefficient = 4.0 * np.pi / 3.0 * rho_comoving_code
+        background = lambda radius_comoving_code: background_coefficient * np.asarray(radius_comoving_code)**3
         dt = min(timestep, final_tau - tau)
         approaching = shells.velocity < 0.0
         if np.any(approaching):
@@ -86,27 +95,27 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
                 (shells.radius[approaching] + shells.softening)
                 / np.maximum(-shells.velocity[approaching], 1.0e-30))
             dt = min(dt, centre_dt)
-        next_time = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
+        next_time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
         actual_dt = shells.step(
             dt,
             crossing_safety_factor=float(example['crossing_safety_factor']),
             background_enclosed_mass=background,
-            scale_factor=scale_factor,
-            scale_factor_end=float(cosmology.scale_factor(next_time)),
+            scale_factor=scale_factor_dimensionless,
+            scale_factor_end=float(cosmology.scale_factor(next_time_cosmic_code)),
             cosmological=True,
             include_shell_mass_with_fixed=True,
         )
         tau += actual_dt
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
-        xi = np.log(cosmic_time / initial_time)
-        physical_radius = float(cosmology.scale_factor(cosmic_time)) * shells.radius[tracked]
-        similarity_turnaround = turnaround_radius * np.exp(8.0 * xi / 9.0)
-        lam = physical_radius / similarity_turnaround
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
+        xi = np.log(time_cosmic_code / initial_time)
+        radius_proper_code = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius[tracked]
+        radius_turnaround_proper_code = radius_turnaround_comoving_code * np.exp(8.0 * xi / 9.0)
+        lambda_dimensionless = radius_proper_code / radius_turnaround_proper_code
         if shells.radius[tracked] <= shells.softening:
-            lam = match_lambda
+            lambda_dimensionless = match_lambda
         xi_history.append(float(xi))
-        lambda_history.append(float(max(lam, 0.0)))
-        if lam <= match_lambda:
+        lambda_history.append(float(max(lambda_dimensionless, 0.0)))
+        if lambda_dimensionless <= match_lambda:
             break
     ode = solve_eq41_self_similar(
         xi_end=max(final_xi, 0.9),

@@ -187,7 +187,8 @@ def load_output_state(outputfilename, config):
     return par, mesh, fluid
 
 
-def interior_slice(par):
+def interior_slice(config):
+    par = config['_output_par']
     first = par.mesh.ghost_cells
     return slice(first, first + par.mesh.grid_cells)
 
@@ -209,7 +210,7 @@ def _radius_kpc(values, config):
 
 def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
 
@@ -233,7 +234,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
 
 def ionized_hydrogen_atoms(mesh, fluid, config):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     nH = rth._cgs_hydrogen_number_density(
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
@@ -245,7 +246,7 @@ def ionized_hydrogen_atoms(mesh, fluid, config):
 
 def photons_in_volume(mesh, fluid, config):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     photon_density_cgs_cm3 = code_quantity_to_cgs(
         fluid.ngamma_code[interior], par.units.CodeUnits, 'number_density_cgs_cm3'
     )
@@ -255,7 +256,7 @@ def photons_in_volume(mesh, fluid, config):
 
 def total_recombination_rate(mesh, fluid, config):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     nH = rth._cgs_hydrogen_number_density(
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
@@ -297,7 +298,7 @@ def save_plot(mesh, fluid, config, figure_filename):
     initial = config['initial_condition']
     thermo = config['par']['thermochemistry']
     example = config.get('example', {})
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     radius_kpc = _radius_kpc(mesh.x_proper_code[interior], config)
     radius_proper_kpc = radius_kpc * unyt.kpc
     plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
@@ -309,7 +310,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         thermo['hydrogen_sigma_gamma'],
         thermo['hydrogen_alpha_B'],
         radiation['source_photon_rate'],
-        inner_radius=example['analytic_inner_radius'],
+        inner_radius_proper_unyt=example['analytic_inner_radius'],
     )
     xHII_analytic = 1.0 - xHI_analytic
     radius_stromgren = sa.stromgren_radius(

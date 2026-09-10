@@ -27,15 +27,15 @@ for name, value in vars(template).items():
 def save_plot(mesh, fluid, config, figure_filename):
     """Save the inherited profile plot with a linear velocity axis."""
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     radius_pc = _to_kpc(
-        mesh.x_proper_code[interior], par
+        mesh.x_proper_code[interior], config
     ) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density_cgs_cm3 = _to_number_density(fluid.rho_proper_code[interior], par)
-    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], par)
+    number_density_cgs_cm3 = _to_number_density(fluid.rho_proper_code[interior], config)
+    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pre_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], par)
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], par)
+    pre_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], config)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], config)
     example_config = config['example']
     plot_radius_max = example_config['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example_config.get('reference_radius_unit', 15.0 * unyt.kpc)

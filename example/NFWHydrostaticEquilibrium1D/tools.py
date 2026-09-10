@@ -117,11 +117,15 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size_proper_unyt = initial_condition['box_size_proper']
-    time_value = initial_condition['time_proper']
-    radius_min = initial_condition['radius_inner_proper']
-    radius_max = initial_condition['radius_outer_proper']
-    boundary_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * (radius_max - radius_min) + radius_min
-    coordinate_unyt = spherical_cell_centers(boundary_unyt)
+    time_proper_unyt = initial_condition['time_proper']
+    radius_inner_proper_unyt = initial_condition['radius_inner_proper']
+    radius_outer_proper_unyt = initial_condition['radius_outer_proper']
+    boundary_proper_unyt = (
+        np.linspace(0.0, 1.0, grid_cells + 1)
+        * (radius_outer_proper_unyt - radius_inner_proper_unyt)
+        + radius_inner_proper_unyt
+    )
+    coordinate_proper_unyt = spherical_cell_centers(boundary_proper_unyt)
     halo = nfw_halo_parameters(
         initial_condition['halo_mass'],
         initial_condition['concentration'],
@@ -131,8 +135,8 @@ def build_initial_condition(config):
     )
     temperature_proper_unyt = virial_temperature(halo, initial_condition['mu'])
     density_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
-        coordinate_unyt,
-        boundary_unyt,
+        coordinate_proper_unyt,
+        boundary_proper_unyt,
         halo,
         temperature_proper_unyt,
         initial_condition['mu'],
@@ -140,7 +144,7 @@ def build_initial_condition(config):
     )
     return make_initial_condition(
         config,
-        boundary_proper_code=quantity_to_value(boundary_unyt, code_units.length_unit),
+        boundary_proper_code=quantity_to_value(boundary_proper_unyt, code_units.length_unit),
         rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
         vel_proper_code=np.zeros(grid_cells),
         temp_proper_code=np.full(grid_cells, quantity_to_value(temperature_proper_unyt, code_units.temperature_unit)),

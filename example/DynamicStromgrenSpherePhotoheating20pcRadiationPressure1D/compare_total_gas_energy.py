@@ -43,7 +43,7 @@ def _load_config(config_filename):
 
 def _snapshot_energy(snapshot, config, tools):
     par, mesh, fluid = tools.load_output_state(snapshot, config)
-    interior = tools.interior_slice(par)
+    interior = tools.interior_slice(config)
     code = CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(mesh.volume_proper_code[interior], dtype=float) * float(
         (1.0 * code.volume_unit).to_value(unyt.cm**3)

@@ -222,14 +222,15 @@ def load_output_state(outputfilename, config):
     return par, mesh, fluid
 
 
-def interior_slice(par):
+def interior_slice(config):
+    par = config['_output_par']
     first = par.mesh.ghost_cells
     return slice(first, first + par.mesh.grid_cells)
 
 
 def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     radius_proper_cgs_kpc_unyt = code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
 
@@ -253,7 +254,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
 
 def mean_ionized_temperature(fluid, config):
     par = config['_output_par']
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     xHI = np.asarray(fluid.xHI[interior])
     temperature_proper_cgs_K = code_quantity_to_cgs(fluid.temp_proper_code[interior], par.units.CodeUnits, 'temperature_cgs_K')
     ionized = 1.0 - xHI
@@ -290,7 +291,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     thermo = config["par"]['thermochemistry']
     initial = config['initial_condition']
     example = config.get('example', {})
-    interior = interior_slice(par)
+    interior = interior_slice(config)
     code_units_obj = par.units.CodeUnits
     radius_proper_cgs_kpc = code_quantity_to_cgs(mesh.x_proper_code[interior], code_units_obj, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm)
     radius_proper_cgs_kpc_unyt = radius_proper_cgs_kpc * unyt.kpc
@@ -323,7 +324,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
             thermo['hydrogen_sigma_gamma'],
             alpha_B,
             radiation['source_photon_rate'],
-            inner_radius=example['analytic_inner_radius'],
+            inner_radius_proper_unyt=example['analytic_inner_radius'],
         )
         xHII_analytic = 1.0 - xHI_analytic
         radius_stromgren = sa.stromgren_radius(

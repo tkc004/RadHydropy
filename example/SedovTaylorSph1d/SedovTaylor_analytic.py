@@ -164,12 +164,12 @@ def get_blastwave_solution(E0,A0,nu,g,w,t):
     alpha, eta, Df, Vf, Pf = integral_solution(nu,g,w) 
     Rs = getRs(E0,A0,nu,w,alpha,t)
     rhos, vs, ps = getShockquan(g, nu, w, A0, Rs, t)
-    r = eta * Rs
-    rho = rhos * Df
-    v = vs * Vf
-    p = ps * Pf
-    return r, rho, v, p, Rs
-
+    radius_proper_cgs_cm = eta * Rs
+    rho_proper_cgs_g_cm3 = rhos * Df
+    vel_proper_cgs_cm_s = vs * Vf
+    pressure_proper_cgs_erg_cm3 = ps * Pf
+    return (radius_proper_cgs_cm, rho_proper_cgs_g_cm3,
+            vel_proper_cgs_cm_s, pressure_proper_cgs_erg_cm3, Rs)
 
 
 
