@@ -187,7 +187,7 @@ def run_live_shell_density_profiles(config):
         a = float(cosmology.scale_factor(cosmic_time))
         order = np.argsort(shells.radius)
         radius_comoving_code = a * np.asarray(shells.radius[order], dtype=float)
-        mass = np.asarray(shells.mass[order], dtype=float)
+        mass_comoving_code = np.asarray(shells.mass[order], dtype=float)
         # Cold shell collapse can carry shells through the coordinate origin
         # after crossing.  They remain part of the enclosed mass; represent
         # crossed/central material at a small positive radius for logarithmic
@@ -196,11 +196,11 @@ def run_live_shell_density_profiles(config):
         radius_comoving_code = np.maximum(radius_comoving_code, 1.0e-8)
         core_mass = float(getattr(shells, "central_core_mass", 0.0))
         core_radius = a * float(getattr(shells, "central_core_radius", 0.0))
-        profiles.append((float(cosmic_time), radius_comoving_code, mass, core_mass, core_radius))
+        profiles.append((float(cosmic_time), radius_comoving_code, mass_comoving_code, core_mass, core_radius))
         # Include the absorbed unresolved-core mass when locating r200.  The
         # profile bins already include this same mass, so the overdensity
         # marker must use the identical enclosed-mass definition.
-        cumulative_mass = core_mass + np.cumsum(mass)
+        cumulative_mass = core_mass + np.cumsum(mass_comoving_code)
         mean_density = cumulative_mass / (
             4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
         )

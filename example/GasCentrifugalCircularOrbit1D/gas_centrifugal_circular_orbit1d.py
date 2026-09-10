@@ -339,17 +339,17 @@ def main(config_filename=CONFIG):
     )
     shell_mesh, shell_fluid = shell_sim.mesh, shell_sim.fluid
     shell_par, shell_solver = shell_sim.par, shell_sim.solver
-    shell_radius = np.empty(len(eccentric_times))
-    shell_velocity = np.empty(len(eccentric_times))
-    shell_radius[0] = radius_proper_code
-    shell_velocity[0] = 0.0
+    radius_shell_proper_code = np.empty(len(eccentric_times))
+    velocity_shell_proper_code = np.empty(len(eccentric_times))
+    radius_shell_proper_code[0] = radius_proper_code
+    velocity_shell_proper_code[0] = 0.0
     for index in range(len(eccentric_times) - 1):
-        shell_mesh.x_proper_code[...] = shell_radius[index]
+        shell_mesh.x_proper_code[...] = radius_shell_proper_code[index]
         shell_solver.ApplyGravity(eccentric_dt, shell_mesh, shell_fluid, shell_par)
-        shell_velocity[index + 1] = shell_fluid.Mom_code[0] / shell_fluid.Mass_code[0]
-        shell_radius[index + 1] = shell_radius[index] + eccentric_dt * shell_velocity[index + 1]
-    shell_radius_error = np.max(
-        np.abs(shell_radius - reference_eccentric[0])
+        velocity_shell_proper_code[index + 1] = shell_fluid.Mom_code[0] / shell_fluid.Mass_code[0]
+        radius_shell_proper_code[index + 1] = radius_shell_proper_code[index] + eccentric_dt * velocity_shell_proper_code[index + 1]
+    radius_shell_proper_code_error = np.max(
+        np.abs(radius_shell_proper_code - reference_eccentric[0])
     )
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7))
@@ -370,7 +370,7 @@ def main(config_filename=CONFIG):
         eccentric_times, eccentric_state[0], label='RK4 source update'
     )
     axes[1, 0].plot(
-        eccentric_times, shell_radius, ':',
+        eccentric_times, radius_shell_proper_code, ':',
         label='RadHydropy source-shell simulation',
     )
     axes[1, 0].plot(
@@ -396,7 +396,7 @@ def main(config_filename=CONFIG):
     print('circular and eccentric orbit analytic checks passed')
     print('eccentric maximum radius error = %.6g' % eccentric_radius_error)
     print('eccentric maximum velocity error = %.6g' % eccentric_velocity_error)
-    print('RadHydropy source-shell maximum radius error = %.6g' % shell_radius_error)
+    print('RadHydropy source-shell maximum radius error = %.6g' % radius_shell_proper_code_error)
     print('figure = %s' % figure)
 
 

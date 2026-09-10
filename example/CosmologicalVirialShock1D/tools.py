@@ -380,7 +380,7 @@ def make_dark_matter(config):
             * float(initial_condition.get("correlation_h", 0.674))
         ),
     )
-    mass = rho_comoving_code * dm_fraction * (1.0 + delta) * volume_comoving_code
+    mass_comoving_code = rho_comoving_code * dm_fraction * (1.0 + delta) * volume_comoving_code
     vel_supercomoving_code = -a**2 * hubble * mean_delta * radius_comoving_code / 3.0
     central_core_mass = None
     if central_core_model:
@@ -407,7 +407,7 @@ def make_dark_matter(config):
         if softening is None else float(softening)
     )
     shells = DarkMatterShells(
-        radius_comoving_code, vel_supercomoving_code, mass,
+        radius_comoving_code, vel_supercomoving_code, mass_comoving_code,
         angular_momentum=np.full(
             count, float(initial_condition.get("dm_specific_angular_momentum", 0.0))
         ),
@@ -446,25 +446,25 @@ def splashback_radius(
     returned radius is in the same proper-kpc basis as ``dm_radius_proper_kpc``.
     """
     radius_comoving_code = np.asarray(dm_radius_proper_kpc, dtype=float)
-    mass = np.asarray(dm_mass, dtype=float)
+    mass_comoving_code = np.asarray(dm_mass, dtype=float)
     if not np.isfinite(rvir_kpc) or float(rvir_kpc) <= 0.0:
         return float("nan")
-    valid = np.isfinite(radius_comoving_code) & np.isfinite(mass) & (radius_comoving_code > 0.0) & (mass > 0.0)
+    valid = np.isfinite(radius_comoving_code) & np.isfinite(mass_comoving_code) & (radius_comoving_code > 0.0) & (mass_comoving_code > 0.0)
     radius_comoving_code = radius_comoving_code[valid]
-    mass = mass[valid]
+    mass_comoving_code = mass_comoving_code[valid]
     if radius_comoving_code.size < 16:
         return float("nan")
     order = np.argsort(radius_comoving_code)
     radius_comoving_code = radius_comoving_code[order]
-    mass = mass[order]
+    mass_comoving_code = mass_comoving_code[order]
     edges = np.geomspace(
         max(radius_comoving_code[0] * 0.9, 1.0e-12),
         radius_comoving_code[-1] * 1.1,
         int(max(32, bin_count)) + 1,
     )
-    shell_mass, _ = np.histogram(radius_comoving_code, bins=edges, weights=mass)
+    shell_mass_comoving_code, _ = np.histogram(radius_comoving_code, bins=edges, weights=mass_comoving_code)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
-    rho_comoving_code = shell_mass / np.maximum(shell_volume, 1.0e-300)
+    rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
     occupied = rho_comoving_code > 0.0
     if np.count_nonzero(occupied) < 12:
         return float("nan")
@@ -773,10 +773,10 @@ class VolumeSmoothedDarkMatter:
                 radius_comoving_code,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             )
-        shell_radius = np.asarray(self.shells.radius, dtype=float)
+        radius_shell_comoving_code = np.asarray(self.shells.radius, dtype=float)
         shell_enclosed = np.asarray(
             self.shells.gravitating_enclosed_mass(
-                shell_radius,
+                radius_shell_comoving_code,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             ),
             dtype=float,
@@ -784,10 +784,10 @@ class VolumeSmoothedDarkMatter:
         total = float(np.sum(self.shells.mass))
         if self.shells.fixed_enclosed_mass is not None:
             total += float(self.shells.fixed_enclosed_mass)
-        outer_radius = shell_radius[-1] + 0.5 * (
-            shell_radius[-1] - shell_radius[-2]
+        outer_radius = radius_shell_comoving_code[-1] + 0.5 * (
+            radius_shell_comoving_code[-1] - radius_shell_comoving_code[-2]
         )
-        interpolation_radius = np.concatenate(([0.0], shell_radius, [outer_radius]))
+        interpolation_radius = np.concatenate(([0.0], radius_shell_comoving_code, [outer_radius]))
         interpolation_mass = np.concatenate(([0.0], shell_enclosed, [total]))
         requested = np.asarray(radius_comoving_code, dtype=float)
         return np.interp(

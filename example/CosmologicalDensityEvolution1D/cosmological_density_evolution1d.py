@@ -33,8 +33,8 @@ CODE_TIME_S = CODE_LENGTH_CM / CODE_VELOCITY_CM_S
 SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
 
 
-def density_msun_mpc3_to_cgs(density):
-    return float(density) * float((1.0 * unyt.Msun).to_value("g")) / float(
+def density_msun_mpc3_to_cgs(density_msun_mpc3_unyt):
+    return float(density_msun_mpc3_unyt) * float((1.0 * unyt.Msun).to_value("g")) / float(
         (1.0 * unyt.Mpc).to_value("cm")
     ) ** 3
 
@@ -95,10 +95,10 @@ def run():
             }
         initial_tau = float(code_cosmology.supercomoving_time(initial_time))
         final_tau = float(code_cosmology.supercomoving_time(final_time))
-        rho_proper_cgs = density_msun_mpc3_to_cgs(
+        rho_proper_cgs_g_cm3 = density_msun_mpc3_to_cgs(
             physical.critical_density(initial_time_gyr)
         )
-        density_code = rho_proper_cgs / density_unit
+        rho_proper_code = rho_proper_cgs_g_cm3 / density_unit
         case_config = copy.deepcopy(config)
         case_config["_code_cosmology"] = code_cosmology
         case_config["initial_condition"].update(
@@ -107,7 +107,7 @@ def run():
         )
         case_config["_rho_comoving_code"] = np.full(
             int(config["par"]["mesh"]["grid_cells"]),
-            density_code * initial_scale_factor**3,
+            rho_proper_code * initial_scale_factor**3,
         )
         case_config["_temp_supercomoving_code"] = np.ones(
             int(config["par"]["mesh"]["grid_cells"])
@@ -148,7 +148,7 @@ def run():
         final_tau_sim = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0])
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         measured_density = float(np.mean(sim.fluid.rho_comoving_code)) / final_a**3
-        expected_density = density_code * (initial_scale_factor / final_scale_factor) ** 3
+        expected_density = rho_proper_code * (initial_scale_factor / final_scale_factor) ** 3
         expected_critical = density_msun_mpc3_to_cgs(
             physical.critical_density(final_time_gyr)
         ) / density_unit

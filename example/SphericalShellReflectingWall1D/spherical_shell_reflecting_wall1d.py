@@ -146,21 +146,21 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
 
     snapshots.append((float(sim.fluid.time_proper_code),) + _profile(sim))
     final = snapshots[-1]
-    r, rho, vel, pre, temp, entropy = final[1:]
-    active = rho > float(config["par"]["hydrodynamics"].get("cfl_density_floor", 0.0))
-    hot = active & (temp > 10.0 * float(initial_condition["temperature_proper"].to_value("K")))
+    radius_proper_code, rho_proper_code, vel_proper_code, pre_proper_code, temp_proper_code, entropy_dimensionless = final[1:]
+    active = rho_proper_code > float(config["par"]["hydrodynamics"].get("cfl_density_floor", 0.0))
+    hot = active & (temp_proper_code > 10.0 * float(initial_condition["temperature_proper"].to_value("K")))
     if not np.any(hot):
         raise RuntimeError("finite reflecting wall did not produce post-shock heating")
-    data = {"time": np.array([s[0] for s in snapshots]), "radius": r, "rho": np.array([s[2] for s in snapshots]), "velocity": np.array([s[3] for s in snapshots]), "pressure": np.array([s[4] for s in snapshots]), "temperature": np.array([s[5] for s in snapshots]), "entropy": np.array([s[6] for s in snapshots]), "wall_flux": np.asarray(fluxes)}
+    data = {"time_proper_code": np.array([s[0] for s in snapshots]), "radius_proper_code": radius_proper_code, "rho_proper_code": np.array([s[2] for s in snapshots]), "vel_proper_code": np.array([s[3] for s in snapshots]), "pre_proper_code": np.array([s[4] for s in snapshots]), "temp_proper_code": np.array([s[5] for s in snapshots]), "entropy_dimensionless": np.array([s[6] for s in snapshots]), "flux_proper_code": np.asarray(fluxes)}
     np.savez(outdir / "SphericalShellReflectingWall1D_diagnostics.npz", **data)
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
-    radius_kpc = r / 3.085677581e21
+    radius_proper_kpc = radius_proper_code / 3.085677581e21
     for i in np.unique(np.linspace(0, len(snapshots) - 1, min(5, len(snapshots))).astype(int)):
         label = f"{snapshots[i][0] / 1.0e6 / 365.25 / 86400.0:.1f} Myr"
-        axes[0, 0].plot(radius_kpc, snapshots[i][2], label=label)
-        axes[0, 1].plot(radius_kpc, snapshots[i][3])
-        axes[1, 0].plot(radius_kpc, snapshots[i][4])
-        axes[1, 1].plot(radius_kpc, snapshots[i][5])
+        axes[0, 0].plot(radius_proper_kpc, snapshots[i][2], label=label)
+        axes[0, 1].plot(radius_proper_kpc, snapshots[i][3])
+        axes[1, 0].plot(radius_proper_kpc, snapshots[i][4])
+        axes[1, 1].plot(radius_proper_kpc, snapshots[i][5])
     axes[0, 0].set_ylabel("density")
     axes[0, 1].set_ylabel("velocity")
     axes[1, 0].set_ylabel("pressure")
@@ -177,8 +177,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     figure = outdir / "SphericalShellReflectingWall1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"wall post-shock pressure max = {np.max(pre[hot]):.6e}")
-    print(f"wall post-shock temperature max = {np.max(temp[hot]):.6e}")
+    print(f"wall post-shock pressure max = {np.max(pre_proper_code[hot]):.6e}")
+    print(f"wall post-shock temperature max = {np.max(temp_proper_code[hot]):.6e}")
     print(f"figure = {figure}")
     return figure
 

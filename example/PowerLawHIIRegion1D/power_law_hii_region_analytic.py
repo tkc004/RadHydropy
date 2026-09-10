@@ -27,13 +27,13 @@ SECONDS_PER_YEAR = 365.25 * 24.0 * 3600.0
 
 
 def hydrogen_number_density_cgs_cm3(radius_cgs_cm, core_number_density_cgs_cm3,
-                                    core_radius_cgs_cm, density_power_law_exponent):
+                                    radius_core_proper_cgs_cm, density_power_law_exponent):
     """Return the neutral hydrogen number density in cm**-3."""
     radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
     return core_number_density_cgs_cm3 * np.where(
-        radius_cgs_cm < core_radius_cgs_cm,
+        radius_cgs_cm < radius_core_proper_cgs_cm,
         1.0,
-        (radius_cgs_cm / core_radius_cgs_cm) ** (-density_power_law_exponent),
+        (radius_cgs_cm / radius_core_proper_cgs_cm) ** (-density_power_law_exponent),
     )
 
 

@@ -70,38 +70,40 @@ def build_initial_condition(config):
     result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
     return result
 def reference_values(
-    photon_flux,
-    hydrogen_number_density,
-    excess_photoionization_energy,
-    sigma_gamma,
-    thermal_equilibrium_timescale,
+    photon_flux_cgs_cm2_s,
+    hydrogen_number_density_cgs_cm3_unyt,
+    excess_photoionization_energy_cgs_erg,
+    sigma_gamma_cgs_cm2,
+    time_thermal_equilibrium_proper_unyt,
 ):
-    photon_density_on = hpr.photon_number_density_from_flux(photon_flux)
-    photoionization_temperature = (
+    photon_number_density_cgs_cm3_unyt = hpr.photon_number_density_from_flux(
+        photon_flux_cgs_cm2_s
+    )
+    temperature_photoionization_cgs_K_unyt = (
         hpr.photoionization_equilibrium_temperature(
-            excess_photoionization_energy,
+            excess_photoionization_energy_cgs_erg,
         )
     )
-    thermal_temperature = hpr.thermal_equilibrium_temperature(
-        photoionization_temperature,
+    temperature_thermal_equilibrium_cgs_K_unyt = hpr.thermal_equilibrium_temperature(
+        temperature_photoionization_cgs_K_unyt,
     )
-    ionization_timescale = hpr.photoionization_timescale(
-        sigma_gamma,
-        photon_density_on,
+    time_ionization_proper_unyt = hpr.photoionization_timescale(
+        sigma_gamma_cgs_cm2,
+        photon_number_density_cgs_cm3_unyt,
     )
-    recombination_timescale = hpr.recombination_timescale_at_temperature(
-        hydrogen_number_density,
-        photoionization_temperature,
+    time_recombination_proper_unyt = hpr.recombination_timescale_at_temperature(
+        hydrogen_number_density_cgs_cm3_unyt,
+        temperature_photoionization_cgs_K_unyt,
     )
     return {
-        'photon_density_on': photon_density_on,
-        'photoionization_temperature': photoionization_temperature,
-        'thermal_temperature': thermal_temperature,
-        'ionization_timescale': ionization_timescale,
-        'recombination_timescale': recombination_timescale,
-        'thermal_equilibrium_timescale': thermal_equilibrium_timescale,
-        'hydrogen_number_density': hydrogen_number_density,
-        'sigma_gamma': sigma_gamma,
+        'photon_number_density_cgs_cm3_unyt': photon_number_density_cgs_cm3_unyt,
+        'temperature_photoionization_cgs_K_unyt': temperature_photoionization_cgs_K_unyt,
+        'temperature_thermal_equilibrium_cgs_K_unyt': temperature_thermal_equilibrium_cgs_K_unyt,
+        'time_ionization_proper_unyt': time_ionization_proper_unyt,
+        'time_recombination_proper_unyt': time_recombination_proper_unyt,
+        'time_thermal_equilibrium_proper_unyt': time_thermal_equilibrium_proper_unyt,
+        'hydrogen_number_density_cgs_cm3_unyt': hydrogen_number_density_cgs_cm3_unyt,
+        'sigma_gamma_cgs_cm2': sigma_gamma_cgs_cm2,
     }
 
 
@@ -295,10 +297,10 @@ def save_history_plot(history, filename, reference):
     xHI = np.maximum(np.asarray(history['xHI']), 1.0e-12)
     plot_time_yr = np.maximum(time_yr, 1.0e-6)
     xHI_reference = hpr.neutral_fraction_reference(
-        reference['hydrogen_number_density'],
-        reference['sigma_gamma'],
-        reference['photon_density_on'],
-        reference['photoionization_temperature'],
+        reference['hydrogen_number_density_cgs_cm3_unyt'],
+        reference['sigma_gamma_cgs_cm2'],
+        reference['photon_number_density_cgs_cm3_unyt'],
+        reference['temperature_photoionization_cgs_K_unyt'],
     )
     xHI_reference_log = np.log10(xHI_reference['xHI'])
 
@@ -317,14 +319,14 @@ def save_history_plot(history, filename, reference):
         label='Temperature',
     )
     ax_temp.axhline(
-        reference['photoionization_temperature'].to_value(unyt.K),
+        reference['temperature_photoionization_cgs_K_unyt'].to_value(unyt.K),
         color='0.25',
         lw=1.2,
         ls=':',
         label=r'$T_{\rm ion}=6.33\,{\rm eV}/(3k_{\rm B})$',
     )
     ax_temp.axhline(
-        reference['thermal_temperature'].to_value(unyt.K),
+        reference['temperature_thermal_equilibrium_cgs_K_unyt'].to_value(unyt.K),
         color='0.45',
         lw=1.2,
         ls='-.',
@@ -332,14 +334,14 @@ def save_history_plot(history, filename, reference):
     )
     ax_temp.text(
         1.7e8,
-        reference['photoionization_temperature'].to_value(unyt.K) * 1.04,
+        reference['temperature_photoionization_cgs_K_unyt'].to_value(unyt.K) * 1.04,
         r'$10^{4.39}\ {\rm K}$',
         color='0.25',
         va='bottom',
     )
     ax_temp.text(
         2.0e7,
-        reference['thermal_temperature'].to_value(unyt.K) * 1.04,
+        reference['temperature_thermal_equilibrium_cgs_K_unyt'].to_value(unyt.K) * 1.04,
         r'$\approx2\times10^{4.39}\ {\rm K}$',
         color='0.45',
         va='bottom',
@@ -369,18 +371,18 @@ def save_history_plot(history, filename, reference):
 
     timescales = [
         (
-            reference['ionization_timescale'].to_value(unyt.yr),
-            hpr.timescale_label('i', reference['ionization_timescale']),
+            reference['time_ionization_proper_unyt'].to_value(unyt.yr),
+            hpr.timescale_label('i', reference['time_ionization_proper_unyt']),
         ),
         (
-            reference['recombination_timescale'].to_value(unyt.yr),
-            hpr.timescale_label('r', reference['recombination_timescale']),
+            reference['time_recombination_proper_unyt'].to_value(unyt.yr),
+            hpr.timescale_label('r', reference['time_recombination_proper_unyt']),
         ),
         (
-            reference['thermal_equilibrium_timescale'].to_value(unyt.yr),
+            reference['time_thermal_equilibrium_proper_unyt'].to_value(unyt.yr),
             hpr.timescale_label(
                 'e',
-                reference['thermal_equilibrium_timescale'],
+                reference['time_thermal_equilibrium_proper_unyt'],
             ),
         ),
     ]
@@ -406,7 +408,7 @@ def save_history_plot(history, filename, reference):
     ax_temp.set_yscale('log')
     ax_xHI.set_yscale('log')
     ax_xHI.set_xlim(1.0e-6, 4.0e9)
-    ax_temp.set_ylim(70.0, reference['thermal_temperature'].to_value(unyt.K) * 1.55)
+    ax_temp.set_ylim(70.0, reference['temperature_thermal_equilibrium_cgs_K_unyt'].to_value(unyt.K) * 1.55)
     ax_xHI.set_ylim(1.0e-9, 1.5)
     ax_temp.grid(True, which='both', alpha=0.25)
     ax_xHI.grid(True, which='both', alpha=0.25)

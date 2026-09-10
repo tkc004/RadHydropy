@@ -92,7 +92,7 @@ def run():
             }
         initial_tau = float(code_cosmology.supercomoving_time(initial_time))
         final_tau = float(code_cosmology.supercomoving_time(final_time))
-        rho_proper = density_msun_mpc3_to_cgs(
+        rho_proper_code = density_msun_mpc3_to_cgs(
             physical.critical_density(initial_time_gyr)
         ) / density_unit
         case_config = copy.deepcopy(config)
@@ -103,7 +103,7 @@ def run():
         }
         case_config["_rho_comoving_code"] = np.full(
             int(config["par"]["mesh"]["grid_cells"]),
-            rho_proper * initial_scale_factor**3,
+            rho_proper_code * initial_scale_factor**3,
         )
         case_config["_temp_supercomoving_code"] = np.ones(
             int(config["par"]["mesh"]["grid_cells"])

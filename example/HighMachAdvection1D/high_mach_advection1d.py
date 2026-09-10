@@ -85,9 +85,9 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     np.savez(
         data,
         time_s=np.asarray([item["time_proper_code"] for item in history]),
-        total_energy=np.asarray([item["total"] for item in history]),
-        kinetic_energy=np.asarray([item["kinetic"] for item in history]),
-        thermal_energy=np.asarray([item["thermal"] for item in history]),
+        total_energy_proper_code=np.asarray([item["total_energy_proper_code"] for item in history]),
+        kinetic_energy_proper_code=np.asarray([item["kinetic_energy_proper_code"] for item in history]),
+        thermal_energy_proper_code=np.asarray([item["thermal_energy_proper_code"] for item in history]),
         pressure_fallback_count=float(sim.solver.dual_energy_pressure_fallback_count),
         synchronization_count=float(sim.solver.dual_energy_synchronization_count),
         floor_count=float(sim.solver.dual_energy_floor_count),
@@ -168,8 +168,8 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     print("temperature evolution plot = %s" % (output / temperature_figure))
     print("initial Mach estimate > 1e4")
     print("relative total-energy change = %.6e" % (
-        (final_energy["total"] - initial_energy["total"])
-        / max(abs(initial_energy["total"]), 1.0e-300)
+        (final_energy["total_energy_proper_code"] - initial_energy["total_energy_proper_code"])
+        / max(abs(initial_energy["total_energy_proper_code"]), 1.0e-300)
     ))
     print("dual-energy pressure fallbacks = %d" % sim.solver.dual_energy_pressure_fallback_count)
     print("dual-energy synchronizations = %d" % sim.solver.dual_energy_synchronization_count)

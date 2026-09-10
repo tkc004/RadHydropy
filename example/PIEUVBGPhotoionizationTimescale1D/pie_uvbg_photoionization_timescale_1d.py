@@ -105,7 +105,7 @@ def main(config_filename=DEFAULT_CONFIG):
     hydrogen_number_densities_cgs_cm3 = (0.1, 1.0, 10.0)
     results = []
     for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
-        equilibrium_temperature = _equilibrium_temperature(
+        temperature_equilibrium_cgs_K = _equilibrium_temperature(
             table, hydrogen_number_density_cgs_cm3, redshift, metallicity
         )
         for temperature_proper in temperature_propers:
@@ -138,63 +138,77 @@ def main(config_filename=DEFAULT_CONFIG):
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[:len(history)]
             temperature_cgs_K = np.array([item["temperature_cgs_K"] for item in history])
-            timescale_ratio = time_yr / photoionization_timescale_yr
-            error = np.abs(temperature_cgs_K - equilibrium_temperature) / equilibrium_temperature
+            time_over_photoionization_timescale_dimensionless = (
+                time_yr / photoionization_timescale_yr
+            )
+            temperature_error_dimensionless = (
+                np.abs(temperature_cgs_K - temperature_equilibrium_cgs_K)
+                / temperature_equilibrium_cgs_K
+            )
             results.append(
                 {
-                    "label": rf"$n_H={density:g},\ T_0={temperature_proper:.0e}$",
-                    "density": density,
-                    "temperature_proper": temperature_proper,
-                    "equilibrium_temperature": equilibrium_temperature,
-                    "time_yr": time_yr,
-                    "timescale_ratio": timescale_ratio,
-                    "temperature": temperature,
-                    "error": error,
+                    "label": rf"$n_H={hydrogen_number_density_cgs_cm3:g},\ T_0={temperature_proper:.0e}$",
+                    "hydrogen_number_density_cgs_cm3": hydrogen_number_density_cgs_cm3,
+                    "temperature_initial_proper_K": temperature_proper,
+                    "temperature_equilibrium_cgs_K": temperature_equilibrium_cgs_K,
+                    "time_cgs_yr": time_yr,
+                    "time_over_photoionization_timescale_dimensionless": (
+                        time_over_photoionization_timescale_dimensionless
+                    ),
+                    "temperature_cgs_K": temperature_cgs_K,
+                    "temperature_error_dimensionless": temperature_error_dimensionless,
                 }
             )
 
-    colors = {density: f"C{index}" for index, density in enumerate(densities)}
+    colors = {
+        hydrogen_number_density_cgs_cm3: f"C{index}"
+        for index, hydrogen_number_density_cgs_cm3 in enumerate(
+            hydrogen_number_densities_cgs_cm3
+        )
+    }
     linestyles = ["-", "--", ":", "-."]
-    for density in densities:
+    for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
         density_results = [
-            result for result in results if result["rho_proper"] == density
+            result for result in results
+            if result["hydrogen_number_density_cgs_cm3"]
+            == hydrogen_number_density_cgs_cm3
         ]
-        equilibrium_temperature = density_results[0]["equilibrium_temperature"]
+        temperature_equilibrium_cgs_K = density_results[0]["temperature_equilibrium_cgs_K"]
         fig, (ax_temp, ax_error) = plt.subplots(
             2, 1, figsize=(8, 7), sharex=True
         )
         for result in density_results:
             linestyle = linestyles[
-                temperature_propers.index(result["temperature_proper"])
+                temperature_propers.index(result["temperature_initial_proper_K"])
             ]
-            label = rf"$T_0={result['temperature_proper']:.0e}\ {{\rm K}}$"
+            label = rf"$T_0={result['temperature_initial_proper_K']:.0e}\ {{\rm K}}$"
             ax_temp.plot(
-                result["time_yr"],
-                result["temperature_proper"],
+                result["time_cgs_yr"],
+                result["temperature_cgs_K"],
                 color="tab:blue",
                 linestyle=linestyle,
                 linewidth=1.4,
                 label=label,
             )
             ax_error.plot(
-                result["time_yr"],
-                result["error"],
+                result["time_cgs_yr"],
+                result["temperature_error_dimensionless"],
                 color="tab:red",
                 linestyle=linestyle,
                 linewidth=1.2,
                 label=label,
             )
-        color = colors[density]
+        color = colors[hydrogen_number_density_cgs_cm3]
         ax_temp.axhline(
-            equilibrium_temperature,
+            temperature_equilibrium_cgs_K,
             color=color,
             linestyle="--",
             linewidth=1.5,
-            label=rf"PIE equilibrium: $T={equilibrium_temperature:.3g}\ {{\rm K}}$",
+            label=rf"PIE equilibrium: $T={temperature_equilibrium_cgs_K:.3g}\ {{\rm K}}$",
         )
         ax_temp.plot(
             [photoionization_timescale_yr, 10.0 * photoionization_timescale_yr],
-            [equilibrium_temperature, equilibrium_temperature],
+            [temperature_equilibrium_cgs_K, temperature_equilibrium_cgs_K],
             color=color,
             linestyle="None",
             marker="s",
@@ -244,19 +258,23 @@ def main(config_filename=DEFAULT_CONFIG):
         ax_error.grid(alpha=0.25)
         ax_temp.legend(frameon=False, fontsize=8, ncol=2)
         ax_error.legend(frameon=False, fontsize=8, ncol=2)
-        fig.suptitle(rf"HM12 PIE timescale test: $n_H={density:g}\ {{\rm cm^{{-3}}}}$")
+        fig.suptitle(rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ {{\rm cm^{{-3}}}}$")
         fig.tight_layout()
-        figure = output_dir / f"PIEUVBGPhotoionizationTimescale1D_nH_{density:g}.jpg"
+        figure = output_dir / f"PIEUVBGPhotoionizationTimescale1D_nH_{hydrogen_number_density_cgs_cm3:g}.jpg"
         fig.savefig(figure, dpi=180)
         plt.close(fig)
 
     for result in results:
-        one_tau = int(np.argmin(np.abs(result["timescale_ratio"] - 1.0)))
-        ten_tau = int(np.argmin(np.abs(result["timescale_ratio"] - 10.0)))
+        one_tau = int(np.argmin(np.abs(
+            result["time_over_photoionization_timescale_dimensionless"] - 1.0
+        )))
+        ten_tau = int(np.argmin(np.abs(
+            result["time_over_photoionization_timescale_dimensionless"] - 10.0
+        )))
         print(
-            f"{result['label']}: T_PIE={result['equilibrium_temperature']:.6e} K, "
-            f"error(1 tau)={result['error'][one_tau]:.6e}, "
-            f"error(10 tau)={result['error'][ten_tau]:.6e}"
+            f"{result['label']}: T_PIE={result['temperature_equilibrium_cgs_K']:.6e} K, "
+            f"error(1 tau)={result['temperature_error_dimensionless'][one_tau]:.6e}, "
+            f"error(10 tau)={result['temperature_error_dimensionless'][ten_tau]:.6e}"
         )
     print(f"figures = {output_dir}/PIEUVBGPhotoionizationTimescale1D_nH_*.jpg")
 

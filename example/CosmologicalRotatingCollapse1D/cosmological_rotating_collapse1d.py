@@ -64,14 +64,14 @@ def integrate_shell_reference(initial, config, scale_factors):
     reference = np.empty((len(cosmic_times), len(radius_comoving_code)), dtype=float)
     for shell, shell_mass in enumerate(mass):
         def rhs(time_cosmic_code, state):
-            shell_radius, shell_velocity = state
-            if shell_radius <= 0.0:
-                return shell_velocity, 0.0
+            radius_shell_proper_code, velocity_shell_proper_code = state
+            if radius_shell_proper_code <= 0.0:
+                return velocity_shell_proper_code, 0.0
             acceleration = (
-                -cosmology.gravitational_constant * shell_mass / shell_radius**2
-                + j[shell]**2 / shell_radius**3
+                -cosmology.gravitational_constant * shell_mass / radius_shell_proper_code**2
+                + j[shell]**2 / radius_shell_proper_code**3
             )
-            return shell_velocity, acceleration
+            return velocity_shell_proper_code, acceleration
 
         solution = solve_ivp(
             rhs,
@@ -128,14 +128,14 @@ def integrate_shell_density_reference(initial, config, scale_factors):
     physical_edges = np.empty((len(cosmic_times), len(boundary_comoving_code)), dtype=float)
     for edge, enclosed_mass in enumerate(edge_mass):
         def rhs(time_cosmic_code, state):
-            shell_radius, shell_velocity = state
-            if shell_radius <= 0.0 or enclosed_mass <= 0.0:
-                return shell_velocity, 0.0
+            radius_shell_proper_code, velocity_shell_proper_code = state
+            if radius_shell_proper_code <= 0.0 or enclosed_mass <= 0.0:
+                return velocity_shell_proper_code, 0.0
             acceleration = (
-                -cosmology.gravitational_constant * enclosed_mass / shell_radius**2
-                + edge_j[edge]**2 / shell_radius**3
+                -cosmology.gravitational_constant * enclosed_mass / radius_shell_proper_code**2
+                + edge_j[edge]**2 / radius_shell_proper_code**3
             )
-            return shell_velocity, acceleration
+            return velocity_shell_proper_code, acceleration
 
         solution = solve_ivp(
             rhs,
@@ -285,7 +285,7 @@ def run_case(config, label, rotation_factor):
     history = {
         "a": [], "maximum_density": [], "support": [],
         "density_profiles": [], "j_profiles": [], "total_j": [],
-        "shell_radius": [],
+        "radius_shell_comoving_code": [],
     }
 
     def record(state):
@@ -312,7 +312,7 @@ def run_case(config, label, rotation_factor):
         history["total_j"].append(
             float(np.sum(np.asarray(state.fluid.AngularMomentum_code[active], dtype=float)))
         )
-        history["shell_radius"].append(enclosed_radii(
+        history["radius_shell_comoving_code"].append(enclosed_radii(
             state.mesh.boundary_comoving_code[active.start:active.stop + 1],
             state.fluid.rho_comoving_code[active], state.mesh.volume_comoving_code[active], target_mass,
         ))
@@ -321,7 +321,9 @@ def run_case(config, label, rotation_factor):
     final_tau = float(cosmology.supercomoving_time(float(base_par["simulation"]["final_time"])))
     sim.Evolve(final_time=final_tau, mode="hydro", history_callback=record)
     scale_factors = np.asarray(history["a"], dtype=float)
-    reference_shell_radius = integrate_shell_reference(initial, case_config, scale_factors)
+    radius_shell_reference_comoving_code = integrate_shell_reference(
+        initial, case_config, scale_factors
+    )
     reference_density = integrate_shell_density_reference(initial, case_config, scale_factors)
     final_filename = output_dir / "Output_final.hdf5"
     sim.fluid.SetTemperature()
@@ -335,8 +337,10 @@ def run_case(config, label, rotation_factor):
         maximum_density=np.asarray(history["maximum_density"], dtype=float),
         support=np.asarray(history["support"], dtype=float),
         radius_comoving_code=np.asarray(sim.mesh.x_comoving_code[active], dtype=float),
-        shell_radius=np.asarray(history["shell_radius"], dtype=float),
-        reference_shell_radius=reference_shell_radius,
+        radius_shell_comoving_code=np.asarray(
+            history["radius_shell_comoving_code"], dtype=float
+        ),
+        radius_shell_reference_comoving_code=radius_shell_reference_comoving_code,
         reference_density=reference_density,
     )
     return label, sim, history, output_dir
@@ -496,11 +500,11 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         data = saved_histories[label]
         for shell in shell_indices:
             axis.plot(
-                data["a"], data["shell_radius"][:, shell],
+                data["a"], data["radius_shell_comoving_code"][:, shell],
                 label="simulation shell %d" % shell,
             )
             axis.plot(
-                data["a"], data["reference_shell_radius"][:, shell],
+                data["a"], data["radius_shell_reference_comoving_code"][:, shell],
                 "--", label="ODE shell %d" % shell,
             )
         axis.set_title(label)

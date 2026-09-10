@@ -1137,7 +1137,7 @@ class Testing(unittest.TestCase):
 
             with mock.patch.object(
                 hii_tools,
-                'build_problem',
+                'build_initial_condition',
                 return_value=(sim, SimpleNamespace(), SimpleNamespace(), None),
             ), mock.patch.object(
                 hii_tools.Rsim, 'FromComponents', return_value=sim
@@ -1158,7 +1158,7 @@ class Testing(unittest.TestCase):
         par_config = loaded_config['par']
         config = loaded_config
 
-        par, mesh, fluid, _ = hii_tools.build_problem(config)
+        par, mesh, fluid, _ = hii_tools.build_initial_condition(config)
         par.simulation.time_proper_code = 0.0
         modified_boundary = (
             np.asarray(mesh.boundary_proper_code, dtype=float).copy() * 1.25

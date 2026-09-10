@@ -72,9 +72,6 @@ def build_static_problem(config):
     return sim.par, sim.mesh, sim.fluid, sim.solver
 
 
-build_problem = build_static_problem
-
-
 def _refresh_mesh_geometry(mesh, config):
     par = config['_output_par']
     mesh.width_proper_code = (
@@ -114,8 +111,9 @@ def _refresh_mesh_geometry(mesh, config):
 
 
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_static_problem(config)
-    rio.readhdf5(par, mesh, fluid, outputfilename)
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, outputfilename)
+    par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
     config['_output_par'] = par
     _refresh_mesh_geometry(mesh, config)
     return par, mesh, fluid

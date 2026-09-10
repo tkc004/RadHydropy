@@ -14,9 +14,13 @@ def make_shell(config):
     vel_proper_code = quantity_to_value(
         initial_condition['vel_proper'], code_unit_system.velocity_unit
     )
+    radius_initial_orbit_dimensionless = float(
+        initial_condition['radius_initial_orbit_dimensionless']
+    )
+    velocity_initial_proper_code = vel_proper_code
     return DarkMatterShells(
-        radius=[initial_condition['radius_initial_orbit_dimensionless']],
-        velocity=[vel_proper_code],
+        radius=[radius_initial_orbit_dimensionless],
+        velocity=[velocity_initial_proper_code],
         mass=[initial_condition['shell_mass_dimensionless']],
         angular_momentum=[initial_condition['specific_angular_momentum_dimensionless']],
         softening=initial_condition['softening_dimensionless'],

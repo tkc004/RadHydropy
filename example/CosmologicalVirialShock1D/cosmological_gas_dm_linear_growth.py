@@ -59,10 +59,10 @@ class SmoothEnclosedMassForGas:
                 radius_comoving_code,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             )
-        shell_radius = np.asarray(self.shells.radius, dtype=float)
+        radius_shell_comoving_code = np.asarray(self.shells.radius, dtype=float)
         shell_enclosed = np.asarray(
             self.shells.gravitating_enclosed_mass(
-                shell_radius,
+                radius_shell_comoving_code,
                 include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             ),
             dtype=float,
@@ -70,11 +70,11 @@ class SmoothEnclosedMassForGas:
         total = float(np.sum(self.shells.mass))
         if self.shells.fixed_enclosed_mass is not None:
             total += float(self.shells.fixed_enclosed_mass)
-        outer_radius = shell_radius[-1] + 0.5 * (
-            shell_radius[-1] - shell_radius[-2]
+        outer_radius = radius_shell_comoving_code[-1] + 0.5 * (
+            radius_shell_comoving_code[-1] - radius_shell_comoving_code[-2]
         )
         interpolation_radius = np.concatenate((
-            [0.0], shell_radius, [outer_radius],
+            [0.0], radius_shell_comoving_code, [outer_radius],
         ))
         interpolation_mass = np.concatenate((
             [0.0], shell_enclosed, [total],
@@ -248,14 +248,17 @@ def _make_matched_initial_state(config):
     )
     et.refresh_typed_initial_condition(initial)
 
-    shell_radius = coordinates.copy()
+    radius_comoving_code = coordinates.copy()
+    vel_supercomoving_code = (
+        -scale_factor**2 * hubble * mean_delta * radius_comoving_code / 3.0
+    )
     shells = DarkMatterShells(
-        radius=shell_radius,
-        velocity=-scale_factor**2 * hubble * mean_delta * shell_radius / 3.0,
+        radius=radius_comoving_code,
+        velocity=vel_supercomoving_code,
         mass=_matched_shell_mass(
             (1.0 - baryon_fraction) * target_total_mass
         ),
-        angular_momentum=np.zeros_like(shell_radius),
+        angular_momentum=np.zeros_like(radius_comoving_code),
         softening=float(par.get("dark_matter", {}).get("softening", 0.0)),
         code_units=code_unit_system,
     )

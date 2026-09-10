@@ -30,7 +30,7 @@ class BertschingerShellSolution:
     xi: np.ndarray
     lam: np.ndarray
     lam_prime: np.ndarray
-    mass: np.ndarray
+    mass_dimensionless: np.ndarray
 
 
 def first_post_centre_apocentre(solution):

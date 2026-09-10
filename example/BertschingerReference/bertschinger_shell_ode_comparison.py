@@ -69,20 +69,20 @@ def _outer_lagrangian_caustic_radius(
         raise RuntimeError('shell identities are required for Lagrangian maps')
     q = initial_q[np.asarray(shells.shell_id, dtype=int)]
     cosmology = config['_cosmology']
-    proper_radius = (float(cosmology.scale_factor(time_cosmic_code)) *
-                     np.asarray(shells.radius, dtype=float))
+    radius_proper_code = (float(cosmology.scale_factor(time_cosmic_code)) *
+                          np.asarray(shells.radius, dtype=float))
     vel_peculiar_proper_code = example_tools.peculiar_velocity_proper_code(
         shells, time_cosmic_code, config)
     order = np.argsort(q)
     q = q[order]
-    proper_radius = proper_radius[order]
+    radius_proper_code = radius_proper_code[order]
     vel_peculiar_proper_code = vel_peculiar_proper_code[order]
-    lower = max(float(proper_radius.min()), turnaround * 1.0e-4)
+    lower = max(float(radius_proper_code.min()), turnaround * 1.0e-4)
     upper = turnaround * (1.0 - 1.0e-6)
     if not lower < upper:
         return None
     smoothed_radius = gaussian_filter1d(
-        proper_radius, float(smoothing_bins), mode='nearest')
+        radius_proper_code, float(smoothing_bins), mode='nearest')
     derivative = np.gradient(smoothed_radius, q)
     # The outer caustic is the fold separating an outgoing inner stream from
     # an infalling outer stream. Require both the Lagrangian fold orientation
@@ -91,7 +91,7 @@ def _outer_lagrangian_caustic_radius(
                            (derivative[1:] < 0.0))
     fold_radius = []
     for index in folds:
-        fold_radius_proper_code = 0.5 * (proper_radius[index] + proper_radius[index + 1])
+        fold_radius_proper_code = 0.5 * (radius_proper_code[index] + radius_proper_code[index + 1])
         velocity_left_proper_code = vel_peculiar_proper_code[index]
         velocity_right_proper_code = vel_peculiar_proper_code[index + 1]
         if (lower * 1.01 < fold_radius_proper_code < upper and velocity_left_proper_code >= 0.0 and

@@ -65,8 +65,8 @@ def main(config_filename=DEFAULT_CONFIG):
         externalgravity=True,
         potential=nfw_potential(
             sim.mesh.geometry_state.x_proper_code,
-            halo['scale_density'],
-            halo['scale_radius'],
+            halo['rho_scale_cgs_g_cm3_unyt'],
+            halo['radius_scale_proper_kpc_unyt'],
             code_units=code_units,
         ),
         coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
@@ -90,10 +90,10 @@ def main(config_filename=DEFAULT_CONFIG):
         temperature_proper_unyt,
         figure_filename,
     )
-    print('halo mass = %.6g Msun' % halo['mass'].to_value(unyt.Msun))
-    print('R200 = %.6g kpc' % halo['virial_radius'].to_value(unyt.kpc))
-    print('r_s = %.6g kpc' % halo['scale_radius'].to_value(unyt.kpc))
-    print('V200 = %.6g km/s' % halo['virial_velocity'].to_value(unyt.km / unyt.s))
+    print('halo mass = %.6g Msun' % halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun))
+    print('R200 = %.6g kpc' % halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc))
+    print('r_s = %.6g kpc' % halo['radius_scale_proper_kpc_unyt'].to_value(unyt.kpc))
+    print('V200 = %.6g km/s' % halo['vel_virial_proper_km_s_unyt'].to_value(unyt.km / unyt.s))
     print('Tvir = %.6g K' % temperature_proper_unyt.to_value(unyt.K))
     print('maximum density relative error = %.6g' % max_relative_error)
     print('figure = %s' % figure_filename)

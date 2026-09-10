@@ -547,25 +547,25 @@ def plot_dark_matter_density_evolution(
         scale_factor = float(profile["scale_factor"])
         radius_comoving_code = np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
         rho_comoving_code = np.asarray(profile["dm_rho_proper_code"], dtype=float)
-        mass = np.asarray(profile["dm_mass"], dtype=float)
-        core_mass = float(profile.get("dm_central_core_mass", 0.0))
+        mass_shell_comoving_code = np.asarray(profile["dm_mass"], dtype=float)
+        mass_core_comoving_code = float(profile.get("dm_central_core_mass", 0.0))
         core_radius = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
         comoving_radius = radius_comoving_code / scale_factor
         valid = (
             np.isfinite(comoving_radius) & np.isfinite(rho_comoving_code)
-            & np.isfinite(mass) & (comoving_radius > 0.0) & (mass > 0.0)
+            & np.isfinite(mass_shell_comoving_code) & (comoving_radius > 0.0) & (mass_shell_comoving_code > 0.0)
         )
-        shell_radius = comoving_radius[valid]
-        shell_mass = mass[valid]
-        if shell_radius.size < 1:
+        radius_shell_comoving_code = comoving_radius[valid]
+        shell_mass_comoving_code = mass_shell_comoving_code[valid]
+        if radius_shell_comoving_code.size < 1:
             continue
         mass_in_bin, _ = np.histogram(
-            shell_radius, bins=bin_edges, weights=shell_mass
+            radius_shell_comoving_code, bins=bin_edges, weights=shell_mass_comoving_code
         )
-        if core_mass > 0.0 and core_radius > 0.0:
+        if mass_core_comoving_code > 0.0 and core_radius > 0.0:
             core_bin = int(np.searchsorted(bin_edges, core_radius, side="right") - 1)
             if 0 <= core_bin < mass_in_bin.size:
-                mass_in_bin[core_bin] += core_mass
+                mass_in_bin[core_bin] += mass_core_comoving_code
         bin_volume = (
             4.0 * np.pi / 3.0 * scale_factor**3
             * np.diff(bin_edges**3)
@@ -578,11 +578,11 @@ def plot_dark_matter_density_evolution(
             bin_radii[valid_bins], density_contrast[valid_bins],
             color=color, lw=1.6, label="t = %.2f" % profile["time_cosmic_Gyr"],
         )
-        cumulative_mass = np.cumsum(shell_mass)
-        if core_mass > 0.0:
-            cumulative_mass = cumulative_mass + core_mass
+        cumulative_mass_comoving_code = np.cumsum(shell_mass_comoving_code)
+        if mass_core_comoving_code > 0.0:
+            cumulative_mass_comoving_code = cumulative_mass_comoving_code + mass_core_comoving_code
         mass_axis.step(
-            shell_radius, cumulative_mass, where="post",
+            radius_shell_comoving_code, cumulative_mass_comoving_code, where="post",
             color=color, lw=1.6, label="t = %.2f" % profile["time_cosmic_Gyr"],
         )
     density_axis.axhline(1.0, color="black", lw=0.8, ls="--")
@@ -696,13 +696,13 @@ def _energy_audit_state(sim):
     mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
     total_energy = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
     kinetic_density = 0.5 * rho_comoving_code * vel_supercomoving_code**2
-    kinetic_energy = float(np.sum(kinetic_density * volume_comoving_code))
+    kinetic_energy_code = float(np.sum(kinetic_density * volume_comoving_code))
     total_energy_value = float(np.sum(total_energy))
     return {
         "total_gas_mass": float(np.sum(mass)),
-        "total_gas_energy": total_energy_value,
-        "kinetic_energy": kinetic_energy,
-        "thermal_energy": total_energy_value - kinetic_energy,
+        "total_gas_energy_code": total_energy_value,
+        "kinetic_energy_code": kinetic_energy_code,
+        "thermal_energy_code": total_energy_value - kinetic_energy_code,
         "dual_energy_pressure_fallback_count": float(
             getattr(sim.solver, "dual_energy_pressure_fallback_count", 0)
         ),
@@ -731,10 +731,10 @@ def _energy_cell_state(sim):
     total = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
     kinetic = 0.5 * rho_comoving_code * vel_supercomoving_code**2 * volume_comoving_code
     return {
-        "mass": np.asarray(sim.fluid.Mass_code[first:last], dtype=float).copy(),
-        "total": total.copy(),
-        "kinetic": kinetic,
-        "thermal": total - kinetic,
+        "mass_code": np.asarray(sim.fluid.Mass_code[first:last], dtype=float).copy(),
+        "total_energy_code": total.copy(),
+        "kinetic_energy_code": kinetic,
+        "thermal_energy_code": total - kinetic,
         "gravitational_work": np.asarray(
             getattr(
                 sim,
@@ -871,10 +871,10 @@ def _dark_matter_energy_state(dm):
         "id": ids[order],
         "radius_comoving_code": radius_comoving_code,
         "vel_supercomoving_code": vel_supercomoving_code,
-        "mass": mass,
-        "kinetic": mass * 0.5 * vel_supercomoving_code**2,
-        "potential": mass * potential,
-        "total": mass * total_specific,
+        "mass_code": mass,
+        "kinetic_energy_code": mass * 0.5 * vel_supercomoving_code**2,
+        "potential_energy_code": mass * potential,
+        "total_energy_code": mass * total_specific,
     }
 
 
@@ -1262,7 +1262,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "exited_cells": int(np.count_nonzero(
                 previous_halo_mask & ~current_halo_mask
             )) if previous_halo_mask is not None else 0}
-        for key in ("total", "thermal", "kinetic", "gravitational_work",
+        for key in ("total_energy_code", "thermal_energy_code", "kinetic_energy_code", "gravitational_work",
                     "hydro_energy_change", "thermochemistry_energy_change", "compression_work",
                     "shock_work"):
             if previous_halo_mask is None:
@@ -1405,8 +1405,8 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             preserve_outer_background_cell()
         )
         audit_state = _energy_audit_state(sim)
-        previous_energy = energy_audit["total_gas_energy"][-1]
-        energy_change = audit_state["total_gas_energy"] - previous_energy
+        previous_energy = energy_audit["total_gas_energy_code"][-1]
+        energy_change = audit_state["total_gas_energy_code"] - previous_energy
         gravity_work = float(getattr(sim, "last_gravity_work", 0.0))
         boundary_flux = float(
             getattr(sim, "last_hydro_boundary_energy_flux", 0.0)
@@ -1557,10 +1557,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     # a shell has been absorbed into the unresolved central core.
     per_cell = {
         "time_cosmic_Gyr": np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles]),
-        "mass": _pad_energy_history(gas_energy_history, "mass"),
-        "total_energy": _pad_energy_history(gas_energy_history, "total"),
-        "kinetic_energy": _pad_energy_history(gas_energy_history, "kinetic"),
-        "thermal_energy": _pad_energy_history(gas_energy_history, "thermal"),
+        "mass_code": _pad_energy_history(gas_energy_history, "mass_code"),
+        "total_energy_code": _pad_energy_history(gas_energy_history, "total_energy_code"),
+        "kinetic_energy_code": _pad_energy_history(gas_energy_history, "kinetic_energy_code"),
+        "thermal_energy_code": _pad_energy_history(gas_energy_history, "thermal_energy_code"),
         "gravitational_work": _pad_energy_history(
             gas_energy_history, "gravitational_work"
         ),
@@ -1596,13 +1596,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             gas_energy_history, "dual_energy_pressure_selection_code"
         ),
         "halo_crossing_total_energy": np.asarray(
-            [item["total"] for item in halo_crossing_history], dtype=float
+            [item["total_energy_code"] for item in halo_crossing_history], dtype=float
         ),
         "halo_crossing_thermal_energy": np.asarray(
-            [item["thermal"] for item in halo_crossing_history], dtype=float
+            [item["thermal_energy_code"] for item in halo_crossing_history], dtype=float
         ),
         "halo_crossing_kinetic_energy": np.asarray(
-            [item["kinetic"] for item in halo_crossing_history], dtype=float
+            [item["kinetic_energy_code"] for item in halo_crossing_history], dtype=float
         ),
         "halo_crossing_gravitational_work": np.asarray(
             [item["gravitational_work"] for item in halo_crossing_history], dtype=float
@@ -1623,9 +1623,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             [item["exited_cells"] for item in halo_crossing_history], dtype=int
         ),
     }
-    per_cell["delta_total_energy"] = per_cell["total_energy"] - per_cell["total_energy"][0]
-    per_cell["delta_kinetic_energy"] = per_cell["kinetic_energy"] - per_cell["kinetic_energy"][0]
-    per_cell["delta_thermal_energy"] = per_cell["thermal_energy"] - per_cell["thermal_energy"][0]
+    per_cell["delta_total_energy_code"] = per_cell["total_energy_code"] - per_cell["total_energy_code"][0]
+    per_cell["delta_kinetic_energy_code"] = per_cell["kinetic_energy_code"] - per_cell["kinetic_energy_code"][0]
+    per_cell["delta_thermal_energy_code"] = per_cell["thermal_energy_code"] - per_cell["thermal_energy_code"][0]
     per_cell["energy_balance_residual"] = (
         per_cell["delta_total_energy"]
         - per_cell["hydro_energy_change"]
@@ -1637,14 +1637,14 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         "shell_id": _pad_energy_history(dm_energy_history, "id", fill=-1),
         "radius_comoving_code": _pad_energy_history(dm_energy_history, "radius_comoving_code"),
         "vel_supercomoving_code": _pad_energy_history(dm_energy_history, "vel_supercomoving_code"),
-        "mass": _pad_energy_history(dm_energy_history, "mass"),
-        "kinetic_energy": _pad_energy_history(dm_energy_history, "kinetic"),
-        "potential_energy": _pad_energy_history(dm_energy_history, "potential"),
-        "total_energy": _pad_energy_history(dm_energy_history, "total"),
+        "mass_code": _pad_energy_history(dm_energy_history, "mass_code"),
+        "kinetic_energy_code": _pad_energy_history(dm_energy_history, "kinetic_energy_code"),
+        "potential_energy_code": _pad_energy_history(dm_energy_history, "potential_energy_code"),
+        "total_energy_code": _pad_energy_history(dm_energy_history, "total_energy_code"),
     }
-    per_shell["delta_kinetic_energy"] = per_shell["kinetic_energy"] - per_shell["kinetic_energy"][0]
-    per_shell["delta_potential_energy"] = per_shell["potential_energy"] - per_shell["potential_energy"][0]
-    per_shell["delta_total_energy"] = per_shell["total_energy"] - per_shell["total_energy"][0]
+    per_shell["delta_kinetic_energy_code"] = per_shell["kinetic_energy_code"] - per_shell["kinetic_energy_code"][0]
+    per_shell["delta_potential_energy_code"] = per_shell["potential_energy_code"] - per_shell["potential_energy_code"][0]
+    per_shell["delta_total_energy_code"] = per_shell["total_energy_code"] - per_shell["total_energy_code"][0]
     energy_entity_file = output_dir / (figure_prefix + "_EnergyByCellAndShell.npz")
     np.savez(
         energy_entity_file,
@@ -1748,7 +1748,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ]),
         radius_proper_kpc=_pad_profile_history(dm_profiles, "dm_radius_proper_kpc"),
         rho_proper_code=_pad_profile_history(dm_profiles, "dm_rho_proper_code"),
-        mass=_pad_profile_history(dm_profiles, "dm_mass"),
+        mass_code=_pad_profile_history(dm_profiles, "dm_mass"),
         total_mass=np.asarray([
             item.get("dm_total_mass", np.nan) for item in dm_profiles
         ]),

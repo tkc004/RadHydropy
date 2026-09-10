@@ -25,67 +25,57 @@ import example_utils as eu
 
 CONFIG = ROOT / 'gas_centrifugal_work_source1d.yaml'
 
-def prepare_initial_condition(config):
-    initial = config["_initial_condition_runtime_state"]
-    boundary_proper_code = np.asarray(initial.mesh.boundary_proper_code, dtype=float)
-    initial.mesh.boundary_proper_code = boundary_proper_code
-    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=initial.mesh.x_proper_code,
-        boundary_proper_code=boundary_proper_code, width_proper_code=np.diff(boundary_proper_code),
-        area_proper_code=4.0 * np.pi * boundary_proper_code[:-1]**2,
-        volume_proper_code=4.0 * np.pi / 3.0 * (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3),
+def build_initial_condition(config):
+    initial_condition = config['initial_condition']
+    example_config = config['example']
+    par = config['par']
+    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    radius_proper_code = quantity_to_value(initial_condition['radius_proper'], units.length_unit)
+    result = Rsim(config['par'])
+    result.par.mesh.grid_cells = 1
+    result.par.mesh.ghost_cells = 0
+    result.par.simulation.coordinate_system = 'spherical'
+    result.par.simulation.time_proper_code = 0.0
+    result.par.simulation.box_size_proper_code = np.asarray([radius_proper_code])
+    boundary_proper_code = np.asarray([radius_proper_code - 0.5, radius_proper_code + 0.5])
+    result.mesh.boundary_proper_code = boundary_proper_code
+    result.mesh.x_proper_code = np.asarray([radius_proper_code])
+    result.mesh.width_proper_code = np.asarray([1.0])
+    result.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
+    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
+    result.fluid.rho_proper_code = np.asarray([quantity_to_value(initial_condition['rho_proper'], units.density_unit)])
+    result.fluid.vel_proper_code = np.asarray([quantity_to_value(initial_condition['vel_proper'], units.velocity_unit)])
+    result.fluid.temp_proper_code = np.asarray([quantity_to_value(example_config['temperature_proper'], units.temperature_unit)])
+    result.fluid.mu = np.ones(1)
+    result.fluid.specific_angular_momentum_code = np.asarray([
+        quantity_to_value(initial_condition['specific_angular_momentum'], units.length_unit * units.velocity_unit)
+    ])
+    result.mesh.geometry_state = MeshGeometryState.from_arrays(
+        PROPER_RUNTIME_FIELDS, x_proper_code=result.mesh.x_proper_code,
+        boundary_proper_code=boundary_proper_code,
+        width_proper_code=result.mesh.width_proper_code,
+        area_proper_code=result.mesh.area_proper_code,
+        volume_proper_code=result.mesh.volume_proper_code,
     )
-    initial.fluid.pre_proper_code = initial.fluid.temp_proper_code * 0.4
-    initial.fluid.time_proper_code = 0.0
-    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, rho_proper_code=initial.fluid.rho_proper_code,
-        vel_proper_code=initial.fluid.vel_proper_code, pre_proper_code=initial.fluid.pre_proper_code,
-        temp_proper_code=initial.fluid.temp_proper_code, time_proper_code=0.0,
-        mu_dimensionless=initial.fluid.mu,
+    result.fluid.pre_proper_code = result.fluid.temp_proper_code * 0.4
+    result.fluid.time_proper_code = 0.0
+    result.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
+    result.fluid.runtime_state = FluidRuntimeState.from_arrays(
+        PROPER_RUNTIME_FIELDS, rho_proper_code=result.fluid.rho_proper_code,
+        vel_proper_code=result.fluid.vel_proper_code,
+        pre_proper_code=result.fluid.pre_proper_code,
+        temp_proper_code=result.fluid.temp_proper_code, time_proper_code=0.0,
+        mu_dimensionless=result.fluid.mu,
     )
-
-
-class InitialCondition(Rsim):
-    def __init__(self, config, radius_proper_code, rho_proper_code,
-                 vel_proper_code, temp_proper_code,
-                 specific_j, code_unit_system):
-        super().__init__(config['par'])
-        self.par.mesh.grid_cells = 1
-        self.par.mesh.ghost_cells = 0
-        self.par.simulation.coordinate_system = 'spherical'
-        self.par.simulation.time_proper_code = 0.0
-        self.par.simulation.box_size_proper_code = np.asarray([radius_proper_code])
-        self.mesh.boundary_proper_code = np.asarray([radius_proper_code - 0.5, radius_proper_code + 0.5])
-        self.mesh.x_proper_code = np.asarray([radius_proper_code])
-        self.mesh.width_proper_code = np.asarray([1.0])
-        self.mesh.area_proper_code = 4.0 * np.pi * self.mesh.boundary_proper_code[:-1] ** 2
-        self.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(self.mesh.boundary_proper_code ** 3)
-        self.fluid.rho_proper_code = np.asarray([rho_proper_code])
-        self.fluid.vel_proper_code = np.asarray([vel_proper_code])
-        self.fluid.temp_proper_code = np.asarray([temp_proper_code])
-        self.fluid.mu = np.ones(1)
-        self.fluid.specific_angular_momentum_code = np.asarray([specific_j])
+    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
+    return result
 
 
 def run_simulation(config):
     par = config['par']
     initial_condition = config['initial_condition']
     example_config = config['example']
-    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    radius_proper_code = quantity_to_value(initial_condition['radius_proper'], units.length_unit)
-    initial = InitialCondition(
-        config, radius_proper_code,
-        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
-        quantity_to_value(initial_condition['vel_proper'], units.velocity_unit),
-        quantity_to_value(example_config['temperature_proper'], units.temperature_unit),
-        quantity_to_value(
-            initial_condition['specific_angular_momentum'],
-            units.length_unit * units.velocity_unit,
-        ), units,
-    )
-    config["_initial_condition_runtime_state"] = initial
-    prepare_initial_condition(config)
+    initial = build_initial_condition(config)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, ic_filename)

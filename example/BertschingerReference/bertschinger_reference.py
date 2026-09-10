@@ -121,7 +121,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'xi': ode_solution.xi,
         'lambda': ode_solution.lam,
         'lambda_prime': ode_solution.lam_prime,
-        'mass': ode_solution.mass,
+        'mass_dimensionless': ode_solution.mass_dimensionless,
         'radius_turnaround_dimensionless': 1.0,
     }, {
         'Solution': 'Bertschinger1985_collisionless_shell_ODE',

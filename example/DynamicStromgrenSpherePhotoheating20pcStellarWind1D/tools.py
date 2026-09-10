@@ -122,5 +122,4 @@ def write_initial_condition(config):
 
 
 _template.build_static_problem = build_static_problem
-_template.build_problem = build_static_problem
 _template.write_initial_condition = write_initial_condition

@@ -51,7 +51,7 @@ def build_initial_condition(config, specific_j):
     temperature_proper_code = quantity_to_value(
         initial_condition['temperature_proper'], code_unit_system.temperature_unit
     )
-    result = Rsim(par_config)
+    result = Rsim(config["par"])
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True
     result.par.coordinate_frame = 'comoving'

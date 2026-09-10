@@ -75,7 +75,9 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     scale_factor = float(cosmology.scale_factor(initial_time))
-    peculiar_velocity = np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)
+    velocity_peculiar_supercomoving_code = np.asarray(
+        initial.fluid.vel_supercomoving_code, dtype=float
+    )
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code
 
     figure = output.with_name("CosmologicalCorrelationInitialCondition.jpg")
@@ -87,7 +89,11 @@ def main(config_filename=DEFAULT_CONFIG):
     axes[0].grid(alpha=0.25)
     axes[0].legend(fontsize=9)
     axes[1].semilogx(radius_comoving_code, hubble_velocity, label="quiet Hubble flow")
-    axes[1].semilogx(radius_comoving_code, peculiar_velocity, label="peculiar velocity")
+    axes[1].semilogx(
+        radius_comoving_code,
+        velocity_peculiar_supercomoving_code,
+        label="peculiar velocity",
+    )
     axes[1].set_xlabel("comoving radius [code length]")
     axes[1].set_ylabel("initial velocity [code units]")
     axes[1].grid(alpha=0.25)

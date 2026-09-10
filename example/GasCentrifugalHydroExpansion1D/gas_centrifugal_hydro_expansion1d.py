@@ -95,7 +95,7 @@ class FixedCentralGravity:
     def __init__(self, central_mass):
         self.central_mass = central_mass
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho_proper_code=None, par=None):
         radius_proper_code = np.abs(np.asarray(mesh.x_proper_code, dtype=float))
         acceleration = np.zeros_like(radius_proper_code)
         valid = radius_proper_code > 0.0
@@ -104,10 +104,10 @@ class FixedCentralGravity:
 
     def potential_on(self, x_proper_code):
         radius_proper_code = np.abs(np.asarray(x_proper_code, dtype=float))
-        potential = np.zeros_like(radius_proper_code)
+        potential_proper_code = np.zeros_like(radius_proper_code)
         valid = radius_proper_code > 0.0
-        potential[valid] = -self.central_mass / radius_proper_code[valid]
-        return potential
+        potential_proper_code[valid] = -self.central_mass / radius_proper_code[valid]
+        return potential_proper_code
 
     def potential_on_mesh(self, mesh):
         return self.potential_on(mesh.x_proper_code)

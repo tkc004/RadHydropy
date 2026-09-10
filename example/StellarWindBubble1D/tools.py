@@ -463,14 +463,14 @@ def make_radius_figure(snapshots, config):
     return figure
 
 
-def numerical_bubble_pressure(rout, shell_radius):
+def numerical_bubble_pressure(rout, radius_shell_proper_unyt):
     """Estimate the bubble pressure from a cavity-side annulus."""
 
     x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
     coordinate_values = x_proper_code.to_value(unyt.pc)
     nonnegative = coordinate_values >= 0.0
     coordinate_values = coordinate_values[nonnegative]
-    shell_radius_value = shell_radius.to_value(unyt.pc)
+    radius_shell_proper_pc = radius_shell_proper_unyt.to_value(unyt.pc)
     pressure_bubble_proper_unyt = (
         rout.fluid.rho_proper_code
         / (rout.fluid.mu * unyt.mp)
@@ -482,9 +482,9 @@ def numerical_bubble_pressure(rout, shell_radius):
     if pressure_values.size < 2:
         return None
 
-    shell_width = max(0.05 * shell_radius_value, 0.1)
-    cavity_band = (coordinate_values < shell_radius_value) & (
-        coordinate_values >= shell_radius_value - shell_width
+    shell_width = max(0.05 * radius_shell_proper_pc, 0.1)
+    cavity_band = (coordinate_values < radius_shell_proper_pc) & (
+        coordinate_values >= radius_shell_proper_pc - shell_width
     )
     if not np.any(cavity_band):
         return None
@@ -504,18 +504,18 @@ def collect_shell_diagnostics(snapshots, config):
     for rout in snapshots:
         if _time_proper(rout) <= 0 * _time_proper(rout).units:
             continue
-        shell_radius = shell_inner_edge_radius(
+        radius_shell_proper_unyt = shell_inner_edge_radius(
             rout,
             initial_config['rho_proper'],
             shell_threshold_factor,
         )
-        if shell_radius is None:
+        if radius_shell_proper_unyt is None:
             continue
-        bubble_pressure = numerical_bubble_pressure(rout, shell_radius)
+        bubble_pressure = numerical_bubble_pressure(rout, radius_shell_proper_unyt)
         if bubble_pressure is None:
             continue
         times_proper_unyt.append(_time_proper(rout))
-        radii_shell_proper_unyt.append(shell_radius)
+        radii_shell_proper_unyt.append(radius_shell_proper_unyt)
         pressures_bubble_proper_unyt.append(bubble_pressure)
 
     if not times_proper_unyt:

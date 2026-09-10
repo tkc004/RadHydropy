@@ -77,10 +77,10 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config['initial_condition'] = {
         **initial_mapping,
-        'hydrogen_density_cgs_cm3': hydrogen_density_cgs_cm3,
+        'hydrogen_number_density': hydrogen_density_cgs_cm3 / unyt.cm**3,
         'hydrogen_mass_fraction': case_config['par']['thermochemistry']['hydrogen_mass_fraction'],
         'proton_mass_g': float(unyt.mp.to_value(unyt.g)),
-        'vini': 0.0 * unyt.cm / unyt.s,
+        'vel_proper': 0.0 * unyt.cm / unyt.s,
     }
     case_config['_code_units'] = code_units
     ric = build_initial_condition(case_config)

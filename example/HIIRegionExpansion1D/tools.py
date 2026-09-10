@@ -21,7 +21,7 @@ from radhydropy.runtime_fields import FluidRuntimeState, MeshGeometryState, PROP
 from basic_hydro_utils import make_initial_condition
 
 
-def build_problem(config):
+def build_initial_condition(config):
     """Build the H II initial state from direct nested configuration groups."""
     initial = config['initial_condition']
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
@@ -56,7 +56,7 @@ def build_problem(config):
 
 def write_initial_condition(config):
     """Build the raw IC state and write it to ``ICfilename``."""
-    par, mesh, fluid, solver = build_problem(config)
+    par, mesh, fluid, solver = build_initial_condition(config)
     sim = Rsim.FromComponents(par, mesh, fluid, solver)
     icfilename = config['par']['simulation']['initial_condition_filename']
     Path(icfilename).unlink(missing_ok=True)
@@ -64,8 +64,9 @@ def write_initial_condition(config):
 
 
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_problem(config)
-    rio.readhdf5(par, mesh, fluid, outputfilename)
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, outputfilename)
+    par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
     # ``readhdf5`` restores the saved boundary and fluid state, but it does not
     # recompute the derived mesh geometry. Rebuild those cached geometric
     # fields from the loaded boundary so post-processing uses the snapshot's

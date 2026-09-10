@@ -158,8 +158,9 @@ def write_initial_condition(config):
 
 
 def load_output_state(outputfilename, config):
-    par, mesh, fluid, _ = build_static_problem(config)
-    rio.readhdf5(par, mesh, fluid, outputfilename)
+    snapshot = Rsim(config['par'])
+    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, outputfilename)
+    par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
     code_units_obj = par.units.CodeUnits
     par.time_proper_code = float(np.asarray(par.time_proper_code, dtype=float))
     par.simulation.box_size_proper_code = float(np.asarray(par.box_size_proper_code, dtype=float))

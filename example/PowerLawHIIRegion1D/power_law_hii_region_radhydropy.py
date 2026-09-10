@@ -31,9 +31,15 @@ import power_law_hii_region_analytic as analytic
 DEFAULT_CONFIG = EXAMPLE_DIR / "power_law_hii_region_radhydropy.yaml"
 
 
-def density_profile(radius_cgs_cm, nc, rc, w):
+def density_profile(radius_cgs_cm, core_number_density_cgs_cm3,
+                    radius_core_proper_cgs_cm, density_power_law_exponent):
     radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
-    return nc * np.where(radius_cgs_cm < rc, 1.0, (radius_cgs_cm / rc) ** (-w))
+    return core_number_density_cgs_cm3 * np.where(
+        radius_cgs_cm < radius_core_proper_cgs_cm,
+        1.0,
+        (radius_cgs_cm / radius_core_proper_cgs_cm)
+        ** (-density_power_law_exponent),
+    )
 
 
 def build_initial_condition(config):
@@ -123,7 +129,7 @@ def shock_radius_cgs_cm(
     fluid,
     config,
     core_number_density=1.0e6,
-    core_radius_cgs_cm=2.1e16,
+    radius_core_proper_cgs_cm=2.1e16,
     density_power_law_exponent=1.0,
 ):
     """Estimate the leading shock from the compressed neutral shell.
@@ -153,7 +159,7 @@ def shock_radius_cgs_cm(
     initial_nh = density_profile(
         radius_cgs_cm,
         core_number_density,
-        core_radius_cgs_cm,
+        radius_core_proper_cgs_cm,
         density_power_law_exponent,
     )
     compression = rho_proper_cgs_g_cm3 / (
@@ -310,7 +316,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 fluid,
                 config,
                 core_number_density=nc,
-                core_radius_cgs_cm=rc,
+                radius_core_proper_cgs_cm=rc,
                 density_power_law_exponent=exponent,
             )
         )

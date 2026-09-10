@@ -20,7 +20,7 @@ from radhydropy.cosmology import EinsteinDeSitter
 import copy
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
-from tools import UniformEdSInitialCondition, analytic_compton_temperature
+from tools import build_initial_condition, analytic_compton_temperature
 import example_utils as eu
 
 
@@ -46,7 +46,7 @@ def run_case(config, atomic_cooling):
     Path(case_config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     source_dt = float(case_config["example"].get("source_timestep", 2.0))
 
-    initial = UniformEdSInitialCondition(case_config)
+    initial = build_initial_condition(case_config)
     rio.writehdf5(initial, case_config["par"]["simulation"]["initial_condition_filename"])
 
     sim = Rsim(case_config["par"])

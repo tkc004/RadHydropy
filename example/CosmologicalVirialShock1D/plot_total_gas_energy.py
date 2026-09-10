@@ -18,9 +18,9 @@ def main():
     data = np.load(filename)
     time_cosmic_code = np.asarray(data["gas_time_cosmic_Gyr"], dtype=float)
 
-    total = np.nansum(np.asarray(data["gas_total_energy"], dtype=float), axis=1)
-    thermal = np.nansum(np.asarray(data["gas_thermal_energy"], dtype=float), axis=1)
-    kinetic = np.nansum(np.asarray(data["gas_kinetic_energy"], dtype=float), axis=1)
+    total_energy_code = np.nansum(np.asarray(data["gas_total_energy"], dtype=float), axis=1)
+    thermal_energy_code = np.nansum(np.asarray(data["gas_thermal_energy"], dtype=float), axis=1)
+    kinetic_energy_code = np.nansum(np.asarray(data["gas_kinetic_energy"], dtype=float), axis=1)
 
     # Gravity is recorded by the solver as signed work per hydro step.  Map
     # its cumulative contribution onto the lower-cadence cell-energy times.
@@ -30,13 +30,13 @@ def main():
         np.asarray(audit["gravitational_work"], dtype=float)
     )
     gravity_work = np.interp(time_cosmic_code, audit_time, cumulative_gravity_work)
-    total_with_gravity_work = total + gravity_work
+    total_with_gravity_work = total_energy_code + gravity_work
 
     figure = OUTPUT / (PREFIX + "_TotalGasEnergyEvolution.jpg")
     fig, axis = plt.subplots(figsize=(9, 6))
-    axis.plot(time_cosmic_code, total, "o-", label="total gas energy", linewidth=2.0)
-    axis.plot(time_cosmic_code, thermal, "o-", label="thermal energy")
-    axis.plot(time_cosmic_code, kinetic, "o-", label="kinetic energy")
+    axis.plot(time_cosmic_code, total_energy_code, "o-", label="total gas energy", linewidth=2.0)
+    axis.plot(time_cosmic_code, thermal_energy_code, "o-", label="thermal energy")
+    axis.plot(time_cosmic_code, kinetic_energy_code, "o-", label="kinetic energy")
     axis.plot(time_cosmic_code, gravity_work, "o-", label="cumulative gravitational work")
     axis.plot(
         time_cosmic_code, total_with_gravity_work, "o--",
@@ -54,7 +54,7 @@ def main():
 
     print("total gas energy figure = %s" % figure)
     print("final total, thermal, kinetic = %.8g, %.8g, %.8g" % (
-        total[-1], thermal[-1], kinetic[-1]
+        total_energy_code[-1], thermal_energy_code[-1], kinetic_energy_code[-1]
     ))
     print("final cumulative gravitational work = %.8g" % gravity_work[-1])
     print("final total including gravity work = %.8g" % total_with_gravity_work[-1])

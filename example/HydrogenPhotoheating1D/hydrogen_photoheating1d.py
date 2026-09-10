@@ -67,7 +67,7 @@ def main(config_filename=DEFAULT_CONFIG):
     et.RunHydrogenPhotoheating(
         sim,
         exampleparams['source_switch_time'],
-        reference['photon_density_on'],
+        reference['photon_number_density_cgs_cm3_unyt'],
         outputtime=0,
     )
 
@@ -101,19 +101,19 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     print(
         'photoionization equilibrium temperature = %.3e K'
-        % reference['photoionization_temperature'].to_value(unyt.K)
+        % reference['temperature_photoionization_cgs_K_unyt'].to_value(unyt.K)
     )
     print(
         'thermal equilibrium reference temperature = %.3e K'
-        % reference['thermal_temperature'].to_value(unyt.K)
+        % reference['temperature_thermal_equilibrium_cgs_K_unyt'].to_value(unyt.K)
     )
     print(
         'ionization time = %.3e yr'
-        % xHI_reference['ionization_timescale'].to_value(unyt.yr)
+        % xHI_reference['time_ionization_proper_unyt'].to_value(unyt.yr)
     )
     print(
         'recombination time at T_ion = %.3e yr'
-        % xHI_reference['recombination_timescale'].to_value(unyt.yr)
+        % xHI_reference['time_recombination_proper_unyt'].to_value(unyt.yr)
     )
     print(
         'ionization equilibrium neutral fraction = %.3e'

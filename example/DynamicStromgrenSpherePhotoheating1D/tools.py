@@ -166,9 +166,6 @@ def build_static_problem(config):
     )
     return sim
 
-build_problem = build_static_problem
-
-
 def write_initial_condition(config):
     """Build and write the initial-condition snapshot."""
     sim = build_static_problem(config)

@@ -39,7 +39,7 @@ def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
     elif code_unit_system is not None:
         temp_value = float(np.asarray(temperature_proper_code, dtype=float)) * code_unit_scales(code_unit_system)["temperature_cgs_K"]
     else:
-        temp_value = float(temperature_proper_code)
+        raise TypeError('temperature_proper_code must be unit-bearing or paired with code_unit_system')
     mu_value = float(np.asarray(mu, dtype=float))
     return (
         BOLTZMANN_CONSTANT_CGS
@@ -64,19 +64,19 @@ def hydrostatic_density_profile(
     elif code_unit_system is not None:
         coord_value = np.asarray(coordinate_proper_code, dtype=float) * code_unit_scales(code_unit_system)["length_cgs_cm"]
     else:
-        coord_value = np.asarray(coordinate_proper_code, dtype=float)
+        raise TypeError('coordinate_proper_code must be unit-bearing or paired with code_unit_system')
     if hasattr(rho_reference_proper_unyt, "to_value"):
         rho_value = rho_reference_proper_unyt.to_value(unyt.g / unyt.cm**3)
     elif code_unit_system is not None:
         rho_value = np.asarray(rho_reference_proper_unyt, dtype=float) * code_unit_scales(code_unit_system)["density_cgs_g_cm3"]
     else:
-        rho_value = float(rho_reference_proper_unyt)
+        raise TypeError('rho_reference_proper_unyt must be unit-bearing or paired with code_unit_system')
     if hasattr(gravity_strength, "to_value"):
         gravity_value = gravity_strength.to_value(unyt.cm / unyt.s**2)
     elif code_unit_system is not None:
         gravity_value = np.asarray(gravity_strength, dtype=float) * code_unit_scales(code_unit_system)["acceleration_cgs_cm_s2"]
     else:
-        gravity_value = float(gravity_strength)
+        raise TypeError('gravity_strength must be unit-bearing or paired with code_unit_system')
     scale_height = c_s2_value / gravity_value
     profile = rho_value * np.exp(-np.asarray(coord_value, dtype=float) / scale_height)
     return profile * DENSITY_UNIT

@@ -38,21 +38,21 @@ def nfw_halo_parameters(
     scale_density = halo_mass_proper_g / (4.0 * np.pi * scale_radius**3 * shape)
     circular_velocity_squared = GRAVITATIONAL_CONSTANT * halo_mass_proper_g / virial_radius
     return {
-        'mass': halo_mass_proper_g,
+        'mass_halo_proper_g_unyt': halo_mass_proper_g,
         'redshift': float(redshift),
         'overdensity': float(overdensity),
         'concentration': float(concentration),
-        'critical_density': rho_critical.to(unyt.g / unyt.cm**3),
-        'virial_radius': virial_radius.to(unyt.kpc),
-        'scale_radius': scale_radius.to(unyt.kpc),
-        'scale_density': scale_density.to(unyt.g / unyt.cm**3),
-        'virial_velocity': np.sqrt(circular_velocity_squared).to(unyt.km / unyt.s),
+        'rho_critical_cgs_g_cm3_unyt': rho_critical.to(unyt.g / unyt.cm**3),
+        'radius_virial_proper_kpc_unyt': virial_radius.to(unyt.kpc),
+        'radius_scale_proper_kpc_unyt': scale_radius.to(unyt.kpc),
+        'rho_scale_cgs_g_cm3_unyt': scale_density.to(unyt.g / unyt.cm**3),
+        'vel_virial_proper_km_s_unyt': np.sqrt(circular_velocity_squared).to(unyt.km / unyt.s),
     }
 
 
 def virial_temperature(halo, mu=0.59):
     """Return the gas virial temperature using ``kT=mu mp V_vir^2/2``."""
-    virial_velocity_cgs_cm_s = halo['virial_velocity'].to(unyt.cm / unyt.s)
+    virial_velocity_cgs_cm_s = halo['vel_virial_proper_km_s_unyt'].to(unyt.cm / unyt.s)
     virial_temperature_proper_K = (
         float(mu) * PROTON_MASS_CGS * virial_velocity_cgs_cm_s.value**2
         / (2.0 * BOLTZMANN_CONSTANT_CGS)
@@ -71,11 +71,11 @@ def spherical_cell_centers(boundary_proper_code):
 def nfw_enclosed_mass(radius_proper_unyt, halo):
     """Return the NFW dark-matter mass enclosed by ``radius``."""
     radius_proper_cgs_cm = radius_proper_unyt.to(unyt.cm)
-    scale_radius = halo['scale_radius'].to(unyt.cm)
-    x = radius_proper_cgs_cm / scale_radius
+    radius_scale_proper_cgs_cm_unyt = halo['radius_scale_proper_kpc_unyt'].to(unyt.cm)
+    x = radius_proper_cgs_cm / radius_scale_proper_cgs_cm_unyt
     c = halo['concentration']
     shape = np.log1p(c) - c / (1.0 + c)
-    return halo['mass'] * (
+    return halo['mass_halo_proper_g_unyt'] * (
         (np.log1p(x) - x / (1.0 + x)) / shape
     )
 
@@ -92,22 +92,22 @@ def hydrostatic_density_profile(
 
     The profile solves ``dP/dr = -rho G M(<r)/r^2`` in the NFW potential,
     with ``P=rho*k*T/(mu*m_p)``. Its normalization is selected so the gas mass
-    over the supplied spherical mesh equals ``gas_fraction * halo['mass']``.
+    over the supplied spherical mesh equals ``gas_fraction * halo['mass_halo_proper_g_unyt']``.
     """
     radius_proper_cgs_cm_unyt = radius_proper_unyt.to(unyt.cm)
     boundaries_proper_cgs_cm_unyt = boundaries_proper_unyt.to(unyt.cm)
     temperature_proper_cgs_K = temperature_proper_unyt.to_value(unyt.K)
     potential = nfw_potential(
         radius_proper_cgs_cm_unyt,
-        halo['scale_density'],
-        halo['scale_radius'],
+        halo['rho_scale_cgs_g_cm3_unyt'],
+        halo['radius_scale_proper_kpc_unyt'],
     ).to_value(unyt.cm**2 / unyt.s**2)
     beta = float(mu) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * temperature_proper_cgs_K)
     shape = np.exp(-beta * (potential - potential[0]))
     shell_volume = 4.0 * np.pi / 3.0 * (
         boundaries_proper_cgs_cm_unyt[1:].value**3 - boundaries_proper_cgs_cm_unyt[:-1].value**3
     )
-    gas_mass = float(gas_fraction) * halo['mass'].to_value(unyt.g)
+    gas_mass = float(gas_fraction) * halo['mass_halo_proper_g_unyt'].to_value(unyt.g)
     normalization = gas_mass / np.sum(shape * shell_volume)
     return normalization * shape * (unyt.g / unyt.cm**3)
 

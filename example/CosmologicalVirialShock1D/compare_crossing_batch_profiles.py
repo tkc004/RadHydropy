@@ -42,7 +42,7 @@ def main():
         dm_ax.loglog(dm_radius_proper_kpc, np.maximum(dm_rho_comoving_code, 1.0e-300), color=color,
                      label=_label(fraction))
         rows.append((fraction, gas["time_cosmic_Gyr"][-1], gas["rvir_kpc"][-1],
-                     dm["radius_proper_kpc"][-1].max(), dm["mass"][-1].sum()))
+                     dm["radius_proper_kpc"][-1].max(), dm["mass_code"][-1].sum()))
 
     gas_ax.set_xlabel("proper radius [kpc]")
     gas_ax.set_ylabel("gas density [code units]")
