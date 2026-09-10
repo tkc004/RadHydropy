@@ -53,7 +53,7 @@ initial_condition:
   temperature_proper: {value: 2.0e4, unit: K}
   mean_molecular_weight: 0.62
   hydrogen_mass_fraction: 0.7
-  proton_mass_g: 1.67262192369e-24
+  proton_mass: {value: 1.67262192369e-24, unit: g}
   hydrogen_number_density: {value: 1.0, unit: 1/cm**3}
   vel_proper: {value: 0.0, unit: cm/s}
 example: {}

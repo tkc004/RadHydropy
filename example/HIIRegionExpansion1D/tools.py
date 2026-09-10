@@ -151,7 +151,7 @@ def apply_piecewise_isothermal_state(sim, config):
 
 def time_proper_Myr(value, code_unit_system):
     myr_in_s = (1.0 * unyt.Myr).to_value(unyt.s)
-    return float(code_quantity_to_cgs(value, code_unit_system, 'time_s') / myr_in_s)
+    return float(code_quantity_to_cgs(value, code_unit_system, 'time_proper_cgs_s') / myr_in_s)
 
 
 def print_startup_diagnostics(sim, config, initial_condition):

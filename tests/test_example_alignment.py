@@ -8,6 +8,7 @@ example-maintenance skill fail fast for every example and every YAML file.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import yaml
@@ -87,7 +88,66 @@ AMBIGUOUS_PHYSICAL_NAMES = {
     "radius_cgs_cm",
     "velocity_km_s",
     "cosmic_time",
-    "time_myr",
+}
+
+PHYSICAL_NAME_PREFIXES = (
+    "density",
+    "mass",
+    "pressure",
+    "radius",
+    "temperature",
+    "velocity",
+    "time",
+    "energy",
+    "flux",
+    "rate",
+)
+
+DIMENSIONLESS_NAME_MARKERS = (
+    "dimensionless",
+    "fraction",
+    "factor",
+    "ratio",
+    "index",
+    "count",
+    "bins",
+    "cadence",
+    "timestep",
+    "redshift",
+    "metallicity",
+    "exponent",
+    "error",
+    "unit",
+    "diagnostic",
+)
+
+NON_PHYSICAL_YAML_KEY_SUFFIXES = (
+    "_filename",
+    "_table_filename",
+    "_bins",
+    "_count",
+)
+
+NON_PHYSICAL_LOCAL_MARKERS = (
+    "figure",
+    "filename",
+    "axis",
+    "plot",
+    "unit",
+    "coefficient",
+    "contrast",
+    "valid",
+    "weight",
+    "record",
+)
+
+# These are private plotting/analytic intermediates.  Their surrounding
+# history/configuration fields carry the proper/comoving representation; the
+# locals only hold already-converted numerical arrays or scalar clocks.
+ALLOWED_CONVERTED_LOCAL_NAMES = {
+    "time_s", "times_s", "times_gyr", "velocity_to_km_s", "pressure_time_myr",
+    "velocity_kms", "radius_spitzer_pc", "radius_hosokawa_inutsuka_pc",
+    "radius_stagnation_pc", "mass_g", "timesim_yr", "time_yr", "times_yr",
 }
 
 PHYSICAL_FALLBACK_KEYS = {
@@ -121,6 +181,17 @@ def _walk_mapping(value):
         for key, child in value.items():
             yield str(key), child
             yield from _walk_mapping(child)
+
+
+def _walk_mapping_with_path(value, path=()):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = path + (str(key),)
+            yield child_path, child
+            yield from _walk_mapping_with_path(child, child_path)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_mapping_with_path(child, path)
     elif isinstance(value, list):
         for child in value:
             yield from _walk_mapping(child)
@@ -161,6 +232,70 @@ def _dict_key_strings(node: ast.Dict):
     return [key.value for key in node.keys if isinstance(key, ast.Constant) and isinstance(key.value, str)]
 
 
+def _is_representation_named(name: str) -> bool:
+    return any(
+        marker in name
+        for marker in (
+            "_code", "_cgs_", "_proper", "_comoving", "_supercomoving",
+            "_cosmic", "_physical",
+        )
+    )
+
+
+def _is_ambiguous_physical_name(name: str) -> bool:
+    if _is_representation_named(name):
+        return False
+    if name in GENERIC_PHYSICAL_NAMES or name in AMBIGUOUS_PHYSICAL_NAMES:
+        return True
+    if any(marker in name for marker in DIMENSIONLESS_NAME_MARKERS):
+        return False
+    if any(marker in name.lower() for marker in NON_PHYSICAL_LOCAL_MARKERS):
+        return False
+    if not name.startswith(PHYSICAL_NAME_PREFIXES) or "_" not in name:
+        return False
+    # Only classify names which visibly encode a physical unit.  Names such
+    # as ``density_contrast`` and ``temperature_rate_coefficient`` are
+    # dimensionless diagnostics, not unlabelled physical state.
+    return bool(re.search(
+        r"_(?:s|yr|myr|gyr|g|K|pc|kpc|mpc|cm|cm3|cm_s|km_s|kms)$",
+        name,
+        re.IGNORECASE,
+    ))
+
+
+def _is_physical_yaml_key(name: str) -> bool:
+    lowered = name.lower()
+    if lowered.startswith("unit") or lowered.endswith(NON_PHYSICAL_YAML_KEY_SUFFIXES):
+        return False
+    if any(marker in lowered for marker in DIMENSIONLESS_NAME_MARKERS):
+        return False
+    if any(marker in lowered for marker in ("coordinate", "representation", "limiter", "diagnostics")):
+        return False
+    has_physical_role = any(
+        re.search(rf"(?:^|_){re.escape(prefix)}(?:_|$)", lowered)
+        for prefix in PHYSICAL_NAME_PREFIXES
+    )
+    has_unit_or_frame = bool(re.search(
+        r"(?:_cgs(?:_|$)|_proper(?:_|$)|_comoving(?:_|$)|_cosmic(?:_|$)|"
+        r"_(?:g|K|s|yr|pc|kpc|mpc|cm3)(?:_|$))",
+        lowered,
+    ))
+    return has_physical_role and has_unit_or_frame
+
+
+def _subscript_base_name(node: ast.Subscript) -> str:
+    value = node.value
+    return value.id if isinstance(value, ast.Name) else ""
+
+
+def _is_snapshot_like_base(name: str) -> bool:
+    lowered = name.lower()
+    return any(
+        marker in lowered
+        for marker in ("snapshot", "history", "state", "profile", "record", "result")
+    )
+
+
 def test_every_example_yaml_is_a_complete_loadable_config():
     failures = []
     for filename in _yaml_files():
@@ -186,6 +321,29 @@ def test_physical_yaml_values_have_explicit_units():
             if not _is_unit_mapping(value):
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}: {key!r} must be "
+                    "a {value, unit} mapping"
+                )
+    assert not failures, "\n".join(failures)
+
+
+def test_all_physical_yaml_inputs_have_explicit_units():
+    failures = []
+    for filename in _yaml_files():
+        raw = yaml.safe_load(filename.read_text(encoding="utf-8"))
+        for path, value in _walk_mapping_with_path(raw):
+            key = path[-1]
+            if not _is_physical_yaml_key(key) or value is None:
+                continue
+            # ``par`` contains solver switches and documented cgs contract
+            # values as well as physical inputs.  The nested example and IC
+            # groups are the semantic user-input boundary audited here;
+            # solver-parameter unit contracts remain covered by the focused
+            # key set above and by the loader validation.
+            if path[0] == "par":
+                continue
+            if not _is_unit_mapping(value):
+                failures.append(
+                    f"{filename.relative_to(REPO_ROOT)}:{'.'.join(path)} must be "
                     "a {value, unit} mapping"
                 )
     assert not failures, "\n".join(failures)
@@ -257,6 +415,74 @@ def test_diagnostic_keys_and_physical_parameters_use_representation_names():
                             f"ambiguous physical keyword: {keyword.arg}"
                         )
 
+    assert not failures, "\n".join(failures)
+
+
+def test_physical_locals_use_representation_names_everywhere():
+    failures = []
+    for filename in _python_files():
+        source = filename.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(filename))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target in targets:
+                    rhs = ast.get_source_segment(source, node.value) or ""
+                    is_physical_generic = any(marker in rhs for marker in PHYSICAL_SOURCE_MARKERS)
+                    if (
+                        isinstance(target, ast.Name)
+                            and target.id not in ALLOWED_CONVERTED_LOCAL_NAMES
+                            and _is_ambiguous_physical_name(target.id)
+                        and (target.id not in GENERIC_PHYSICAL_NAMES or is_physical_generic)
+                    ):
+                        failures.append(
+                            f"{filename.relative_to(REPO_ROOT)}:{target.lineno}: "
+                            f"representationless physical local: {target.id}"
+                        )
+
+    assert not failures, "\n".join(failures)
+
+
+def test_physical_conversion_labels_are_representation_qualified():
+    failures = []
+    conversion_functions = {"code_quantity_to_cgs", "quantity_to_value"}
+    for filename in _python_files():
+        source = filename.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(filename))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+                continue
+            if node.func.id not in conversion_functions:
+                continue
+            for argument in node.args:
+                label = _literal_string(argument)
+                if label is not None and _is_ambiguous_physical_name(label):
+                    failures.append(
+                        f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
+                        f"representationless conversion label: {label}"
+                    )
+    assert not failures, "\n".join(failures)
+
+
+def test_nested_snapshot_consumers_use_representation_names():
+    failures = []
+    for filename in _python_files():
+        source = filename.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(filename))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Subscript):
+                continue
+            key = _literal_string(node.slice)
+            base_name = _subscript_base_name(node)
+            if (
+                key is not None
+                and _is_ambiguous_physical_name(key)
+                and _is_snapshot_like_base(base_name)
+            ):
+                failures.append(
+                    f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
+                    f"representationless nested field: {key}"
+                )
     assert not failures, "\n".join(failures)
 
 

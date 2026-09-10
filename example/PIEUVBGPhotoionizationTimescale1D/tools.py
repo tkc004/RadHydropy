@@ -41,7 +41,7 @@ def build_initial_condition(config):
     ))
     rho_proper_cgs_g_cm3 = (
         float(initial['hydrogen_number_density'].to_value(1 / unyt.cm**3))
-        * float(initial['proton_mass_g'])
+        * float(initial['proton_mass'].to_value(unyt.g))
         / float(initial['hydrogen_mass_fraction'])
     )
     result.fluid.rho_proper_code = as_named_array(quantity_to_value(

@@ -260,7 +260,7 @@ par:
     hydrogen_epsilon_gamma: null  # Scalar H I excess photoheating energy.
     hydrogen_photon_energy: null  # Scalar photon energy.
     stellar_spectrum_type: 1  # Spectrum type identifier.
-    stellar_spectrum_blackbody_temperature_cgs_K: 1.0e5  # Blackbody temperature in K.
+    stellar_spectrum_blackbody_temperature: {value: 1.0e5, unit: K}  # Blackbody temperature.
     star_emission_rates: null  # Optional emission rates by group.
     ionizing_photon_energy_cgs_erg: null  # Ionizing photon energy in erg.
     metal_pie_enabled: false  # Enable radiation-coupled metal PIE cooling.

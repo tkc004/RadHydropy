@@ -158,7 +158,9 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     if config["par"].get("radiation", {}).get("metal_pie_enabled", False):
         title += " + metal PIE"
     radiation_temperature = float(
-        config["example"].get("stellar_spectrum_blackbody_temperature_cgs_K", 1.0e5)
+        config["example"].get(
+            "stellar_spectrum_blackbody_temperature", 1.0e5 * unyt.K
+        ).to_value(unyt.K)
     )
     fig.suptitle(
         rf"{title} multifrequency radiation "

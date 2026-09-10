@@ -25,11 +25,11 @@ DEFAULT_CONFIG = EXAMPLE_DIR / "cosmological_gas_correlation_z100.yaml"
 CASES = {
     "B": {
         "label": "wall_no_thermalization",
-        "inner_wall_radius_comoving": 3.0,
+        "inner_wall_radius_comoving": 3.0 * unyt.kpc,
     },
     "C": {
         "label": "origin_no_thermalization",
-        "inner_wall_radius_comoving": 0.0,
+        "inner_wall_radius_comoving": 0.0 * unyt.kpc,
     },
 }
 
@@ -80,9 +80,9 @@ def _case_config(base_config, case_name, final_time):
     config["example"]["linear_correlation_table_filename"] = str(
         EXAMPLE_DIR / "outputs_correlation" / "lcdm_linear_correlation.h5"
     )
-    initial_condition["inner_wall_radius_comoving"] = float(
-        case["inner_wall_radius_comoving"]
-    )
+    initial_condition["inner_wall_radius_comoving"] = case[
+        "inner_wall_radius_comoving"
+    ]
     return config, output_dir
 
 

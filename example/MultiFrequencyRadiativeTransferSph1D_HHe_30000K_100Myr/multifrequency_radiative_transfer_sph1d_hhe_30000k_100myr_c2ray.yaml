@@ -62,7 +62,7 @@ initial_condition:
 example:
   directory: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray_PIE.jpg
-  stellar_spectrum_blackbody_temperature_cgs_K: 30000.0
+  stellar_spectrum_blackbody_temperature: {value: 30000.0, unit: K}
   evolution_timestep: {value: 0.5, unit: Myr}
   temperature_proper: {value: 100.0, unit: K}
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}

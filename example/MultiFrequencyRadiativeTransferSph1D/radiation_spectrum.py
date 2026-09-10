@@ -46,7 +46,7 @@ def write_blackbody_spectrum(filename):
         group.attrs["number_of_group_edges"] = 4
         group.attrs["stellar_spectrum_type"] = 1
         group.attrs["stellar_spectrum_type_name"] = "blackbody"
-        group.attrs["stellar_spectrum_blackbody_temperature_cgs_K"] = 1.0e5
+        group.attrs["stellar_spectrum_blackbody_temperature_proper_K"] = 1.0e5
         group.attrs["absorber"] = "HI"
         group.attrs["description"] = "Pure-hydrogen BB spectrum for the SPHM1RT comparison"
 

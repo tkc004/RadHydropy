@@ -39,7 +39,7 @@ def _to_myr(values, config):
         return np.asarray(values.to_value(unyt.Myr), dtype=float)
     code = config['_output_par'].units.CodeUnits
     return np.asarray(
-        code_quantity_to_cgs(values, code, 'time_s') / (1.0 * unyt.Myr).to_value(unyt.s),
+        code_quantity_to_cgs(values, code, 'time_proper_cgs_s') / (1.0 * unyt.Myr).to_value(unyt.s),
         dtype=float,
     )
 
