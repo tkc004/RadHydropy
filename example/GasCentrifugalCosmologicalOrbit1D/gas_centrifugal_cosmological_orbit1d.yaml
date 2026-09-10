@@ -53,4 +53,4 @@ initial_condition:
   angular_momentum_fraction_of_circular: 0.7
   temperature_proper: {value: 1.0e-8, unit: K}
 example:
-  timestep: 0.0005
+  timestep: {value: 0.0005, unit: dimensionless}

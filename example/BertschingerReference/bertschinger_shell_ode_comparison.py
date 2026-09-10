@@ -168,7 +168,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     units = example_tools.code_units_from_config(config)
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(example['cosmology_t_ref']),
+        t_ref=quantity_to_value(example['cosmology_t_ref'], units.time_unit),
         a_ref=float(example['cosmology_a_ref']),
     )
     Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
@@ -181,18 +181,20 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         recent_window_fraction=float(example.get(
             'recent_accretion_window_fraction', 0.5)))
     initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
-    time_comparison_final_cosmic = float(example.get(
+    time_comparison_final_cosmic_code = quantity_to_value(example.get(
         'time_comparison_final_cosmic',
-        initial_time * np.exp(float(example['ode_xi_end']))))
+        initial_time * np.exp(float(example['ode_xi_end'])) * units.time_unit),
+        units.time_unit,
+    )
     timestep = float(example.get('comparison_timestep', 0.002))
     snapshot_stride = int(example.get('comparison_snapshot_stride', 5))
     shell_stride = int(example.get('comparison_shell_stride', 16))
-    if time_comparison_final_cosmic <= initial_time or timestep <= 0.0:
+    if time_comparison_final_cosmic_code <= initial_time or timestep <= 0.0:
         raise ValueError('invalid shell comparison time configuration')
 
     tau = float(cosmology.supercomoving_time(initial_time))
     tau_comparison_final_supercomoving = float(
-        cosmology.supercomoving_time(time_comparison_final_cosmic)
+        cosmology.supercomoving_time(time_comparison_final_cosmic_code)
     )
     snapshot = 0
     xi_values = []
@@ -549,7 +551,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     print('ODE outer caustic: xi = %.8g, lambda = %.8g' %
           (caustic_xi, caustic_lambda))
     print('simulation time range = %.8g .. %.8g' % (
-        initial_time, time_comparison_final_cosmic
+        initial_time, time_comparison_final_cosmic_code
     ))
     print('figure = %s' % figure)
     return figure

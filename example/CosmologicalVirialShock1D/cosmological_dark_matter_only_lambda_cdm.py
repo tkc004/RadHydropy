@@ -46,7 +46,9 @@ def run_lagrangian_top_hat(config):
     initial_condition = config["initial_condition"]
     code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
-    target_mass = float(initial_condition["target_halo_mass"])
+    target_mass = quantity_to_value(
+        initial_condition["target_halo_mass"], code_unit_system.mass_unit
+    )
     delta_i = float(initial_condition["initial_overdensity"])
     initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
     final = quantity_to_value(par["simulation"]["final_time"], units.time_unit)
@@ -296,7 +298,9 @@ def run_live_shell_density_profiles(config):
     virial_radii = np.asarray(virial_radii)
     scale_factors = np.asarray([float(cosmology.scale_factor(time_cosmic_code)) for time_cosmic_code in times])
     comoving_bin_radii = bin_radii[None, :] / scale_factors[:, None]
-    target_mass = float(initial_condition["target_halo_mass"])
+    target_mass = quantity_to_value(
+        initial_condition["target_halo_mass"], units.mass_unit
+    )
     analytic_threshold = np.asarray(
         [virial_threshold(time_cosmic_code) for time_cosmic_code in times], dtype=float
     )

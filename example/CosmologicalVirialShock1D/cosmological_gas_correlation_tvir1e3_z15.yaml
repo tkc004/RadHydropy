@@ -73,7 +73,7 @@ initial_condition:
   verbal: 1
   time_cosmic: {value: 0.01418666885, unit: kpc/(km/s)}
   radius_perturbation_comoving: {value: 250.0, unit: kpc}
-  target_halo_mass: 0.0001
+  target_halo_mass: {value: 1.0e6, unit: Msun}
   initial_overdensity: 0.3503168317
   rho_proper_profile: linear_correlation
   correlation_h: 0.674

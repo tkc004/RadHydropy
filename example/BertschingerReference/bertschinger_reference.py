@@ -40,17 +40,19 @@ def main(config_filename=DEFAULT_CONFIG):
     example = config['example']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     cosmology = EinsteinDeSitter.from_code_units(
-        units, t_ref=float(example['cosmology_t_ref']),
+        units, t_ref=quantity_to_value(example['cosmology_t_ref'], units.time_unit),
         a_ref=float(example['cosmology_a_ref']),
     )
     config["_code_units"] = units
     config["_cosmology"] = cosmology
     shells, delta_mass = et.make_scale_free_shells(config)
     initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
-    time_final_cosmic = float(example['time_final_cosmic'])
+    time_final_cosmic_code = quantity_to_value(
+        example['time_final_cosmic'], units.time_unit
+    )
     tau = float(cosmology.supercomoving_time(initial_time))
     tau_final_supercomoving = float(
-        cosmology.supercomoving_time(time_final_cosmic)
+        cosmology.supercomoving_time(time_final_cosmic_code)
     )
     history_time = [initial_time]
     history_rta = []
@@ -77,7 +79,7 @@ def main(config_filename=DEFAULT_CONFIG):
         history_time.append(time_end)
 
     config['_cosmology'] = cosmology
-    profiles = et.similarity_profiles(shells, time_final_cosmic, config,
+    profiles = et.similarity_profiles(shells, time_final_cosmic_code, config,
                                       bins=int(example['profile_bins']))
     ode_solution = solve_eq41_self_similar(
         xi_end=float(example['ode_xi_end']),
@@ -104,7 +106,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'CosmologyTRef': cosmology.t_ref,
         'CosmologyARef': cosmology.a_ref,
         'InitialCosmicTime': initial_time,
-        'FinalCosmicTime': time_final_cosmic,
+        'FinalCosmicTime': time_final_cosmic_code,
         'PerturbationMass': delta_mass,
         'SimilarityEquation': 'Bertschinger1985_Eq4.1_collisionless_shell',
         'ODEInitialLambda': 1.0,

@@ -21,7 +21,7 @@ sys.path.insert(0, str(REFERENCE_ROOT))
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.units import CodeUnits, _gravitational_constant_code
+from radhydropy.units import CodeUnits, quantity_to_value, _gravitational_constant_code
 import example_utils as eu
 import cosmological_dark_matter_only as reference_example
 
@@ -58,7 +58,10 @@ def reproduce_reference():
     )
     cosmology = CodeEdS.from_code_units(
         reference_units,
-        t_ref=float(reference_config["par"]["gravity"]["cosmology_t_ref"]),
+        t_ref=quantity_to_value(
+            reference_config["par"]["gravity"]["cosmology_t_ref"],
+            reference_units.time_unit,
+        ),
         a_ref=float(reference_config["par"]["gravity"]["cosmology_a_ref"]),
     )
     # These runtime-only objects cannot be represented in YAML. Attach them

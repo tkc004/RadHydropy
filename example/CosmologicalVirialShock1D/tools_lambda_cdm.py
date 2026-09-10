@@ -53,7 +53,7 @@ def radius_perturbation_comoving_code(config):
     overdensity = float(initial_condition["initial_overdensity"])
     return float(
         (
-            float(initial_condition["target_halo_mass"])
+            quantity_to_value(initial_condition["target_halo_mass"], code_unit_system.mass_unit)
             / ((4.0 * np.pi / 3.0) * rho_comoving * (1.0 + overdensity))
         )
         ** (1.0 / 3.0)
@@ -400,7 +400,9 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     )
     overdensity = dm_mean_density_comoving_code / max(200.0 * rho_crit, 1.0e-30)
     candidates = np.flatnonzero(overdensity >= 1.0)
-    target_mass = float(initial_condition.get("target_halo_mass", np.nan))
+    target_mass = quantity_to_value(
+        initial_condition["target_halo_mass"], code_unit_system.mass_unit
+    ) if "target_halo_mass" in initial_condition else np.nan
     target_index = np.searchsorted(dm_total_mass_comoving_code, target_mass)
     rtarget = (
         float(dm_radius_proper_code[target_index])
@@ -519,7 +521,9 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
 
     g_code = float(cosmology.gravitational_constant)
     j = float(initial_condition["specific_angular_momentum"])
-    target_mass = float(initial_condition.get("target_halo_mass", np.nan))
+    target_mass = quantity_to_value(
+        initial_condition["target_halo_mass"], code_unit_system.mass_unit
+    ) if "target_halo_mass" in initial_condition else np.nan
     # This is a halo-scale centrifugal-radius diagnostic, not a resolved
     # rotating-disc solution.  Using the local enclosed mass here makes the
     # radius grow artificially when the correlation IC has assembled only a

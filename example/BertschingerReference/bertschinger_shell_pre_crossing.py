@@ -64,7 +64,7 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     units = example_tools.code_units_from_config(config)
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(example['cosmology_t_ref']),
+        t_ref=quantity_to_value(example['cosmology_t_ref'], units.time_unit),
         a_ref=float(example['cosmology_a_ref']),
     )
     config['_code_units'] = units

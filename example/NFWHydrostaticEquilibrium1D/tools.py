@@ -179,20 +179,20 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
         initial_condition['mu'],
         initial_condition['gas_fraction'],
     )[first:last]
-    radius_kpc = quantity_to_value(radius_proper_cgs_cm_unyt, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
-    rho_cgs = code_quantity_to_cgs(rho_proper_code, code_units, 'density_cgs_g_cm3')
-    rho_expected_cgs = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
-    velocity_km_s = code_quantity_to_cgs(vel_proper_code, code_units, 'velocity_cgs_cm_s') / 1.0e5
+    radius_proper_kpc = quantity_to_value(radius_proper_cgs_cm_unyt, unyt.cm) / float((1.0 * unyt.kpc).to_value(unyt.cm))
+    rho_proper_cgs_g_cm3 = code_quantity_to_cgs(rho_proper_code, code_units, 'density_cgs_g_cm3')
+    rho_expected_proper_cgs_g_cm3 = quantity_to_value(rho_expected, unyt.g / unyt.cm**3)
+    vel_proper_km_s = code_quantity_to_cgs(vel_proper_code, code_units, 'velocity_cgs_cm_s') / 1.0e5
 
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.5))
-    axes[0].plot(radius_kpc, rho_expected_cgs, color='black', lw=2.0, label='analytic HSE')
-    axes[0].plot(radius_kpc, rho_cgs, 'o', ms=3.0, mfc='none', label='RHD snapshot')
+    axes[0].plot(radius_proper_kpc, rho_expected_proper_cgs_g_cm3, color='black', lw=2.0, label='analytic HSE')
+    axes[0].plot(radius_proper_kpc, rho_proper_cgs_g_cm3, 'o', ms=3.0, mfc='none', label='RHD snapshot')
     axes[0].set_yscale('log')
     axes[0].set_xlabel('r [kpc]')
     axes[0].set_ylabel(r'$\rho_{\rm gas}$ [g cm$^{-3}$]')
     axes[0].grid(True, which='both', alpha=0.25)
     axes[0].legend(frameon=False)
-    axes[1].plot(radius_kpc, velocity_km_s, color='tab:blue')
+    axes[1].plot(radius_proper_kpc, vel_proper_km_s, color='tab:blue')
     axes[1].axhline(0.0, color='black', ls='--')
     axes[1].set_xlabel('r [kpc]')
     axes[1].set_ylabel(r'$v_r$ [km s$^{-1}$]')
@@ -200,4 +200,4 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
-    return np.max(np.abs((rho_cgs - rho_expected_cgs) / rho_expected_cgs))
+    return np.max(np.abs((rho_proper_cgs_g_cm3 - rho_expected_proper_cgs_g_cm3) / rho_expected_proper_cgs_g_cm3))

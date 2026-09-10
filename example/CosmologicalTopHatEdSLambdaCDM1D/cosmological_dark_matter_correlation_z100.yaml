@@ -19,7 +19,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
-  target_halo_mass: 100.0
+  target_halo_mass: {value: 1.0e12, unit: Msun}
   time_cosmic: {value: 0.01418666885, unit: kpc/(km/s)}
   initial_overdensity: 0.0166930693
   dark_matter_shells: 256

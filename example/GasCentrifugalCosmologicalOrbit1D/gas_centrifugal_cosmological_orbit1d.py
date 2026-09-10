@@ -233,7 +233,7 @@ def main(config_filename=CONFIG):
         atol=1.0e-13,
         dense_output=True,
     )
-    dt = float(example_config['timestep'])
+    dt = float(example_config['timestep'].to_value('dimensionless'))
     times = np.arange(0.0, final_tau + 0.5 * dt, dt)
     numerical = np.empty((2, len(times)))
     numerical[:, 0] = (x0_comoving_code, v0_supercomoving_code)

@@ -96,9 +96,9 @@ def run_case(config, radiative):
     history = []
     while float(sim.fluid.tau_supercomoving_code) < target - 1.0e-12:
         tau = float(sim.fluid.tau_supercomoving_code)
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
         if radiative:
-            a = float(cosmology.scale_factor(cosmic_time))
+            a = float(cosmology.scale_factor(time_cosmic_code))
             redshift = max(0.0, 1.0 / a - 1.0)
             if redshift > float(initial_condition["uv_background_on_redshift"]):
                 sim.par.thermochemistry_network = "cie_cooling"
@@ -112,14 +112,14 @@ def run_case(config, radiative):
         dt = float(sim.GetStepTime())
         dt = min(dt, target - tau)
         sim.Step(dt=dt, mode="hydro_sources" if radiative else "hydro")
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)))
-        if cosmic_time >= next_output or cosmic_time >= tf - 1.0e-10:
-            history.append(et.profiles(sim, dm, cosmic_time, config))
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)))
+        if time_cosmic_code >= next_output or time_cosmic_code >= tf - 1.0e-10:
+            history.append(et.profiles(sim, dm, time_cosmic_code, config))
             next_output += cadence
 
     result = {key: np.asarray([row[key] for row in history]) for key in history[0]}
     np.savez(case_dir / "mass_radius_history.npz", **result)
-    final_profile = et.density_profiles(sim, dm, cosmic_time, config)
+    final_profile = et.density_profiles(sim, dm, time_cosmic_code, config)
     np.savez(case_dir / "density_profile_final.npz", **final_profile)
     return result, final_profile
 

@@ -20,9 +20,9 @@ initial_condition:
   perturbation_amplitude: 5.0
   softening: 0.02
 example:
-  cosmology_t_ref: 1.0
+  cosmology_t_ref: {value: 1.0, unit: pc/(km/s)}
   cosmology_a_ref: 1.0
-  time_final_cosmic: 1.1
+  time_final_cosmic: {value: 1.1, unit: pc/(km/s)}
   supercomoving_timestep: 0.0005
   crossing_safety_factor: 0.1
   profile_bins: 256
@@ -32,7 +32,7 @@ example:
   ode_angular_momentum: 0.0
   ode_centre_match_lambda: 0.002
   ode_centre_matching_velocity: 2.30
-  time_comparison_final_cosmic: 148.4131591
+  time_comparison_final_cosmic: {value: 148.4131591, unit: pc/(km/s)}
   comparison_timestep: 0.002
   comparison_snapshot_stride: 5
   comparison_shell_stride: 16

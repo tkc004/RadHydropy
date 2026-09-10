@@ -165,7 +165,7 @@ def print_startup_diagnostics(sim, config, initial_condition):
     xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma_code = np.asarray(sim.fluid.ngamma_code[interior], dtype=float) if hasattr(sim.fluid, 'ngamma_code') else None
     code_units_obj = sim.par.units.CodeUnits
-    rho_cgs = code_quantity_to_cgs(
+    rho_proper_cgs_g_cm3 = code_quantity_to_cgs(
         rho_proper_code,
         code_units_obj,
         'density_cgs_g_cm3',
@@ -177,7 +177,7 @@ def print_startup_diagnostics(sim, config, initial_condition):
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.mesh.grid_cells)
     print('time = %.6e Myr' % time_myr(sim.fluid.time_proper_code, code_units_obj))
-    print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_cgs), np.max(rho_cgs)))
+    print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_proper_cgs_g_cm3), np.max(rho_proper_cgs_g_cm3)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel_proper_code)) / 1.0e5))
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp_proper_code), np.max(temp_proper_code)))
     print('neutral fraction range = [%.3e, %.3e]' % (np.min(xHI), np.max(xHI)))
@@ -344,13 +344,13 @@ def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
 
 def append_history(history, mesh, fluid, config):
     par = config['_output_par']
-    history['time_Myr'].append(_scalar_in_unit(fluid.time_proper_code, unyt.Myr))
+    history['time_proper_Myr'].append(_scalar_in_unit(fluid.time_proper_code, unyt.Myr))
     history['front_radius_pc'].append(ionization_front_position(mesh, fluid, config))
 
 
 def load_history_from_outputs(outputfilenames, config):
     history = {
-        'time_Myr': [],
+        'time_proper_Myr': [],
         'front_radius_pc': [],
     }
     for outputfilename in outputfilenames:
@@ -367,7 +367,7 @@ def density_snapshot(mesh, fluid, config):
     if ngamma_code.ndim > 1:
         ngamma_code = np.sum(ngamma_code, axis=0)
     return {
-        'time_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
+        'time_proper_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
         'radius_pc': _value_in_unit(mesh.x_proper_code[interior], unyt.pc).copy(),
         'density_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
         'radiation_density_cgs_cm3': _value_in_unit(
@@ -377,16 +377,16 @@ def density_snapshot(mesh, fluid, config):
 
 
 def front_radius_at_time(history, time_proper_code):
-    time_myr = np.asarray(history['time_Myr'])
+    time_proper_Myr = np.asarray(history['time_proper_Myr'])
     front_radius_pc = np.asarray(history['front_radius_pc'])
     target_time_myr = time_proper_code.to_value(unyt.Myr)
-    if time_myr.size == 0:
+    if time_proper_Myr.size == 0:
         raise ValueError('history is empty')
-    tol = max(1.0e-12 * max(1.0, np.max(np.abs(time_myr)), abs(target_time_myr)), 1.0e-30)
-    if target_time_myr < time_myr[0] - tol or target_time_myr > time_myr[-1] + tol:
+    tol = max(1.0e-12 * max(1.0, np.max(np.abs(time_proper_Myr)), abs(target_time_myr)), 1.0e-30)
+    if target_time_myr < time_proper_Myr[0] - tol or target_time_myr > time_proper_Myr[-1] + tol:
         raise ValueError('requested time is outside the recorded history')
-    target_time_myr = float(np.clip(target_time_myr, time_myr[0], time_myr[-1]))
-    return np.interp(target_time_myr, time_myr, front_radius_pc) * unyt.pc
+    target_time_myr = float(np.clip(target_time_myr, time_proper_Myr[0], time_proper_Myr[-1]))
+    return np.interp(target_time_myr, time_proper_Myr, front_radius_pc) * unyt.pc
 
 
 def stromgren_radius(config):
@@ -451,7 +451,7 @@ def hosokawa_inutsuka_radius(time_proper_code, config):
 
 def save_front_plot(history, config, figure_filename):
     initial_condition = config['initial_condition']
-    time_proper_unyt = np.asarray(history['time_Myr']) * unyt.Myr
+    time_proper_unyt = np.asarray(history['time_proper_Myr']) * unyt.Myr
     time_proper_Myr = time_proper_unyt.to_value(unyt.Myr)
     front_radius_pc = np.asarray(history['front_radius_pc'])
     stromgren_radius_pc = stromgren_radius(config).to_value(unyt.pc)
@@ -526,7 +526,7 @@ def save_front_plot(history, config, figure_filename):
 
 
 def save_density_profile_plot(snapshot, config, figure_filename):
-    time_proper_unyt = snapshot['time_Myr'] * unyt.Myr
+    time_proper_unyt = snapshot['time_proper_Myr'] * unyt.Myr
     radius_pc = np.asarray(snapshot['radius_pc'])
     density_cgs_g_cm3 = np.asarray(snapshot['density_cgs_g_cm3'])
     radiation_density_cgs_cm3 = np.asarray(snapshot['radiation_density_cgs_cm3'])
@@ -574,7 +574,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.set_yscale('log')
     ax.set_xlabel('Radius [pc]')
     ax.set_ylabel(r'Density [g cm$^{-3}$]')
-    ax.set_title('Density profile at %.3f Myr' % snapshot['time_Myr'])
+    ax.set_title('Density profile at %.3f Myr' % snapshot['time_proper_Myr'])
     ax.set_xlim(0.0, config['initial_condition']['box_size_proper'].to_value(unyt.pc))
     positive_density = density_cgs_g_cm3[density_cgs_g_cm3 > 0.0]
     if positive_density.size:
