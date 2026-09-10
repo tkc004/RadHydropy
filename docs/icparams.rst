@@ -27,6 +27,40 @@ Unit-bearing values are written as ``value`` / ``unit`` pairs in YAML. The
 shared ``example_utils.load_nested_example_config`` helper converts them to
 ``unyt`` quantities before the IC builder writes the initial-condition file.
 
+Strict unit and naming rules
+----------------------------
+
+The unit mapping belongs on the value, while the key describes the physical
+role:
+
+.. code-block:: yaml
+
+   initial_condition:
+     radius_inner_proper: {value: 0.0, unit: pc}
+     radius_outer_proper: {value: 20.0, unit: pc}
+     rho_proper: {value: 1.0e-24, unit: g/cm**3}
+     temperature_proper: {value: 100.0, unit: K}
+
+Do not replace these with bare numeric values or runtime field names such as
+``rho_proper_code`` and ``temperature_cgs_K``. Representation-specific names
+belong to converted Python arrays and HDF5/runtime fields, not unit-bearing
+YAML inputs.
+
+At the IC-builder boundary, convert each quantity to the configured code-unit
+scale before assigning NumPy arrays or calling solver/EOS routines:
+
+.. code-block:: python
+
+   radius_outer_proper_code = quantity_to_value(
+       config["initial_condition"]["radius_outer_proper"],
+       code_units.length_unit,
+   )
+
+Use explicit ``*_proper_code``, ``*_comoving_code``, or
+``*_supercomoving_code`` names for numerical arrays. Use ``*_cgs_<unit>`` for
+cgs values and append ``_unyt`` when the value is still a unit-bearing
+quantity. Never use ``float(quantity)`` to convert units.
+
 Example YAML
 ------------
 

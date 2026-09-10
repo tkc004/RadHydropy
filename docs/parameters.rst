@@ -179,6 +179,36 @@ units. Runtime arrays and converted values use explicit ``*_proper_code``,
 ``initial_condition`` and ``example`` remain separate top-level mappings and
 are not part of ``par``.
 
+Strict configuration and unit formatting
+-----------------------------------------
+
+The YAML file is a typed physical-input file, not a dump of runtime arrays.
+Use these rules for every new or modified parameter file:
+
+* Keep ``par``, ``initial_condition``, and ``example`` separate. Runtime
+  parameters belong under ``par``; IC-builder inputs belong under
+  ``initial_condition``; plotting and workflow-only settings belong under
+  ``example``.
+* Write every physical scalar as a mapping containing both ``value`` and
+  ``unit``. For example, ``time_proper: {value: 1.0, unit: Myr}`` is valid;
+  a bare physical ``1.0`` is not.
+* Use semantic physical YAML keys such as ``rho_proper``,
+  ``temperature_proper``, ``vel_proper``, ``time_cosmic``, and
+  ``radius_inner_comoving``. Do not encode a guessed storage unit into a key
+  such as ``rho_cgs`` or ``time_s``.
+* Convert quantities explicitly with
+  ``quantity_to_value(value, code_units.<dimension>_unit)`` or
+  ``value.to_value(...)``. Never use ``float(quantity)`` as a conversion.
+* Name converted values by representation and unit: use
+  ``rho_proper_code``, ``rho_comoving_code``, ``vel_supercomoving_code``, or
+  ``temperature_cgs_K``. A variable carrying a ``unyt`` quantity additionally
+  ends in ``_unyt``.
+* Do not restore flat aliases, compatibility fallbacks, or legacy keys when a
+  name changes. Update all readers, variants, tests, and plotters together.
+
+For explicit output times, use ``par.output.time_list_filename``. The older
+flat ``outputtimefilename`` spelling is not part of the current format.
+
 If ``output.time_list_filename`` is provided, RadHydropy ignores ``output.cadence`` and
 writes outputs at the explicit times listed in the txt file. The file format is
 one time unit on the first non-empty line, followed by one output time per

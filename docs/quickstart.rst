@@ -31,14 +31,16 @@ Minimum Runner
 
    config = Path("example/SodShock1D/sodshock1d.yaml")
    config_data = load_nested_example_config(config)
-   par_config = config_data["par"]
    config_data["_code_units"] = CodeUnits.from_mapping(
-       par_config["units"]["CodeUnits"]
+       config_data["par"]["units"]["CodeUnits"]
    )
-   ric = et.build_initial_condition(config_data)
-   rio.writehdf5(ric, par_config["simulation"]["initial_condition_filename"])
+   initial = et.build_initial_condition(config_data)
+   rio.writehdf5(
+       initial,
+       config_data["par"]["simulation"]["initial_condition_filename"],
+   )
 
-   sim = Rsim(par_config)
+   sim = Rsim(config_data["par"])
    sim.RunAll()
 
 This is the same pattern used by the bundled example scripts: load the YAML
@@ -49,6 +51,47 @@ directory.
 Gravity examples such as the hydrostatic point-mass and ballistic-infall
 benchmarks follow the same pattern but also pass ``CodeUnits`` into their
 analytic gravity helpers so the internal math stays float-first.
+
+Initial-condition builder contract
+-----------------------------------
+
+Every example builder receives the complete nested ``config`` mapping. The
+builder reads runtime settings from ``config["par"]`` and physical IC inputs
+from ``config["initial_condition"]``; it must not receive a projected ``par``
+mapping or legacy ``icparams``/``runparams`` arguments. The normal sequence is:
+
+1. ``load_nested_example_config`` loads the YAML and converts
+   ``{value, unit}`` mappings to ``unyt`` quantities.
+2. ``CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])`` creates
+   the configured conversion system.
+3. ``build_initial_condition(config)`` converts physical inputs explicitly,
+   constructs a typed ``Rsim`` state, and validates the active cells.
+4. ``radhydropy.io.writehdf5`` serializes that typed state with the code-unit
+   metadata in the HDF5 header.
+5. ``Rsim(config["par"])`` loads and runs the same nested runtime model.
+
+Basic proper-coordinate hydro examples may delegate their final assembly to
+``example/basic_hydro_utils.py:make_initial_condition``. Its profile arrays
+must already be named and converted as ``boundary_proper_code``,
+``rho_proper_code``, ``vel_proper_code``, ``temp_proper_code``, and
+``mu_dimensionless``. It owns ghost-cell setup, typed geometry, conserved-state
+construction, active-cell/EOS consistency checks, and
+``Rsim.FromComponents(...)`` serialization. Cosmological examples must build
+their explicit comoving/supercomoving fields instead of using this proper-code
+helper as an adapter.
+
+Strict unit formatting
+----------------------
+
+Physical YAML values always use ``{value, unit}``; do not write bare physical
+floats. YAML keys remain semantic, for example ``rho_proper``,
+``temperature_proper``, ``time_cosmic``, and ``radius_outer_comoving``. Runtime
+values identify their representation and units, such as
+``rho_proper_code``, ``vel_supercomoving_code``, or
+``temperature_cgs_K``. A unit-bearing Python value additionally ends in
+``_unyt``. Convert with ``quantity_to_value`` or ``.to_value`` before passing
+values to NumPy, EOS, geometry, or solver calls; ``float(quantity)`` is not a
+unit conversion.
 
 Runtime Parameters
 ------------------

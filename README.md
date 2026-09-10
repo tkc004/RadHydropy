@@ -170,10 +170,11 @@ The plotting step reloads the first output snapshot and renders the density
 profile with the built-in plotting helper.
 
 To use explicit output times instead of a fixed cadence, set
-`outputtimefilename` to a txt file whose first non-empty line is the time unit
-and whose remaining lines are the output times. Include the final simulation
-time if you want the last state written as an output snapshot. For example,
-the bundled example configs typically point to files such as ``output_times.txt``:
+`par.output.time_list_filename` to a txt file whose first non-empty line is the
+time unit and whose remaining lines are the output times. Include the final
+simulation time if you want the last state written as an output snapshot. For
+example, the bundled example configs typically point to files such as
+``output_times.txt``:
 
 ```text
 yr

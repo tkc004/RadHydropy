@@ -134,7 +134,7 @@ def run_case(config, atomic_cooling):
         )
         if not np.all(np.isfinite(sim.fluid.temp_proper_code[physical])):
             raise RuntimeError(
-                f"non-finite temperature at cosmic time {cosmic_time:.8g}, "
+                f"non-finite temperature at cosmic time {time_cosmic_code:.8g}, "
                 f"redshift {sim.par.compton_cmb_redshift:.8g}; "
                 f"temperature={sim.fluid.temp_proper_code[physical]}"
             )
@@ -192,14 +192,17 @@ def main():
         1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
     )
     temperature_relative_error_dimensionless = np.max(np.abs(compton["temperature_proper_cgs_K"] - analytic) / analytic)
-    print(f"Compton-only maximum relative error: {error:.6e}")
+    print(
+        "Compton-only maximum relative error: "
+        f"{temperature_relative_error_dimensionless:.6e}"
+    )
     for label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
         choices, counts = np.unique(history["source_solver"], return_counts=True)
         summary = ", ".join(
             f"{choice}={count}" for choice, count in zip(choices, counts)
         )
         print(f"{label} hybrid source choices: {summary}")
-    if error > 2.0e-3:
+    if temperature_relative_error_dimensionless > 2.0e-3:
         raise RuntimeError("Compton-only EdS comparison failed")
     if not np.all(np.isfinite(atomic["temperature_proper_cgs_K"])):
         raise RuntimeError("atomic+Compton run produced non-finite temperature")

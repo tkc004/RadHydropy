@@ -27,11 +27,16 @@ def build_initial_condition(config):
 def plot_snapshot(filename, config, **kwargs):
     sim = Rsim(config["par"]); import radhydropy.io as rio; rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first=int(sim.par.mesh.ghost_cells); last=first+int(sim.par.mesh.grid_cells); b=np.asarray(sim.mesh.boundary_proper_code); x=.5*(b[:-1]+b[1:])[first:last]
+    box_size_proper_code = quantity_to_value(
+        config["initial_condition"]["box_size_proper"],
+        config["_code_units"].length_unit,
+    )
+    left_half = x <= 0.5 * box_size_proper_code
     pre_proper_code = sim.fluid.eos.pressure(sim.fluid.rho_proper_code, sim.fluid.temp_proper_code, sim.fluid.mu)
     color = kwargs.get("color")
-    plt.subplot(1,3,1); plt.plot(x, np.asarray(pre_proper_code)[first:last], **kwargs)
-    plt.subplot(1,3,2); plt.plot(x, np.asarray(sim.fluid.vel_proper_code)[first:last], **kwargs)
-    plt.subplot(1,3,3); plt.plot(x, np.asarray(sim.fluid.rho_proper_code)[first:last], **kwargs)
+    plt.subplot(1,3,1); plt.plot(x[left_half], np.asarray(pre_proper_code)[first:last][left_half], **kwargs)
+    plt.subplot(1,3,2); plt.plot(x[left_half], np.asarray(sim.fluid.vel_proper_code)[first:last][left_half], **kwargs)
+    plt.subplot(1,3,3); plt.plot(x[left_half], np.asarray(sim.fluid.rho_proper_code)[first:last][left_half], **kwargs)
     time_proper_unyt = float(np.asarray(sim.fluid.time_proper_code).flat[0]) * config["_code_units"].time_unit
     if time_proper_unyt > 0.0 * unyt.s:
         ic, par, units = config["initial_condition"], config["par"], config["_code_units"]
@@ -45,6 +50,7 @@ def plot_snapshot(filename, config, **kwargs):
         analytic_density_unyt = unyt.uconcatenate((analytic_density_unyt, np.zeros(2) * analytic_density_unyt.units + density_proper_unyt * area_proper_unyt))
         analytic_velocity_unyt = unyt.uconcatenate((analytic_velocity_unyt, np.zeros(2) * analytic_velocity_unyt.units))
         analytic_pressure_unyt = unyt.uconcatenate((analytic_pressure_unyt, np.zeros(2) * analytic_pressure_unyt.units))
-        plt.subplot(1,3,1); plt.plot(analytic_radius_unyt.in_cgs(), analytic_pressure_unyt.in_cgs(), color=color, linestyle="--")
-        plt.subplot(1,3,2); plt.plot(analytic_radius_unyt.in_cgs(), analytic_velocity_unyt.in_cgs(), color=color, linestyle="--")
-        plt.subplot(1,3,3); plt.plot(analytic_radius_unyt.in_cgs(), (analytic_density_unyt / area_proper_unyt).in_cgs(), color=color, linestyle="--")
+        analytic_left_half = analytic_radius_unyt <= 0.5 * ic["box_size_proper"]
+        plt.subplot(1,3,1); plt.plot(analytic_radius_unyt[analytic_left_half].in_cgs(), analytic_pressure_unyt[analytic_left_half].in_cgs(), color=color, linestyle="--")
+        plt.subplot(1,3,2); plt.plot(analytic_radius_unyt[analytic_left_half].in_cgs(), analytic_velocity_unyt[analytic_left_half].in_cgs(), color=color, linestyle="--")
+        plt.subplot(1,3,3); plt.plot(analytic_radius_unyt[analytic_left_half].in_cgs(), (analytic_density_unyt[analytic_left_half] / area_proper_unyt).in_cgs(), color=color, linestyle="--")
