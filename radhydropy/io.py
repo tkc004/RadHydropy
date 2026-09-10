@@ -1,6 +1,7 @@
 """HDF5 input and output helpers for simulations."""
 
 from pathlib import Path
+import hashlib
 
 import h5py
 import os
@@ -21,6 +22,97 @@ try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
     SympyBasic = None
+
+
+def _provenance_yaml_value(value):
+    """Convert nested configuration values into YAML-safe values."""
+    if isinstance(value, unyt.array.unyt_array):
+        numeric_value = np.asarray(value.value)
+        if numeric_value.ndim == 0:
+            numeric_value = numeric_value.item()
+        else:
+            numeric_value = numeric_value.tolist()
+        return {"value": numeric_value, "unit": str(value.units)}
+    if isinstance(value, dict):
+        return {
+            str(key): _provenance_yaml_value(item)
+            for key, item in value.items()
+            if not str(key).startswith("_")
+        }
+    if isinstance(value, (list, tuple)):
+        return [_provenance_yaml_value(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _provenance_yaml_text(value):
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    if isinstance(value, str):
+        return value
+    return yaml.safe_dump(
+        _provenance_yaml_value(value),
+        sort_keys=True,
+        default_flow_style=False,
+    )
+
+
+def _write_provenance(header, provenance):
+    """Write reproducibility metadata under ``Header/Provenance``."""
+    if provenance is None:
+        return
+    if not hasattr(provenance, "get"):
+        raise TypeError("HDF5 provenance must be supplied as a mapping")
+    source_yaml = _provenance_yaml_text(
+        provenance.get("source_config_yaml", "")
+    )
+    effective_value = provenance.get("effective_config_yaml")
+    if effective_value is None:
+        effective_value = provenance.get("effective_config", {})
+    effective_yaml = _provenance_yaml_text(effective_value)
+    provenance_group = header.create_group("Provenance")
+    string_dtype = h5py.string_dtype(encoding="utf-8")
+    provenance_group.create_dataset(
+        "source_config_yaml", data=source_yaml, dtype=string_dtype
+    )
+    provenance_group.create_dataset(
+        "effective_config_yaml", data=effective_yaml, dtype=string_dtype
+    )
+    provenance_group.attrs["source_config_sha256"] = hashlib.sha256(
+        source_yaml.encode("utf-8")
+    ).hexdigest()
+    provenance_group.attrs["effective_config_sha256"] = hashlib.sha256(
+        effective_yaml.encode("utf-8")
+    ).hexdigest()
+    for key in (
+        "schema_version",
+        "source_config_filename",
+        "git_commit",
+        "git_dirty",
+        "initial_condition_sha256",
+    ):
+        if key in provenance and provenance[key] is not None:
+            provenance_group.attrs[key] = _header_attr_value(provenance[key])
+
+
+def _read_provenance(header):
+    if "Provenance" not in header:
+        return None
+    group = header["Provenance"]
+    decode = lambda value: value.decode("utf-8") if isinstance(value, bytes) else value
+    provenance = {
+        "source_config_yaml": decode(group["source_config_yaml"][()]),
+        "effective_config_yaml": decode(group["effective_config_yaml"][()]),
+    }
+    for key, value in group.attrs.items():
+        restored = _restore_header_attr_value(value)
+        provenance[key] = restored
+    return provenance
 
 
 def _scale_unit_for_key(scale_key):
@@ -471,7 +563,7 @@ def run_with_output_times(
         output_writer=write_numbered_hdf5,
     )
 
-def writehdf5(ric,ICfilename):
+def writehdf5(ric, ICfilename, *, provenance=None):
     """Write simulation state to a RadHydropy HDF5 file.
 
     The output file contains a ``Header`` group for metadata and a ``Data``
@@ -525,6 +617,13 @@ def writehdf5(ric,ICfilename):
         header.attrs["GhostCells"] = int(ric.par.mesh.ghost_cells)
         header.attrs["CoordinateSystem"] = getattr(
             getattr(ric.par, "simulation", None), "coordinate_system", "cartesian"
+        )
+        _write_provenance(
+            header,
+            provenance
+            if provenance is not None
+            else getattr(ric, "provenance", None)
+            or getattr(ric.par, "provenance", None),
         )
         if hasattr(ric, "cumulative_hydro_boundary_energy"):
             header.attrs["CumulativeHydroBoundaryEnergyCode"] = float(
@@ -759,6 +858,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
         # saving initial condition
         # first, save header:
         header = fic["Header"]
+        file_provenance = _read_provenance(header)
+        if file_provenance is not None:
+            par.provenance = file_provenance
         if "CodeUnits" not in header.attrs:
             raise ValueError(
                 "IC file is missing Header.attrs['CodeUnits']; cannot read datasets without a code-unit mapping."

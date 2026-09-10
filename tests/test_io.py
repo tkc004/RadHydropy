@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import os
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from tests.parameter_fixtures import parameter_namespace
@@ -236,6 +237,77 @@ class Testing(unittest.TestCase):
                 self.assertEqual(
                     np.asarray(header['box_size_proper_code'][()]).item(),
                     3.0,
+                )
+
+    def test_writehdf5_roundtrips_configuration_provenance(self):
+        par = parameter_namespace(
+            coordsys='cartesian',
+            nogrid=3,
+            time_code=0.0 * unyt.s,
+            box_size_proper=3.0 * unyt.cm,
+            CodeUnits=CODE_UNITS,
+        )
+        mesh = SimpleNamespace(
+            boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
+        )
+        fluid = SimpleNamespace(
+            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_code=np.ones(3) * unyt.K,
+            mu=np.ones(3),
+        )
+        mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+        loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+        provenance = {
+            'source_config_yaml': 'par:\n  simulation:\n    name: test\n',
+            'effective_config': {
+                'par': {
+                    'simulation': {'final_time': 2.0 * unyt.s},
+                },
+                'initial_condition': {'rho_proper': 1.0 * unyt.g / unyt.cm**3},
+                'example': {'name': 'io-test'},
+            },
+            'schema_version': 1,
+            'source_config_filename': 'test.yaml',
+            'git_commit': 'deadbeef',
+            'git_dirty': False,
+        }
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name, provenance=provenance)
+            with h5py.File(output.name, 'r') as handle:
+                stored = handle['Header']['Provenance']
+                source_yaml = stored['source_config_yaml'][()].decode()
+                effective_yaml = stored['effective_config_yaml'][()].decode()
+                self.assertEqual(source_yaml, provenance['source_config_yaml'])
+                self.assertIn('rho_proper:', effective_yaml)
+                self.assertEqual(stored.attrs['schema_version'], 1)
+                self.assertEqual(stored.attrs['source_config_filename'], 'test.yaml')
+                self.assertEqual(stored.attrs['git_commit'], 'deadbeef')
+                self.assertFalse(stored.attrs['git_dirty'])
+                self.assertEqual(
+                    stored.attrs['source_config_sha256'],
+                    hashlib.sha256(source_yaml.encode()).hexdigest(),
+                )
+            rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        self.assertEqual(
+            loaded_par.provenance['source_config_yaml'],
+            provenance['source_config_yaml'],
+        )
+        self.assertEqual(loaded_par.provenance['schema_version'], 1)
+
+        sim.par.provenance = loaded_par.provenance
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as snapshot:
+            rio.writehdf5(sim, snapshot.name)
+            with h5py.File(snapshot.name, 'r') as handle:
+                self.assertIn('Provenance', handle['Header'])
+                self.assertEqual(
+                    handle['Header']['Provenance'].attrs['effective_config_sha256'],
+                    loaded_par.provenance['effective_config_sha256'],
                 )
 
     def test_readhdf5_restores_header_attributes_and_code_units(self):

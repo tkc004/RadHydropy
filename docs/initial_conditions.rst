@@ -68,7 +68,24 @@ complete configuration mapping, including ``par``, ``initial_condition``, and
    rio.writehdf5(
        initial,
        config["par"]["simulation"]["initial_condition_filename"],
+       provenance={
+           "source_config_yaml": config_filename.read_text(),
+           "effective_config": config,
+           "source_config_filename": str(config_filename),
+           "schema_version": 1,
+       },
    )
+
+The optional ``provenance`` mapping writes a ``Header/Provenance`` group to
+both initial-condition files and snapshots. It stores the original YAML as
+``source_config_yaml`` and the configuration actually used after case/output
+overrides as ``effective_config_yaml``. The group records separate
+``source_config_sha256`` and ``effective_config_sha256`` attributes, so the
+source file and effective run configuration can be verified independently.
+Optional ``git_commit``, ``git_dirty``, and
+``initial_condition_sha256`` metadata may also be supplied. Private runtime
+objects and keys beginning with ``_`` are excluded from serialized effective
+configuration YAML.
 
 ``build_initial_condition`` owns the example-specific work: it reads physical
 inputs from ``config["initial_condition"]``, converts them explicitly to the
@@ -104,6 +121,8 @@ NumPy arrays—``float(quantity)`` is not a unit conversion.
 After construction, write the returned typed state with
 ``radhydropy.io.writehdf5``. For readback, construct ``Rsim(config["par"])``
 and call ``radhydropy.io.readhdf5`` into its typed mesh and fluid objects.
+When a provenance group is present, ``readhdf5`` restores it as
+``par.provenance``; a subsequent snapshot write can reuse that metadata.
 Avoid ad-hoc ``SimpleNamespace``/dynamic containers and direct snapshot
 ``h5py`` reads in active example workflows.
 
