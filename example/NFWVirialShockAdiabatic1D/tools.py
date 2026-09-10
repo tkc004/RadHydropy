@@ -215,12 +215,12 @@ def plot_snapshots(filenames, config, halo, figure_filename):
         halo, initial_condition['mu']
     ).to_value(unyt.K)
     for color, filename in zip(colors, filenames):
-        time_myr, radius, density, temperature, _ = _snapshot_profiles(
+        time_proper_Myr, radius_proper_kpc, density_proper_cgs_g_cm3, temperature_proper_cgs_K, _ = _snapshot_profiles(
             filename, config
         )
-        label = f'{time_myr:.0f} Myr'
-        axes[0].plot(radius, density, color=color, label=label)
-        axes[1].plot(radius, temperature, color=color, label=label)
+        label = f'{time_proper_Myr:.0f} Myr'
+        axes[0].plot(radius_proper_kpc, density_proper_cgs_g_cm3, color=color, label=label)
+        axes[1].plot(radius_proper_kpc, temperature_proper_cgs_K, color=color, label=label)
     axes[0].set_yscale('log')
     axes[1].set_yscale('log')
     axes[0].set_xlabel('r [kpc]')

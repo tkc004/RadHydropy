@@ -35,7 +35,7 @@ def main(config_filename=DEFAULT_CONFIG):
     timestep = config["par"]['timestep']
     example = config.get('example', {})
     cosmology = EinsteinDeSitter.from_code_units(
-        units, t_ref=float(gravity['cosmology_t_ref']),
+        units, t_ref=quantity_to_value(gravity['cosmology_t_ref'], units.time_unit),
         a_ref=float(gravity['cosmology_a_ref']),
     )
 

@@ -19,7 +19,7 @@ par:
     supercomoving_coordinates: true
     cosmological_gravity: false
     cosmology_type: einstein_de_sitter
-    cosmology_t_ref: 1.0
+    cosmology_t_ref: {value: 1.0, unit: s}
     cosmology_a_ref: 1.0
   boundary:
     condition: Periodic

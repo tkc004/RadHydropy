@@ -43,7 +43,7 @@ par:
     supercomoving_coordinates: true
     cosmological_gravity: true
     cosmology_type: einstein_de_sitter
-    cosmology_t_ref: 0.1
+    cosmology_t_ref: {value: 0.1, unit: Myr}
     cosmology_a_ref: 1.0
     externalgravity: false
 initial_condition:

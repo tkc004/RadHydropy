@@ -57,7 +57,7 @@ def run(config_filename=DEFAULT_CONFIG):
     gravity = par["gravity"]
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(gravity["cosmology_t_ref"]),
+        t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, config)
@@ -151,8 +151,8 @@ def run(config_filename=DEFAULT_CONFIG):
     gas_profiles = []
     radius_history = []
 
-    def save_snapshot(cosmic_time):
-        gas, radii = _snapshot(sim, dm, cosmic_time, config)
+    def save_snapshot(time_cosmic_code):
+        gas, radii = _snapshot(sim, dm, time_cosmic_code, config)
         gas_profiles.append(gas)
         radius_history.append(radii)
 
@@ -171,18 +171,18 @@ def run(config_filename=DEFAULT_CONFIG):
         )
         sim.Step(dt=dt, mode="hydro_sources")
         steps += 1
-        cosmic_time = float(
+        time_cosmic_code = float(
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
         if steps == 1 or steps % 500 == 0:
             print(
                 "step=%d cosmic_time=%.6g dt=%.6g crossing_dt=%.6g"
-                % (steps, cosmic_time, dt, dm.crossing_timestep()),
+                % (steps, time_cosmic_code, dt, dm.crossing_timestep()),
                 flush=True,
             )
-        if cosmic_time >= next_snapshot or cosmic_time >= final_cosmic_time_code - 1.0e-10:
-            save_snapshot(cosmic_time)
-            while next_snapshot <= cosmic_time + 1.0e-12:
+        if time_cosmic_code >= next_snapshot or time_cosmic_code >= final_cosmic_time_code - 1.0e-10:
+            save_snapshot(time_cosmic_code)
+            while next_snapshot <= time_cosmic_code + 1.0e-12:
                 next_snapshot += cadence
 
     times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])

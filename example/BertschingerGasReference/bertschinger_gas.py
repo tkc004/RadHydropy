@@ -64,40 +64,40 @@ def exterior_solution(lambda_values, theta_points=20000):
 
 
 def _gas_rhs(lam, state, gamma=GAMMA):
-    density, velocity, pressure, mass = state
-    if density <= 0.0 or pressure <= 0.0 or lam <= 0.0:
+    density_dimensionless, velocity_dimensionless, pressure_dimensionless, mass_dimensionless = state
+    if density_dimensionless <= 0.0 or pressure_dimensionless <= 0.0 or lam <= 0.0:
         return np.full(4, np.nan)
-    q = velocity - ALPHA * lam
+    q = velocity_dimensionless - ALPHA * lam
     # The unknowns are (d ln D/d lambda, dV/d lambda,
     # d ln P/d lambda).  Keeping logarithmic derivatives here avoids the
     # density/pressure scale factors leaking into the energy equation.
     matrix = np.array([
         [q, 1.0, 0.0],
-        [0.0, q, pressure / density],
+        [0.0, q, pressure_dimensionless / density_dimensionless],
         [0.0, gamma, q],
     ])
     rhs = np.array([
-        2.0 - 2.0 * velocity / lam,
-        -(ALPHA - 1.0) * velocity - 2.0 * mass / (9.0 * lam**2),
-        4.0 - 2.0 * ALPHA - 2.0 * gamma * velocity / lam,
+        2.0 - 2.0 * velocity_dimensionless / lam,
+        -(ALPHA - 1.0) * velocity_dimensionless - 2.0 * mass_dimensionless / (9.0 * lam**2),
+        4.0 - 2.0 * ALPHA - 2.0 * gamma * velocity_dimensionless / lam,
     ])
     log_density_prime, velocity_prime, log_pressure_prime = np.linalg.solve(matrix, rhs)
     return np.array([
-        density * log_density_prime,
+        density_dimensionless * log_density_prime,
         velocity_prime,
-        pressure * log_pressure_prime,
-        3.0 * lam**2 * density,
+        pressure_dimensionless * log_pressure_prime,
+        3.0 * lam**2 * density_dimensionless,
     ])
 
 
 def shock_jump(exterior_state, shock_lambda, gamma=GAMMA):
     """Apply the strong-shock Rankine--Hugoniot conditions."""
-    density, velocity, mass = exterior_state
-    relative_velocity = velocity - ALPHA * shock_lambda
-    density_post = (gamma + 1.0) / (gamma - 1.0) * density
-    velocity_post = ALPHA * shock_lambda + (gamma - 1.0) / (gamma + 1.0) * relative_velocity
-    pressure_post = 2.0 / (gamma + 1.0) * density * relative_velocity**2
-    return np.array([density_post, velocity_post, pressure_post, mass])
+    density_dimensionless, velocity_dimensionless, mass_dimensionless = exterior_state
+    relative_velocity_dimensionless = velocity_dimensionless - ALPHA * shock_lambda
+    density_post_dimensionless = (gamma + 1.0) / (gamma - 1.0) * density_dimensionless
+    velocity_post_dimensionless = ALPHA * shock_lambda + (gamma - 1.0) / (gamma + 1.0) * relative_velocity_dimensionless
+    pressure_post_dimensionless = 2.0 / (gamma + 1.0) * density_dimensionless * relative_velocity_dimensionless**2
+    return np.array([density_post_dimensionless, velocity_post_dimensionless, pressure_post_dimensionless, mass_dimensionless])
 
 
 def _integrate_inside(shock_lambda, lambda_min, gamma,

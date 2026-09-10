@@ -31,13 +31,13 @@ import power_law_hii_region_analytic as analytic
 DEFAULT_CONFIG = EXAMPLE_DIR / "power_law_hii_region_radhydropy.yaml"
 
 
-def density_profile(radius_cgs_cm, core_number_density_cgs_cm3,
+def density_profile(radius_proper_cgs_cm, core_number_density_cgs_cm3,
                     radius_core_proper_cgs_cm, density_power_law_exponent):
-    radius_cgs_cm = np.asarray(radius_cgs_cm, dtype=float)
+    radius_proper_cgs_cm = np.asarray(radius_proper_cgs_cm, dtype=float)
     return core_number_density_cgs_cm3 * np.where(
-        radius_cgs_cm < radius_core_proper_cgs_cm,
+        radius_proper_cgs_cm < radius_core_proper_cgs_cm,
         1.0,
-        (radius_cgs_cm / radius_core_proper_cgs_cm)
+        (radius_proper_cgs_cm / radius_core_proper_cgs_cm)
         ** (-density_power_law_exponent),
     )
 
@@ -143,7 +143,7 @@ def shock_radius_cgs_cm(
     par = config['_output_par']
     first = par.mesh.ghost_cells
     interior = slice(first, first + par.mesh.grid_cells)
-    radius_cgs_cm = np.asarray(
+    radius_proper_cgs_cm = np.asarray(
         code_quantity_to_cgs(mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"),
         dtype=float,
     )
@@ -157,7 +157,7 @@ def shock_radius_cgs_cm(
         return np.nan
 
     initial_nh = density_profile(
-        radius_cgs_cm,
+        radius_proper_cgs_cm,
         core_number_density,
         radius_core_proper_cgs_cm,
         density_power_law_exponent,
@@ -165,18 +165,18 @@ def shock_radius_cgs_cm(
     compression = rho_proper_cgs_g_cm3 / (
         initial_nh * (1.0 * unyt.mp).to_value(unyt.g)
     )
-    neutral = (radius_cgs_cm > front) & (xhi > 0.5)
+    neutral = (radius_proper_cgs_cm > front) & (xhi > 0.5)
     candidates = np.where(neutral & (compression > 1.05))[0]
     if candidates.size == 0:
         return np.nan
 
     peak = candidates[np.argmax(compression[candidates])]
     shell = np.where(
-        neutral & (np.arange(radius_cgs_cm.size) >= peak) & (compression > 1.05)
+        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05)
     )[0]
     if shell.size == 0:
         return np.nan
-    return float(radius_cgs_cm[shell[-1]])
+    return float(radius_proper_cgs_cm[shell[-1]])
 
 
 def output_files(outdir, prefix):

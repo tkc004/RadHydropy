@@ -20,7 +20,7 @@ par:
     cosmological_gravity: false
     selfgravity: false
     cosmology_type: einstein_de_sitter
-    cosmology_t_ref: 50000.0
+    cosmology_t_ref: {value: 50000.0, unit: pc/(km/s)}
     cosmology_a_ref: 1.0
   thermochemistry:
     hydrogen_chemistry: true

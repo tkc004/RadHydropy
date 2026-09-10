@@ -7,7 +7,7 @@ par:
     filename_prefix: Output
   gravity:
     cosmology_type: einstein_de_sitter
-    cosmology_t_ref: 14.4
+    cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
   units:
     CodeUnits:

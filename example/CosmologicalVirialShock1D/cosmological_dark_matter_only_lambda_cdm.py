@@ -194,12 +194,12 @@ def run_live_shell_density_profiles(config):
     virial_radii = []
     next_snapshot = 0
 
-    def virial_threshold(cosmic_time):
+    def virial_threshold(time_cosmic_code):
         """Return the LCDM spherical-collapse virial density threshold."""
         if getattr(cosmology, "type_name", "") != "lambda_cdm":
-            return 200.0 * float(cosmology.background_density(cosmic_time))
-        scale_factor = float(cosmology.scale_factor(cosmic_time))
-        hubble = float(cosmology.hubble(cosmic_time))
+            return 200.0 * float(cosmology.background_density(time_cosmic_code))
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+        hubble = float(cosmology.hubble(time_cosmic_code))
         hubble_ref = float(cosmology.hubble(cosmology.t_ref))
         omega_m_z = cosmology.omega_m * (cosmology.a_ref / scale_factor) ** 3 / (
             hubble / hubble_ref
@@ -211,8 +211,8 @@ def run_live_shell_density_profiles(config):
         )
         return delta_vir * critical_density
 
-    def save_profile(cosmic_time):
-        a = float(cosmology.scale_factor(cosmic_time))
+    def save_profile(time_cosmic_code):
+        a = float(cosmology.scale_factor(time_cosmic_code))
         order = np.argsort(shells.radius)
         radius_comoving_code = a * np.asarray(shells.radius[order], dtype=float)
         mass_comoving_code = np.asarray(shells.mass[order], dtype=float)
@@ -224,7 +224,7 @@ def run_live_shell_density_profiles(config):
         radius_comoving_code = np.maximum(radius_comoving_code, 1.0e-8)
         core_mass = float(getattr(shells, "central_core_mass", 0.0))
         core_radius = a * float(getattr(shells, "central_core_radius", 0.0))
-        profiles.append((float(cosmic_time), radius_comoving_code, mass_comoving_code, core_mass, core_radius))
+        profiles.append((float(time_cosmic_code), radius_comoving_code, mass_comoving_code, core_mass, core_radius))
         # Include the absorbed unresolved-core mass when locating r200.  The
         # profile bins already include this same mass, so the overdensity
         # marker must use the identical enclosed-mass definition.
@@ -232,7 +232,7 @@ def run_live_shell_density_profiles(config):
         mean_density = cumulative_mass / (
             4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
         )
-        threshold = virial_threshold(cosmic_time)
+        threshold = virial_threshold(time_cosmic_code)
         candidates = np.flatnonzero(mean_density >= threshold)
         if candidates.size:
             index = int(candidates[-1])
@@ -377,7 +377,7 @@ def main(config_filename=DEFAULT_CONFIG):
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
-            units, t_ref=float(gravity["cosmology_t_ref"]),
+            units, t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
             omega_m=float(gravity["cosmology_omega_m"]),
             omega_lambda=float(gravity["cosmology_omega_lambda"]),
@@ -385,7 +385,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
     else:
         cosmology = EinsteinDeSitter.from_code_units(
-            units, t_ref=float(gravity["cosmology_t_ref"]),
+            units, t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
         )
     example = config["example"]

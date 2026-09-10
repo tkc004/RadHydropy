@@ -37,8 +37,8 @@ def _shell_edges(radius_comoving_code):
 
 def _gas_mass_profile(radius_comoving_code, rho_comoving_code):
     edges = _shell_edges(radius_comoving_code)
-    mass = np.asarray(rho_comoving_code, dtype=float) * (4.0 * np.pi / 3.0) * np.diff(edges**3)
-    return edges, np.maximum(mass, 0.0)
+    mass_comoving_code = np.asarray(rho_comoving_code, dtype=float) * (4.0 * np.pi / 3.0) * np.diff(edges**3)
+    return edges, np.maximum(mass_comoving_code, 0.0)
 
 
 def _dark_matter_proxy(gas, dark_matter):
@@ -82,19 +82,19 @@ def _dark_matter_proxy(gas, dark_matter):
             count = min(radius_comoving_code.size, previous.size, following.size)
             if count:
                 dt = times[i + 1] - times[i - 1]
-                velocity_km_s = (following[:count] - previous[:count]) / dt * (
+                vel_peculiar_proper_km_s = (following[:count] - previous[:count]) / dt * (
                     1.0 / KPC_PER_GYR_PER_cgs_KM_S
                 )
-                kinetic[i] = 0.5 * np.sum(mass_code[:count] * velocity_km_s**2)
+                kinetic[i] = 0.5 * np.sum(mass_code[:count] * vel_peculiar_proper_km_s**2)
         elif times.size > 1:
             neighbor = radius_shell_proper_kpc[i + (1 if i == 0 else -1)]
             neighbor = np.sort(neighbor[np.isfinite(neighbor) & (neighbor > 0.0)])
             count = min(radius_comoving_code.size, neighbor.size)
             dt = abs(times[i + (1 if i == 0 else -1)] - times[i])
             if count and dt > 0.0:
-                velocity_km_s = (radius_comoving_code[:count] - neighbor[:count]) / dt
-                velocity_km_s /= KPC_PER_GYR_PER_cgs_KM_S
-                kinetic[i] = 0.5 * np.sum(mass_code[:count] * velocity_km_s**2)
+                vel_peculiar_proper_km_s = (radius_comoving_code[:count] - neighbor[:count]) / dt
+                vel_peculiar_proper_km_s /= KPC_PER_GYR_PER_cgs_KM_S
+                kinetic[i] = 0.5 * np.sum(mass_code[:count] * vel_peculiar_proper_km_s**2)
     return kinetic, potential
 
 

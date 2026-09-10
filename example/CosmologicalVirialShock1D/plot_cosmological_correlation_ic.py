@@ -38,7 +38,7 @@ def main(config_filename=DEFAULT_CONFIG):
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(gravity["cosmology_t_ref"]),
+        t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
     table_filename = Path(example["linear_correlation_table_filename"])

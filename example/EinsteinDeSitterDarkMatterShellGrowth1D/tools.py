@@ -4,7 +4,7 @@ import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.units import CodeUnits, _gravitational_constant_code
+from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
 
 
 def code_units_from_config(config):
@@ -24,7 +24,7 @@ def make_shells(config, overdensity=None):
     gravity = config['par']['gravity']
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
-        t_ref=float(gravity['cosmology_t_ref']),
+        t_ref=quantity_to_value(gravity['cosmology_t_ref'], code_unit_system.time_unit),
         a_ref=float(gravity['cosmology_a_ref']),
     )
     default_number = int(initial_condition.get('number_of_shells', 2))

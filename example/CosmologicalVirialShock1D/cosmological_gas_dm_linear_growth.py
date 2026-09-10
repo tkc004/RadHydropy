@@ -115,13 +115,13 @@ def _load_correlation_table(config_filename, config):
     return et.load_lcdm_correlation_table(filename)
 
 
-def _set_background_state(sim, config, cosmic_time, baryon_fraction,
+def _set_background_state(sim, config, time_cosmic_code, baryon_fraction,
                           temperature_proper_code, mu):
     """Synchronize the analytic EdS outer reservoir and its active cell."""
     cosmology = config["_cosmology"]
-    scale_factor = float(cosmology.scale_factor(cosmic_time))
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     background_comoving = (
-        float(cosmology.background_density(cosmic_time)) * scale_factor**3
+        float(cosmology.background_density(time_cosmic_code)) * scale_factor**3
     )
     sim.par.boundary.rho_inflow_proper = baryon_fraction * background_comoving
     sim.par.boundary.vel_inflow_proper = 0.0
@@ -214,11 +214,11 @@ def _make_matched_initial_state(config):
     initial.mesh.x_comoving_code = coordinates
     initial.mesh.area_comoving_code = 4.0 * np.pi * boundaries[:-1]**2
     initial.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
-    cosmic_time = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
-    scale_factor = float(cosmology.scale_factor(cosmic_time))
-    hubble = float(cosmology.hubble(cosmic_time))
+    time_cosmic_code = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+    hubble = float(cosmology.hubble(time_cosmic_code))
     background_comoving = (
-        float(cosmology.background_density(cosmic_time)) * scale_factor**3
+        float(cosmology.background_density(time_cosmic_code)) * scale_factor**3
     )
     baryon_fraction = float(initial_condition["baryon_fraction"])
     length_unit_mpc_h = (
@@ -265,7 +265,7 @@ def _make_matched_initial_state(config):
     return initial, shells
 
 
-def _snapshot(sim, dm, cosmic_time, config,
+def _snapshot(sim, dm, time_cosmic_code, config,
               initial_scale_factor,
               diagnostic_radius_inner_comoving_code,
               diagnostic_radius_outer_comoving_code):
@@ -275,11 +275,11 @@ def _snapshot(sim, dm, cosmic_time, config,
     last = first + int(sim.par.mesh.grid_cells)
     x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
-    scale_factor = float(cosmology.scale_factor(cosmic_time))
-    hubble = float(cosmology.hubble(cosmic_time))
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+    hubble = float(cosmology.hubble(time_cosmic_code))
     growth = scale_factor / initial_scale_factor
     background_comoving = (
-        float(cosmology.background_density(cosmic_time)) * scale_factor**3
+        float(cosmology.background_density(time_cosmic_code)) * scale_factor**3
     )
     baryon_fraction = float(initial_condition["baryon_fraction"])
     dm_fraction = 1.0 - baryon_fraction
@@ -350,7 +350,7 @@ def _snapshot(sim, dm, cosmic_time, config,
 
     return {
         "time_cosmic_Gyr": float(
-            cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
         ),
         "scale_factor": scale_factor,
         "growth_factor": growth,
@@ -508,7 +508,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     gravity = par["gravity"]
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=float(gravity["cosmology_t_ref"]),
+        t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
     correlation_table = _load_correlation_table(config_filename, config)
@@ -619,11 +619,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     steps = 0
     for target_tau in snapshot_taus[1:]:
         while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-13:
-            cosmic_time = float(
+            time_cosmic_code = float(
                 cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
             )
             _set_background_state(
-                sim, config, cosmic_time, baryon_fraction,
+                sim, config, time_cosmic_code, baryon_fraction,
                 temperature_proper_code, float(initial_condition["mu"]),
             )
             sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
@@ -633,7 +633,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             if np.isfinite(crossing_dt) and crossing_dt <= dt * (1.0 + 1.0e-12):
                 raise RuntimeError(
                     "predicted dark-matter shell crossing before requested endpoint "
-                    "at cosmic time %.8g" % cosmic_time
+                    "at cosmic time %.8g" % time_cosmic_code
                 )
             sim.Step(dt=dt, mode="hydro")
             steps += 1
@@ -642,15 +642,15 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             if np.any(np.diff(dm.radius) <= 0.0):
                 raise RuntimeError("dark-matter shell radii ceased to be strictly ordered")
 
-        cosmic_time = float(
+        time_cosmic_code = float(
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
         _set_background_state(
-            sim, config, cosmic_time, baryon_fraction,
+            sim, config, time_cosmic_code, baryon_fraction,
             temperature_proper_code, float(initial_condition["mu"]),
         )
         history.append(_snapshot(
-            sim, dm, cosmic_time, config,
+            sim, dm, time_cosmic_code, config,
                     initial_scale_factor,
                     diagnostic_radius_inner_comoving_code,
                     diagnostic_radius_outer_comoving_code,

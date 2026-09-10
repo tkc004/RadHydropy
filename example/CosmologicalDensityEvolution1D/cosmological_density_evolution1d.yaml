@@ -27,7 +27,7 @@ par:
     selfgravity: false
     externalgravity: false
     cosmology_type: lambda_cdm
-    cosmology_t_ref: 1.0
+    cosmology_t_ref: {value: 1.0e17, unit: s}
     cosmology_a_ref: 1.0
   units:
     CodeUnits:

@@ -38,7 +38,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=float(gravity["cosmology_t_ref"]),
+            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
             omega_m=float(gravity["cosmology_omega_m"]),
             omega_lambda=float(gravity["cosmology_omega_lambda"]),
@@ -47,7 +47,7 @@ def main(config_filename=DEFAULT_CONFIG):
     else:
         cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=float(gravity["cosmology_t_ref"]),
+            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
         )
 

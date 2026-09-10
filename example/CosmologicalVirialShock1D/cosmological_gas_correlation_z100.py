@@ -693,13 +693,13 @@ def _energy_audit_state(sim):
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     vel_supercomoving_code = np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float)
     volume_comoving_code = np.asarray(sim.mesh.volume_comoving_code[first:last], dtype=float)
-    mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+    gas_mass_comoving_code = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
     total_energy = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
     kinetic_density = 0.5 * rho_comoving_code * vel_supercomoving_code**2
     kinetic_energy_code = float(np.sum(kinetic_density * volume_comoving_code))
     total_energy_value = float(np.sum(total_energy))
     return {
-        "total_gas_mass_comoving_code": float(np.sum(mass)),
+        "total_gas_mass_comoving_code": float(np.sum(gas_mass_comoving_code)),
         "total_gas_energy_code": total_energy_value,
         "kinetic_energy_code": kinetic_energy_code,
         "thermal_energy_code": total_energy_value - kinetic_energy_code,
@@ -816,11 +816,11 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
         state.get("mu", sim.fluid.mu[int(sim.par.mesh.ghost_cells):int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells)]),
         dtype=float,
     )
-    radius_cgs_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
+    radius_proper_cgs_cm = np.asarray(gas_profile["radius_proper_kpc"], dtype=float) * 3.0856775814913673e21
     velocity_cgs_cm_s = np.asarray(
         gas_profile["radial_velocity_physical_km_s"], dtype=float
     ) * 1.0e5
-    divergence = np.gradient(radius_cgs_cm**2 * velocity_cgs_cm_s, radius_cgs_cm) / np.maximum(radius_cgs_cm, 1.0e-30)**2
+    divergence = np.gradient(radius_proper_cgs_cm**2 * velocity_cgs_cm_s, radius_proper_cgs_cm) / np.maximum(radius_proper_cgs_cm, 1.0e-30)**2
     rho_dot = -rho_comoving_code * divergence
     sound_speed = np.sqrt(
         float(sim.par.hydrodynamics.gamma) * 1.380649e-16 * np.maximum(temperature_proper_cgs_K, 0.0)
@@ -861,7 +861,7 @@ def _dark_matter_energy_state(dm):
     order = np.argsort(ids)
     radius_comoving_code = np.asarray(dm.radius, dtype=float)[order]
     vel_supercomoving_code = np.asarray(dm.velocity, dtype=float)[order]
-    mass = np.asarray(dm.mass, dtype=float)[order]
+    mass_code = np.asarray(dm.mass, dtype=float)[order]
     angular = 0.5 * np.asarray(dm.angular_momentum, dtype=float)[order] ** 2 / (
         np.maximum(radius_comoving_code, np.finfo(float).tiny) + float(dm.softening)
     ) ** 2
@@ -871,10 +871,10 @@ def _dark_matter_energy_state(dm):
         "id": ids[order],
         "radius_comoving_code": radius_comoving_code,
         "vel_supercomoving_code": vel_supercomoving_code,
-        "mass_code": mass,
-        "kinetic_energy_code": mass * 0.5 * vel_supercomoving_code**2,
-        "potential_energy_code": mass * potential,
-        "total_energy_code": mass * total_specific,
+        "mass_code": mass_code,
+        "kinetic_energy_code": mass_code * 0.5 * vel_supercomoving_code**2,
+        "potential_energy_code": mass_code * potential,
+        "total_energy_code": mass_code * total_specific,
     }
 
 
@@ -929,7 +929,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=float(gravity["cosmology_t_ref"]),
+            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
             omega_m=float(gravity["cosmology_omega_m"]),
             omega_lambda=float(gravity["cosmology_omega_lambda"]),
@@ -938,7 +938,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     else:
         cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=float(gravity["cosmology_t_ref"]),
+            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
         )
     correlation_table = load_correlation_table(config_filename, config)
@@ -1045,12 +1045,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     active_network = None
 
-    def configure_thermochemistry(cosmic_time):
+    def configure_thermochemistry(time_cosmic_code):
         """Select the pre/post-transition source at the current redshift."""
         nonlocal active_network
         if transition_redshift is None:
             return
-        scale_factor = float(cosmology.scale_factor(cosmic_time))
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         redshift = max(0.0, 1.0 / scale_factor - 1.0)
         if redshift > transition_redshift:
             sim.par.thermochemistry_network = "hydrogen"
@@ -1078,10 +1078,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 flush=True,
             )
 
-    def update_cosmic_boundary(cosmic_time):
+    def update_cosmic_boundary(time_cosmic_code):
         """Set the outer cosmic gas state in supercomoving hydro units."""
-        scale_factor = float(cosmology.scale_factor(cosmic_time))
-        background_physical = float(cosmology.background_density(cosmic_time))
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+        background_physical = float(cosmology.background_density(time_cosmic_code))
         # The IC is initialized in CMB equilibrium at the starting redshift,
         # so its physical temperature is T_CMB,0 / a_initial.  Evolve that
         # state adiabatically (T proportional to a^-2) for the outer gas.
@@ -1174,12 +1174,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     previous_halo_mask = None
     steps = 0
 
-    def save_snapshot(cosmic_time):
+    def save_snapshot(time_cosmic_code):
         nonlocal previous_halo_mask
-        gas_profile = et.gas_density_profile(sim, cosmic_time, config)
+        gas_profile = et.gas_density_profile(sim, time_cosmic_code, config)
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
-        scale_factor = float(cosmology.scale_factor(cosmic_time))
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         gas_profile["temperature_physical_cgs_K"] = (
             np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / scale_factor**2
         )
@@ -1200,7 +1200,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         gas_profile["velocity_physical_km_s"] = np.abs(signed_velocity_km_s)
         gas_profile.update(_instantaneous_source_diagnostics(sim, gas_profile))
         radius_record = et.profiles(
-            sim, dm, cosmic_time, config,
+            sim, dm, time_cosmic_code, config,
             density_bin_count=example.get("dm_density_bins", 128),
         )
         gas_radius = np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
@@ -1245,7 +1245,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 radius_record[report_key] = np.nan
         gas_profiles.append(gas_profile)
         radius_history.append(radius_record)
-        dm_profile = et.density_profiles(sim, dm, cosmic_time, config)
+        dm_profile = et.density_profiles(sim, dm, time_cosmic_code, config)
         dm_profile["scale_factor"] = scale_factor
         dm_profiles.append(dm_profile)
         gas_energy_history.append(_energy_cell_state(sim))
@@ -1367,12 +1367,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ):
             first = int(sim.par.mesh.ghost_cells)
             last = first + int(sim.par.mesh.grid_cells)
-            mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+            gas_mass_comoving_code = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
             angular = np.asarray(
                 sim.fluid.AngularMomentum_code[first:last], dtype=float
             )
             specific = np.divide(
-                angular, mass, out=np.zeros_like(angular), where=mass > 0.0
+                angular, gas_mass_comoving_code, out=np.zeros_like(angular), where=gas_mass_comoving_code > 0.0
             )
             print(
                 "angular diagnostic: step=%d j=[%.8g, %.8g] "
@@ -1397,10 +1397,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             wall_energy_flux
         )
         steps += 1
-        cosmic_time = float(
+        time_cosmic_code = float(
             cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
         )
-        update_cosmic_boundary(cosmic_time)
+        update_cosmic_boundary(time_cosmic_code)
         reservoir_mass_change, reservoir_energy_change = (
             preserve_outer_background_cell()
         )
@@ -1422,11 +1422,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             energy_audit[key].append(value)
         energy_audit["step"].append(steps)
         energy_audit["time_cosmic_Gyr"].append(
-            cosmic_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
         )
         energy_audit["dt"].append(dt)
         energy_audit["scale_factor"].append(
-            float(cosmology.scale_factor(cosmic_time))
+            float(cosmology.scale_factor(time_cosmic_code))
         )
         energy_audit["gravitational_work"].append(gravity_work)
         energy_audit["hydro_boundary_energy_flux"].append(boundary_flux)
@@ -1453,16 +1453,16 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 "step=%d cosmic_time=%.6g dt=%.6g crossing_dt=%.6g "
                 "Tmax_inner=%.6g vmax_inner=%.6g csmax_inner=%.6g"
                 % (
-                    steps, cosmic_time, dt, dm.crossing_timestep(),
+                    steps, time_cosmic_code, dt, dm.crossing_timestep(),
                     np.nanmax(np.asarray(sim.fluid.temp_supercomoving_code[inner], dtype=float)),
                     np.nanmax(np.abs(np.asarray(sim.fluid.vel_supercomoving_code[inner], dtype=float))),
                     np.nanmax(np.asarray(sim.fluid.cs_code[inner], dtype=float)),
                 ),
                 flush=True,
             )
-        if cosmic_time >= next_snapshot or cosmic_time >= final_time - 1.0e-10:
-            save_snapshot(cosmic_time)
-            while next_snapshot <= cosmic_time + 1.0e-12:
+        if time_cosmic_code >= next_snapshot or time_cosmic_code >= final_time - 1.0e-10:
+            save_snapshot(time_cosmic_code)
+            while next_snapshot <= time_cosmic_code + 1.0e-12:
                 next_snapshot += cadence
 
     times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])

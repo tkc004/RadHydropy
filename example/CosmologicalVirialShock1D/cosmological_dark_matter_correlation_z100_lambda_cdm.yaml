@@ -19,7 +19,7 @@ par:
     supercomoving_coordinates: true
     cosmological_gravity: true
     cosmology_type: lambda_cdm
-    cosmology_t_ref: 14.4
+    cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
     cosmology_omega_m: 0.3
     cosmology_omega_lambda: 0.7

@@ -20,7 +20,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 from cosmological_initial_condition import (
     build_initial_condition as build_cosmological_initial_condition,
@@ -67,7 +67,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         code_cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=float(gravity["cosmology_t_ref"]),
+            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
             a_ref=float(gravity["cosmology_a_ref"]),
             omega_m=float(gravity["cosmology_omega_m"]),
             omega_lambda=float(gravity["cosmology_omega_lambda"]),
@@ -76,7 +76,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     else:
         code_cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=float(gravity.get("cosmology_t_ref", 1.0)),
+            t_ref=quantity_to_value(gravity.get("cosmology_t_ref", {"value": 1.0, "unit": "s"}), units.time_unit),
             a_ref=float(gravity.get("cosmology_a_ref", 1.0)),
         )
     case_config["_code_cosmology"] = code_cosmology

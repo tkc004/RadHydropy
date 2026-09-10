@@ -20,7 +20,7 @@ def build_initial_condition(config):
     gravity = config["par"]["gravity"]
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
-        t_ref=float(gravity["cosmology_t_ref"]),
+        t_ref=quantity_to_value(gravity["cosmology_t_ref"], code_unit_system.time_unit),
         a_ref=float(gravity["cosmology_a_ref"]),
     )
     result = Rsim(config["par"])

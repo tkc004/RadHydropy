@@ -62,14 +62,14 @@ class BertschingerBoundarySolver(Solver):
 
         tau = float(np.asarray(fluid.tau_supercomoving_code, dtype=float).reshape(-1)[0])
         cosmology = par.cosmology
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
+        time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
         scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
         hubble = float(cosmology.hubble_from_supercomoving(tau))
         radius_comoving_code = np.asarray(mesh.x_comoving_code[right], dtype=float)
         amplitude = float(par.perturbation_amplitude)
         delta = amplitude / np.maximum(radius_comoving_code, 1.0e-30)**3
         fluid.rho_comoving_code[right] = (
-            float(cosmology.background_density(cosmic_time)) * scale_factor**3
+            float(cosmology.background_density(time_cosmic_code)) * scale_factor**3
         )
         fluid.vel_supercomoving_code[right] = -scale_factor**2 * hubble * delta * radius_comoving_code / 3.0
         # The Bertschinger exterior is pressureless.  Do not use the finite
@@ -248,7 +248,7 @@ def _similarity_profiles(sim, solution):
     tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).reshape(-1)[0])
     cosmology = sim.par.cosmology
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
-    cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
+    time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
     radius_proper_code = scale_factor * np.asarray(sim.mesh.x_comoving_code[interior], dtype=float)
     rho_proper_code = cosmology.physical_density(
         np.asarray(sim.fluid.rho_comoving_code[interior], dtype=float), tau
@@ -264,7 +264,6 @@ def _similarity_profiles(sim, solution):
         sim.mesh.boundary_comoving_code[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells + 1],
         dtype=float,
     ) * scale_factor
-    time_cosmic_code = cosmic_time
     # The standalone normalization uses M_excess = M_ta at lambda=1.
     # For the scale-free IC, M_excess=(4*pi/3) rho_b(t_i) A, hence
     # r_ta(t_i)=(A/TURNAROUND_MASS)^(1/3), followed by r_ta~t^(8/9).
