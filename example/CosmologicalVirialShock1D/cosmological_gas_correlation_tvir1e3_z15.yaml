@@ -8,7 +8,7 @@ par:
     name: CosmologicalGasCorrelationTvir1e3Z15
     initial_condition_filename: outputs_correlation_gas_tvir1e3_z15_gas1024/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 0.225
+    final_time: {value: 0.225, unit: kpc/(km/s)}
   mesh:
     ghost_cells: 2
     grid_cells: 1024

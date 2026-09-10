@@ -76,13 +76,19 @@ def main(config_filename=DEFAULT_CONFIG):
 
     event_radius_floor.terminal = True
     event_radius_floor.direction = -1
+    final_time_proper_code = quantity_to_value(
+        config["par"]['simulation']['final_time'], code_units.time_unit
+    )
+    output_interval_proper_code = quantity_to_value(
+        config["par"]['timestep']['output_interval'], code_units.time_unit
+    )
     reference = solve_ivp(
         rhs,
-        (0.0, float(config["par"]['simulation']['final_time'])),
+        (0.0, final_time_proper_code),
         [initial_radius, vel_proper_code],
         rtol=1.0e-11,
         atol=1.0e-13,
-        max_step=float(config["par"]['timestep']['output_interval']) / 4.0,
+        max_step=output_interval_proper_code / 4.0,
         events=event_radius_floor,
         dense_output=True,
     )
@@ -93,7 +99,7 @@ def main(config_filename=DEFAULT_CONFIG):
     time_dimensionless = 0.0
     while time_dimensionless < reference.t[-1]:
         dt = min(
-            float(config["par"]['timestep']['output_interval']) / 4.0,
+            output_interval_proper_code / 4.0,
             reference.t[-1] - time_dimensionless,
         )
         time_dimensionless += shell.step(dt)

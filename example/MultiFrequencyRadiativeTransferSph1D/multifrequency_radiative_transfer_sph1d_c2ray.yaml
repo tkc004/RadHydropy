@@ -61,8 +61,6 @@ initial_condition:
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
   temperature_proper: {value: 100.0, unit: K}
 example:
-  outdir: .
-  outfileprefix: Output_C2Ray
   directory: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_C2Ray.jpg
   reference_radius_unit: {value: 5.4, unit: kpc}

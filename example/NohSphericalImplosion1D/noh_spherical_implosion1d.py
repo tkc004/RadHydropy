@@ -7,6 +7,7 @@ resolutions and compares final radial profiles.
 """
 
 import argparse
+import copy
 from pathlib import Path
 import sys
 
@@ -88,39 +89,33 @@ def read_profile(filename, config):
 
 def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
-    base_par_config, base_initial_condition = config['par'], config['initial_condition']
     exampleparams = config['example']
     resolutions = [int(value) for value in exampleparams.get("resolutions", [256])]
     if dual_energy is not None:
-        base_par_config["hydrodynamics"]["dual_energy"] = bool(dual_energy)
+        config["par"]["hydrodynamics"]["dual_energy"] = bool(dual_energy)
         if not dual_energy:
-            base_par_config["output"]["directory"] = str(
-                Path(base_par_config["output"]["directory"]).with_name(
-                    Path(base_par_config["output"]["directory"]).name + "_no_dual_energy"
+            config["par"]["output"]["directory"] = str(
+                Path(config["par"]["output"]["directory"]).with_name(
+                    Path(config["par"]["output"]["directory"]).name + "_no_dual_energy"
                 )
             )
-            base_par_config["output"]["directory"] = base_par_config["output"]["directory"]
-    root = Path(base_par_config["output"]["directory"])
+    root = Path(config["par"]["output"]["directory"])
     root.mkdir(parents=True, exist_ok=True)
-    units = CodeUnits.from_mapping(base_par_config["units"]["CodeUnits"])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     all_profiles = {}
 
     for resolution in resolutions:
-        par_config = dict(base_par_config)
-        initial_condition = dict(base_initial_condition)
+        resolution_config = copy.deepcopy(config)
+        initial_condition = resolution_config["initial_condition"]
         output = root / f"resolution_{resolution}"
         output.mkdir(parents=True, exist_ok=True)
-        par_config["output"]["directory"] = str(output)
-        par_config["output"]["directory"] = str(output)
-        par_config["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
+        resolution_config["par"]["output"]["directory"] = str(output)
+        resolution_config["par"]["simulation"]["initial_condition_filename"] = str(output / "InitialCondition.hdf5")
         initial_condition["grid_cells"] = resolution
-        par_config["mesh"]["grid_cells"] = resolution
-        resolution_config = dict(config)
-        resolution_config["par"] = par_config
-        resolution_config["initial_condition"] = initial_condition
+        resolution_config["par"]["mesh"]["grid_cells"] = resolution
         initial = make_initial_condition(resolution_config)
         rio.writehdf5(
-            initial, par_config["simulation"]["initial_condition_filename"]
+            initial, resolution_config["par"]["simulation"]["initial_condition_filename"]
         )
 
         sim = Rsim(resolution_config["par"])

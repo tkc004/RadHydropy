@@ -49,7 +49,7 @@ def run_lagrangian_top_hat(config):
     target_mass = float(initial_condition["target_halo_mass"])
     delta_i = float(initial_condition["initial_overdensity"])
     initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
-    final = float(par["simulation"]["final_time"])
+    final = quantity_to_value(par["simulation"]["final_time"], units.time_unit)
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
@@ -182,7 +182,7 @@ def run_live_shell_density_profiles(config):
         dtype=float,
     )
     initial = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    final = float(par["simulation"]["final_time"])
+    final = quantity_to_value(par["simulation"]["final_time"], units.time_unit)
     target_times = np.unique(np.clip(target_times, initial, final))
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
@@ -403,7 +403,7 @@ def main(config_filename=DEFAULT_CONFIG):
     shells = et.make_dark_matter(dead_config)
     dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
     initial = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    final = float(config["par"]["simulation"]["final_time"])
+    final = quantity_to_value(config["par"]["simulation"]["final_time"], units.time_unit)
     time_cosmic_code = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))

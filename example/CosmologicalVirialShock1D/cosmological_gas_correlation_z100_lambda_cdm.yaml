@@ -3,7 +3,7 @@ par:
     name: CosmologicalGasCorrelationZ100_LambdaCDM
     initial_condition_filename: outputs_correlation_gas_lcdm/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 1.832399728
+    final_time: {value: 1.832399728, unit: kpc/(km/s)}
   mesh:
     grid_cells: 128
     ghost_cells: 2

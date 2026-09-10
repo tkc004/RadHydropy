@@ -285,15 +285,15 @@ def _snapshot(sim, dm, cosmic_time, config,
     dm_fraction = 1.0 - baryon_fraction
     volume_comoving_code = 4.0 * np.pi / 3.0 * x**3
 
-    gas_mass = prepare_enclosed_gas_mass(
+    gas_mass_comoving_code = prepare_enclosed_gas_mass(
         sim.mesh, sim.fluid.rho_comoving_code, sim.par
     )(x)
     dm_x = np.asarray(dm.radius, dtype=float)
-    dm_mass = dm.enclosed_mass(dm_x)
-    delta_gas = gas_mass / np.maximum(
+    dm_mass_comoving_code = dm.enclosed_mass(dm_x)
+    delta_gas = gas_mass_comoving_code / np.maximum(
         baryon_fraction * background_comoving * volume_comoving_code, 1.0e-300
     ) - 1.0
-    delta_dm = dm_mass / np.maximum(
+    delta_dm = dm_mass_comoving_code / np.maximum(
         dm_fraction * background_comoving * (4.0 * np.pi / 3.0) * dm_x**3,
         1.0e-300,
     ) - 1.0
@@ -531,8 +531,11 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     ic_filename = output_dir / "InitialCondition.hdf5"
 
     config = copy.deepcopy(config)
-    config["par"] = par
-    config["initial_condition"] = initial_condition
+    if resolution_override is not None:
+        config["par"]["mesh"]["grid_cells"] = int(par["mesh"]["grid_cells"])
+        config["initial_condition"]["dark_matter_shells"] = int(
+            initial_condition["dark_matter_shells"]
+        )
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
@@ -547,7 +550,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     local["output"].update({
         "directory": str(output_dir),
     })
-    config["par"] = local
+    config["par"]["simulation"]["initial_condition_filename"] = (
+        local["simulation"]["initial_condition_filename"]
+    )
+    config["par"]["output"].update(local["output"])
     sim = Rsim(config["par"])
     diagnostic_solver = LinearGrowthDiagnosticSolver()
     sim.solver = diagnostic_solver
@@ -576,7 +582,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     final_time = (
         float(final_time_override)
         if final_time_override is not None
-        else float(par["simulation"]["final_time"])
+        else quantity_to_value(par["simulation"]["final_time"], units.time_unit)
     )
     if final_time <= initial_time:
         raise ValueError("final cosmic time must exceed the initial time")

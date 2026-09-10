@@ -3,7 +3,7 @@ par:
     name: EinsteinDeSitterTopHatGrowth1D
     coordinate_system: spherical
     initial_condition_filename: InitialCondition.hdf5
-    final_time: 0.20
+    final_time: {value: 0.20, unit: pc/(km/s)}
   mesh:
     grid_cells: 64
     ghost_cells: 2
@@ -24,7 +24,7 @@ par:
     condition: Reflecting
   timestep:
     dtmin: 1.0e-8
-    dtmax: 0.01
+    dtmax: {value: 0.01, unit: pc/(km/s)}
   output:
     directory: .
     filename_prefix: Output

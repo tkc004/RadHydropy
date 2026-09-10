@@ -97,7 +97,12 @@ def _run_case(
     case_params.pop('_example', None)
 
     code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
-    case_config = {'par': case_params, 'initial_condition': case_initial_condition, '_code_units': code_units}
+    case_config = {
+        'par': case_params,
+        'initial_condition': case_initial_condition,
+        'example': example,
+        '_code_units': code_units,
+    }
     ric = build_initial_condition(case_config)
     rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
 

@@ -68,7 +68,9 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_delta = et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_comoving)
     history_a = [a_initial]
     history_delta = [initial_delta]
-    final_cosmic_time_code = float(config["par"]['simulation']['final_time'])
+    final_cosmic_time_code = quantity_to_value(
+        config["par"]['simulation']['final_time'], units.time_unit
+    )
     final_tau = float(cosmology.supercomoving_time(final_cosmic_time_code))
     time_supercomoving_code = float(tau)
     dt = float(timestep['supercomoving_timestep'])

@@ -71,6 +71,9 @@ def _run_case(config, tools, label, scheme, steps, root):
         par_case['simulation']['final_time'],
         par_case['timestep']['chemistry_timestep'],
     )
+    history = dict(history)
+    history['time_proper_Myr'] = history.pop('time_Myr')
+    history['front_radius_proper_kpc'] = history.pop('front_radius_kpc')
     output_filename = case_dir / 'Output_000.hdf5'
     rio.writehdf5(sim, output_filename)
     return history
@@ -90,23 +93,23 @@ def _plot(histories, config, filename):
     }
     for label, history in histories.items():
         color, linestyle, legend = styles[label]
-        ax.plot(history['time_Myr'], history['front_radius_kpc'], color=color,
+        ax.plot(history['time_proper_Myr'], history['front_radius_proper_kpc'], color=color,
                 lw=1.8, ls=linestyle, label=legend)
     reference = histories['instantaneous_100000']
-    reference_time = np.asarray(reference['time_Myr'])
-    reference_radius = np.asarray(reference['front_radius_kpc'])
+    reference_time_proper_Myr = np.asarray(reference['time_proper_Myr'])
+    reference_radius_proper_kpc = np.asarray(reference['front_radius_proper_kpc'])
     for label, history in histories.items():
         color, linestyle, _ = styles[label]
-        time_samples = np.asarray(history['time_Myr'])
-        radius_samples = np.asarray(history['front_radius_kpc'])
-        reference_at_time = np.interp(time_samples, reference_time, reference_radius)
-        relative_difference = np.zeros_like(radius_samples)
+        time_samples_proper_Myr = np.asarray(history['time_proper_Myr'])
+        radius_samples_proper_kpc = np.asarray(history['front_radius_proper_kpc'])
+        reference_at_time = np.interp(time_samples_proper_Myr, reference_time_proper_Myr, reference_radius_proper_kpc)
+        relative_difference = np.zeros_like(radius_samples_proper_kpc)
         nonzero = reference_at_time > 0.0
         relative_difference[nonzero] = (
-            radius_samples[nonzero] - reference_at_time[nonzero]
+            radius_samples_proper_kpc[nonzero] - reference_at_time[nonzero]
         ) / reference_at_time[nonzero]
         ax_difference.plot(
-            time_samples, relative_difference, color=color,
+            time_samples_proper_Myr, relative_difference, color=color,
             lw=1.5, ls=linestyle, label=styles[label][2],
         )
     initial = config['initial_condition']
@@ -148,16 +151,16 @@ def _write_summary(histories, config, filename):
     ).to_value(unyt.kpc)
     with open(filename, 'w', newline='') as stream:
         writer = csv.writer(stream)
-        writer.writerow(['case', 'time_Myr', 'front_radius_kpc', 'analytic_radius_kpc', 'absolute_error_kpc'])
+        writer.writerow(['case', 'time_proper_Myr', 'front_radius_proper_kpc', 'analytic_radius_proper_kpc', 'absolute_error_proper_kpc'])
         for label, history in histories.items():
-            for time, radius in zip(history['time_Myr'], history['front_radius_kpc']):
+            for time_proper_Myr, radius_proper_kpc in zip(history['time_proper_Myr'], history['front_radius_proper_kpc']):
                 analytic = sa.ionization_front_radius(
-                    time * unyt.Myr, example['source_photon_rate'],
+                    time_proper_Myr * unyt.Myr, example['source_photon_rate'],
                     initial['hydrogen_number_density'], example['alpha_B_coefficient'],
                 ).to_value(unyt.kpc)
-                writer.writerow([label, time, radius, analytic, abs(radius - analytic)])
-            final_error = abs(history['front_radius_kpc'][-1] - analytic_final)
-            print(f'{label}: final front = {history["front_radius_kpc"][-1]:.6f} kpc, '
+                writer.writerow([label, time_proper_Myr, radius_proper_kpc, analytic, abs(radius_proper_kpc - analytic)])
+            final_error = abs(history['front_radius_proper_kpc'][-1] - analytic_final)
+            print(f'{label}: final front = {history["front_radius_proper_kpc"][-1]:.6f} kpc, '
                   f'absolute error = {final_error:.6e} kpc')
 
 

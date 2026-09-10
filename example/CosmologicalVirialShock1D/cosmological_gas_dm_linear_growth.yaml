@@ -6,7 +6,7 @@ par:
     name: CosmologicalGasDMLinearGrowth
     initial_condition_filename: outputs_linear_growth/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 0.05
+    final_time: {value: 0.05, unit: kpc/(km/s)}
   mesh:
     ghost_cells: 2
     grid_cells: 64
@@ -24,7 +24,7 @@ par:
     condition: InflowSph
   timestep:
     dtmin: 1.0e-12
-    dtmax: 1.0
+    dtmax: {value: 1.0, unit: kpc/(km/s)}
   gravity:
     cosmological_background_boundary_reconstruction: true
     selfgravity: true

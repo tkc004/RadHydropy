@@ -59,7 +59,7 @@ class FixedCentralGravity:
         self.cosmological = False
         self.dark_matter = None
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho_proper_code=None, par=None):
         radius_proper_code = np.asarray(mesh.x_proper_code, dtype=float)
         return -self.central_mass / radius_proper_code**2
 
@@ -196,7 +196,7 @@ def main(config_filename=CONFIG):
     times = [0.0]
     velocity_history = [fluid.Mom_code[0] / fluid.Mass_code[0]]
     energy_error = [0.0]
-    dt = float(initial_condition['timestep'])
+    dt = quantity_to_value(initial_condition['timestep'], units.time_unit)
     for step in range(int(initial_condition['nsteps'])):
         solver.ApplyGravity(dt, mesh, fluid, par)
         times.append((step + 1) * dt)
@@ -245,7 +245,7 @@ def main(config_filename=CONFIG):
     # moving-shell stage.  Choose j below the circular value to obtain an
     # eccentric radial orbit.
     eccentric_j = 0.7 * specific_j
-    eccentric_time = float(initial_condition['timestep']) * int(initial_condition['nsteps'])
+    eccentric_time = quantity_to_value(initial_condition['timestep'], units.time_unit) * int(initial_condition['nsteps'])
 
     def orbit_rhs(time_proper_code, state):
         orbit_radius, orbit_velocity = state
@@ -264,7 +264,7 @@ def main(config_filename=CONFIG):
         atol=1.0e-13,
         dense_output=True,
     )
-    eccentric_dt = float(initial_condition['timestep'])
+    eccentric_dt = quantity_to_value(initial_condition['timestep'], units.time_unit)
     eccentric_times = np.arange(
         0.0, eccentric_time + 0.5 * eccentric_dt, eccentric_dt
     )

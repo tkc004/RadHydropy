@@ -77,11 +77,11 @@ def run(config_filename=DEFAULT_CONFIG):
     # check is intentionally printed for this experiment because using the
     # full matter density in both components would double-count gravity.
     baryon_fraction = float(initial_condition["baryon_fraction"])
-    gas_mass = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
-    dm_mass = float(np.sum(dm.mass))
-    measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
-    print("initial gas mass = %.8g code masses" % gas_mass)
-    print("initial dark-matter mass = %.8g code masses" % dm_mass)
+    gas_mass_comoving_code = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
+    dm_mass_comoving_code = float(np.sum(dm.mass))
+    measured_fraction = gas_mass_comoving_code / max(gas_mass_comoving_code + dm_mass_comoving_code, 1.0e-30)
+    print("initial gas mass = %.8g code masses" % gas_mass_comoving_code)
+    print("initial dark-matter mass = %.8g code masses" % dm_mass_comoving_code)
     print("initial gas fraction = %.8g (configured %.8g)" % (
         measured_fraction, baryon_fraction,
     ))
@@ -142,7 +142,9 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    final_cosmic_time_code = float(par["simulation"]["final_time"])
+    final_cosmic_time_code = quantity_to_value(
+        par["simulation"]["final_time"], sim.par.units.CodeUnits.time_unit
+    )
     target_tau = float(cosmology.supercomoving_time(final_cosmic_time_code))
     cadence = float(par.get("gas_profile_cadence", 0.10))
     next_snapshot = initial_time

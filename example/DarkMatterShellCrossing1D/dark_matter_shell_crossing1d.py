@@ -36,6 +36,12 @@ def main(config_filename=DEFAULT_CONFIG):
     timestep = config["par"]['timestep']
     output = config["par"]['output']
     code_units = et.code_units_from_config(config)
+    final_time_proper_code = quantity_to_value(
+        config["par"]['simulation']['final_time'], code_units.time_unit
+    )
+    output_interval_proper_code = quantity_to_value(
+        timestep['output_interval'], code_units.time_unit
+    )
     shells = et.make_shells(config)
     time_proper_code = 0.0
     history_time_proper_code = [time_proper_code]
@@ -43,10 +49,10 @@ def main(config_filename=DEFAULT_CONFIG):
     history_energy = [np.sum(shells.mass * shells.specific_energy())]
     crossings = 0
 
-    while time_proper_code < config["par"]['simulation']['final_time']:
+    while time_proper_code < final_time_proper_code:
         dt = min(
-            float(timestep['output_interval']) / 4.0,
-            float(config["par"]['simulation']['final_time']) - time_proper_code,
+            output_interval_proper_code / 4.0,
+            final_time_proper_code - time_proper_code,
         )
         predicted = shells.crossing_timestep(
             safety_factor=float(timestep['crossing_safety_factor'])

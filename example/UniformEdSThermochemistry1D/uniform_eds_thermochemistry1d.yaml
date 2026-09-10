@@ -3,7 +3,7 @@ par:
     name: UniformEdSThermochemistry1D
     initial_condition_filename: UniformEdSThermochemistry1D_InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 1370.5061117171074
+    final_time: {value: 1370.5061117171074, unit: pc/(km/s)}
   mesh:
     grid_cells: 4
     ghost_cells: 2
@@ -42,7 +42,7 @@ par:
     cmb_temperature_0: {value: 2.7255, unit: K}
   timestep:
     dtmin: 1.0e-8
-    dtmax: 1.0e-4
+    dtmax: {value: 1.0e-4, unit: pc/(km/s)}
   output:
     directory: outputs
     filename_prefix: Output

@@ -9,6 +9,7 @@ import tempfile
 
 import yaml
 import unyt
+from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib")
@@ -69,7 +70,8 @@ def _case_config(base_config, case_name, final_time):
     config["par"]["simulation"]["initial_condition_filename"] = str(
         output_dir / "InitialCondition.hdf5"
     )
-    config["par"]["simulation"]["final_time"] = float(final_time)
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    config["par"]["simulation"]["final_time"] = float(final_time) * units.time_unit
     config["par"]["output"].update({
         "directory": str(output_dir),
         "directory": str(output_dir),

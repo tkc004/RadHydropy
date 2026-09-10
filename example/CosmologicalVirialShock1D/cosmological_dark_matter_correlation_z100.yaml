@@ -5,7 +5,7 @@ par:
     name: CosmologicalDarkMatterCorrelationZ100
     initial_condition_filename: outputs_correlation/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 14.4
+    final_time: {value: 14.4, unit: kpc/(km/s)}
   mesh:
     ghost_cells: 2
     grid_cells: 128
@@ -17,7 +17,7 @@ par:
     condition: Reflecting
   timestep:
     dtmin: 1.0e-12
-    dtmax: 1.0
+    dtmax: {value: 1.0, unit: kpc/(km/s)}
   output:
     directory: outputs_correlation
     filename_prefix: Output

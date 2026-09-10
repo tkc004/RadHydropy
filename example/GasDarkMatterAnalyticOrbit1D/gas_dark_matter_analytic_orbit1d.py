@@ -50,6 +50,12 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_velocity_code = quantity_to_value(
         initial_condition['vel_proper'], code_units.velocity_unit
     )
+    final_time_proper_code = quantity_to_value(
+        config["par"]['simulation']['final_time'], code_units.time_unit
+    )
+    output_interval_proper_code = quantity_to_value(
+        example['output_interval'], code_units.time_unit
+    )
 
     def rhs(time_proper_code, state):
         radius_code, velocity_code = state
@@ -63,11 +69,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
     reference = solve_ivp(
         rhs,
-        (0.0, float(config["par"]['simulation']['final_time'])),
+        (0.0, final_time_proper_code),
         [initial_radius_code, initial_velocity_code],
         rtol=1.0e-11,
         atol=1.0e-13,
-        max_step=float(example['output_interval']) / 4.0,
+        max_step=output_interval_proper_code / 4.0,
         dense_output=True,
     )
 
@@ -76,7 +82,7 @@ def main(config_filename=DEFAULT_CONFIG):
     numerical_radius_code = [shell.radius[0]]
     numerical_velocity_code = [shell.velocity[0]]
     while time_code < reference.t[-1]:
-        timestep_code = min(float(example['output_interval']) / 4.0, reference.t[-1] - time_code)
+        timestep_code = min(output_interval_proper_code / 4.0, reference.t[-1] - time_code)
         time_code += shell.step(timestep_code)
         numerical_time_code.append(time_code)
         numerical_radius_code.append(shell.radius[0])

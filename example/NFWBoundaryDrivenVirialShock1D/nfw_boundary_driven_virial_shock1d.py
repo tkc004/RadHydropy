@@ -102,10 +102,9 @@ def _run_stage(config, halo, mode, restart=False):
         # A restart snapshot carries the previous stage's output settings.
         # Restore the current stage's destinations and schedule after reading
         # the snapshot so PIE outputs are selected and written for this stage.
-        sim.par.outdir = stage_config['par']['output']['directory']
-        sim.par.outfileprefix = stage_config['par']['output']['filename_prefix']
-        sim.par.outputtimefilename = stage_config['par']['output']['time_list_filename']
-        sim.par._sync_output_parameters()
+        sim.par.output.directory = stage_config['par']['output']['directory']
+        sim.par.output.filename_prefix = stage_config['par']['output']['filename_prefix']
+        sim.par.output.time_list_filename = stage_config['par']['output']['time_list_filename']
     if restart:
         _strip_snapshot_ghosts(sim)
     sim.SetMesh()
@@ -226,35 +225,30 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     Path(initial_filename).parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, initial_filename)
 
-    adiabatic = copy.deepcopy(config["par"])
-    adiabatic['simulation']['final_time'] = exampleparams['adiabatic_final_time']
-    adiabatic['thermochemistry']['network'] = 'hydrogen'
-    adiabatic['thermochemistry']['metal_pie_enabled'] = False
     adiabatic_config = copy.deepcopy(config)
-    adiabatic_config['par'] = adiabatic
+    adiabatic_config['par']['simulation']['final_time'] = exampleparams['adiabatic_final_time']
+    adiabatic_config['par']['thermochemistry']['network'] = 'hydrogen'
+    adiabatic_config['par']['thermochemistry']['metal_pie_enabled'] = False
     adiabatic_files = _run_stage(adiabatic_config, halo, 'hydro')
     if not adiabatic_files:
         raise RuntimeError('adiabatic stage produced no snapshots')
-    adiabatic_audit = Path(adiabatic['output']['directory']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
+    adiabatic_audit = Path(adiabatic_config['par']['output']['directory']) / 'NFWBoundaryDrivenVirialShock1D_AdiabaticEnergyAudit.txt'
     _write_adiabatic_energy_audit(adiabatic_files, adiabatic_config, adiabatic_audit)
     if adiabatic_only:
         return
 
-    pie = copy.deepcopy(config["par"])
-    pie['simulation']['name'] = config["par"]['simulation']['name'] + '_PIE'
-    pie['simulation']['initial_condition_filename'] = str(adiabatic_files[-1])
-    pie['simulation']['final_time'] = exampleparams['pie_final_time']
-    pie['output']['directory'] = str(
+    pie_config = copy.deepcopy(config)
+    pie_config['par']['simulation']['name'] = config["par"]['simulation']['name'] + '_PIE'
+    pie_config['par']['simulation']['initial_condition_filename'] = str(adiabatic_files[-1])
+    pie_config['par']['simulation']['final_time'] = exampleparams['pie_final_time']
+    pie_config['par']['output']['directory'] = str(
         (config_filename.parent / exampleparams['pie_outdir']).resolve()
     )
-    pie['output']['directory'] = pie['output']['directory']
-    pie['output']['time_list_filename'] = str(
+    pie_config['par']['output']['time_list_filename'] = str(
         (config_filename.parent / exampleparams['pie_outputtimefilename']).resolve()
     )
-    pie['thermochemistry']['network'] = 'pie_uvbg_cooling'
-    pie['thermochemistry']['metal_pie_enabled'] = True
-    pie_config = copy.deepcopy(config)
-    pie_config['par'] = pie
+    pie_config['par']['thermochemistry']['network'] = 'pie_uvbg_cooling'
+    pie_config['par']['thermochemistry']['metal_pie_enabled'] = True
     pie_files = _run_stage(pie_config, halo, 'hydro_sources', restart=True)
     if not pie_files:
         raise RuntimeError('PIE stage produced no snapshots')

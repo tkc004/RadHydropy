@@ -2,7 +2,7 @@ par:
   simulation:
     name: CosmologicalRotatingCollapse1D
     coordinate_system: spherical
-    final_time: 1.25
+    final_time: {value: 1.25, unit: pc/(km/s)}
   mesh:
     grid_cells: 64
     ghost_cells: 2
@@ -28,7 +28,7 @@ par:
     condition: Reflecting
   timestep:
     dtmin: 1.0e-8
-    dtmax: 0.01
+    dtmax: {value: 0.01, unit: pc/(km/s)}
   output:
     directory: outputs
     filename_prefix: Output

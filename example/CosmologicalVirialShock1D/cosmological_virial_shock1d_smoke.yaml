@@ -5,7 +5,7 @@ par:
     name: CosmologicalVirialShock1D_Smoke
     initial_condition_filename: outputs_virial_shock_smoke/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 0.05
+    final_time: {value: 0.05, unit: kpc/(km/s)}
   mesh:
     ghost_cells: 2
     grid_cells: 32
@@ -26,7 +26,7 @@ par:
     condition: OpenSph
   timestep:
     dtmin: 1.0e-12
-    dtmax: 0.01
+    dtmax: {value: 0.01, unit: kpc/(km/s)}
   output:
     directory: outputs_virial_shock_smoke
     filename_prefix: Output

@@ -28,10 +28,8 @@ from cosmological_rotating_collapse1d import spherical_centers, DEFAULT_CONFIG
 
 def main(output_root=None):
     config = eu.load_nested_example_config(DEFAULT_CONFIG)
-    config["par"] = copy.deepcopy(config["par"])
     initial_condition = config["initial_condition"]
-    config["par"]["thermochemistry"] = {
-        **config["par"].get("thermochemistry", {}),
+    config["par"].setdefault("thermochemistry", {}).update({
         'hydrogen_chemistry': True, 'hydrogen_thermal_coupling': True,
         'hydrogen_update_mu': False, 'hydrogen_recombination': True,
         'hydrogen_collisional_ionization': True, 'hydrogen_atomic_cooling': True,
@@ -39,12 +37,12 @@ def main(output_root=None):
         'hydrogen_source_solver': 'coupled_implicit',
         'hydrogen_implicit_fallback': 'error',
         'cooling_temperature_floor': {'value': 1.0e-3, 'unit': 'K'},
-    }
-    config["par"]["simulation"] = {**config["par"]["simulation"], "final_time": 1.0}
+    })
     if output_root is not None:
-        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root)}
+        config["par"]["output"]["directory"] = str(output_root)
 
     units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    config["par"]["simulation"]["final_time"] = 1.0 * units.time_unit
     config["par"]["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
     cosmology = EinsteinDeSitter.from_code_units(
         units,

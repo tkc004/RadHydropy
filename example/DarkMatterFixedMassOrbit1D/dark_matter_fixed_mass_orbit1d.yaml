@@ -1,11 +1,11 @@
 par:
   simulation:
     name: DarkMatterFixedMassOrbit1D
-    final_time: 0.2
+    final_time: {value: 0.2, unit: pc/(km/s)}
   output:
     directory: .
   timestep:
-    output_interval: 0.0005
+  output_interval: {value: 0.0005, unit: pc/(km/s)}
   units:
     CodeUnits:
       name: dark_matter_orbit_unit_system

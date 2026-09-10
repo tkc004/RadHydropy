@@ -303,32 +303,32 @@ def make_dark_matter(config):
 
 
 def splashback_radius(
-    dm_radius_proper_kpc, dm_mass, rvir_kpc=np.nan, bin_count=128,
+    dm_radius_proper_code, dm_mass_comoving_code, rvir_proper_code=np.nan, bin_count=128,
 ):
     """Estimate splashback from the steepest outer DM density slope.
 
     The input shell masses are rebinned exactly, rather than differentiating
     the noisy density assigned to individual infinitesimal shells.  The
-    returned radius is in the same proper-kpc basis as ``dm_radius_proper_kpc``.
+    returned radius is in the same proper-code basis as ``dm_radius_proper_code``.
     """
-    radius_comoving_code = np.asarray(dm_radius_proper_kpc, dtype=float)
-    mass_comoving_code = np.asarray(dm_mass, dtype=float)
-    if not np.isfinite(rvir_kpc) or float(rvir_kpc) <= 0.0:
+    radius_proper_code = np.asarray(dm_radius_proper_code, dtype=float)
+    mass_comoving_code = np.asarray(dm_mass_comoving_code, dtype=float)
+    if not np.isfinite(rvir_proper_code) or float(rvir_proper_code) <= 0.0:
         return float("nan")
-    valid = np.isfinite(radius_comoving_code) & np.isfinite(mass_comoving_code) & (radius_comoving_code > 0.0) & (mass_comoving_code > 0.0)
-    radius_comoving_code = radius_comoving_code[valid]
+    valid = np.isfinite(radius_proper_code) & np.isfinite(mass_comoving_code) & (radius_proper_code > 0.0) & (mass_comoving_code > 0.0)
+    radius_proper_code = radius_proper_code[valid]
     mass_comoving_code = mass_comoving_code[valid]
-    if radius_comoving_code.size < 16:
+    if radius_proper_code.size < 16:
         return float("nan")
-    order = np.argsort(radius_comoving_code)
-    radius_comoving_code = radius_comoving_code[order]
+    order = np.argsort(radius_proper_code)
+    radius_proper_code = radius_proper_code[order]
     mass_comoving_code = mass_comoving_code[order]
     edges = np.geomspace(
-        max(radius_comoving_code[0] * 0.9, 1.0e-12),
-        radius_comoving_code[-1] * 1.1,
+        max(radius_proper_code[0] * 0.9, 1.0e-12),
+        radius_proper_code[-1] * 1.1,
         int(max(32, bin_count)) + 1,
     )
-    shell_mass_comoving_code, _ = np.histogram(radius_comoving_code, bins=edges, weights=mass_comoving_code)
+    shell_mass_comoving_code, _ = np.histogram(radius_proper_code, bins=edges, weights=mass_comoving_code)
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
     occupied = rho_comoving_code > 0.0
@@ -349,8 +349,8 @@ def splashback_radius(
     slope = np.gradient(log_density, log_radius)
     # Splashback is an outer-halo caustic; features inside r200 are inner
     # structure and must not be reported as the splashback radius.
-    lower = max(float(rvir_kpc), radii[0])
-    upper = min(3.0 * float(rvir_kpc), 0.95 * radii[-1])
+    lower = max(float(rvir_proper_code), radii[0])
+    upper = min(3.0 * float(rvir_proper_code), 0.95 * radii[-1])
     if upper <= lower:
         return float("nan")
     candidates = np.flatnonzero((radii >= lower) & (radii <= upper))
@@ -372,12 +372,12 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
     edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
-    gas_mass = rho_comoving_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
-    gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass)))
+    gas_mass_comoving_code = rho_comoving_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
+    gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass_comoving_code)))
     dm_order = np.argsort(dark_matter.radius)
-    dm_r = dark_matter.radius[dm_order]
-    dm_m = dark_matter.mass[dm_order]
-    dm_cumulative = np.cumsum(dm_m)
+    dm_radius_comoving_code = dark_matter.radius[dm_order]
+    dm_mass_comoving_code = dark_matter.mass[dm_order]
+    dm_cumulative = np.cumsum(dm_mass_comoving_code)
     a = float(cosmology.scale_factor(time_cosmic_code))
     proper = a * x
     rho_crit = float(cosmology.background_density(time_cosmic_code))
@@ -385,7 +385,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     def total_mass_at(proper_radius):
         comoving = np.asarray(proper_radius) / a
         cg = np.interp(comoving, edges, gas_cumulative, left=0.0, right=gas_cumulative[-1])
-        cd = np.interp(comoving, dm_r, dm_cumulative, left=0.0, right=dm_cumulative[-1])
+        cd = np.interp(comoving, dm_radius_comoving_code, dm_cumulative, left=0.0, right=dm_cumulative[-1])
         return cg + cd
 
     # Determine r_vir from the live collisionless profile.  The DM shells
@@ -393,24 +393,24 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     # dividing by the cosmic DM fraction instead of allowing a sparse or
     # shocked gas mesh to set the halo edge.
     fdm = 1.0 - float(initial_condition["baryon_fraction"])
-    dm_proper = a * dm_r
-    dm_total_mass = dm_cumulative / max(fdm, 1.0e-30)
-    dm_mean_density = dm_total_mass / (
-        4.0 * np.pi / 3.0 * np.maximum(dm_proper, 1.0e-12) ** 3
+    dm_radius_proper_code = a * dm_radius_comoving_code
+    dm_total_mass_comoving_code = dm_cumulative / max(fdm, 1.0e-30)
+    dm_mean_density_comoving_code = dm_total_mass_comoving_code / (
+        4.0 * np.pi / 3.0 * np.maximum(dm_radius_proper_code, 1.0e-12) ** 3
     )
-    overdensity = dm_mean_density / max(200.0 * rho_crit, 1.0e-30)
+    overdensity = dm_mean_density_comoving_code / max(200.0 * rho_crit, 1.0e-30)
     candidates = np.flatnonzero(overdensity >= 1.0)
     target_mass = float(initial_condition.get("target_halo_mass", np.nan))
-    target_index = np.searchsorted(dm_total_mass, target_mass)
+    target_index = np.searchsorted(dm_total_mass_comoving_code, target_mass)
     rtarget = (
-        float(dm_proper[target_index])
-        if np.isfinite(target_mass) and target_index < dm_total_mass.size
+        float(dm_radius_proper_code[target_index])
+        if np.isfinite(target_mass) and target_index < dm_total_mass_comoving_code.size
         else float("nan")
     )
     if candidates.size:
         virial_index = int(candidates[-1])
-        rvir = float(dm_proper[virial_index])
-        mvir = float(dm_total_mass[virial_index])
+        rvir = float(dm_radius_proper_code[virial_index])
+        mvir = float(dm_total_mass_comoving_code[virial_index])
     else:
         # No formal r_200 exists if the live DM profile is everywhere below
         # 200 rho_crit.  Keep it NaN rather than relabelling a Lagrangian
@@ -511,9 +511,9 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
         rshock = np.nan
 
     rsplashback = splashback_radius(
-        dm_proper,
-        dm_m,
-        rvir_kpc=rvir,
+        dm_radius_proper_code,
+        dm_mass_comoving_code,
+        rvir_proper_code=rvir,
         bin_count=int(getattr(sim.par, "dm_density_bins", 128)),
     )
 
@@ -557,25 +557,25 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
     gas = gas_density_profile(sim, time_cosmic_code, config)
 
     order = np.argsort(dark_matter.radius)
-    dm_radius_comoving = np.asarray(dark_matter.radius[order], dtype=float)
-    dm_mass = np.asarray(dark_matter.mass[order], dtype=float)
-    dm_radius = a * dm_radius_comoving
-    if dm_radius.size > 1:
-        dm_edges = np.empty(dm_radius.size + 1)
-        dm_edges[1:-1] = np.sqrt(dm_radius[:-1] * dm_radius[1:])
-        dm_edges[0] = dm_radius[0]**2 / dm_edges[1]
-        dm_edges[-1] = dm_radius[-1]**2 / dm_edges[-2]
+    dm_radius_comoving_code = np.asarray(dark_matter.radius[order], dtype=float)
+    dm_mass_comoving_code = np.asarray(dark_matter.mass[order], dtype=float)
+    dm_radius_proper_code = a * dm_radius_comoving_code
+    if dm_radius_proper_code.size > 1:
+        dm_edges = np.empty(dm_radius_proper_code.size + 1)
+        dm_edges[1:-1] = np.sqrt(dm_radius_proper_code[:-1] * dm_radius_proper_code[1:])
+        dm_edges[0] = dm_radius_proper_code[0]**2 / dm_edges[1]
+        dm_edges[-1] = dm_radius_proper_code[-1]**2 / dm_edges[-2]
     else:
-        dm_edges = np.array([0.5 * dm_radius[0], 1.5 * dm_radius[0]])
+        dm_edges = np.array([0.5 * dm_radius_proper_code[0], 1.5 * dm_radius_proper_code[0]])
     dm_volume = 4.0 * np.pi / 3.0 * np.diff(dm_edges**3)
-    dm_density = dm_mass / np.maximum(dm_volume, 1.0e-30)
+    dm_density_proper_code = dm_mass_comoving_code / np.maximum(dm_volume, 1.0e-30)
     return {
         "time_cosmic_Gyr": float(time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
         "gas_radius_kpc": gas["radius_proper_kpc"],
         "gas_rho_proper_code": gas["rho_proper_code"],
-        "dm_radius_proper_kpc": dm_radius,
-        "dm_rho_proper_code": dm_density,
-        "dm_mass": dm_mass,
+        "dm_radius_proper_kpc": dm_radius_proper_code,
+        "dm_rho_proper_code": dm_density_proper_code,
+        "dm_mass_comoving_code": dm_mass_comoving_code,
         # The softened unresolved core is part of the gravitating DM profile
         # even though it is not represented by a live shell.
         "dm_central_core_mass": float(getattr(dark_matter, "central_core_mass", 0.0)),

@@ -1,7 +1,7 @@
 par:
   simulation:
     name: GasDarkMatterAnalyticOrbit1D
-    final_time: 0.25
+    final_time: {value: 0.25, unit: pc/(km/s)}
   output:
     directory: .
   units:
@@ -14,7 +14,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 example:
-  output_interval: 0.0005
+  output_interval: {value: 0.0005, unit: pc/(km/s)}
 initial_condition:
   central_dark_matter_mass_dimensionless: 0.15
   uniform_gas_density_dimensionless: 0.20

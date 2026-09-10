@@ -318,7 +318,9 @@ def run_case(config, label, rotation_factor):
         ))
 
     record(sim)
-    final_tau = float(cosmology.supercomoving_time(float(base_par["simulation"]["final_time"])))
+    final_tau = float(cosmology.supercomoving_time(quantity_to_value(
+        base_par["simulation"]["final_time"], code_unit_system.time_unit
+    )))
     sim.Evolve(final_time=final_tau, mode="hydro", history_callback=record)
     scale_factors = np.asarray(history["a"], dtype=float)
     radius_shell_reference_comoving_code = integrate_shell_reference(

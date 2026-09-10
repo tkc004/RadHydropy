@@ -116,18 +116,18 @@ class CosmologicalCentralGravity:
     cosmological = True
     dark_matter = None
 
-    def __init__(self, mass, cosmology):
-        self.mass = mass
+    def __init__(self, central_mass_dimensionless, cosmology):
+        self.central_mass_dimensionless = central_mass_dimensionless
         self.cosmology = cosmology
         self.tau = 0.0
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh, rho_comoving_code=None, par=None):
         tau = float(np.asarray(
             getattr(getattr(par, 'simulation', None), 'tau_supercomoving_code', self.tau)
         )) if par is not None else self.tau
         scale_factor = self.cosmology.scale_factor_from_supercomoving(tau)
         radius_comoving_code = np.asarray(mesh.x_comoving_code, dtype=float)
-        return -scale_factor * self.mass / radius_comoving_code**2
+        return -scale_factor * self.central_mass_dimensionless / radius_comoving_code**2
 
 
 def run_rsim(config):
@@ -199,7 +199,9 @@ def main(config_filename=CONFIG):
     j = float(initial_condition['angular_momentum_fraction_of_circular']) * np.sqrt(
         central_mass * x0_comoving_code
     )
-    final_tau = float(par['simulation']['final_time'])
+    final_tau = quantity_to_value(
+        par['simulation']['final_time'], code_units.time_unit
+    )
     config['_cosmology'] = cosmology
     config['_specific_angular_momentum_code'] = j
     initial_sim, simulation, saved_fluid = run_rsim(config)

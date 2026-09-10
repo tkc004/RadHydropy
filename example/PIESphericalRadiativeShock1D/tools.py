@@ -7,7 +7,7 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 from radhydropy.units import CodeUnits, quantity_to_value
-from basic_hydro_utils import finalize_initial_condition
+from example.basic_hydro_utils import finalize_initial_condition
 
 
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
@@ -18,14 +18,14 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 def build_initial_condition(config):
     initial = config['initial_condition']
     par = config['par']
-    code_units = config['_code_units']
+    code_units = config.get('_code_units')
+    if code_units is None:
+        code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    elif 'units' not in par:
+        # A component-level caller may attach CodeUnits at the call site when
+        # the minimal YAML-shaped parameter mapping has no units group yet.
+        par['units'] = {'CodeUnits': code_units.to_dict()}
     grid_cells = int(par['mesh']['grid_cells'])
-    # Component-level callers may provide the already-resolved private unit
-    # object without repeating the YAML ``units`` group. Complete the nested
-    # runtime mapping at this boundary_proper_code before constructing Rsim.
-    if 'units' not in config['par']:
-        config['par'] = dict(config['par'])
-        config['par']['units'] = {'CodeUnits': code_units.to_dict()}
     result = Rsim(config["par"])
     result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
     result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)

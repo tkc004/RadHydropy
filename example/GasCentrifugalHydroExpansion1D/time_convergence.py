@@ -1,5 +1,6 @@
 """Timestep convergence study for the coupled centrifugal source update."""
 
+import copy
 import sys
 from pathlib import Path
 
@@ -64,8 +65,10 @@ def main():
     dtmax_values = np.asarray((1.0e-3, 5.0e-4, 2.5e-4, 1.25e-4), dtype=float)
     errors = []
     for dtmax in dtmax_values:
-        par = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': 128, 'ghost_cells': 2}, 'timestep': {**config['par']['timestep'], 'dtmax': float(dtmax)}}
-        case_config = {**config, 'par': par}
+        case_config = copy.deepcopy(config)
+        case_config['par']['mesh']['grid_cells'] = 128
+        case_config['par']['mesh']['ghost_cells'] = 2
+        case_config['par']['timestep']['dtmax'] = float(dtmax)
         error = total_energy_error(case_config)
         errors.append(error)
         print('dtmax %.6g: total-energy error %.8g' % (dtmax, error))

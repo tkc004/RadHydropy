@@ -1,7 +1,7 @@
 par:
   simulation:
     name: CosmologicalDarkMatterCorrelationZ100
-    final_time: 14.4
+    final_time: {value: 14.4, unit: kpc/(km/s)}
   output:
     directory: outputs_correlation
     filename_prefix: Output

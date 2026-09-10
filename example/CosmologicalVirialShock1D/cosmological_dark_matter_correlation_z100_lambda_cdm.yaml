@@ -3,7 +3,7 @@ par:
     name: CosmologicalDarkMatterCorrelationZ100_LambdaCDM
     initial_condition_filename: outputs_correlation_lcdm/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 14.4
+    final_time: {value: 14.4, unit: kpc/(km/s)}
   mesh:
     grid_cells: 128
     ghost_cells: 2

@@ -60,19 +60,11 @@ def _run_case(config, label, hydrogen_density_cgs_cm3, table):
     output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
     case_config = copy.deepcopy(config)
-    case_config['par'] = {
-        **case_config['par'],
-        'simulation': {
-            **case_config['par']['simulation'],
-            'initial_condition_filename': str(output_dir / f'InitialCondition_{label}.hdf5'),
-        },
-        'output': {
-            **case_config['par']['output'],
-            'directory': str(output_dir),
-            'directory': str(output_dir),
-            'filename_prefix': f'Output_{label}',
-        },
-    }
+    case_config['par']['simulation']['initial_condition_filename'] = str(
+        output_dir / f'InitialCondition_{label}.hdf5'
+    )
+    case_config['par']['output']['directory'] = str(output_dir)
+    case_config['par']['output']['filename_prefix'] = f'Output_{label}'
 
     code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
     case_config['initial_condition'] = {

@@ -116,7 +116,6 @@ def run():
         output_dir.mkdir(parents=True, exist_ok=True)
         ic_filename = output_dir / "InitialCondition.hdf5"
         rio.writehdf5(initial, ic_filename)
-        case_config["par"] = copy.deepcopy(config["par"])
         case_config["par"]["simulation"].update(
             name=f"CosmologicalHubbleFlow1D_{label}",
             initial_condition_filename=str(ic_filename),

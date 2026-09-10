@@ -62,6 +62,9 @@ def main(config_filename=DEFAULT_CONFIG):
         nested['par']['simulation']['final_time'],
         nested['par']['timestep']['chemistry_timestep'],
     )
+    front_history = dict(front_history)
+    front_history['time_proper_Myr'] = front_history.pop('time_Myr')
+    front_history['front_radius_proper_kpc'] = front_history.pop('front_radius_kpc')
 
     output_filename = Path(nested['par']['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
     rio.writehdf5(sim, output_filename)

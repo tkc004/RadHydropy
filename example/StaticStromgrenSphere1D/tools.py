@@ -275,13 +275,13 @@ def total_recombination_rate(mesh, fluid, config):
 def append_history(history, mesh, fluid, config, recombined_photons):
     par = config['_output_par']
     radiation = config['par']['radiation']
-    time_Myr = float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr))
-    history['time_Myr'].append(time_Myr)
-    history['front_radius_kpc'].append(
+    time_proper_Myr = float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr))
+    history['time_proper_Myr'].append(time_proper_Myr)
+    history['front_radius_proper_kpc'].append(
         ionization_front_position(mesh, fluid, config).to_value(unyt.kpc)
     )
     history['injected_photons'].append(
-        (radiation['source_photon_rate'] * time_Myr * unyt.Myr).to_value('')
+        (radiation['source_photon_rate'] * time_proper_Myr * unyt.Myr).to_value('')
     )
     history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, config))
     history['recombined_photons'].append(recombined_photons)
@@ -300,8 +300,7 @@ def save_plot(mesh, fluid, config, figure_filename):
     thermo = config['par']['thermochemistry']
     example = config.get('example', {})
     interior = interior_slice(config)
-    radius_kpc = _radius_kpc(mesh.x_proper_code[interior], config)
-    radius_proper_kpc = radius_kpc * unyt.kpc
+    radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
     plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = 1.0 - xHI
@@ -323,21 +322,21 @@ def save_plot(mesh, fluid, config, figure_filename):
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
-        radius_kpc,
+        radius_proper_kpc,
         np.clip(xHI, plot_floor, 1.0),
         color='tab:blue',
         lw=2.0,
         label=r'$x_{\rm HI}$ numerical',
     )
     ax.plot(
-        radius_kpc,
+        radius_proper_kpc,
         np.clip(xHII, plot_floor, 1.0),
         color='tab:red',
         lw=2.0,
         label=r'$x_{\rm HII}$ numerical',
     )
     ax.plot(
-        radius_kpc,
+        radius_proper_kpc,
         np.clip(xHI_analytic, plot_floor, 1.0),
         color='tab:blue',
         lw=1.6,
@@ -345,7 +344,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         label=r'$x_{\rm HI}$ analytic',
     )
     ax.plot(
-        radius_kpc,
+        radius_proper_kpc,
         np.clip(xHII_analytic, plot_floor, 1.0),
         color='tab:red',
         lw=1.6,
@@ -375,12 +374,12 @@ def save_front_history_plot(history, config, figure_filename):
     initial = config['initial_condition']
     thermo = config['par']['thermochemistry']
     example = config.get('example', {})
-    time_Myr = np.asarray(history['time_Myr'])
-    front_radius_kpc = np.asarray(history['front_radius_kpc'])
+    time_proper_Myr = np.asarray(history['time_proper_Myr'])
+    front_radius_proper_kpc = np.asarray(history['front_radius_proper_kpc'])
     plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
-    time_myr = time_Myr * unyt.Myr
+    time_proper_unyt = time_proper_Myr * unyt.Myr
     analytic_front = sa.ionization_front_radius(
-        time_myr,
+        time_proper_unyt,
         radiation['source_photon_rate'],
         initial['hydrogen_number_density'],
         thermo['hydrogen_alpha_B'],
@@ -393,14 +392,14 @@ def save_front_history_plot(history, config, figure_filename):
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
-        time_Myr,
-        front_radius_kpc,
+        time_proper_Myr,
+        front_radius_proper_kpc,
         color='tab:blue',
         lw=2.0,
         label=r'$x_{\rm HI}=0.5$ numerical',
     )
     ax.plot(
-        time_Myr,
+        time_proper_Myr,
         analytic_front,
         color='black',
         lw=1.8,
@@ -416,7 +415,7 @@ def save_front_history_plot(history, config, figure_filename):
     )
     ax.set_xlabel('Time [Myr]')
     ax.set_ylabel('Ionization-front radius [kpc]')
-    ax.set_xlim(0.0, time_Myr[-1])
+    ax.set_xlim(0.0, time_proper_Myr[-1])
     ax.set_ylim(0.0, plot_radius_max)
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False, loc='lower right')
@@ -426,7 +425,7 @@ def save_front_history_plot(history, config, figure_filename):
 
 
 def save_photon_budget_plot(history, figure_filename):
-    time_Myr = np.asarray(history['time_Myr'])
+    time_proper_Myr = np.asarray(history['time_proper_Myr'])
     injected = np.asarray(history['injected_photons'])
     ionized = np.asarray(history['ionized_atoms'])
     recombined = np.asarray(history['recombined_photons'])
@@ -444,14 +443,14 @@ def save_photon_budget_plot(history, figure_filename):
         gridspec_kw={'height_ratios': [2.0, 1.0], 'hspace': 0.08},
     )
     ax_budget.plot(
-        time_Myr,
+        time_proper_Myr,
         injected,
         color='black',
         lw=2.0,
         label=r'injected photons, $\dot{N}_\gamma t$',
     )
     ax_budget.plot(
-        time_Myr,
+        time_proper_Myr,
         accounted,
         color='tab:blue',
         lw=1.8,
@@ -459,7 +458,7 @@ def save_photon_budget_plot(history, figure_filename):
         label=r'$N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}$',
     )
     ax_budget.plot(
-        time_Myr,
+        time_proper_Myr,
         ionized,
         color='tab:red',
         lw=1.2,
@@ -467,7 +466,7 @@ def save_photon_budget_plot(history, figure_filename):
         label=r'$N_{\rm HII}$',
     )
     ax_budget.plot(
-        time_Myr,
+        time_proper_Myr,
         recombined,
         color='tab:green',
         lw=1.2,
@@ -475,7 +474,7 @@ def save_photon_budget_plot(history, figure_filename):
         label=r'$N_{\rm rec}$',
     )
     ax_budget.plot(
-        time_Myr,
+        time_proper_Myr,
         volume_photons,
         color='tab:orange',
         lw=1.2,
@@ -484,7 +483,7 @@ def save_photon_budget_plot(history, figure_filename):
     )
     ax_residual.axhline(0.0, color='black', lw=1.0)
     ax_residual.plot(
-        time_Myr,
+        time_proper_Myr,
         residual,
         color='tab:purple',
         lw=1.8,

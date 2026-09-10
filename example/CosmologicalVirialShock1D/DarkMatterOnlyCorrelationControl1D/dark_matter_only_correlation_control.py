@@ -43,7 +43,7 @@ def main(config_filename=CONFIG):
     shells = et.make_dark_matter(config)
 
     initial = quantity_to_value(ic["time_cosmic"], units.time_unit)
-    final = float(par["simulation"]["final_time"])
+    final = quantity_to_value(par["simulation"]["final_time"], units.time_unit)
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(par["dark_matter"]["timestep"])

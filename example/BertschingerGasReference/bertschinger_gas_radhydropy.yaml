@@ -3,7 +3,7 @@ par:
     name: BertschingerGasReferenceRadHydro
     initial_condition_filename: InitialCondition_RadHydro.hdf5
     coordinate_system: spherical
-    final_time: 0.291535719769
+    final_time: {value: 0.291535719769, unit: Myr}
   mesh:
     grid_cells: 8192
     ghost_cells: 2
@@ -25,7 +25,7 @@ par:
   output:
     directory: .
     filename_prefix: Output_RadHydro
-    cadence: 0.001
+    cadence: {value: 0.001, unit: Myr}
   diagnostics:
     verbose: 0
   units:

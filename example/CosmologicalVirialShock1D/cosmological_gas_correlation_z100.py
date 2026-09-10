@@ -547,7 +547,7 @@ def plot_dark_matter_density_evolution(
         scale_factor = float(profile["scale_factor"])
         radius_comoving_code = np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
         rho_comoving_code = np.asarray(profile["dm_rho_proper_code"], dtype=float)
-        mass_shell_comoving_code = np.asarray(profile["dm_mass"], dtype=float)
+        mass_shell_comoving_code = np.asarray(profile["dm_mass_comoving_code"], dtype=float)
         mass_core_comoving_code = float(profile.get("dm_central_core_mass", 0.0))
         core_radius = float(profile.get("dm_central_core_radius_kpc", 0.0)) / scale_factor
         comoving_radius = radius_comoving_code / scale_factor
@@ -630,28 +630,28 @@ def plot_baryon_normalized_density_comparison(
         gas_radius = np.asarray(gas["radius_proper_kpc"], dtype=float)
         gas_density_raw = np.asarray(gas["rho_proper_code"], dtype=float)
         dm_radius = np.asarray(dm["dm_radius_proper_kpc"], dtype=float)
-        dm_mass = np.asarray(dm["dm_mass"], dtype=float)
+        dm_mass_comoving_code = np.asarray(dm["dm_mass_comoving_code"], dtype=float)
         proper_edges = scale_factor * bin_edges
         gas_edges = np.empty(gas_radius.size + 1)
         gas_edges[1:-1] = np.sqrt(gas_radius[:-1] * gas_radius[1:])
         gas_edges[0] = gas_radius[0] ** 2 / gas_edges[1]
         gas_edges[-1] = gas_radius[-1] ** 2 / gas_edges[-2]
         gas_volume = 4.0 * np.pi / 3.0 * np.diff(gas_edges**3)
-        gas_mass_bin, _ = np.histogram(
+        gas_mass_comoving_code_bin, _ = np.histogram(
             gas_radius / scale_factor, bins=bin_edges,
             weights=gas_density_raw * gas_volume,
         )
-        dm_mass_bin, _ = np.histogram(
-            dm_radius / scale_factor, bins=bin_edges, weights=dm_mass,
+        dm_mass_comoving_code_bin, _ = np.histogram(
+            dm_radius / scale_factor, bins=bin_edges, weights=dm_mass_comoving_code,
         )
         bin_volume = 4.0 * np.pi / 3.0 * np.diff(proper_edges**3)
-        gas_density = gas_mass_bin / np.maximum(bin_volume, 1.0e-300) / fb
-        dm_density = dm_mass_bin / np.maximum(bin_volume, 1.0e-300) / (1.0 - fb)
-        valid = (gas_density > 0.0) & (dm_density > 0.0)
+        gas_density_comoving_code = gas_mass_comoving_code_bin / np.maximum(bin_volume, 1.0e-300) / fb
+        dm_density_comoving_code = dm_mass_comoving_code_bin / np.maximum(bin_volume, 1.0e-300) / (1.0 - fb)
+        valid = (gas_density_comoving_code > 0.0) & (dm_density_comoving_code > 0.0)
         label = "t = %.2f Gyr" % gas["time_cosmic_Gyr"]
-        axes[0].loglog(bin_radii[valid], gas_density[valid], color=color, lw=1.5, label=label + " gas/$f_b$")
-        axes[0].loglog(bin_radii[valid], dm_density[valid], color=color, lw=1.0, ls="--", alpha=0.85, label=label + " DM/$1-f_b$")
-        axes[1].semilogx(bin_radii[valid], gas_density[valid] / dm_density[valid], color=color, lw=1.5)
+        axes[0].loglog(bin_radii[valid], gas_density_comoving_code[valid], color=color, lw=1.5, label=label + " gas/$f_b$")
+        axes[0].loglog(bin_radii[valid], dm_density_comoving_code[valid], color=color, lw=1.0, ls="--", alpha=0.85, label=label + " DM/$1-f_b$")
+        axes[1].semilogx(bin_radii[valid], gas_density_comoving_code[valid] / dm_density_comoving_code[valid], color=color, lw=1.5)
         if index < virial_radius.size and np.isfinite(virial_radius[index]):
             rvir_comoving = virial_radius[index] / scale_factor
             axes[0].axvline(
@@ -699,7 +699,7 @@ def _energy_audit_state(sim):
     kinetic_energy_code = float(np.sum(kinetic_density * volume_comoving_code))
     total_energy_value = float(np.sum(total_energy))
     return {
-        "total_gas_mass": float(np.sum(mass)),
+        "total_gas_mass_comoving_code": float(np.sum(mass)),
         "total_gas_energy_code": total_energy_value,
         "kinetic_energy_code": kinetic_energy_code,
         "thermal_energy_code": total_energy_value - kinetic_energy_code,
@@ -967,9 +967,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     dm = et.make_dark_matter(config)
 
     baryon_fraction = float(initial_condition["baryon_fraction"])
-    gas_mass = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
-    dm_mass = float(np.sum(dm.mass))
-    measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
+    gas_mass_comoving_code = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
+    dm_mass_comoving_code = float(np.sum(dm.mass))
+    measured_fraction = gas_mass_comoving_code / max(gas_mass_comoving_code + dm_mass_comoving_code, 1.0e-30)
     if not np.isclose(measured_fraction, baryon_fraction, rtol=0.02):
         raise RuntimeError(
             "initial gas/total mass fraction does not match baryon_fraction"
@@ -1160,7 +1160,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     final_time = (
         float(final_time_override)
         if final_time_override is not None
-        else float(simulation["final_time"])
+        else quantity_to_value(simulation["final_time"], units.time_unit)
     )
     target_tau = float(cosmology.supercomoving_time(final_time))
     cadence = float(example.get("gas_profile_cadence", 0.10))
@@ -1205,7 +1205,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         gas_radius = np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
         gas_edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
-        gas_mass = (
+        gas_mass_comoving_code = (
             np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
             * (4.0 * np.pi / 3.0)
             * np.diff(gas_edges**3)
@@ -1213,13 +1213,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         rvir = float(radius_record.get("rvir_kpc", np.nan))
         mvir = float(radius_record.get("mvir", np.nan))
         if np.isfinite(rvir) and np.isfinite(mvir) and mvir > 0.0:
-            gas_inside = float(np.sum(gas_mass[gas_radius <= rvir]))
-            radius_record["gas_mass_rvir"] = gas_inside
+            gas_inside_comoving_code = float(np.sum(gas_mass_comoving_code[gas_radius <= rvir]))
+            radius_record["gas_mass_comoving_code_rvir"] = gas_inside_comoving_code
             radius_record["normalized_baryon_fraction"] = gas_inside / (
                 float(initial_condition["baryon_fraction"]) * mvir
             )
         else:
-            radius_record["gas_mass_rvir"] = np.nan
+            radius_record["gas_mass_comoving_code_rvir"] = np.nan
             radius_record["normalized_baryon_fraction"] = np.nan
         shock_index = int(radius_record.get("shock_cell_index", -1))
         if 0 <= shock_index < int(sim.par.mesh.grid_cells):
@@ -1748,9 +1748,9 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ]),
         radius_proper_kpc=_pad_profile_history(dm_profiles, "dm_radius_proper_kpc"),
         rho_proper_code=_pad_profile_history(dm_profiles, "dm_rho_proper_code"),
-        mass_code=_pad_profile_history(dm_profiles, "dm_mass"),
+        mass_code=_pad_profile_history(dm_profiles, "dm_mass_comoving_code"),
         total_mass=np.asarray([
-            item.get("dm_total_mass", np.nan) for item in dm_profiles
+            item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles
         ]),
         crossing_events=np.asarray([
             item.get("dm_crossing_events", 0) for item in dm_profiles
@@ -1770,7 +1770,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("final cosmic time = %.8g Gyr" % times[-1])
     dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
     dm_total_mass = np.asarray([
-        item.get("dm_total_mass", np.nan) for item in dm_profiles
+        item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles
     ])
     if dm_total_mass.size and np.isfinite(dm_total_mass[0]):
         mass_error = np.max(np.abs(dm_total_mass - dm_total_mass[0]))

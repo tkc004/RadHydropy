@@ -1,11 +1,11 @@
 par:
   simulation:
     name: DarkMatterShellCrossing1D
-    final_time: 0.6
+    final_time: {value: 0.6, unit: pc/(km/s)}
   output:
     directory: .
   timestep:
-    output_interval: 0.002
+    output_interval: {value: 0.002, unit: pc/(km/s)}
     crossing_safety_factor: 0.1
   units:
     CodeUnits:

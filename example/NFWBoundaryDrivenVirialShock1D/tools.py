@@ -236,16 +236,16 @@ def shock_history(filenames, halo, config, times_myr=None):
             continue
         inner = slice(index - 3, index)
         outer = slice(index + 1, index + 4)
-        rho_in = float(np.median(snapshot['rho_proper_cgs_g_cm3'][inner]))
-        rho_out = float(np.median(snapshot['rho_proper_cgs_g_cm3'][outer]))
-        temp_in = float(np.median(snapshot['temperature_proper_cgs_K'][inner]))
-        temp_out = float(np.median(snapshot['temperature_proper_cgs_K'][outer]))
+        density_inner_proper_cgs_g_cm3 = float(np.median(snapshot['rho_proper_cgs_g_cm3'][inner]))
+        density_outer_proper_cgs_g_cm3 = float(np.median(snapshot['rho_proper_cgs_g_cm3'][outer]))
+        temperature_inner_proper_cgs_K = float(np.median(snapshot['temperature_proper_cgs_K'][inner]))
+        temperature_outer_proper_cgs_K = float(np.median(snapshot['temperature_proper_cgs_K'][outer]))
         rows.append({
             'time_proper_Myr': snapshot['time_proper_Myr'],
             'shock_radius_proper_kpc': float(snapshot['radius_proper_kpc'][index]),
             'shock_radius_over_R200': float(snapshot['radius_proper_kpc'][index] / r200),
-            'density_ratio': rho_in / max(rho_out, 1.0e-99),
-            'temperature_ratio': temp_in / max(temp_out, 1.0),
+            'density_ratio': density_inner_proper_cgs_g_cm3 / max(density_outer_proper_cgs_g_cm3, 1.0e-99),
+            'temperature_ratio': temperature_inner_proper_cgs_K / max(temperature_outer_proper_cgs_K, 1.0),
             'velocity_inner_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][inner])),
             'velocity_outer_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][outer])),
         })

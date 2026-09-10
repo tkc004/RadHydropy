@@ -8,7 +8,7 @@ par:
     name: CosmologicalGasCorrelationZ100ComptonAtomic
     initial_condition_filename: outputs_correlation_gas_compton_atomic/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: 1.0
+    final_time: {value: 1.0, unit: kpc/(km/s)}
   mesh:
     ghost_cells: 2
     grid_cells: 256

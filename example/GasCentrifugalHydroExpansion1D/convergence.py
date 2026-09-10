@@ -1,5 +1,6 @@
 """Resolution convergence study for the hydro expansion benchmark."""
 
+import copy
 import sys
 from pathlib import Path
 
@@ -78,8 +79,8 @@ def main():
     resolutions = (32, 64, 128)
     results = []
     for resolution in resolutions:
-        par = {**config['par'], 'mesh': {**config['par']['mesh'], 'grid_cells': resolution}}
-        case_config = {**config, 'par': par}
+        case_config = copy.deepcopy(config)
+        case_config['par']['mesh']['grid_cells'] = resolution
         results.append(measure(case_config))
         print('resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g' % (
             resolution, *results[-1]
