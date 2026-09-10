@@ -77,7 +77,7 @@ def test_long_case_requests_high_cadence_and_longer_pie_stage():
         EXAMPLE / 'nfw_boundary_driven_virial_shock_1e11_long.yaml'
     )
     assert np.isclose(config['example']['pie_final_time'].to_value(unyt.Myr), 3200.0)
-    schedule = EXAMPLE / config['example']['pie_outputtimefilename']
+    schedule = EXAMPLE / config['example']['pie_time_list_filename']
     with schedule.open(encoding='utf-8') as stream:
         values = [float(line) for line in stream if line.strip() and line.strip() != 'Myr']
     assert len(values) == 65

@@ -242,10 +242,10 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     pie_config['par']['simulation']['initial_condition_filename'] = str(adiabatic_files[-1])
     pie_config['par']['simulation']['final_time'] = exampleparams['pie_final_time']
     pie_config['par']['output']['directory'] = str(
-        (config_filename.parent / exampleparams['pie_outdir']).resolve()
+        (config_filename.parent / exampleparams['pie_output_directory']).resolve()
     )
     pie_config['par']['output']['time_list_filename'] = str(
-        (config_filename.parent / exampleparams['pie_outputtimefilename']).resolve()
+        (config_filename.parent / exampleparams['pie_time_list_filename']).resolve()
     )
     pie_config['par']['thermochemistry']['network'] = 'pie_uvbg_cooling'
     pie_config['par']['thermochemistry']['metal_pie_enabled'] = True

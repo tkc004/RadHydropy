@@ -85,14 +85,13 @@ def main(config_filename=DEFAULT_CONFIG):
     rows = et.rankine_hugoniot_diagnostics(
         output_files,
         config,
-        config,
         halo,
     )
     report_filename = os.path.join(
         par['output']['directory'],
         'NFWVirialShockAdiabatic1D_RankineHugoniot.txt',
     )
-    et.plot_snapshots(output_files, config, config, halo, figure_filename)
+    et.plot_snapshots(output_files, config, halo, figure_filename)
     et.write_rankine_hugoniot_report(rows, report_filename)
 
     virial_radius = halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)

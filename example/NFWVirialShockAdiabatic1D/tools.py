@@ -128,7 +128,7 @@ def _locate_shock(radius_proper_kpc, temperature_proper_cgs_K, virial_radius_pro
     return int(index), float(radius_proper_kpc[index])
 
 
-def rankine_hugoniot_diagnostics(filenames, config, _unused, halo):
+def rankine_hugoniot_diagnostics(filenames, config, halo):
     profiles = [
         _snapshot_profiles(filename, config)
         for filename in filenames
@@ -162,16 +162,16 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused, halo):
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)
-        rho_upstream = float(np.median(density_proper_cgs_g_cm3[upstream]))
-        rho_downstream = float(np.median(density_proper_cgs_g_cm3[downstream]))
-        temperature_upstream_K = float(np.median(temperature_proper_K[upstream]))
-        temperature_downstream_K = float(np.median(temperature_proper_K[downstream]))
-        velocity_upstream_km_s = float(np.median(velocity_proper_km_s[upstream]))
+        density_upstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[upstream]))
+        density_downstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[downstream]))
+        temperature_upstream_proper_K = float(np.median(temperature_proper_K[upstream]))
+        temperature_downstream_proper_K = float(np.median(temperature_proper_K[downstream]))
+        vel_upstream_proper_km_s = float(np.median(velocity_proper_km_s[upstream]))
         sound_speed = np.sqrt(
-            gamma * BOLTZMANN_CONSTANT_CGS * temperature_upstream_K
+            gamma * BOLTZMANN_CONSTANT_CGS * temperature_upstream_proper_K
             / (mu * PROTON_MASS_CGS)
         ) / 1.0e5
-        mach_number = abs(velocity_upstream_km_s - shock_speed) / max(sound_speed, 1.0e-30)
+        mach_number = abs(vel_upstream_proper_km_s - shock_speed) / max(sound_speed, 1.0e-30)
         predicted_density, predicted_temperature = rankine_hugoniot_ratios(
             mach_number, gamma
         )
@@ -181,9 +181,9 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused, halo):
             'shock_radius_over_R200': shock_positions[snapshot_index] / virial_radius_proper_kpc,
             'shock_speed_km_s': shock_speed,
             'mach_number': mach_number,
-            'measured_density_ratio': rho_downstream / max(rho_upstream, 1.0e-99),
+            'measured_density_ratio': density_downstream_proper_cgs_g_cm3 / max(density_upstream_proper_cgs_g_cm3, 1.0e-99),
             'predicted_density_ratio': float(predicted_density),
-            'measured_temperature_ratio': temperature_downstream_K / max(temperature_upstream_K, 1.0e-99),
+            'measured_temperature_ratio': temperature_downstream_proper_K / max(temperature_upstream_proper_K, 1.0e-99),
             'predicted_temperature_ratio': float(predicted_temperature),
         })
     return rows
@@ -206,7 +206,7 @@ def write_rankine_hugoniot_report(rows, filename):
             )
 
 
-def plot_snapshots(filenames, config, _unused, halo, figure_filename):
+def plot_snapshots(filenames, config, halo, figure_filename):
     initial_condition = config['initial_condition']
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(filenames)))

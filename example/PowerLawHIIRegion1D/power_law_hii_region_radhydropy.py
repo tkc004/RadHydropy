@@ -219,14 +219,14 @@ def save_profile_plot(snapshots, output, exponent):
     for index, (time_yr, par, mesh, fluid) in enumerate(snapshots):
         first = par.mesh.ghost_cells
         interior = slice(first, first + par.mesh.grid_cells)
-        radius_cgs_cm = np.asarray(
+        radius_proper_cgs_cm = np.asarray(
             code_quantity_to_cgs(
                 mesh.x_proper_code[interior], par.units.CodeUnits, "length_cgs_cm"
             ),
             dtype=float,
         )
-        radius_pc = radius_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
-        rho_cgs = np.asarray(
+        radius_proper_pc = radius_proper_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
+        rho_proper_cgs_g_cm3 = np.asarray(
             code_quantity_to_cgs(
                 fluid.rho_proper_code[interior], par.units.CodeUnits, "density_cgs_g_cm3"
             ),
@@ -242,14 +242,14 @@ def save_profile_plot(snapshots, output, exponent):
         color = colors[index % len(colors)]
         label = f"{time_yr:.0f} yr"
         density_axis.plot(
-            radius_pc,
-            rho_cgs / (1.0 * unyt.mp).to_value(unyt.g),
+            radius_proper_pc,
+            rho_proper_cgs_g_cm3 / (1.0 * unyt.mp).to_value(unyt.g),
             linestyle=style,
             color=color,
             label=label,
         )
         velocity_axis.plot(
-            radius_pc,
+            radius_proper_pc,
             velocity_cgs_cm_s / 1.0e5,
             linestyle=style,
             color=color,

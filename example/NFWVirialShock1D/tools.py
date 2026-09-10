@@ -124,7 +124,7 @@ def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
     return density_ratio, pressure_ratio / density_ratio
 
 
-def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
+def rankine_hugoniot_diagnostics(filenames, config):
     """Compare detected shock jumps with Rankine--Hugoniot predictions."""
     profiles = [_snapshot_profiles(filename, config) for filename in filenames]
     if len(profiles) < 3:
@@ -164,18 +164,18 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)
-        rho_upstream = float(np.median(density_proper_cgs_g_cm3[upstream]))
-        rho_downstream = float(np.median(density_proper_cgs_g_cm3[downstream]))
-        temp_upstream = float(np.median(temperature_proper_cgs_K[upstream]))
-        temp_downstream = float(np.median(temperature_proper_cgs_K[downstream]))
-        velocity_upstream = float(np.median(vel_peculiar_proper_cgs_cm_s[upstream]))
-        velocity_downstream = float(np.median(vel_peculiar_proper_cgs_cm_s[downstream]))
-        relative_upstream = abs(velocity_upstream - shock_speed)
+        density_upstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[upstream]))
+        density_downstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[downstream]))
+        temperature_upstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[upstream]))
+        temperature_downstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[downstream]))
+        vel_upstream_peculiar_proper_cgs_cm_s = float(np.median(vel_peculiar_proper_cgs_cm_s[upstream]))
+        vel_downstream_peculiar_proper_cgs_cm_s = float(np.median(vel_peculiar_proper_cgs_cm_s[downstream]))
+        relative_upstream_peculiar_proper_cgs_cm_s = abs(vel_upstream_peculiar_proper_cgs_cm_s - shock_speed)
         sound_speed = np.sqrt(
-            gamma * 1.380649e-16 * temp_upstream
+            gamma * 1.380649e-16 * temperature_upstream_proper_cgs_K
             / (mu * 1.67262192369e-24)
         ) / 1.0e5
-        mach_number = relative_upstream / max(sound_speed, 1.0e-30)
+        mach_number = relative_upstream_peculiar_proper_cgs_cm_s / max(sound_speed, 1.0e-30)
         predicted_density, predicted_temperature = rankine_hugoniot_ratios(
             mach_number,
             gamma,
@@ -185,11 +185,11 @@ def rankine_hugoniot_diagnostics(filenames, config, _unused=None):
             'shock_radius_proper_kpc': shock_positions[snapshot_index],
             'shock_speed_km_s': shock_speed,
             'mach_number': mach_number,
-            'measured_density_ratio': rho_downstream / max(rho_upstream, 1.0e-99),
+            'measured_density_ratio': density_downstream_proper_cgs_g_cm3 / max(density_upstream_proper_cgs_g_cm3, 1.0e-99),
             'predicted_density_ratio': float(predicted_density),
-            'measured_temperature_ratio': temp_downstream / max(temp_upstream, 1.0e-99),
+            'measured_temperature_ratio': temperature_downstream_proper_cgs_K / max(temperature_upstream_proper_cgs_K, 1.0e-99),
             'predicted_temperature_ratio': float(predicted_temperature),
-            'velocity_downstream_km_s': velocity_downstream,
+            'vel_downstream_peculiar_proper_km_s': vel_downstream_peculiar_proper_cgs_cm_s / 1.0e5,
         })
     return rows
 
@@ -199,7 +199,7 @@ def write_rankine_hugoniot_report(rows, filename):
     header = (
         'time_proper_Myr shock_radius_proper_kpc shock_speed_km_s Mach '
         'rho_ratio_measured rho_ratio_RH T_ratio_measured T_ratio_RH '
-        'v_downstream_km_s'
+        'vel_downstream_peculiar_proper_km_s'
     )
     with open(filename, 'w', encoding='utf-8') as report:
         report.write(header + '\n')
@@ -209,11 +209,11 @@ def write_rankine_hugoniot_report(rows, filename):
                 '%(shock_speed_km_s).8g %(mach_number).8g '
                 '%(measured_density_ratio).8g %(predicted_density_ratio).8g '
                 '%(measured_temperature_ratio).8g %(predicted_temperature_ratio).8g '
-                '%(velocity_downstream_km_s).8g\n' % row
+                '%(vel_downstream_peculiar_proper_km_s).8g\n' % row
             )
 
 
-def plot_snapshots(filenames, config, _unused, figure_filename):
+def plot_snapshots(filenames, config, figure_filename):
     """Plot density and temperature profiles from all saved snapshots."""
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(filenames)))

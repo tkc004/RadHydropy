@@ -153,7 +153,7 @@ def main(config_filename=DEFAULT_CONFIG):
     print('maximum density relative error = %.6g' % rho_error)
     print('maximum normalized hydrostatic residual = %.6g' % residual_norm)
 
-    radius_pc = quantity_to_value(radius_proper_cgs_cm_unyt, 'pc')
+    radius_proper_pc = quantity_to_value(radius_proper_cgs_cm_unyt, 'pc')
     rho_final_cgs = quantity_to_value(rho_final, 'g/cm**3')
     rho_expected_cgs = quantity_to_value(rho_expected_proper_cgs_g_cm3_unyt, 'g/cm**3')
     velocity_cgs = quantity_to_value(
@@ -161,15 +161,15 @@ def main(config_filename=DEFAULT_CONFIG):
         'cm/s',
     )
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))
-    axes[0].plot(radius_pc, rho_final_cgs, label='final')
-    axes[0].plot(radius_pc, rho_expected_cgs, '--', label='analytic equilibrium')
+    axes[0].plot(radius_proper_pc, rho_final_cgs, label='final')
+    axes[0].plot(radius_proper_pc, rho_expected_cgs, '--', label='analytic equilibrium')
     axes[0].set_xlabel('radius [pc]')
     axes[0].set_ylabel(r'$\rho$ [g cm$^{-3}$]')
     axes[0].legend()
-    axes[1].plot(radius_pc, velocity_cgs)
+    axes[1].plot(radius_proper_pc, velocity_cgs)
     axes[1].set_xlabel('radius [pc]')
     axes[1].set_ylabel('velocity [cm s$^{-1}$]')
-    axes[2].plot(radius_pc, np.abs(residual) / max(residual_scale, np.finfo(float).tiny))
+    axes[2].plot(radius_proper_pc, np.abs(residual) / max(residual_scale, np.finfo(float).tiny))
     axes[2].set_xlabel('radius [pc]')
     axes[2].set_ylabel('normalized hydrostatic residual')
     for axis in axes:

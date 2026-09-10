@@ -67,5 +67,5 @@ initial_condition:
 example:
   adiabatic_final_time: {value: 800.0, unit: Myr}
   pie_final_time: {value: 3200.0, unit: Myr}
-  pie_outdir: outputs/mass_1e11_long/pie
-  pie_outputtimefilename: pie_output_times_50myr.txt
+  pie_output_directory: outputs/mass_1e11_long/pie
+  pie_time_list_filename: pie_output_times_50myr.txt

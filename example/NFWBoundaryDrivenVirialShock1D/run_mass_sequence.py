@@ -53,11 +53,11 @@ def _case_diagnostics(config_filename):
         config_filename.parent
         / config["par"]['thermochemistry']['metal_pie_table_filename']
     ).resolve()
-    pie_outdir = (config_filename.parent / exampleparams['pie_outdir']).resolve()
+    pie_output_directory = (config_filename.parent / exampleparams['pie_output_directory']).resolve()
     pie_schedule = (
-        config_filename.parent / exampleparams['pie_outputtimefilename']
+        config_filename.parent / exampleparams['pie_time_list_filename']
     )
-    files = sorted(pie_outdir.glob('Output_*.hdf5'))
+    files = sorted(pie_output_directory.glob('Output_*.hdf5'))
     relative_times = load_output_time_list(pie_schedule).to_value(unyt.Myr)
     offset = exampleparams['adiabatic_final_time'].to_value(unyt.Myr)
     times = relative_times + offset

@@ -79,10 +79,9 @@ def main(config_filename=DEFAULT_CONFIG):
         par['output']['directory'],
         'NFWVirialShock1D.jpg',
     )
-    et.plot_snapshots(output_files, config, config, figure_filename)
+    et.plot_snapshots(output_files, config, figure_filename)
     rh_rows = et.rankine_hugoniot_diagnostics(
         output_files,
-        config,
         config,
     )
     rh_filename = os.path.join(
