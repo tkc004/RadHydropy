@@ -73,7 +73,7 @@ def main(config_filename=None):
     rhd_csv_filename = Path(output['directory']) / 'radial_profile_rhd.csv'
     eu.write_radial_profile_csv(outputfilenames[-1], config, rhd_csv_filename)
     print('output files = %d' % len(outputfilenames))
-    print('final front radius = %.3e kpc' % history['front_radius_kpc'][-1])
+    print('final front radius = %.3e kpc' % history['front_radius_proper_kpc'][-1])
     print('RHD profile CSV = %s' % rhd_csv_filename)
     print('figure = %s' % figure_filename)
     print('front figure = %s' % front_figure_filename)

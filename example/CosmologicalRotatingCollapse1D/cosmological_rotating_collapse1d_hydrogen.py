@@ -55,9 +55,9 @@ def main(output_root=None):
     config["par"]['output'] = {**config["par"]['output'], 'directory': str(output_dir), 'filename_prefix': 'Output'}
 
     count = int(config["par"]["mesh"]["grid_cells"])
-    cosmic_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    scale_factor = float(cosmology.scale_factor(cosmic_time))
-    hubble = float(cosmology.hubble(cosmic_time))
+    time_cosmic_code = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+    hubble = float(cosmology.hubble(time_cosmic_code))
     boundary_comoving_code = np.linspace(
         float(initial_condition["radius_inner_comoving"].to_value(units.length_unit)),
         float(initial_condition["radius_outer_comoving"].to_value(units.length_unit)),
@@ -67,7 +67,7 @@ def main(output_root=None):
     volume_comoving_code = 4.0 * np.pi / 3.0 * (
         boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
     )
-    rho_background = float(cosmology.background_density(cosmic_time))
+    rho_background = float(cosmology.background_density(time_cosmic_code))
     overdensity = float(initial_condition["overdensity"])
     inside = x_comoving_code < float(
         initial_condition["radius_perturbation_comoving"].to_value(units.length_unit)
@@ -83,7 +83,7 @@ def main(output_root=None):
         "initial_condition": {
             **initial_condition,
             "box_size_comoving": initial_condition["radius_outer_comoving"],
-            "time_cosmic": cosmic_time * units.time_unit,
+            "time_cosmic": time_cosmic_code * units.time_unit,
         },
         "example": {},
         "_code_cosmology": cosmology,
@@ -99,7 +99,7 @@ def main(output_root=None):
         "_mu_dimensionless": np.full(count, float(initial_condition["mean_molecular_weight"])),
         "_specific_angular_momentum_code": specific_angular_momentum_code,
         "_initial_tau_supercomoving_code": float(
-            cosmology.supercomoving_time(cosmic_time)
+            cosmology.supercomoving_time(time_cosmic_code)
         ),
     }
     initial = build_initial_condition(initial_config)

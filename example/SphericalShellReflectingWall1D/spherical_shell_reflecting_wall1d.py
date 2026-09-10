@@ -111,8 +111,8 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
             Path(config["par"]["output"]["directory"]).name + "_" + riemann_solver
         )
         config["par"]["output"]["directory"] = config["par"]["output"]["directory"]
-    outdir = Path(config["par"]["output"]["directory"])
-    outdir.mkdir(parents=True, exist_ok=True)
+    output_directory = Path(config["par"]["output"]["directory"])
+    output_directory.mkdir(parents=True, exist_ok=True)
     initial = make_initial_condition(config)
     rio.writehdf5(initial, config["par"]["simulation"]["initial_condition_filename"])
     sim = Rsim(config["par"])
@@ -152,7 +152,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     if not np.any(hot):
         raise RuntimeError("finite reflecting wall did not produce post-shock heating")
     data = {"time_proper_code": np.array([s[0] for s in snapshots]), "radius_proper_code": radius_proper_code, "rho_proper_code": np.array([s[2] for s in snapshots]), "vel_proper_code": np.array([s[3] for s in snapshots]), "pre_proper_code": np.array([s[4] for s in snapshots]), "temp_proper_code": np.array([s[5] for s in snapshots]), "entropy_dimensionless": np.array([s[6] for s in snapshots]), "flux_proper_code": np.asarray(fluxes)}
-    np.savez(outdir / "SphericalShellReflectingWall1D_diagnostics.npz", **data)
+    np.savez(output_directory / "SphericalShellReflectingWall1D_diagnostics.npz", **data)
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     radius_proper_kpc = radius_proper_code / 3.085677581e21
     for i in np.unique(np.linspace(0, len(snapshots) - 1, min(5, len(snapshots))).astype(int)):
@@ -174,7 +174,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
         f"({config['par']['hydrodynamics']['riemann_solver']}, order 0)"
     )
     fig.tight_layout()
-    figure = outdir / "SphericalShellReflectingWall1D.jpg"
+    figure = output_directory / "SphericalShellReflectingWall1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
     print(f"wall post-shock pressure max = {np.max(pre_proper_code[hot]):.6e}")

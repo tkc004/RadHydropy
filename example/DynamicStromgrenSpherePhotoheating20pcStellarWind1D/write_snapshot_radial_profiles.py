@@ -54,7 +54,7 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CO
 
     csv_files = []
     for snapshot in snapshots:
-        time_myr = snapshot_time_myr(snapshot, config)
+        time_proper_Myr = snapshot_time_myr(snapshot, config)
         time_label = f'{time_myr:.6g}'
         csv_filename = csv_directory / f'radial_profile_{time_label}Myr.csv'
         csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))

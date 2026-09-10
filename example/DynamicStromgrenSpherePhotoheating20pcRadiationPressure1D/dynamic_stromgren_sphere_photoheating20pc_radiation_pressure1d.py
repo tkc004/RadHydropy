@@ -189,14 +189,14 @@ def main(config_filename=DEFAULT_CONFIG):
         Path(output['directory']) / f"{figure_stem}_IFront.jpg",
     )
 
-    time_myr = np.asarray(momentum_history["time_s"]) / (1.0 * unyt.Myr).to_value(unyt.s)
+    time_proper_Myr = np.asarray(momentum_history["time_s"]) / (1.0 * unyt.Myr).to_value(unyt.s)
     momentum_unit = unyt.g * unyt.cm / unyt.s
     gas = np.asarray(momentum_history["gas_momentum"])
     radiation = np.asarray(momentum_history["radiation_momentum"])
     momentum_figure = Path(output['directory']) / f"{figure_stem}_Momentum.jpg"
     plt.figure(figsize=(7.0, 4.5))
-    plt.plot(time_myr, gas, label="total gas radial momentum")
-    plt.plot(time_myr, radiation, "--", label="absorbed photon momentum")
+    plt.plot(time_proper_Myr, gas, label="total gas radial momentum")
+    plt.plot(time_proper_Myr, radiation, "--", label="absorbed photon momentum")
     plt.xlabel("time [Myr]")
     plt.ylabel(f"momentum [{momentum_unit}]" )
     plt.legend()
@@ -241,7 +241,7 @@ def main(config_filename=DEFAULT_CONFIG):
             pressure_ratio,
         )),
         delimiter=",",
-        header="time_Myr,radiation_pressure_dyn_cgs_cm2,gas_pressure_dyn_cgs_cm2,pressure_ratio",
+        header="time_proper_Myr,radiation_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio",
         comments="",
     )
 

@@ -70,10 +70,10 @@ def _snapshot_energy(snapshot, config, tools):
     )
     thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3))
     kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
-    time_myr = float(
+    time_proper_Myr = float(
         np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr)
     )
-    return time_myr, thermal, kinetic, thermal + kinetic
+    return time_proper_Myr, thermal, kinetic, thermal + kinetic
 
 
 def _history(example_dir, config_filename):
@@ -136,7 +136,7 @@ def main(no_wind_dir=NO_WIND_DIR, wind_dir=HERE):
         )),
         delimiter=',',
         header=(
-            'time_Myr,no_wind_thermal_cgs_erg,no_wind_kinetic_cgs_erg,no_wind_total_cgs_erg,'
+            'time_proper_Myr,no_wind_thermal_proper_cgs_erg,no_wind_kinetic_proper_cgs_erg,no_wind_total_proper_cgs_erg,'
             'wind_thermal_cgs_erg,wind_kinetic_cgs_erg,wind_total_cgs_erg,'
             'wind_minus_no_wind_cgs_erg,relative_difference'
         ),

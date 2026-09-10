@@ -153,8 +153,8 @@ def integrate_shell_density_reference(initial, config, scale_factors):
         physical_edges[:, edge] = solution.y[0]
 
     reference_unique = np.empty((len(cosmic_times), len(volume_comoving_code)), dtype=float)
-    for time_index, cosmic_time in enumerate(cosmic_times):
-        current_scale = float(cosmology.scale_factor(cosmic_time))
+    for time_index, time_cosmic_code in enumerate(cosmic_times):
+        current_scale = float(cosmology.scale_factor(time_cosmic_code))
         comoving_edges = physical_edges[time_index] / current_scale
         if np.any(np.diff(comoving_edges) <= 0.0):
             raise RuntimeError("pressureless reference shells crossed")
@@ -210,9 +210,9 @@ def run_case(config, label, rotation_factor):
     par["output"] = dict(par["output"])
     par["output"].update(directory=str(output_dir), filename_prefix="Output")
     count = int(par["mesh"]["grid_cells"])
-    cosmic_time = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
-    scale_factor = float(cosmology.scale_factor(cosmic_time))
-    hubble = float(cosmology.hubble(cosmic_time))
+    time_cosmic_code = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+    hubble = float(cosmology.hubble(time_cosmic_code))
     boundary_comoving_code = np.linspace(
         float(initial_condition["radius_inner_comoving"].to_value(code_unit_system.length_unit)),
         float(initial_condition["radius_outer_comoving"].to_value(code_unit_system.length_unit)),
@@ -222,7 +222,7 @@ def run_case(config, label, rotation_factor):
     volume_comoving_code = 4.0 * np.pi / 3.0 * (
         boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
     )
-    rho_background = float(cosmology.background_density(cosmic_time))
+    rho_background = float(cosmology.background_density(time_cosmic_code))
     inside = x_comoving_code < float(
         initial_condition["radius_perturbation_comoving"].to_value(code_unit_system.length_unit)
     )
@@ -239,7 +239,7 @@ def run_case(config, label, rotation_factor):
         "initial_condition": {
             **initial_condition,
             "box_size_comoving": initial_condition["radius_outer_comoving"],
-            "time_cosmic": cosmic_time * code_unit_system.time_unit,
+            "time_cosmic": time_cosmic_code * code_unit_system.time_unit,
         },
         "example": {},
         "_code_cosmology": cosmology,
@@ -261,7 +261,7 @@ def run_case(config, label, rotation_factor):
         "_mu_dimensionless": np.full(count, float(initial_condition["mean_molecular_weight"])),
         "_specific_angular_momentum_code": specific_angular_momentum_code,
         "_initial_tau_supercomoving_code": float(
-            cosmology.supercomoving_time(cosmic_time)
+            cosmology.supercomoving_time(time_cosmic_code)
         ),
     }
     initial = build_initial_condition(case_config)

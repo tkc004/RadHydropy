@@ -75,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG):
         sim.par.mesh.ghost_cells,
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
     )
-    radius_pc = quantity_to_value(
+    radius_proper_pc = quantity_to_value(
         np.asarray(sim.mesh.x_proper_code[interior]) * sim.par.units.CodeUnits.length_unit,
         'pc',
     )
@@ -105,8 +105,8 @@ def main(config_filename=DEFAULT_CONFIG):
             % (gas_mass_error_dimensionless, dm_mass_error_dimensionless)
         )
     fig, axis = plt.subplots(figsize=(5, 4))
-    axis.plot(radius_pc, rho_proper, '--', label='initial')
-    axis.plot(radius_pc, rho_gas_proper_cgs_g_cm3, label='final')
+    axis.plot(radius_proper_pc, rho_proper, '--', label='initial')
+    axis.plot(radius_proper_pc, rho_gas_proper_cgs_g_cm3, label='final')
     axis.set_xlabel('radius [pc]')
     axis.set_ylabel(r'gas density [g cm$^{-3}$]')
     axis.legend()

@@ -190,12 +190,12 @@ def load_output_state(outputfilename, config):
     return sim.par, sim.mesh, sim.fluid
 
 
-def output_files(outdir, outfileprefix):
-    pattern = os.path.join(outdir, f'{outfileprefix}_*.hdf5')
+def output_files(output_directory, output_filename_prefix):
+    pattern = os.path.join(output_directory, f'{output_filename_prefix}_*.hdf5')
     filenames = []
     for filename in glob.glob(pattern):
         stem = Path(filename).stem
-        suffix = stem[len(outfileprefix) + 1:]
+        suffix = stem[len(output_filename_prefix) + 1:]
         if suffix.isdigit():
             filenames.append(filename)
     return sorted(filenames)
@@ -422,7 +422,7 @@ def save_front_plot(history, config, figure_filename):
 def save_plot(mesh, fluid, config, figure_filename):
     example = config.get('example', {})
     interior = interior_slice(config)
-    radius_pc = _to_kpc(mesh.x_proper_code[interior], config) * (1.0 * unyt.kpc).to_value(unyt.pc)
+    radius_proper_pc = _to_kpc(mesh.x_proper_code[interior], config) * (1.0 * unyt.kpc).to_value(unyt.pc)
     number_density = _to_number_density(fluid.rho_proper_code[interior], config)
     vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
@@ -462,14 +462,14 @@ def save_plot(mesh, fluid, config, figure_filename):
             reference['radius_proper_kpc'] *= reference_radius_scale
 
     fig, axes = plt.subplots(5, 1, figsize=(7.4, 11.0), sharex=True)
-    axes[0].plot(radius_pc, number_density, color='tab:blue', lw=1.8, label='RadHydropy')
+    axes[0].plot(radius_proper_pc, number_density, color='tab:blue', lw=1.8, label='RadHydropy')
     scatter_reference(axes[0], density_reference)
     axes[0].set_yscale('log')
     axes[0].set_ylabel(r'$n$ [cm$^{-3}$]')
     axes[0].legend(frameon=False, loc='best')
 
     positive_velocity = np.where(vel_peculiar_proper_km_s > 0.0, vel_peculiar_proper_km_s, np.nan)
-    axes[1].plot(radius_pc, positive_velocity, color='tab:orange', lw=1.8, label='RadHydropy')
+    axes[1].plot(radius_proper_pc, positive_velocity, color='tab:orange', lw=1.8, label='RadHydropy')
     scatter_reference(axes[1], velocity_reference)
     axes[1].set_yscale('log')
     axes[1].set_ylim(bottom=0.5)
@@ -477,7 +477,7 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[1].legend(frameon=False, loc='best')
 
     axes[2].plot(
-        radius_pc,
+        radius_proper_pc,
         np.clip(neutral_fraction, 1.0e-8, 1.0),
         color='tab:green',
         lw=1.8,
@@ -488,13 +488,13 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[2].set_ylabel(r'$x_{\rm HI}$')
     axes[2].legend(frameon=False, loc='best')
 
-    axes[3].plot(radius_pc, pressure_proper_cgs_erg_cm3, color='tab:red', lw=1.8, label='RadHydropy')
+    axes[3].plot(radius_proper_pc, pressure_proper_cgs_erg_cm3, color='tab:red', lw=1.8, label='RadHydropy')
     scatter_reference(axes[3], pressure_reference)
     axes[3].set_yscale('log')
     axes[3].set_ylabel(r'$P$ [g cm$^{-1}$ s$^{-2}$]')
     axes[3].legend(frameon=False, loc='best')
 
-    axes[4].plot(radius_pc, temperature_proper_cgs_K, color='tab:purple', lw=1.8, label='RadHydropy')
+    axes[4].plot(radius_proper_pc, temperature_proper_cgs_K, color='tab:purple', lw=1.8, label='RadHydropy')
     axes[4].set_yscale('log')
     axes[4].set_ylabel(r'$T$ [K]')
     axes[4].set_xlabel('Radius [pc]')

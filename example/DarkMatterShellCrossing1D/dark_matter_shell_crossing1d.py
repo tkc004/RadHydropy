@@ -78,16 +78,16 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('dark-matter shell mass was not conserved')
 
     radius_unit = code_units.length_unit
-    radius_pc = quantity_to_value(history_radius * radius_unit, 'pc')
-    time_myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value('Myr')
+    radius_proper_pc = quantity_to_value(history_radius * radius_unit, 'pc')
+    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value('Myr')
     energy_fractional_change = np.abs(
         (history_energy - history_energy[0]) / max(abs(history_energy[0]), np.finfo(float).tiny)
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].plot(time_myr, radius_pc)
+    axes[0].plot(time_proper_Myr, radius_proper_pc)
     axes[0].set_xlabel('time [Myr]')
     axes[0].set_ylabel('sorted shell radius [pc]')
-    axes[1].plot(time_myr, energy_fractional_change)
+    axes[1].plot(time_proper_Myr, energy_fractional_change)
     axes[1].set_xlabel('time [Myr]')
     axes[1].set_ylabel('fractional diagnostic energy change')
     for axis in axes:

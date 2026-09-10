@@ -145,7 +145,7 @@ def run():
         final_tau_sim = float(
             np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0]
         )
-        cosmic_time, final_a, final_hubble = code_cosmology.background_state_from_supercomoving(final_tau_sim)
+        time_cosmic_code, final_a, final_hubble = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
         x_comoving_code = sim.mesh.x_comoving_code[first:last]

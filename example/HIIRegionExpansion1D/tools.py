@@ -117,8 +117,8 @@ def load_labeled_density_snapshots(outputfilenames, config, output_specs):
     return snapshots
 
 
-def output_files(outdir, outfileprefix):
-    pattern = os.path.join(outdir, f'{outfileprefix}_*.hdf5')
+def output_files(output_directory, output_filename_prefix):
+    pattern = os.path.join(output_directory, f'{output_filename_prefix}_*.hdf5')
     return sorted(glob.glob(pattern))
 
 
@@ -149,7 +149,7 @@ def apply_piecewise_isothermal_state(sim, config):
     refresh_state(mesh, fluid, config, solver)
 
 
-def time_myr(value, code_unit_system):
+def time_proper_Myr(value, code_unit_system):
     myr_in_s = (1.0 * unyt.Myr).to_value(unyt.s)
     return float(code_quantity_to_cgs(value, code_unit_system, 'time_s') / myr_in_s)
 
@@ -176,7 +176,7 @@ def print_startup_diagnostics(sim, config, initial_condition):
 
     print('--- Startup diagnostics ---')
     print('cells = %d' % sim.par.mesh.grid_cells)
-    print('time = %.6e Myr' % time_myr(sim.fluid.time_proper_code, code_units_obj))
+    print('time = %.6e Myr' % time_proper_Myr(sim.fluid.time_proper_code, code_units_obj))
     print('rho range = [%.3e, %.3e] g/cm^3' % (np.min(rho_proper_cgs_g_cm3), np.max(rho_proper_cgs_g_cm3)))
     print('vel max abs = %.3e km/s' % (np.max(np.abs(vel_proper_code)) / 1.0e5))
     print('temperature range = [%.3e, %.3e] K' % (np.min(temp_proper_code), np.max(temp_proper_code)))
@@ -256,7 +256,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         if should_log:
             print(
                 '--- step %d begin: time=%.6e Myr dt=%s mode=%s ---'
-                % (step_index + 1, time_myr(sim.fluid.time_proper_code, code_units_obj), dt, mode)
+                % (step_index + 1, time_proper_Myr(sim.fluid.time_proper_code, code_units_obj), dt, mode)
             )
         result = base_step_backend(
             dt=dt,
@@ -274,7 +274,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
                 '--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---'
                 % (
                     step_index + 1,
-                    time_myr(sim.fluid.time_proper_code, code_units_obj),
+                    time_proper_Myr(sim.fluid.time_proper_code, code_units_obj),
                     result['hydro_steps'],
                     result['source_steps'],
                     front_radius,
@@ -345,13 +345,13 @@ def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
 def append_history(history, mesh, fluid, config):
     par = config['_output_par']
     history['time_proper_Myr'].append(_scalar_in_unit(fluid.time_proper_code, unyt.Myr))
-    history['front_radius_pc'].append(ionization_front_position(mesh, fluid, config))
+    history['front_radius_proper_pc'].append(ionization_front_position(mesh, fluid, config))
 
 
 def load_history_from_outputs(outputfilenames, config):
     history = {
         'time_proper_Myr': [],
-        'front_radius_pc': [],
+        'front_radius_proper_pc': [],
     }
     for outputfilename in outputfilenames:
         par, mesh, fluid = load_output_state(outputfilename, config)
@@ -368,7 +368,7 @@ def density_snapshot(mesh, fluid, config):
         ngamma_code = np.sum(ngamma_code, axis=0)
     return {
         'time_proper_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
-        'radius_pc': _value_in_unit(mesh.x_proper_code[interior], unyt.pc).copy(),
+        'radius_proper_pc': _value_in_unit(mesh.x_proper_code[interior], unyt.pc).copy(),
         'density_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
         'radiation_density_cgs_cm3': _value_in_unit(
             ngamma_code[interior], 1.0 / unyt.cm**3
@@ -378,7 +378,7 @@ def density_snapshot(mesh, fluid, config):
 
 def front_radius_at_time(history, time_proper_code):
     time_proper_Myr = np.asarray(history['time_proper_Myr'])
-    front_radius_pc = np.asarray(history['front_radius_pc'])
+    front_radius_pc = np.asarray(history['front_radius_proper_pc'])
     target_time_myr = time_proper_code.to_value(unyt.Myr)
     if time_proper_Myr.size == 0:
         raise ValueError('history is empty')
@@ -453,7 +453,7 @@ def save_front_plot(history, config, figure_filename):
     initial_condition = config['initial_condition']
     time_proper_unyt = np.asarray(history['time_proper_Myr']) * unyt.Myr
     time_proper_Myr = time_proper_unyt.to_value(unyt.Myr)
-    front_radius_pc = np.asarray(history['front_radius_pc'])
+    front_radius_pc = np.asarray(history['front_radius_proper_pc'])
     stromgren_radius_pc = stromgren_radius(config).to_value(unyt.pc)
     radius_spitzer_pc = spitzer_radius(time_proper_unyt, config).to_value(unyt.pc)
     radius_hosokawa_inutsuka_pc = hosokawa_inutsuka_radius(
@@ -484,7 +484,7 @@ def save_front_plot(history, config, figure_filename):
         ),
     )
     ax.plot(
-        time_myr,
+        time_proper_Myr,
         radius_hosokawa_inutsuka_pc,
         color='tab:green',
         lw=1.8,
@@ -527,7 +527,7 @@ def save_front_plot(history, config, figure_filename):
 
 def save_density_profile_plot(snapshot, config, figure_filename):
     time_proper_unyt = snapshot['time_proper_Myr'] * unyt.Myr
-    radius_pc = np.asarray(snapshot['radius_pc'])
+    radius_proper_pc = np.asarray(snapshot['radius_proper_pc'])
     density_cgs_g_cm3 = np.asarray(snapshot['density_cgs_g_cm3'])
     radiation_density_cgs_cm3 = np.asarray(snapshot['radiation_density_cgs_cm3'])
     spitzer_radius_pc = spitzer_radius(time_proper_unyt, config).to_value(unyt.pc)
@@ -543,7 +543,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         2, 1, figsize=(7.2, 7.2), sharex=True
     )
     ax.plot(
-        radius_pc,
+        radius_proper_pc,
         density_cgs_g_cm3,
         color='tab:blue',
         lw=2.0,
@@ -584,7 +584,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
     radiation_ax.plot(
-        radius_pc,
+        radius_proper_pc,
         np.where(radiation_density_cgs_cm3 > 0.0, radiation_density_cgs_cm3, np.nan),
         color='tab:purple',
         lw=2.0,

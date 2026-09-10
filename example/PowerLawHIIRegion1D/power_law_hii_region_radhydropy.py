@@ -179,8 +179,8 @@ def shock_radius_cgs_cm(
     return float(radius_proper_cgs_cm[shell[-1]])
 
 
-def output_files(outdir, prefix):
-    return sorted(Path(outdir).glob(f"{prefix}_*.hdf5"))
+def output_files(output_directory, prefix):
+    return sorted(Path(output_directory).glob(f"{prefix}_*.hdf5"))
 
 
 def apply_piecewise_isothermal_state(sim, config):
@@ -275,10 +275,10 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = config['initial_condition']
     example = config['example']
     output_config = config['par']['output']
-    outdir = Path(output_config['directory'])
-    outdir.mkdir(parents=True, exist_ok=True)
+    output_directory = Path(output_config['directory'])
+    output_directory.mkdir(parents=True, exist_ok=True)
     Path(output_config['directory']).mkdir(parents=True, exist_ok=True)
-    for filename in output_files(outdir, output_config['filename_prefix']):
+    for filename in output_files(output_directory, output_config['filename_prefix']):
         filename.unlink()
     write_initial_condition(
         config, config['par']['simulation']['initial_condition_filename']
@@ -303,7 +303,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nc = initial['core_number_density'].to_value(1.0 / unyt.cm**3)
     rc = initial['radius_core_proper'].to_value(unyt.cm)
     exponent = float(initial['density_power_law_exponent'])
-    for filename in output_files(outdir, output_config['filename_prefix']):
+    for filename in output_files(output_directory, output_config['filename_prefix']):
         par, mesh, fluid = load_output_state(filename, config)
         time_s = code_quantity_to_cgs(fluid.time_proper_code, par.units.CodeUnits, "time_s")
         time_yr = float(time_s) / (1.0 * unyt.yr).to_value(unyt.s)

@@ -189,8 +189,8 @@ def load_history_from_outputs(outputfiles, config):
     return history
 
 
-def output_files(outdir, outfileprefix):
-    return sorted(glob.glob(outdir + '/' + outfileprefix + '_*.hdf5'))
+def output_files(output_directory, output_filename_prefix):
+    return sorted(glob.glob(output_directory + '/' + output_filename_prefix + '_*.hdf5'))
 
 
 def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputtime=0):

@@ -364,11 +364,11 @@ def pie_stability_diagnostics(
         # Birnboim & Dekel's effective index follows a compressed fluid
         # element. Estimate dln(rho)/dt=-div(v) directly from the spherical
         # upstream flow, avoiding a fixed-Eulerian-band time derivative.
-        radius_cgs_cm = profile['radius_proper_kpc'] * KPC_CM
+        radius_proper_cgs_cm = profile['radius_proper_kpc'] * KPC_CM
         velocity_cgs_cm_s = profile['vel_peculiar_proper_km_s'] * KM_S_TO_CM_S
         divergence = np.gradient(
-            radius_cgs_cm**2 * velocity_cgs_cm_s, radius_cgs_cm
-        ) / radius_cgs_cm**2
+            radius_proper_cgs_cm**2 * velocity_cgs_cm_s, radius_proper_cgs_cm
+        ) / radius_proper_cgs_cm**2
         compression_rate = -float(np.median(divergence[upstream]))
         # Birnboim & Dekel's local definition follows directly from
         # P=(gamma-1)*rho*e and de/dt=P/rho**2*d(rho)/dt-q:

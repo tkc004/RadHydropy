@@ -160,11 +160,11 @@ def clean_previous_outputs(config):
     if not isinstance(config, dict) or 'par' not in config:
         raise TypeError('clean_previous_outputs requires a complete example config')
     output_config = config['par'].get('output', {})
-    outdir = Path(output_config.get('directory', '.'))
+    output_directory = Path(output_config.get('directory', '.'))
     prefix = output_config.get('filename_prefix', 'Output')
-    if not outdir.exists():
+    if not output_directory.exists():
         return
-    for path in outdir.glob(f'{prefix}_*.hdf5'):
+    for path in output_directory.glob(f'{prefix}_*.hdf5'):
         path.unlink(missing_ok=True)
 
 

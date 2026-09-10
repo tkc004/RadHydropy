@@ -61,12 +61,12 @@ def build_initial_condition(config):
     sim.par.mesh.grid_cells = grid_cells
     sim.par.mesh.ghost_cells = 0
     boxsize_code = quantity_to_value(initial_condition['box_size_proper'], code_units.length_unit)
-    cosmic_time = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
+    time_cosmic_code = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
     sim.par.simulation.box_size_comoving_code = np.ones(1) * boxsize_code
     sim.par.simulation.coordinate_system = 'spherical'
-    scale_factor = cosmology.scale_factor(cosmic_time)
-    hubble = cosmology.hubble(cosmic_time)
-    sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
+    scale_factor = cosmology.scale_factor(time_cosmic_code)
+    hubble = cosmology.hubble(time_cosmic_code)
+    sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(time_cosmic_code)
     sim.par.simulation.tau_supercomoving_code = sim.par.tau_supercomoving_code
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
@@ -95,7 +95,7 @@ def build_initial_condition(config):
         sim.mesh.boundary_comoving_code[1:]**3 - sim.mesh.boundary_comoving_code[:-1]**3
     )
 
-    rho_background = cosmology.background_density(cosmic_time)
+    rho_background = cosmology.background_density(time_cosmic_code)
     rho_comoving = rho_background * scale_factor**3
     delta = float(initial_condition['overdensity'])
     inside = sim.mesh.x_comoving_code < quantity_to_value(

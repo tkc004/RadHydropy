@@ -24,10 +24,10 @@ def point_mass_acceleration(point_mass, softening=0.0, code_unit_system=None):
     point_mass_g = point_mass.to_value(unyt.g) if hasattr(point_mass, "to_value") else float(point_mass) * (scales["mass_g"] if scales else 1)
     soft = softening.to_value(unyt.cm) if hasattr(softening, "to_value") else float(softening) * (scales["length_cgs_cm"] if scales else 1)
     def acceleration(x_proper_code):
-        radius_cgs_cm = x_proper_code.to_value(code_unit_system.length_unit) if hasattr(x_proper_code, "to_value") and code_unit_system is not None else np.asarray(x_proper_code, dtype=float)
-        if scales is not None: radius_cgs_cm = radius_cgs_cm * scales["length_cgs_cm"]
-        radius_cgs_cm = np.maximum(radius_cgs_cm, soft)
-        return (-GRAVITATIONAL_CONSTANT_CGS * point_mass_g / radius_cgs_cm**2) * ACCELERATION_UNIT
+        radius_proper_cgs_cm = x_proper_code.to_value(code_unit_system.length_unit) if hasattr(x_proper_code, "to_value") and code_unit_system is not None else np.asarray(x_proper_code, dtype=float)
+        if scales is not None: radius_proper_cgs_cm = radius_proper_cgs_cm * scales["length_cgs_cm"]
+        radius_proper_cgs_cm = np.maximum(radius_proper_cgs_cm, soft)
+        return (-GRAVITATIONAL_CONSTANT_CGS * point_mass_g / radius_proper_cgs_cm**2) * ACCELERATION_UNIT
     return acceleration
 
 def ballistic_density_profile(x_proper_code, rho_reference_proper_code):

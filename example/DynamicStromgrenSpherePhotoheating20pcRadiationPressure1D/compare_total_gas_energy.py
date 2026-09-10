@@ -59,10 +59,10 @@ def _snapshot_energy(snapshot, config, tools):
     )
     thermal_energy_cgs_erg = float(np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3))
     kinetic_energy_cgs_erg = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
-    time_myr = float(
+    time_proper_Myr = float(
         np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr)
     )
-    return time_myr, thermal_energy_cgs_erg, kinetic_energy_cgs_erg, thermal_energy_cgs_erg + kinetic_energy_cgs_erg
+    return time_proper_Myr, thermal_energy_cgs_erg, kinetic_energy_cgs_erg, thermal_energy_cgs_erg + kinetic_energy_cgs_erg
 
 
 def _history(example_dir, config_filename):
@@ -126,7 +126,7 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
         )),
         delimiter=',',
         header=(
-            'time_Myr,no_pressure_thermal_cgs_erg,no_pressure_kinetic_cgs_erg,no_pressure_total_cgs_erg,'
+            'time_proper_Myr,no_pressure_thermal_proper_cgs_erg,no_pressure_kinetic_proper_cgs_erg,no_pressure_total_proper_cgs_erg,'
             'radiation_pressure_thermal_cgs_erg,radiation_pressure_kinetic_cgs_erg,'
             'radiation_pressure_total_cgs_erg,energy_difference_cgs_erg,relative_difference'
         ),

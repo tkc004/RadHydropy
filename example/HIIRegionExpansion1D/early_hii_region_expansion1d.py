@@ -116,13 +116,13 @@ def main(config_filename=DEFAULT_CONFIG):
     ).to_value(unyt.pc)
     stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
-    print('time = %.6e Myr' % et.time_myr(sim.fluid.time_proper_code, sim.par.units.CodeUnits))
+    print('time = %.6e Myr' % et.time_proper_Myr(sim.fluid.time_proper_code, sim.par.units.CodeUnits))
     print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
     print('stagnation radius = %.3e pc' % stagnation_radius_pc)
     print('output files = %d' % len(outputfilenames))
     print(
         'final ionization-front radius = %.3e pc'
-        % history['front_radius_pc'][-1]
+        % history['front_radius_proper_pc'][-1]
     )
     print(
         'simulation ionization-front radius at %.2f Myr = %.3e pc'

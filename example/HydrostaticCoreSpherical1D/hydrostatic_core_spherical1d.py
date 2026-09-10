@@ -94,10 +94,10 @@ def run(config_filename=DEFAULT_CONFIG):
     print("mean timestep: %.6e" % mean_step)
 
     figure = output_dir / "HydrostaticCoreSpherical1D.jpg"
-    radius_pc = radius_proper_code * float(units.length_in_cgs) / 3.085677581e18
+    radius_proper_pc = radius_proper_code * float(units.length_in_cgs) / 3.085677581e18
     plt.figure(figsize=(7.0, 5.0))
-    plt.loglog(radius_pc, rho_proper_code, label="simulation")
-    plt.loglog(radius_pc, analytic_rho_proper_code, "--", label="analytic")
+    plt.loglog(radius_proper_pc, rho_proper_code, label="simulation")
+    plt.loglog(radius_proper_pc, analytic_rho_proper_code, "--", label="analytic")
     plt.axvline(core_radius_proper_code * float(units.length_in_cgs) / 3.085677581e18,
                 color="0.4", ls=":", label="core radius")
     plt.xlabel("radius [pc]")

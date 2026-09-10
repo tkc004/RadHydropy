@@ -29,7 +29,7 @@ def point_mass_density(
     point_mass_unyt, reference_radius_unyt,
 ):
     """Exact isothermal hydrostatic density around a point mass."""
-    radius_cgs_cm = np.asarray(radius_unyt.to_value(unyt.cm), dtype=float)
+    radius_proper_cgs_cm = np.asarray(radius_unyt.to_value(unyt.cm), dtype=float)
     ref_cm = float(reference_radius_unyt.to_value(unyt.cm))
     rho_ref_cgs = float(rho_ref_unyt.to_value(unyt.g / unyt.cm**3))
     mass_g = float(point_mass_unyt.to_value(unyt.g))
@@ -38,7 +38,7 @@ def point_mass_density(
         / (float(mu_dimensionless) * PROTON_MASS_CGS)
     )
     potential_difference = (
-        -GRAVITATIONAL_CONSTANT_CGS * mass_g / radius_cgs_cm
+        -GRAVITATIONAL_CONSTANT_CGS * mass_g / radius_proper_cgs_cm
         + GRAVITATIONAL_CONSTANT_CGS * mass_g / ref_cm
     )
     return rho_ref_cgs * np.exp(-potential_difference / sound_speed_squared) * (

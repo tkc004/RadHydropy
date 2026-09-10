@@ -254,14 +254,14 @@ def main(config_filename=DEFAULT_CONFIG):
         gridspec_kw={'height_ratios': (2.0, 1.0)},
     )
     for label, (time_s, temperature, analytic) in histories.items():
-        time_myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
-        temperature_axis.plot(time_myr, temperature, marker='o', ms=3, lw=0,
+        time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
+        temperature_axis.plot(time_proper_Myr, temperature, marker='o', ms=3, lw=0,
                                label=f'RadHydropy: {label}')
         if np.any(np.isfinite(analytic)):
-            temperature_axis.plot(time_myr, analytic, lw=1.8,
+            temperature_axis.plot(time_proper_Myr, analytic, lw=1.8,
                                   label=f'analytic: {label}')
             relative_error = np.abs((temperature - analytic) / analytic)
-            error_axis.plot(time_myr, relative_error, marker='o', ms=3, lw=0,
+            error_axis.plot(time_proper_Myr, relative_error, marker='o', ms=3, lw=0,
                             label=label)
 
     temperature_axis.axhline(cmb_temperature, color='black', ls='--',

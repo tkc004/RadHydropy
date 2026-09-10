@@ -126,8 +126,8 @@ def load_history_from_outputs(outputfiles, config):
     return history
 
 
-def output_files(outdir, outfileprefix):
-    pattern = outdir + '/' + outfileprefix + '_*.hdf5'
+def output_files(output_directory, output_filename_prefix):
+    pattern = output_directory + '/' + output_filename_prefix + '_*.hdf5'
     return glob.glob(pattern)
 
 

@@ -427,10 +427,10 @@ def make_radius_figure(snapshots, config):
         if numerical_radius is None:
             continue
         weaver_radius = weaver_forward_shock_radius(rout, config)
-        time_myr = _time_proper(rout).to_value(unyt.Myr)
-        numerical_times.append(time_myr)
+        time_proper_Myr = _time_proper(rout).to_value(unyt.Myr)
+        numerical_times.append(time_proper_Myr)
         numerical_radii.append(numerical_radius.to_value(unyt.pc))
-        weaver_times.append(time_myr)
+        weaver_times.append(time_proper_Myr)
         weaver_radii.append(weaver_radius.to_value(unyt.pc))
 
     ax_radius.plot(

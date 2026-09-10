@@ -92,8 +92,8 @@ def _strip_snapshot_ghosts(sim):
 
 def _run_stage(config, halo, mode, restart=False):
     stage_config = copy.deepcopy(config)
-    outdir = Path(stage_config['par']['output']['directory'])
-    outdir.mkdir(parents=True, exist_ok=True)
+    output_directory = Path(stage_config['par']['output']['directory'])
+    output_directory.mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(stage_config)
     sim = Rsim(stage_config['par'])
     sim.solver = BoundaryAccretionSolver()
@@ -120,7 +120,7 @@ def _run_stage(config, halo, mode, restart=False):
         code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode=mode)
-    return sorted(outdir.glob(
+    return sorted(output_directory.glob(
         f"{config['par']['output']['filename_prefix']}_*.hdf5"
     ))
 

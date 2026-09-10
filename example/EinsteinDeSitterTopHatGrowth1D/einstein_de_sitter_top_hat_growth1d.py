@@ -87,8 +87,8 @@ def main(config_filename=DEFAULT_CONFIG):
             state.mesh.volume_comoving_code[physical],
             mass_target_comoving_code,
         )
-        cosmic_time = state.par.cosmology.cosmic_time_from_supercomoving(tau)
-        rho_background = state.par.cosmology.background_density(cosmic_time) * a**3
+        time_cosmic_code = state.par.cosmology.cosmic_time_from_supercomoving(tau)
+        rho_background = state.par.cosmology.background_density(time_cosmic_code) * a**3
         mean_density_comoving_code = 3.0 * mass_target_comoving_code / (
             4.0 * np.pi * radius_enclosed_comoving_code**3
         )
@@ -96,7 +96,7 @@ def main(config_filename=DEFAULT_CONFIG):
         history['overdensity_dimensionless'].append(
             float(mean_density_comoving_code / rho_background - 1.0)
         )
-        history['time_cosmic_code'].append(float(cosmic_time))
+        history['time_cosmic_code'].append(float(time_cosmic_code))
 
     record(sim)
     sim.Evolve(

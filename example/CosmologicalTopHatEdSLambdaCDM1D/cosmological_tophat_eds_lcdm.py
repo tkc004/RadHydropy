@@ -276,18 +276,18 @@ def make_comparison(target_mass, filename, initial_overdensity=INITIAL_OVERDENSI
             label, code_class, omega_m, omega_lambda, final_scale_factor, target_mass,
             initial_overdensity,
         )
-        cosmic_time = history[:, 1] - big_bang_time
+        time_cosmic_code = history[:, 1] - big_bang_time
         if label.startswith("EdS"):
             line, = axis.plot(
-                cosmic_time, history[:, 3], linestyle="-", marker="o",
+                time_cosmic_code, history[:, 3], linestyle="-", marker="o",
                 markerfacecolor="none", markersize=5.0,
-                markevery=max(1, len(cosmic_time) // 10),
+                markevery=max(1, len(time_cosmic_code) // 10),
                 zorder=3,
                 label=f"{label} RadHydropy (circles)",
             )
         else:
             line, = axis.plot(
-                cosmic_time, history[:, 3], linewidth=2.0,
+                time_cosmic_code, history[:, 3], linewidth=2.0,
                 label=f"{label} RadHydropy (line)",
             )
         if analytic is not None:
@@ -298,7 +298,7 @@ def make_comparison(target_mass, filename, initial_overdensity=INITIAL_OVERDENSI
                 label=f"{label} analytic turnaround",
             )
         error_axis.plot(
-            cosmic_time, np.maximum(np.abs(history[:, 3] - history[:, 4]), 1.0e-18),
+            time_cosmic_code, np.maximum(np.abs(history[:, 3] - history[:, 4]), 1.0e-18),
             color=line.get_color(), label=label,
         )
     axis.set_xlabel("cosmic age since Big Bang [code units]")

@@ -178,7 +178,7 @@ def main(config_filename=DEFAULT_CONFIG):
             0, len(result['snapshots']) - 1, 5, dtype=int
         ))
         sample_times = result['history'][sample_indices, 0]
-        for index, time_myr in zip(sample_indices, sample_times):
+        for index, time_proper_Myr in zip(sample_indices, sample_times):
             snapshot = load_output_state(result['snapshots'][index], result['config'])
             radius_proper_cgs_cm = (
                 0.5 * (snapshot['boundary_proper_cgs_cm'][1:] + snapshot['boundary_proper_cgs_cm'][:-1])

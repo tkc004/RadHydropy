@@ -47,9 +47,9 @@ def build_initial_condition(config):
     sim.par.simulation.box_size_comoving_code = np.ones(1) * quantity_to_value(
         initial_condition['box_size_proper'], code_units.length_unit
     )
-    cosmic_time = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
-    sim.par.simulation.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
-    sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(cosmic_time)
+    time_cosmic_code = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
+    sim.par.simulation.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(time_cosmic_code)
+    sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(time_cosmic_code)
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True
@@ -76,8 +76,8 @@ def build_initial_condition(config):
         sim.mesh.boundary_comoving_code[1:]**3 - sim.mesh.boundary_comoving_code[:-1]**3
     )
 
-    background = cosmology.background_density(cosmic_time)
-    background_comoving = background * cosmology.scale_factor(cosmic_time)**3
+    background = cosmology.background_density(time_cosmic_code)
+    background_comoving = background * cosmology.scale_factor(time_cosmic_code)**3
     inside = sim.mesh.x_comoving_code < quantity_to_value(
         initial_condition['radius_perturbation_comoving'], code_units.length_unit
     )
@@ -88,7 +88,7 @@ def build_initial_condition(config):
     temperature_cgs_K = quantity_to_value(
         initial_condition['temperature_proper'], code_units.temperature_unit
     )
-    sim.fluid.temp_supercomoving_code = temperature_cgs_K * cosmology.scale_factor(cosmic_time)**2 * np.ones(grid_cells)
+    sim.fluid.temp_supercomoving_code = temperature_cgs_K * cosmology.scale_factor(time_cosmic_code)**2 * np.ones(grid_cells)
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
     sim.fluid.vel_supercomoving_code = np.zeros(grid_cells)
     sim.mesh.geometry_state = MeshGeometryState.from_arrays(

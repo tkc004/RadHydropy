@@ -127,7 +127,7 @@ def shock_history(filenames, config, output_interval_myr=None):
     for filename in filenames:
         snapshot = load_output_state(filename, config)
         if output_interval_myr is None:
-            time_myr = snapshot['time_proper_Myr']
+            time_proper_Myr = snapshot['time_proper_Myr']
         else:
             # Current HDF5 output headers do not preserve the evolving time
             # for this non-cosmological run.  The numbered output and the
@@ -136,8 +136,8 @@ def shock_history(filenames, config, output_interval_myr=None):
                 output_index = int(filename.stem.rsplit('_', 1)[1])
             except (AttributeError, IndexError, ValueError):
                 output_index = len(rows)
-            time_myr = output_index * float(output_interval_myr)
-        rows.append((time_myr, shock_radius(snapshot)))
+            time_proper_Myr = output_index * float(output_interval_myr)
+        rows.append((time_proper_Myr, shock_radius(snapshot)))
     return np.asarray(rows, dtype=float)
 
 

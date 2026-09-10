@@ -77,8 +77,8 @@ def main(config_filename=DEFAULT_CONFIG):
     radius_comoving_code = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
     tau = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
     a = sim.par.cosmology.scale_factor_from_supercomoving(tau)
-    cosmic_time = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
-    rho_background = sim.par.cosmology.background_density(cosmic_time)
+    time_cosmic_code = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
+    rho_background = sim.par.cosmology.background_density(time_cosmic_code)
     analytic = et.top_hat_acceleration(
         radius_comoving_code,
         quantity_to_value(initial_condition['radius_perturbation_comoving'], units.length_unit),
