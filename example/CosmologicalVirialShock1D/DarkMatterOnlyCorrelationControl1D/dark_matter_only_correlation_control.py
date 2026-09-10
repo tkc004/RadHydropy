@@ -87,21 +87,21 @@ def main(config_filename=CONFIG):
     enclosed_mass = np.empty_like(radii)
     density_plot_radius = []
     density_plot_contrast = []
-    for row, (radius_comoving_code, mass) in enumerate(zip(radii, masses)):
+    for row, (radius_comoving_code, mass_comoving_code) in enumerate(zip(radii, masses)):
         order = np.argsort(radius_comoving_code)
         radius_comoving_code = radius_comoving_code[order]
-        mass = mass[order]
+        mass_comoving_code = mass_comoving_code[order]
         edges = np.empty(radius_comoving_code.size + 1)
         edges[1:-1] = np.sqrt(radius_comoving_code[:-1] * radius_comoving_code[1:])
         edges[0] = radius_comoving_code[0]**2 / edges[1]
         edges[-1] = radius_comoving_code[-1]**2 / edges[-2]
         shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
         rho_comoving_code = np.divide(
-            mass, shell_volume,
-            out=np.full_like(mass, np.inf), where=shell_volume > 0.0,
+            mass_comoving_code, shell_volume,
+            out=np.full_like(mass_comoving_code, np.inf), where=shell_volume > 0.0,
         )
         density_contrast[row] = rho_comoving_code / mean_density[row]
-        enclosed_mass[row] = np.cumsum(mass)
+        enclosed_mass[row] = np.cumsum(mass_comoving_code)
 
         # The shell-by-shell profile becomes visually dominated by sampling
         # noise after shell crossing. Aggregate only the diagnostic profile

@@ -29,7 +29,7 @@ def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
     elif code_unit_system is not None:
         temp_value = float(np.asarray(temperature_proper_code, dtype=float)) * code_unit_scales(code_unit_system)["temperature_cgs_K"]
     else:
-        temp_value = float(temperature_proper_code)
+        raise TypeError("temperature_proper_code requires a unit or code-unit system")
     mu_value = float(np.asarray(mu, dtype=float))
     return (
         BOLTZMANN_CONSTANT_CGS

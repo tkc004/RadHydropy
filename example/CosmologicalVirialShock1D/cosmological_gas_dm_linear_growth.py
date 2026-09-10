@@ -185,14 +185,14 @@ def _matched_cell_density(boundaries, coordinates, target_enclosed_mass):
 
 def _matched_shell_mass(target_enclosed_mass):
     """Choose shell masses whose half-shell enclosed values are exact."""
-    mass = np.empty_like(target_enclosed_mass)
+    mass_comoving_code = np.empty_like(target_enclosed_mass)
     mass_before = 0.0
     for index, target in enumerate(target_enclosed_mass):
-        mass[index] = 2.0 * (target - mass_before)
-        mass_before += mass[index]
-    if np.any(mass <= 0.0):
+        mass_comoving_code[index] = 2.0 * (target - mass_before)
+        mass_before += mass_comoving_code[index]
+    if np.any(mass_comoving_code <= 0.0):
         raise RuntimeError("matched dark-matter quadrature became non-positive")
-    return mass
+    return mass_comoving_code
 
 
 def _make_matched_initial_state(config):

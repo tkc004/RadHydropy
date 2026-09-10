@@ -90,9 +90,13 @@ def main(config_filename=DEFAULT_CONFIG):
         * expected_mean_delta * radius_comoving_code / 3.0
     )
     if bool(initial_condition.get("cmb_equilibrium_initial", False)):
-        expected_temperature = float(initial_condition.get("cmb_temperature_0", 2.7255)) / scale_factor
+        expected_temperature = float(
+            initial_condition.get("cmb_temperature_0", 2.7255 * unyt.K).to_value(unyt.K)
+        ) / scale_factor
     else:
-        expected_temperature = float(initial_condition.get("cie_temperature_proper", 10.0))
+        expected_temperature = float(
+            initial_condition.get("cie_temperature_proper", 10.0 * unyt.K).to_value(unyt.K)
+        )
 
     radius_perturbation_comoving_code = et.radius_perturbation_comoving_code(config)
     clipped_edges = np.clip(boundary_comoving_code, 0.0, radius_perturbation_comoving_code)

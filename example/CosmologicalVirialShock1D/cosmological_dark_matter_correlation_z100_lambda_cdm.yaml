@@ -55,7 +55,7 @@ initial_condition:
   dm_specific_angular_momentum: 0.01
   softening: 10.0
   uv_background_on_redshift: 10.0
-  cie_temperature_proper: 10.0
+  cie_temperature_proper: {value: 10.0, unit: K}
 example:
   dark_matter_crossing_safety_factor: 0.5
   dm_only_shells: 1024

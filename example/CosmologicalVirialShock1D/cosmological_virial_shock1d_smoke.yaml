@@ -83,7 +83,7 @@ initial_condition:
   cmb_temperature_0: {value: 2.7255, unit: K}
   cmb_residual_electron_fraction: 0.0002
   uv_background_on_redshift: 10.0
-  cie_temperature_proper: 0.0001
+  cie_temperature_proper: {value: 0.0001, unit: K}
 example:
   gas_profile_cadence: 0.01
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

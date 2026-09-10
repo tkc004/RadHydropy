@@ -325,12 +325,12 @@ def pie_stability_diagnostics(
         profile = profiles[i]
         index = indices[i]
         upstream = slice(index + 2, index + 5)
-        rho0 = float(np.median(profile['rho_proper_cgs_g_cm3'][upstream]))
-        temp0 = float(np.median(profile['temperature_proper_cgs_K'][upstream]))
-        velocity0 = float(np.median(profile['vel_peculiar_proper_km_s'][upstream]))
-        relative_speed = abs(velocity0 - shock_speed)
+        rho_upstream_proper_cgs_g_cm3 = float(np.median(profile['rho_proper_cgs_g_cm3'][upstream]))
+        temperature_upstream_proper_cgs_K = float(np.median(profile['temperature_proper_cgs_K'][upstream]))
+        velocity_upstream_proper_km_s = float(np.median(profile['vel_peculiar_proper_km_s'][upstream]))
+        relative_speed = abs(velocity_upstream_proper_km_s - shock_speed)
         sound_speed = np.sqrt(
-            gamma * BOLTZMANN_CONSTANT_CGS * max(temp0, 1.0)
+            gamma * BOLTZMANN_CONSTANT_CGS * max(temperature_upstream_proper_cgs_K, 1.0)
             / (float(mu) * PROTON_MASS_CGS)
         ) / KM_S_TO_CM_S
         mach = relative_speed / max(sound_speed, 1.0e-30)

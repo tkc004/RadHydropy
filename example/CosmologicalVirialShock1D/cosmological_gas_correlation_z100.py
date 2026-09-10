@@ -1123,11 +1123,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
         rho_comoving_code = float(np.asarray(sim.par.boundary.rho_inflow_proper, dtype=float))
         vel_supercomoving_code = float(np.asarray(sim.par.boundary.vel_inflow_proper, dtype=float))
-        temperature_proper_cgs_K = float(np.asarray(sim.par.boundary.temperature_inflow_proper, dtype=float))
+        temperature_supercomoving_code = float(
+            np.asarray(sim.par.boundary.temperature_inflow_proper, dtype=float)
+        )
         mu = float(np.asarray(sim.par.boundary.inflow_mu, dtype=float))
         volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
         pre_supercomoving_code = float(np.asarray(
-            sim.fluid.eos.pressure(rho_comoving_code, temperature_proper_cgs_K, mu), dtype=float
+            sim.fluid.eos.pressure(rho_comoving_code, temperature_supercomoving_code, mu), dtype=float
         ))
         sim.fluid.rho_comoving_code[index] = rho_comoving_code
         sim.fluid.vel_supercomoving_code[index] = vel_supercomoving_code

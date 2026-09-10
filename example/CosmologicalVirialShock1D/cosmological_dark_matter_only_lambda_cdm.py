@@ -223,8 +223,8 @@ def run_live_shell_density_profiles(config):
         radius_comoving_code = np.abs(np.nan_to_num(radius_comoving_code, nan=0.0, posinf=0.0, neginf=0.0))
         radius_comoving_code = np.maximum(radius_comoving_code, 1.0e-8)
         core_mass = float(getattr(shells, "central_core_mass", 0.0))
-        core_radius = a * float(getattr(shells, "central_core_radius", 0.0))
-        profiles.append((float(time_cosmic_code), radius_comoving_code, mass_comoving_code, core_mass, core_radius))
+        core_radius_comoving_code = a * float(getattr(shells, "central_core_radius", 0.0))
+        profiles.append((float(time_cosmic_code), radius_comoving_code, mass_comoving_code, core_mass, core_radius_comoving_code))
         # Include the absorbed unresolved-core mass when locating r200.  The
         # profile bins already include this same mass, so the overdensity
         # marker must use the identical enclosed-mass definition.
@@ -284,12 +284,14 @@ def run_live_shell_density_profiles(config):
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     bin_volumes = 4.0 * np.pi / 3.0 * np.diff(bin_edges**3)
     densities = []
-    for radius_comoving_code, mass, core_mass, core_radius in zip(
+    for radius_comoving_code, mass_comoving_code, core_mass, core_radius_comoving_code in zip(
         shell_radii, shell_masses, core_masses, core_radii
     ):
-        mass_in_bin, _ = np.histogram(radius_comoving_code, bins=bin_edges, weights=mass)
-        if core_mass > 0.0 and core_radius > 0.0:
-            core_bin = int(np.searchsorted(bin_edges, core_radius, side="right") - 1)
+        mass_in_bin, _ = np.histogram(
+            radius_comoving_code, bins=bin_edges, weights=mass_comoving_code
+        )
+        if core_mass > 0.0 and core_radius_comoving_code > 0.0:
+            core_bin = int(np.searchsorted(bin_edges, core_radius_comoving_code, side="right") - 1)
             if 0 <= core_bin < mass_in_bin.size:
                 mass_in_bin[core_bin] += core_mass
         rho_comoving_code = mass_in_bin / np.maximum(bin_volumes, 1.0e-30)

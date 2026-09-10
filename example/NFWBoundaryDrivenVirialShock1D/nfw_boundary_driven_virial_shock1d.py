@@ -144,9 +144,9 @@ def _write_adiabatic_energy_audit(files, config, filename):
             float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
             * float(code_unit_system.time_unit.to_value(unyt.s))
         )
-        boundary = float(getattr(snapshot.par, 'CumulativeHydroBoundaryEnergyCode', 0.0))
-        gravity = float(getattr(snapshot.par, 'CumulativeGravityWorkCode', 0.0))
-        return time_proper_cgs_s / float((1.0 * unyt.Myr).to_value(unyt.s)), float(np.sum(energy_cgs_erg)), boundary, gravity
+        boundary_energy_code = float(getattr(snapshot.par, 'CumulativeHydroBoundaryEnergyCode', 0.0))
+        gravity_work_code = float(getattr(snapshot.par, 'CumulativeGravityWorkCode', 0.0))
+        return time_proper_cgs_s / float((1.0 * unyt.Myr).to_value(unyt.s)), float(np.sum(energy_cgs_erg)), boundary_energy_code, gravity_work_code
 
     initial = snapshot_energy(files[0])
     final = snapshot_energy(files[-1])

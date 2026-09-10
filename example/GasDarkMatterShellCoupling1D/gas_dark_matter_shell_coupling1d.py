@@ -40,10 +40,6 @@ def main(config_filename=DEFAULT_CONFIG):
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
-    rho_proper = quantity_to_value(
-        initial.fluid.rho_proper_code,
-        'g/cm**3',
-    )
     density_cgs_g_cm3 = np.asarray(initial.fluid.rho_proper_code, dtype=float) * code_units.density_unit.to_value('g/cm**3')
     boundary_cgs_cm = np.asarray(initial.mesh.boundary_proper_code, dtype=float) * code_units.length_unit.to_value('cm')
     initial_gas_mass_cgs_g = float(np.sum(
