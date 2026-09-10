@@ -241,7 +241,9 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
     output_lam = np.interp(
         sample_time, output_similarity_time_dimensionless, output_state[:, 0]
     )
-    output_velocity = np.interp(sample_time, output_time, output_state[:, 1])
+    output_velocity = np.interp(
+        sample_time, output_similarity_time_dimensionless, output_state[:, 1]
+    )
     output_mass = np.empty_like(sample_time)
     for index, radius_dimensionless in enumerate(output_lam):
         roots = branch_roots(float(radius_dimensionless))

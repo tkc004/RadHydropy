@@ -122,4 +122,11 @@ def write_reference(filename, profiles, metadata):
         for key, value in profiles.items():
             if key != 'radius_turnaround_proper_code':
                 handle.create_dataset(key, data=np.asarray(value))
-        header.attrs['TurnaroundRadius'] = float(profiles['radius_turnaround_proper_code'])
+        if 'radius_turnaround_proper_code' in profiles:
+            header.attrs['TurnaroundRadius'] = float(
+                profiles['radius_turnaround_proper_code']
+            )
+        elif 'radius_turnaround_dimensionless' in profiles:
+            header.attrs['TurnaroundRadiusDimensionless'] = float(
+                profiles['radius_turnaround_dimensionless']
+            )

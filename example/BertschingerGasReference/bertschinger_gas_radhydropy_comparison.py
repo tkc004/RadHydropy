@@ -197,10 +197,12 @@ def build_initial_condition(config):
     vel_supercomoving_code = scale_factor * (
         vel_peculiar_proper_code - hubble_initial * scale_factor * radius_comoving_code
     )
-    pressure_profile = np.zeros_like(similarity_radius)
-    interior = similarity_radius <= solution.shock_lambda
+    pressure_profile = np.zeros_like(similarity_radius_dimensionless)
+    interior = similarity_radius_dimensionless <= solution.shock_lambda
     pressure_profile[interior] = np.interp(
-        similarity_radius[interior], solution.lambda_in, solution.pressure_in
+        similarity_radius_dimensionless[interior],
+        solution.lambda_in,
+        solution.pressure_in,
     )
     pre_supercomoving_code = pressure_profile * rho_background * (rta / initial_time) ** 2
     mean_molecular_weight = float(initial_condition['mean_molecular_weight'])
