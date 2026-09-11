@@ -15,8 +15,6 @@ par:
     time_proper: {value: 0.0, unit: s}  # Proper time associated with the IC.
     box_size_proper: null  # Proper domain size; required for proper-coordinate ICs.
     box_size_comoving: null  # Comoving domain size; used for cosmological ICs.
-    cosmological_expansion: false  # Enable cosmological expansion; option: true, false.
-    supercomoving_coordinates: false  # Use supercomoving variables; option: true, false.
     coordinate_frame: physical  # Coordinate frame; option: physical, comoving.
     time_coordinate: cosmic  # Time variable; option: cosmic, supercomoving.
     velocity_representation: physical  # Velocity representation; option: physical, supercomoving.
@@ -67,7 +65,6 @@ par:
     rho_outflow_proper: {value: 1.0, unit: g/cm**3}  # Proper outflow density.
     temperature_outflow_proper: {value: 0.0, unit: K}  # Proper outflow temperature.
     outflow_mu: 1.0  # Outflow mean molecular weight.
-    cosmological_background_reconstruction: false  # Reconstruct the cosmological background at boundaries.
 
   timestep:
     dtmin: {value: 2.0e-8, unit: s}  # Minimum allowed timestep.
@@ -193,6 +190,17 @@ par:
     hydrogen_alpha_B: null  # Optional case-B recombination coefficient.
     hydrogen_beta: null  # Optional collisional-ionization coefficient.
 
+  cosmology:
+    cosmological: false  # Enable cosmological gravity mode.
+    cosmological_expansion: false  # Evolve the cosmological scale factor.
+    supercomoving_coordinates: false  # Use supercomoving coordinate variables.
+    cosmological_background_boundary_reconstruction: false  # Reconstruct background force at boundaries.
+    cosmology_type: null  # Cosmology; option: einstein_de_sitter, lambda_cdm.
+    cosmology_t_ref: {value: 3.168808781e-17, unit: Gyr}  # Reference cosmic time; 1 s in the default code units.
+    cosmology_a_ref: 1.0  # Reference scale factor.
+    cosmology_hubble_ref: null  # Reference Hubble parameter.
+    cosmology_omega_m: 0.3  # Matter density parameter.
+    cosmology_omega_lambda: 0.7  # Dark-energy density parameter.
   gravity:
     selfgravity: false  # Include gas self-gravity.
     externalgravity: false  # Include an external gravitational field.
@@ -201,18 +209,7 @@ par:
     acceleration: null  # External acceleration callback or array.
     selfgravity_softening: {value: 0.0, unit: cm}  # Self-gravity softening length.
     selfgravity_boundary_acceleration: {value: 0.0, unit: cm/s**2}  # Boundary acceleration.
-    cosmological: false  # Enable cosmological gravity mode.
-    cosmological_expansion: false  # Evolve the cosmological scale factor.
-    supercomoving_coordinates: false  # Use supercomoving coordinate variables.
-    cosmological_gravity: false  # Include the cosmological background field.
     potential_energy: false  # Track gravitational potential energy.
-    cosmological_background_boundary_reconstruction: false  # Reconstruct background force at boundaries.
-    cosmology_type: null  # Cosmology; option: einstein_de_sitter, lambda_cdm.
-    cosmology_t_ref: {value: 3.168808781e-17, unit: Gyr}  # Reference cosmic time; 1 s in the default code units.
-    cosmology_a_ref: 1.0  # Reference scale factor.
-    cosmology_hubble_ref: null  # Reference Hubble parameter.
-    cosmology_omega_m: 0.3  # Matter density parameter.
-    cosmology_omega_lambda: 0.7  # Dark-energy density parameter.
     gas_core_model: none  # Core model; option: none, fixed_mass, pressure_supported.
     radius_core_proper: null  # Proper radius of the unresolved gas core.
 

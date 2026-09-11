@@ -63,21 +63,21 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(case_config["par"]["units"]["CodeUnits"])
-    gravity = case_config["par"].get("gravity", {})
-    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    cosmology_config = case_config["par"].get("cosmology", {})
+    if cosmology_config.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         code_cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
-            a_ref=float(gravity["cosmology_a_ref"]),
-            omega_m=float(gravity["cosmology_omega_m"]),
-            omega_lambda=float(gravity["cosmology_omega_lambda"]),
-            hubble_ref=gravity.get("cosmology_hubble_ref"),
+            t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            a_ref=float(cosmology_config["cosmology_a_ref"]),
+            omega_m=float(cosmology_config["cosmology_omega_m"]),
+            omega_lambda=float(cosmology_config["cosmology_omega_lambda"]),
+            hubble_ref=cosmology_config.get("cosmology_hubble_ref"),
         )
     else:
         code_cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=quantity_to_value(gravity.get("cosmology_t_ref", {"value": 1.0, "unit": "s"}), units.time_unit),
-            a_ref=float(gravity.get("cosmology_a_ref", 1.0)),
+            t_ref=quantity_to_value(cosmology_config.get("cosmology_t_ref", {"value": 1.0, "unit": "s"}), units.time_unit),
+            a_ref=float(cosmology_config.get("cosmology_a_ref", 1.0)),
         )
     case_config["_code_cosmology"] = code_cosmology
     case_config["_initial_tau_supercomoving_code"] = 0.0

@@ -54,11 +54,11 @@ def run(config_filename=DEFAULT_CONFIG):
     initial_condition = config["initial_condition"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    gravity = par["gravity"]
+    cosmology_config = par["cosmology"]
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
-        a_ref=float(gravity["cosmology_a_ref"]),
+        t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+        a_ref=float(cosmology_config["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, config)
     config["_code_unit_system"] = units

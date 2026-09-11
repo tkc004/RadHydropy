@@ -31,12 +31,12 @@ def main(config_filename=DEFAULT_CONFIG):
 
     initial_condition = config['initial_condition']
     units = et.code_units_from_config(config)
-    gravity = config["par"]['gravity']
+    cosmology_config = config["par"]['cosmology']
     timestep = config["par"]['timestep']
     example = config.get('example', {})
     cosmology = EinsteinDeSitter.from_code_units(
-        units, t_ref=quantity_to_value(gravity['cosmology_t_ref'], units.time_unit),
-        a_ref=float(gravity['cosmology_a_ref']),
+        units, t_ref=quantity_to_value(cosmology_config['cosmology_t_ref'], units.time_unit),
+        a_ref=float(cosmology_config['cosmology_a_ref']),
     )
 
     # First verify that the discretized homogeneous background has no peculiar force.

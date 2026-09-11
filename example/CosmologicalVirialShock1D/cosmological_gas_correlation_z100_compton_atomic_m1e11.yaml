@@ -32,15 +32,16 @@ par:
   timestep:
     dtmin: {value: 1.0e-12, unit: Myr}
     dtmax: {value: 200.0, unit: Myr}
-  gravity:
-    cosmological_background_boundary_reconstruction: true
-    selfgravity: true
+  cosmology:
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: true
+    cosmological_background_boundary_reconstruction: true
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: true
   output:
     directory: outputs_correlation_gas_compton_atomic_m1e11
     filename_prefix: Output

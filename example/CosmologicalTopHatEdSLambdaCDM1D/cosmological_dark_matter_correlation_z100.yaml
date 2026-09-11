@@ -5,10 +5,11 @@ par:
   output:
     directory: outputs_correlation
     filename_prefix: Output
-  gravity:
+  cosmology:
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
   units:
     CodeUnits:
       name: cosmological_dark_matter_correlation_unit_system

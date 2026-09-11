@@ -13,17 +13,18 @@ par:
     CFL: 0.25
   boundary:
     condition: Reflecting
-  gravity:
-    selfgravity: true
+  cosmology:
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: true
     cosmology_type: lambda_cdm
     cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
+    cosmology_hubble_ref: 0.07
     cosmology_omega_m: 0.3
     cosmology_omega_lambda: 0.7
-    cosmology_hubble_ref: 0.07
+  gravity:
+    selfgravity: true
   output:
     directory: outputs_correlation_lcdm
     filename_prefix: Output

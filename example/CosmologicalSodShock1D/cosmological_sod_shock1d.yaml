@@ -14,13 +14,14 @@ par:
     riemann_solver: HLLC
     flux_limiter: minmod
     dual_energy: false
-  gravity:
+  cosmology:
+    cosmological: false
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: false
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 1.0, unit: s}
     cosmology_a_ref: 1.0
+  gravity:
   boundary:
     condition: Periodic
   output:

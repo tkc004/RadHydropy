@@ -898,7 +898,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     example = config["example"]
     simulation = config["par"]["simulation"]
     hydro = config["par"].setdefault("hydrodynamics", {})
-    gravity = config["par"]["gravity"]
+    cosmology_config = config["par"]["cosmology"]
     output = config["par"]["output"]
     thermo = config["par"].setdefault("thermochemistry", {})
     # These are plot/source-driver settings consumed by this workflow, not
@@ -926,20 +926,20 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "compton_cmb_enabled": True,
         })
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    if cosmology_config.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
             units,
-            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
-            a_ref=float(gravity["cosmology_a_ref"]),
-            omega_m=float(gravity["cosmology_omega_m"]),
-            omega_lambda=float(gravity["cosmology_omega_lambda"]),
-            hubble_ref=float(gravity["cosmology_hubble_ref"]),
+            t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            a_ref=float(cosmology_config["cosmology_a_ref"]),
+            omega_m=float(cosmology_config["cosmology_omega_m"]),
+            omega_lambda=float(cosmology_config["cosmology_omega_lambda"]),
+            hubble_ref=float(cosmology_config["cosmology_hubble_ref"]),
         )
     else:
         cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
-            a_ref=float(gravity["cosmology_a_ref"]),
+            t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            a_ref=float(cosmology_config["cosmology_a_ref"]),
         )
     correlation_table = load_correlation_table(config_filename, config)
     config["_code_unit_system"] = units

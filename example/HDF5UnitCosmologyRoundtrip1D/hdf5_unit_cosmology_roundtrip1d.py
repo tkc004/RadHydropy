@@ -17,7 +17,6 @@ from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.field_metadata import field_spec
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.radarray import RadArray, RadQuantity
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
@@ -50,13 +49,13 @@ def _case_config(config, case_name, case):
     case_par = case_config["par"]
     case_par["simulation"]["name"] = case_name
     case_par["units"]["CodeUnits"] = deepcopy(case["CodeUnits"])
-    case_par["gravity"]["cosmological_expansion"] = bool(
+    case_par["cosmology"]["cosmological_expansion"] = bool(
         case["cosmological_expansion"]
     )
-    case_par["gravity"]["supercomoving_coordinates"] = bool(
+    case_par["cosmology"]["supercomoving_coordinates"] = bool(
         case["supercomoving_coordinates"]
     )
-    case_par["gravity"]["cosmology_type"] = case["cosmology_type"]
+    case_par["cosmology"]["cosmology_type"] = case["cosmology_type"]
     return case_config
 
 
@@ -95,7 +94,7 @@ def _build_initial_condition(case_config):
     mu_dimensionless_array = np.full(grid_cells, mu_dimensionless)
     sim.fluid.mu = mu_dimensionless_array
 
-    if case_config["par"]["gravity"]["cosmological_expansion"]:
+    if case_config["par"]["cosmology"]["cosmological_expansion"]:
         time_cosmic_code = float(
             initial_condition["time_cosmic"].to_value(code_units.time_unit)
         )
@@ -157,7 +156,7 @@ def _build_initial_condition(case_config):
     )
     sim.par.cosmology_context = cosmology_context
 
-    if case_config["par"]["gravity"]["cosmological_expansion"]:
+    if case_config["par"]["cosmology"]["cosmological_expansion"]:
         tau_supercomoving_code = float(
             cosmology.supercomoving_time(time_cosmic_code)
         )
@@ -201,7 +200,7 @@ def _assert_roundtrip(case_config, output_filename):
         "rho_comoving_code",
         "vel_supercomoving_code",
         "temp_supercomoving_code",
-        ) if case_config["par"]["gravity"]["cosmological_expansion"] else (
+        ) if case_config["par"]["cosmology"]["cosmological_expansion"] else (
         "boundary_proper_code",
         "rho_proper_code",
         "vel_proper_code",
@@ -219,13 +218,7 @@ def _assert_roundtrip(case_config, output_filename):
         ).copy()
         for field_name in target_fields
     }
-    restored = Rsim(case_config["par"])
-    rio.readhdf5(
-        restored.par,
-        restored.mesh,
-        restored.fluid,
-        output_filename,
-    )
+    restored = rio.loadhdf5(case_config, output_filename)
     code_units = restored.par.units.CodeUnits
     assert code_units.name == case_config["example"]["_active_case_name"]
     for field_name, expected_values in expected.items():
@@ -242,7 +235,7 @@ def _assert_roundtrip(case_config, output_filename):
         restored.fluid.rho_radarray.value,
         expected["rho_comoving_code" if "rho_comoving_code" in expected else "rho_proper_code"],
     )
-    if case_config["par"]["gravity"]["cosmological_expansion"]:
+    if case_config["par"]["cosmology"]["cosmological_expansion"]:
         assert restored.par.cosmology_context is not None
         assert restored.par.coordinate_frame == "comoving"
         assert restored.par.velocity_representation == "supercomoving_peculiar"

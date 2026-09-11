@@ -375,20 +375,20 @@ def main(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
 
     initial_condition = config["initial_condition"]
-    gravity = config["par"]["gravity"]
+    cosmology_config = config["par"]["cosmology"]
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    if gravity.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    if cosmology_config.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
         cosmology = LambdaCDM.from_code_units(
-            units, t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
-            a_ref=float(gravity["cosmology_a_ref"]),
-            omega_m=float(gravity["cosmology_omega_m"]),
-            omega_lambda=float(gravity["cosmology_omega_lambda"]),
-            hubble_ref=float(gravity["cosmology_hubble_ref"]),
+            units, t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            a_ref=float(cosmology_config["cosmology_a_ref"]),
+            omega_m=float(cosmology_config["cosmology_omega_m"]),
+            omega_lambda=float(cosmology_config["cosmology_omega_lambda"]),
+            hubble_ref=float(cosmology_config["cosmology_hubble_ref"]),
         )
     else:
         cosmology = EinsteinDeSitter.from_code_units(
-            units, t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit),
-            a_ref=float(gravity["cosmology_a_ref"]),
+            units, t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            a_ref=float(cosmology_config["cosmology_a_ref"]),
         )
     example = config["example"]
     correlation_table = load_correlation_table(config_filename, config)

@@ -31,8 +31,8 @@ def run_case(config, atomic_cooling):
     code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
-        t_ref=quantity_to_value(config["par"]["gravity"]["cosmology_t_ref"], code_unit_system.time_unit),
-        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
+        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], code_unit_system.time_unit),
+        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     case_config = copy.deepcopy(config)
     initial_condition = case_config["initial_condition"]
@@ -153,8 +153,8 @@ def main():
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=quantity_to_value(config["par"]["gravity"]["cosmology_t_ref"], units.time_unit),
-        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
+        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], units.time_unit),
+        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
 
     compton, sim, physical = run_case(config, atomic_cooling=False)

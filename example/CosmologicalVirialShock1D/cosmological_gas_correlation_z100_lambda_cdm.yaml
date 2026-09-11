@@ -21,17 +21,18 @@ par:
   timestep:
     dtmin: {value: 1.0e-12, unit: Myr}
     dtmax: {value: 200.0, unit: Myr}
-  gravity:
-    selfgravity: true
+  cosmology:
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: true
     cosmology_type: lambda_cdm
     cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
+    cosmology_hubble_ref: 0.07
     cosmology_omega_m: 0.3
     cosmology_omega_lambda: 0.7
-    cosmology_hubble_ref: 0.07
+  gravity:
+    selfgravity: true
   dark_matter:
     softening: 0.2
     crossing_safety_factor: 0.5

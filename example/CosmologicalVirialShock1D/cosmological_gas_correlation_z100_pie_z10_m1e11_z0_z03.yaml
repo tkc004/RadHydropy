@@ -37,14 +37,15 @@ par:
         UnitVelocity_in_cgs: 1.0e5
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-  gravity:
-    selfgravity: true
+  cosmology:
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: true
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: true
   thermochemistry:
     metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
     hydrogen_update_mu: true

@@ -102,8 +102,8 @@ def test_writer_compact_assignments_roundtrip_proper_ic():
 def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     config = load_nested_example_config(CONFIG_FILE)
     config = deepcopy(config)
-    config["par"]["gravity"]["cosmological_expansion"] = True
-    config["par"]["gravity"]["supercomoving_coordinates"] = True
+    config["par"]["cosmology"]["cosmological_expansion"] = True
+    config["par"]["cosmology"]["supercomoving_coordinates"] = True
     code_units = _code_units(config)
     writer = InitialConditionWriter(
         par_config=config["par"],

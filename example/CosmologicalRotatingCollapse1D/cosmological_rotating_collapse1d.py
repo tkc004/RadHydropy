@@ -372,8 +372,8 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=quantity_to_value(config["par"]["gravity"]["cosmology_t_ref"], units.time_unit),
-        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
+        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], units.time_unit),
+        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     cases = [
         ("nonrotating", 0.0),

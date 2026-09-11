@@ -1563,3 +1563,34 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 softening=snapshot["softening"],
                 code_units=code_units,
             )
+
+
+def loadhdf5(config, ICfilename):
+    """Construct and load an ``Rsim`` from a nested configuration.
+
+    This is the object-returning convenience API.  The lower-level
+    :func:`readhdf5` API remains available for callers that already own the
+    ``par``, ``mesh``, and ``fluid`` objects and need its compatibility
+    validation behavior.
+    """
+    if not hasattr(config, "__getitem__"):
+        raise TypeError("loadhdf5 expects a nested configuration mapping")
+    try:
+        par_config = config["par"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError("loadhdf5 configuration must contain a 'par' mapping") from exc
+    if not hasattr(par_config, "items"):
+        raise TypeError("loadhdf5 config['par'] must be a mapping")
+
+    # Import locally to keep the I/O module independent from Rsim's import
+    # path during package initialization.
+    from radhydropy.rsim import Rsim
+
+    restored = Rsim(par_config)
+    readhdf5(
+        restored.par,
+        restored.mesh,
+        restored.fluid,
+        ICfilename,
+    )
+    return restored

@@ -2,10 +2,11 @@ par:
   simulation:
     name: EinsteinDeSitterDarkMatterShellGrowth1D
     final_time: {value: 1.1, unit: pc/(km/s)}
-  gravity:
+  cosmology:
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 1.0, unit: pc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
   timestep:
     supercomoving_timestep: 0.0005
     crossing_safety_factor: 0.1

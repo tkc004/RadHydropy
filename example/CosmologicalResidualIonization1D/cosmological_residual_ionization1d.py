@@ -38,7 +38,7 @@ def evolve(config):
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     hydrogen_fraction = float(config["par"]["chemistry"]["hydrogen_mass_fraction"])
     nH0 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))
-    t_ref_s = float(config["par"]["gravity"]["cosmology_t_ref"].to_value("s"))
+    t_ref_s = float(config["par"]["cosmology"]["cosmology_t_ref"].to_value("s"))
     cmb0 = float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K"))
     z_initial = float(initial_condition["initial_redshift"])
     z_final = float(initial_condition["final_redshift"])

@@ -50,7 +50,7 @@ def build_initial_condition(config):
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True
     result.par.cosmological_gravity = bool(
-        par.get("gravity", {}).get("cosmological_gravity", False)
+        par.get("cosmology", {}).get("cosmological", False)
     )
     result.par.cosmology = code_cosmology
     result.par.cosmology_type = code_cosmology.type_name

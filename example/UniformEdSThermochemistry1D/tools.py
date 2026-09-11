@@ -17,11 +17,11 @@ from radhydropy.units import CodeUnits, quantity_to_value
 def build_initial_condition(config):
     """Build a typed few-cell proper-code initial condition."""
     code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    gravity = config["par"]["gravity"]
+    cosmology_config = config["par"]["cosmology"]
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
-        t_ref=quantity_to_value(gravity["cosmology_t_ref"], code_unit_system.time_unit),
-        a_ref=float(gravity["cosmology_a_ref"]),
+        t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], code_unit_system.time_unit),
+        a_ref=float(cosmology_config["cosmology_a_ref"]),
     )
     result = Rsim(config["par"])
     initial_condition = config["initial_condition"]

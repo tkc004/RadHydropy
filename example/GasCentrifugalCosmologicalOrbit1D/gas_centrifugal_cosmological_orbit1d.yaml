@@ -16,15 +16,16 @@ par:
     dual_energy: true
     gas_angular_momentum: true
     gas_rotational_energy: true
-  gravity:
+  cosmology:
+    cosmological: false
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: false
-    selfgravity: false
-    externalgravity: false
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 1.0, unit: pc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: false
+    externalgravity: false
   boundary:
     condition: Periodic
   timestep:

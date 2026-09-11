@@ -21,11 +21,11 @@ def volume_midpoint_boundaries(radius_inner_dimensionless, radius_outer_dimensio
 def make_shells(config, overdensity=None):
     initial_condition = config['initial_condition']
     code_unit_system = code_units_from_config(config)
-    gravity = config['par']['gravity']
+    cosmology_config = config['par']['cosmology']
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
-        t_ref=quantity_to_value(gravity['cosmology_t_ref'], code_unit_system.time_unit),
-        a_ref=float(gravity['cosmology_a_ref']),
+        t_ref=quantity_to_value(cosmology_config['cosmology_t_ref'], code_unit_system.time_unit),
+        a_ref=float(cosmology_config['cosmology_a_ref']),
     )
     default_number = int(initial_condition.get('number_of_shells', 2))
     number_inner = int(initial_condition.get('number_of_inner_shells', default_number // 2))

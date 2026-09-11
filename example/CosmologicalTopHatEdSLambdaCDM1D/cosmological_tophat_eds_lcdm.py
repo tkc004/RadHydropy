@@ -59,10 +59,10 @@ def reproduce_reference():
     cosmology = CodeEdS.from_code_units(
         reference_units,
         t_ref=quantity_to_value(
-            reference_config["par"]["gravity"]["cosmology_t_ref"],
+            reference_config["par"]["cosmology"]["cosmology_t_ref"],
             reference_units.time_unit,
         ),
-        a_ref=float(reference_config["par"]["gravity"]["cosmology_a_ref"]),
+        a_ref=float(reference_config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     # These runtime-only objects cannot be represented in YAML. Attach them
     # at this call site while preserving the complete nested config boundary.

@@ -36,8 +36,8 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     cosmology = et.EinsteinDeSitter.from_code_units(
-        units, t_ref=quantity_to_value(config['par']['gravity']['cosmology_t_ref'], units.time_unit),
-        a_ref=float(config['par']['gravity']['cosmology_a_ref']),
+        units, t_ref=quantity_to_value(config['par']['cosmology']['cosmology_t_ref'], units.time_unit),
+        a_ref=float(config['par']['cosmology']['cosmology_a_ref']),
     )
     config['_code_units'] = units
     config['_cosmology'] = cosmology

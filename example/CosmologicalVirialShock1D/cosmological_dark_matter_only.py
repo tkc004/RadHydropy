@@ -397,8 +397,8 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
         )
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=quantity_to_value(config["par"]["gravity"]["cosmology_t_ref"], code_unit_system.time_unit),
-        a_ref=float(config["par"]["gravity"]["cosmology_a_ref"]),
+        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], code_unit_system.time_unit),
+        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, config)
     config["_code_unit_system"] = units

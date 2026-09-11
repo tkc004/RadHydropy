@@ -37,14 +37,15 @@ par:
         UnitVelocity_in_cgs: 9.77792221e7
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-  gravity:
-    selfgravity: true
+  cosmology:
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: true
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 0.1, unit: Myr}
     cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: true
     externalgravity: false
 initial_condition:
   box_size_comoving: {value: 800.0, unit: kpc}

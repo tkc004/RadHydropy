@@ -11,9 +11,10 @@ par:
         UnitVelocity_in_cgs: 1.0e5
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
-  gravity:
+  cosmology:
     cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
   dark_matter:
     softening: 0.01
     crossing_safety_factor: 0.5

@@ -15,16 +15,17 @@ par:
     riemann_solver: HLLC
     flux_limiter: minmod
     dual_energy: false
-  gravity:
+  cosmology:
+    cosmological: false
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: false
     cosmology_type: lambda_cdm
     cosmology_t_ref: {value: 1.0, unit: s}
     cosmology_a_ref: 1.0
+    cosmology_hubble_ref:
     cosmology_omega_m: 0.3
     cosmology_omega_lambda: 0.7
-    cosmology_hubble_ref:
+  gravity:
   boundary:
     condition: Periodic
   output:

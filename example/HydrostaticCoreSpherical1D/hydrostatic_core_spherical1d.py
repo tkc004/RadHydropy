@@ -75,7 +75,7 @@ def run(config_filename=DEFAULT_CONFIG):
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     analytic_rho_proper_code = et.analytic_density_code(radius_proper_code, config)
     core_radius_proper_code = quantity_to_value(
-        config["par"]["gravity"]["radius_core_proper"], units.length_unit
+        config["par"]["cosmology"]["radius_core_proper"], units.length_unit
     )
     halo = radius_proper_code >= core_radius_proper_code
     relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(analytic_rho_proper_code, 1.0e-300)

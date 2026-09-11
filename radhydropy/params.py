@@ -256,6 +256,10 @@ refparams = {
 class CosmologyParameters:
     """Structured cosmology settings with legacy model delegation."""
 
+    cosmological: bool = False
+    cosmological_expansion: bool = False
+    supercomoving_coordinates: bool = False
+    cosmological_background_boundary_reconstruction: bool = False
     type: object = None
     t_ref: float = 1.0
     a_ref: float = 1.0
@@ -584,7 +588,7 @@ class Par:
             if any(isinstance(params.get(group), dict) for group in (
                 'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
                 'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
-                'diagnostics', 'gravity', 'dark_matter',
+                'diagnostics', 'gravity', 'cosmology', 'dark_matter',
             ))
             else None
         )
@@ -612,7 +616,7 @@ class Par:
         if not any(isinstance(params.get(group), dict) for group in (
             'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
             'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
-            'diagnostics', 'gravity', 'dark_matter',
+            'diagnostics', 'gravity', 'cosmology', 'dark_matter',
         )):
             return params
         flattened = dict(params)
@@ -690,18 +694,20 @@ class Par:
             'gravity': {
                 'selfgravity': 'selfgravity',
                 'externalgravity': 'externalgravity',
+                'gas_core_model': 'gas_core_model',
+                'radius_core_proper': 'radius_core_proper',
+            },
+            'cosmology': {
+                'cosmological': 'cosmological_gravity',
                 'cosmological_expansion': 'cosmological_expansion',
                 'supercomoving_coordinates': 'supercomoving_coordinates',
-                'cosmological_gravity': 'cosmological_gravity',
+                'cosmological_background_boundary_reconstruction': 'cosmological_background_boundary_reconstruction',
                 'cosmology_type': 'cosmology_type',
                 'cosmology_t_ref': 'cosmology_t_ref',
                 'cosmology_a_ref': 'cosmology_a_ref',
                 'cosmology_hubble_ref': 'cosmology_hubble_ref',
                 'cosmology_omega_m': 'cosmology_omega_m',
                 'cosmology_omega_lambda': 'cosmology_omega_lambda',
-                'cosmological_background_boundary_reconstruction': 'cosmological_background_boundary_reconstruction',
-                'gas_core_model': 'gas_core_model',
-                'radius_core_proper': 'radius_core_proper',
             },
             'dark_matter': {
                 'softening': 'dark_matter_softening',
@@ -894,6 +900,12 @@ class Par:
         self._sync_dual_energy_parameters()
         self._sync_positivity_parameters()
         self.cosmology = CosmologyParameters(
+            cosmological=self.cosmological_gravity,
+            cosmological_expansion=self.cosmological_expansion,
+            supercomoving_coordinates=self.supercomoving_coordinates,
+            cosmological_background_boundary_reconstruction=(
+                self.cosmological_background_boundary_reconstruction
+            ),
             type=self.cosmology_type,
             t_ref=self.cosmology_t_ref,
             a_ref=self.cosmology_a_ref,

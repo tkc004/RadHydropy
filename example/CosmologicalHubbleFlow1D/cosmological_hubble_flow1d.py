@@ -122,7 +122,7 @@ def run():
             final_time=final_tau * units.time_unit,
         )
         case_config["par"]["output"].update(directory=str(output_dir))
-        case_config["par"]["gravity"].update(
+        case_config["par"]["cosmology"].update(
             cosmology_type=cosmology_type,
             cosmology_t_ref=physical.age_0 / time_unit_gyr,
             cosmology_a_ref=1.0,

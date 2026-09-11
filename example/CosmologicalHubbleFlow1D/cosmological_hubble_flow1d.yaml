@@ -20,15 +20,16 @@ par:
     directory: outputs
     filename_prefix: Output
     cadence: {value: 1.0, unit: s}
-  gravity:
+  cosmology:
+    cosmological: false
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: false
-    selfgravity: false
-    externalgravity: false
     cosmology_type: lambda_cdm
     cosmology_t_ref: {value: 1.0e17, unit: s}
     cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: false
+    externalgravity: false
   units:
     CodeUnits:
       name: cosmological_density_evolution_unit_system

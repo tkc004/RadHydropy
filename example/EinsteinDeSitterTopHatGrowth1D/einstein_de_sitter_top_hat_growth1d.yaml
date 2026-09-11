@@ -12,14 +12,15 @@ par:
     gamma: 1.6666666666666667
     order: 0
     CFL: 0.2
-  gravity:
-    selfgravity: true
+  cosmology:
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
-    cosmological_gravity: true
     cosmology_type: einstein_de_sitter
     cosmology_t_ref: {value: 1.0, unit: pc/(km/s)}
     cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: true
   boundary:
     condition: Reflecting
   timestep:

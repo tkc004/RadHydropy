@@ -46,8 +46,8 @@ def main(output_root=None):
     config["par"]["thermochemistry"]["cooling_temperature_floor"] = 1.0e-3 * units.temperature_unit
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=quantity_to_value(config["par"]['gravity']['cosmology_t_ref'], units.time_unit),
-        a_ref=float(config["par"]['gravity']['cosmology_a_ref']),
+        t_ref=quantity_to_value(config["par"]['cosmology']['cosmology_t_ref'], units.time_unit),
+        a_ref=float(config["par"]['cosmology']['cosmology_a_ref']),
     )
     output_dir = ROOT / config["par"]['output']['directory'] / 'hydrogen_source_rotation'
     output_dir.mkdir(parents=True, exist_ok=True)

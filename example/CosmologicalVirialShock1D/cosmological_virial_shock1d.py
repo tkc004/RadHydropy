@@ -209,9 +209,9 @@ def main(config_filename=DEFAULT_CONFIG):
     par = config["par"]
     initial_condition = config["initial_condition"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
-    gravity = par["gravity"]
+    cosmology_config = par["cosmology"]
     cosmology = __import__("radhydropy.cosmology", fromlist=["EinsteinDeSitter"]).EinsteinDeSitter.from_code_units(
-        units, t_ref=quantity_to_value(gravity["cosmology_t_ref"], units.time_unit), a_ref=float(gravity["cosmology_a_ref"])
+        units, t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit), a_ref=float(cosmology_config["cosmology_a_ref"])
     )
     table_path = Path(par["thermochemistry"]["metal_pie_table_filename"])
     if not table_path.is_absolute():
