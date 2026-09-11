@@ -1,7 +1,5 @@
-"""Dynamic Stromgren helper with the StellarWindBubble inner boundary."""
+"""Helpers for the 20 pc Stromgren sphere with a stellar-wind boundary."""
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -11,25 +9,15 @@ from radhydropy import io as rio
 from radhydropy.units import quantity_to_value
 
 
-TEMPLATE_TOOLS = (
-    Path(__file__).resolve().parents[1]
-    / 'DynamicStromgrenSpherePhotoheating20pc1D'
-    / 'tools.py'
+from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
+    _attach_proper_runtime_states,
+    _pressure_from_radarrays, _to_km_s, _to_kpc, _to_number_density,
+    _to_pressure, _to_temperature,
+    interior_slice, load_history_from_outputs, load_output_state,
+    load_reference_profile, output_files, save_front_plot, scatter_reference,
+    save_plot, stromgren_radius,
 )
-spec = importlib.util.spec_from_file_location(
-    '_radhydropy_dynamic_stromgren_20pc_tools',
-    TEMPLATE_TOOLS,
-)
-_template = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-sys.modules[spec.name] = _template
-spec.loader.exec_module(_template)
-
-for _name, _value in vars(_template).items():
-    if not _name.startswith('__'):
-        globals()[_name] = _value
-
-_BASE_BUILD_STATIC_PROBLEM = _template.build_static_problem
+from DynamicStromgrenSpherePhotoheating20pc1D import tools as base_tools
 
 
 def _wind_density(config):
@@ -45,7 +33,7 @@ def _wind_density(config):
 
 def build_static_problem(config):
     """Build the photoheated ambient cloud with a stellar-wind inner boundary."""
-    sim = _BASE_BUILD_STATIC_PROBLEM(config)
+    sim = base_tools.build_static_problem(config)
     par, mesh, fluid, solver = sim.par, sim.mesh, sim.fluid, sim.solver
     initial = config['initial_condition']
     example = config['example']
@@ -109,7 +97,7 @@ def build_static_problem(config):
         fluid.mu[active_slice] = example['wind_mu']
     fluid.SetUpFluid(par, mesh)
     solver.SetConserved(mesh, fluid, verbose=0)
-    _template._attach_proper_runtime_states(par, mesh, fluid)
+    _attach_proper_runtime_states(config, mesh, fluid)
     return sim
 
 
@@ -119,7 +107,3 @@ def write_initial_condition(config):
     filename = config['par']['simulation']['initial_condition_filename']
     Path(filename).unlink(missing_ok=True)
     rio.writehdf5(sim, filename)
-
-
-_template.build_static_problem = build_static_problem
-_template.write_initial_condition = write_initial_condition

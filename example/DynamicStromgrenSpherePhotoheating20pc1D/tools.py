@@ -1,27 +1,19 @@
-"""Reuse the maintained dynamic Stromgren-sphere helper implementation."""
+"""Helpers for the 20 pc dynamic Stromgren-sphere example."""
 
-import importlib.util
-import sys
-from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
+import unyt
 
-
-TEMPLATE_TOOLS = (
-    Path(__file__).resolve().parents[1]
-    / 'DynamicStromgrenSpherePhotoheating1D'
-    / 'tools.py'
+from DynamicStromgrenSpherePhotoheating1D.tools import (
+    _attach_proper_runtime_states, _pressure_from_radarrays, _to_km_s,
+    _to_kpc, _to_number_density,
+    _to_pressure, _to_temperature,
+    build_static_problem,
+    interior_slice, ionization_front_position, load_history_from_outputs,
+    load_output_state,
+    load_reference_profile, output_files, save_front_plot, scatter_reference,
+    stromgren_radius, write_initial_condition,
 )
-spec = importlib.util.spec_from_file_location(
-    '_radhydropy_dynamic_stromgren_template_tools',
-    TEMPLATE_TOOLS,
-)
-_template = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-sys.modules[spec.name] = _template
-spec.loader.exec_module(_template)
-
-for _name, _value in vars(_template).items():
-    if not _name.startswith('__'):
-        globals()[_name] = _value
 
 
 def save_plot(mesh, fluid, config, figure_filename):
@@ -29,12 +21,15 @@ def save_plot(mesh, fluid, config, figure_filename):
     par = config['_output_par']
     example_config = config['example']
     interior = interior_slice(config)
-    radius_proper_pc = _to_kpc(mesh.x_proper_code[interior], config) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density_cgs_cm3 = _to_number_density(fluid.rho_proper_code[interior], config)
-    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], config)
+    radius_proper_pc = _to_kpc(
+        0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
+        config,
+    ) * (1.0 * unyt.kpc).to_value(unyt.pc)
+    number_density_cgs_cm3 = _to_number_density(fluid.rho_radarray[interior], config)
+    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_radarray[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pre_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], config)
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], config)
+    pre_proper_cgs_erg_cm3 = _pressure_from_radarrays(fluid, config)[interior]
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)
     plot_radius_max = example_config['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example_config.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(
@@ -57,7 +52,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         neutral_fraction_reference,
     ):
         if reference is not None:
-            reference['radius_kpc'] *= reference_radius_scale
+            reference['radius_proper_kpc'] *= reference_radius_scale
 
     fig, axes = plt.subplots(5, 1, figsize=(7.4, 11.0), sharex=True)
     axes[0].plot(radius_proper_pc, number_density_cgs_cm3, color='tab:blue', lw=1.8, label='RadHydropy')

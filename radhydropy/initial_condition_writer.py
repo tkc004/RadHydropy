@@ -570,6 +570,11 @@ class InitialConditionWriter:
                 "InternalEnergy_code",
                 "AngularMomentum_code",
                 "GravitationalPotentialEnergy_code",
+                "xHI",
+                "xHeI",
+                "xHeII",
+                "xHeIII",
+                "ngamma_code",
             }
             if cosmological_schema:
                 fluid_attribute_names.add("tau_supercomoving_code")
@@ -579,9 +584,20 @@ class InitialConditionWriter:
                 if not hasattr(fluid, field_name):
                     continue
                 values_array = np.asarray(getattr(fluid, field_name))
-                if values_array.ndim == 0 or values_array.size != active_count + 2 * ghost_cells:
+                if values_array.ndim == 0:
                     continue
-                setattr(fluid, field_name, values_array[first:last])
+                if values_array.ndim == 1:
+                    if values_array.size != active_count + 2 * ghost_cells:
+                        continue
+                    trimmed_values = values_array[first:last]
+                elif (
+                    values_array.ndim == 2
+                    and values_array.shape[-1] == active_count + 2 * ghost_cells
+                ):
+                    trimmed_values = values_array[..., first:last]
+                else:
+                    continue
+                setattr(fluid, field_name, trimmed_values)
             par.mesh.grid_cells = original_grid_cells
             par.mesh.ghost_cells = original_ghost_cells
 

@@ -946,9 +946,11 @@ class Testing(unittest.TestCase):
         assert spec.loader is not None
         spec.loader.exec_module(tools)
 
-        par = parameter_namespace(noghost=0, nogrid=5, CodeUnits=None)
+        par = SimpleNamespace(
+            mesh=SimpleNamespace(ghost_cells=0, grid_cells=5),
+        )
         mesh = SimpleNamespace(
-            x_proper_code=np.arange(1.0, 6.0) * unyt.kpc,
+            boundary_radarray=np.arange(0.5, 6.5) * unyt.kpc,
         )
         fluid = SimpleNamespace(
             xHI=np.array([0.1, 0.2, 0.8, 0.2, 0.9]),

@@ -72,6 +72,26 @@ def _to_pressure(values, config):
     return np.asarray(code_quantity_to_cgs(values, code, 'pressure_cgs_erg_cm3'), dtype=float)
 
 
+def _pressure_from_radarrays(fluid, config):
+    """Derive cgs pressure from restored density and temperature views."""
+    code = config['_output_par'].units.CodeUnits
+    rho_proper_code = fluid.rho_radarray.to_value(code.density_unit)
+    temperature_proper_code = fluid.temp_radarray.to_value(code.temperature_unit)
+    mu_dimensionless = np.asarray(fluid.mu, dtype=float)
+    if mu_dimensionless.size != np.asarray(rho_proper_code).size:
+        first = int(config['_output_par'].mesh.ghost_cells)
+        last = first + np.asarray(rho_proper_code).size
+        mu_dimensionless = mu_dimensionless[first:last]
+    pressure_proper_code = fluid.eos.pressure(
+        rho_proper_code,
+        temperature_proper_code,
+        mu_dimensionless,
+    )
+    return np.asarray(pressure_proper_code, dtype=float) * float(
+        code.pressure_unit.to_value(unyt.erg / unyt.cm**3)
+    )
+
+
 def _to_temperature(values, config):
     if hasattr(values, 'to_value'):
         return np.asarray(values.to_value(unyt.K), dtype=float)
@@ -175,14 +195,16 @@ def write_initial_condition(config):
 
 
 def load_output_state(outputfilename, config):
-    sim = Rsim(config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, outputfilename)
+    sim = rio.loadhdf5(config, outputfilename)
     # Output snapshots contain the canonical ghosted boundary array.  Rebuild
     # the typed mesh geometry from its physical boundaries for diagnostics and
     # plotting; the runtime runner performs this step during RunAll.
     ghost_cells = int(sim.par.mesh.ghost_cells)
     grid_cells = int(sim.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    boundary_proper_code = np.asarray(
+        sim.mesh.boundary_radarray.to_value(sim.par.units.CodeUnits.length_unit),
+        dtype=float,
+    )
     if boundary_proper_code.size == grid_cells + 1 + 2 * ghost_cells:
         sim.mesh.boundary_proper_code = boundary_proper_code[ghost_cells:-ghost_cells]
         sim.SetMesh()
@@ -214,7 +236,10 @@ def ionization_front_position(
     neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
 ):
     interior = interior_slice(config)
-    radius_proper_kpc = _to_kpc(mesh.x_proper_code[interior], config)
+    radius_proper_kpc = _to_kpc(
+        0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
+        config,
+    )
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
     if np.all(xHI > neutral_fraction):
@@ -240,7 +265,7 @@ def ionization_front_position(
 def mean_ionized_temperature(fluid, config):
     interior = interior_slice(config)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], config)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
@@ -422,12 +447,15 @@ def save_front_plot(history, config, figure_filename):
 def save_plot(mesh, fluid, config, figure_filename):
     example = config.get('example', {})
     interior = interior_slice(config)
-    radius_proper_pc = _to_kpc(mesh.x_proper_code[interior], config) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho_proper_code[interior], config)
-    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_proper_code[interior], config)
+    radius_proper_pc = _to_kpc(
+        0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
+        config,
+    ) * (1.0 * unyt.kpc).to_value(unyt.pc)
+    number_density = _to_number_density(fluid.rho_radarray[interior], config)
+    vel_peculiar_proper_km_s = _to_km_s(fluid.vel_radarray[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure_proper_cgs_erg_cm3 = _to_pressure(fluid.pre_proper_code[interior], config)
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_proper_code[interior], config)
+    pressure_proper_cgs_erg_cm3 = _pressure_from_radarrays(fluid, config)[interior]
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)
     plot_radius_max = example['plot_radius_max'].to_value(unyt.pc)
     radius_unit = example.get('reference_radius_unit', 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

@@ -5,7 +5,7 @@ par:
   output:
     directory: .
   timestep:
-  output_interval: {value: 0.0005, unit: pc/(km/s)}
+    output_interval: {value: 0.0005, unit: pc/(km/s)}
   units:
     CodeUnits:
       name: dark_matter_orbit_unit_system

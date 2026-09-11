@@ -1,7 +1,6 @@
 """Compare total gas energy with and without direct radiation pressure."""
 
 import argparse
-import importlib.util
 from pathlib import Path
 import sys
 
@@ -29,12 +28,13 @@ PRESSURE_CONFIG = HERE / 'dynamic_stromgren_sphere_photoheating20pc_radiation_pr
 
 
 def _load_tools(example_dir):
-    module_name = f'_radhydropy_energy_tools_{example_dir.name}'
-    spec = importlib.util.spec_from_file_location(module_name, example_dir / 'tools.py')
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
+    if example_dir.name == 'DynamicStromgrenSpherePhotoheating20pc1D':
+        from DynamicStromgrenSpherePhotoheating20pc1D import tools
+    elif example_dir.name == 'DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D':
+        from DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D import tools
+    else:
+        raise ValueError(f'unsupported Dynamic Stromgren example: {example_dir}')
+    return tools
 
 
 def _load_config(config_filename):
@@ -45,18 +45,10 @@ def _snapshot_energy(snapshot, config, tools):
     par, mesh, fluid = tools.load_output_state(snapshot, config)
     interior = tools.interior_slice(config)
     code = CodeUnits.from_mapping(par.units.CodeUnits)
-    volume_cgs_cm3 = np.asarray(mesh.volume_proper_code[interior], dtype=float) * float(
-        (1.0 * code.volume_unit).to_value(unyt.cm**3)
-    )
-    pressure_cgs_erg_cm3 = np.asarray(fluid.pre_proper_code[interior], dtype=float) * float(
-        (1.0 * code.pressure_unit).to_value(unyt.erg / unyt.cm**3)
-    )
-    density_cgs_g_cm3 = np.asarray(fluid.rho_proper_code[interior], dtype=float) * float(
-        (1.0 * code.density_unit).to_value(unyt.g / unyt.cm**3)
-    )
-    velocity_cgs_cm_s = np.asarray(fluid.vel_proper_code[interior], dtype=float) * float(
-        (1.0 * code.velocity_unit).to_value(unyt.cm / unyt.s)
-    )
+    volume_cgs_cm3 = np.asarray(mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float)
+    pressure_cgs_erg_cm3 = tools._pressure_from_radarrays(fluid, config)[interior]
+    density_cgs_g_cm3 = np.asarray(fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3), dtype=float)
+    velocity_cgs_cm_s = np.asarray(fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s), dtype=float)
     thermal_energy_cgs_erg = float(np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3))
     kinetic_energy_cgs_erg = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
     time_proper_Myr = float(
@@ -99,12 +91,12 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
 
     figure = pressure_dir / 'DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D_TotalGasEnergy.jpg'
     fig, axes = plt.subplots(2, 1, figsize=(7.5, 6.5), sharex=True)
-    axes[0].plot(pressure[:, 0], pressure[:, 3], 'o-', label='with radiation pressure')
+    axes[0].plot(pressure_history[:, 0], pressure_history[:, 3], 'o-', label='with radiation pressure')
     axes[0].plot(no_pressure[:, 0], no_pressure[:, 3], 'o-', label='without radiation pressure')
     axes[0].set_yscale('log')
     axes[0].set_ylabel('total gas energy [erg]')
     axes[0].legend(frameon=False)
-    axes[1].plot(pressure[:, 0], relative_difference, 'o-', color='tab:purple')
+    axes[1].plot(pressure_history[:, 0], relative_difference, 'o-', color='tab:purple')
     axes[1].set_xlabel('time [Myr]')
     axes[1].set_ylabel(
         r'$(E_{\rm rad}-E_{\rm no\ rad})/E_{\rm no\ rad}$'
@@ -121,7 +113,7 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
         np.column_stack((
             common_times,
             no_pressure[:, 1], no_pressure[:, 2], no_pressure[:, 3],
-            pressure[:, 1], pressure[:, 2], pressure[:, 3],
+            pressure_history[:, 1], pressure_history[:, 2], pressure_history[:, 3],
             energy_difference, relative_difference,
         )),
         delimiter=',',

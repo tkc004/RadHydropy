@@ -277,6 +277,7 @@ def code_unit_scales(code):
         "mass_g": mass_g,
         "velocity_cgs_cm_s": velocity_cgs_cm_s,
         "time_s": time_s,
+        "time_proper_cgs_s": time_s,
         "temperature_cgs_K": float(code.temperature_in_cgs),
         "area_cgs_cm2": area_cgs_cm2,
         "volume_cgs_cm3": volume_cgs_cm3,

@@ -3,10 +3,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import unyt
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import quantity_to_value
-from basic_hydro_utils import make_initial_condition
 import advection_sph_analytic as asa
 
 
@@ -14,25 +14,30 @@ def build_initial_condition(config):
     initial = config["initial_condition"]
     units = config["_code_units"]
     n = int(initial["grid_cells"])
-    size = quantity_to_value(initial["box_size_proper"], units.length_unit)
-    boundary_proper_code = np.linspace(size / n, size + size / n, n + 1)
-    coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    rho_proper_code = np.full(n, quantity_to_value(initial["rho_proper"], units.density_unit))
-    rho_proper_code[(coordinate_proper_code < .25 * size) | (coordinate_proper_code > .75 * size)] *= .01
-    return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code,
-        vel_proper_code=np.full(n, quantity_to_value(initial["vel_proper"], units.velocity_unit)),
-        temp_proper_code=np.full(n, quantity_to_value(initial["temperature_proper"], units.temperature_unit)),
-        mu_dimensionless=np.full(n, initial["mean_molecular_weight"]))
+    box_size_proper_unyt = initial["box_size_proper"]
+    boundary_proper_unyt = np.linspace(0.0, 1.0, n + 1) * box_size_proper_unyt
+    coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
+    rho_proper_unyt = np.ones(n) * initial["rho_proper"]
+    rho_proper_unyt[(coordinate_proper_unyt < .25 * box_size_proper_unyt) | (coordinate_proper_unyt > .75 * box_size_proper_unyt)] *= .01
+    writer = InitialConditionWriter(par_config=config["par"], code_units=units)
+    writer.box_size = writer.radquantity(box_size_proper_unyt)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.ones(n) * initial["vel_proper"])
+    writer.fluid.temp_radarray = writer.radarray(np.ones(n) * initial["temperature_proper"])
+    writer.simulation.fluid.mu = np.full(n, float(initial["mean_molecular_weight"]))
+    return writer
 
 
 def plot_snapshot(filename, config, **kwargs):
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    sim = rio.loadhdf5(config, filename)
+    units = config["_code_units"]
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    boundary_proper_code = np.asarray(
+        sim.mesh.boundary_radarray.to_value(units.length_unit), dtype=float
+    )
     coordinate_proper_code = .5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    units = config["_code_units"]
     time_proper_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
     analytic_density = asa.top_hat_density_profile(
         coordinate_proper_code[first:last],
@@ -41,8 +46,9 @@ def plot_snapshot(filename, config, **kwargs):
         quantity_to_value(config["initial_condition"]["box_size_proper"], units.length_unit),
         quantity_to_value(config["initial_condition"]["rho_proper"], units.density_unit),
     )
+    rho_snapshot_proper_code = sim.fluid.rho_radarray.to_value(units.density_unit)
     plt.plot(coordinate_proper_code[first:last] * units.length_unit,
-             np.asarray(sim.fluid.rho_proper_code)[first:last] * units.density_unit,
+             rho_snapshot_proper_code[first:last] * units.density_unit,
              **kwargs)
     plt.plot(
         coordinate_proper_code[first:last] * units.length_unit,

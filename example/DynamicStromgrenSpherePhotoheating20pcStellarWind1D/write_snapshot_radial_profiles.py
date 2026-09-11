@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import unyt
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
+from radhydropy.units import quantity_to_value
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 EXAMPLE_ROOT = EXAMPLE_DIR.parent
@@ -29,11 +29,11 @@ DEFAULT_CONFIG = EXAMPLE_DIR / (
 
 def snapshot_time_myr(snapshot_filename, config):
     """Read the snapshot time from the HDF5 header and return Myr."""
-    snapshot = Rsim(config['par'])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(snapshot_filename))
+    snapshot = rio.loadhdf5(config, str(snapshot_filename))
     time_proper_code = float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
-    return time_proper_code * float(
-        snapshot.par.units.CodeUnits.time_unit.to_value(unyt.Myr)
+    return quantity_to_value(
+        time_proper_code * snapshot.par.units.CodeUnits.time_unit,
+        unyt.Myr,
     )
 
 
@@ -55,7 +55,7 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CO
     csv_files = []
     for snapshot in snapshots:
         time_proper_Myr = snapshot_time_myr(snapshot, config)
-        time_label = f'{time_myr:.6g}'
+        time_label = f'{time_proper_Myr:.6g}'
         csv_filename = csv_directory / f'radial_profile_{time_label}Myr.csv'
         csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))
         print(f'{snapshot.name} -> {csv_filename.name}')

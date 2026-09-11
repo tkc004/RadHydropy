@@ -18,7 +18,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
 import tools as et
@@ -27,6 +26,24 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name(
     "dynamic_stromgren_sphere_photoheating20pc_radiation_pressure1d.yaml"
 )
+
+
+def _volume_proper_cgs_cm3(sim, config):
+    """Derive spherical cell volumes from the restored boundary view."""
+    interior = _diagnostic_slice(sim, config)
+    boundary_proper_cgs_cm = sim.mesh.boundary_radarray.to_value(unyt.cm)
+    return (4.0 * np.pi / 3.0) * (
+        boundary_proper_cgs_cm[1:] ** 3 - boundary_proper_cgs_cm[:-1] ** 3
+    )[interior]
+
+
+def _diagnostic_slice(sim, config):
+    """Select active cells for either active-only or ghosted RadArray views."""
+    density_count = np.asarray(sim.fluid.rho_radarray).size
+    grid_cells = int(sim.par.mesh.grid_cells)
+    if density_count == grid_cells:
+        return slice(0, grid_cells)
+    return et.interior_slice(config)
 
 
 def _radiation_impulse(sim, source_result, dt, config):
@@ -38,13 +55,9 @@ def _radiation_impulse(sim, source_result, dt, config):
     if absorbed.ndim == 1:
         absorbed = absorbed[None, :]
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
-    interior = et.interior_slice(config)
+    interior = _diagnostic_slice(sim, config)
+    volume_cgs_cm3 = _volume_proper_cgs_cm3(sim, config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
-    volume_cgs_cm3 = np.asarray(
-        sim.mesh.volume_proper_code[interior], dtype=float
-    ) * float(
-        (1.0 * code.volume_unit).to_value(unyt.cm**3)
-    )
     dt_s = float(np.asarray(dt)) * float((1.0 * code.time_unit).to_value(unyt.s))
     absorbed_energy_rate = np.sum(absorbed * energies[:, None], axis=0)
     return float(
@@ -55,7 +68,7 @@ def _radiation_impulse(sim, source_result, dt, config):
 
 
 def _total_radial_momentum(sim, config):
-    interior = et.interior_slice(config)
+    interior = _diagnostic_slice(sim, config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     momentum_cgs = float((1.0 * code.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s))
     return float(np.sum(np.asarray(sim.fluid.Mom_code[interior], dtype=float)) * momentum_cgs)
@@ -68,16 +81,10 @@ def _pressure_diagnostics(sim, source_result, config):
     the ionization front and by ``c``.  The gas pressure is volume-weighted
     over the ionized region, using ``1 - xHI`` as the ionization weight.
     """
-    interior = et.interior_slice(config)
+    interior = _diagnostic_slice(sim, config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
-    volume_cgs_cm3 = np.asarray(
-        sim.mesh.volume_proper_code[interior], dtype=float
-    ) * float(
-        (1.0 * code.volume_unit).to_value(unyt.cm**3)
-    )
-    pressure_cgs = et._to_pressure(
-        sim.fluid.pre_proper_code[interior], config
-    )
+    volume_cgs_cm3 = _volume_proper_cgs_cm3(sim, config)
+    pressure_cgs = et._pressure_from_radarrays(sim.fluid, config)[interior]
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
     weighted_volume = float(np.sum(volume_cgs_cm3 * ionized_weight))
     gas_pressure = (
@@ -118,8 +125,9 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
 
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    initial_condition_filename = par['simulation']['initial_condition_filename']
+    sim = rio.loadhdf5(config, initial_condition_filename)
+    config['_output_par'] = sim.par
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

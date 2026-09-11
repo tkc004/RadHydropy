@@ -6,9 +6,9 @@ import numpy as np
 import unyt
 import radhydropy.io as rio
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
 from radhydropy.units import code_quantity_to_cgs, code_unit_scales, quantity_to_value, time_seconds
-from basic_hydro_utils import make_initial_condition
 
 ACCELERATION_UNIT = unyt.cm / unyt.s**2
 
@@ -41,21 +41,30 @@ def build_initial_condition(config):
     ic = config["initial_condition"]
     units = config["_code_units"]
     n = int(ic["grid_cells"])
-    boundary_proper_code = np.linspace(quantity_to_value(ic["radius_inner_proper"], units.length_unit), quantity_to_value(ic["radius_outer_proper"], units.length_unit), n + 1)
-    coordinate_proper_code = spherical_cell_centers(boundary_proper_code)
-    return make_initial_condition(config, boundary_proper_code=boundary_proper_code,
-        rho_proper_code=ballistic_density_profile(coordinate_proper_code, quantity_to_value(ic["rho_reference_proper"], units.density_unit)),
-        vel_proper_code=np.zeros(n), temp_proper_code=np.full(n, quantity_to_value(ic["temperature_proper"], units.temperature_unit)),
-        mu_dimensionless=np.full(n, ic["mean_molecular_weight"]), area_proper_code=4*np.pi*boundary_proper_code[:-1]**2)
+    boundary_proper_unyt = np.linspace(
+        0.0, 1.0, n + 1
+    ) * (ic["radius_outer_proper"] - ic["radius_inner_proper"])
+    boundary_proper_unyt += ic["radius_inner_proper"]
+    coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
+    rho_proper_unyt = np.ones(n) * ic["rho_reference_proper"]
+    writer = InitialConditionWriter(par_config=config["par"], code_units=units)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(n) * units.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(n) * ic["temperature_proper"])
+    writer.simulation.fluid.mu = np.full(n, float(ic["mean_molecular_weight"]))
+    return writer
 
 def plot_snapshot(filename, config, **kwargs):
     ic, units = config["initial_condition"], config["_code_units"]
-    sim = Rsim(config["par"]); rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    sim = rio.loadhdf5(config, filename)
     first = int(sim.par.mesh.ghost_cells); last = first + int(sim.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    boundary_proper_code = np.asarray(
+        sim.mesh.boundary_radarray.to_value(units.length_unit), dtype=float
+    )
     coordinate_proper_code = spherical_cell_centers(boundary_proper_code)[first:last]
-    rho_proper_code = np.asarray(sim.fluid.rho_proper_code)[first:last]
-    vel_proper_code = np.asarray(sim.fluid.vel_proper_code)[first:last]
+    rho_proper_code = sim.fluid.rho_radarray.to_value(units.density_unit)[first:last]
+    vel_proper_code = sim.fluid.vel_radarray.to_value(units.velocity_unit)[first:last]
     time_proper_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
     analytic_rho = ballistic_density_profile(
         coordinate_proper_code, quantity_to_value(ic["rho_reference_proper"], units.density_unit)

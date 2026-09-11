@@ -43,10 +43,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
     nested['_code_units'] = code_units_obj
     ric = et.build_initial_condition(nested)
-    rio.writehdf5(ric, nested["par"]['simulation']['initial_condition_filename'])
+    ric.write(nested["par"]['simulation']['initial_condition_filename'])
 
-    mainrun = Rsim(nested["par"])
-    rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
+    mainrun = rio.loadhdf5(
+        nested, nested["par"]["simulation"]["initial_condition_filename"]
+    )
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()

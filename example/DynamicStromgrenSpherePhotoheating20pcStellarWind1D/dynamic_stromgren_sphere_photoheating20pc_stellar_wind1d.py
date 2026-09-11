@@ -37,13 +37,14 @@ def _pressure_diagnostic(snapshot, config):
     """Return shell wind pressure, photoheated gas pressure, and shell radius."""
     par, mesh, fluid = et.load_output_state(snapshot, config)
     interior = et.interior_slice(config)
-    radius_proper_pc = et._to_kpc(mesh.x_proper_code[interior], config) * 1000.0
+    radius_proper_pc = et._to_kpc(
+        0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
+        config,
+    ) * 1000.0
     hydrogen_number_density_cgs_cm3 = et._to_number_density(
-        fluid.rho_proper_code[interior], config
+        fluid.rho_radarray[interior], config
     )
-    pressure_proper_cgs_erg_cm3 = et._to_pressure(
-        fluid.pre_proper_code[interior], config
-    )
+    pressure_proper_cgs_erg_cm3 = et._pressure_from_radarrays(fluid, config)[interior]
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
 
     # The wind shell is the strongest density peak outside the injection cell.
@@ -61,8 +62,8 @@ def _pressure_diagnostic(snapshot, config):
         )
 
     code = CodeUnits.from_mapping(par.units.CodeUnits)
-    volume_cgs_cm3 = np.asarray(mesh.volume_proper_code[interior], dtype=float) * float(
-        (1.0 * code.volume_unit).to_value(unyt.cm**3)
+    volume_cgs_cm3 = np.asarray(
+        mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
     # Exclude the shocked wind interior and the dense shell itself.
@@ -165,11 +166,12 @@ def main(config_filename=None):
     output_files = et.output_files(output['directory'], output['filename_prefix'])
     history = et.load_history_from_outputs(output_files, config)
     out_par, out_mesh, out_fluid = et.load_output_state(output_files[-1], config)
+    config['_output_par'] = out_par
     figure_stem = 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
     if par['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
         figure_stem += '_C2Ray'
     et.save_plot(
-        out_mesh, out_fluid, out_par, config,
+        out_mesh, out_fluid, config,
         Path(output['directory']) / f'{figure_stem}.jpg',
     )
     et.save_front_plot(
