@@ -23,4 +23,7 @@ __all__ = [
     "radiative_transfer",
     "cosmology",
     "cosmological_variables",
+    "field_metadata",
+    "cosmology_context",
+    "radarray",
 ]
