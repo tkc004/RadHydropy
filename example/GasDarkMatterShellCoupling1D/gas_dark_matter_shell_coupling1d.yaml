@@ -9,7 +9,7 @@ par:
     ghost_cells: 2
   hydrodynamics:
     eos_type: isothermal
-    gamma: 1.0
+    gamma: 1.4
     CFL: 0.05
     positivity_preserving: false
   gravity:
@@ -43,7 +43,7 @@ initial_condition:
   mu: 1.0
   dark_matter_shells: 24
   dark_matter_mass: {value: 1.0e-2, unit: Msun}
-  dark_matter_velocity_scale: 0.0
-  dark_matter_angular_momentum: 0.02
+  dark_matter_velocity_scale_dimensionless: 0.0
+  dark_matter_angular_momentum_dimensionless: 0.02
   dark_matter_softening: {value: 0.01, unit: pc}
 example: {}

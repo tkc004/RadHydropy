@@ -39,6 +39,7 @@ initial_condition:
   central_mass_proper: {value: 1.0, unit: g}
   rho_proper: {value: 1.0, unit: g/cm**3}
   vel_proper: {value: 0.0, unit: cm/s}
+  temperature_proper: {value: 4.0e-9, unit: K}
   pressure_proper: {value: 1.0e-8, unit: erg/cm**3}
   timestep: {value: 1.0e-3, unit: s}
   nsteps: 100

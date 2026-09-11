@@ -159,15 +159,21 @@ class InitialConditionWriter:
             )
         return matching_fields[0]
 
-    def radarray(self, values):
-        """Create a ``RadArray`` from a unit-bearing primitive array."""
+    def radarray(self, values, *, field_name=None):
+        """Create a ``RadArray`` from a unit-bearing array.
+
+        Primitive IC fields are inferred from their dimensions.  Auxiliary
+        dimensional fields, such as specific angular momentum, may provide
+        their canonical field name explicitly.
+        """
         context = self._context(self.simulation)
         if context is None:
             raise ValueError(
                 "InitialConditionWriter requires a valid cosmology context "
                 "before creating a RadArray"
             )
-        field_name = self._primitive_field_name(values, context)
+        if field_name is None:
+            field_name = self._primitive_field_name(values, context)
         hubble_parameter_km_s_Mpc = (
             context.hubble_parameter_km_s_Mpc
             if field_name == "vel_supercomoving_code"
@@ -308,7 +314,14 @@ class InitialConditionWriter:
             else "proper"
         )
         source_representation = value.field_spec.representation
-        if source_representation == target_representation:
+        if (
+            source_representation == target_representation
+            or (
+                target_representation == "proper"
+                and value.field_spec.quantity
+                in ("angular_momentum", "specific_angular_momentum")
+            )
+        ):
             return np.asarray(value.value, dtype=float)
         if target_representation == "proper":
             converted = value.to_proper(x_comoving_code=x_comoving_code)
@@ -513,6 +526,15 @@ class InitialConditionWriter:
         setattr(fluid, velocity_field, velocity_values)
         setattr(fluid, temperature_field, temperature_values)
         setattr(fluid, pressure_field, pressure_values)
+        specific_angular_momentum = getattr(
+            fluid, "specific_angular_momentum_radarray", None
+        )
+        if specific_angular_momentum is not None:
+            fluid.specific_angular_momentum_code = self._convert(
+                specific_angular_momentum,
+                "specific_angular_momentum_code",
+                context=context,
+            )
         if not hasattr(fluid, "mu"):
             fluid.mu = np.ones_like(density_values)
 

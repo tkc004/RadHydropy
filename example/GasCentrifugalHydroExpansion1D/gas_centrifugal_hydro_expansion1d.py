@@ -17,39 +17,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 import example_utils as eu
 from shell_remap import centrifugal_shell_reference
 
 
 CONFIG = ROOT / 'gas_centrifugal_hydro_expansion1d.yaml'
-
-def prepare_initial_condition(config):
-    initial = config["_initial_condition_runtime_state"]
-    boundary_proper_code = np.asarray(
-        initial.mesh.boundary_proper_code, dtype=float
-    )
-    initial.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=initial.mesh.x_proper_code,
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=np.diff(boundary_proper_code),
-        area_proper_code=4.0 * np.pi * boundary_proper_code[:-1]**2,
-        volume_proper_code=4.0 * np.pi / 3.0 * (
-            boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
-        ),
-    )
-    initial.fluid.pre_proper_code = initial.fluid.temp_proper_code * 0.4
-    initial.fluid.time_proper_code = 0.0
-    initial.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    initial.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, rho_proper_code=initial.fluid.rho_proper_code,
-        vel_proper_code=initial.fluid.vel_proper_code, pre_proper_code=initial.fluid.pre_proper_code,
-        temp_proper_code=initial.fluid.temp_proper_code, time_proper_code=0.0,
-        mu_dimensionless=initial.fluid.mu,
-    )
-
 
 def spherical_centers(boundary_proper_code):
     return 0.75 * (
@@ -57,35 +34,42 @@ def spherical_centers(boundary_proper_code):
     ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
 
 
-def build_initial_condition(config, count, radius_inner_proper_code,
-                            radius_outer_proper_code, rho_proper_code,
-                            temperature_proper_code, central_mass_proper_code,
-                            rotation_factor):
-    """Build the typed proper-code IC from the complete nested config."""
-    result = Rsim(config['par'])
-    result.par.mesh.ghost_cells = 0
-    boundary_proper_code = np.linspace(
-        radius_inner_proper_code, radius_outer_proper_code, count + 1
-    )
-    radius_proper_code = spherical_centers(boundary_proper_code)
-    result.mesh.boundary_proper_code = boundary_proper_code
-    result.mesh.x_proper_code = radius_proper_code
-    result.mesh.width_proper_code = np.diff(boundary_proper_code)
-    result.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
-    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
-    result.fluid.rho_proper_code = np.full(count, rho_proper_code)
-    result.fluid.vel_proper_code = np.zeros(count)
-    result.fluid.temp_proper_code = np.full(count, temperature_proper_code)
-    result.fluid.mu = np.ones(count)
-    result.fluid.specific_angular_momentum_code = rotation_factor * np.sqrt(
-        central_mass_proper_code * radius_proper_code
-    )
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-            PROPER_RUNTIME_FIELDS, x_proper_code=radius_proper_code, boundary_proper_code=boundary_proper_code,
-            width_proper_code=result.mesh.width_proper_code, area_proper_code=result.mesh.area_proper_code,
-            volume_proper_code=result.mesh.volume_proper_code,
+def build_initial_condition(config):
+    """Build the proper-coordinate IC through the shared writer boundary."""
+    initial_condition = config['initial_condition']
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    count = int(config['par']['mesh']['grid_cells'])
+    boundary_proper_unyt = np.linspace(0.0, 1.0, count + 1)
+    boundary_proper_unyt = (
+        initial_condition['radius_inner_proper']
+        + boundary_proper_unyt * (
+            initial_condition['radius_outer_proper']
+            - initial_condition['radius_inner_proper']
         )
-    return result
+    )
+    boundary_proper_code = quantity_to_value(boundary_proper_unyt, units.length_unit)
+    radius_proper_code = spherical_centers(boundary_proper_code)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=units)
+    writer.box_size = writer.radquantity(initial_condition['radius_outer_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(radius_proper_code * units.length_unit)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(count) * initial_condition['rho_proper']
+    )
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(count) * units.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(count) * initial_condition['temperature_proper']
+    )
+    writer.simulation.fluid.mu = np.ones(count)
+    writer.simulation.fluid.specific_angular_momentum_radarray = writer.radarray(
+        float(initial_condition['rotation_factor'])
+        * np.sqrt(
+            quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
+            * radius_proper_code
+        ) * units.length_unit.units * units.velocity_unit.units,
+        field_name='specific_angular_momentum_code',
+    )
+    return writer
 
 
 class FixedCentralGravity:
@@ -95,7 +79,7 @@ class FixedCentralGravity:
     def __init__(self, central_mass):
         self.central_mass = central_mass
 
-    def acceleration_on_mesh(self, mesh, rho_proper_code=None, par=None):
+    def acceleration_on_mesh(self, mesh, par=None, **kwargs):
         radius_proper_code = np.abs(np.asarray(mesh.x_proper_code, dtype=float))
         acceleration = np.zeros_like(radius_proper_code)
         valid = radius_proper_code > 0.0
@@ -118,26 +102,29 @@ def run_simulation(config):
     initial_condition = config['initial_condition']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
-    initial = build_initial_condition(
-        config, count,
-        quantity_to_value(initial_condition['radius_inner_proper'], units.length_unit),
-        quantity_to_value(initial_condition['radius_outer_proper'], units.length_unit),
-        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
-        quantity_to_value(initial_condition['temperature_proper'], units.temperature_unit),
-        quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit),
-        float(initial_condition['rotation_factor']),
-    )
-    config["_initial_condition_runtime_state"] = initial
-    prepare_initial_condition(config)
+    initial = build_initial_condition(config)
+    specific_angular_momentum_proper_code = np.asarray(
+        initial.simulation.fluid.specific_angular_momentum_radarray, dtype=float
+    ).copy()
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
-    rio.writehdf5(initial, filename)
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
+    initial.write(filename)
+    sim = rio.loadhdf5(config, str(filename))
+    if hasattr(sim.fluid, 'specific_angular_momentum_code'):
+        del sim.fluid.specific_angular_momentum_code
+    if hasattr(sim.fluid, 'AngularMomentum_code'):
+        del sim.fluid.AngularMomentum_code
     central_mass = quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
     sim.par.gravity = FixedCentralGravity(central_mass)
     sim.SetMesh()
     sim.SetFluid()
+    ghost_cells = int(sim.par.mesh.ghost_cells)
+    sim.fluid.specific_angular_momentum_code = as_named_array(np.concatenate((
+        np.zeros(ghost_cells), specific_angular_momentum_proper_code,
+        np.zeros(ghost_cells),
+    )))
+    if hasattr(sim.fluid, 'AngularMomentum_code'):
+        del sim.fluid.AngularMomentum_code
     sim.SetInitFluid()
     sim.par.gravity = FixedCentralGravity(central_mass)
     active = slice(int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells))
@@ -145,11 +132,10 @@ def run_simulation(config):
     initial_energy = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
     initial_radius = np.asarray(sim.mesh.x_proper_code[active], dtype=float).copy()
     sim.Run(outputtime=0, mode='hydro')
-    final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
-    sim.fluid.SetTemperature()
-    rio.writehdf5(sim, final_filename)
-    final_sim = Rsim(config["par"])
-    rio.readhdf5(final_sim.par, final_sim.mesh, final_sim.fluid, final_filename)
+    final_filename = sorted(
+        (ROOT / par['output']['directory']).glob('Output_[0-9][0-9][0-9].hdf5')
+    )[-1]
+    final_sim = rio.loadhdf5(config, final_filename)
     return (
         sim, final_sim.mesh, final_sim.fluid, initial_mass, initial_energy,
         initial_radius, float(sim.cumulative_gravity_work),

@@ -19,6 +19,7 @@ par:
   timestep:
     dtmin: {value: 1.0e-8, unit: s}
     dtmax: {value: 1.0e-3, unit: s}
+    source_timestep: {value: 1.0e-3, unit: s}
   output:
     directory: outputs
     filename_prefix: Output
@@ -37,6 +38,5 @@ initial_condition:
   rho_proper: {value: 1.0, unit: g/cm**3}
   vel_proper: {value: -0.2, unit: cm/s}
   specific_angular_momentum: {value: 0.7, unit: cm**2/s}
-example:
   temperature_proper: {value: 1.0e-8, unit: K}
-  timestep: {value: 1.0e-3, unit: s}
+example: {}

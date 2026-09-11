@@ -17,9 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 import example_utils as eu
 
 
@@ -27,58 +29,40 @@ CONFIG = ROOT / 'gas_centrifugal_work_source1d.yaml'
 
 def build_initial_condition(config):
     initial_condition = config['initial_condition']
-    example_config = config['example']
     par = config['par']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    radius_proper_code = quantity_to_value(initial_condition['radius_proper'], units.length_unit)
-    result = Rsim(config['par'])
-    result.par.mesh.grid_cells = 1
-    result.par.mesh.ghost_cells = 0
-    result.par.simulation.coordinate_system = 'spherical'
-    result.par.simulation.time_proper_code = 0.0
-    result.par.simulation.box_size_proper_code = np.asarray([radius_proper_code])
-    boundary_proper_code = np.asarray([radius_proper_code - 0.5, radius_proper_code + 0.5])
-    result.mesh.boundary_proper_code = boundary_proper_code
-    result.mesh.x_proper_code = np.asarray([radius_proper_code])
-    result.mesh.width_proper_code = np.asarray([1.0])
-    result.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
-    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code ** 3)
-    result.fluid.rho_proper_code = np.asarray([quantity_to_value(initial_condition['rho_proper'], units.density_unit)])
-    result.fluid.vel_proper_code = np.asarray([quantity_to_value(initial_condition['vel_proper'], units.velocity_unit)])
-    result.fluid.temp_proper_code = np.asarray([quantity_to_value(example_config['temperature_proper'], units.temperature_unit)])
-    result.fluid.mu = np.ones(1)
-    result.fluid.specific_angular_momentum_code = np.asarray([
-        quantity_to_value(initial_condition['specific_angular_momentum'], units.length_unit * units.velocity_unit)
-    ])
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=result.mesh.x_proper_code,
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=result.mesh.width_proper_code,
-        area_proper_code=result.mesh.area_proper_code,
-        volume_proper_code=result.mesh.volume_proper_code,
+    radius_proper_unyt = initial_condition['radius_proper']
+    boundary_proper_unyt = radius_proper_unyt + np.array([-0.5, 0.5]) * units.length_unit
+    writer = InitialConditionWriter(par_config=config['par'], code_units=units)
+    writer.box_size = writer.radquantity(boundary_proper_unyt[-1])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(1) * initial_condition['rho_proper']
     )
-    result.fluid.pre_proper_code = result.fluid.temp_proper_code * 0.4
-    result.fluid.time_proper_code = 0.0
-    result.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    result.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, rho_proper_code=result.fluid.rho_proper_code,
-        vel_proper_code=result.fluid.vel_proper_code,
-        pre_proper_code=result.fluid.pre_proper_code,
-        temp_proper_code=result.fluid.temp_proper_code, time_proper_code=0.0,
-        mu_dimensionless=result.fluid.mu,
+    writer.fluid.vel_radarray = writer.radarray(
+        np.ones(1) * initial_condition['vel_proper']
     )
-    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
-    return result
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(1) * initial_condition['temperature_proper']
+    )
+    writer.simulation.fluid.mu = np.ones(1)
+    writer.simulation.fluid.specific_angular_momentum_radarray = writer.radarray(
+        np.atleast_1d(quantity_to_value(
+            initial_condition['specific_angular_momentum'],
+            units.length_unit * units.velocity_unit,
+        )) * units.length_unit.units * units.velocity_unit.units,
+        field_name='specific_angular_momentum_code',
+    )
+    return writer
 
 
 def run_simulation(config):
     par = config['par']
     initial_condition = config['initial_condition']
-    example_config = config['example']
     initial = build_initial_condition(config)
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
-    rio.writehdf5(initial, ic_filename)
+    initial.write(ic_filename)
     sim = Rsim(config["par"])
 
     def source_backend(dt, mode='sources', **kwargs):
@@ -88,10 +72,23 @@ def run_simulation(config):
         source_backend.record_source_state(dt)
         return {'dt': dt, 'hydro_steps': 0, 'source_steps': 1}
 
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(ic_filename))
+    sim = rio.loadhdf5(config, str(ic_filename))
+    if hasattr(sim.fluid, 'specific_angular_momentum_code'):
+        del sim.fluid.specific_angular_momentum_code
+    if hasattr(sim.fluid, 'AngularMomentum_code'):
+        del sim.fluid.AngularMomentum_code
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    ghost_cells = int(sim.par.mesh.ghost_cells)
+    sim.fluid.specific_angular_momentum_code = as_named_array(np.concatenate((
+        np.zeros(ghost_cells),
+        np.asarray(initial.simulation.fluid.specific_angular_momentum_radarray, dtype=float),
+        np.zeros(ghost_cells),
+    )))
+    sim.fluid.AngularMomentum_code = as_named_array(
+        sim.fluid.Mass_code * sim.fluid.specific_angular_momentum_code
+    )
     first = int(sim.par.mesh.ghost_cells)
     initial_mass = float(sim.fluid.Mass_code[first])
     initial_momentum = float(sim.fluid.Mom_code[first])
@@ -112,11 +109,10 @@ def run_simulation(config):
     sim.Run(
         outputtime=0, mode='sources', step_backend=source_backend,
     )
-    final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
-    sim.fluid.SetTemperature()
-    rio.writehdf5(sim, final_filename)
-    final_sim = Rsim(config["par"])
-    rio.readhdf5(final_sim.par, final_sim.mesh, final_sim.fluid, final_filename)
+    final_filename = sorted(
+        (ROOT / par['output']['directory']).glob('Output_[0-9][0-9][0-9].hdf5')
+    )[-1]
+    final_sim = rio.loadhdf5(config, final_filename)
     return (
         sim, final_sim.fluid, initial_mass, initial_momentum, initial_energy,
         initial_internal, np.asarray(source_times), np.asarray(source_momenta),
@@ -129,7 +125,6 @@ def main(config_filename=CONFIG):
     par = config['par']
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial_condition = config['initial_condition']
-    example_config = config['example']
     (sim, saved, mass, initial_momentum, initial_energy,
      initial_internal, source_times, source_momenta, source_energies,
      source_works) = run_simulation(config)
@@ -156,11 +151,11 @@ def main(config_filename=CONFIG):
     expected_work = (
         0.5 * (expected_momentum**2 - initial_momentum**2) / mass
     )
-    final_momentum = float(saved.Mass_code[active][0] * saved.vel_proper_code[active][0])
-    final_energy = float(saved.Energy_code[active][0])
-    final_j = float(saved.specific_angular_momentum_code[active][0])
-    final_internal = float(saved.InternalEnergy_code[active][0]) if hasattr(
-        saved, 'InternalEnergy') else initial_internal
+    final_momentum = float(sim.fluid.Mom_code[first])
+    final_energy = float(sim.fluid.Energy_code[first])
+    final_j = float(sim.fluid.specific_angular_momentum_code[first])
+    final_internal = float(sim.fluid.InternalEnergy_code[first]) if hasattr(
+        sim.fluid, 'InternalEnergy_code') else initial_internal
     momentum_error = abs(final_momentum - expected_momentum[-1])
     energy_error = abs(final_energy - expected_energy[-1])
     if momentum_error > 1.0e-11 or energy_error > 1.0e-11:

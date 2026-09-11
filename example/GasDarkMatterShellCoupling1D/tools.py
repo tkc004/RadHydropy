@@ -1,47 +1,45 @@
 """Initial-condition and dark-matter helpers for the coupled example."""
 
 import numpy as np
-import unyt
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.arrays import as_named_array
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.cosmology_context import CosmologyContext
 
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     grid_cells = int(config["par"]['mesh']['grid_cells'])
-    result = Rsim(config["par"])
-    result.par.simulation.coordinate_system = 'spherical'
-    result.par.simulation.box_size_proper_code = float(initial['radius_outer_proper'].to_value(code_units.length_unit))
-    result.par.mesh.ghost_cells = 1
-    boundary_proper_code = np.linspace(initial['radius_inner_proper'].to_value(code_units.length_unit), result.par.simulation.box_size_proper_code, grid_cells + 1)
-    x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
-    result.mesh.boundary_proper_code = as_named_array(boundary_proper_code)
-    result.fluid.rho_proper_code = as_named_array((np.ones(grid_cells) * initial['rho_proper']).to_value(code_units.density_unit))
-    result.fluid.temp_proper_code = as_named_array((np.ones(grid_cells) * initial['temperature_proper']).to_value(code_units.temperature_unit))
-    result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
-    result.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mu'])
-    result.SetMesh()
-    result.fluid.SetUpFluid(result.par, result.mesh)
-    first, last = 1, grid_cells + 1
-    result.mesh.boundary_proper_code = as_named_array(result.mesh.boundary_proper_code[first:last + 1])
-    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'mu'):
-        setattr(result.fluid, field, as_named_array(getattr(result.fluid, field)[first:last]))
-    result.par.mesh.ghost_cells = 0
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code,
-        boundary_proper_code=result.mesh.boundary_proper_code,
-        width_proper_code=np.diff(result.mesh.boundary_proper_code),
-        area_proper_code=4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2,
-        volume_proper_code=4.0 * np.pi / 3.0 * (result.mesh.boundary_proper_code[1:]**3 - result.mesh.boundary_proper_code[:-1]**3),
+    radius_inner_proper_code = quantity_to_value(
+        initial['radius_inner_proper'], code_units.length_unit
     )
-    result.fluid.SetPressure()
-    result.fluid.SetEnergyDensity()
-    return result
+    radius_outer_proper_code = quantity_to_value(
+        initial['radius_outer_proper'], code_units.length_unit
+    )
+    boundary_proper_code = np.linspace(
+        radius_inner_proper_code, radius_outer_proper_code, grid_cells + 1
+    )
+    x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+    boundary_proper_unyt = boundary_proper_code * code_units.length_unit
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.simulation.par.cosmology_context = CosmologyContext(
+        gamma=1.000001, cosmology='proper'
+    )
+    writer.box_size = writer.radquantity(boundary_proper_unyt[-1])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(x_proper_code * code_units.length_unit)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['rho_proper']
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['temperature_proper']
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * code_units.velocity_unit
+    )
+    writer.simulation.fluid.mu = np.ones(grid_cells) * float(initial['mu'])
+    return writer
 
 
 def make_dark_matter(config):
@@ -50,18 +48,32 @@ def make_dark_matter(config):
 
     code_units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     count = int(initial_condition['dark_matter_shells'])
-    radius_proper_code = np.linspace(0.05, 0.95, count)
+    radius_inner_proper_code = quantity_to_value(
+        initial_condition['radius_inner_proper'], code_units.length_unit
+    )
+    radius_outer_proper_code = quantity_to_value(
+        initial_condition['radius_outer_proper'], code_units.length_unit
+    )
+    radius_proper_code = np.linspace(
+        radius_inner_proper_code, radius_outer_proper_code, count
+    )
     vel_radial_proper_code = np.asarray(radius_proper_code) * float(
-        initial_condition['dark_matter_velocity_scale']
+        initial_condition['dark_matter_velocity_scale_dimensionless']
     )
     angular_momentum = np.full(
-        count, float(initial_condition['dark_matter_angular_momentum'])
+        count, float(initial_condition['dark_matter_angular_momentum_dimensionless'])
+    )
+    mass_code = quantity_to_value(
+        initial_condition['dark_matter_mass'], code_units.mass_unit
+    )
+    softening_proper_code = quantity_to_value(
+        initial_condition['dark_matter_softening'], code_units.length_unit
     )
     return DarkMatterShells(
         radius_proper_code,
         vel_radial_proper_code,
-        np.full(count, initial_condition['dark_matter_mass'] / count),
+        np.full(count, mass_code / count),
         angular_momentum=angular_momentum,
-        softening=initial_condition['dark_matter_softening'],
+        softening=softening_proper_code,
         code_units=code_units,
     )

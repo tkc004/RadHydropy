@@ -28,6 +28,7 @@ from radhydropy.cosmological_variables import (
 )
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, SUPERCOMOVING_RUNTIME_FIELDS
+from radhydropy.arrays import as_named_array
 import example_utils as eu
 
 
@@ -121,10 +122,10 @@ class CosmologicalCentralGravity:
         self.cosmology = cosmology
         self.tau = 0.0
 
-    def acceleration_on_mesh(self, mesh, rho_comoving_code=None, par=None):
+    def acceleration_on_mesh(self, mesh, par=None, **kwargs):
         tau = float(np.asarray(
             getattr(getattr(par, 'simulation', None), 'tau_supercomoving_code', self.tau)
-        )) if par is not None else self.tau
+        ).flat[0]) if par is not None else self.tau
         scale_factor = self.cosmology.scale_factor_from_supercomoving(tau)
         radius_comoving_code = np.asarray(mesh.x_comoving_code, dtype=float)
         return -scale_factor * self.central_mass_dimensionless / radius_comoving_code**2
@@ -144,18 +145,31 @@ def run_rsim(config):
     ) / (initial_boundary[1:]**3 - initial_boundary[:-1]**3)
     circular_j_profile = np.full(count, float(j))
     initial = build_initial_condition(config, circular_j_profile)
+    specific_angular_momentum_supercomoving_code = np.asarray(
+        initial.fluid.specific_angular_momentum_code, dtype=float
+    ).copy()
     initial.par.cosmology = cosmology
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     rio.writehdf5(initial, filename)
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, str(filename))
+    sim = rio.loadhdf5(config, str(filename))
+    if hasattr(sim.fluid, 'specific_angular_momentum_code'):
+        del sim.fluid.specific_angular_momentum_code
+    if hasattr(sim.fluid, 'AngularMomentum_code'):
+        del sim.fluid.AngularMomentum_code
     gravity = CosmologicalCentralGravity(
         float(initial_condition['central_excess_mass_dimensionless']), cosmology
     )
     sim.par.gravity = gravity
     sim.SetMesh()
     sim.SetFluid()
+    ghost_cells = int(sim.par.mesh.ghost_cells)
+    sim.fluid.specific_angular_momentum_code = as_named_array(np.concatenate((
+        np.zeros(ghost_cells), specific_angular_momentum_supercomoving_code,
+        np.zeros(ghost_cells),
+    )))
+    if hasattr(sim.fluid, 'AngularMomentum_code'):
+        del sim.fluid.AngularMomentum_code
     sim.SetInitFluid()
     initial_tau = np.asarray(initial.par.tau_supercomoving_code, dtype=float)
     sim.par.tau_supercomoving_code = initial_tau.copy()
@@ -173,16 +187,10 @@ def run_rsim(config):
     # Fixed-cadence output is intentionally independent of the requested
     # final time.  Persist the actual terminal state so the analytic
     # comparison is made at the same supercomoving time as the simulation.
-    final_filename = ROOT / par['output']['directory'] / 'Output_final.hdf5'
-    sim.fluid.SetTemperature()
-    rio.writehdf5(sim, final_filename)
-    final_state = Rsim(config["par"])
-    rio.readhdf5(
-        final_state.par,
-        final_state.mesh,
-        final_state.fluid,
-        final_filename,
-    )
+    final_filename = sorted(
+        (ROOT / par['output']['directory']).glob('Output_[0-9][0-9][0-9].hdf5')
+    )[-1]
+    final_state = rio.loadhdf5(config, final_filename)
     return initial, sim, final_state.fluid
 
 
