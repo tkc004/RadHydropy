@@ -68,7 +68,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     radius_proper_radarray = 0.5 * (
         boundary_proper_radarray[:-1] + boundary_proper_radarray[1:]
     )
-    radius_proper_kpc = radius_proper_radarray.to("kpc")
+    radius_proper_kpc = radius_proper_radarray.to("kpc").value
     xHI = np.asarray(
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
         dtype=float,
@@ -79,7 +79,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         active_cells,
         ghost_cells,
     )
-    temperature_cgs_K = temperature_proper_radarray.to("K")
+    temperature_cgs_K = temperature_proper_radarray.to("K").value
     ngamma_radarray = active_radarray(
         snapshot.fluid.ngamma_radarray,
         active_cells,
@@ -87,7 +87,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     )
     if ngamma_radarray.ndim == 1:
         ngamma_radarray = ngamma_radarray[None, :]
-    ngamma_cgs_cm3 = ngamma_radarray.to("1/cm**3")
+    ngamma_cgs_cm3 = ngamma_radarray.to("1/cm**3").value
 
     xhi_reference = _resolve_reference(
         config, config_filename, "neutral_fraction_reference_filename"

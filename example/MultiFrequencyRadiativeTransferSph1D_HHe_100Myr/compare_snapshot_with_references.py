@@ -46,7 +46,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
         active_cells,
         ghost_cells,
     )
-    temperature_cgs_K = temperature_proper_radarray.to("K")
+    temperature_cgs_K = temperature_proper_radarray.to("K").value
     xhi = np.asarray(
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
         dtype=float,
@@ -111,7 +111,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
     temperature_axis.plot(
         radius_proper_kpc,
         np.clip(
-            temperature_cgs_K.value,
+            temperature_cgs_K,
             1.0,
             None,
         ),
