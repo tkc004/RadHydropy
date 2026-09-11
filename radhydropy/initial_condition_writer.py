@@ -106,6 +106,7 @@ class InitialConditionWriter:
                 "vel_radarray",
                 "pre_radarray",
                 "temp_radarray",
+                "ngamma_radarray",
             },
         )
 
@@ -537,6 +538,9 @@ class InitialConditionWriter:
         setattr(fluid, velocity_field, velocity_values)
         setattr(fluid, temperature_field, temperature_values)
         setattr(fluid, pressure_field, pressure_values)
+        ngamma_radarray = self._fields.get("ngamma_radarray")
+        if ngamma_radarray is not None:
+            fluid.ngamma_code = self._code_values(ngamma_radarray)
         specific_angular_momentum = getattr(
             fluid, "specific_angular_momentum_radarray", None
         )

@@ -54,14 +54,10 @@ par:
     directory: .
     filename_prefix: Output_C2Ray
 initial_condition:
-  number_of_cells: 128
+  grid_cells: 128
+  time_proper: {value: 0.0, unit: Myr}
   box_size_proper: {value: 10.0, unit: kpc}
   hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
   temperature_proper: {value: 100.0, unit: K}
 example:
-  directory: .
   figure_filename: MultiFrequencyRadiativeTransferSph1D_HHe_100Myr_C2Ray.jpg
-  evolution_timestep: {value: 0.5, unit: Myr}
-  temperature_proper: {value: 100.0, unit: K}
-  hydrogen_number_density: {value: 0.001, unit: 1/cm**3}
-  box_size_proper: {value: 10.0, unit: kpc}

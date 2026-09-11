@@ -202,6 +202,16 @@ class RadArray(unyt.unyt_array):
         ordinary_array = unyt.unyt_array(np.asarray(self, dtype=float), self.units)
         return ordinary_array.to_value(units, equivalence=equivalence)
 
+    def to(self, units, equivalence=None):
+        """Return an ordinary unit-bearing array in ``units``.
+
+        Delegate through ``unyt_array`` because unyt's default implementation
+        reconstructs subclasses with constructor arguments that ``RadArray``
+        intentionally does not accept.
+        """
+        ordinary_array = unyt.unyt_array(np.asarray(self, dtype=float), self.units)
+        return ordinary_array.to(units, equivalence=equivalence)
+
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         rad_inputs = [value for value in inputs if isinstance(value, RadArray)]
         if len(rad_inputs) > 1:

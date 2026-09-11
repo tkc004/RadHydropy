@@ -604,9 +604,25 @@ class Fluid():
                     )
                 )
             )
-            self.ngamma_code = as_named_array(
-                np.concatenate((np.full(noghost, initial), values, np.full(noghost, initial)))
-            )
+            if values.ndim == 2:
+                ghost = np.full(
+                    (values.shape[0], noghost),
+                    initial,
+                    dtype=float,
+                )
+                self.ngamma_code = as_named_array(
+                    np.concatenate((ghost, values, ghost), axis=1)
+                )
+            else:
+                self.ngamma_code = as_named_array(
+                    np.concatenate(
+                        (
+                            np.full(noghost, initial),
+                            values,
+                            np.full(noghost, initial),
+                        )
+                    )
+                )
 
         if getattr(par, "gravity_potential_energy", False) and not hasattr(
             self, "GravitationalPotentialEnergy_code"

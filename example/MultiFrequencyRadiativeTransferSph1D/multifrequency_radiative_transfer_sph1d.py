@@ -1,7 +1,6 @@
 """Pure-hydrogen multifrequency long-characteristic radiation example."""
 
 import argparse
-import importlib.util
 import os
 import sys
 import tempfile
@@ -19,9 +18,6 @@ if str(repo_root) not in sys.path:
 example_root = Path(__file__).resolve().parents[1]
 if str(example_root) not in sys.path:
     sys.path.insert(0, str(example_root))
-static_dir = Path(__file__).resolve().parents[1] / "StaticStromgrenSpherePhotoheating1D"
-if str(static_dir) not in sys.path:
-    sys.path.insert(0, str(static_dir))
 
 cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
 mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
@@ -32,17 +28,14 @@ os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
 import example_utils as eu
 from example_utils import load_nested_example_config
-from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
-
-tools_spec = importlib.util.spec_from_file_location(
-    "static_stromgren_photoheating_tools",
-    static_dir / "tools.py",
+from multifrequency_tools import (
+    active_radarray,
+    build_initial_condition,
+    load_log_reference_profile,
+    load_snapshot,
 )
-tools = importlib.util.module_from_spec(tools_spec)
-assert tools_spec.loader is not None
-tools_spec.loader.exec_module(tools)
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(
@@ -58,35 +51,43 @@ def _resolve_reference(config, config_filename, key):
     if not path.is_absolute():
         path = Path(config_filename).resolve().parent / path
     radius_unit = example.get("reference_radius_unit", 5.4 * unyt.kpc)
-    return tools.load_log_reference_profile(path, radius_unit)
+    return load_log_reference_profile(path, radius_unit)
 
 
 def _save_plot(output_filename, config, figure_filename, config_filename):
-    snapshot = Rsim(config["par"])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, output_filename)
-    par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
+    snapshot = load_snapshot(output_filename, config)
     code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    first = int(par.mesh.ghost_cells)
-    last = first + int(par.mesh.grid_cells)
-    interior = slice(first, last)
-    boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
-    x_proper_code = 0.5 * (
-        boundary_proper_code[:-1] + boundary_proper_code[1:]
+    active_cells = int(snapshot.par.mesh.grid_cells)
+    ghost_cells = int(snapshot.par.mesh.ghost_cells)
+    boundary_proper_radarray = active_radarray(
+        snapshot.mesh.boundary_radarray,
+        active_cells,
+        ghost_cells,
+        boundary=True,
     )
-    radius_proper_kpc = (
-        x_proper_code[interior] * code.length_unit
-    ).to_value(unyt.kpc)
-    xHI = np.asarray(fluid.xHI[interior], dtype=float)
+    radius_proper_radarray = 0.5 * (
+        boundary_proper_radarray[:-1] + boundary_proper_radarray[1:]
+    )
+    radius_proper_kpc = radius_proper_radarray.to("kpc")
+    xHI = np.asarray(
+        active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
+        dtype=float,
+    )
     xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
-    temperature_cgs_K = (
-        np.asarray(fluid.temp_proper_code[interior], dtype=float) * code.temperature_unit
-    ).to_value(unyt.K)
-    ngamma_values = np.asarray(fluid.ngamma_code, dtype=float)
-    if ngamma_values.ndim == 1:
-        ngamma_values = ngamma_values[None, :]
-    ngamma_cgs_cm3 = (
-        ngamma_values[:, interior] * code.number_density_unit
-    ).to_value(1.0 / unyt.cm**3)
+    temperature_proper_radarray = active_radarray(
+        snapshot.fluid.temp_radarray,
+        active_cells,
+        ghost_cells,
+    )
+    temperature_cgs_K = temperature_proper_radarray.to("K")
+    ngamma_radarray = active_radarray(
+        snapshot.fluid.ngamma_radarray,
+        active_cells,
+        ghost_cells,
+    )
+    if ngamma_radarray.ndim == 1:
+        ngamma_radarray = ngamma_radarray[None, :]
+    ngamma_cgs_cm3 = ngamma_radarray.to("1/cm**3")
 
     xhi_reference = _resolve_reference(
         config, config_filename, "neutral_fraction_reference_filename"
@@ -183,14 +184,16 @@ def main(config_filename=DEFAULT_CONFIG):
     output['directory'] = str(output_dir)
     par['simulation']['initial_condition_filename'] = str(ic_filename)
     eu.clean_previous_outputs(config)
-    par_obj, mesh, fluid, solver = tools.build_static_problem(config)
-    sim = Rsim.FromComponents(par_obj, mesh, fluid, solver)
-    rio.writehdf5(sim, ic_filename)
+    code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    config["_code_units"] = code
+    writer = build_initial_condition(config)
+    writer.write(ic_filename, validate=True)
+    sim = load_snapshot(ic_filename, config)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     sim.EvolveStaticThermochemistry(
-        par_obj.simulation.final_time,
+        sim.par.simulation.final_time,
         par['timestep']['evolution_timestep'],
     )
     output_filename = output_dir / (

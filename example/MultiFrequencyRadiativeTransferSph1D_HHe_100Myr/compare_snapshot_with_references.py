@@ -11,14 +11,15 @@ import numpy as np
 
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = EXAMPLE_ROOT.parent
-for path in (PROJECT_ROOT, EXAMPLE_ROOT):
+SOURCE_EXAMPLE = EXAMPLE_ROOT / "MultiFrequencyRadiativeTransferSph1D"
+for path in (PROJECT_ROOT, EXAMPLE_ROOT, SOURCE_EXAMPLE):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
 import example_utils as eu
-import radhydropy.io as rio
-from radhydropy.rsim import Rsim
 import unyt
+
+from multifrequency_tools import active_radarray, load_snapshot
 
 
 HERE = Path(__file__).resolve().parent
@@ -37,32 +38,47 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
     snapshot_filename = Path(snapshot_filename)
     figure_filename = Path(figure_filename)
     config = eu.load_nested_example_config(config_filename)
-    snapshot = Rsim(config["par"])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(snapshot_filename))
-    first = int(snapshot.par.mesh.ghost_cells)
-    last = first + int(snapshot.par.mesh.grid_cells)
-    code_units = snapshot.par.units.CodeUnits
-    temperature_proper_code = np.asarray(snapshot.fluid.temp_proper_code)
-    xhi = np.asarray(snapshot.fluid.xHI)
-    xhei = np.asarray(snapshot.fluid.xHeI)
-    xheii = np.asarray(snapshot.fluid.xHeII)
-    xheiii = np.asarray(snapshot.fluid.xHeIII)
-    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)
-
-    interior = slice(first, last)
-    radius_proper_code = 0.5 * (
-        boundary_proper_code[:-1] + boundary_proper_code[1:]
+    snapshot = load_snapshot(snapshot_filename, config)
+    active_cells = int(snapshot.par.mesh.grid_cells)
+    ghost_cells = int(snapshot.par.mesh.ghost_cells)
+    temperature_proper_radarray = active_radarray(
+        snapshot.fluid.temp_radarray,
+        active_cells,
+        ghost_cells,
     )
-    radius_proper_code = radius_proper_code[interior]
-    radius_proper_kpc = (
-        radius_proper_code * float(code_units.length_unit.to_value(unyt.kpc)) / 5.4
+    temperature_cgs_K = temperature_proper_radarray.to("K")
+    xhi = np.asarray(
+        active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
+        dtype=float,
     )
+    xhei = np.asarray(
+        active_radarray(snapshot.fluid.xHeI, active_cells, ghost_cells),
+        dtype=float,
+    )
+    xheii = np.asarray(
+        active_radarray(snapshot.fluid.xHeII, active_cells, ghost_cells),
+        dtype=float,
+    )
+    xheiii = np.asarray(
+        active_radarray(snapshot.fluid.xHeIII, active_cells, ghost_cells),
+        dtype=float,
+    )
+    boundary_proper_radarray = active_radarray(
+        snapshot.mesh.boundary_radarray,
+        active_cells,
+        ghost_cells,
+        boundary=True,
+    )
+    radius_proper_radarray = 0.5 * (
+        boundary_proper_radarray[:-1] + boundary_proper_radarray[1:]
+    )
+    radius_proper_kpc = radius_proper_radarray.to("kpc").value / 5.4
     snapshot = {
-        "H I": xhi[interior],
-        "H II": 1.0 - xhi[interior],
-        "He I": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xhei[interior],
-        "He II": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheii[interior],
-        "He III": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheiii[interior],
+        "H I": xhi,
+        "H II": 1.0 - xhi,
+        "He I": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xhei,
+        "He II": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheii,
+        "He III": HELIUM_TO_HYDROGEN_NUMBER_RATIO * xheiii,
     }
     references = {
         "H I": "xHITT1D_Stromgren100Myr_HHe.txt",
@@ -95,8 +111,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
     temperature_axis.plot(
         radius_proper_kpc,
         np.clip(
-            temperature_proper_code[interior]
-            * float(code_units.temperature_unit.to_value(unyt.K)),
+            temperature_cgs_K.value,
             1.0,
             None,
         ),
