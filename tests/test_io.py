@@ -33,6 +33,19 @@ CODE_UNITS = CodeUnits.from_mapping(
     }
 )
 
+NONTRIVIAL_CODE_UNITS = CodeUnits.from_mapping(
+    {
+        'name': 'nontrivial_test_units',
+        'InternalUnitSystem': {
+            'UnitMass_in_cgs': 3.0,
+            'UnitLength_in_cgs': 10.0,
+            'UnitVelocity_in_cgs': 2.0,
+            'UnitCurrent_in_cgs': 1.0,
+            'UnitTemp_in_cgs': 4.0,
+        },
+    }
+)
+
 
 def _attach_proper_runtime_state(mesh, fluid):
     """Attach the numeric proper-code state used by the serializer tests."""
@@ -78,6 +91,42 @@ class Testing(unittest.TestCase):
     def _scalar_value(value):
         return float(np.ravel(np.asarray(value))[0])
 
+    @staticmethod
+    def _validation_snapshot():
+        par = parameter_namespace(
+            coordsys='cartesian',
+            nogrid=2,
+            time_proper_code=0.0,
+            box_size_proper=2.0,
+            CodeUnits=CODE_UNITS,
+        )
+        mesh = SimpleNamespace()
+        mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            x_proper_code=np.array([0.5, 1.5]),
+            boundary_proper_code=np.array([0.0, 1.0, 2.0]),
+            width_proper_code=np.ones(2),
+            area_proper_code=np.ones(2),
+            volume_proper_code=np.ones(2),
+        )
+        fluid = SimpleNamespace(
+            rho_proper_code=np.ones(2),
+            vel_proper_code=np.zeros(2),
+            temp_proper_code=np.ones(2),
+            pre_proper_code=np.ones(2),
+            mu=np.ones(2),
+        )
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            rho_proper_code=fluid.rho_proper_code,
+            vel_proper_code=fluid.vel_proper_code,
+            pre_proper_code=fluid.pre_proper_code,
+            temp_proper_code=fluid.temp_proper_code,
+            time_proper_code=0.0,
+            mu_dimensionless=fluid.mu,
+        )
+        return SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+
     def test_hdf5_roundtrip_handles_scalar_header_quantities(self):
         par = parameter_namespace(
             coordsys='cartesian',
@@ -108,6 +157,12 @@ class Testing(unittest.TestCase):
         self.assertEqual(self._scalar_value(loaded_par.time_proper_code), 0.0)
         self.assertEqual(self._scalar_value(loaded_par.box_size_proper), 3.0)
         self.assertEqual(self._scalar_value(loaded_fluid.time_proper_code), 0.0)
+        self.assertAlmostEqual(loaded_par.cosmology_context.gamma, 5.0 / 3.0)
+        self.assertEqual(loaded_par.cosmology_context.scale_factor, 1.0)
+        self.assertEqual(
+            loaded_par.cosmology_context.hubble_parameter_km_s_Mpc,
+            0.0,
+        )
 
     def test_hdf5_uses_canonical_code_state_dataset_names(self):
         par = parameter_namespace(
@@ -148,6 +203,63 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(loaded_fluid.rho_proper_code, fluid.rho_code.value)
         np.testing.assert_allclose(loaded_fluid.ngamma_code, fluid.ngamma_code.value)
         np.testing.assert_allclose(loaded_mesh.boundary_proper_code, mesh.boundary.to_value(unyt.cm))
+
+    def test_hdf5_canonical_fields_are_stored_as_code_values(self):
+        par = parameter_namespace(
+            coordsys='cartesian',
+            nogrid=2,
+            time_proper_code=0.0,
+            box_size_proper=20.0,
+            CodeUnits=NONTRIVIAL_CODE_UNITS,
+        )
+        mesh = SimpleNamespace()
+        mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            x_proper_code=np.array([5.0, 15.0]),
+            boundary_proper_code=np.array([0.0, 10.0, 20.0]),
+            width_proper_code=np.array([10.0, 10.0]),
+            area_proper_code=np.ones(2),
+            volume_proper_code=np.array([10.0, 10.0]),
+        )
+        fluid = SimpleNamespace(
+            rho_proper_code=np.array([2.0, 3.0]),
+            vel_proper_code=np.array([4.0, 5.0]),
+            temp_proper_code=np.array([6.0, 7.0]),
+            pre_proper_code=np.array([8.0, 9.0]),
+            mu=np.ones(2),
+        )
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            rho_proper_code=fluid.rho_proper_code,
+            vel_proper_code=fluid.vel_proper_code,
+            pre_proper_code=fluid.pre_proper_code,
+            temp_proper_code=fluid.temp_proper_code,
+            time_proper_code=0.0,
+            mu_dimensionless=fluid.mu,
+        )
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+        loaded_par = parameter_namespace(
+            coordsys='cartesian', CodeUnits=NONTRIVIAL_CODE_UNITS
+        )
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, 'r') as handle:
+                data = handle['Data']
+                np.testing.assert_allclose(data['rho_proper_code'][()], [2.0, 3.0])
+                np.testing.assert_allclose(data['vel_proper_code'][()], [4.0, 5.0])
+                self.assertEqual(data['rho_proper_code'].attrs['storage_unit'], 'code')
+                self.assertEqual(data['rho_proper_code'].attrs['quantity'], 'mass_density')
+                np.testing.assert_array_equal(
+                    data['rho_proper_code'].attrs['dimensions'],
+                    (1, -3, 0, 0, 0),
+                )
+            rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        np.testing.assert_allclose(loaded_fluid.rho_proper_code, [2.0, 3.0])
+        np.testing.assert_allclose(loaded_fluid.vel_proper_code, [4.0, 5.0])
 
     def test_hdf5_roundtrip_preserves_gas_angular_momentum_fields(self):
         par = parameter_namespace(
@@ -504,6 +616,129 @@ class Testing(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+    def test_readhdf5_rejects_code_unit_mismatch_before_mutation(self):
+        par = parameter_namespace(
+            coordsys='cartesian',
+            nogrid=2,
+            time_proper_code=0.0,
+            box_size_proper=2.0,
+            CodeUnits=CODE_UNITS,
+        )
+        mesh = SimpleNamespace()
+        mesh.geometry_state = MeshGeometryState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            x_proper_code=np.array([0.5, 1.5]),
+            boundary_proper_code=np.array([0.0, 1.0, 2.0]),
+            width_proper_code=np.ones(2),
+            area_proper_code=np.ones(2),
+            volume_proper_code=np.ones(2),
+        )
+        fluid = SimpleNamespace(
+            rho_proper_code=np.ones(2),
+            vel_proper_code=np.zeros(2),
+            temp_proper_code=np.ones(2),
+            pre_proper_code=np.ones(2),
+            mu=np.ones(2),
+        )
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            PROPER_RUNTIME_FIELDS,
+            rho_proper_code=fluid.rho_proper_code,
+            vel_proper_code=fluid.vel_proper_code,
+            pre_proper_code=fluid.pre_proper_code,
+            temp_proper_code=fluid.temp_proper_code,
+            time_proper_code=0.0,
+            mu_dimensionless=fluid.mu,
+        )
+        sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
+        loaded_par = parameter_namespace(
+            coordsys='cartesian', CodeUnits=NONTRIVIAL_CODE_UNITS
+        )
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with self.assertRaises(rio.SnapshotConfigurationError):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        self.assertEqual(
+            loaded_par.CodeUnits.name, NONTRIVIAL_CODE_UNITS.name
+        )
+
+    def test_readhdf5_rejects_coordinate_system_mismatch_before_mutation(self):
+        sim = self._validation_snapshot()
+        loaded_par = parameter_namespace(
+            coordsys='spherical', nogrid=2, CodeUnits=CODE_UNITS
+        )
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with self.assertRaisesRegex(
+                rio.SnapshotConfigurationError, 'coordinate system'
+            ):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        self.assertEqual(loaded_par.simulation.coordinate_system, 'spherical')
+
+    def test_readhdf5_rejects_grid_size_mismatch_before_mutation(self):
+        sim = self._validation_snapshot()
+        loaded_par = parameter_namespace(
+            coordsys='cartesian', nogrid=3, CodeUnits=CODE_UNITS
+        )
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with self.assertRaisesRegex(
+                rio.SnapshotConfigurationError, 'grid size'
+            ):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        self.assertEqual(loaded_par.mesh.grid_cells, 3)
+
+    def test_readhdf5_rejects_representation_mismatch_before_mutation(self):
+        sim = self._validation_snapshot()
+        loaded_par = parameter_namespace(
+            coordsys='cartesian', nogrid=2, CodeUnits=CODE_UNITS
+        )
+        loaded_par.coordinate_frame = 'physical'
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, 'a') as handle:
+                handle['Header'].attrs['CoordinateFrame'] = 'comoving'
+            with self.assertRaisesRegex(
+                rio.SnapshotConfigurationError, 'coordinate_frame'
+            ):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        self.assertEqual(loaded_par.coordinate_frame, 'physical')
+
+    def test_readhdf5_rejects_cosmological_snapshot_for_noncosmological_runtime(self):
+        sim = self._validation_snapshot()
+        loaded_par = parameter_namespace(
+            coordsys='cartesian', nogrid=2, CodeUnits=CODE_UNITS
+        )
+        loaded_par.cosmological_expansion = False
+        loaded_mesh = SimpleNamespace()
+        loaded_fluid = SimpleNamespace()
+
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, 'a') as handle:
+                handle['Header'].attrs['CosmologyType'] = 'lambda_cdm'
+            with self.assertRaisesRegex(
+                rio.SnapshotConfigurationError, 'cosmological'
+            ):
+                rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
+
+        self.assertFalse(loaded_par.cosmological_expansion)
 
     def test_writehdf5_appends_initial_condition_to_used_parameters_yaml(self):
         with tempfile.TemporaryDirectory() as tmpdir:

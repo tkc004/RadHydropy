@@ -18,10 +18,16 @@ from radhydropy.runtime_fields import (
     SUPERCOMOVING_RUNTIME_FIELDS,
 )
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.field_metadata import FieldSpec, field_spec
 try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
     SympyBasic = None
+
+
+class SnapshotConfigurationError(ValueError):
+    """Raised when a snapshot is incompatible with the supplied runtime."""
 
 
 def _provenance_yaml_value(value):
@@ -115,6 +121,121 @@ def _read_provenance(header):
     return provenance
 
 
+def _code_units_from_parameter(par):
+    """Return pre-existing runtime code units, if the runtime declares them."""
+    code_units = getattr(par, "CodeUnits", None)
+    if code_units is not None:
+        return code_units
+    return getattr(getattr(par, "units", None), "CodeUnits", None)
+
+
+def _validate_snapshot_configuration(par, header, header_code_units):
+    """Validate header compatibility before mutating the runtime objects."""
+    expected_units = _code_units_from_parameter(par)
+    if expected_units is not None:
+        if not isinstance(expected_units, CodeUnits):
+            expected_units = CodeUnits.from_mapping(expected_units)
+        scales = (
+            ("mass", expected_units.mass_in_cgs, header_code_units.mass_in_cgs),
+            ("length", expected_units.length_in_cgs, header_code_units.length_in_cgs),
+            ("velocity", expected_units.velocity_in_cgs, header_code_units.velocity_in_cgs),
+            ("current", expected_units.current_in_cgs, header_code_units.current_in_cgs),
+            ("temperature", expected_units.temperature_in_cgs, header_code_units.temperature_in_cgs),
+        )
+        for name, expected, actual in scales:
+            if not np.isclose(expected, actual, rtol=1e-12, atol=0.0):
+                raise SnapshotConfigurationError(
+                    f"snapshot CodeUnits {name} scale ({actual}) does not "
+                    f"match runtime scale ({expected})"
+                )
+
+    header_coordsys = _restore_header_attr_value(
+        header.attrs.get("CoordinateSystem", None)
+    )
+    expected_coordsys = getattr(
+        getattr(par, "simulation", None), "coordinate_system", None
+    )
+    if (
+        header_coordsys is not None
+        and expected_coordsys is not None
+        and str(header_coordsys) != str(expected_coordsys)
+    ):
+        raise SnapshotConfigurationError(
+            f"snapshot coordinate system {header_coordsys!r} does not match "
+            f"runtime coordinate system {expected_coordsys!r}"
+        )
+
+    header_grid = header.attrs.get("GridCells", None)
+    expected_grid = getattr(getattr(par, "mesh", None), "grid_cells", None)
+    if (
+        header_grid is not None
+        and expected_grid is not None
+        and int(_restore_header_attr_value(header_grid)) != int(expected_grid)
+    ):
+        raise SnapshotConfigurationError(
+            f"snapshot grid size {int(_restore_header_attr_value(header_grid))} "
+            f"does not match runtime grid size {int(expected_grid)}"
+        )
+
+    header_cosmology = _restore_header_attr_value(
+        header.attrs.get("CosmologyType", None)
+    )
+    expected_expansion = getattr(par, "cosmological_expansion", None)
+    if (
+        header_cosmology is not None
+        and expected_expansion is False
+    ):
+        raise SnapshotConfigurationError(
+            "snapshot is cosmological but runtime has cosmological_expansion=False"
+        )
+    if (
+        header_cosmology is None
+        and expected_expansion is True
+    ):
+        raise SnapshotConfigurationError(
+            "snapshot is non-cosmological but runtime has cosmological_expansion=True"
+        )
+    expected_cosmology = getattr(par, "cosmology_type", None)
+    if expected_cosmology is None:
+        expected_model = getattr(par, "cosmology", None)
+        expected_cosmology = getattr(expected_model, "type_name", None)
+    if header_cosmology is not None and expected_cosmology is not None:
+        aliases = {
+            "LambdaCDM": "lambda_cdm",
+            "lcdm": "lambda_cdm",
+            "EinsteinDeSitter": "einstein_de_sitter",
+        }
+        header_cosmology = aliases.get(str(header_cosmology), str(header_cosmology))
+        expected_cosmology = aliases.get(str(expected_cosmology), str(expected_cosmology))
+        if header_cosmology != expected_cosmology:
+            raise SnapshotConfigurationError(
+                f"snapshot cosmology {header_cosmology!r} does not match "
+                f"runtime cosmology {expected_cosmology!r}"
+            )
+
+    for header_key, parameter_key in (
+        ("CoordinateFrame", "coordinate_frame"),
+        ("TimeCoordinate", "time_coordinate"),
+        ("VelocityRepresentation", "velocity_representation"),
+        ("DensityRepresentation", "density_representation"),
+        ("PressureRepresentation", "pressure_representation"),
+        ("TemperatureRepresentation", "temperature_representation"),
+    ):
+        header_value = _restore_header_attr_value(
+            header.attrs.get(header_key, None)
+        )
+        expected_value = getattr(par, parameter_key, None)
+        if (
+            header_value is not None
+            and expected_value is not None
+            and str(header_value) != str(expected_value)
+        ):
+            raise SnapshotConfigurationError(
+                f"snapshot {parameter_key} {header_value!r} does not match "
+                f"runtime {parameter_key} {expected_value!r}"
+            )
+
+
 def _scale_unit_for_key(scale_key):
     return {
         "length_cgs_cm": unyt.cm,
@@ -162,6 +283,28 @@ def _read_any_dataset(dataset, code_units=None, scale_key=None):
     scale.
     """
     data = np.asarray(dataset[()], dtype=float)
+    storage_unit = dataset.attrs.get("storage_unit", None)
+    if isinstance(storage_unit, bytes):
+        storage_unit = storage_unit.decode("utf-8")
+    if storage_unit == "code":
+        metadata = {
+            key: _restore_header_attr_value(value)
+            for key, value in dataset.attrs.items()
+            if key not in {"units", "storage_unit"}
+        }
+        metadata["storage_unit"] = storage_unit
+        try:
+            FieldSpec.from_metadata(metadata)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Dataset {dataset.name!r} has invalid FieldSpec metadata"
+            ) from exc
+        return as_named_array(data)
+    if storage_unit not in {None, "cgs"}:
+        raise ValueError(
+            f"Dataset {dataset.name!r} has unsupported storage_unit "
+            f"{storage_unit!r}"
+        )
     unit_name = dataset.attrs.get("units", None)
     if code_units is not None and scale_key is not None:
         scales = code_unit_scales(code_units)
@@ -242,7 +385,7 @@ def parameter_tree(value):
 
 def _write_quantity(
     group, name, value, code_units=None, scale_key=None, default_unit=None,
-    metadata=None,
+    metadata=None, field_spec_obj=None,
 ):
     def _unit_label(unit_obj):
         return str(getattr(unit_obj, "units", unit_obj))
@@ -250,7 +393,23 @@ def _write_quantity(
     if code_units is None and scale_key is not None:
         raise ValueError(f"{name} requires code_units for HDF5 serialization")
 
-    if hasattr(value, "to_value"):
+    storage_unit = (
+        field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
+    )
+    if field_spec_obj is not None and storage_unit == "code":
+        if code_units is None or scale_key is None:
+            raise ValueError(
+                f"{name} requires code_units and scale_key for code storage"
+            )
+        code_unit = _scale_unit_for_key(scale_key)
+        if code_unit is None:
+            raise ValueError(f"no code-unit scale is defined for {scale_key!r}")
+        if hasattr(value, "to_value"):
+            data = np.asarray(value.to_value(code_unit))
+        else:
+            data = np.asarray(value, dtype=float)
+        unit = str(code_unit)
+    elif hasattr(value, "to_value"):
         if code_units is not None and scale_key is not None:
             unit_obj = _scale_unit_for_key(scale_key)
             if unit_obj is None:
@@ -271,6 +430,11 @@ def _write_quantity(
         unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
     dataset = group.create_dataset(name, data=data)
     dataset.attrs["units"] = unit
+    dataset.attrs["storage_unit"] = storage_unit
+    if field_spec_obj is not None:
+        for key, metadata_value in field_spec_obj.to_metadata().items():
+            if metadata_value is not None:
+                dataset.attrs[key] = metadata_value
     for key, metadata_value in (metadata or {}).items():
         dataset.attrs[key] = metadata_value
     return dataset
@@ -311,6 +475,14 @@ def _write_cosmology_header(header, par, output_time, code_units):
     header.attrs["SupercomovingTimeUnits"] = str(code_units.time_unit)
     header.attrs["HubbleParameter"] = float(cosmology.hubble(cosmic_time))
     header.attrs["HubbleParameterUnits"] = str(1.0 / code_units.time_unit)
+    hubble_unit_km_s_Mpc = (
+        code_units.velocity_unit.to_value(unyt.km / unyt.s)
+        / code_units.length_unit.to_value(unyt.Mpc)
+    )
+    header.attrs["HubbleParameterKmS_Mpc"] = (
+        float(cosmology.hubble(cosmic_time)) * hubble_unit_km_s_Mpc
+    )
+    header.attrs["Gamma"] = float(par.hydrodynamics.gamma)
 
 
 def _restore_cosmology_from_header(par, header, code_units):
@@ -356,6 +528,60 @@ def _restore_cosmology_from_header(par, header, code_units):
         par.set_cosmology_model(cosmology)
     else:
         par.cosmology = cosmology
+
+
+def _restore_cosmology_context_from_header(par, header):
+    """Restore the immutable snapshot conversion context from ``Header``."""
+    gamma_value = header.attrs.get("Gamma")
+    scale_factor_value = header.attrs.get("ScaleFactor")
+    hubble_value = header.attrs.get("HubbleParameterKmS_Mpc")
+    if gamma_value is None or scale_factor_value is None or hubble_value is None:
+        return None
+    cosmology_name = _restore_header_attr_value(
+        header.attrs.get("CosmologyType", "proper")
+    )
+    try:
+        context = CosmologyContext(
+            gamma=float(_restore_header_attr_value(gamma_value)),
+            cosmology=str(cosmology_name),
+            scale_factor=float(_restore_header_attr_value(scale_factor_value)),
+            hubble_parameter_km_s_Mpc=float(
+                _restore_header_attr_value(hubble_value)
+            ),
+        )
+    except (TypeError, ValueError):
+        # Older examples may record an isothermal gamma=1.0.  That is a
+        # valid solver setting, but not a valid adiabatic conversion context.
+        return None
+    par.cosmology_context = context
+    return context
+
+
+def _runtime_field_spec(field_name, par, code_units, output_time):
+    """Build metadata for a canonical runtime field at write time."""
+    cosmology = getattr(par, "cosmology", None)
+    if cosmology is None or not getattr(par, "cosmological_expansion", False):
+        return field_spec(field_name, code_units)
+    if getattr(par, "supercomoving_coordinates", False):
+        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(output_time))
+    else:
+        cosmic_time = float(output_time)
+    scale_factor = float(cosmology.scale_factor(cosmic_time))
+    hubble_parameter_km_s_Mpc = None
+    if field_name == "vel_supercomoving_code":
+        hubble_code = float(cosmology.hubble(cosmic_time))
+        hubble_unit_km_s_Mpc = (
+            code_units.velocity_unit.to_value(unyt.km / unyt.s)
+            / code_units.length_unit.to_value(unyt.Mpc)
+        )
+        hubble_parameter_km_s_Mpc = hubble_code * hubble_unit_km_s_Mpc
+    return field_spec(
+        field_name,
+        code_units,
+        cosmology=cosmology.type_name,
+        scale_factor=scale_factor,
+        hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
+    )
 
 
 def _used_parameters_payload(par_config=None, initial_condition=None, existing=None):
@@ -613,6 +839,12 @@ def writehdf5(ric, ICfilename, *, provenance=None):
             header.attrs[key] = _header_attr_value(value)
         if code_units is not None:
             header.attrs["CodeUnits"] = _header_attr_value(code_units)
+        gamma = getattr(getattr(ric.par, "hydrodynamics", None), "gamma", None)
+        if gamma is not None:
+            header.attrs["Gamma"] = float(gamma)
+        if not cosmological_schema:
+            header.attrs["ScaleFactor"] = 1.0
+            header.attrs["HubbleParameterKmS_Mpc"] = 0.0
         header.attrs["GridCells"] = int(ric.par.mesh.grid_cells)
         header.attrs["GhostCells"] = int(ric.par.mesh.ghost_cells)
         header.attrs["CoordinateSystem"] = getattr(
@@ -684,6 +916,12 @@ def writehdf5(ric, ICfilename, *, provenance=None):
                     else "physical = stored"
                 ),
             },
+            field_spec_obj=_runtime_field_spec(
+                "boundary_comoving_code" if cosmological_schema else "boundary_proper_code",
+                ric.par,
+                code_units,
+                output_time,
+            ),
         )
         _write_quantity(
             gdata,
@@ -702,6 +940,12 @@ def writehdf5(ric, ICfilename, *, provenance=None):
                     else "physical = stored"
                 ),
             },
+            field_spec_obj=_runtime_field_spec(
+                "rho_comoving_code" if cosmological_schema else "rho_proper_code",
+                ric.par,
+                code_units,
+                output_time,
+            ),
         )
         _write_quantity(
             gdata,
@@ -719,6 +963,12 @@ def writehdf5(ric, ICfilename, *, provenance=None):
                     else "physical = stored"
                 ),
             },
+            field_spec_obj=_runtime_field_spec(
+                "vel_supercomoving_code" if cosmological_schema else "vel_proper_code",
+                ric.par,
+                code_units,
+                output_time,
+            ),
         )
         _write_quantity(
             gdata,
@@ -740,6 +990,12 @@ def writehdf5(ric, ICfilename, *, provenance=None):
                     else 0.0
                 ),
             },
+            field_spec_obj=_runtime_field_spec(
+                "temp_supercomoving_code" if cosmological_schema else "temp_proper_code",
+                ric.par,
+                code_units,
+                output_time,
+            ),
         )
         if hasattr(ric.fluid, "specific_angular_momentum_code"):
             _write_quantity(
@@ -858,9 +1114,6 @@ def readhdf5(par, mesh, fluid, ICfilename):
         # saving initial condition
         # first, save header:
         header = fic["Header"]
-        file_provenance = _read_provenance(header)
-        if file_provenance is not None:
-            par.provenance = file_provenance
         if "CodeUnits" not in header.attrs:
             raise ValueError(
                 "IC file is missing Header.attrs['CodeUnits']; cannot read datasets without a code-unit mapping."
@@ -872,6 +1125,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
             raise ValueError(
                 "IC file Header.attrs['CodeUnits'] is not a valid CodeUnits mapping."
             )
+        _validate_snapshot_configuration(par, header, code_units)
+        file_provenance = _read_provenance(header)
+        if file_provenance is not None:
+            par.provenance = file_provenance
         for key, value in header.attrs.items():
             restored = _restore_header_attr_value(value)
             if key == "CodeUnits":
@@ -884,6 +1141,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 continue
             setattr(par, key, restored)
         _restore_cosmology_from_header(par, header, code_units)
+        _restore_cosmology_context_from_header(par, header)
         if hasattr(par, 'mesh'):
             if 'GridCells' in header.attrs:
                 par.mesh.grid_cells = int(header.attrs['GridCells'])

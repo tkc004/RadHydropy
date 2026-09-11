@@ -169,4 +169,28 @@ def build_initial_condition(config):
         tau_supercomoving_code=result.fluid.tau_supercomoving_code,
         mu_dimensionless=mu,
     )
+    for field_name in (
+        "rho_comoving_code",
+        "vel_supercomoving_code",
+        "pre_supercomoving_code",
+        "temp_supercomoving_code",
+    ):
+        field_values_code = getattr(result.fluid, field_name)
+        if hasattr(field_values_code, "units"):
+            raise TypeError(
+                f"initial-condition field {field_name} must be plain code values"
+            )
+        if not np.all(np.isfinite(np.asarray(field_values_code, dtype=float))):
+            raise ValueError(
+                f"initial-condition field {field_name} contains non-finite values"
+            )
+    boundary_values_code = result.mesh.boundary_comoving_code
+    if hasattr(boundary_values_code, "units"):
+        raise TypeError(
+            "initial-condition field boundary_comoving_code must be plain code values"
+        )
+    if not np.all(np.isfinite(np.asarray(boundary_values_code, dtype=float))):
+        raise ValueError(
+            "initial-condition field boundary_comoving_code contains non-finite values"
+        )
     return Rsim.FromComponents(result.par, result.mesh, result.fluid, result.solver)

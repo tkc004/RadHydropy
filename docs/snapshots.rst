@@ -30,22 +30,21 @@ The ``Data`` group stores the evolved fluid fields:
 * ``mu`` and ``xHI`` for the corresponding chemistry state; and
 * ``ngamma_code`` when radiative transfer is active.
 
-Dimensional datasets currently store numerical values in their physical cgs
-units, with the unit string in the ``units`` attribute. Representation metadata
-is stored in attributes such as ``quantity``, ``representation``,
-``coordinate_frame``, ``physical_relation``, and ``scale_factor_power`` where
-applicable. ``Header/CodeUnits`` supplies the conversion to runtime code units.
-For example, ``Energy_code`` is stored in ``erg`` and uses
-``UnitMass * UnitVelocity**2`` as its code-unit scale, while
-``vel_proper_code`` is stored in ``cm/s`` and uses ``UnitVelocity``. The
-``_code`` suffix identifies the runtime field restored by ``readhdf5``; it
-does not currently mean that the on-disk numerical values are code-unit
-values. Cosmological fields identify their proper, comoving, or
-supercomoving representation in the dataset name and metadata.
+Dimensional datasets declare their storage convention in the
+``storage_unit`` attribute. Canonical hydrodynamic IC/snapshot fields use
+``storage_unit = code`` and store numerical code values directly. Chemistry
+and thermochemistry fields with a documented cgs contract may use
+``storage_unit = cgs`` instead. Representation metadata is stored in
+attributes such as ``quantity``, ``dimensions``, ``code_unit_cgs``,
+``representation``, ``coordinate_frame``, ``physical_relation``, and
+``scale_factor_power`` where applicable. ``Header/CodeUnits`` supplies the
+base code-unit system for fields stored in code units. The ``_code`` suffix
+identifies the runtime field and normally agrees with code-unit storage, but
+the authoritative storage convention is the dataset metadata.
 
 When a snapshot is reloaded, :func:`radhydropy.io.readhdf5` uses the required
-``Header/CodeUnits`` block and the representation metadata to convert the
-stored values and restore typed runtime fields such as
+``Header/CodeUnits`` block and each field's ``storage_unit`` plus
+representation metadata to restore typed runtime fields such as
 ``fluid.rho_proper_code`` or ``fluid.rho_comoving_code``.
 
 Snapshot Provenance
