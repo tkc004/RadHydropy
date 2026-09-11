@@ -1,68 +1,79 @@
 """Helper utilities for the cartesian inflow example."""
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.initial_condition_writer import InitialConditionWriter
+
+
+def _active_radarray(values, active_cells, ghost_cells, *, boundary=False):
+    """Return the active portion of an IC or snapshot RadArray."""
+    expected_active = active_cells + 1 if boundary else active_cells
+    values_size = int(np.asarray(values).size)
+    if values_size == expected_active:
+        return values
+    expected_ghosted = expected_active + 2 * ghost_cells
+    if values_size == expected_ghosted:
+        start = ghost_cells
+        stop = start + expected_active
+        return values[start:stop]
+    raise ValueError(
+        f"unexpected {'boundary' if boundary else 'fluid'} RadArray size "
+        f"{values_size}; expected {expected_active} or {expected_ghosted}"
+    )
 
 
 def build_initial_condition(config):
     initial = config['initial_condition']
     code_units = config['_code_units']
-    sim = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
-    sim.par.mesh.grid_cells = grid_cells
-    sim.mesh.boundary_proper_code = as_named_array(np.linspace(
-        0.0, quantity_to_value(initial['box_size_proper'], code_units.length_unit),
-        grid_cells + 1,
-    ))
-    sim.fluid.vel_proper_code = as_named_array(np.full(
-        grid_cells, quantity_to_value(initial['vel_proper'], code_units.velocity_unit)
-    ))
-    sim.fluid.temp_proper_code = as_named_array(np.full(
-        grid_cells, quantity_to_value(initial['temperature_proper'], code_units.temperature_unit)
-    ))
-    sim.fluid.rho_proper_code = as_named_array(np.full(
-        grid_cells, quantity_to_value(initial['rho_proper'], code_units.density_unit)
-    ))
-    sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
-    sim.SetMesh()
-    sim.fluid.SetUpFluid(sim.par, sim.mesh)
-    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-    first = int(sim.par.mesh.ghost_cells)
-    last = first + grid_cells
-    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
-    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'mu', 'Energy_code', 'InternalEnergy_code'):
-        if hasattr(sim.fluid, field):
-            setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
-    sim.par.mesh.ghost_cells = 0
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=sim.mesh.x_proper_code[first:last],
-        boundary_proper_code=sim.mesh.boundary_proper_code,
-        width_proper_code=sim.mesh.width_proper_code[first:last],
-        area_proper_code=sim.mesh.area_proper_code[first:last],
-        volume_proper_code=sim.mesh.volume_proper_code[first:last],
+    box_size_proper_unyt = initial['box_size_proper']
+    boundary_proper_unyt = (
+        np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
     )
-    sim.fluid._refresh_runtime_state()
-    return sim
+    writer = InitialConditionWriter(
+        par_config=config['par'],
+        code_units=code_units,
+    )
+    writer.box_size = writer.radquantity(box_size_proper_unyt)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['rho_proper']
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['vel_proper']
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['temperature_proper']
+    )
+    writer.simulation.fluid.mu = np.full(
+        grid_cells, float(initial['mean_molecular_weight'])
+    )
+    return writer
+
 
 def plot_snapshot(outfilename, config, **kwargs):
     code_units = config['_code_units']
-    rout = Rsim(config['par'])
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
-    first = int(rout.par.mesh.ghost_cells)
-    last = first + int(rout.par.mesh.grid_cells)
+    snapshot = rio.loadhdf5(config, outfilename)
+    active_cells = int(snapshot.par.mesh.grid_cells)
+    ghost_cells = int(snapshot.par.mesh.ghost_cells)
+    boundary_proper_code = _active_radarray(
+        snapshot.mesh.boundary_radarray,
+        active_cells,
+        ghost_cells,
+        boundary=True,
+    ).to_value(code_units.length_unit)
+    rho_proper_code = _active_radarray(
+        snapshot.fluid.rho_radarray,
+        active_cells,
+        ghost_cells,
+    ).to_value(code_units.density_unit)
     x_proper_code = 0.5 * (
-        rout.mesh.boundary_proper_code[:-1]
-        + rout.mesh.boundary_proper_code[1:]
-    )[first:last]
+        boundary_proper_code[:-1] + boundary_proper_code[1:]
+    )
     plt.plot(
         x_proper_code * code_units.length_unit,
-        rout.fluid.rho_proper_code[first:last] * code_units.density_unit,
+        rho_proper_code * code_units.density_unit,
         **kwargs,
     )

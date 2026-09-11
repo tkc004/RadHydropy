@@ -22,7 +22,6 @@ os.environ.setdefault(
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import radhydropy.io as rio
 import example_utils as eu
 import tools as et
 
@@ -46,7 +45,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
+    ric.write(
+        config["par"]['simulation']['initial_condition_filename'],
+        validate=True,
+    )
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
