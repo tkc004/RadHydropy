@@ -43,7 +43,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
+    ric.write(config["par"]['simulation']['initial_condition_filename'])
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()

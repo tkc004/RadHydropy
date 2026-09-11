@@ -12,6 +12,7 @@ from typing import Optional
 
 import numpy as np
 
+from radhydropy.arrays import as_named_array
 from radhydropy.units import CodeUnits, code_unit_scales
 
 
@@ -30,7 +31,10 @@ def _plain_array(name, value):
     array = np.asarray(value, dtype=float)
     if not np.all(np.isfinite(array)):
         raise UnitBoundaryError(f"{name} contains non-finite values")
-    return array.copy()
+    # Runtime primitive fields carry solver scratch attributes (for example
+    # face states ``L`` and ``R``).  Preserve that named-array boundary while
+    # keeping the values unitless and representation-specific.
+    return as_named_array(array)
 
 
 def _cgs_array(name, value):

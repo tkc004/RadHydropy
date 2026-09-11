@@ -13,6 +13,7 @@ from radhydropy.state_boundaries import (
     cgs_source_state_to_code,
     proper_code_state_from_physical,
 )
+from radhydropy.arrays import NamedArray
 from radhydropy.fluid import Fluid
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.thermo_networks.hydrogen import source_state as hydrogen_source_state
@@ -150,6 +151,9 @@ def test_fluid_exposes_validated_runtime_state():
     state = fluid.code_state
 
     assert isinstance(state, ProperCodeState)
+    assert isinstance(fluid.runtime_state.rho_proper_code, NamedArray)
+    assert isinstance(fluid.runtime_state.vel_proper_code, NamedArray)
+    assert isinstance(fluid.runtime_state.pre_proper_code, NamedArray)
     np.testing.assert_allclose(state.specific_energy_proper_code, [3.0])
     np.testing.assert_allclose(state.mu_dimensionless, [0.6])
     assert state.time_proper_code == pytest.approx(7.0)

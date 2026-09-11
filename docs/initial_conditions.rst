@@ -55,8 +55,8 @@ IC builder contract
 The example-side ``build_initial_condition(config)`` function is the boundary
 between a nested YAML configuration and a typed runtime state. It receives the
 complete configuration mapping, including ``par``, ``initial_condition``, and
-``example``; it must not receive a projected ``par`` mapping or legacy
-``icparams``/``runparams`` arguments. A typical runner follows this pattern:
+``example`` and selects the appropriate sections internally. A typical runner
+follows this pattern:
 
 .. code-block:: python
 

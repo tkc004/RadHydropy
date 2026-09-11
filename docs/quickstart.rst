@@ -72,8 +72,7 @@ Initial-condition builder contract
 
 Every example builder receives the complete nested ``config`` mapping. The
 builder reads runtime settings from ``config["par"]`` and physical IC inputs
-from ``config["initial_condition"]``; it must not receive a projected ``par``
-mapping or legacy ``icparams``/``runparams`` arguments. The normal sequence is:
+from ``config["initial_condition"]``. The normal sequence is:
 
 1. ``load_nested_example_config`` loads the YAML and converts
    ``{value, unit}`` mappings to ``unyt`` quantities.

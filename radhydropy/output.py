@@ -18,8 +18,11 @@ def write_numbered_hdf5(sim, outindex):
         + '_%03d' % outindex
         + '.hdf5'
     )
-    from radhydropy.io import writehdf5
-    writehdf5(sim, filename)
+    # The live runtime already owns ghost-filled, solver-ready state.  Route
+    # snapshots directly to the serializer so the IC preparation boundary
+    # does not append a second set of ghost cells.
+    from radhydropy.io import _writehdf5
+    _writehdf5(sim, filename)
 
 
 def hdf5_output_callback(sim, outputtime=0, output_state=None):

@@ -3,9 +3,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from radhydropy.rsim import Rsim
+import unyt
+import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import quantity_to_value
-from basic_hydro_utils import make_initial_condition
 from SedovTaylor_analytic import get_blastwave_solution
 
 def set_plot_style():
@@ -13,29 +14,47 @@ def set_plot_style():
 
 def build_initial_condition(config):
     ic, par, units = config["initial_condition"], config["par"], config["_code_units"]
-    n=int(ic["grid_cells"]); start=quantity_to_value(ic["radius_injection_proper"], units.length_unit); size=quantity_to_value(ic["box_size_proper"], units.length_unit)
-    boundary_proper_code=np.linspace(start,start+size,n+1); coordinate_proper_code=.5*(boundary_proper_code[:-1]+boundary_proper_code[1:]); rho_proper_code=np.full(n,quantity_to_value(ic["rho_proper"],units.density_unit)); mu_dimensionless=np.full(n,ic["mean_molecular_weight"]); temp_proper_code=np.zeros(n)
-    volume_proper_code=4*np.pi/3*np.diff(boundary_proper_code**3); cut=(coordinate_proper_code < quantity_to_value(ic["radius_explosion_proper"],units.length_unit)) & (coordinate_proper_code >= start); energy_proper_code=quantity_to_value(ic["explosion_energy"],units.energy_unit); pre_proper_code=(par["hydrodynamics"]["gamma"]-1)*energy_proper_code/np.sum(volume_proper_code[cut]); temp_proper_code[cut]=np.asarray(Rsim(config["par"]).fluid.eos.temperature(rho_proper_code[cut],np.full(np.count_nonzero(cut),pre_proper_code),mu_dimensionless[cut]),dtype=float)
-    return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code, vel_proper_code=np.zeros(n), temp_proper_code=temp_proper_code, mu_dimensionless=mu_dimensionless, area_proper_code=4*np.pi*coordinate_proper_code**2)
+    n = int(ic["grid_cells"])
+    start_proper_unyt = ic["radius_injection_proper"]
+    size_proper_unyt = ic["box_size_proper"]
+    boundary_proper_unyt = start_proper_unyt + np.linspace(0.0, 1.0, n + 1) * size_proper_unyt
+    boundary_proper_code = boundary_proper_unyt.to_value(units.length_unit)
+    coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
+    rho_proper_code = np.full(n, quantity_to_value(ic["rho_proper"], units.density_unit))
+    mu_dimensionless = np.full(n, float(ic["mean_molecular_weight"]))
+    temp_proper_code = np.zeros(n)
+    volume_proper_code = 4 * np.pi / 3 * np.diff(boundary_proper_code**3)
+    cut = (coordinate_proper_code < quantity_to_value(ic["radius_explosion_proper"], units.length_unit)) & (coordinate_proper_code >= boundary_proper_code[0])
+    energy_proper_code = quantity_to_value(ic["explosion_energy"], units.energy_unit)
+    pre_proper_code = (float(par["hydrodynamics"]["gamma"]) - 1) * energy_proper_code / np.sum(volume_proper_code[cut])
+    from radhydropy.rsim import Rsim
+    temp_proper_code[cut] = np.asarray(Rsim(config["par"]).fluid.eos.temperature(rho_proper_code[cut], np.full(np.count_nonzero(cut), pre_proper_code), mu_dimensionless[cut]), dtype=float)
+    writer = InitialConditionWriter(par_config=par, code_units=units)
+    writer.box_size = writer.radquantity(start_proper_unyt + size_proper_unyt)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(unyt.unyt_array(rho_proper_code, units.density_unit))
+    writer.fluid.vel_radarray = writer.radarray(unyt.unyt_array(np.zeros(n), units.velocity_unit))
+    writer.fluid.temp_radarray = writer.radarray(unyt.unyt_array(temp_proper_code, units.temperature_unit))
+    writer.simulation.fluid.mu = mu_dimensionless
+    return writer
 
 def plot_snapshot(filename, config, **kwargs):
-    sim = Rsim(config["par"])
-    import radhydropy.io as rio
-
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    sim = rio.loadhdf5(config, filename)
+    units = config["_code_units"]
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code)
+    boundary_proper_code = np.asarray(sim.mesh.boundary_radarray.to_value(units.length_unit))
     coordinate_proper_code = .5 * (
         boundary_proper_code[:-1] + boundary_proper_code[1:]
     )[first:last]
+    rho_proper_code = sim.fluid.rho_radarray.to_value(units.density_unit)
+    temp_proper_code = sim.fluid.temp_radarray.to_value(units.temperature_unit)
     pressure_proper_code = sim.fluid.eos.pressure(
-        sim.fluid.rho_proper_code,
-        sim.fluid.temp_proper_code,
+        rho_proper_code,
+        temp_proper_code,
         sim.fluid.mu,
     )
 
-    units = config["_code_units"]
     length_cgs_per_code = float(units.length_unit.to_value("cm"))
     density_cgs_per_code = float(units.density_unit.to_value("g/cm**3"))
     velocity_cgs_per_code = float(units.velocity_unit.to_value("cm/s"))
@@ -46,10 +65,10 @@ def plot_snapshot(filename, config, **kwargs):
         np.asarray(pressure_proper_code)[first:last] * pressure_cgs_per_code
     )
     velocity_proper_cgs_cm_s = (
-        np.asarray(sim.fluid.vel_proper_code)[first:last] * velocity_cgs_per_code
+        sim.fluid.vel_radarray.to_value(units.velocity_unit)[first:last] * velocity_cgs_per_code
     )
     rho_proper_cgs_g_cm3 = (
-        np.asarray(sim.fluid.rho_proper_code)[first:last] * density_cgs_per_code
+        rho_proper_code[first:last] * density_cgs_per_code
     )
 
     time_proper_cgs_s = (

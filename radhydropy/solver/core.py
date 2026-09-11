@@ -800,7 +800,12 @@ class Solver():
             if old_internal is not None:
                 first = int(par.mesh.ghost_cells)
                 count = int(par.mesh.grid_cells)
-                internal[first:first + count] = old_internal[first:first + count]
+                preserved_internal = (
+                    old_internal
+                    if old_internal.size == count
+                    else old_internal[first:first + count]
+                )
+                internal[first:first + count] = preserved_internal
             fluid.InternalEnergy_code = as_named_array(np.maximum(internal, 0.0))
         if old_conserved is not None:
             inactive, old_mass, old_mom, old_energy = old_conserved

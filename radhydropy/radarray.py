@@ -191,6 +191,17 @@ class RadArray(unyt.unyt_array):
         # attempt to call RadArray's metadata-requiring constructor.
         return unyt.unyt_array(self.value, self.units).in_cgs()
 
+    def to_value(self, units=None, equivalence=None):
+        """Return numerical values after an explicit unit conversion.
+
+        ``unyt_array.to_value`` internally reconstructs ``type(self)`` with
+        ``bypass_validation``.  ``RadArray`` carries additional metadata and
+        intentionally does not accept that constructor argument, so delegate
+        conversion through an ordinary ``unyt_array`` instead.
+        """
+        ordinary_array = unyt.unyt_array(np.asarray(self, dtype=float), self.units)
+        return ordinary_array.to_value(units, equivalence=equivalence)
+
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         rad_inputs = [value for value in inputs if isinstance(value, RadArray)]
         if len(rad_inputs) > 1:

@@ -44,7 +44,7 @@ they must convert explicitly with ``quantity.to_value(unit)`` or
 calculations. Do not use ``float(quantity)``: it can silently discard the
 unit conversion that the strict example workflow requires.
 
-The nested YAML form used by migrated examples is:
+The nested YAML form used by the latest examples is:
 
 .. code-block:: yaml
 
@@ -205,8 +205,8 @@ Use these rules for every new or modified parameter file:
   ``rho_proper_code``, ``rho_comoving_code``, ``vel_supercomoving_code``, or
   ``temperature_cgs_K``. A variable carrying a ``unyt`` quantity additionally
   ends in ``_unyt``.
-* Do not restore flat aliases, compatibility fallbacks, or legacy keys when a
-  name changes. Update all readers, variants, tests, and plotters together.
+* Keep the nested names consistent across readers, variants, tests, and
+  plotters.
 
 Initial-condition builder entry point
 -------------------------------------

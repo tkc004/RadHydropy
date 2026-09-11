@@ -9,6 +9,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from radhydropy.arrays import as_named_array
+
+
+def _named_runtime_array(name, value, kind="runtime"):
+    """Validate and preserve a mutable named array at the solver boundary."""
+    if hasattr(value, "units") or hasattr(value, "to_value"):
+        raise TypeError(f"{name} must be a unitless numeric {kind} code value")
+    return as_named_array(np.asarray(value, dtype=float))
+
 
 @dataclass(frozen=True)
 class RuntimeFieldNames:
@@ -65,7 +74,7 @@ class MeshGeometryState:
                 "missing canonical mesh runtime arrays: " + ", ".join(missing)
             )
         values = {
-            name: np.asarray(arrays[name], dtype=float).copy()
+            name: _named_runtime_array(name, arrays[name], kind="mesh")
             for name in required
         }
         return cls(
@@ -113,7 +122,12 @@ class FluidRuntimeState:
             raise TypeError(
                 "missing canonical fluid runtime arrays: " + ", ".join(missing)
             )
-        values = {name: arrays[name] for name in required}
+        values = {
+            name: _named_runtime_array(name, arrays[name], kind="fluid")
+            if name != fields.time
+            else arrays[name]
+            for name in required
+        }
         values.update(
             mu_dimensionless=mu_dimensionless,
             xHI_dimensionless=xHI_dimensionless,
