@@ -54,55 +54,63 @@ def run(config_file=CONFIG_FILE):
         hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
     )
 
-    radius_comoving_code = _rad_array(
+    radius_comoving_code_radarray = _rad_array(
         np.array([1.0, 2.0]), "boundary_comoving_code", code_units, cosmology
     )
-    radius_proper_code = radius_comoving_code.to_proper()
-    np.testing.assert_allclose(radius_proper_code.value, [0.5, 1.0])
-    np.testing.assert_allclose(radius_proper_code.to_comoving().value, radius_comoving_code.value)
+    radius_proper_code_radarray = radius_comoving_code_radarray.to_proper()
+    np.testing.assert_allclose(radius_proper_code_radarray.value, [0.5, 1.0])
+    np.testing.assert_allclose(
+        radius_proper_code_radarray.to_comoving().value,
+        radius_comoving_code_radarray.value,
+    )
 
-    rho_comoving_code = _rad_array(
+    rho_comoving_code_radarray = _rad_array(
         np.array([8.0, 16.0]), "rho_comoving_code", code_units, cosmology
     )
-    rho_proper_code = rho_comoving_code.to_proper()
-    np.testing.assert_allclose(rho_proper_code.value, [64.0, 128.0])
-    np.testing.assert_allclose(rho_proper_code.to_comoving().value, rho_comoving_code.value)
+    rho_proper_code_radarray = rho_comoving_code_radarray.to_proper()
+    np.testing.assert_allclose(rho_proper_code_radarray.value, [64.0, 128.0])
+    np.testing.assert_allclose(
+        rho_proper_code_radarray.to_comoving().value,
+        rho_comoving_code_radarray.value,
+    )
 
-    temp_supercomoving_code = _rad_array(
+    temp_supercomoving_code_radarray = _rad_array(
         np.array([8.0]), "temp_supercomoving_code", code_units, cosmology
     )
-    temp_proper_code = temp_supercomoving_code.to_proper()
-    np.testing.assert_allclose(temp_proper_code.value, [32.0])
+    temp_proper_code_radarray = temp_supercomoving_code_radarray.to_proper()
+    np.testing.assert_allclose(temp_proper_code_radarray.value, [32.0])
     np.testing.assert_allclose(
-        temp_proper_code.to_comoving().value,
-        temp_supercomoving_code.value,
+        temp_proper_code_radarray.to_comoving().value,
+        temp_supercomoving_code_radarray.value,
     )
 
-    pre_supercomoving_code = _rad_array(
+    pre_supercomoving_code_radarray = _rad_array(
         np.array([64.0]), "pre_supercomoving_code", code_units, cosmology
     )
-    pre_proper_code = pre_supercomoving_code.to_proper()
-    np.testing.assert_allclose(pre_proper_code.value, [2048.0])
+    pre_proper_code_radarray = pre_supercomoving_code_radarray.to_proper()
+    np.testing.assert_allclose(pre_proper_code_radarray.value, [2048.0])
     np.testing.assert_allclose(
-        pre_proper_code.to_comoving().value,
-        pre_supercomoving_code.value,
+        pre_proper_code_radarray.to_comoving().value,
+        pre_supercomoving_code_radarray.value,
     )
 
     x_comoving_code = np.array([4.0])
-    vel_supercomoving_code = _rad_array(
+    vel_supercomoving_code_radarray = _rad_array(
         np.array([2.0]), "vel_supercomoving_code", code_units, cosmology
     )
-    vel_proper_code = vel_supercomoving_code.to_proper(
+    vel_proper_code_radarray = vel_supercomoving_code_radarray.to_proper(
         x_comoving_code=x_comoving_code
     )
-    np.testing.assert_allclose(vel_proper_code.value, [4.14])
+    np.testing.assert_allclose(vel_proper_code_radarray.value, [4.14])
     np.testing.assert_allclose(
-        vel_proper_code.to_comoving(x_comoving_code=x_comoving_code).value,
-        vel_supercomoving_code.value,
+        vel_proper_code_radarray.to_comoving(
+            x_comoving_code=x_comoving_code
+        ).value,
+        vel_supercomoving_code_radarray.value,
     )
 
     try:
-        rho_proper_code + rho_comoving_code
+        rho_proper_code_radarray + rho_comoving_code_radarray
     except RepresentationMismatchError:
         pass
     else:
@@ -111,11 +119,11 @@ def run(config_file=CONFIG_FILE):
         )
 
     return {
-        "radius_proper_code": radius_proper_code.value,
-        "rho_proper_code": rho_proper_code.value,
-        "temp_proper_code": temp_proper_code.value,
-        "pre_proper_code": pre_proper_code.value,
-        "vel_proper_code": vel_proper_code.value,
+        "radius_proper_code": radius_proper_code_radarray.value,
+        "rho_proper_code": rho_proper_code_radarray.value,
+        "temp_proper_code": temp_proper_code_radarray.value,
+        "pre_proper_code": pre_proper_code_radarray.value,
+        "vel_proper_code": vel_proper_code_radarray.value,
     }
 
 

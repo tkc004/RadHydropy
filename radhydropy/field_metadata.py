@@ -217,6 +217,7 @@ class FieldSpec:
     code_unit_cgs: float
     physical_relation: str
     dimension_basis: str = FIELD_DIMENSION_BASIS_NAME
+    storage_unit: str = "code"
     cosmology: str | None = None
     scale_factor: float = 1.0
     scale_factor_power: float = 0.0
@@ -230,6 +231,10 @@ class FieldSpec:
             raise ValueError(
                 "FieldSpec.dimension_basis must be "
                 f"{FIELD_DIMENSION_BASIS_NAME!r}"
+            )
+        if self.storage_unit not in {"code", "cgs"}:
+            raise ValueError(
+                "FieldSpec.storage_unit must be either 'code' or 'cgs'"
             )
         try:
             dimensions = tuple(self.dimensions)
@@ -302,6 +307,7 @@ class FieldSpec:
         return {
             "quantity": self.quantity,
             "dimension_basis": self.dimension_basis,
+            "storage_unit": self.storage_unit,
             "dimensions": self.dimensions,
             "representation": self.representation,
             "coordinate_frame": self.coordinate_frame,
@@ -323,6 +329,7 @@ class FieldSpec:
             "representation",
             "coordinate_frame",
             "code_unit_cgs",
+            "storage_unit",
             "physical_relation",
         }
         missing = required.difference(metadata)
@@ -333,6 +340,7 @@ class FieldSpec:
         return cls(
             quantity=metadata["quantity"],
             dimension_basis=metadata.get("dimension_basis", FIELD_DIMENSION_BASIS_NAME),
+            storage_unit=metadata["storage_unit"],
             dimensions=metadata["dimensions"],
             representation=metadata["representation"],
             coordinate_frame=metadata["coordinate_frame"],

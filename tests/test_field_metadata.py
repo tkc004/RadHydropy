@@ -166,6 +166,23 @@ class FieldSpecTests(unittest.TestCase):
         self.assertEqual(spec.dimensions, (1, -3, 0, 0, 0))
         self.assertIsInstance(spec.dimensions, tuple)
         self.assertEqual(spec.to_metadata()["code_unit_cgs"], 1.675e-33)
+        self.assertEqual(spec.storage_unit, "code")
+        self.assertEqual(spec.to_metadata()["storage_unit"], "code")
+
+    def test_field_spec_supports_cgs_thermochemistry_storage(self):
+        spec = FieldSpec(
+            quantity="number_density",
+            dimensions=(0, -3, 0, 0, 0),
+            representation="physical",
+            coordinate_frame="physical",
+            code_unit_cgs=1.0e-24,
+            physical_relation="physical = stored",
+            storage_unit="cgs",
+        )
+
+        self.assertEqual(spec.storage_unit, "cgs")
+        self.assertEqual(spec.to_metadata()["storage_unit"], "cgs")
+        self.assertEqual(FieldSpec.from_metadata(spec.to_metadata()), spec)
         self.assertEqual(spec.scale_factor, 1.0)
         self.assertEqual(spec.scale_factor_power, 0.0)
         self.assertEqual(spec.conversion_factor, 1.0)
@@ -259,6 +276,7 @@ class FieldSpecTests(unittest.TestCase):
             ({"scale_factor": 0.0}, ValueError),
             ({"conversion_factor": -1.0}, ValueError),
             ({"cosmology": ""}, ValueError),
+            ({"storage_unit": "si"}, ValueError),
         )
         for overrides, exception in invalid_values:
             with self.subTest(overrides=overrides):
