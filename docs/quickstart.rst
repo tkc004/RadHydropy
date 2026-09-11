@@ -1,10 +1,11 @@
 Quickstart
 ==========
 
-RadHydropy runs from a YAML example configuration plus an HDF5
+RadHydropy runs from a complete nested YAML example configuration plus an HDF5
 initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
-reads the initial condition, prepares mesh and fluid state, advances the
-solver, and writes HDF5 outputs.
+prepares mesh and fluid state, advances the solver, and writes HDF5 outputs.
+Use :func:`radhydropy.io.loadhdf5` when an initial condition or snapshot needs
+to be loaded for inspection or restart.
 
 The runtime requires a ``CodeUnits`` block in the nested ``par`` section. This is
 mandatory: the current workflow does not fall back to cgs. Example
@@ -34,9 +35,8 @@ Minimum Runner
    config_data["_code_units"] = CodeUnits.from_mapping(
        config_data["par"]["units"]["CodeUnits"]
    )
-   initial = et.build_initial_condition(config_data)
-   rio.writehdf5(
-       initial,
+   writer = et.build_initial_condition(config_data)
+   writer.write(
        config_data["par"]["simulation"]["initial_condition_filename"],
    )
 
@@ -52,6 +52,21 @@ Gravity examples such as the hydrostatic point-mass and ballistic-infall
 benchmarks follow the same pattern but also pass ``CodeUnits`` into their
 analytic gravity helpers so the internal math stays float-first.
 
+For post-processing, load the complete configuration and use the typed
+``*_radarray`` views returned by ``loadhdf5``:
+
+.. code-block:: python
+
+   snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
+   radius_comoving_unyt = snapshot.mesh.boundary_radarray
+   density_comoving_unyt = snapshot.fluid.rho_radarray
+   density_cgs_g_cm3 = density_comoving_unyt.to_cgs()
+
+The parallel canonical fields such as ``rho_comoving_code`` are plain numeric
+solver state. Example readers, plotters, and diagnostics should use the
+RadArray views and convert to ``.value`` only at an explicit numerical
+boundary.
+
 Initial-condition builder contract
 -----------------------------------
 
@@ -64,11 +79,71 @@ mapping or legacy ``icparams``/``runparams`` arguments. The normal sequence is:
    ``{value, unit}`` mappings to ``unyt`` quantities.
 2. ``CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])`` creates
    the configured conversion system.
-3. ``build_initial_condition(config)`` converts physical inputs explicitly,
-   constructs a typed ``Rsim`` state, and validates the active cells.
-4. ``radhydropy.io.writehdf5`` serializes that typed state with the code-unit
-   metadata in the HDF5 header.
-5. ``Rsim(config["par"])`` loads and runs the same nested runtime model.
+3. ``build_initial_condition(config)`` converts physical inputs explicitly and
+   normally returns an ``InitialConditionWriter``.
+4. Call ``writer.write(filename)`` to serialize the IC. Builders that return
+   an already assembled typed ``Rsim`` state may use
+   ``radhydropy.io.writehdf5(state, filename)`` instead.
+5. Use ``radhydropy.io.loadhdf5(config, filename)`` to load an IC or snapshot
+   for inspection or restart, then run the returned ``Rsim`` object.
+
+What ``build_initial_condition(config)`` does
+----------------------------------------------
+
+The builder is the boundary between physical YAML inputs and the numerical
+initial condition. It selects ``config["initial_condition"]``, converts the
+configured ``CodeUnits`` into a writer, creates unit-bearing mesh and fluid
+profiles, and assigns them through the writer's RadArray/RadQuantity methods.
+The writer then derives pressure, geometry, and conserved state when
+``write`` is called. A minimal proper-coordinate builder looks like this:
+
+.. code-block:: python
+
+   import numpy as np
+   from radhydropy.initial_condition_writer import InitialConditionWriter
+
+   def build_initial_condition(config):
+       ic = config["initial_condition"]
+       units = config["_code_units"]
+       cells = int(ic["grid_cells"])
+       boundary_proper_unyt = np.linspace(
+           0.0, 1.0, cells + 1
+       ) * ic["box_size_proper"]
+       shocked = (
+           (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]) / 2.0
+           > 0.5 * ic["box_size_proper"]
+       )
+
+       writer = InitialConditionWriter(
+           par_config=config["par"],
+           code_units=units,
+       )
+       writer.box_size = writer.radquantity(ic["box_size_proper"])
+       writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+       writer.fluid.rho_radarray = writer.radarray(
+           ic["rho_proper"] * np.where(shocked, ic["density_ratio"], 1.0)
+       )
+       writer.fluid.vel_radarray = writer.radarray(
+           np.zeros(cells) * units.velocity_unit
+       )
+       writer.fluid.temp_radarray = writer.radarray(
+           ic["temperature_proper"]
+           * np.where(shocked, ic["temperature_ratio"], 1.0)
+       )
+       writer.simulation.fluid.mu = np.full(
+           cells, float(ic["mean_molecular_weight"])
+       )
+       return writer
+
+   config["_code_units"] = CodeUnits.from_mapping(
+       config["par"]["units"]["CodeUnits"]
+   )
+   writer = build_initial_condition(config)
+   writer.write(config["par"]["simulation"]["initial_condition_filename"])
+
+The returned writer is not the evolved simulation. It is the IC assembly
+object; construct or load the runtime separately with ``Rsim`` or
+``loadhdf5``.
 
 Basic proper-coordinate hydro examples may delegate their final assembly to
 ``example/basic_hydro_utils.py:make_initial_condition``. Its profile arrays
@@ -252,5 +327,6 @@ After a run, load an output file and plot a fluid quantity with
    from radhydropy.analysis import rplot1d
    import radhydropy.io as rio
 
-   rio.readhdf5(sim.par, sim.mesh, sim.fluid, "Output_001.hdf5")
-   rplot1d(sim, yquan="rho")
+   snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
+   density = snapshot.fluid.rho_radarray
+   rplot1d(snapshot, yquan="rho")

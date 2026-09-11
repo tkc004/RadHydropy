@@ -64,17 +64,15 @@ complete configuration mapping, including ``par``, ``initial_condition``, and
    config["_code_units"] = CodeUnits.from_mapping(
        config["par"]["units"]["CodeUnits"]
    )
-   initial = build_initial_condition(config)
-   rio.writehdf5(
-       initial,
+   writer = build_initial_condition(config)
+   writer.write(
        config["par"]["simulation"]["initial_condition_filename"],
-       provenance={
-           "source_config_yaml": config_filename.read_text(),
-           "effective_config": config,
-           "source_config_filename": str(config_filename),
-           "schema_version": 1,
-       },
    )
+
+Builders that return an already assembled ``Rsim`` state instead use
+``rio.writehdf5(state, filename)``. In both cases the builder receives the
+complete nested configuration; do not project ``config["par"]`` into a flat
+initial-condition mapping.
 
 The optional ``provenance`` mapping writes a ``Header/Provenance`` group to
 both initial-condition files and snapshots. It stores the original YAML as
@@ -90,9 +88,10 @@ configuration YAML.
 ``build_initial_condition`` owns the example-specific work: it reads physical
 inputs from ``config["initial_condition"]``, converts them explicitly to the
 configured code-unit scale, constructs analytic profiles or source fields,
-and returns a typed ``Rsim`` state. Runtime-only objects that cannot be written
-in YAML may be attached to the complete configuration under a descriptive
-private key at the call site.
+and returns either an ``InitialConditionWriter`` or an already assembled typed
+``Rsim`` state. Runtime-only objects that cannot be written in YAML may be
+attached to the complete configuration under a descriptive private key at the
+call site.
 
 For the basic proper-coordinate hydro examples, the shared
 ``example/basic_hydro_utils.py`` function
@@ -118,9 +117,10 @@ proper-code helper as a generic adapter. Likewise, physical YAML quantities
 must be converted with ``quantity_to_value`` or ``.to_value`` before becoming
 NumPy arrays—``float(quantity)`` is not a unit conversion.
 
-After construction, write the returned typed state with
-``radhydropy.io.writehdf5``. For readback, construct ``Rsim(config["par"])``
-and call ``radhydropy.io.readhdf5`` into its typed mesh and fluid objects.
+After construction, write a returned writer with ``writer.write(filename)`` or
+an assembled state with ``radhydropy.io.writehdf5``. For readback, call
+``radhydropy.io.loadhdf5(config, filename)`` and use its ``*_radarray`` views
+for dimensional mesh and fluid data.
 When a provenance group is present, ``readhdf5`` restores it as
 ``par.provenance``; a subsequent snapshot write can reuse that metadata.
 Avoid ad-hoc ``SimpleNamespace``/dynamic containers and direct snapshot

@@ -43,8 +43,8 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     code_units_obj = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
     config['_code_units'] = code_units_obj
-    ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config['par']['simulation']['initial_condition_filename'])
+    writer = et.build_initial_condition(config)
+    writer.write(config['par']['simulation']['initial_condition_filename'])
     mainrun = Rsim(config['par'])
     mainrun.RunAll()
     outindex = exampleparams['output_index']

@@ -32,9 +32,11 @@ operate in the internal unit system instead of repeatedly converting units on
 the hot paths.
 
 Snapshot and initial-condition files still carry units in HDF5, and
-``radhydropy.io.readhdf5`` now requires ``Header.attrs["CodeUnits"]`` to be
-present so it can convert the stored quantities back into code-unit numeric
-arrays when the run starts. There is no cgs fallback in the current workflow.
+``radhydropy.io.loadhdf5``/``readhdf5`` require ``Header.attrs["CodeUnits"]``
+to be present. The loader reconstructs the code-unit mapping, restores plain
+canonical arrays for the solver, and exposes typed ``*_radarray`` views for
+example readers and diagnostics. There is no cgs fallback in the current
+workflow.
 
 Example helpers can accept ``unyt`` quantities at the script boundary, but
 they must convert explicitly with ``quantity.to_value(unit)`` or
@@ -205,6 +207,52 @@ Use these rules for every new or modified parameter file:
   ends in ``_unyt``.
 * Do not restore flat aliases, compatibility fallbacks, or legacy keys when a
   name changes. Update all readers, variants, tests, and plotters together.
+
+Initial-condition builder entry point
+-------------------------------------
+
+The canonical builder signature is ``build_initial_condition(config)``. The
+argument is the complete nested mapping returned by
+``load_nested_example_config`` and contains ``par``, ``initial_condition``,
+and ``example``. A builder selects those sections internally; callers must
+not pass ``config["par"]`` as a substitute or reconstruct a flat parameter
+mapping.
+
+The preferred return value is an ``InitialConditionWriter``. It accepts
+unit-bearing primitive inputs through ``writer.radarray(...)`` and
+``writer.radquantity(...)`` and writes the prepared IC with
+``writer.write(filename)``. Builders that need custom typed finalization may
+return an assembled ``Rsim`` state, which is written with
+``radhydropy.io.writehdf5``. In either form, physical values remain explicit
+``{value, unit}`` YAML entries and are converted using the configured
+``CodeUnits``.
+
+Snapshot readback and RadArray views
+------------------------------------
+
+Use the complete nested configuration with ``radhydropy.io.loadhdf5``:
+
+.. code-block:: python
+
+   config = example_utils.load_nested_example_config(config_filename)
+   sim = rio.loadhdf5(config, "Output_001.hdf5")
+   radius_proper_unyt = sim.mesh.boundary_radarray
+   density_proper_unyt = sim.fluid.rho_radarray
+
+After loading, always use the restored ``*_radarray`` views for dimensional
+mesh and fluid data. They preserve the field's units, coordinate
+representation, cosmology context, and conversion metadata. Use
+``.to_cgs()`` or another explicit unit conversion for physical diagnostics;
+use ``.value`` only when deliberately entering a numerical code-value
+calculation. The parallel fields such as ``rho_proper_code`` and
+``rho_comoving_code`` are solver-facing numeric state and are not the
+preferred interface for example plotting or analysis.
+
+Initial-condition builders may use ``InitialConditionWriter.radarray`` and
+``InitialConditionWriter.radquantity`` to attach unit-bearing primitive arrays
+and scalar values. The writer infers the canonical proper or cosmological
+field from the configured representation and ``CodeUnits``; do not construct
+unitless arrays first and attach units later.
 
 For explicit output times, use ``par.output.time_list_filename``. The older
 flat ``outputtimefilename`` spelling is not part of the current format.

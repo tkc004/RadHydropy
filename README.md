@@ -92,6 +92,65 @@ Most migrated examples follow the same pattern:
 5. call `RunAll()`; and
 6. inspect or plot the output files.
 
+`build_initial_condition(config)` is the initial-condition assembly step. It
+receives the complete nested configuration, reads physical inputs from
+`config["initial_condition"]`, and uses the configured `CodeUnits` to create
+unit-aware mesh and fluid profiles. The preferred builder returns an
+`InitialConditionWriter`, which accepts primitive arrays and scalar values
+through `radarray()` and `radquantity()` and derives the remaining IC state
+when `write()` is called. For example:
+
+```python
+import numpy as np
+from radhydropy.initial_condition_writer import InitialConditionWriter
+
+def build_initial_condition(config):
+    ic = config["initial_condition"]
+    units = config["_code_units"]
+    cells = int(ic["grid_cells"])
+    boundary_proper_unyt = np.linspace(
+        0.0, 1.0, cells + 1
+    ) * ic["box_size_proper"]
+    shocked = (
+        (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]) / 2.0
+        > 0.5 * ic["box_size_proper"]
+    )
+
+    writer = InitialConditionWriter(
+        par_config=config["par"],
+        code_units=units,
+    )
+    writer.box_size = writer.radquantity(ic["box_size_proper"])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(
+        ic["rho_proper"] * np.where(shocked, ic["density_ratio"], 1.0)
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(cells) * units.velocity_unit
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        ic["temperature_proper"]
+        * np.where(shocked, ic["temperature_ratio"], 1.0)
+    )
+    writer.simulation.fluid.mu = np.full(
+        cells, float(ic["mean_molecular_weight"])
+    )
+    return writer
+
+config_data["_code_units"] = CodeUnits.from_mapping(
+    config_data["par"]["units"]["CodeUnits"]
+)
+writer = build_initial_condition(config_data)
+writer.write(
+    config_data["par"]["simulation"]["initial_condition_filename"]
+)
+```
+
+The builder prepares the initial condition; it does not evolve the simulation.
+After writing, use `Rsim` to run or `rio.loadhdf5(config_data, filename)` to
+load an IC or snapshot. Builders with custom typed finalization may instead
+return an assembled `Rsim` state and serialize it with `rio.writehdf5`.
+
 The bundled YAML files define the internal unit system under
 `par.units.CodeUnits`:
 
@@ -150,13 +209,15 @@ par_config = config_data["par"]
 code_units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
 
 config_data["_code_units"] = code_units
-ric = et.build_initial_condition(config_data)
-rio.writehdf5(ric, par_config["simulation"]["initial_condition_filename"])
+writer = et.build_initial_condition(config_data)
+writer.write(par_config["simulation"]["initial_condition_filename"])
 
 sim = Rsim(par_config)
 sim.RunAll()
 
-rio.readhdf5(sim.par, sim.mesh, sim.fluid, "Output_001.hdf5")
+sim = rio.loadhdf5(config_data, "Output_001.hdf5")
+radii = sim.mesh.boundary_radarray
+density = sim.fluid.rho_radarray
 rplot1d(sim, yquan="rho")
 plt.show()
 ```
@@ -164,10 +225,15 @@ plt.show()
 This is the same pattern used by the migrated example scripts: load the YAML
 file, generate ``InitialCondition.hdf5`` from ``initial_condition`` using the
 unit system under ``par.units.CodeUnits``, then launch the run with ``Rsim``.
+``build_initial_condition(config)`` receives the complete nested configuration
+and normally returns an ``InitialConditionWriter``; call ``write`` on it to
+serialize the initial condition. Builders returning an assembled ``Rsim``
+state may use ``rio.writehdf5`` instead.
 The helper converts ``{value, unit}`` mappings to ``unyt`` quantities and
 resolves paths against the example directory.
-The plotting step reloads the first output snapshot and renders the density
-profile with the built-in plotting helper.
+The plotting step reloads the first output snapshot with ``loadhdf5`` and uses
+its ``*_radarray`` views for dimensional data before rendering the density
+profile.
 
 To use explicit output times instead of a fixed cadence, set
 `par.output.time_list_filename` to a txt file whose first non-empty line is the

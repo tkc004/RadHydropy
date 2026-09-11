@@ -128,6 +128,14 @@ class Testing(unittest.TestCase):
         )
         return SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
+    def test_loadhdf5_validates_nested_configuration(self):
+        with self.assertRaisesRegex(TypeError, "nested configuration mapping"):
+            rio.loadhdf5(None, "unused.hdf5")
+        with self.assertRaisesRegex(ValueError, "contain a 'par' mapping"):
+            rio.loadhdf5({}, "unused.hdf5")
+        with self.assertRaisesRegex(TypeError, "must be a mapping"):
+            rio.loadhdf5({"par": []}, "unused.hdf5")
+
     def test_hdf5_roundtrip_handles_scalar_header_quantities(self):
         par = parameter_namespace(
             coordsys='cartesian',

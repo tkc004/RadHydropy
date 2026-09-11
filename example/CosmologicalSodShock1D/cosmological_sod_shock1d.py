@@ -19,13 +19,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.rsim import Rsim
+from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
-from cosmological_initial_condition import (
-    build_initial_condition as build_cosmological_initial_condition,
-)
-from sodshock_analytic import shocktubecal, shocktubeanalyticgraph
+from tools import shocktubecal, shocktubeanalyticgraph
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
@@ -33,21 +31,124 @@ DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
 def _read_profile(filename, config):
     """Read one cosmological snapshot through the canonical typed runtime."""
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    sim = rio.loadhdf5(config, filename)
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
+    boundary_comoving_code = sim.mesh.boundary_radarray
+    rho_comoving_code = sim.fluid.rho_radarray
+    temp_supercomoving_code = sim.fluid.temp_radarray
     return (
         0.5 * np.asarray(
-            sim.mesh.boundary_comoving_code[first:first + count + 1], dtype=float
+            boundary_comoving_code.value[first:first + count + 1], dtype=float
         )[:-1] + 0.5 * np.asarray(
-            sim.mesh.boundary_comoving_code[first:first + count + 1], dtype=float
+            boundary_comoving_code.value[first:first + count + 1], dtype=float
         )[1:],
-        np.asarray(sim.fluid.rho_comoving_code[first:first + count], dtype=float),
-        np.asarray(sim.fluid.temp_supercomoving_code[first:first + count], dtype=float),
+        np.asarray(rho_comoving_code.value[first:first + count], dtype=float),
+        np.asarray(temp_supercomoving_code.value[first:first + count], dtype=float),
         float(np.sum(np.asarray(sim.fluid.Mass_code[first:first + count], dtype=float))),
         float(np.sum(np.asarray(sim.fluid.Energy_code[first:first + count], dtype=float))),
     )
+
+
+def _build_initial_condition(config, units):
+    """Build the Sod IC through the representation-aware writer boundary."""
+    par_config = config["par"]
+    initial_condition = config["initial_condition"]
+    grid_cells = int(par_config["mesh"]["grid_cells"])
+    box_size_comoving_unyt = initial_condition["box_size_comoving"]
+    boundary_comoving_unyt = np.linspace(
+        0.0,
+        float(box_size_comoving_unyt.to_value(units.length_unit)),
+        grid_cells + 1,
+    ) * units.length_unit
+    cell_centers_comoving_unyt = 0.5 * (
+        boundary_comoving_unyt[:-1] + boundary_comoving_unyt[1:]
+    )
+    left = cell_centers_comoving_unyt < 0.5 * box_size_comoving_unyt
+
+    writer = InitialConditionWriter(
+        par_config=par_config,
+        code_units=units,
+        cosmology_context=CosmologyContext(
+            gamma=float(par_config["hydrodynamics"]["gamma"]),
+            cosmology=config["_code_cosmology"].type_name,
+            scale_factor=1.0,
+            hubble_parameter_km_s_Mpc=0.0,
+        ),
+    )
+    writer.box_size = writer.radquantity(box_size_comoving_unyt)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_comoving_unyt)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.where(
+            left,
+            initial_condition["rho_left_proper"],
+            initial_condition["rho_right_proper"],
+        )
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * units.velocity_unit
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.where(
+            left,
+            initial_condition["temperature_left_proper"],
+            initial_condition["temperature_right_proper"],
+        )
+    )
+    writer.simulation.par.tau_supercomoving_code = np.array([0.0])
+    writer.simulation.par.simulation.tau_supercomoving_code = np.array([0.0])
+    writer.simulation.fluid.mu = np.full(
+        grid_cells, float(initial_condition["mu"])
+    )
+    return writer
+
+
+def _analytic_solution(config, units, radius_comoving_code, final_tau):
+    """Evaluate the analytic Sod solution in the simulation code units."""
+    initial_condition = config["initial_condition"]
+    gamma = float(config["par"]["hydrodynamics"]["gamma"])
+    pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
+    rho_left_proper_code = float(
+        initial_condition["rho_left_proper"].to_value(units.density_unit)
+    )
+    rho_right_proper_code = float(
+        initial_condition["rho_right_proper"].to_value(units.density_unit)
+    )
+    pressure_left = rho_left_proper_code * float(
+        initial_condition["temperature_left_proper"].to_value("K")
+    ) * pressure_factor
+    pressure_right = rho_right_proper_code * float(
+        initial_condition["temperature_right_proper"].to_value("K")
+    ) * pressure_factor
+    rho2, rho3, pressure2, velocity2, velocity_tail, velocity_shock, _ = shocktubecal(
+        gamma,
+        rho_right_proper_code,
+        rho_left_proper_code,
+        pressure_right,
+        pressure_left,
+    )
+    rho_exact, pressure_exact, _ = shocktubeanalyticgraph(
+        gamma,
+        rho_right_proper_code,
+        rho2,
+        rho3,
+        rho_left_proper_code,
+        pressure_right,
+        pressure2,
+        pressure_left,
+        velocity2,
+        velocity_tail,
+        velocity_shock,
+        final_tau,
+        radius_comoving_code,
+        0.5 * float(
+            initial_condition["box_size_comoving"].to_value(units.length_unit)
+        ),
+    )
+    interface = 0.5 * float(
+        initial_condition["box_size_comoving"].to_value(units.length_unit)
+    )
+    return rho_exact, pressure_exact, pressure_factor, interface
 
 
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
@@ -80,18 +181,12 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
             a_ref=float(cosmology_config.get("cosmology_a_ref", 1.0)),
         )
     case_config["_code_cosmology"] = code_cosmology
-    case_config["_initial_tau_supercomoving_code"] = 0.0
-    box_size_comoving_code = float(initial_condition["box_size_comoving"].to_value(units.length_unit))
-    case_config["_boundary_start_code"] = -box_size_comoving_code / int(
-        case_config["par"]["mesh"]["grid_cells"]
-    )
-    initial = build_cosmological_initial_condition(case_config)
     ic_filename = output_dir / "InitialCondition.hdf5"
-    rio.writehdf5(initial, ic_filename)
+    writer = _build_initial_condition(case_config, units)
+    writer.write(ic_filename)
+    initial = writer.simulation
     case_config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
-    sim = Rsim(case_config["par"])
-    sim.par.set_cosmology_model(initial.par.cosmology)
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(case_config, ic_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -125,46 +220,14 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         raise RuntimeError("cosmological Sod shock did not heat the gas")
 
     radius_comoving_code, rho_comoving_code, temp_supercomoving_code, _, _ = profiles[-1]
-    gamma = float(case_config["par"]["hydrodynamics"]["gamma"])
-    pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
-    rho_left_proper_code = float(
-        initial_condition["rho_left_proper"].to_value(units.density_unit)
-    )
-    rho_right_proper_code = float(
-        initial_condition["rho_right_proper"].to_value(units.density_unit)
-    )
-    pressure_left = rho_left_proper_code * float(
-        initial_condition["temperature_left_proper"].to_value("K")
-    ) * pressure_factor
-    pressure_right = rho_right_proper_code * float(
-        initial_condition["temperature_right_proper"].to_value("K")
-    ) * pressure_factor
-    rho2, rho3, pressure2, velocity2, velocity_tail, velocity_shock, _ = shocktubecal(
-        gamma,
-        rho_right_proper_code,
-        rho_left_proper_code,
-        pressure_right,
-        pressure_left,
-    )
     final_tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float))
     print(f"final supercomoving time = {final_tau:.8g}")
-    rho_exact, pressure_exact, _ = shocktubeanalyticgraph(
-        gamma,
-        rho_right_proper_code,
-        rho2,
-        rho3,
-        rho_left_proper_code,
-        pressure_right,
-        pressure2,
-        pressure_left,
-        velocity2,
-        velocity_tail,
-        velocity_shock,
-        final_tau,
+    rho_exact, pressure_exact, pressure_factor, interface = _analytic_solution(
+        case_config,
+        units,
         radius_comoving_code,
-        0.5 * float(initial_condition["box_size_comoving"].to_value(units.length_unit)),
+        final_tau,
     )
-    interface = 0.5 * float(initial_condition["box_size_comoving"].to_value(units.length_unit))
     central = (radius_comoving_code > interface - 2.0) & (radius_comoving_code < interface + 2.0)
     density_l1 = float(np.mean(np.abs(rho_comoving_code[central] - rho_exact[central])))
     if density_l1 > 0.04:

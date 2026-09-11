@@ -3,6 +3,7 @@
 import numpy as np
 
 from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.field_metadata import field_spec
 from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import (
@@ -56,11 +57,12 @@ class InitialConditionWriter:
                 )
             simulation = Rsim(par_config)
         self.simulation = simulation
+        self.code_units = simulation.par.units.CodeUnits
         self.provenance = provenance
         self.box_size = box_size
         self._fields = {}
         if code_units is not None:
-            actual_code_units = simulation.par.units.CodeUnits
+            actual_code_units = self.code_units
             for name in (
                 "mass_in_cgs",
                 "length_in_cgs",
@@ -111,6 +113,105 @@ class InitialConditionWriter:
     def from_rsim(cls, simulation, *, provenance=None):
         return cls(simulation, provenance=provenance)
 
+    def _primitive_field_name(self, values, context):
+        if not hasattr(values, "units"):
+            raise TypeError("writer.radarray requires a unit-bearing array")
+        cosmological_schema = bool(
+            getattr(self.simulation.par, "cosmological_expansion", False)
+            and getattr(self.simulation.par, "supercomoving_coordinates", False)
+        )
+        field_names = (
+            (
+                "boundary_comoving_code",
+                "rho_comoving_code",
+                "vel_supercomoving_code",
+                "temp_supercomoving_code",
+                "pre_supercomoving_code",
+            )
+            if cosmological_schema
+            else (
+                "boundary_proper_code",
+                "rho_proper_code",
+                "vel_proper_code",
+                "temp_proper_code",
+                "pre_proper_code",
+            )
+        )
+        field_units = (
+            self.code_units.length_unit,
+            self.code_units.density_unit,
+            self.code_units.velocity_unit,
+            self.code_units.temperature_unit,
+            self.code_units.pressure_unit,
+        )
+        value_dimensions = getattr(values.units, "dimensions", None)
+        if value_dimensions is None:
+            value_dimensions = values.units.units.dimensions
+        matching_fields = [
+            field_name
+            for field_name, field_unit in zip(field_names, field_units)
+            if value_dimensions == field_unit.units.dimensions
+        ]
+        if len(matching_fields) != 1:
+            raise ValueError(
+                "writer.radarray cannot infer a canonical primitive field from "
+                f"unit dimensions {value_dimensions}"
+            )
+        return matching_fields[0]
+
+    def radarray(self, values):
+        """Create a ``RadArray`` from a unit-bearing primitive array."""
+        context = self._context(self.simulation)
+        if context is None:
+            raise ValueError(
+                "InitialConditionWriter requires a valid cosmology context "
+                "before creating a RadArray"
+            )
+        field_name = self._primitive_field_name(values, context)
+        hubble_parameter_km_s_Mpc = (
+            context.hubble_parameter_km_s_Mpc
+            if field_name == "vel_supercomoving_code"
+            else None
+        )
+        return RadArray(
+            values,
+            code_units=self.code_units,
+            field_spec=field_spec(
+                field_name,
+                self.code_units,
+                cosmology=context.cosmology,
+                scale_factor=context.scale_factor,
+                hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
+            ),
+            cosmology=context,
+        )
+
+    def radquantity(self, value):
+        """Create a ``RadQuantity`` from a unit-bearing primitive scalar."""
+        context = self._context(self.simulation)
+        if context is None:
+            raise ValueError(
+                "InitialConditionWriter requires a valid cosmology context "
+                "before creating a RadQuantity"
+            )
+        field_name = self._primitive_field_name(value, context)
+        return RadQuantity(
+            value,
+            code_units=self.code_units,
+            field_spec=field_spec(
+                field_name,
+                self.code_units,
+                cosmology=context.cosmology,
+                scale_factor=context.scale_factor,
+                hubble_parameter_km_s_Mpc=(
+                    context.hubble_parameter_km_s_Mpc
+                    if field_name == "vel_supercomoving_code"
+                    else None
+                ),
+            ),
+            cosmology=context,
+        )
+
     def set_field(self, field_name, value):
         """Register one canonical IC field for conversion at write time."""
         self._fields[field_name] = value
@@ -137,6 +238,11 @@ class InitialConditionWriter:
             "pre_supercomoving_code": "pre_proper_code",
         }.get(field_name)
         value = self._fields.get(field_name)
+        # A prepared runtime simulation owns the canonical target field.  Use
+        # it before the analysis-oriented ``*_radarray`` view, which may carry
+        # stale or differently represented metadata after a restart.
+        if value is None:
+            value = getattr(container, field_name, None)
         if value is None and radarray_field is not None:
             value = self._fields.get(radarray_field)
         if value is None:
@@ -210,8 +316,112 @@ class InitialConditionWriter:
             converted = value.to_comoving(x_comoving_code=x_comoving_code)
         return np.asarray(converted.value, dtype=float)
 
-    def prepare(self):
-        """Convert registered fields and create canonical typed runtime state."""
+    @staticmethod
+    def _validate_active_proper_state(simulation, first, last):
+        """Validate the active proper-code primitive and conserved state.
+
+        This mirrors the active-state checks used by the hydro IC helpers, but
+        lives at the writer boundary so HDF5 input cannot bypass them.
+        """
+        fluid = simulation.fluid
+        mesh = simulation.mesh
+        rho_proper_code = np.asarray(
+            fluid.rho_proper_code[first:last], dtype=float
+        )
+        vel_proper_code = np.asarray(
+            fluid.vel_proper_code[first:last], dtype=float
+        )
+        pre_proper_code = np.asarray(
+            fluid.pre_proper_code[first:last], dtype=float
+        )
+        temp_proper_code = np.asarray(
+            fluid.temp_proper_code[first:last], dtype=float
+        )
+        mu_dimensionless = np.asarray(fluid.mu[first:last], dtype=float)
+        volume_proper_code = np.asarray(
+            mesh.volume_proper_code[first:last], dtype=float
+        )
+
+        for field_name, field_values in (
+            ("rho_proper_code", rho_proper_code),
+            ("vel_proper_code", vel_proper_code),
+            ("pre_proper_code", pre_proper_code),
+            ("temp_proper_code", temp_proper_code),
+            ("mu_dimensionless", mu_dimensionless),
+            ("volume_proper_code", volume_proper_code),
+        ):
+            if not np.all(np.isfinite(field_values)):
+                raise ValueError(f"active {field_name} contains non-finite values")
+
+        if np.any(rho_proper_code <= 0.0):
+            raise ValueError("active rho_proper_code must be strictly positive")
+        if np.any(temp_proper_code < 0.0):
+            raise ValueError("active temp_proper_code must be non-negative")
+        if np.any(pre_proper_code < 0.0):
+            raise ValueError("active pre_proper_code must be non-negative")
+        if np.any(volume_proper_code <= 0.0):
+            raise ValueError("active volume_proper_code must be strictly positive")
+
+        expected_pre_proper_code = np.asarray(
+            fluid.eos.pressure(
+                rho_proper_code,
+                temp_proper_code,
+                mu_dimensionless,
+            ),
+            dtype=float,
+        )
+        if not np.allclose(
+            pre_proper_code,
+            expected_pre_proper_code,
+            rtol=1.0e-10,
+            atol=1.0e-14,
+        ):
+            raise ValueError(
+                "active proper-code pressure is inconsistent with rho/temp/mu"
+            )
+
+        expected_mass_code = rho_proper_code * volume_proper_code
+        expected_mom_code = expected_mass_code * vel_proper_code
+        expected_energy_code = (
+            fluid.eos.total_energy_density(
+                rho_proper_code,
+                vel_proper_code,
+                pre_proper_code,
+            )
+            * volume_proper_code
+        )
+        mass_code = np.asarray(fluid.Mass_code[first:last], dtype=float)
+        mom_code = np.asarray(fluid.Mom_code[first:last], dtype=float)
+        energy_code = np.asarray(fluid.Energy_code[first:last], dtype=float)
+        for field_name, field_values in (
+            ("Mass_code", mass_code),
+            ("Mom_code", mom_code),
+            ("Energy_code", energy_code),
+        ):
+            if not np.all(np.isfinite(field_values)):
+                raise ValueError(f"active {field_name} contains non-finite values")
+        if not np.allclose(
+            mass_code, expected_mass_code, rtol=1.0e-10, atol=1.0e-14
+        ):
+            raise ValueError("active Mass_code is inconsistent with rho/volume")
+        if not np.allclose(
+            mom_code, expected_mom_code, rtol=1.0e-10, atol=1.0e-14
+        ):
+            raise ValueError("active Mom_code is inconsistent with rho/vel/volume")
+        if not np.allclose(
+            energy_code, expected_energy_code, rtol=1.0e-10, atol=1.0e-14
+        ):
+            raise ValueError(
+                "active Energy_code is inconsistent with rho/vel/pre/volume"
+            )
+
+    def prepare(self, *, validate=False):
+        """Convert fields and create canonical typed runtime state.
+
+        Set ``validate=True`` to run the active proper-code consistency
+        checks after solver initialization.  Validation is opt-in because
+        preparation is also used for conversion-only writer workflows.
+        """
         simulation = self.simulation
         par = simulation.par
         mesh = simulation.mesh
@@ -306,6 +516,75 @@ class InitialConditionWriter:
         if not hasattr(fluid, "mu"):
             fluid.mu = np.ones_like(density_values)
 
+        active_count = int(np.asarray(density_values).size)
+        solver_ready = all(
+            hasattr(simulation, attribute)
+            for attribute in ("SetMesh", "fluid", "solver")
+        ) and hasattr(simulation.solver, "SetConserved")
+        if solver_ready:
+            # Complete the same solver-ready initialization used by the normal
+            # IC path.  The writer receives active-cell primitive values, so
+            # setup temporarily adds ghost cells, derives conserved fields,
+            # and then trims the state back to the canonical IC representation.
+            original_grid_cells = int(par.mesh.grid_cells)
+            original_ghost_cells = int(par.mesh.ghost_cells)
+            par.mesh.grid_cells = active_count
+            par.mesh.ghost_cells = max(1, original_ghost_cells)
+            mesh._par = par
+            simulation.SetMesh()
+            fluid.SetUpFluid(par, mesh=mesh)
+            simulation.solver.SetConserved(
+                mesh,
+                fluid,
+                verbose=getattr(par, "verbose", 0),
+            )
+            ghost_cells = int(par.mesh.ghost_cells)
+            first = ghost_cells
+            last = first + active_count
+            if source_pressure is None:
+                pressure_values = np.asarray(
+                    getattr(fluid, pressure_field), dtype=float
+                )[first:last]
+            if validate and not cosmological_schema:
+                self._validate_active_proper_state(simulation, first, last)
+            mesh_attribute = "boundary_comoving_code" if cosmological_schema else "boundary_proper_code"
+            for field_name in (
+                mesh_attribute,
+                "x_comoving_code" if cosmological_schema else "x_proper_code",
+                "width_comoving_code" if cosmological_schema else "width_proper_code",
+                "area_comoving_code" if cosmological_schema else "area_proper_code",
+                "volume_comoving_code" if cosmological_schema else "volume_proper_code",
+            ):
+                values = getattr(mesh, field_name)
+                start, stop = (first, last + 1) if field_name == mesh_attribute else (first, last)
+                setattr(mesh, field_name, np.asarray(values, dtype=float)[start:stop])
+            fluid_attribute_names = {
+                density_field,
+                velocity_field,
+                temperature_field,
+                pressure_field,
+                "mu",
+                "Mass_code",
+                "Mom_code",
+                "Energy_code",
+                "InternalEnergy_code",
+                "AngularMomentum_code",
+                "GravitationalPotentialEnergy_code",
+            }
+            if cosmological_schema:
+                fluid_attribute_names.add("tau_supercomoving_code")
+            else:
+                fluid_attribute_names.add("time_proper_code")
+            for field_name in fluid_attribute_names:
+                if not hasattr(fluid, field_name):
+                    continue
+                values_array = np.asarray(getattr(fluid, field_name))
+                if values_array.ndim == 0 or values_array.size != active_count + 2 * ghost_cells:
+                    continue
+                setattr(fluid, field_name, values_array[first:last])
+            par.mesh.grid_cells = original_grid_cells
+            par.mesh.ghost_cells = original_ghost_cells
+
         if cosmological_schema:
             geometry_fields = SUPERCOMOVING_RUNTIME_FIELDS
             fluid_fields = SUPERCOMOVING_RUNTIME_FIELDS
@@ -378,11 +657,11 @@ class InitialConditionWriter:
             par.simulation.box_size_proper_code = float(boundary_values[-1])
         return simulation
 
-    def write(self, filename):
-        """Prepare the state and delegate to the canonical HDF5 serializer."""
+    def write(self, filename, *, validate=False):
+        """Prepare and write the state, optionally validating active cells."""
         from radhydropy import io
 
-        self.prepare()
+        self.prepare(validate=validate)
         return io._writehdf5(
             self.simulation,
             filename,
