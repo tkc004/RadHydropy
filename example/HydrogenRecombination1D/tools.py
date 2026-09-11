@@ -9,8 +9,7 @@ import unyt
 
 import radhydropy.io as rio
 from radhydropy.arrays import as_named_array
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value, time_seconds
 import hydrogen_recombination_analytic as hra
 
@@ -19,48 +18,27 @@ def build_initial_condition(config):
     """Build the initial state directly from the nested example mapping."""
     initial = config['initial_condition']
     units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    grid_cells = int(initial['grid_cells'])
-    result = Rsim(config['par'])
-    result.par.simulation.coordinate_system = initial['coordinate_system']
-    result.par.simulation.time_proper_code = initial['time_proper'].to_value(units.time_unit)
-    result.par.simulation.box_size_proper_code = initial['box_size_proper'].to_value(units.length_unit)
-    result.par.mesh.ghost_cells = 1
-    result.mesh.boundary_proper_code = as_named_array(np.linspace(
-        0.0, result.par.simulation.box_size_proper_code, grid_cells + 1
-    ))
-    result.fluid.rho_proper_code = as_named_array(
-        (np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp)
-        .to_value(units.density_unit)
+    grid_cells = int(config['par']['mesh']['grid_cells'])
+    writer = InitialConditionWriter(par_config=config['par'], code_units=units)
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(
+        np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
     )
-    result.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
-    result.fluid.temp_proper_code = as_named_array(
-        (np.ones(grid_cells) * initial['temperature_proper']).to_value(units.temperature_unit)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp
     )
-    result.fluid.xHI = as_named_array(np.ones(grid_cells) * initial['neutral_fraction'])
-    result.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mean_molecular_weight'])
-    result.SetMesh()
-    result.fluid.SetUpFluid(result.par, result.mesh)
-    first, last = 1, 1 + grid_cells
-    result.mesh.boundary_proper_code = as_named_array(
-        result.mesh.boundary_proper_code[first:last + 1]
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * units.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['temperature_proper']
     )
-    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'xHI', 'mu'):
-        setattr(result.fluid, field, as_named_array(getattr(result.fluid, field)[first:last]))
-    result.par.mesh.ghost_cells = 0
-    boundary_proper_code = result.mesh.boundary_proper_code
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=np.diff(boundary_proper_code),
-        area_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area_proper, units.area_unit),
-        volume_proper_code=np.ones(grid_cells) * quantity_to_value(result.par.mesh.area_proper, units.area_unit) * np.diff(boundary_proper_code),
+    writer.simulation.par.simulation.time_proper_code = quantity_to_value(
+        initial['time_proper'], units.time_unit
     )
-    result.fluid.SetPressure()
-    result.fluid.SetFluidTime(result.par.simulation.time_proper_code)
-    result.fluid.SetEnergyDensity()
-    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
-    return result
+    writer.simulation.fluid.xHI = as_named_array(np.full(grid_cells, initial['neutral_fraction']))
+    writer.simulation.fluid.mu = as_named_array(
+        np.full(grid_cells, initial['mean_molecular_weight'])
+    )
+    return writer
 
 
 def interior_slice(sim):
@@ -70,16 +48,7 @@ def interior_slice(sim):
 
 def mean_temperature(sim):
     interior = interior_slice(sim)
-    return (
-        np.mean(
-            code_quantity_to_cgs(
-                sim.fluid.temp_proper_code[interior],
-                getattr(sim.par.units, 'CodeUnits', None),
-                'temperature_proper_cgs_K',
-            )
-        )
-        * unyt.K
-    )
+    return np.mean(sim.fluid.temp_radarray[interior].to_cgs().value) * unyt.K
 
 
 def mean_neutral_fraction(sim):
@@ -102,21 +71,15 @@ def load_history_from_outputs(outputfiles, config):
     history = {'time_proper_yr': [], 'temperature_proper_cgs_K': [], 'ionized_fraction': []}
     initial = config['initial_condition']
 
-    interior = slice(0, initial['grid_cells'])
+    interior = slice(0, config['par']['mesh']['grid_cells'])
     code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
 
     for outfilename in sorted(outputfiles):
-        rout = Rsim(config['par'])
-        rout.par.unit_system = code_units_obj.unit_system
-        rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+        rout = rio.loadhdf5(config, outfilename)
         history['time_proper_yr'].append(time_value(rout, unyt.yr))
         history['temperature_proper_cgs_K'].append(
             np.mean(
-                code_quantity_to_cgs(
-                    rout.fluid.temp_proper_code[interior],
-                    code_units_obj,
-                    'temperature_proper_cgs_K',
-                )
+                rout.fluid.temp_radarray[interior].to_cgs().value
             )
         )
         history['ionized_fraction'].append(

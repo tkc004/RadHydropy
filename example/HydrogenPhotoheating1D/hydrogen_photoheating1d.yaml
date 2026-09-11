@@ -5,6 +5,7 @@ par:
     coordinate_system: cartesian
     final_time: {value: 1.0e8, unit: yr}
   mesh:
+    grid_cells: 16
     ghost_cells: 2
   hydrodynamics:
     eos_type: polytropic
@@ -62,8 +63,6 @@ par:
         UnitTemp_in_cgs: 1.0
 
 initial_condition:
-  grid_cells: 16
-  coordinate_system: cartesian
   box_size_proper: {value: 1.0, unit: kpc}
   time_proper: {value: 0.0, unit: yr}
   hydrogen_number_density: {value: 1.0, unit: 1/cm**3}

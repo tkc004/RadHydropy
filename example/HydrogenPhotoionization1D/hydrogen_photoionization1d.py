@@ -30,7 +30,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 import unyt
 
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import radhydropy.io as rio
 import example_utils as eu
@@ -60,9 +59,9 @@ def main(config_filename=DEFAULT_CONFIG):
     output = config["par"]['output']
     eu.clean_previous_outputs(config)
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
-
-    sim = Rsim(config["par"])
+    ic_filename = config["par"]['simulation']['initial_condition_filename']
+    ric.write(ic_filename)
+    sim = rio.loadhdf5(config, ic_filename)
     RunHydrogenPhotoionization(
         sim,
         exampleparams['target_neutral_fraction'],
@@ -112,4 +111,3 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     main(args.config)
-

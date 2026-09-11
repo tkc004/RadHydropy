@@ -4,7 +4,7 @@ import numpy as np
 
 from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.field_metadata import field_spec
-from radhydropy.radarray import RadArray, RadQuantity
+from radhydropy.radarray import RadArray, RadQuantity, _code_unit_for_spec
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
@@ -179,18 +179,28 @@ class InitialConditionWriter:
             if field_name == "vel_supercomoving_code"
             else None
         )
+        spec = field_spec(
+            field_name,
+            self.code_units,
+            cosmology=context.cosmology,
+            scale_factor=context.scale_factor,
+            hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
+        )
         return RadArray(
-            values,
+            self._to_code_values(values, _code_unit_for_spec(self.code_units, spec)),
             code_units=self.code_units,
-            field_spec=field_spec(
-                field_name,
-                self.code_units,
-                cosmology=context.cosmology,
-                scale_factor=context.scale_factor,
-                hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
-            ),
+            field_spec=spec,
             cosmology=context,
         )
+
+    @staticmethod
+    def _to_code_values(value, code_unit):
+        """Convert a unit-bearing value to numerical values in ``code_unit``."""
+        if not hasattr(value, "to_value"):
+            raise TypeError("writer requires a unit-bearing value")
+        return np.asarray(
+            value.to_value(code_unit.units), dtype=float
+        ) / float(code_unit.value)
 
     def radquantity(self, value):
         """Create a ``RadQuantity`` from a unit-bearing primitive scalar."""
@@ -201,20 +211,21 @@ class InitialConditionWriter:
                 "before creating a RadQuantity"
             )
         field_name = self._primitive_field_name(value, context)
-        return RadQuantity(
-            value,
-            code_units=self.code_units,
-            field_spec=field_spec(
-                field_name,
-                self.code_units,
-                cosmology=context.cosmology,
-                scale_factor=context.scale_factor,
-                hubble_parameter_km_s_Mpc=(
-                    context.hubble_parameter_km_s_Mpc
-                    if field_name == "vel_supercomoving_code"
-                    else None
-                ),
+        spec = field_spec(
+            field_name,
+            self.code_units,
+            cosmology=context.cosmology,
+            scale_factor=context.scale_factor,
+            hubble_parameter_km_s_Mpc=(
+                context.hubble_parameter_km_s_Mpc
+                if field_name == "vel_supercomoving_code"
+                else None
             ),
+        )
+        return RadQuantity(
+            self._to_code_values(value, _code_unit_for_spec(self.code_units, spec)),
+            code_units=self.code_units,
+            field_spec=spec,
             cosmology=context,
         )
 

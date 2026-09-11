@@ -29,7 +29,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 import unyt
 
-from radhydropy.rsim import Rsim
 import radhydropy.io as rio
 import example_utils as eu
 import tools as et
@@ -57,10 +56,9 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
-
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    ic_filename = config["par"]['simulation']['initial_condition_filename']
+    ric.write(ic_filename)
+    sim = rio.loadhdf5(config, ic_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
