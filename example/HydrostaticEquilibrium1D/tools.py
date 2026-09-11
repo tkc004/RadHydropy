@@ -7,13 +7,13 @@ import numpy as np
 import unyt
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import (
     CodeUnits,
     code_quantity_to_cgs,
     code_unit_scales,
     quantity_to_value,
 )
-from basic_hydro_utils import make_initial_condition
 
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
@@ -106,26 +106,23 @@ def build_initial_condition(config):
     box_size_proper_unyt = _physical_value(
         initial_condition['box_size_proper'], unyt.cm, 'box_size_proper'
     ) * unyt.cm
-    boundary_proper_code = np.linspace(0.0, 1.0, grid_cells + 1) * quantity_to_value(box_size_proper_unyt, code_units.length_unit)
-    coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    rho_proper_code = quantity_to_value(hydrostatic_density_profile(
-        coordinate_proper_code * code_units.length_unit,
+    boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
+    coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
+    rho_proper_unyt = hydrostatic_density_profile(
+        coordinate_proper_unyt,
         initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['gravity_strength'],
         code_unit_system=code_units,
-    ), code_units.density_unit)
-    temp_proper_code = np.full(grid_cells, quantity_to_value(initial_condition['temperature_proper'], code_units.temperature_unit))
-    return make_initial_condition(
-        config,
-        boundary_proper_code=boundary_proper_code,
-        rho_proper_code=rho_proper_code,
-        vel_proper_code=np.zeros(grid_cells),
-        temp_proper_code=temp_proper_code,
-        mu_dimensionless=np.full(grid_cells, initial_condition['mean_molecular_weight']),
-        area_proper_code=np.ones(grid_cells),
     )
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial_condition['temperature_proper'])
+    writer.simulation.fluid.mu = np.full(grid_cells, initial_condition['mean_molecular_weight'])
+    return writer
 def plot_snapshot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     initial_condition = config['initial_condition']
@@ -144,24 +141,23 @@ def plot_snapshot(outfilename, config, **kwargs):
     )
     nested_config = dict(config)
     nested_config['_code_units'] = code_units_obj
-    rout = build_initial_condition(nested_config)
-    if code_units_obj is not None:
-        rout.par.unit_system = code_units_obj.unit_system
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rout = rio.loadhdf5(nested_config, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(config["par"].get('mesh', {}).get('ghost_cells', 0))
-    boundary_proper_code = rout.mesh.geometry_state.boundary_proper_code
+    boundary_proper_code = np.asarray(rout.mesh.boundary_radarray.value, dtype=float)
+    rho_values = np.asarray(rout.fluid.rho_radarray.value, dtype=float)
+    vel_values = np.asarray(rout.fluid.vel_radarray.value, dtype=float)
     x_proper_code_all = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     if nghost > 0:
         # The typed mesh geometry stores physical cell boundaries; ghost
         # cells are present only in the fluid arrays returned by the reader.
-        x_proper_code = x_proper_code_all
-        rho_proper_code = rout.fluid.rho_proper_code[nghost:-nghost]
-        vel_proper_code = rout.fluid.vel_proper_code[nghost:-nghost]
+        x_proper_code = x_proper_code_all[nghost:-nghost]
+        rho_proper_code = rho_values[nghost:-nghost] if rho_values.size != int(config['par']['mesh']['grid_cells']) else rho_values
+        vel_proper_code = vel_values[nghost:-nghost] if vel_values.size != int(config['par']['mesh']['grid_cells']) else vel_values
     else:
         x_proper_code = x_proper_code_all
-        rho_proper_code = rout.fluid.rho_proper_code
-        vel_proper_code = rout.fluid.vel_proper_code
+        rho_proper_code = rho_values
+        vel_proper_code = vel_values
     rho_analytic_cgs_g_cm3_unyt = hydrostatic_density_profile(
         x_proper_code,
         initial_condition['rho_reference_proper'],
@@ -171,9 +167,9 @@ def plot_snapshot(outfilename, config, **kwargs):
         code_unit_system=code_units_obj,
     )
     if code_units_obj is not None:
-        x_units = getattr(x_proper_code, 'units', code_units_obj.length_unit.units)
-        rho_units = getattr(rho_proper_code, 'units', code_units_obj.density_unit.units)
-        vel_units = getattr(vel_proper_code, 'units', code_units_obj.velocity_unit.units)
+        x_units = code_units_obj.length_unit.units
+        rho_units = code_units_obj.density_unit.units
+        vel_units = code_units_obj.velocity_unit.units
         x_proper_cgs_cm_unyt = code_quantity_to_cgs(
             x_proper_code, code_units_obj, 'length_cgs_cm'
         ) * unyt.cm

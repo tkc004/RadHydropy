@@ -9,7 +9,7 @@ par:
     ghost_cells: 2
   hydrodynamics:
     eos_type: isothermal
-    gamma: 1.0
+    gamma: 1.6666666666666667
     CFL: 0.2
     order: 0
   boundary:

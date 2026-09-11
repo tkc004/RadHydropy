@@ -8,14 +8,13 @@ import unyt
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, GRAVITATIONAL_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import (
     CodeUnits,
     code_quantity_to_cgs,
     code_unit_scales,
     quantity_to_value,
 )
-from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, PROPER_RUNTIME_FIELDS
 
 SPEED_SQUARED_UNIT = unyt.cm**2 / unyt.s**2
 DENSITY_UNIT = unyt.g / unyt.cm**3
@@ -129,92 +128,52 @@ def build_initial_condition(config):
     )
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim = Rsim(config['par'])
-    sim.par.mesh.grid_cells = grid_cells
-    sim.par.mesh.ghost_cells = 0
-    sim.par.simulation.coordinate_system = initial_condition['coordinate_system']
-    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time_proper'], code_unit_system.time_unit)
-    sim.par.simulation.box_size_proper_code = quantity_to_value(initial_condition['box_size_proper'], code_unit_system.length_unit)
-
-    sim.mesh.boundary_proper_code = np.linspace(
+    boundary_proper_unyt = np.linspace(
         initial_condition['radius_inner_proper'],
-        initial_condition['radius_outer_proper'],
-        grid_cells + 1,
+        initial_condition['radius_outer_proper'], grid_cells + 1,
     )
-    sim.mesh.x_proper_code = spherical_cell_centers(sim.mesh.boundary_proper_code)
-    dx = sim.mesh.boundary_proper_code[1] - sim.mesh.boundary_proper_code[0]
-    sim.mesh.area_proper_code = 4.0 * np.pi * sim.mesh.boundary_proper_code[:-1]**2
-    sim.mesh.volume_proper_code = (
-        np.absolute(sim.mesh.boundary_proper_code[1:]**3 - sim.mesh.boundary_proper_code[:-1]**3)
-        * 4.0
-        * np.pi
-        / 3.0
-    )
-
-    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['temperature_proper'], code_unit_system.temperature_unit)
-    sim.fluid.mu = np.ones(grid_cells) * initial_condition['mean_molecular_weight']
-    sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
-    sim.fluid.rho_proper_code = point_mass_hydrostatic_density_profile(
-        sim.mesh.x_proper_code,
+    coordinate_proper_unyt = spherical_cell_centers(
+        quantity_to_value(boundary_proper_unyt, code_unit_system.length_unit)
+    ) * code_unit_system.length_unit
+    rho_proper_unyt = point_mass_hydrostatic_density_profile(
+        coordinate_proper_unyt,
         initial_condition['rho_reference_proper'],
         initial_condition['temperature_proper'],
         initial_condition['mean_molecular_weight'],
         initial_condition['point_mass'],
-        reference_radius=sim.mesh.x_proper_code[0],
+        reference_radius=coordinate_proper_unyt[0],
         code_unit_system=code_unit_system,
     )
-    boundary_proper_code = quantity_to_value(
-        sim.mesh.boundary_proper_code, code_unit_system.length_unit
-    )
-    coordinate_proper_code = quantity_to_value(
-        sim.mesh.x_proper_code, code_unit_system.length_unit
-    )
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=coordinate_proper_code,
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=np.diff(boundary_proper_code),
-        area_proper_code=sim.mesh.area_proper_code,
-        volume_proper_code=sim.mesh.volume_proper_code,
-    )
-    sim.fluid.rho_proper_code = quantity_to_value(sim.fluid.rho_proper_code, code_unit_system.density_unit)
-    sim.fluid.vel_proper_code = np.zeros(grid_cells)
-    sim.fluid.temp_proper_code = quantity_to_value(sim.fluid.temp_proper_code, code_unit_system.temperature_unit)
-    sim.fluid.pre_proper_code = sim.fluid.rho_proper_code * sim.fluid.temp_proper_code
-    sim.fluid.time_proper_code = 0.0
-    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS, rho_proper_code=sim.fluid.rho_proper_code,
-        vel_proper_code=sim.fluid.vel_proper_code, pre_proper_code=sim.fluid.pre_proper_code,
-        temp_proper_code=sim.fluid.temp_proper_code, time_proper_code=0.0, mu_dimensionless=sim.fluid.mu,
-    )
-
-
-    sim.fluid.SetUpFluid(sim.par, sim.mesh)
-    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-    return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_unit_system)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_unit_system.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial_condition['temperature_proper'])
+    writer.simulation.par.simulation.time_proper_code = quantity_to_value(initial_condition['time_proper'], code_unit_system.time_unit)
+    writer.simulation.fluid.mu = np.full(grid_cells, initial_condition['mean_molecular_weight'])
+    return writer
 def plot_snapshot(outfilename, config, **kwargs):
     """Read a snapshot and compare it with the analytic hydrostatic profile."""
     code_units_mapping = config['par']['units']['CodeUnits']
     code_units_obj = CodeUnits.from_mapping(code_units_mapping) if code_units_mapping is not None else None
-    rout = build_initial_condition(config)
-    if code_units_obj is not None:
-        rout.par.unit_system = code_units_obj.unit_system
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rout = rio.loadhdf5(config, outfilename)
     color = kwargs.get('color', 'C0')
     nghost = int(config['par']['mesh']['ghost_cells'])
-    boundary_proper_code = rout.mesh.geometry_state.boundary_proper_code
+    boundary_proper_code = np.asarray(rout.mesh.boundary_radarray.value, dtype=float)
     xall = spherical_cell_centers(boundary_proper_code)
     if nghost > 0:
         # Mesh geometry contains physical cells; only fluid arrays carry
         # ghost cells after HDF5 reload.
-        coordinate_proper_code = xall
-        rho_num = rout.fluid.rho_proper_code[nghost:-nghost]
-        vel_code_num = rout.fluid.vel_proper_code[nghost:-nghost]
+        coordinate_proper_code = xall[nghost:-nghost]
+        rho_values = np.asarray(rout.fluid.rho_radarray.value, dtype=float)
+        vel_values = np.asarray(rout.fluid.vel_radarray.value, dtype=float)
+        rho_num = rho_values[nghost:-nghost] if rho_values.size != int(config['par']['mesh']['grid_cells']) else rho_values
+        vel_code_num = vel_values[nghost:-nghost] if vel_values.size != int(config['par']['mesh']['grid_cells']) else vel_values
     else:
         coordinate_proper_code = xall
-        rho_num = rout.fluid.rho_proper_code
-        vel_code_num = rout.fluid.vel_proper_code
+        rho_num = np.asarray(rout.fluid.rho_radarray.value, dtype=float)
+        vel_code_num = np.asarray(rout.fluid.vel_radarray.value, dtype=float)
     rho_analytic = point_mass_hydrostatic_density_profile(
         coordinate_proper_code,
         config['initial_condition']['rho_reference_proper'],

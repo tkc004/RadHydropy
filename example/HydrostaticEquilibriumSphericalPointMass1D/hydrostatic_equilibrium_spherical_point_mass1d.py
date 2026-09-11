@@ -12,7 +12,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.gravity import Gravity, point_mass_potential
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
@@ -41,14 +40,13 @@ def main(config_filename=DEFAULT_CONFIG):
     code_units_obj = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     ric = et.build_initial_condition(config)
     initial_filename = Path(config['par']['simulation']['initial_condition_filename'])
-    rio.writehdf5(ric, initial_filename)
+    ric.write(initial_filename, validate=True)
 
     config['par']['simulation'] = {
         **config['par']['simulation'],
         'initial_condition_filename': str(initial_filename),
     }
-    mainrun = Rsim(config['par'])
-    rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
+    mainrun = rio.loadhdf5(config, initial_filename)
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
@@ -65,8 +63,8 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun.Run(mode='hydro')
 
     final_outfile = os.path.join(
-        par['output']['directory'],
-        par['output']['filename_prefix'] + '_001.hdf5',
+        config['par']['output']['directory'],
+        config['par']['output']['filename_prefix'] + '_001.hdf5',
     )
     if not os.path.exists(final_outfile):
         raise FileNotFoundError(
@@ -83,7 +81,7 @@ def main(config_filename=DEFAULT_CONFIG):
         color='C0',
     )
     figure_filename = os.path.join(
-        par['output']['directory'],
+        config['par']['output']['directory'],
         'HydrostaticEquilibriumSphericalPointMass1D.jpg',
     )
     plt.tight_layout()

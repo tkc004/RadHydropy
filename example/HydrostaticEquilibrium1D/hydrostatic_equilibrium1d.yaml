@@ -10,7 +10,7 @@ par:
   hydrodynamics:
     eos_type: isothermal
     temperature_proper: {value: 1.0e4, unit: K}
-    gamma: 1.0
+    gamma: 1.6666666666666667
     CFL: 0.2
     order: 1
   gravity:

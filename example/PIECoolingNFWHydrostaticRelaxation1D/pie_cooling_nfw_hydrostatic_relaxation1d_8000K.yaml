@@ -49,8 +49,8 @@ par:
   radiation:
     radiative_transfer: false
 initial_condition:
-  nogrid: 512
-  coordsys: spherical
+  grid_cells: 512
+  coordinate_system: spherical
   box_size_proper: {value: 100.0, unit: kpc}
   time_proper: {value: 0.0, unit: Myr}
   radius_inner_proper: {value: 0.01, unit: kpc}
@@ -61,6 +61,7 @@ initial_condition:
   overdensity: 200.0
   h0: {value: 70.0, unit: km/(s*Mpc)}
   gas_fraction: 0.157
+  mean_molecular_weight: 0.59
   mu: 0.59
   rho_reference_proper: {value: 1.0e-27, unit: g/cm**3}
   temperature_proper: {value: 1.0, unit: K}

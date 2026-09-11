@@ -26,7 +26,6 @@ import unyt
 
 import radhydropy.io as rio
 from radhydropy.gravity import Gravity, nfw_potential
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
 import tools as et
@@ -54,10 +53,9 @@ def main(config_filename=DEFAULT_CONFIG):
 
     config['_code_units'] = code_units
     initial_state = et.build_initial_condition(config)
-    rio.writehdf5(initial_state, par['simulation']['initial_condition_filename'])
+    initial_state.write(par['simulation']['initial_condition_filename'], validate=True)
 
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(config, par['simulation']['initial_condition_filename'])
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

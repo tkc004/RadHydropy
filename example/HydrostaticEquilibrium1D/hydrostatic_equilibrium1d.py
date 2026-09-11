@@ -12,7 +12,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
@@ -39,9 +38,9 @@ def main(config_filename=DEFAULT_CONFIG):
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
+    ric.write(config["par"]['simulation']['initial_condition_filename'], validate=True)
 
-    mainrun = Rsim(config["par"])
+    mainrun = rio.loadhdf5(config, config["par"]['simulation']['initial_condition_filename'])
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(

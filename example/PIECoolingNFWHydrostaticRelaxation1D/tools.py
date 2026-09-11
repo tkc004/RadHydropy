@@ -8,12 +8,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from radhydropy.arrays import as_named_array
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-from basic_hydro_utils import finalize_initial_condition
 
 BASE_PATH = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
 SPEC = importlib.util.spec_from_file_location('nfw_hydrostatic_tools_for_pie', BASE_PATH)
@@ -33,26 +30,13 @@ nfw_enclosed_mass = BASE.nfw_enclosed_mass
 def build_initial_condition(config):
     """Build the hydrostatic NFW atmosphere using canonical runtime fields."""
     initial = config['initial_condition']
-    sim = Rsim(config['par'])
-    code_units = sim.par.units.CodeUnits
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     grid_cells = int(config['par']['mesh']['grid_cells'])
     radius_inner_proper_unyt = initial['radius_inner_proper']
     radius_outer_proper_unyt = initial['radius_outer_proper']
-    boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(
-            radius_inner_proper_unyt,
-            radius_outer_proper_unyt,
-            grid_cells + 1,
-        ), code_units.length_unit
-    ))
-    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+    boundary_proper_unyt = np.linspace(radius_inner_proper_unyt, radius_outer_proper_unyt, grid_cells + 1)
+    boundary_proper_code = quantity_to_value(boundary_proper_unyt, code_units.length_unit)
     x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
-    sim.mesh.boundary_proper_code = boundary_proper_code
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
-        width_proper_code=np.diff(boundary_proper_code), area_proper_code=4.0 * np.pi * boundary_proper_code[:-1]**2,
-        volume_proper_code=volume_proper_code,
-    )
     halo = nfw_halo_parameters(
         initial['halo_mass'], initial['concentration'], initial['redshift'],
         initial['overdensity'], initial['h0'],
@@ -63,47 +47,41 @@ def build_initial_condition(config):
         radius_proper_unyt, np.asarray(boundary_proper_code) * code_units.length_unit, halo, temperature_virial_unyt,
         initial['mu'], initial['gas_fraction'],
     )
-    sim.fluid.rho_proper_code = as_named_array(quantity_to_value(rho_proper_cgs_g_cm3_unyt, code_units.density_unit))
-    sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
-    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(np.ones(grid_cells) * temperature_virial_unyt, code_units.temperature_unit))
-    sim.fluid.mu = as_named_array(np.ones(grid_cells) * initial['mu'])
-    sim.fluid.time_proper_code = 0.0
-    sim.SetMesh()
-    sim.fluid.SetUpFluid(sim.par, sim.mesh)
-    sim.fluid.SetFluidTime(0.0)
-    sim.fluid.SetEnergyDensity()
-    sim.mesh._par = sim.par
-    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-    finalize_initial_condition(sim, grid_cells)
-    sim.ConvertParametersToCodeUnits()
-    return sim
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(x_proper_code * code_units.length_unit)
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_cgs_g_cm3_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_virial_unyt)
+    writer.simulation.fluid.mu = np.full(grid_cells, initial['mu'])
+    return writer
 
 
 def load_output_state(filename, config):
     code_units = config.get('_code_units')
     if code_units is None:
         code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    snapshot = Rsim(config['par'])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
-    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
+    boundary_proper_code = np.asarray(snapshot.mesh.boundary_radarray.value)[
         first:first + count + 1
     ]
     radius_proper_kpc = spherical_cell_centers(
         boundary_proper_code * code_units.length_unit
     ).to_value(unyt.kpc)
     rho_proper_cgs_g_cm3 = (
-        np.asarray(snapshot.fluid.rho_proper_code)[physical]
+        np.asarray(snapshot.fluid.rho_radarray.value)[physical]
         * code_units.density_unit
     ).to_value(unyt.g / unyt.cm**3)
     temperature_proper_cgs_K = (
-        np.asarray(snapshot.fluid.temp_proper_code)[physical]
+        np.asarray(snapshot.fluid.temp_radarray.value)[physical]
         * code_units.temperature_unit
     ).to_value(unyt.K)
     vel_peculiar_proper_km_s = (
-        np.asarray(snapshot.fluid.vel_proper_code)[physical]
+        np.asarray(snapshot.fluid.vel_radarray.value)[physical]
         * code_units.velocity_unit
     ).to_value(unyt.km / unyt.s)
     time_proper_code = float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])

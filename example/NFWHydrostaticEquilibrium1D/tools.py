@@ -9,9 +9,8 @@ import unyt
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.gravity import nfw_potential
 import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
-from radhydropy.rsim import Rsim
-from basic_hydro_utils import make_initial_condition
 
 
 GRAVITATIONAL_CONSTANT = unyt.physical_constants.gravitational_constant
@@ -142,14 +141,14 @@ def build_initial_condition(config):
         initial_condition['mu'],
         initial_condition['gas_fraction'],
     )
-    return make_initial_condition(
-        config,
-        boundary_proper_code=quantity_to_value(boundary_proper_unyt, code_units.length_unit),
-        rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
-        vel_proper_code=np.zeros(grid_cells),
-        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature_proper_unyt, code_units.temperature_unit)),
-        mu_dimensionless=np.full(grid_cells, initial_condition['mu']),
-    )
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_proper_unyt)
+    writer.simulation.fluid.mu = np.full(grid_cells, initial_condition['mu'])
+    return writer
 
 def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_filename):
     """Read the evolved snapshot and plot its NFW hydrostatic residuals."""
@@ -157,11 +156,10 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
     par = config['par']
     code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     config['_code_units'] = code_units
-    rout = Rsim(config["par"])
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rout = rio.loadhdf5(config, outfilename)
     nghost = int(par['mesh']['ghost_cells'])
     boundary_proper_cgs_cm_unyt = code_quantity_to_cgs(
-        rout.mesh.boundary_proper_code,
+        np.asarray(rout.mesh.boundary_radarray.value),
         code_units,
         'length_cgs_cm',
     ) * unyt.cm
@@ -169,8 +167,12 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
     first = nghost
     last = first + int(par['mesh']['grid_cells'])
     radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_all_unyt[first:last]
-    rho_proper_code = rout.fluid.rho_proper_code[first:last]
-    vel_proper_code = rout.fluid.vel_proper_code[first:last]
+    rho_values = np.asarray(rout.fluid.rho_radarray.value)
+    vel_values = np.asarray(rout.fluid.vel_radarray.value)
+    if rho_values.size == int(par['mesh']['grid_cells']):
+        first, last = 0, rho_values.size
+    rho_proper_code = rho_values[first:last]
+    vel_proper_code = vel_values[first:last]
     rho_expected_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
         radius_proper_cgs_cm_all_unyt,
         boundary_proper_cgs_cm_unyt,

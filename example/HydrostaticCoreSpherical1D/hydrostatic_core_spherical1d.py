@@ -18,7 +18,6 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity, point_mass_potential
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
@@ -33,7 +32,7 @@ def run(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     output_dir = Path(config["par"]["output"]["directory"])
     output_dir.mkdir(parents=True, exist_ok=True)
-    rio.writehdf5(initial, output_dir / "InitialCondition.hdf5")
+    initial.write(output_dir / "InitialCondition.hdf5", validate=True)
 
     config["par"]["simulation"] = {
         **config["par"]["simulation"],
@@ -42,8 +41,7 @@ def run(config_filename=DEFAULT_CONFIG):
     config["par"]["output"] = {
         **config["par"]["output"], "directory": str(output_dir),
     }
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(config, config["par"]["simulation"]["initial_condition_filename"])
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -72,19 +70,32 @@ def run(config_filename=DEFAULT_CONFIG):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     radius_proper_code = np.asarray(sim.mesh.geometry_state.x_proper_code[first:last], dtype=float)
-    rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
+    rho_values = np.asarray(sim.fluid.rho_radarray.value, dtype=float)
+    temp_values = np.asarray(sim.fluid.temp_radarray.value, dtype=float)
+    mu_values = np.asarray(sim.fluid.mu, dtype=float)
+    if mu_values.size != int(config["par"]["mesh"]["grid_cells"]):
+        mu_values = mu_values[first:last]
+    rho_proper_code = (
+        rho_values[first:last]
+        if rho_values.size != int(config["par"]["mesh"]["grid_cells"])
+        else rho_values
+    )
+    pressure_proper_code = np.asarray(
+        sim.fluid.eos.pressure(rho_values, temp_values, mu_values),
+        dtype=float,
+    )
     analytic_rho_proper_code = et.analytic_density_code(radius_proper_code, config)
     core_radius_proper_code = quantity_to_value(
-        config["par"]["cosmology"]["radius_core_proper"], units.length_unit
+        config["par"]["gravity"]["radius_core_proper"], units.length_unit
     )
     halo = radius_proper_code >= core_radius_proper_code
     relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(analytic_rho_proper_code, 1.0e-300)
     core_cells = radius_proper_code < core_radius_proper_code
     core_last = np.flatnonzero(core_cells)[-1]
     pressure_mismatch = abs(
-        float(sim.fluid.pre_proper_code[first + core_last])
-        - float(sim.fluid.pre_proper_code[first + core_last + 1])
-    ) / max(float(sim.fluid.pre_proper_code[first + core_last + 1]), 1.0e-300)
+        float(pressure_proper_code[core_last])
+        - float(pressure_proper_code[core_last + 1])
+    ) / max(float(pressure_proper_code[core_last + 1]), 1.0e-300)
     max_halo_error = float(np.max(relative_error[halo]))
     mean_step = float(np.mean([item[0] for item in step_times]))
     print("maximum halo density relative error: %.6e" % max_halo_error)

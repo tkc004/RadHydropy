@@ -18,7 +18,6 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 
 import radhydropy.io as rio
 from radhydropy.gravity import Gravity, nfw_potential
-from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -49,7 +48,7 @@ def main(config_filename=DEFAULT_CONFIG):
     temperature_virial_unyt = et.virial_temperature(halo, initial_mapping['mu'])
     config['_code_units'] = code_units
     initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, par['simulation']['initial_condition_filename'])
+    initial.write(par['simulation']['initial_condition_filename'], validate=True)
     runtime_only = {
         'box_size_proper', 'coordinate_system', 'time_proper', 'grid_cells',
         'number_of_cells', 'radius_inner_proper', 'radius_outer_proper', 'halo_mass',
@@ -58,8 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
         'temperature_proper', 'final_time', 'evolution_timestep',
         'chemistry_timestep', 'runaway_density_factor',
     }
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(config, par['simulation']['initial_condition_filename'])
     sim.par.metal_pie_table = MetalPIETable(
         par['thermochemistry']['metal_pie_table_filename']
     )
@@ -68,13 +66,13 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetInitFluid()
     nghost = int(par['mesh']['ghost_cells'])
     interior = slice(nghost, -nghost if nghost else None)
-    rho_proper_max = float(np.max(np.asarray(sim.fluid.rho_proper_code[interior])))
+    rho_proper_max = float(np.max(np.asarray(sim.fluid.rho_radarray.value[interior])))
     floor = thermochemistry['cooling_temperature_floor'].to_value(unyt.K)
     runaway_factor = float(thermochemistry.get('runaway_density_factor', 100.0))
 
     def stop_on_runaway(runner):
-        rho_proper_code = np.asarray(runner.fluid.rho_proper_code[interior])
-        temperature_state = np.asarray(runner.fluid.temp_proper_code[interior])
+        rho_proper_code = np.asarray(runner.fluid.rho_radarray.value[interior])
+        temperature_state = np.asarray(runner.fluid.temp_radarray.value[interior])
         runaway = np.max(rho_proper_code) >= runaway_factor * rho_proper_max
         # Do not terminate because a tenuous outer cell reaches the imposed
         # floor.  The relevant runaway is central loss of pressure support.
@@ -89,10 +87,10 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-        sim.mesh.x_proper_code, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt'],
+            sim.mesh.geometry_state.x_proper_code, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt'],
             code_units=sim.par.units.CodeUnits,
         ),
-        coordinate=sim.mesh.x_proper_code.copy(),
+        coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
         code_units=sim.par.units.CodeUnits,
     )
     sim.Run(mode='hydro_sources', stop_condition=stop_on_runaway)
