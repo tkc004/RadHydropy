@@ -15,5 +15,5 @@ initial_condition:
   time_cosmic: {value: 1.0e13, unit: s}
   rho_proper: {value: 2.0e-21, unit: g/cm**3}
   vel_proper: {value: 3.0e5, unit: cm/s}
-  pre_proper: {value: 5.0e-11, unit: erg/cm**3}
+  pressure_initial_proper: {value: 5.0e-11, unit: erg/cm**3}
 example: {}

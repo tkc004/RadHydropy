@@ -42,7 +42,9 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
         quantity_to_value(initial_condition['vel_proper'], units.velocity_unit)
     ])
     sim.fluid.pre_supercomoving_code = np.array([
-        quantity_to_value(initial_condition['pre_proper'], units.pressure_unit)
+        quantity_to_value(
+            initial_condition['pressure_initial_proper'], units.pressure_unit
+        )
     ])
     fluid = sim.fluid
     initial = (

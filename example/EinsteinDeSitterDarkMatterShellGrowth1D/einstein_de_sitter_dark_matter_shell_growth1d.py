@@ -56,14 +56,14 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError('homogeneous shell acceleration %.6g is nonzero' % homogeneous_error)
 
     shells, boundaries = et.make_shells(config)
-    radius_top_hat_comoving_code = quantity_to_value(
+    radius_perturbation_comoving_code = quantity_to_value(
         initial_condition['radius_perturbation_comoving'], units.length_unit
     )
-    inside = shells.radius < radius_top_hat_comoving_code
+    inside = shells.radius < radius_perturbation_comoving_code
     target_mass = float(np.sum(shells.mass[inside]))
     # The top-hat is an exact equal-volume boundary, so this is the actual
     # discretized initial perturbation used by the shell masses.
-    lagrangian_radius_comoving_code = radius_top_hat_comoving_code
+    lagrangian_radius_comoving_code = radius_perturbation_comoving_code
     lagrangian_velocity = -a_initial**2 * float(cosmology.hubble(initial_time)) * float(initial_condition['overdensity']) * lagrangian_radius_comoving_code / 3.0
     initial_delta = et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_comoving)
     history_a = [a_initial]
@@ -73,9 +73,11 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     final_tau = float(cosmology.supercomoving_time(final_cosmic_time_code))
     time_supercomoving_code = float(tau)
-    dt = float(timestep['supercomoving_timestep'])
+    dt_supercomoving_code = quantity_to_value(
+        timestep['supercomoving_timestep'], units.time_unit
+    )
     while time_supercomoving_code < final_tau:
-        step = min(dt, final_tau - time_supercomoving_code)
+        step = min(dt_supercomoving_code, final_tau - time_supercomoving_code)
         time_supercomoving_end_code = time_supercomoving_code + step
         a_start = float(cosmology.scale_factor_from_supercomoving(time_supercomoving_code))
         a_end = float(cosmology.scale_factor_from_supercomoving(time_supercomoving_end_code))

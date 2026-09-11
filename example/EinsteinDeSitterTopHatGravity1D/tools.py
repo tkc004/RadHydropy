@@ -1,8 +1,6 @@
 """Initial conditions and analytic solution for the EdS top-hat test."""
 
 import numpy as np
-import unyt
-
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.rsim import Rsim
@@ -66,9 +64,14 @@ def build_initial_condition(config):
     sim.par.pressure_representation = 'supercomoving'
     sim.par.temperature_representation = 'supercomoving'
 
+    radius_inner_comoving_code = quantity_to_value(
+        initial_condition['radius_inner_comoving'], code_units.length_unit
+    )
+    radius_outer_comoving_code = quantity_to_value(
+        initial_condition['radius_outer_comoving'], code_units.length_unit
+    )
     sim.mesh.boundary_comoving_code = np.linspace(
-        initial_condition['radius_inner_comoving'],
-        initial_condition['radius_outer_comoving'], grid_cells + 1,
+        radius_inner_comoving_code, radius_outer_comoving_code, grid_cells + 1,
     )
     sim.mesh.x_comoving_code = spherical_cell_centers(sim.mesh.boundary_comoving_code)
     sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
@@ -113,6 +116,4 @@ def build_initial_condition(config):
     return sim
 
 def load_output_state(filename, config):
-    result = Rsim(config['par'])
-    rio.readhdf5(result.par, result.mesh, result.fluid, filename)
-    return result
+    return rio.loadhdf5(config, filename)

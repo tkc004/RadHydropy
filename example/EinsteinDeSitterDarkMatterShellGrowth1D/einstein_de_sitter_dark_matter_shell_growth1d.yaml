@@ -8,7 +8,7 @@ par:
     cosmology_a_ref: 1.0
   gravity:
   timestep:
-    supercomoving_timestep: 0.0005
+    supercomoving_timestep: {value: 0.0005, unit: pc/(km/s)}
     crossing_safety_factor: 0.1
   output:
     directory: .
@@ -24,12 +24,12 @@ par:
 initial_condition:
   number_of_inner_shells: 1024
   number_of_outer_shells: 1024
-  radius_inner_dimensionless: 0.0
-  radius_outer_dimensionless: 2.0
+  radius_inner_comoving: {value: 0.0, unit: pc}
+  radius_outer_comoving: {value: 2.0, unit: pc}
   radius_perturbation_comoving: {value: 0.5, unit: pc}
   overdensity: 0.01
   time_cosmic: {value: 1.0, unit: pc/(km/s)}
-  softening: 0.0
+  softening: {value: 0.0, unit: pc}
 example:
   homogeneous_acceleration_tolerance: 1.0e-7
   growth_tolerance: 0.08

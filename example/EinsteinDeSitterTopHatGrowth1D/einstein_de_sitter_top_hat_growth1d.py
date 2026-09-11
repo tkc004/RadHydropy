@@ -43,8 +43,9 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, config['par']['simulation']['initial_condition_filename'])
 
-    sim = Rsim(config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        config, config['par']['simulation']['initial_condition_filename']
+    )
     sim.SetMesh()
     sim.SetFluid()
     # SetUpFluid initializes its runtime clock to zero; cosmological runs must
@@ -147,7 +148,6 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.savefig(figure_filename, dpi=200)
     plt.close()
     print('Einstein-De Sitter top-hat linear growth passed')
-    print('a: %.8g -> %.8g' % (initial_a, final_a))
     print('delta: %.8g (measured), %.8g (linear), relative error %.6g' %
           (measured_delta, expected_delta, relative_error))
     print('figure = %s' % figure_filename)

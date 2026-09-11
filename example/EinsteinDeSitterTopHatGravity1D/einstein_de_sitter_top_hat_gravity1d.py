@@ -19,7 +19,6 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 import tools as et
@@ -44,8 +43,9 @@ def main(config_filename=DEFAULT_CONFIG):
     initial = et.build_initial_condition(config)
     rio.writehdf5(initial, config['par']['simulation']['initial_condition_filename'])
 
-    sim = Rsim(config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        config, config['par']['simulation']['initial_condition_filename']
+    )
     sim.SetMesh()
     sim.SetFluid()
     # ``SetInitFluid`` initializes the hydro state at the solver default time.

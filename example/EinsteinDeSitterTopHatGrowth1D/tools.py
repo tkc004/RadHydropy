@@ -1,8 +1,6 @@
 """Helpers for the Einstein--de Sitter linear-growth benchmark."""
 
 import numpy as np
-import unyt
-
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
@@ -135,6 +133,4 @@ def build_initial_condition(config):
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 def load_output_state(filename, config):
-    result = Rsim(config['par'])
-    rio.readhdf5(result.par, result.mesh, result.fluid, filename)
-    return result
+    return rio.loadhdf5(config, filename)
