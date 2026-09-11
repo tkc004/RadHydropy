@@ -20,6 +20,7 @@ from radhydropy.runtime_fields import (
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.field_metadata import FieldSpec, field_spec
+from radhydropy.radarray import RadArray
 try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
@@ -334,6 +335,123 @@ def _populate_group_targets(group, targets, code_units=None, scale_map=None):
         attr_name = _normalize_attr_name(name)
         for target in targets:
             setattr(target, attr_name, value)
+
+
+def _radarray_field_spec(dataset, canonical_name, code_units, cosmology):
+    """Restore a dataset's ``FieldSpec`` or build its canonical fallback."""
+    metadata = {
+        key: _restore_header_attr_value(value)
+        for key, value in dataset.attrs.items()
+        if key != "units"
+    }
+    if "storage_unit" not in metadata:
+        metadata["storage_unit"] = "code"
+    try:
+        restored = FieldSpec.from_metadata(metadata)
+        # ``boundary`` is an older physical/proper alias.  RadArray uses the
+        # explicit ``proper`` representation so that conversion dispatch is
+        # unambiguous on readback.
+        if canonical_name == "boundary_proper_code" and restored.representation == "physical":
+            raise ValueError("legacy physical boundary alias")
+        return restored
+    except (TypeError, ValueError):
+        hubble = (
+            cosmology.hubble_parameter_km_s_Mpc
+            if canonical_name == "vel_supercomoving_code"
+            else None
+        )
+        return field_spec(
+            canonical_name,
+            code_units,
+            cosmology=cosmology.cosmology,
+            scale_factor=cosmology.scale_factor,
+            hubble_parameter_km_s_Mpc=hubble,
+        )
+
+
+def _attach_radarray_views(group, target, dataset_names, canonical_schema,
+                           code_units, cosmology, allowed_names=None):
+    """Expose loaded dimensional fields as neutral ``*_radarray`` views.
+
+    The ordinary attributes populated by ``_populate_group_targets`` remain
+    plain code-unit arrays for solver compatibility.  These parallel views
+    are the typed, representation-aware interface for analysis and restart
+    preparation, similar to SWIFTsimIO's unit-bearing data objects.
+    """
+    if cosmology is None:
+        return
+    if canonical_schema == "cosmological":
+        mapping = {
+            "boundary_comoving_code": ("boundary_radarray", "boundary_comoving_code"),
+            "rho_comoving_code": ("rho_radarray", "rho_comoving_code"),
+            "vel_supercomoving_code": ("vel_radarray", "vel_supercomoving_code"),
+            "temp_supercomoving_code": ("temp_radarray", "temp_supercomoving_code"),
+            "pre_supercomoving_code": ("pre_radarray", "pre_supercomoving_code"),
+        }
+    else:
+        mapping = {
+            "boundary": ("boundary_radarray", "boundary_proper_code"),
+            "boundary_proper_code": ("boundary_radarray", "boundary_proper_code"),
+            "boundary_comoving_code": ("boundary_radarray", "boundary_comoving_code"),
+            "rho_code": ("rho_radarray", "rho_proper_code"),
+            "rho_proper_code": ("rho_radarray", "rho_proper_code"),
+            "vel_code": ("vel_radarray", "vel_proper_code"),
+            "vel_proper_code": ("vel_radarray", "vel_proper_code"),
+            "temp_code": ("temp_radarray", "temp_proper_code"),
+            "temp_proper_code": ("temp_radarray", "temp_proper_code"),
+            "pre_proper_code": ("pre_radarray", "pre_proper_code"),
+        }
+    for dataset_name, (view_name, canonical_name) in mapping.items():
+        if allowed_names is not None and dataset_name not in allowed_names:
+            continue
+        if dataset_name not in dataset_names:
+            continue
+        attr_name = _normalize_attr_name(dataset_name)
+        if not hasattr(target, attr_name):
+            continue
+        spec = _radarray_field_spec(
+            dataset_names[dataset_name], canonical_name, code_units, cosmology
+        )
+        setattr(
+            target,
+            view_name,
+            RadArray(
+                np.asarray(getattr(target, attr_name), dtype=float),
+                code_units=code_units,
+                field_spec=spec,
+                cosmology=cosmology,
+            ),
+        )
+    # Keep auxiliary dimensional fields discoverable without inventing
+    # semantic aliases.  Unknown/dimensionless datasets (mu, xHI, etc.) are
+    # intentionally left as ordinary numeric arrays.
+    for dataset_name, dataset in dataset_names.items():
+        if dataset_name in mapping or (
+            allowed_names is not None and dataset_name not in allowed_names
+        ):
+            continue
+        attr_name = _normalize_attr_name(dataset_name)
+        if not hasattr(target, attr_name):
+            continue
+        try:
+            spec = _radarray_field_spec(
+                dataset, dataset_name, code_units, cosmology
+            )
+        except (TypeError, ValueError):
+            continue
+        radarray_name = attr_name
+        if radarray_name.endswith("_code"):
+            radarray_name = radarray_name[:-5]
+        setattr(
+            target,
+            f"{radarray_name}_radarray",
+            RadArray(
+                np.asarray(getattr(target, attr_name), dtype=float),
+                code_units=code_units,
+                field_spec=spec,
+                cosmology=cosmology,
+            ),
+        )
 
 
 def _yaml_config_value(value):
@@ -789,7 +907,7 @@ def run_with_output_times(
         output_writer=write_numbered_hdf5,
     )
 
-def writehdf5(ric, ICfilename, *, provenance=None):
+def _writehdf5(ric, ICfilename, *, provenance=None):
     """Write simulation state to a RadHydropy HDF5 file.
 
     The output file contains a ``Header`` group for metadata and a ``Data``
@@ -1095,6 +1213,18 @@ def writehdf5(ric, ICfilename, *, provenance=None):
             initial_condition=vars(ric.par),
         )
 
+def writehdf5(ric, ICfilename, *, provenance=None):
+    """Write an initial-condition or snapshot HDF5 file.
+
+    Representation-aware IC values are prepared by the shared
+    :class:`InitialConditionWriter` boundary before serialization.
+    """
+    from radhydropy.initial_condition_writer import InitialConditionWriter
+
+    return InitialConditionWriter.from_rsim(
+        ric,
+        provenance=provenance,
+    ).write(ICfilename)
 
 
 def readhdf5(par, mesh, fluid, ICfilename): 
@@ -1307,6 +1437,48 @@ def readhdf5(par, mesh, fluid, ICfilename):
             (mesh, fluid),
             code_units=code_units,
             scale_map=data_scale_map,
+        )
+        snapshot_cosmology = getattr(par, "cosmology_context", None)
+        _attach_radarray_views(
+            gdata,
+            mesh,
+            gdata,
+            "cosmological" if canonical_cosmological_schema else "proper",
+            code_units,
+            snapshot_cosmology,
+            allowed_names={
+                "boundary",
+                "boundary_proper_code",
+                "boundary_comoving_code",
+            },
+        )
+        _attach_radarray_views(
+            gdata,
+            fluid,
+            gdata,
+            "cosmological" if canonical_cosmological_schema else "proper",
+            code_units,
+            snapshot_cosmology,
+            allowed_names={
+                "rho_code",
+                "rho_proper_code",
+                "rho_comoving_code",
+                "vel_code",
+                "vel_proper_code",
+                "vel_supercomoving_code",
+                "temp_code",
+                "temp_proper_code",
+                "temp_supercomoving_code",
+                "pre_proper_code",
+                "pre_supercomoving_code",
+                "Mass_code",
+                "Energy_code",
+                "InternalEnergy_code",
+                "GravitationalPotentialEnergy_code",
+                "AngularMomentum_code",
+                "specific_angular_momentum_code",
+                "ngamma_code",
+            },
         )
         if canonical_proper_schema:
             fluid.runtime_fields = PROPER_RUNTIME_FIELDS

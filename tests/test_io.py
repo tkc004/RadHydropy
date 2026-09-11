@@ -13,6 +13,7 @@ import h5py
 
 import radhydropy.io as rio
 from radhydropy.units import CodeUnits
+from radhydropy.radarray import RadArray
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     MeshGeometryState,
@@ -163,6 +164,13 @@ class Testing(unittest.TestCase):
             loaded_par.cosmology_context.hubble_parameter_km_s_Mpc,
             0.0,
         )
+        self.assertIsInstance(loaded_mesh.boundary_radarray, RadArray)
+        self.assertIsInstance(loaded_fluid.rho_radarray, RadArray)
+        self.assertIsInstance(loaded_fluid.vel_radarray, RadArray)
+        self.assertEqual(loaded_mesh.boundary_radarray.field_spec.representation, "proper")
+        self.assertEqual(loaded_fluid.rho_radarray.field_spec.quantity, "mass_density")
+        np.testing.assert_allclose(loaded_fluid.rho_radarray.value, [1.0, 1.0, 1.0])
+        np.testing.assert_allclose(loaded_mesh.boundary_radarray.value, [0.0, 1.0, 2.0, 3.0])
 
     def test_hdf5_uses_canonical_code_state_dataset_names(self):
         par = parameter_namespace(
@@ -296,6 +304,12 @@ class Testing(unittest.TestCase):
             loaded_fluid.specific_angular_momentum_code, np.asarray(specific)
         )
         np.testing.assert_allclose(loaded_fluid.AngularMomentum_code, np.asarray(angular))
+        self.assertIsInstance(
+            loaded_fluid.specific_angular_momentum_radarray, RadArray
+        )
+        self.assertIsInstance(loaded_fluid.AngularMomentum_radarray, RadArray)
+        self.assertFalse(hasattr(loaded_fluid, "specific_angular_momentum_code_radarray"))
+        self.assertFalse(hasattr(loaded_fluid, "AngularMomentum_code_radarray"))
 
     def test_writehdf5_writes_all_par_values_into_header_attributes(self):
         par = parameter_namespace(

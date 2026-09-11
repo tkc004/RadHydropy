@@ -26,4 +26,5 @@ __all__ = [
     "field_metadata",
     "cosmology_context",
     "radarray",
+    "initial_condition_writer",
 ]

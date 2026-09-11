@@ -13,18 +13,36 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
+from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.field_metadata import field_spec
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-)
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
 
 CONFIG_FILE = Path(__file__).with_name("hdf5_unit_cosmology_roundtrip1d.yaml")
+
+
+def _radarray(code_values, field_name, code_units, cosmology_context):
+    hubble_parameter_km_s_Mpc = (
+        cosmology_context.hubble_parameter_km_s_Mpc
+        if field_name == "vel_supercomoving_code"
+        else None
+    )
+    return RadArray(
+        code_values,
+        code_units=code_units,
+        field_spec=field_spec(
+            field_name,
+            code_units,
+            cosmology=cosmology_context.cosmology,
+            scale_factor=cosmology_context.scale_factor,
+            hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
+        ),
+        cosmology=cosmology_context,
+    )
 
 
 def _case_config(config, case_name, case):
@@ -43,7 +61,14 @@ def _case_config(config, case_name, case):
 
 
 def _build_initial_condition(case_config):
-    sim = Rsim(case_config["par"])
+    code_units = CodeUnits.from_mapping(
+        case_config["par"]["units"]["CodeUnits"]
+    )
+    writer = InitialConditionWriter(
+        par_config=case_config["par"],
+        code_units=code_units,
+    )
+    sim = writer.simulation
     initial_condition = case_config["initial_condition"]
     code_units = sim.par.units.CodeUnits
     gamma = float(sim.par.hydrodynamics.gamma)
@@ -64,12 +89,6 @@ def _build_initial_condition(case_config):
     boundary_proper_code = np.linspace(
         0.0, box_size_proper_code, grid_cells + 1
     )
-    x_proper_code = 0.5 * (
-        boundary_proper_code[:-1] + boundary_proper_code[1:]
-    )
-    width_proper_code = np.diff(boundary_proper_code)
-    area_proper_code = np.ones(grid_cells)
-    volume_proper_code = width_proper_code.copy()
     rho_proper_code = np.full(grid_cells, density_proper_code)
     vel_proper_code = np.full(grid_cells, velocity_proper_code)
     temp_proper_code = np.full(grid_cells, temperature_proper_code)
@@ -77,28 +96,70 @@ def _build_initial_condition(case_config):
     sim.fluid.mu = mu_dimensionless_array
 
     if case_config["par"]["gravity"]["cosmological_expansion"]:
-        cosmology = sim.par.cosmology
         time_cosmic_code = float(
             initial_condition["time_cosmic"].to_value(code_units.time_unit)
         )
+        cosmology = sim.par.cosmology
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+        hubble_parameter_code = float(cosmology.hubble(time_cosmic_code))
+        hubble_unit_km_s_Mpc = (
+            code_units.velocity_unit.to_value("km/s")
+            / code_units.length_unit.to_value("Mpc")
+        )
+        cosmology_context = CosmologyContext(
+            gamma=gamma,
+            cosmology=cosmology.type_name,
+            scale_factor=scale_factor,
+            hubble_parameter_km_s_Mpc=(
+                hubble_parameter_code * hubble_unit_km_s_Mpc
+            ),
+        )
+    else:
+        cosmology_context = CosmologyContext(
+            gamma=gamma,
+            cosmology="proper",
+            scale_factor=1.0,
+            hubble_parameter_km_s_Mpc=0.0,
+        )
+
+    boundary_proper_code_radarray = _radarray(
+        boundary_proper_code,
+        "boundary_proper_code",
+        code_units,
+        cosmology_context,
+    )
+    rho_proper_code_radarray = _radarray(
+        rho_proper_code,
+        "rho_proper_code",
+        code_units,
+        cosmology_context,
+    )
+    temp_proper_code_radarray = _radarray(
+        temp_proper_code,
+        "temp_proper_code",
+        code_units,
+        cosmology_context,
+    )
+    vel_proper_code_radarray = _radarray(
+        vel_proper_code,
+        "vel_proper_code",
+        code_units,
+        cosmology_context,
+    )
+    pressure_proper_code = sim.fluid.eos.pressure(
+        rho_proper_code, temp_proper_code, mu_dimensionless_array
+    )
+    pressure_proper_code_radarray = _radarray(
+        pressure_proper_code,
+        "pre_proper_code",
+        code_units,
+        cosmology_context,
+    )
+    sim.par.cosmology_context = cosmology_context
+
+    if case_config["par"]["gravity"]["cosmological_expansion"]:
         tau_supercomoving_code = float(
             cosmology.supercomoving_time(time_cosmic_code)
-        )
-        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
-        boundary_comoving_code = boundary_proper_code / scale_factor
-        x_comoving_code = x_proper_code / scale_factor
-        width_comoving_code = width_proper_code / scale_factor
-        area_comoving_code = area_proper_code / scale_factor**2
-        volume_comoving_code = volume_proper_code / scale_factor**3
-        rho_comoving_code = rho_proper_code.copy()
-        vel_supercomoving_code = vel_proper_code / scale_factor
-        temp_supercomoving_code = temp_proper_code * scale_factor ** (
-            3.0 * (gamma - 1.0)
-        )
-        pressure_supercomoving_code = sim.fluid.eos.pressure(
-            rho_comoving_code,
-            temp_supercomoving_code,
-            mu_dimensionless_array,
         )
         sim.par.tau_supercomoving_code = np.asarray([tau_supercomoving_code])
         sim.par.simulation.tau_supercomoving_code = (
@@ -110,82 +171,54 @@ def _build_initial_condition(case_config):
         sim.par.density_representation = "comoving"
         sim.par.pressure_representation = "supercomoving"
         sim.par.temperature_representation = "supercomoving"
-        sim.mesh.x_comoving_code = x_comoving_code
-        sim.mesh.boundary_comoving_code = boundary_comoving_code
-        sim.mesh.width_comoving_code = width_comoving_code
-        sim.mesh.area_comoving_code = area_comoving_code
-        sim.mesh.volume_comoving_code = volume_comoving_code
-        sim.fluid.rho_comoving_code = rho_comoving_code
-        sim.fluid.vel_supercomoving_code = vel_supercomoving_code
-        sim.fluid.pre_supercomoving_code = pressure_supercomoving_code
-        sim.fluid.temp_supercomoving_code = temp_supercomoving_code
-        sim.fluid.tau_supercomoving_code = tau_supercomoving_code
-        sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-            SUPERCOMOVING_RUNTIME_FIELDS,
-            x_comoving_code=x_comoving_code,
-            boundary_comoving_code=boundary_comoving_code,
-            width_comoving_code=width_comoving_code,
-            area_comoving_code=area_comoving_code,
-            volume_comoving_code=volume_comoving_code,
-        )
-        sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
-            SUPERCOMOVING_RUNTIME_FIELDS,
-            rho_comoving_code=rho_comoving_code,
-            vel_supercomoving_code=vel_supercomoving_code,
-            pre_supercomoving_code=pressure_supercomoving_code,
-            temp_supercomoving_code=temp_supercomoving_code,
-            tau_supercomoving_code=tau_supercomoving_code,
-            mu_dimensionless=mu_dimensionless_array,
-        )
-        expected = {
-            "boundary_comoving_code": boundary_comoving_code,
-            "rho_comoving_code": rho_comoving_code,
-            "vel_supercomoving_code": vel_supercomoving_code,
-            "temp_supercomoving_code": temp_supercomoving_code,
-        }
     else:
-        pressure_proper_code = sim.fluid.eos.pressure(
-            rho_proper_code, temp_proper_code, mu_dimensionless_array
-        )
-        sim.mesh.x_proper_code = x_proper_code
-        sim.mesh.boundary_proper_code = boundary_proper_code
-        sim.mesh.width_proper_code = width_proper_code
-        sim.mesh.area_proper_code = area_proper_code
-        sim.mesh.volume_proper_code = volume_proper_code
-        sim.fluid.rho_proper_code = rho_proper_code
-        sim.fluid.vel_proper_code = vel_proper_code
-        sim.fluid.pre_proper_code = pressure_proper_code
-        sim.fluid.temp_proper_code = temp_proper_code
-        sim.fluid.time_proper_code = 0.0
-        sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-            PROPER_RUNTIME_FIELDS,
-            x_proper_code=x_proper_code,
-            boundary_proper_code=boundary_proper_code,
-            width_proper_code=width_proper_code,
-            area_proper_code=area_proper_code,
-            volume_proper_code=volume_proper_code,
-        )
-        sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
-            PROPER_RUNTIME_FIELDS,
-            rho_proper_code=rho_proper_code,
-            vel_proper_code=vel_proper_code,
-            pre_proper_code=pressure_proper_code,
-            temp_proper_code=temp_proper_code,
-            time_proper_code=0.0,
-            mu_dimensionless=mu_dimensionless_array,
-        )
-        expected = {
-            "boundary_proper_code": boundary_proper_code,
-            "rho_proper_code": rho_proper_code,
-            "vel_proper_code": vel_proper_code,
-            "temp_proper_code": temp_proper_code,
-        }
-    return sim, expected
+        sim.par.simulation.time_proper_code = 0.0
+
+    writer.box_size = RadQuantity(
+        box_size_proper_code,
+        code_units=code_units,
+        field_spec=field_spec(
+            "boundary_proper_code",
+            code_units,
+            cosmology=cosmology_context.cosmology,
+            scale_factor=cosmology_context.scale_factor,
+        ),
+        cosmology=cosmology_context,
+    )
+    writer.mesh.boundary_radarray = boundary_proper_code_radarray
+    writer.fluid.rho_radarray = rho_proper_code_radarray
+    writer.fluid.vel_radarray = vel_proper_code_radarray
+    writer.fluid.temp_radarray = temp_proper_code_radarray
+    writer.fluid.pre_radarray = pressure_proper_code_radarray
+    return writer
 
 
 def _assert_roundtrip(case_config, output_filename):
-    initial, expected = _build_initial_condition(case_config)
-    rio.writehdf5(initial, output_filename)
+    initial_writer = _build_initial_condition(case_config)
+    initial_writer.write(output_filename)
+    target_fields = (
+        "boundary_comoving_code",
+        "rho_comoving_code",
+        "vel_supercomoving_code",
+        "temp_supercomoving_code",
+        ) if case_config["par"]["gravity"]["cosmological_expansion"] else (
+        "boundary_proper_code",
+        "rho_proper_code",
+        "vel_proper_code",
+        "temp_proper_code",
+    )
+    expected = {
+        field_name: np.asarray(
+            getattr(
+                initial_writer.simulation.mesh
+                if field_name.startswith("boundary_")
+                else initial_writer.simulation.fluid,
+                field_name,
+            ),
+            dtype=float,
+        ).copy()
+        for field_name in target_fields
+    }
     restored = Rsim(case_config["par"])
     rio.readhdf5(
         restored.par,
@@ -201,6 +234,14 @@ def _assert_roundtrip(case_config, output_filename):
         else:
             actual_values = getattr(restored.fluid, field_name)
         np.testing.assert_allclose(actual_values, expected_values)
+    assert isinstance(restored.mesh.boundary_radarray, RadArray)
+    assert isinstance(restored.fluid.rho_radarray, RadArray)
+    assert isinstance(restored.fluid.vel_radarray, RadArray)
+    assert isinstance(restored.fluid.temp_radarray, RadArray)
+    np.testing.assert_allclose(
+        restored.fluid.rho_radarray.value,
+        expected["rho_comoving_code" if "rho_comoving_code" in expected else "rho_proper_code"],
+    )
     if case_config["par"]["gravity"]["cosmological_expansion"]:
         assert restored.par.cosmology_context is not None
         assert restored.par.coordinate_frame == "comoving"
