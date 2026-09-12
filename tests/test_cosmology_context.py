@@ -22,6 +22,12 @@ class CosmologyContextTests(unittest.TestCase):
         self.assertEqual(context.scale_factor, 0.5)
         self.assertEqual(context.hubble_parameter_km_s_Mpc, 70.0)
 
+    def test_isothermal_context_allows_gamma_one(self):
+        context = CosmologyContext(gamma=1.0, isothermal=True)
+
+        self.assertEqual(context.gamma, 1.0)
+        self.assertTrue(context.isothermal)
+
     def test_context_is_immutable(self):
         context = CosmologyContext(gamma=5.0 / 3.0)
 

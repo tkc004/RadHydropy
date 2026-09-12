@@ -445,6 +445,7 @@ class Solver():
         """Update primitive variables from conserved quantities."""
         if verbose is None:
             verbose = 0
+        self._validate_dual_energy_compatibility(fluid, par or getattr(mesh, '_par', None))
         primitive = self._fluid_primitive_state(fluid, par)
         if getattr(par, 'supercomoving_coordinates', False):
             rho_runtime_code = primitive.rho_comoving_code
@@ -681,6 +682,7 @@ class Solver():
         if verbose is None:
             verbose = 0
         par = getattr(mesh, '_par', None)
+        self._validate_dual_energy_compatibility(fluid, par)
         primitive = self._fluid_primitive_state(fluid, par)
         if getattr(par, 'supercomoving_coordinates', False):
             rho_runtime_code = primitive.rho_comoving_code
@@ -958,6 +960,17 @@ class Solver():
         from .dual_energy import _dual_energy_enabled
 
         return _dual_energy_enabled(*args, **kwargs)
+
+    def _validate_dual_energy_compatibility(self, fluid, par):
+        if (
+            par is not None
+            and self._dual_energy_enabled(par)
+            and getattr(getattr(fluid, 'eos', None), 'is_isothermal', False)
+        ):
+            raise ValueError(
+                "dual energy is not supported with an isothermal EOS; "
+                "disable dual_energy or use a polytropic EOS"
+            )
 
     @staticmethod
     @staticmethod

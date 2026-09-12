@@ -105,10 +105,14 @@ class InitialConditionWriter:
             simulation.par.cosmology_context = cosmology_context
         elif scale_factor is not None:
             gamma = float(simulation.par.hydrodynamics.gamma)
+            hydrodynamics = simulation.par.hydrodynamics
             cosmology = getattr(simulation.par, "cosmology", None)
             simulation.par.cosmology_context = CosmologyContext(
                 gamma=gamma,
                 cosmology=getattr(cosmology, "type_name", "proper"),
+                isothermal=(
+                    getattr(hydrodynamics, "eos_type", "") == "isothermal"
+                ),
                 scale_factor=float(scale_factor),
                 hubble_parameter_km_s_Mpc=float(
                     hubble_parameter_km_s_Mpc or 0.0
@@ -400,9 +404,14 @@ class InitialConditionWriter:
             gamma = getattr(hydrodynamics, "gamma", None)
             if gamma is None:
                 return None
-            if float(gamma) <= 1.0:
+            isothermal = getattr(hydrodynamics, "eos_type", "") == "isothermal"
+            if float(gamma) <= 1.0 and not isothermal:
                 return None
-            context = CosmologyContext(gamma=float(gamma), cosmology="proper")
+            context = CosmologyContext(
+                gamma=float(gamma),
+                cosmology="proper",
+                isothermal=isothermal,
+            )
         if not isinstance(context, CosmologyContext):
             raise TypeError("par.cosmology_context must be a CosmologyContext")
         simulation.par.cosmology_context = context

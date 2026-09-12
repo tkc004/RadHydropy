@@ -82,6 +82,8 @@ class EOS:
     def thermal_energy_density(self, pressure):
         """Return thermal energy density for the selected EOS."""
         if self.is_isothermal:
+            # Isothermal pressure is supplied by the temperature closure;
+            # it is not an evolved contribution to conserved total energy.
             return np.zeros_like(np.asarray(pressure, dtype=float))
         return pressure / (self.gamma - 1.0)
 
@@ -109,6 +111,8 @@ class EOS:
     def total_energy_density(self, rho, vel, pressure):
         """Return the conserved energy density."""
         kinetic = 0.5 * rho * vel**2
+        if self.is_isothermal:
+            return kinetic
         return kinetic + self.thermal_energy_density(pressure)
 
     def pressure_from_conserved(self, rho, vel, energy_density, temp=None, mu=None):

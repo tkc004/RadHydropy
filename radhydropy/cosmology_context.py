@@ -18,14 +18,17 @@ class CosmologyContext:
     cosmology: str = "lambda_cdm"
     scale_factor: float = 1.0
     hubble_parameter_km_s_Mpc: float = 0.0
+    isothermal: bool = False
 
     def __post_init__(self):
         if not isinstance(self.cosmology, str) or not self.cosmology:
             raise ValueError("cosmology must be a non-empty string")
 
         gamma = self._finite_real(self.gamma, "gamma")
-        if gamma <= 1.0:
-            raise ValueError("gamma must be finite and greater than one")
+        if gamma < 1.0 or (gamma == 1.0 and not self.isothermal):
+            raise ValueError(
+                "gamma must be greater than one unless the EOS is isothermal"
+            )
         object.__setattr__(self, "gamma", gamma)
 
         scale_factor = self._finite_real(self.scale_factor, "scale_factor")

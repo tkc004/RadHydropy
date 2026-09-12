@@ -657,6 +657,10 @@ def _restore_cosmology_context_from_header(par, header):
         context = CosmologyContext(
             gamma=float(_restore_header_attr_value(gamma_value)),
             cosmology=str(cosmology_name),
+            isothermal=(
+                getattr(getattr(par, "hydrodynamics", None), "eos_type", "")
+                == "isothermal"
+            ),
             scale_factor=float(_restore_header_attr_value(scale_factor_value)),
             hubble_parameter_km_s_Mpc=float(
                 _restore_header_attr_value(hubble_value)

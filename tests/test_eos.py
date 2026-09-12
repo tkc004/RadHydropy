@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import numpy as np
 import unyt
@@ -60,6 +61,20 @@ class Testing(unittest.TestCase):
         self.assertEqual(sound_speed.units, unyt.cm / unyt.s)
         np.testing.assert_allclose(sound_speed.value, expected.value)
 
+    def test_isothermal_energy_excludes_pressure_term(self):
+        eos = EOS('isothermal', gamma=1.0)
+        rho = np.array([2.0, 3.0])
+        vel = np.array([4.0, 5.0])
+        pressure = np.array([18.0, 27.0])
+
+        np.testing.assert_array_equal(
+            eos.thermal_energy_density(pressure), np.zeros(2)
+        )
+        np.testing.assert_allclose(
+            eos.total_energy_density(rho, vel, pressure),
+            0.5 * rho * vel**2,
+        )
+
     def test_isothermal_set_conserved_keeps_only_kinetic_energy(self):
         fluid = Fluid()
         fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
@@ -79,6 +94,15 @@ class Testing(unittest.TestCase):
 
         expected = 0.5 * fluid.rho_code * fluid.vel_code**2 * Mesh().geometry_state.volume_proper_code
         np.testing.assert_allclose(np.asarray(fluid.Energy_code), expected)
+
+    def test_isothermal_rejects_dual_energy(self):
+        fluid = Fluid()
+        fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
+        mesh = Mesh()
+        mesh._par = SimpleNamespace(dual_energy=True)
+
+        with self.assertRaisesRegex(ValueError, 'dual energy is not supported'):
+            Solver().SetConserved(mesh, fluid)
 
     def test_isothermal_set_primitive_recovers_pressure_from_temperature(self):
         mesh = Mesh()
