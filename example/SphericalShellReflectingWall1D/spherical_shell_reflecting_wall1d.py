@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import unyt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -22,9 +23,9 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
-from basic_hydro_utils import finalize_initial_condition
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_shell_reflecting_wall1d.yaml")
 
@@ -47,38 +48,55 @@ class InnerWallSolver(Solver):
 
 def make_initial_condition(config):
     ic = config["initial_condition"]
-    result = Rsim(config["par"])
-    code_unit_system = result.par.units.CodeUnits
-    grid_cells = int(result.par.mesh.grid_cells)
-    result.par.simulation.box_size_proper_code = np.asarray(
-        [float(ic["radius_outer_proper"].to_value(code_unit_system.length_unit))]
+    code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    grid_cells = int(ic["grid_cells"])
+    writer = InitialConditionWriter(
+        par_config=config["par"], code_units=code_unit_system,
     )
-    result.par.simulation.time_proper_code = 0.0
-    radius_inner_proper_code = float(
-        ic["radius_inner_proper"].to_value(code_unit_system.length_unit)
+    writer.simulation.par.simulation.coordinate_system = ic["coordinate_system"]
+    radius_inner_proper_code = quantity_to_value(
+        ic["radius_inner_proper"], code_unit_system.length_unit
     )
-    radius_outer_proper_code = float(
-        ic["radius_outer_proper"].to_value(code_unit_system.length_unit)
+    radius_outer_proper_code = quantity_to_value(
+        ic["radius_outer_proper"], code_unit_system.length_unit
     )
     boundary_proper_code = np.linspace(
         radius_inner_proper_code, radius_outer_proper_code, grid_cells + 1
     )
     radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-    shell = (radius_proper_code >= float(ic["shell_inner"].to_value(code_unit_system.length_unit))) & (radius_proper_code <= float(ic["shell_outer"].to_value(code_unit_system.length_unit)))
-    result.mesh.boundary_proper_code = boundary_proper_code
-    rho_shell_proper_code = float(
-        ic["rho_shell_proper"].to_value(code_unit_system.density_unit)
+    shell_inner_proper_code = quantity_to_value(
+        ic["shell_inner"], code_unit_system.length_unit
     )
-    result.fluid.rho_proper_code = np.where(shell, rho_shell_proper_code, 0.0)
-    result.fluid.temp_proper_code = np.where(
-        shell, quantity_to_value(ic["temperature_proper"], code_unit_system.temperature_unit), 0.0
+    shell_outer_proper_code = quantity_to_value(
+        ic["shell_outer"], code_unit_system.length_unit
     )
-    result.fluid.vel_proper_code = np.where(shell, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit)), 0.0)
-    result.fluid.mu = np.full(grid_cells, float(ic["mean_molecular_weight"]))
-    result.SetMesh()
-    result.SetFluid()
-    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
-    return finalize_initial_condition(result, grid_cells)
+    shell = (radius_proper_code >= shell_inner_proper_code) & (
+        radius_proper_code <= shell_outer_proper_code
+    )
+    density_shell_proper_unyt = ic["rho_shell_proper"]
+    temperature_proper_unyt = np.where(
+        shell, ic["temperature_proper"], 0.0 * unyt.K
+    )
+    velocity_proper_unyt = np.where(
+        shell, ic["vel_proper"], 0.0 * ic["vel_proper"].units
+    )
+    writer.box_size = writer.radquantity(ic["radius_outer_proper"])
+    writer.mesh.boundary_radarray = writer.radarray(
+        boundary_proper_code * code_unit_system.length_unit
+    )
+    writer.mesh.x_radarray = writer.radarray(
+        radius_proper_code * code_unit_system.length_unit
+    )
+    writer.fluid.rho_radarray = writer.radarray(
+        np.where(shell, 1.0, 0.0) * density_shell_proper_unyt
+    )
+    writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(velocity_proper_unyt)
+    writer.simulation.fluid.mu = np.full(
+        grid_cells, float(ic["mean_molecular_weight"])
+    )
+    writer.simulation.par.simulation.time_proper_code = 0.0
+    return writer
 
 
 def _profile(sim):
@@ -117,7 +135,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     output_directory = Path(config["par"]["output"]["directory"])
     output_directory.mkdir(parents=True, exist_ok=True)
     initial = make_initial_condition(config)
-    rio.writehdf5(initial, config["par"]["simulation"]["initial_condition_filename"])
+    initial.write(
+        config["par"]["simulation"]["initial_condition_filename"], validate=False
+    )
     sim = Rsim(config["par"])
     sim.solver = InnerWallSolver()
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
