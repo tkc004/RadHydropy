@@ -57,7 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
         code_units=sim.par.units.CodeUnits,
     )
 
-    numerical = sim.par.gravity.acceleration_on_mesh(
+    numerical = sim.par.gravity.model.acceleration_on_mesh(
         sim.mesh,
         rho=sim.fluid.rho_proper_code,
         par=sim.par,

@@ -178,7 +178,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(case_config["par"]["units"]["CodeUnits"])
     cosmology_config = case_config["par"].get("cosmology", {})
-    if cosmology_config.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    if cosmology_config.get("cosmology_type") == "lambda_cdm":
         code_cosmology = LambdaCDM.from_code_units(
             units,
             t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
@@ -272,7 +272,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
     print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
     print(f"final density L1 error = {density_l1:.6e}")
-    print(f"scale factor at final time = {sim.par.cosmology.scale_factor_from_supercomoving(float(sim.fluid.tau_supercomoving_code)):.8g}")
+    print(f"scale factor at final time = {sim.par.cosmology.model.scale_factor_from_supercomoving(float(sim.fluid.tau_supercomoving_code)):.8g}")
     print(f"figure = {figure}")
     return figure
 

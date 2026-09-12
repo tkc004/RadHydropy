@@ -926,7 +926,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             "compton_cmb_enabled": True,
         })
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    if cosmology_config.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    if cosmology_config.get("cosmology_type") == "lambda_cdm":
         cosmology = LambdaCDM.from_code_units(
             units,
             t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),

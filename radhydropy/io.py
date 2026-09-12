@@ -201,13 +201,8 @@ def _validate_snapshot_configuration(par, header, header_code_units):
         expected_model = getattr(par, "cosmology", None)
         expected_cosmology = getattr(expected_model, "type_name", None)
     if header_cosmology is not None and expected_cosmology is not None:
-        aliases = {
-            "LambdaCDM": "lambda_cdm",
-            "lcdm": "lambda_cdm",
-            "EinsteinDeSitter": "einstein_de_sitter",
-        }
-        header_cosmology = aliases.get(str(header_cosmology), str(header_cosmology))
-        expected_cosmology = aliases.get(str(expected_cosmology), str(expected_cosmology))
+        header_cosmology = str(header_cosmology)
+        expected_cosmology = str(expected_cosmology)
         if header_cosmology != expected_cosmology:
             raise SnapshotConfigurationError(
                 f"snapshot cosmology {header_cosmology!r} does not match "
@@ -562,9 +557,10 @@ def _write_cosmology_header(header, par, output_time, code_units):
     """Write the canonical cosmology metadata contract to ``Header``."""
     if not getattr(par, "cosmological_expansion", False):
         return
-    cosmology = getattr(par, "cosmology", None)
+    cosmology_parameters = getattr(par, "cosmology", None)
+    cosmology = getattr(cosmology_parameters, "model", None)
     if cosmology is None:
-        raise ValueError("cosmological_expansion requires par.cosmology")
+        raise ValueError("cosmological_expansion requires par.cosmology.model")
     if getattr(par, "supercomoving_coordinates", False):
         tau = float(np.asarray(output_time, dtype=float))
         cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
@@ -610,14 +606,13 @@ def _restore_cosmology_from_header(par, header, code_units):
     if not enabled and cosmology_type is None:
         return
     if cosmology_type not in (
-        None, "einstein_de_sitter", "EinsteinDeSitter",
-        "lambda_cdm", "LambdaCDM", "lcdm",
+        None, "einstein_de_sitter", "lambda_cdm",
     ):
         raise ValueError("unsupported CosmologyType in HDF5 header: %s" % cosmology_type)
     t_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyTRef", 1.0)))
     a_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyARef", 1.0)))
     par.cosmological_expansion = True
-    is_lcdm = cosmology_type in ("lambda_cdm", "LambdaCDM", "lcdm")
+    is_lcdm = cosmology_type == "lambda_cdm"
     par.cosmology_type = "lambda_cdm" if is_lcdm else "einstein_de_sitter"
     par.cosmology_t_ref = t_ref
     par.cosmology_a_ref = a_ref
@@ -677,7 +672,8 @@ def _restore_cosmology_context_from_header(par, header):
 
 def _runtime_field_spec(field_name, par, code_units, output_time):
     """Build metadata for a canonical runtime field at write time."""
-    cosmology = getattr(par, "cosmology", None)
+    cosmology_parameters = getattr(par, "cosmology", None)
+    cosmology = getattr(cosmology_parameters, "model", None)
     if cosmology is None or not getattr(par, "cosmological_expansion", False):
         return field_spec(field_name, code_units)
     if getattr(par, "supercomoving_coordinates", False):

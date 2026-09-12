@@ -115,12 +115,12 @@ def run_case(config, atomic_cooling):
 
     def step_backend(**kwargs):
         time_cosmic_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
-        scale_factor = float(sim.par.cosmology.scale_factor(time_cosmic_code))
+        scale_factor = float(sim.par.cosmology.model.scale_factor(time_cosmic_code))
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         reset_conserved_from_temperature()
         result = sim.Step(**kwargs)
         time_cosmic_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
-        scale_factor = float(sim.par.cosmology.scale_factor(time_cosmic_code))
+        scale_factor = float(sim.par.cosmology.model.scale_factor(time_cosmic_code))
         history["time_cosmic_cgs_s"].append(
             time_cosmic_code * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
         )

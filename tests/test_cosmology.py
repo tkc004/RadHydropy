@@ -485,8 +485,8 @@ def test_par_constructs_lambda_cdm_from_parameters():
         "cosmology_omega_lambda": 0.7,
         "cosmology_hubble_ref": 0.4,
     })
-    assert par.cosmology.type_name == "lambda_cdm"
-    assert par.cosmology._hubble_ref == pytest.approx(0.4)
+    assert par.cosmology.model.type_name == "lambda_cdm"
+    assert par.cosmology.model._hubble_ref == pytest.approx(0.4)
     assert par.cosmology.type == "lambda_cdm"
     assert par.cosmology.model.type_name == "lambda_cdm"
     assert par.units.CodeUnits is not None
@@ -548,7 +548,7 @@ def test_par_gravity_assignment_updates_nested_model():
     model = SimpleNamespace(acceleration_on_mesh=lambda *args: None)
     par.gravity.model = model
     assert par.gravity.model is model
-    assert par.gravity.acceleration_on_mesh is model.acceleration_on_mesh
+    assert not hasattr(par.gravity, "acceleration_on_mesh")
 
 
 def test_par_rejects_unknown_run_parameters():

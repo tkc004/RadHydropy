@@ -137,7 +137,7 @@ def build_initial_condition(config):
     sim.par.cosmology = EinsteinDeSitter.from_code_units(
         code_units, t_ref=initial_time, a_ref=1.0
     )
-    sim.par.tau_supercomoving_code = np.ones(1) * sim.par.cosmology.supercomoving_time(initial_time)
+    sim.par.tau_supercomoving_code = np.ones(1) * sim.par.cosmology.model.supercomoving_time(initial_time)
     sim.par.coordinate_frame = 'comoving'
     sim.par.time_coordinate = 'supercomoving'
     sim.par.velocity_representation = 'supercomoving_peculiar'

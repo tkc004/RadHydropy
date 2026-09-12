@@ -119,8 +119,5 @@ def _rotational_energy_from_conserved(solver, mesh, fluid, par):
     )
     return result
 
-def _dual_energy_eta(par, name, legacy):
-    value = getattr(par, name, None)
-    if value is None:
-        value = getattr(par, 'dual_energy_switch', legacy)
-    return max(0.0, float(value))
+def _dual_energy_eta(par, name):
+    return max(0.0, float(getattr(par, name)))

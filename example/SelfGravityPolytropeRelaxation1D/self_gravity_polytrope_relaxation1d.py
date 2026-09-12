@@ -50,7 +50,7 @@ def _profile(sim, rho_proper_code, pre_proper_code):
     radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     code = sim.par.units.CodeUnits
     radius_proper_cgs_cm_unyt = radius_proper_code * code.length_unit
-    gravity = sim.par.gravity.acceleration_on_mesh(
+    gravity = sim.par.gravity.model.acceleration_on_mesh(
         sim.mesh, rho_proper_code, sim.par
     )[interior]
     gravity_cgs = quantity_to_value(

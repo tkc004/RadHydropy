@@ -48,9 +48,6 @@ class SmoothEnclosedMassForGas:
     def __init__(self, shells):
         self.shells = shells
 
-    def __getattr__(self, name):
-        return getattr(self.shells, name)
-
     def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):
         if radius_comoving_code is None:

@@ -112,7 +112,7 @@ def snapshot_physical_fields(hdf5_filename, config):
         tau_supercomoving_code = float(
             np.asarray(fluid.tau_supercomoving_code, dtype=float).flat[0]
         )
-        _, scale_factor, hubble = par.cosmology.background_state_from_supercomoving(
+        _, scale_factor, hubble = par.cosmology.model.background_state_from_supercomoving(
             tau_supercomoving_code
         )
         length_cgs_cm = float(code_units.length_unit.to_value(unyt.cm))

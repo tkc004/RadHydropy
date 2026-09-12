@@ -104,8 +104,6 @@ refparams = {
     'dual_energy_pressure_selection': 'switch',
     # Code-unit pressure used only when both energy estimates are invalid.
     'dual_energy_pressure_floor': 1.0e-20,
-    # Backward-compatible alias for the old single pressure-selection switch.
-    'dual_energy_switch': 1.0e-3,
     'nogrid': None,
     'noghost':2,
     'dtmin': 2.0e-8*unyt.s,
@@ -254,7 +252,7 @@ refparams = {
 
 @dataclass
 class CosmologyParameters:
-    """Structured cosmology settings with legacy model delegation."""
+    """Structured cosmology settings and its explicit runtime model."""
 
     cosmological: bool = False
     cosmological_expansion: bool = False
@@ -267,13 +265,6 @@ class CosmologyParameters:
     omega_lambda: float = 0.7
     hubble_ref: object = None
     model: object = None
-
-    def __getattr__(self, name):
-        model = self.__dict__.get('model')
-        if model is not None:
-            return getattr(model, name)
-        raise AttributeError(name)
-
 
 @dataclass
 class UnitsParameters:
@@ -377,13 +368,6 @@ class GravityParameters:
     cosmological: bool = False
     potential_energy: bool = False
     model: object = None
-
-    def __getattr__(self, name):
-        model = self.__dict__.get('model')
-        if model is not None:
-            return getattr(model, name)
-        raise AttributeError(name)
-
 
 @dataclass
 class OutputParameters:
@@ -503,7 +487,6 @@ class DualEnergyParameters:
     entropy_limiter: bool = False
     pressure_selection: str = 'switch'
     pressure_floor: float = 1.0e-20
-    switch: float = 1.0e-3
 
 
 @dataclass
@@ -652,7 +635,6 @@ class Par:
                 'dual_energy_entropy_limiter': 'dual_energy_entropy_limiter',
                 'dual_energy_pressure_floor': 'dual_energy_pressure_floor',
                 'dual_energy_pressure_selection': 'dual_energy_pressure_selection',
-                'dual_energy_switch': 'dual_energy_switch',
                 'gas_angular_momentum': 'gas_angular_momentum',
                 'gas_rotational_energy': 'gas_rotational_energy',
                 'gravity_potential_energy': 'gravity_potential_energy',
@@ -1115,7 +1097,6 @@ class Par:
             entropy_limiter=self.dual_energy_entropy_limiter,
             pressure_selection=self.dual_energy_pressure_selection,
             pressure_floor=self.dual_energy_pressure_floor,
-            switch=self.dual_energy_switch,
         )
 
     def _sync_positivity_parameters(self):
@@ -1199,16 +1180,11 @@ class Par:
     def _configure_cosmology(self):
         if not self.cosmological_expansion:
             return
-        supported = (
-            None, 'einstein_de_sitter', 'EinsteinDeSitter',
-            'lambda_cdm', 'LambdaCDM', 'lcdm',
-        )
+        supported = (None, 'einstein_de_sitter', 'lambda_cdm')
         if self.cosmology_type not in supported:
             raise ValueError(f'unsupported cosmology_type: {self.cosmology_type}')
 
-        is_eds = self.cosmology_type in (
-            None, 'einstein_de_sitter', 'EinsteinDeSitter'
-        )
+        is_eds = self.cosmology_type in (None, 'einstein_de_sitter')
         cosmology_class = EinsteinDeSitter if is_eds else LambdaCDM
         cosmology_kwargs = {
             't_ref': self.cosmology_t_ref,

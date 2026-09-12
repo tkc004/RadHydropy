@@ -35,7 +35,7 @@ def main(config_filename=DEFAULT_CONFIG):
     example = config["example"]
     cosmology_config = par["cosmology"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
-    if cosmology_config.get("cosmology_type") in ("lambda_cdm", "LambdaCDM", "lcdm"):
+    if cosmology_config.get("cosmology_type") == "lambda_cdm":
         cosmology = LambdaCDM.from_code_units(
             units, t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
             a_ref=float(cosmology_config["cosmology_a_ref"]),

@@ -303,13 +303,13 @@ def run_case(config, label, rotation_factor):
 
     def record(state):
         tau = float(np.asarray(state.fluid.tau_supercomoving_code).flat[0])
-        a = float(state.par.cosmology.scale_factor_from_supercomoving(tau))
+        a = float(state.par.cosmology.model.scale_factor_from_supercomoving(tau))
         radius_comoving_code = np.abs(np.asarray(state.mesh.x_comoving_code[active], dtype=float))
         j = np.asarray(state.fluid.specific_angular_momentum_code[active], dtype=float)
         enclosed = np.cumsum(
             np.asarray(state.fluid.Mass_code[active], dtype=float)
         )
-        gravity = state.par.cosmology.gravitational_constant * enclosed
+        gravity = state.par.cosmology.model.gravitational_constant * enclosed
         valid = (radius_comoving_code > 0.0) & (gravity > 0.0)
         support = np.zeros_like(radius_comoving_code)
         support[valid] = j[valid]**2 / (gravity[valid] * radius_comoving_code[valid])

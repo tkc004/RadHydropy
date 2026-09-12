@@ -517,7 +517,7 @@ class Solver():
             )
             dual_pressure = (fluid.eos.gamma - 1.0) * internal_density
             total_thermal = energy_density - 0.5 * rho_runtime_code * vel_runtime_code**2
-            eta1 = self._dual_energy_eta(par, 'dual_energy_eta1', 1.0e-3)
+            eta1 = self._dual_energy_eta(par, 'dual_energy_eta1')
             total_valid = (
                 active & ~numerical_vacuum
                 & np.isfinite(total_thermal) & (total_thermal > 0.0)
@@ -829,7 +829,7 @@ class Solver():
             dual_energy and old_internal is not None
             and getattr(fluid.eos, 'is_polytropic', False)
         ):
-            eta2 = self._dual_energy_eta(par, 'dual_energy_eta2', 1.0e-1)
+            eta2 = self._dual_energy_eta(par, 'dual_energy_eta2')
             conserved_mass = np.asarray(fluid.Mass_code, dtype=float)
             conserved_momentum = np.asarray(fluid.Mom_code, dtype=float)
             conserved_energy = np.asarray(fluid.Energy_code, dtype=float)
