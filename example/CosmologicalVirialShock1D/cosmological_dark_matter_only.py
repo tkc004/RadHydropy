@@ -19,7 +19,7 @@ from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.units import _gravitational_constant_code
 from example_utils import load_nested_example_config
-import tools as et
+import virial_shock_tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_dark_matter_correlation_z100.yaml")

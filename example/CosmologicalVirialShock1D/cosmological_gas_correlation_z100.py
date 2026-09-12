@@ -25,7 +25,7 @@ from radhydropy.gravity import Gravity
 from radhydropy.solver import Solver
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
-import tools as et
+import virial_shock_tools as et
 from example_utils import load_nested_example_config
 import plot_entropy_evolution as entropy_plotter
 import plot_halo_energy_accounting as energy_plotter

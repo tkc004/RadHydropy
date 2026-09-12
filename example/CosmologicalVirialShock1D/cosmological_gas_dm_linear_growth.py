@@ -34,7 +34,7 @@ from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
-import tools as et
+import virial_shock_tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(

@@ -16,7 +16,7 @@ sys.path[:0] = [str(EXAMPLE_DIR), str(EXAMPLE_ROOT), str(PROJECT_ROOT)]
 from example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
-import tools as et
+import virial_shock_tools as et
 
 
 CONFIG = Path(__file__).with_name("dark_matter_only_correlation_control.yaml")

@@ -19,7 +19,7 @@ import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits, quantity_to_value
-import tools as et
+import virial_shock_tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(

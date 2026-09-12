@@ -19,7 +19,7 @@ from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.units import _gravitational_constant_code
-import tools_lambda_cdm as et
+import virial_shock_tools_lambda_cdm as et
 
 
 DEFAULT_CONFIG = Path(__file__).with_name(
@@ -51,7 +51,9 @@ def run_lagrangian_top_hat(config):
     )
     delta_i = float(initial_condition["initial_overdensity"])
     initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
-    final = quantity_to_value(par["simulation"]["final_time"], units.time_unit)
+    final = quantity_to_value(
+        par["simulation"]["final_time"], code_unit_system.time_unit
+    )
     a_initial = float(cosmology.scale_factor(initial))
     h_initial = float(cosmology.hubble(initial))
     rho_comoving = float(cosmology.background_density(initial)) * a_initial**3
@@ -183,8 +185,12 @@ def run_live_shell_density_profiles(config):
         ),
         dtype=float,
     )
-    initial = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    final = quantity_to_value(par["simulation"]["final_time"], units.time_unit)
+    initial = quantity_to_value(
+        initial_condition["time_cosmic"], code_unit_system.time_unit
+    )
+    final = quantity_to_value(
+        par["simulation"]["final_time"], code_unit_system.time_unit
+    )
     target_times = np.unique(np.clip(target_times, initial, final))
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
@@ -301,7 +307,7 @@ def run_live_shell_density_profiles(config):
     scale_factors = np.asarray([float(cosmology.scale_factor(time_cosmic_code)) for time_cosmic_code in times])
     comoving_bin_radii = bin_radii[None, :] / scale_factors[:, None]
     target_mass = quantity_to_value(
-        initial_condition["target_halo_mass"], units.mass_unit
+        initial_condition["target_halo_mass"], code_unit_system.mass_unit
     )
     analytic_threshold = np.asarray(
         [virial_threshold(time_cosmic_code) for time_cosmic_code in times], dtype=float
