@@ -759,8 +759,8 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
         "dm_rho_proper_code": dm_density_comoving_code,
         "dm_mass_comoving_code": dm_mass_comoving_code,
         "dm_total_mass_comoving_code": float(np.sum(dm_mass_comoving_code) + getattr(dark_matter, "central_core_mass", 0.0)),
-        "dm_crossing_events": int(getattr(dark_matter, "last_crossing_event_count", 0)),
-        "dm_origin_reflections": int(getattr(dark_matter, "last_origin_reflection_count", 0)),
+        "dm_crossing_events": int(getattr(dark_matter, "total_crossing_event_count", 0)),
+        "dm_origin_reflections": int(getattr(dark_matter, "total_origin_reflection_count", 0)),
         # The softened unresolved core is part of the gravitating DM profile
         # even though it is not represented by a live shell.
         "dm_central_core_mass": float(getattr(dark_matter, "central_core_mass", 0.0)),
@@ -817,6 +817,14 @@ class VolumeSmoothedDarkMatter:
     @property
     def last_origin_reflection_count(self):
         return self.shells.last_origin_reflection_count
+
+    @property
+    def total_crossing_event_count(self):
+        return self.shells.total_crossing_event_count
+
+    @property
+    def total_origin_reflection_count(self):
+        return self.shells.total_origin_reflection_count
 
     def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):

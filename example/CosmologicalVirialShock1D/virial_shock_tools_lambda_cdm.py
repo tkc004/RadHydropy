@@ -627,6 +627,14 @@ class VolumeSmoothedDarkMatter:
     def last_origin_reflection_count(self):
         return self.shells.last_origin_reflection_count
 
+    @property
+    def total_crossing_event_count(self):
+        return self.shells.total_crossing_event_count
+
+    @property
+    def total_origin_reflection_count(self):
+        return self.shells.total_origin_reflection_count
+
     def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):
         if radius_comoving_code is None:
