@@ -21,6 +21,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 import example_utils as eu
 import tools as et
 
@@ -34,36 +35,22 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
-    initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
-    initial_j = np.asarray(
-        initial.fluid.specific_angular_momentum_code, dtype=float
-    ).copy()
-    rho_proper_proper_code = np.asarray(
-        initial.fluid.rho_proper_code, dtype=float
-    ).copy()
-    vel_proper_proper_code = np.asarray(
-        initial.fluid.vel_proper_code, dtype=float
-    ).copy()
-    temperature_proper_proper_code = np.asarray(
-        initial.fluid.temp_proper_code, dtype=float
-    ).copy()
+    config["_code_units"] = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    writer = et.build_initial_condition(config)
+    initial_filename = config["par"]["simulation"]["initial_condition_filename"]
+    writer.write(initial_filename, validate=True)
+    initial = rio.loadhdf5(config, initial_filename)
+    initial_j = np.asarray(initial.fluid.specific_angular_momentum_radarray.value, dtype=float)
+    rho_proper_code = np.asarray(initial.fluid.rho_radarray.value, dtype=float)
+    vel_proper_code = np.asarray(initial.fluid.vel_radarray.value, dtype=float)
+    temperature_proper_code = np.asarray(initial.fluid.temp_radarray.value, dtype=float)
+    boundary_proper_code = np.asarray(initial.mesh.boundary_radarray.to_value(config["_code_units"].length_unit), dtype=float)
     initial_total_j = np.sum(
-        rho_proper_proper_code * initial_j
-        * float(np.asarray(
-            initial.mesh.boundary_proper_code[1]
-            - initial.mesh.boundary_proper_code[0]
-        ))
+        rho_proper_code * initial_j * np.diff(boundary_proper_code)
     )
-    sim = Rsim.FromComponents(
-        initial.par, initial.mesh, initial.fluid, initial.solver
-    )
-    sim.SetMesh()
-    sim.SetFluid()
-    sim.SetInitFluid()
-    sim.Run(outputtime=0, mode='hydro')
+    sim = Rsim(config["par"])
+    sim.RunAll(outputtime=0, mode='hydro')
     interior = slice(
         sim.par.mesh.ghost_cells,
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
@@ -85,10 +72,7 @@ def main(config_filename=DEFAULT_CONFIG):
     outputs = sorted(Path(config["par"]['output']['directory']).glob('Output_*.hdf5'))
     if not outputs:
         raise FileNotFoundError('no output snapshot was written')
-    restart = Rsim.FromComponents(
-        initial.par, initial.mesh, initial.fluid, initial.solver
-    )
-    rio.readhdf5(restart.par, restart.mesh, restart.fluid, str(outputs[-1]))
+    restart = rio.loadhdf5(config, str(outputs[-1]))
     if not hasattr(restart.fluid, 'AngularMomentum_code'):
         raise RuntimeError('restart snapshot is missing AngularMomentum')
     restarted_j = np.asarray(
@@ -96,26 +80,27 @@ def main(config_filename=DEFAULT_CONFIG):
         dtype=float,
     )
     restarted_specific_j = np.asarray(
-        restart.fluid.specific_angular_momentum_code[interior], dtype=float
+        restart.fluid.specific_angular_momentum_radarray.value[interior], dtype=float
     )
     if not np.allclose(
         restarted_j, restarted_specific_j, rtol=1.0e-12, atol=1.0e-14
     ):
         raise RuntimeError('HDF5 restart changed J/M')
 
-    radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
+    radius_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
     figure = Path(config["par"]['output']['directory']) / 'PassiveGasAngularMomentum1D.jpg'
     figure.parent.mkdir(parents=True, exist_ok=True)
-    final_density_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
-    final_velocity_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
-    final_temperature_proper_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
+    final_snapshot = rio.loadhdf5(config, str(outputs[-1]))
+    final_density_proper_code = np.asarray(final_snapshot.fluid.rho_radarray.value[interior], dtype=float)
+    final_velocity_proper_code = np.asarray(final_snapshot.fluid.vel_radarray.value[interior], dtype=float)
+    final_temperature_proper_code = np.asarray(final_snapshot.fluid.temp_radarray.value[interior], dtype=float)
     conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     hydro_plots = (
-        (axes[0, 0], rho_proper_proper_code, final_density_proper_code, 'density [proper code]'),
-        (axes[0, 1], vel_proper_proper_code, final_velocity_proper_code, 'velocity [proper code]'),
-        (axes[1, 0], temperature_proper_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
+        (axes[0, 0], rho_proper_code, final_density_proper_code, 'density [proper code]'),
+        (axes[0, 1], vel_proper_code, final_velocity_proper_code, 'velocity [proper code]'),
+        (axes[1, 0], temperature_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
     )
     for axis, initial_values, final_values, ylabel in hydro_plots:
         axis.plot(radius_proper_code, initial_values, '--', label='initial')
@@ -145,10 +130,7 @@ def main(config_filename=DEFAULT_CONFIG):
     snapshot_times = []
     snapshot_total_j = []
     for output in outputs:
-        snapshot = Rsim.FromComponents(
-            initial.par, initial.mesh, initial.fluid, initial.solver
-        )
-        rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(output))
+        snapshot = rio.loadhdf5(config, str(output))
         snapshot_times.append(float(np.asarray(snapshot.fluid.time_proper_code)))
         snapshot_total_j.append(
             np.sum(

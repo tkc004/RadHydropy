@@ -16,9 +16,9 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
+import radhydropy.io as rio
 import example_utils as eu
 import tools as et
 
@@ -30,12 +30,12 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     config['_code_units'] = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
-    initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
-
+    writer = et.build_initial_condition(config)
+    initial_filename = config["par"]['simulation']['initial_condition_filename']
+    writer.write(initial_filename, validate=True)
+    initial = rio.loadhdf5(config, initial_filename)
     sim = Rsim(config["par"])
     sim.RunAll(outputtime=0, mode='hydro')
     if hasattr(sim.fluid, 'AngularMomentum_code'):
@@ -45,13 +45,33 @@ def main(config_filename=DEFAULT_CONFIG):
         config["par"]['mesh']['ghost_cells'],
         config["par"]['mesh']['ghost_cells'] + config["par"]['mesh']['grid_cells'],
     )
-    radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
+    output_files = sorted(
+        Path(config["par"]["output"]["directory"]).glob("Output_*.hdf5")
+    )
+    if not output_files:
+        raise FileNotFoundError("no control output snapshot was written")
+    final_snapshot = rio.loadhdf5(config, str(output_files[-1]))
+    boundary_proper_code = np.asarray(
+        final_snapshot.mesh.boundary_radarray.to_value(
+            config["_code_units"].length_unit
+        ),
+        dtype=float,
+    )
+    active_boundary_proper_code = boundary_proper_code[
+        config["par"]["mesh"]["ghost_cells"] :
+        config["par"]["mesh"]["ghost_cells"]
+        + config["par"]["mesh"]["grid_cells"]
+        + 1
+    ]
+    radius_proper_code = 0.5 * (
+        active_boundary_proper_code[1:] + active_boundary_proper_code[:-1]
+    )
     figure = Path(config["par"]['output']['directory']) / 'GasHydroControl1D.jpg'
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharex=True)
     for axis, initial_values, final_values, ylabel in (
-        (axes[0], initial.fluid.rho_proper_code, sim.fluid.rho_proper_code[interior], 'density [code units]'),
-        (axes[1], initial.fluid.vel_proper_code, sim.fluid.vel_proper_code[interior], 'radial velocity [code units]'),
-        (axes[2], initial.fluid.temp_proper_code, sim.fluid.temp_proper_code[interior], 'temperature [code units]'),
+        (axes[0], initial.fluid.rho_radarray.value, final_snapshot.fluid.rho_radarray.value[interior], 'density [code units]'),
+        (axes[1], initial.fluid.vel_radarray.value, final_snapshot.fluid.vel_radarray.value[interior], 'radial velocity [code units]'),
+        (axes[2], initial.fluid.temp_radarray.value, final_snapshot.fluid.temp_radarray.value[interior], 'temperature [code units]'),
     ):
         axis.plot(radius_proper_code, initial_values, '--', label='initial')
         axis.plot(radius_proper_code, final_values, 'o', ms=3, label='final')
