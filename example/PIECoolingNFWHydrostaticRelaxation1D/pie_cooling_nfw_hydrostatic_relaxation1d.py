@@ -1,7 +1,6 @@
 """HM12 PIE relaxation of a hydrostatic atmosphere in a fixed NFW halo."""
 
 import argparse
-import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -22,10 +21,7 @@ from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
 import example_utils as eu
 
-SPEC = importlib.util.spec_from_file_location('pie_nfw_hse_tools', EXAMPLE_DIR / 'tools.py')
-et = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(et)
+from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et
 
 DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_cooling_nfw_hydrostatic_relaxation1d.yaml'
 

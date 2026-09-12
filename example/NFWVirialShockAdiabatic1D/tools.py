@@ -10,17 +10,8 @@ import radhydropy.io as rio
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.units import CodeUnits, code_quantity_to_cgs, time_seconds, quantity_to_value
 from radhydropy.rsim import Rsim
-from basic_hydro_utils import make_initial_condition
-
-NFW_TOOLS_PATH = __file__.replace(
-    'NFWVirialShockAdiabatic1D/tools.py',
-    'NFWHydrostaticEquilibrium1D/tools.py',
-)
-import importlib.util
-NFW_SPEC = importlib.util.spec_from_file_location('nfw_halo_tools_adiabatic', NFW_TOOLS_PATH)
-NFW = importlib.util.module_from_spec(NFW_SPEC)
-assert NFW_SPEC.loader is not None
-NFW_SPEC.loader.exec_module(NFW)
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from example.NFWHydrostaticEquilibrium1D import tools as NFW
 
 
 def nfw_halo_parameters(*args, **kwargs):
@@ -71,33 +62,27 @@ def build_initial_condition(config):
         'cmb_temperature_0', initial_condition['temperature_proper']
     )
     temperature_proper_unyt = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
-    return make_initial_condition(config,
-        boundary_proper_code=quantity_to_value(boundary_proper_unyt, code_units.length_unit),
-        rho_proper_code=np.full(grid_cells, quantity_to_value(mean_density, code_units.density_unit)),
-        vel_proper_code=quantity_to_value(expansion_rate * x_proper_unyt, code_units.velocity_unit),
-        temp_proper_code=np.full(grid_cells, quantity_to_value(temperature_proper_unyt, code_units.temperature_unit)),
-        mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])))
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(x_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * mean_density)
+    writer.fluid.vel_radarray = writer.radarray(expansion_rate * x_proper_unyt)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_proper_unyt)
+    writer.simulation.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
+    return writer
 
 def _snapshot_profiles(filename, config):
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     config['_code_units'] = code_units
-    rout = Rsim(config['par'])
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, filename)
-    boundary_cgs_cm = code_quantity_to_cgs(
-        rout.mesh.boundary_proper_code, code_units, 'length_cgs_cm'
-    ) * unyt.cm
+    rout = rio.loadhdf5(config, filename)
+    boundary_cgs_cm = rout.mesh.boundary_radarray.to(unyt.cm)
     radius_proper_cgs_cm_unyt = NFW.spherical_cell_centers(boundary_cgs_cm)
     nghost = int(config['par']['mesh']['ghost_cells'])
-    radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_unyt[nghost:-nghost]
-    rho_proper_cgs_g_cm3_unyt = code_quantity_to_cgs(
-        rout.fluid.rho_proper_code[nghost:-nghost], code_units, 'rho_proper_cgs_g_cm3'
-    )
-    temperature_proper_cgs_K_unyt = code_quantity_to_cgs(
-        rout.fluid.temp_proper_code[nghost:-nghost], code_units, 'temperature_proper_cgs_K'
-    )
-    vel_peculiar_proper_cgs_cm_s_unyt = code_quantity_to_cgs(
-        rout.fluid.vel_proper_code[nghost:-nghost], code_units, 'velocity_cgs_cm_s'
-    ) / 1.0e5
+    active_slice = slice(nghost, -nghost if nghost else None)
+    radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_unyt[active_slice]
+    rho_proper_cgs_g_cm3_unyt = rout.fluid.rho_radarray.to(unyt.g / unyt.cm**3)[active_slice]
+    temperature_proper_cgs_K_unyt = rout.fluid.temp_radarray.to(unyt.K)[active_slice]
+    vel_peculiar_proper_cgs_cm_s_unyt = rout.fluid.vel_radarray.to(unyt.cm / unyt.s)[active_slice] / 1.0e5
     time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / (1.0e6 * 365.25 * 86400.0)
     return time_proper_Myr, radius_proper_cgs_cm_unyt.to_value(unyt.kpc), rho_proper_cgs_g_cm3_unyt, temperature_proper_cgs_K_unyt, vel_peculiar_proper_cgs_cm_s_unyt
 

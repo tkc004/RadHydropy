@@ -27,7 +27,7 @@ from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits, code_unit_scales
 from radhydropy.thermo_networks.pie import MetalPIETable
-from tools import (
+from example.NFWBoundaryDrivenVirialShock1D.tools import (
     build_initial_condition, boundary_inflow_state, nfw_halo_parameters, pie_stability_diagnostics,
     plot_comparison, plot_stability_diagnostics, shock_history,
     virial_temperature, write_report, write_stability_report,
@@ -223,7 +223,7 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     config["par"]['boundary'].update(inflow)
     initial_filename = config["par"]['simulation']['initial_condition_filename']
     Path(initial_filename).parent.mkdir(parents=True, exist_ok=True)
-    rio.writehdf5(initial, initial_filename)
+    initial.write(initial_filename, validate=True)
 
     adiabatic_config = copy.deepcopy(config)
     adiabatic_config['par']['simulation']['final_time'] = exampleparams['adiabatic_final_time']

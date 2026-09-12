@@ -28,7 +28,7 @@ import radhydropy.io as rio
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.units import CodeUnits
 import example_utils as eu
-import tools as et
+from example.NFWHydrostaticEquilibrium1D import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name(

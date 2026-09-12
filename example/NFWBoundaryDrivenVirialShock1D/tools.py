@@ -1,6 +1,5 @@
 """Helpers for a boundary-driven virial shock in a fixed NFW halo."""
 
-import importlib.util
 from pathlib import Path
 
 import matplotlib
@@ -12,15 +11,9 @@ import unyt
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-from basic_hydro_utils import make_initial_condition
-
-
-NFW_TOOLS = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
-SPEC = importlib.util.spec_from_file_location('boundary_accretion_nfw_tools', NFW_TOOLS)
-NFW = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(NFW)
+from example.NFWHydrostaticEquilibrium1D import tools as NFW
 
 KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
@@ -145,26 +138,25 @@ def build_initial_condition(config):
         (1.0 - weight) * temperature_hot_proper_unyt.to_value(unyt.K)
         + weight * temperature_cold_proper_unyt.to_value(unyt.K)
     ) * unyt.K
-    return make_initial_condition(
-        config,
-        boundary_proper_code=quantity_to_value(boundary_proper_cgs_cm_unyt, code_units.length_unit),
-        rho_proper_code=quantity_to_value(density_proper_cgs_g_cm3_unyt, code_units.density_unit),
-        vel_proper_code=quantity_to_value(weight * vel_inflow_proper_unyt, code_units.velocity_unit),
-        temp_proper_code=quantity_to_value(temperature_proper_unyt, code_units.temperature_unit),
-        mu_dimensionless=np.full(grid_cells, float(initial_condition['mu'])),
-    )
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_cgs_cm_unyt)
+    writer.mesh.x_radarray = writer.radarray(radius_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)
+    writer.fluid.vel_radarray = writer.radarray(weight * vel_inflow_proper_unyt)
+    writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
+    writer.simulation.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
+    return writer
 
 def load_output_state(filename, config):
     """Load physical cells from a RadHydropy snapshot in CGS units."""
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    snapshot = Rsim(config['par'])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
-    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
-        first:first + count + 1
-    ]
+    boundary_proper_code = snapshot.mesh.boundary_radarray.to(
+        code_units.length_unit
+    ).value[first:first + count + 1]
     centers_proper_code = 0.75 * (
         boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4
     ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
@@ -176,15 +168,9 @@ def load_output_state(filename, config):
         'radius_proper_kpc': centers_proper_code * float(
             code_units.length_unit.to_value('cm')
         ) / KPC_CM,
-        'rho_proper_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
-            code_units.density_unit.to_value('g/cm**3')
-        ),
-        'vel_peculiar_proper_km_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
-            code_units.velocity_unit.to_value('cm/s')
-        ) / 1.0e5,
-        'temperature_proper_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
-            code_units.temperature_unit.to_value('K')
-        ),
+        'rho_proper_cgs_g_cm3': snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[physical],
+        'vel_peculiar_proper_km_s': snapshot.fluid.vel_radarray.to(unyt.km / unyt.s).value[physical],
+        'temperature_proper_cgs_K': snapshot.fluid.temp_radarray.to(unyt.K).value[physical],
     }
 
 

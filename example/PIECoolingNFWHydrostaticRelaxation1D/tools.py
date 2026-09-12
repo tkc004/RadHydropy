@@ -1,6 +1,5 @@
 """HM12 PIE diagnostics for an NFW hydrostatic atmosphere."""
 
-import importlib.util
 from pathlib import Path
 
 import matplotlib
@@ -12,11 +11,7 @@ import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
-BASE_PATH = Path(__file__).resolve().parents[1] / 'NFWHydrostaticEquilibrium1D' / 'tools.py'
-SPEC = importlib.util.spec_from_file_location('nfw_hydrostatic_tools_for_pie', BASE_PATH)
-BASE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(BASE)
+from example.NFWHydrostaticEquilibrium1D import tools as BASE
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 
@@ -59,31 +54,20 @@ def build_initial_condition(config):
 
 
 def load_output_state(filename, config):
-    code_units = config.get('_code_units')
-    if code_units is None:
-        code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
-    boundary_proper_code = np.asarray(snapshot.mesh.boundary_radarray.value)[
-        first:first + count + 1
-    ]
+    boundary_proper_code = snapshot.mesh.boundary_radarray.to(
+        code_units.length_unit
+    ).value[first:first + count + 1]
     radius_proper_kpc = spherical_cell_centers(
         boundary_proper_code * code_units.length_unit
     ).to_value(unyt.kpc)
-    rho_proper_cgs_g_cm3 = (
-        np.asarray(snapshot.fluid.rho_radarray.value)[physical]
-        * code_units.density_unit
-    ).to_value(unyt.g / unyt.cm**3)
-    temperature_proper_cgs_K = (
-        np.asarray(snapshot.fluid.temp_radarray.value)[physical]
-        * code_units.temperature_unit
-    ).to_value(unyt.K)
-    vel_peculiar_proper_km_s = (
-        np.asarray(snapshot.fluid.vel_radarray.value)[physical]
-        * code_units.velocity_unit
-    ).to_value(unyt.km / unyt.s)
+    rho_proper_cgs_g_cm3 = snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[physical]
+    temperature_proper_cgs_K = snapshot.fluid.temp_radarray.to(unyt.K).value[physical]
+    vel_peculiar_proper_km_s = snapshot.fluid.vel_radarray.to(unyt.km / unyt.s).value[physical]
     time_proper_code = float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
     return {
         'time_proper_code': time_proper_code,

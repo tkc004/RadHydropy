@@ -1,7 +1,6 @@
 """Run and compare stable, marginal, and low-mass virial-shock cases."""
 
 import argparse
-import importlib.util
 import os
 import sys
 import tempfile
@@ -29,13 +28,7 @@ from tools import (
     pie_stability_diagnostics,
 )
 
-RUNNER_SPEC = importlib.util.spec_from_file_location(
-    'boundary_virial_shock_runner',
-    EXAMPLE_DIR / 'nfw_boundary_driven_virial_shock1d.py',
-)
-RUNNER = importlib.util.module_from_spec(RUNNER_SPEC)
-assert RUNNER_SPEC.loader is not None
-RUNNER_SPEC.loader.exec_module(RUNNER)
+from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
 
 CONFIGS = (
     EXAMPLE_DIR / 'nfw_boundary_driven_virial_shock1d.yaml',
