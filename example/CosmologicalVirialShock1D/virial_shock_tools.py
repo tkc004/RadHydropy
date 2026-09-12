@@ -229,7 +229,7 @@ def build_initial_condition(config):
     result.par.cosmological_gravity = True
     result.par.selfgravity = True
     result.par.externalgravity = False
-    result.par.cosmology = cosmology
+    result.par.set_cosmology_model(cosmology)
     result.par.cosmology_type = cosmology.type_name
     result.par.cosmology_t_ref = cosmology.t_ref
     result.par.cosmology_a_ref = cosmology.a_ref
@@ -313,10 +313,6 @@ def build_initial_condition(config):
         result.mesh.boundary_comoving_code * code_unit_system.length_unit,
         field_name="boundary_comoving_code",
     )
-    writer.mesh.x_radarray = writer.radarray(
-        result.mesh.x_comoving_code * code_unit_system.length_unit,
-        field_name="x_comoving_code",
-    )
     writer.fluid.rho_radarray = writer.radarray(
         result.fluid.rho_comoving_code * code_unit_system.density_unit,
         field_name="rho_comoving_code",
@@ -329,17 +325,13 @@ def build_initial_condition(config):
         result.fluid.temp_supercomoving_code * code_unit_system.temperature_unit,
         field_name="temp_supercomoving_code",
     )
-    writer.fluid.pre_radarray = writer.radarray(
-        result.fluid.pre_supercomoving_code * code_unit_system.pressure_unit,
-        field_name="pre_supercomoving_code",
-    )
     if hasattr(result.fluid, "specific_angular_momentum_code"):
         writer.fluid.specific_angular_momentum_radarray = writer.radarray(
             result.fluid.specific_angular_momentum_code
             * code_unit_system.specific_angular_momentum_unit,
             field_name="specific_angular_momentum_code",
         )
-    return writer.prepare()
+    return writer
 
 
 def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1.0e4):
@@ -809,6 +801,22 @@ class VolumeSmoothedDarkMatter:
 
     def __init__(self, shells):
         self.shells = shells
+
+    def step(self, *args, **kwargs):
+        """Advance the wrapped shells while retaining smoothed force lookup."""
+        return self.shells.step(*args, **kwargs)
+
+    @property
+    def last_substep_count(self):
+        return self.shells.last_substep_count
+
+    @property
+    def last_crossing_event_count(self):
+        return self.shells.last_crossing_event_count
+
+    @property
+    def last_origin_reflection_count(self):
+        return self.shells.last_origin_reflection_count
 
     def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):

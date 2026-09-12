@@ -57,10 +57,11 @@ def main(config_filename=DEFAULT_CONFIG):
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
 
-    initial = et.build_initial_condition(config)
+    initial_writer = et.build_initial_condition(config)
+    initial = initial_writer.simulation
     output = Path(par["simulation"]["initial_condition_filename"])
     output.parent.mkdir(parents=True, exist_ok=True)
-    rio.writehdf5(initial, output)
+    initial_writer.write(output)
 
     length_unit_mpc_h = (
         float(units.length_in_cgs)

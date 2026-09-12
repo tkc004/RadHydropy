@@ -955,14 +955,15 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial = et.build_initial_condition(config)
+    initial_writer = et.build_initial_condition(config)
+    initial = initial_writer.simulation
     if bool(hydro.get("gas_angular_momentum", False)):
         initial.par.gas_angular_momentum = True
         initial.fluid.specific_angular_momentum_code = np.full(
             initial.par.mesh.grid_cells,
             float(hydro.get("gas_specific_angular_momentum", 0.0)),
         )
-    rio.writehdf5(initial, ic_filename)
+    initial_writer.write(ic_filename)
     config["_dark_matter_softening"] = config["par"]["dark_matter"]["softening"]
     dm = et.make_dark_matter(config)
 
@@ -1007,6 +1008,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
     ):
         raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
+    sim.par.cosmology = cosmology
     # IC/HDF5 restoration serializes the PIE table as metadata.  Rehydrate
     # the interpolation object before the run switches to the PIE network.
     metal_table = getattr(sim.par, "metal_pie_table", None)

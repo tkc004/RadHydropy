@@ -68,8 +68,9 @@ def run(config_filename=DEFAULT_CONFIG):
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
 
-    initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, ic_filename)
+    initial_writer = et.build_initial_condition(config)
+    initial = initial_writer.simulation
+    initial_writer.write(ic_filename)
     dm = et.make_dark_matter(config)
 
     # The initial density is split explicitly into f_b and 1-f_b.  This

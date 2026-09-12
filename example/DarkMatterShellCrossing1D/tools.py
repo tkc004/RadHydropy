@@ -3,6 +3,7 @@
 import numpy as np
 
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits
 
 
@@ -19,7 +20,11 @@ def make_shells(config):
         initial_condition['angular_momentum_fraction']
         * np.sqrt(radius_dimensionless)
     )
-    return DarkMatterShells(
+    writer = InitialConditionWriter(
+        par_config=config['par'],
+        code_units=code_unit_system,
+    )
+    writer.simulation.par.dark_matter = DarkMatterShells(
         radius_dimensionless,
         velocity_dimensionless,
         mass_dimensionless,
@@ -27,6 +32,7 @@ def make_shells(config):
         softening=initial_condition['softening_dimensionless'],
         code_units=code_unit_system,
     )
+    return writer.simulation.par.dark_matter
 
 
 def code_units_from_config(config):

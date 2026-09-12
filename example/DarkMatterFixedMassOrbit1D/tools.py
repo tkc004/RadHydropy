@@ -1,6 +1,7 @@
 """Helpers for the fixed-enclosed-mass dark-matter orbit benchmark."""
 
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
@@ -18,7 +19,11 @@ def make_shell(config):
         initial_condition['radius_initial_orbit_dimensionless']
     )
     velocity_initial_proper_code = vel_proper_code
-    return DarkMatterShells(
+    writer = InitialConditionWriter(
+        par_config=config['par'],
+        code_units=code_unit_system,
+    )
+    writer.simulation.par.dark_matter = DarkMatterShells(
         radius=[radius_initial_orbit_dimensionless],
         velocity=[velocity_initial_proper_code],
         mass=[initial_condition['shell_mass_dimensionless']],
@@ -27,3 +32,4 @@ def make_shell(config):
         fixed_enclosed_mass=initial_condition['central_mass_dimensionless'],
         code_units=code_unit_system,
     )
+    return writer.simulation.par.dark_matter

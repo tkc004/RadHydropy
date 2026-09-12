@@ -4,6 +4,7 @@ import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
 
 
@@ -68,13 +69,18 @@ def make_shells(config, overdensity=None):
         -scale_factor_dimensionless**2 * hubble_code * delta * radius_perturbation_comoving_code**3
         / (3.0 * radius_comoving_code[~inside]**2)
     )
-    return DarkMatterShells(
+    writer = InitialConditionWriter(
+        par_config=config['par'],
+        code_units=code_unit_system,
+    )
+    writer.simulation.par.dark_matter = DarkMatterShells(
         radius_comoving_code, vel_supercomoving_code, mass_comoving_code,
         softening=quantity_to_value(
             initial_condition['softening'], code_unit_system.length_unit
         ),
         code_units=code_unit_system,
-    ), boundaries
+    )
+    return writer.simulation.par.dark_matter, boundaries
 
 
 def lagrangian_boundary_acceleration(radius_comoving_code, enclosed_mass_comoving_code, rho_comoving_code,

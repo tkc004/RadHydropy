@@ -197,7 +197,8 @@ def _make_matched_initial_state(config):
     cosmology = config["_cosmology"]
     initial_condition = config["initial_condition"]
     par = config["par"]
-    initial = et.build_initial_condition(config)
+    initial_writer = et.build_initial_condition(config)
+    initial = initial_writer.simulation
     # A uniform origin-centred mesh avoids allowing logarithmic innermost-cell
     # truncation error to dominate a deliberately tiny growing-mode signal.
     boundaries = np.linspace(
@@ -536,7 +537,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
     initial, dm = _make_matched_initial_state(config)
-    rio.writehdf5(initial, ic_filename)
+    initial_writer.write(ic_filename)
     initial_shell_mass_order = np.asarray(dm.mass, dtype=float).copy()
     if np.unique(initial_shell_mass_order).size != dm.number_of_shells:
         raise RuntimeError("shell masses must be unique for the crossing guard")

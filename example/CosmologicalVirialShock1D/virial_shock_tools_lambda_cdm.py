@@ -611,6 +611,22 @@ class VolumeSmoothedDarkMatter:
     def __init__(self, shells):
         self.shells = shells
 
+    def step(self, *args, **kwargs):
+        """Advance the wrapped shells while retaining smoothed force lookup."""
+        return self.shells.step(*args, **kwargs)
+
+    @property
+    def last_substep_count(self):
+        return self.shells.last_substep_count
+
+    @property
+    def last_crossing_event_count(self):
+        return self.shells.last_crossing_event_count
+
+    @property
+    def last_origin_reflection_count(self):
+        return self.shells.last_origin_reflection_count
+
     def gravitating_enclosed_mass(self, radius_comoving_code=None,
                                   include_shell_mass_with_fixed=False):
         if radius_comoving_code is None:

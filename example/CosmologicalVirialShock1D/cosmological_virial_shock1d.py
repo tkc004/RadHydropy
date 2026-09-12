@@ -16,10 +16,8 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import radhydropy.io as rio
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
 import virial_shock_tools as et
@@ -63,14 +61,13 @@ def run_case(config, radiative):
         "cie_cooling": bool(radiative),
         "thermochemistry_network": "cie_cooling" if radiative else "hydrogen",
     })
-    initial = et.build_initial_condition(case_config)
-    rio.writehdf5(initial, case_par["simulation"]["initial_condition_filename"])
+    initial_writer = et.build_initial_condition(case_config)
+    initial = initial_writer.simulation
+    initial_writer.write(case_par["simulation"]["initial_condition_filename"])
     case_config["_dark_matter_softening"] = case_par.get("dark_matter", {}).get("softening", 0.0)
     dm = et.make_dark_matter(case_config)
 
-    sim = Rsim.FromComponents(
-        initial.par, initial.mesh, initial.fluid, initial.solver
-    )
+    sim = initial_writer.simulation
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
