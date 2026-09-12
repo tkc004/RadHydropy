@@ -97,10 +97,10 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     initial_state = build_initial_condition(
         case_config
     )
-    rio.writehdf5(initial_state, case['simulation']['initial_condition_filename'])
+    initial_state.write(case['simulation']['initial_condition_filename'], validate=True)
 
     sim = Rsim(case_config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
     sim.SetFluid()

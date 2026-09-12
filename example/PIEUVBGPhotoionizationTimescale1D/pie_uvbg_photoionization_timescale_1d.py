@@ -62,7 +62,7 @@ def _write_initial_condition(config, output_dir):
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     config['_code_units'] = code_units
     ric = build_initial_condition(config)
-    rio.writehdf5(ric, output_dir / "InitialCondition.hdf5")
+    ric.write(output_dir / "InitialCondition.hdf5", validate=True)
     return ric
 
 
@@ -121,7 +121,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 'example': config['example']}
             ric = _write_initial_condition(case_config, case_dir)
             sim = Rsim(case_config['par'])
-            rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+            sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
             sim.par.metal_pie_table = table
             sim.SetMesh()
             sim.SetFluid()

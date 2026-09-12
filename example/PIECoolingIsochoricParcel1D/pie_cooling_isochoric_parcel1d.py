@@ -64,8 +64,7 @@ def _equilibrium_temperature(table, hydrogen_number_density_cgs_cm3, metallicity
 
 def _snapshot(filename, config, time_proper_Myr=None):
     eu._require_complete_example_config(config, '_snapshot')
-    snapshot = Rsim(config["par"])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, filename)
+    snapshot = rio.loadhdf5(config, filename)
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     code_units = snapshot.par.units.CodeUnits
@@ -77,8 +76,8 @@ def _snapshot(filename, config, time_proper_Myr=None):
             snapshot_time_proper_Myr
             if time_proper_Myr is None else float(time_proper_Myr)
         ),
-        'rho_proper_code': np.asarray(snapshot.fluid.rho_proper_code)[first:last],
-        'temp_proper_code': np.asarray(snapshot.fluid.temp_proper_code)[first:last],
+        'rho_proper_code': snapshot.fluid.rho_radarray.value[first:last],
+        'temp_proper_code': snapshot.fluid.temp_radarray.value[first:last],
     }
 
 
@@ -115,12 +114,12 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     }
     eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(case_config)
-    rio.writehdf5(initial_state, case_config['par']['simulation']['initial_condition_filename'])
+    initial_state.write(case_config['par']['simulation']['initial_condition_filename'], validate=True)
     # The canonical IC builder already returned a fully initialized Rsim.  Keep
     # its loaded PIE table instead of reconstructing Par from the mutated
     # nested mapping (which serializes the table object as a plain dict).
     sim = Rsim(case_config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
     sim.SetFluid()
@@ -185,7 +184,7 @@ def _plot(results, config, filename):
             times.append(data['time_proper_Myr'])
             temperatures.append(np.median(data['temp_proper_code']))
         line, = axes[0].plot(times, temperatures, marker='o', label=result['label'])
-        equilibrium = result['equilibrium_temperature']
+        equilibrium = result['temperature_equilibrium_proper_cgs_K']
         if np.isfinite(equilibrium):
             axes[0].axhline(equilibrium, color=line.get_color(), ls=':', alpha=0.6)
         temperatures_grid = np.logspace(2, 8, 512)
@@ -218,13 +217,13 @@ def _plot(results, config, filename):
         )
         initial_net_rate_cgs_erg_cm3_s = float(_net_rate(
             TABLE,
-            result['temperature_initial_cgs_K'],
+            result['temperature_initial_proper_cgs_K'],
             result['hydrogen_number_density_cgs_cm3'],
             METALLICITY,
             REDSHIFT,
         )) / result['hydrogen_number_density_cgs_cm3'] ** 2
         right_markers.append((
-            result['temperature_initial_cgs_K'],
+            result['temperature_initial_proper_cgs_K'],
             max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99),
             line.get_color(),
         ))
@@ -289,8 +288,8 @@ def main(config_filename=DEFAULT_CONFIG):
         final = _snapshot(result['snapshots'][-1], config)
         print(
             '%s: T_initial=%.6g K, T_final=%.6g K, T_eq=%.6g K' % (
-                result['label'], result['temperature_initial_cgs_K'],
-                np.median(final['temp_proper_code']), result['temperature_equilibrium_cgs_K'],
+                result['label'], result['temperature_initial_proper_cgs_K'],
+                np.median(final['temp_proper_code']), result['temperature_equilibrium_proper_cgs_K'],
             )
         )
     print('figure = %s' % figure)

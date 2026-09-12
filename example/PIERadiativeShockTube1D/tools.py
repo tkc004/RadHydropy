@@ -3,12 +3,9 @@
 import numpy as np
 import unyt
 
-from radhydropy.arrays import as_named_array
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-from basic_hydro_utils import finalize_initial_condition
 
 
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
@@ -19,68 +16,39 @@ KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-    par = config['par']
     code_units = config['_code_units']
-    result = Rsim(config["par"])
-    result.par.simulation.coordinate_system = initial['coordinate_system']
-    result.par.simulation.time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
-    result.par.simulation.box_size_proper_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
-    grid_cells = int(par['mesh']['grid_cells'])
-    result.par.mesh.grid_cells = grid_cells
-    result.par.mesh.ghost_cells = int(par['mesh']['ghost_cells'])
+    grid_cells = int(config['par']['mesh']['grid_cells'])
     box_size_proper_unyt = initial['box_size_proper']
-    boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0 * box_size_proper_unyt, box_size_proper_unyt, grid_cells + 1), code_units.length_unit
-    ))
-    width_proper_code = np.diff(boundary_proper_code)
-    x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-    midpoint_proper_code = quantity_to_value(
-        0.5 * box_size_proper_unyt, code_units.length_unit
+    boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
+    coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
+    collision_velocity_proper_unyt = initial['vel_collision_proper']
+    midpoint_proper_unyt = 0.5 * box_size_proper_unyt
+    velocity_proper_unyt = np.where(
+        coordinate_proper_unyt < midpoint_proper_unyt,
+        collision_velocity_proper_unyt,
+        -collision_velocity_proper_unyt,
     )
-    result.mesh.boundary_proper_code = boundary_proper_code
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=x_proper_code, boundary_proper_code=boundary_proper_code,
-        width_proper_code=width_proper_code, area_proper_code=np.ones(grid_cells), volume_proper_code=width_proper_code,
-    )
-    collision_velocity_proper_code = quantity_to_value(
-        initial['vel_collision_proper'], code_units.velocity_unit
-    )
-    result.fluid.vel_proper_code = as_named_array(np.where(
-        x_proper_code < midpoint_proper_code,
-        collision_velocity_proper_code,
-        -collision_velocity_proper_code,
-    ))
-    hydrogen_mass_fraction = float(par['thermochemistry']['hydrogen_mass_fraction'])
+    hydrogen_mass_fraction = float(config['par']['thermochemistry']['hydrogen_mass_fraction'])
     rho_proper_unyt = initial['hydrogen_number_density'] * unyt.mp / hydrogen_mass_fraction
-    result.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * rho_proper_unyt, code_units.density_unit
-    ))
-    result.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['temperature_proper'], code_units.temperature_unit
-    ))
-    result.fluid.mu = np.ones(result.par.mesh.grid_cells) * initial['mean_molecular_weight']
-    result.fluid.time_proper_code = 0.0
-    result.SetMesh()
-    result.fluid.SetUpFluid(result.par, result.mesh)
-    result.fluid.SetFluidTime(0.0)
-    result.fluid.SetEnergyDensity()
-    result.fluid._refresh_runtime_state()
-    result.mesh._par = result.par
-    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
-    finalize_initial_condition(result, grid_cells)
-    result.ConvertParametersToCodeUnits()
-    return result
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.box_size = writer.radquantity(box_size_proper_unyt)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(velocity_proper_unyt)
+    writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial['temperature_proper'])
+    writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
+    writer.simulation.par.simulation.time_proper_code = initial['time_proper'].to_value(code_units.time_unit)
+    return writer
 
 
 def load_output_state(filename, config):
     """Load one snapshot through the configured canonical runtime state."""
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    snapshot = Rsim(config['par'])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
-    boundary_proper_code = np.asarray(snapshot.mesh.boundary_proper_code)[
+    boundary_proper_code = snapshot.mesh.boundary_radarray.to_value(code_units.length_unit)[
         first:first + count + 1
     ]
     return {
@@ -88,18 +56,10 @@ def load_output_state(filename, config):
             float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
             * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
         ),
-        'boundary_proper_cgs_cm': boundary_proper_code * float(
-            code_units.length_unit.to_value('cm')
-        ),
-        'rho_proper_cgs_g_cm3': np.asarray(snapshot.fluid.rho_proper_code)[physical] * float(
-            code_units.density_unit.to_value('g/cm**3')
-        ),
-        'vel_peculiar_proper_cgs_cm_s': np.asarray(snapshot.fluid.vel_proper_code)[physical] * float(
-            code_units.velocity_unit.to_value('cm/s')
-        ),
-        'temperature_proper_cgs_K': np.asarray(snapshot.fluid.temp_proper_code)[physical] * float(
-            code_units.temperature_unit.to_value('K')
-        ),
+        'boundary_proper_cgs_cm': snapshot.mesh.boundary_radarray.to(unyt.cm).value[first:first + count + 1],
+        'rho_proper_cgs_g_cm3': snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[physical],
+        'vel_peculiar_proper_cgs_cm_s': snapshot.fluid.vel_radarray.to(unyt.cm / unyt.s).value[physical],
+        'temperature_proper_cgs_K': snapshot.fluid.temp_radarray.to(unyt.K).value[physical],
     }
 
 

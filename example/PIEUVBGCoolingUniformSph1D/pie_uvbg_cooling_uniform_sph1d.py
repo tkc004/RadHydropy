@@ -35,22 +35,21 @@ CASES = {"diffuse": 1.0, "self_shielded": 100.0}
 
 def _snapshot(filename, config):
     eu._require_complete_example_config(config, '_snapshot')
-    snapshot = Rsim(config["par"])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(
-        snapshot.mesh.boundary_proper_code[first:last + 1], dtype=float
-    )
+    boundary_proper_code = snapshot.mesh.boundary_radarray.to_value(
+        config['_code_units'].length_unit
+    )[first:last + 1]
     return {
         "radius_proper_code": 0.5 * (
             boundary_proper_code[:-1] + boundary_proper_code[1:]
         ),
         "rho_proper_code": np.asarray(
-            snapshot.fluid.rho_proper_code[first:last], dtype=float
+            snapshot.fluid.rho_radarray.value[first:last], dtype=float
         ),
         "temp_proper_code": np.asarray(
-            snapshot.fluid.temp_proper_code[first:last], dtype=float
+            snapshot.fluid.temp_radarray.value[first:last], dtype=float
         ),
     }
 
@@ -76,7 +75,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     }
     case_config['_code_units'] = code_units
     ric = build_initial_condition(case_config)
-    rio.writehdf5(ric, case_config['par']['simulation']['initial_condition_filename'])
+    ric.write(case_config['par']['simulation']['initial_condition_filename'], validate=True)
 
     runtime_only = {
         'final_time', 'number_of_cells', 'evolution_timestep',
@@ -85,7 +84,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
         'mean_molecular_weight',
     }
     sim = Rsim(case_config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
     sim.SetFluid()
@@ -121,6 +120,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
     par = config['par']
+    config['_code_units'] = CodeUnits.from_mapping(par['units']['CodeUnits'])
     table_path = (config_filename.parent / par['thermochemistry']["metal_pie_table_filename"]).resolve()
     par['thermochemistry']['metal_pie_table_filename'] = str(table_path)
     table = MetalPIETable(table_path)

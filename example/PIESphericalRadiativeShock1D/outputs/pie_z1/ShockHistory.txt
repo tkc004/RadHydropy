@@ -1,4 +1,4 @@
-time_Myr shock_radius_kpc
+time_proper_Myr shock_radius_proper_kpc
 0 4.8037109
 0.02 10.444336
 0.04 10.444336
@@ -1002,6 +1002,6 @@ time_Myr shock_radius_kpc
 20 10.258789
 
 final_cooling_diagnostics
-cooling_time_Myr 6.1586292
-cooling_length_kpc 0.57843837
+cooling_time_proper_Myr 6.1586292
+cooling_length_proper_kpc 0.57843837
 cooling_cells 15.587392
