@@ -36,7 +36,6 @@ import unyt
 import yaml
 
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.units import CodeUnits
 import example_utils as eu
@@ -48,7 +47,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name('compton_cmb_heating1d.yaml'
 
 def _analytic_temperature(
     time_proper_cgs_s,
-    temperature_proper,
+    temperature_proper_cgs_K,
     redshift,
     nH_cgs_cm3,
     neutral_fraction,
@@ -75,14 +74,14 @@ def _analytic_temperature(
         / rho_cgs_g_cm3
     )
     return cmb_temperature + (
-        temperature_proper - cmb_temperature
+        temperature_proper_cgs_K - cmb_temperature
     ) * np.exp(-temperature_rate_coefficient * time_proper_cgs_s)
 
 
 def _run_case(
     config,
     label,
-    temperature_proper,
+    temperature_proper_unyt,
     timestep_override=None,
 ):
     case_params = copy.deepcopy(config['par'])
@@ -93,7 +92,7 @@ def _run_case(
         Path(config['par']['output']['directory']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
     )
     case_initial_condition = dict(config['initial_condition'])
-    case_initial_condition['temperature_proper'] = temperature_proper * unyt.K
+    case_initial_condition['temperature_proper'] = temperature_proper_unyt
     case_params.pop('_example', None)
 
     code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
@@ -104,10 +103,12 @@ def _run_case(
         '_code_units': code_units,
     }
     ric = build_initial_condition(case_config)
-    rio.writehdf5(ric, case_params['simulation']['initial_condition_filename'])
+    ric.write(case_params['simulation']['initial_condition_filename'])
 
-    sim = Rsim(case_config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        case_config,
+        case_config["par"]["simulation"]["initial_condition_filename"],
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
@@ -140,7 +141,7 @@ def _run_case(
         )
     history = {
         'time_proper_Myr': np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
-        'mean_ionized_temp_cgs_K': np.asarray(temperatures),
+        'mean_temperature_proper_cgs_K': np.asarray(temperatures),
     }
     print(
         '%s: outer steps=%d, source steps=%d' %
@@ -148,11 +149,11 @@ def _run_case(
     )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history['time_proper_Myr']) * myr_seconds
-    temperature_cgs_K = np.asarray(history['mean_ionized_temp_cgs_K'])
+    temperature_cgs_K = np.asarray(history['mean_temperature_proper_cgs_K'])
     if example.get('compare_compton_analytic', True):
         analytic = _analytic_temperature(
             time_s,
-            temperature_proper,
+            float(temperature_proper_unyt.to_value(unyt.K)),
             float(case_params['thermochemistry']['compton_cmb_redshift']),
             float(case_initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3)),
             float(case_initial_condition['xHI']),
@@ -178,7 +179,7 @@ def _timestep_difference(coarse_history, fine_history):
     return float(np.max(np.abs(coarse_temperature - fine_at_coarse) / scale))
 
 
-def _run_converged_case(config, label, temperature_proper):
+def _run_converged_case(config, label, temperature_proper_unyt):
     """Refine the implicit source timestep until two runs agree."""
     timestep = config['example']['evolution_timestep']
     thermo = config['par']['thermochemistry']
@@ -187,7 +188,7 @@ def _run_converged_case(config, label, temperature_proper):
     coarse = _run_case(
         config,
         label,
-        temperature_proper,
+        temperature_proper_unyt,
         timestep_override=timestep,
     )
     for refinement in range(1, max_refinements + 1):
@@ -195,7 +196,7 @@ def _run_converged_case(config, label, temperature_proper):
         fine = _run_case(
             config,
             label,
-            temperature_proper,
+            temperature_proper_unyt,
             timestep_override=timestep,
         )
         difference = _timestep_difference(coarse, fine)
@@ -229,21 +230,26 @@ def main(config_filename=DEFAULT_CONFIG):
     eu.clean_previous_outputs(config)
 
     histories = {}
-    for label, temperature_proper in cases.items():
+    for label, temperature_proper_unyt in cases.items():
         if str(config["par"]['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
             histories[label] = _run_converged_case(
                 config,
                 label,
-                float(temperature_proper),
+                temperature_proper_unyt,
             )
         else:
             histories[label] = _run_case(
                 config,
                 label,
-                float(temperature_proper),
+                temperature_proper_unyt,
             )
 
-    cmb_temperature = 2.7255 * (1.0 + config["par"]['thermochemistry']['compton_cmb_redshift'])
+    cmb_temperature_0_cgs_K = float(
+        config["par"]['thermochemistry']['cmb_temperature_0'].to_value(unyt.K)
+    )
+    cmb_temperature = cmb_temperature_0_cgs_K * (
+        1.0 + config["par"]['thermochemistry']['compton_cmb_redshift']
+    )
     figure_filename = Path(config["par"]['output']['directory']) / 'ComptonCMBHeating1D.jpg'
     figure_filename.parent.mkdir(parents=True, exist_ok=True)
     fig, (temperature_axis, error_axis) = plt.subplots(

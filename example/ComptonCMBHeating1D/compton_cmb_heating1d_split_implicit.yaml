@@ -56,5 +56,5 @@ example:
   evolution_timestep: {value: 1.0e-1, unit: Myr}
   compare_compton_analytic: false
   cases:
-    hot_atomic_compton: 1.0e6
-    cold_atomic_compton: 1.0e2
+    hot_atomic_compton: {value: 1.0e6, unit: K}
+    cold_atomic_compton: {value: 1.0e2, unit: K}

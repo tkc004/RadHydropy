@@ -56,5 +56,5 @@ initial_condition:
 example:
   evolution_timestep: {value: 1.0e-2, unit: Myr}
   cases:
-    cooling: 1.0e6
-    heating: 1.0
+    cooling: {value: 1.0e6, unit: K}
+    heating: {value: 1.0, unit: K}
