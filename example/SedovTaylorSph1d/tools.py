@@ -6,7 +6,6 @@ import numpy as np
 import unyt
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import quantity_to_value
 from example.SedovTaylorSph1d.SedovTaylor_analytic import get_blastwave_solution
 
 def set_plot_style():
@@ -18,29 +17,33 @@ def build_initial_condition(config):
     start_proper_unyt = ic["radius_injection_proper"]
     size_proper_unyt = ic["box_size_proper"]
     boundary_proper_unyt = start_proper_unyt + np.linspace(0.0, 1.0, n + 1) * size_proper_unyt
-    boundary_proper_code = boundary_proper_unyt.to_value(units.length_unit)
-    coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    rho_proper_code = np.full(n, quantity_to_value(ic["rho_proper"], units.density_unit))
+    coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
+    rho_proper_unyt = np.ones(n) * ic["rho_proper"]
     mu_dimensionless = np.full(n, float(ic["mean_molecular_weight"]))
-    temp_proper_code = np.zeros(n)
-    volume_proper_code = 4 * np.pi / 3 * np.diff(boundary_proper_code**3)
-    cut = (coordinate_proper_code < quantity_to_value(ic["radius_explosion_proper"], units.length_unit)) & (coordinate_proper_code >= boundary_proper_code[0])
-    energy_proper_code = quantity_to_value(ic["explosion_energy"], units.energy_unit)
-    pre_proper_code = (float(par["hydrodynamics"]["gamma"]) - 1) * energy_proper_code / np.sum(volume_proper_code[cut])
-    writer = InitialConditionWriter(par_config=par, code_units=units)
-    temp_proper_code[cut] = np.asarray(
-        writer.simulation.fluid.eos.temperature(
-            rho_proper_code[cut],
-            np.full(np.count_nonzero(cut), pre_proper_code),
-            mu_dimensionless[cut],
-        ),
-        dtype=float,
+    temp_proper_unyt = np.zeros(n) * unyt.K
+    volume_proper_unyt = 4 * np.pi / 3 * np.diff(boundary_proper_unyt**3)
+    cut = (coordinate_proper_unyt < ic["radius_explosion_proper"]) & (coordinate_proper_unyt >= boundary_proper_unyt[0])
+    # Spread the deposited explosion energy over the injection volume and
+    # obtain the pressure that corresponds to that energy.
+    pressure_proper_unyt = (
+        (float(par["hydrodynamics"]["gamma"]) - 1)
+        * ic["explosion_energy"]
+        / np.sum(volume_proper_unyt[cut])
     )
+    writer = InitialConditionWriter(par_config=par, code_units=units)
+    # Invert the configured EOS so the temperature written into the IC gives
+    # the same pressure, density, and mean molecular weight.
+    temp_proper_unyt[cut] = (
+        pressure_proper_unyt
+        * mu_dimensionless[cut]
+        * unyt.mp
+        / (rho_proper_unyt[cut] * unyt.kb)
+    ).to(unyt.K)
     writer.box_size = writer.radquantity(start_proper_unyt + size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
-    writer.fluid.rho_radarray = writer.radarray(unyt.unyt_array(rho_proper_code, units.density_unit))
-    writer.fluid.vel_radarray = writer.radarray(unyt.unyt_array(np.zeros(n), units.velocity_unit))
-    writer.fluid.temp_radarray = writer.radarray(unyt.unyt_array(temp_proper_code, units.temperature_unit))
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(n) * (unyt.cm / unyt.s))
+    writer.fluid.temp_radarray = writer.radarray(temp_proper_unyt)
     writer.simulation.fluid.mu = mu_dimensionless
     return writer
 

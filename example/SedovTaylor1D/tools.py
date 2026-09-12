@@ -17,24 +17,32 @@ def build_initial_condition(config):
     n = int(ic["grid_cells"])
     size_proper_unyt = ic["box_size_proper"]
     boundary_proper_unyt = np.linspace(0.0, 1.0, n + 1) * size_proper_unyt
-    boundary_proper_code = boundary_proper_unyt.to_value(units.length_unit)
-    rho_proper_code = np.full(n, quantity_to_value(ic["rho_proper"], units.density_unit))
+    rho_proper_unyt = np.ones(n) * ic["rho_proper"]
     mu_dimensionless = np.full(n, float(ic["mean_molecular_weight"]))
-    temp_proper_code = np.zeros(n)
-    volume_proper_code = quantity_to_value(par["mesh"]["area_proper"], units.area_unit) * np.diff(boundary_proper_code)
+    temp_proper_unyt = np.zeros(n) * unyt.K
+    volume_proper_unyt = par["mesh"]["area_proper"] * np.diff(boundary_proper_unyt)
     cut = 1
-    energy_proper_code = quantity_to_value(ic["explosion_energy"], units.energy_unit)
-    pre_proper_code = (par["hydrodynamics"]["gamma"]-1) * energy_proper_code / volume_proper_code[cut]
-    writer = InitialConditionWriter(par_config=par, code_units=units)
-    probe = writer.simulation.fluid.eos.temperature(
-        rho_proper_code[cut], pre_proper_code, mu_dimensionless[cut]
+    # Convert the deposited explosion energy into the pressure of the
+    # injection cell; the writer will later reconstruct pressure from T.
+    pressure_proper_unyt = (
+        (par["hydrodynamics"]["gamma"] - 1)
+        * ic["explosion_energy"]
+        / volume_proper_unyt[cut]
     )
-    temp_proper_code[cut] = float(np.asarray(probe))
+    writer = InitialConditionWriter(par_config=par, code_units=units)
+    # Invert the configured EOS so the temperature and deposited energy are
+    # thermodynamically consistent when the writer prepares the IC.
+    temp_proper_unyt[cut] = (
+        pressure_proper_unyt
+        * mu_dimensionless[cut]
+        * unyt.mp
+        / (rho_proper_unyt[cut] * unyt.kb)
+    ).to(unyt.K)
     writer.box_size = writer.radquantity(size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
-    writer.fluid.rho_radarray = writer.radarray(unyt.unyt_array(rho_proper_code, units.density_unit))
-    writer.fluid.vel_radarray = writer.radarray(unyt.unyt_array(np.zeros(n), units.velocity_unit))
-    writer.fluid.temp_radarray = writer.radarray(unyt.unyt_array(temp_proper_code, units.temperature_unit))
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(n) * (unyt.cm / unyt.s))
+    writer.fluid.temp_radarray = writer.radarray(temp_proper_unyt)
     writer.simulation.fluid.mu = mu_dimensionless
     return writer
 
