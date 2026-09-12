@@ -102,7 +102,7 @@ def build_initial_condition(config):
 
     writer.box_size = writer.radquantity(initial_condition["box_size_comoving"])
     writer.mesh.boundary_radarray = writer.radarray(
-        boundary * code_units.length_unit, field_name="boundary_comoving_code"
+        boundary * code_units.length_unit, representation="comoving"
     )
     writer.set_field(
         "x_comoving_code",
@@ -141,16 +141,16 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(
         (rho_proper_code if rho_field == "rho_proper_code" else rho_comoving_code)
         * code_units.density_unit,
-        field_name=rho_field,
+        representation="proper" if rho_field == "rho_proper_code" else "comoving",
     )
     writer.fluid.temp_radarray = writer.radarray(
         (temp_proper_code if temp_field == "temp_proper_code" else temp_supercomoving_code)
         * code_units.temperature_unit,
-        field_name=temp_field,
+        representation="proper" if temp_field == "temp_proper_code" else "supercomoving",
     )
     writer.fluid.vel_radarray = writer.radarray(
         vel_supercomoving_code * code_units.velocity_unit,
-        field_name="vel_supercomoving_code",
+        representation="supercomoving",
     )
     result.fluid.mu = mu
     if "_specific_angular_momentum_code" in config:

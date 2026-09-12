@@ -15,7 +15,7 @@ par:
     flux_limiter: minmod
     dual_energy: false
   cosmology:
-    cosmological: false
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
     cosmology_type: einstein_de_sitter

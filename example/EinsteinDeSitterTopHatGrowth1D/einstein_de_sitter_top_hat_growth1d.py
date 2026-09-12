@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 import tools as et
@@ -40,8 +39,8 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     config['_code_units'] = units
     config['_cosmology'] = cosmology
-    initial = et.build_initial_condition(config)
-    rio.writehdf5(initial, config['par']['simulation']['initial_condition_filename'])
+    initial_writer = et.build_initial_condition(config)
+    initial_writer.write(config['par']['simulation']['initial_condition_filename'])
 
     sim = rio.loadhdf5(
         config, config['par']['simulation']['initial_condition_filename']
@@ -62,7 +61,7 @@ def main(config_filename=DEFAULT_CONFIG):
         and np.isclose(float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0]))
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
-    sim.par.set_cosmology_model(cosmology)
+    sim.par.cosmology = cosmology
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mass = float(np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]))
     radius_perturbation_comoving_code = quantity_to_value(
@@ -71,7 +70,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_inside = sim.mesh.x_comoving_code[physical] < radius_perturbation_comoving_code
     mass_target_comoving_code = float(np.sum(sim.fluid.rho_comoving_code[physical][initial_inside] * sim.mesh.volume_comoving_code[physical][initial_inside]))
     initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])
-    initial_a = sim.par.cosmology.model.scale_factor_from_supercomoving(initial_tau)
+    initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)
     initial_delta = float(initial_condition['overdensity'])
     history = {
         'scale_factor_dimensionless': [],
@@ -81,15 +80,15 @@ def main(config_filename=DEFAULT_CONFIG):
 
     def record(state):
         tau = float(np.asarray(state.fluid.tau_supercomoving_code).flat[0])
-        a = state.par.cosmology.model.scale_factor_from_supercomoving(tau)
+        a = state.par.cosmology.scale_factor_from_supercomoving(tau)
         radius_enclosed_comoving_code = et.enclosed_mass_radius(
             state.mesh.boundary_comoving_code[physical.start:physical.stop + 1],
             state.fluid.rho_comoving_code[physical],
             state.mesh.volume_comoving_code[physical],
             mass_target_comoving_code,
         )
-        time_cosmic_code = state.par.cosmology.model.cosmic_time_from_supercomoving(tau)
-        rho_background = state.par.cosmology.model.background_density(time_cosmic_code) * a**3
+        time_cosmic_code = state.par.cosmology.cosmic_time_from_supercomoving(tau)
+        rho_background = state.par.cosmology.background_density(time_cosmic_code) * a**3
         mean_density_comoving_code = 3.0 * mass_target_comoving_code / (
             4.0 * np.pi * radius_enclosed_comoving_code**3
         )
@@ -108,9 +107,9 @@ def main(config_filename=DEFAULT_CONFIG):
     final = sim
     final_physical = slice(final.par.mesh.ghost_cells, final.par.mesh.ghost_cells + final.par.mesh.grid_cells)
     final_tau = float(np.asarray(final.fluid.tau_supercomoving_code).flat[0])
-    final_a = final.par.cosmology.model.scale_factor_from_supercomoving(final_tau)
-    final_cosmic_time = final.par.cosmology.model.cosmic_time_from_supercomoving(final_tau)
-    final_background = final.par.cosmology.model.background_density(final_cosmic_time) * final_a**3
+    final_a = final.par.cosmology.scale_factor_from_supercomoving(final_tau)
+    final_cosmic_time = final.par.cosmology.cosmic_time_from_supercomoving(final_tau)
+    final_background = final.par.cosmology.background_density(final_cosmic_time) * final_a**3
     radius_enclosed_final_comoving_code = et.enclosed_mass_radius(
         final.mesh.boundary_comoving_code[final_physical.start:final_physical.stop + 1],
         final.fluid.rho_comoving_code[final_physical],

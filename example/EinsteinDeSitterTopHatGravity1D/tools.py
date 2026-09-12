@@ -3,9 +3,9 @@
 import numpy as np
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.rsim import Rsim
+from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-from radhydropy.runtime_fields import MeshGeometryState, FluidRuntimeState, SUPERCOMOVING_RUNTIME_FIELDS
 
 
 def spherical_cell_centers(boundary_comoving_code):
@@ -38,31 +38,24 @@ def build_initial_condition(config):
     cosmology = config['_cosmology']
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim = Rsim(config['par'])
-    sim.par.mesh.grid_cells = grid_cells
-    sim.par.mesh.ghost_cells = 0
-    sim.par.simulation.coordinate_system = 'spherical'
-    sim.par.simulation.box_size_comoving_code = np.ones(1) * quantity_to_value(
-        initial_condition['box_size_proper'], code_units.length_unit
-    )
     time_cosmic_code = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
-    sim.par.simulation.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(time_cosmic_code)
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units,
+        cosmology_context=CosmologyContext(
+            gamma=float(config['par'].get('hydrodynamics', {}).get('gamma', 5.0 / 3.0)),
+            cosmology=cosmology.type_name, scale_factor=scale_factor,
+            hubble_parameter_km_s_Mpc=float(cosmology.hubble(time_cosmic_code)) * (
+                code_units.velocity_unit.to_value('km/s')
+                / code_units.length_unit.to_value('Mpc')
+            ),
+        ),
+    )
+    sim = writer.simulation
+    sim.par.simulation.coordinate_system = 'spherical'
     sim.par.tau_supercomoving_code = np.ones(1) * cosmology.supercomoving_time(time_cosmic_code)
-    sim.par.cosmological_expansion = True
-    sim.par.supercomoving_coordinates = True
-    sim.par.cosmological_gravity = True
-    sim.par.selfgravity = True
-    sim.par.externalgravity = False
-    sim.par.cosmology = cosmology
-    sim.par.cosmology_type = cosmology.type_name
-    sim.par.cosmology_t_ref = cosmology.t_ref
-    sim.par.cosmology_a_ref = cosmology.a_ref
-    sim.par.coordinate_frame = 'comoving'
-    sim.par.time_coordinate = 'supercomoving'
-    sim.par.velocity_representation = 'supercomoving_peculiar'
-    sim.par.density_representation = 'comoving'
-    sim.par.pressure_representation = 'supercomoving'
-    sim.par.temperature_representation = 'supercomoving'
+    sim.par.simulation.tau_supercomoving_code = sim.par.tau_supercomoving_code
+    sim.par.set_cosmology_model(cosmology)
 
     radius_inner_comoving_code = quantity_to_value(
         initial_condition['radius_inner_comoving'], code_units.length_unit
@@ -70,50 +63,49 @@ def build_initial_condition(config):
     radius_outer_comoving_code = quantity_to_value(
         initial_condition['radius_outer_comoving'], code_units.length_unit
     )
-    sim.mesh.boundary_comoving_code = np.linspace(
+    boundary_comoving_code = np.linspace(
         radius_inner_comoving_code, radius_outer_comoving_code, grid_cells + 1,
     )
-    sim.mesh.x_comoving_code = spherical_cell_centers(sim.mesh.boundary_comoving_code)
-    sim.mesh.area_comoving_code = 4.0 * np.pi * sim.mesh.boundary_comoving_code[:-1]**2
-    sim.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * (
-        sim.mesh.boundary_comoving_code[1:]**3 - sim.mesh.boundary_comoving_code[:-1]**3
+    x_comoving_code = spherical_cell_centers(boundary_comoving_code)
+    writer.box_size = writer.radquantity(initial_condition['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(
+        boundary_comoving_code * code_units.length_unit,
+        representation='comoving',
     )
+    writer.set_field('x_comoving_code', x_comoving_code)
 
     background = cosmology.background_density(time_cosmic_code)
     background_comoving = background * cosmology.scale_factor(time_cosmic_code)**3
-    inside = sim.mesh.x_comoving_code < quantity_to_value(
+    inside = x_comoving_code < quantity_to_value(
         initial_condition['radius_perturbation_comoving'], code_units.length_unit
     )
-    sim.fluid.rho_comoving_code = background_comoving * (
+    rho_comoving_code = background_comoving * (
         1.0 + float(initial_condition['overdensity']) * inside
     ) * np.ones(grid_cells)
     gamma = 5.0 / 3.0
     temperature_cgs_K = quantity_to_value(
         initial_condition['temperature_proper'], code_units.temperature_unit
     )
-    sim.fluid.temp_supercomoving_code = temperature_cgs_K * cosmology.scale_factor(time_cosmic_code)**2 * np.ones(grid_cells)
+    temp_supercomoving_code = temperature_cgs_K * scale_factor**2 * np.ones(grid_cells)
+    pre_supercomoving_code = rho_comoving_code * temp_supercomoving_code
+    writer.fluid.rho_radarray = writer.radarray(
+        rho_comoving_code * code_units.density_unit, representation='comoving'
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * code_units.velocity_unit,
+        representation='supercomoving'
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        temp_supercomoving_code * code_units.temperature_unit,
+        representation='supercomoving',
+    )
+    writer.fluid.pre_radarray = writer.radarray(
+        pre_supercomoving_code * code_units.pressure_unit,
+        representation='supercomoving',
+    )
     sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
-    sim.fluid.vel_supercomoving_code = np.zeros(grid_cells)
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS,
-        x_comoving_code=sim.mesh.x_comoving_code,
-        boundary_comoving_code=sim.mesh.boundary_comoving_code,
-        width_comoving_code=np.diff(sim.mesh.boundary_comoving_code),
-        area_comoving_code=sim.mesh.area_comoving_code,
-        volume_comoving_code=sim.mesh.volume_comoving_code,
-    )
-    sim.fluid.pre_supercomoving_code = sim.fluid.rho_comoving_code * sim.fluid.temp_supercomoving_code
     sim.fluid.tau_supercomoving_code = float(sim.par.simulation.tau_supercomoving_code[0])
-    sim.fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
-    sim.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        SUPERCOMOVING_RUNTIME_FIELDS, rho_comoving_code=sim.fluid.rho_comoving_code,
-        vel_supercomoving_code=sim.fluid.vel_supercomoving_code,
-        pre_supercomoving_code=sim.fluid.pre_supercomoving_code,
-        temp_supercomoving_code=sim.fluid.temp_supercomoving_code,
-        tau_supercomoving_code=sim.fluid.tau_supercomoving_code, mu_dimensionless=sim.fluid.mu,
-    )
-
-    return sim
+    return writer
 
 def load_output_state(filename, config):
     return rio.loadhdf5(config, filename)

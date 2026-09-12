@@ -29,6 +29,16 @@ from tools import shocktubecal, shocktubeanalyticgraph
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
 
+class _RuntimeCosmology:
+    """Expose the live cosmology while retaining the serialized model API."""
+
+    def __init__(self, model):
+        self.model = model
+
+    def __getattr__(self, name):
+        return getattr(self.model, name)
+
+
 def _read_profile(filename, config):
     """Read one cosmological snapshot through the canonical typed runtime."""
     sim = rio.loadhdf5(config, filename)
@@ -88,17 +98,20 @@ def _build_initial_condition(config, units):
         ),
     )
     writer.box_size = writer.radquantity(box_size_comoving_unyt)
-    writer.mesh.boundary_radarray = writer.radarray(boundary_comoving_unyt)
+    writer.mesh.boundary_radarray = writer.radarray(
+        boundary_comoving_unyt, representation="comoving"
+    )
     writer.fluid.rho_radarray = writer.radarray(
         np.where(
             left,
             initial_condition["rho_left_proper"],
             initial_condition["rho_right_proper"],
         ),
-        field_name="rho_proper_code",
+        representation="proper",
     )
     writer.fluid.vel_radarray = writer.radarray(
-        np.zeros(grid_cells) * units.velocity_unit
+        np.zeros(grid_cells) * units.velocity_unit,
+        representation="proper",
     )
     writer.fluid.temp_radarray = writer.radarray(
         np.where(
@@ -106,7 +119,7 @@ def _build_initial_condition(config, units):
             initial_condition["temperature_left_proper"],
             initial_condition["temperature_right_proper"],
         ),
-        field_name="temp_proper_code",
+        representation="proper",
     )
     writer.simulation.par.tau_supercomoving_code = np.array([0.0])
     writer.simulation.par.simulation.tau_supercomoving_code = np.array([0.0])
@@ -214,7 +227,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
     ):
         raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
-    sim.par.set_cosmology_model(initial.par.cosmology)
+    sim.par.cosmology = _RuntimeCosmology(code_cosmology)
     sim.Run(outputtime=0)
     outputs = sorted(output_dir.glob("Output_*.hdf5"))
     # The fixed-cadence callback can stop just before the final target time;

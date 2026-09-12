@@ -7,7 +7,7 @@ import pytest
 
 from example.example_utils import load_nested_example_config
 from radhydropy.cosmology_context import CosmologyContext
-from radhydropy.field_metadata import field_spec
+from radhydropy.field_metadata import field_spec, hubble_parameter_code
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.units import CodeUnits
@@ -131,9 +131,97 @@ def test_writer_radarray_factory_uses_default_proper_context():
         writer.radarray(np.ones(2))
 
 
+def test_writer_radarray_selects_explicit_cosmological_representations():
+    config = deepcopy(load_nested_example_config(CONFIG_FILE))
+    config["par"]["cosmology"].update(
+        cosmological=True,
+        cosmological_expansion=True,
+        supercomoving_coordinates=True,
+    )
+    code_units = _code_units(config)
+    context = CosmologyContext(
+        gamma=5.0 / 3.0,
+        cosmology="einstein_de_sitter",
+        scale_factor=0.5,
+        hubble_parameter_km_s_Mpc=70.0,
+    )
+    writer = InitialConditionWriter(
+        par_config=config["par"],
+        code_units=code_units,
+        cosmology_context=context,
+    )
+
+    cases = (
+        ("comoving", 2.0 * code_units.density_unit, "mass_density", 16.0),
+        ("supercomoving", 3.0 * code_units.velocity_unit, "velocity", None),
+        ("supercomoving", 4.0 * code_units.pressure_unit, "pressure", 128.0),
+        ("supercomoving", 5.0 * code_units.temperature_unit, "temperature", 20.0),
+    )
+    for representation, values, quantity, expected_proper in cases:
+        result = writer.radarray(values, representation=representation)
+        assert result.field_spec.quantity == quantity
+        assert result.representation == representation
+
+        if quantity == "velocity":
+            hubble_code = hubble_parameter_code(
+                code_units, 70.0
+            )
+            proper = result.to_proper(x_comoving_code=1.0)
+            expected_proper = hubble_code * 0.5 + 3.0 / 0.5
+            round_trip = proper.to_comoving(x_comoving_code=1.0)
+        else:
+            proper = result.to_proper()
+            round_trip = proper.to_comoving()
+        np.testing.assert_allclose(proper.value, expected_proper)
+        np.testing.assert_allclose(round_trip.value, result.value)
+
+    with pytest.warns(UserWarning, match="representation='proper'.*cosmological"):
+        proper = writer.radarray(6.0 * code_units.density_unit)
+    assert proper.field_spec.quantity == "mass_density"
+    assert proper.representation == "proper"
+
+    with pytest.raises(ValueError, match="representation must be"):
+        writer.radarray(1.0 * code_units.density_unit, representation="physical")
+    with pytest.raises(ValueError, match="has representation"):
+        writer.radarray(
+            1.0 * code_units.density_unit,
+            field_name="rho_proper_code",
+            representation="comoving",
+        )
+
+    disabled_config = deepcopy(config)
+    disabled_config["par"]["cosmology"].update(
+        cosmological=False, supercomoving_coordinates=False
+    )
+    disabled_writer = InitialConditionWriter(
+        par_config=disabled_config["par"],
+        code_units=code_units,
+        cosmology_context=context,
+    )
+    with pytest.raises(ValueError, match="requires"):
+        disabled_writer.radarray(
+            1.0 * code_units.density_unit, representation="comoving"
+        )
+    with pytest.raises(ValueError, match="requires"):
+        disabled_writer.radarray(
+            1.0 * code_units.velocity_unit, representation="supercomoving"
+        )
+
+    for flag in ("cosmological", "supercomoving_coordinates"):
+        invalid_config = deepcopy(config)
+        invalid_config["par"]["cosmology"][flag] = False
+        with pytest.raises(ValueError, match="matching values"):
+            InitialConditionWriter(
+                par_config=invalid_config["par"],
+                code_units=code_units,
+                cosmology_context=context,
+            )
+
+
 def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     config = load_nested_example_config(CONFIG_FILE)
     config = deepcopy(config)
+    config["par"]["cosmology"]["cosmological"] = True
     config["par"]["cosmology"]["cosmological_expansion"] = True
     config["par"]["cosmology"]["supercomoving_coordinates"] = True
     code_units = _code_units(config)
@@ -214,6 +302,7 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
 def test_writer_cosmological_prepare_and_hdf5_roundtrip():
     config = deepcopy(load_nested_example_config(CONFIG_FILE))
     config["par"]["cosmology"].update({
+        "cosmological": True,
         "cosmological_expansion": True,
         "supercomoving_coordinates": True,
     })

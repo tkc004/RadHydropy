@@ -1,5 +1,7 @@
 """Shared RadArray-to-runtime initial-condition writer boundary."""
 
+import warnings
+
 import numpy as np
 
 from radhydropy.cosmology_context import CosmologyContext
@@ -59,6 +61,24 @@ class InitialConditionWriter:
                 )
             simulation = Rsim(par_config)
         self.simulation = simulation
+        cosmology_parameters = getattr(simulation.par, "cosmology", None)
+        cosmological = getattr(
+            cosmology_parameters,
+            "cosmological",
+            getattr(simulation.par, "cosmological", False),
+        )
+        supercomoving_coordinates = getattr(
+            cosmology_parameters,
+            "supercomoving_coordinates",
+            getattr(simulation.par, "supercomoving_coordinates", False),
+        )
+        if bool(cosmological) != bool(supercomoving_coordinates):
+            raise ValueError(
+                "InitialConditionWriter requires cosmological and "
+                "supercomoving_coordinates to have matching values; got "
+                f"cosmological={bool(cosmological)}, "
+                f"supercomoving_coordinates={bool(supercomoving_coordinates)}"
+            )
         self.code_units = simulation.par.units.CodeUnits
         self.provenance = provenance
         self.box_size = box_size
@@ -117,7 +137,7 @@ class InitialConditionWriter:
     def from_rsim(cls, simulation, *, provenance=None):
         return cls(simulation, provenance=provenance)
 
-    def _primitive_field_name(self, values, context):
+    def _primitive_field_name(self, values, context, representation=None):
         if not hasattr(values, "units"):
             raise TypeError("writer.radarray requires a unit-bearing array")
         cosmological_schema = bool(
@@ -141,6 +161,24 @@ class InitialConditionWriter:
                 "pre_proper_code",
             )
         )
+        if representation is not None:
+            representation_fields = {
+                "proper": (
+                    "boundary_proper_code", "rho_proper_code", "vel_proper_code",
+                    "temp_proper_code", "pre_proper_code",
+                ),
+                "comoving": ("boundary_comoving_code", "rho_comoving_code"),
+                "supercomoving": (
+                    "vel_supercomoving_code", "temp_supercomoving_code",
+                    "pre_supercomoving_code",
+                ),
+            }
+            if representation not in representation_fields:
+                raise ValueError(
+                    "writer.radarray representation must be proper, comoving, "
+                    "or supercomoving"
+                )
+            field_names = tuple(representation_fields[representation])
         field_units = (
             self.code_units.length_unit,
             self.code_units.density_unit,
@@ -148,6 +186,20 @@ class InitialConditionWriter:
             self.code_units.temperature_unit,
             self.code_units.pressure_unit,
         )
+        field_units_by_name = {
+            "boundary_proper_code": self.code_units.length_unit,
+            "boundary_comoving_code": self.code_units.length_unit,
+            "rho_proper_code": self.code_units.density_unit,
+            "rho_comoving_code": self.code_units.density_unit,
+            "vel_proper_code": self.code_units.velocity_unit,
+            "vel_supercomoving_code": self.code_units.velocity_unit,
+            "temp_proper_code": self.code_units.temperature_unit,
+            "temp_supercomoving_code": self.code_units.temperature_unit,
+            "pre_proper_code": self.code_units.pressure_unit,
+            "pre_supercomoving_code": self.code_units.pressure_unit,
+        }
+        if representation is not None:
+            field_units = tuple(field_units_by_name[name] for name in field_names)
         value_dimensions = getattr(values.units, "dimensions", None)
         if value_dimensions is None:
             value_dimensions = values.units.units.dimensions
@@ -163,12 +215,15 @@ class InitialConditionWriter:
             )
         return matching_fields[0]
 
-    def radarray(self, values, *, field_name=None):
+    def radarray(self, values, *, field_name=None, representation="proper"):
         """Create a ``RadArray`` from a unit-bearing array.
 
-        Primitive IC fields are inferred from their dimensions.  Auxiliary
-        dimensional fields, such as specific angular momentum, may provide
-        their canonical field name explicitly.
+        Primitive IC fields are inferred from their dimensions and the
+        requested representation.  Proper representation is the default;
+        cosmological callers should request ``comoving`` or
+        ``supercomoving`` explicitly.  Auxiliary dimensional fields, such as
+        specific angular momentum, may provide their canonical field name
+        explicitly.
         """
         context = self._context(self.simulation)
         if context is None:
@@ -176,8 +231,49 @@ class InitialConditionWriter:
                 "InitialConditionWriter requires a valid cosmology context "
                 "before creating a RadArray"
             )
+        if representation in ("comoving", "supercomoving"):
+            cosmology_parameters = getattr(self.simulation.par, "cosmology", None)
+            missing_flags = []
+            cosmological = getattr(
+                cosmology_parameters,
+                "cosmological",
+                getattr(self.simulation.par, "cosmological", False),
+            )
+            supercomoving_coordinates = getattr(
+                cosmology_parameters,
+                "supercomoving_coordinates",
+                getattr(self.simulation.par, "supercomoving_coordinates", False),
+            )
+            if not cosmological:
+                missing_flags.append("cosmological=True")
+            if not supercomoving_coordinates:
+                missing_flags.append("supercomoving_coordinates=True")
+            if missing_flags:
+                raise ValueError(
+                    f"writer.radarray representation={representation!r} requires "
+                    + " and ".join(missing_flags)
+                )
+        elif representation == "proper":
+            cosmology_parameters = getattr(self.simulation.par, "cosmology", None)
+            cosmological = getattr(
+                cosmology_parameters,
+                "cosmological",
+                getattr(self.simulation.par, "cosmological", False),
+            )
+            supercomoving_coordinates = getattr(
+                cosmology_parameters,
+                "supercomoving_coordinates",
+                getattr(self.simulation.par, "supercomoving_coordinates", False),
+            )
+            if cosmological or supercomoving_coordinates:
+                warnings.warn(
+                    "writer.radarray representation='proper' is being used "
+                    "with cosmological or supercomoving coordinates enabled",
+                    UserWarning,
+                    stacklevel=2,
+                )
         if field_name is None:
-            field_name = self._primitive_field_name(values, context)
+            field_name = self._primitive_field_name(values, context, representation)
         hubble_parameter_km_s_Mpc = (
             context.hubble_parameter_km_s_Mpc
             if field_name == "vel_supercomoving_code"
@@ -190,6 +286,11 @@ class InitialConditionWriter:
             scale_factor=context.scale_factor,
             hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
         )
+        if representation is not None and spec.representation != representation:
+            raise ValueError(
+                f"field {field_name!r} has representation {spec.representation!r}, "
+                f"not {representation!r}"
+            )
         return RadArray(
             self._to_code_values(values, _code_unit_for_spec(self.code_units, spec)),
             code_units=self.code_units,

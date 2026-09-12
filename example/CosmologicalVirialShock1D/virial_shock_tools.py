@@ -311,19 +311,19 @@ def build_initial_condition(config):
     )
     writer.mesh.boundary_radarray = writer.radarray(
         result.mesh.boundary_comoving_code * code_unit_system.length_unit,
-        field_name="boundary_comoving_code",
+        representation="comoving",
     )
     writer.fluid.rho_radarray = writer.radarray(
         result.fluid.rho_comoving_code * code_unit_system.density_unit,
-        field_name="rho_comoving_code",
+        representation="comoving",
     )
     writer.fluid.vel_radarray = writer.radarray(
         result.fluid.vel_supercomoving_code * code_unit_system.velocity_unit,
-        field_name="vel_supercomoving_code",
+        representation="supercomoving",
     )
     writer.fluid.temp_radarray = writer.radarray(
         result.fluid.temp_supercomoving_code * code_unit_system.temperature_unit,
-        field_name="temp_supercomoving_code",
+        representation="supercomoving",
     )
     if hasattr(result.fluid, "specific_angular_momentum_code"):
         writer.fluid.specific_angular_momentum_radarray = writer.radarray(
