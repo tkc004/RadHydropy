@@ -25,7 +25,6 @@ from scipy.integrate import solve_ivp
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
@@ -49,8 +48,11 @@ def integrate_shell_reference(initial, config, scale_factors):
         * np.asarray(initial.mesh.volume_comoving_code, dtype=float)
     )
     j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
+    initial_tau_supercomoving_code = float(
+        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
+    )
     cosmic_time_initial = float(
-        cosmology.cosmic_time_from_supercomoving(initial.par.tau_supercomoving_code)
+        cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code)
     )
     scale_initial = float(cosmology.scale_factor(cosmic_time_initial))
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
@@ -109,8 +111,11 @@ def integrate_shell_density_reference(initial, config, scale_factors):
         np.concatenate(([0.0], np.cumsum(shell_mass))),
         np.concatenate(([0.0], j)),
     )
+    initial_tau_supercomoving_code = float(
+        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
+    )
     cosmic_time_initial = float(
-        cosmology.cosmic_time_from_supercomoving(initial.par.tau_supercomoving_code)
+        cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code)
     )
     scale_initial = float(cosmology.scale_factor(cosmic_time_initial))
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
@@ -266,8 +271,10 @@ def run_case(config, label, rotation_factor):
     }
     initial = build_initial_condition(case_config)
     rio.writehdf5(initial, par["simulation"]["initial_condition_filename"])
-    sim = Rsim(case_config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        case_config,
+        case_config["par"]["simulation"]["initial_condition_filename"],
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
@@ -335,7 +342,7 @@ def run_case(config, label, rotation_factor):
     reference_density = integrate_shell_density_reference(initial, case_config, scale_factors)
     final_filename = output_dir / "Output_final.hdf5"
     sim.fluid.SetTemperature()
-    rio.writehdf5(sim, final_filename)
+    rio._writehdf5(sim, final_filename)
     np.savez(
         output_dir / "history.npz",
         a=np.asarray(history["a"], dtype=float),
@@ -447,24 +454,24 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         difference_axis = axes[1, column]
         data = saved_histories[label]
         axis.plot(
-            data["radius_proper"], data["rho_proper"][0],
+            data["radius_comoving_code"], data["rho_comoving_code"][0],
             ":", color="black", linewidth=1.5, label="initial",
         )
         axis.plot(
-            data["radius_proper"], data["rho_proper"][-1],
+            data["radius_comoving_code"], data["rho_comoving_code"][-1],
             label="simulation", linewidth=2.0,
         )
         axis.plot(
-            data["radius_proper"], data["reference_density"][-1],
+            data["radius_comoving_code"], data["reference_density"][-1],
             "--", label="pressureless ODE", linewidth=1.5,
         )
         axis.set_title(label)
         axis.grid(alpha=0.25)
         relative_difference = (
-            data["rho_proper"][-1] - data["reference_density"][-1]
+            data["rho_comoving_code"][-1] - data["reference_density"][-1]
         ) / np.maximum(data["reference_density"][-1], 1.0e-300)
         difference_axis.plot(
-            data["radius_proper"], relative_difference,
+            data["radius_comoving_code"], relative_difference,
             color="tab:purple", linewidth=1.5,
         )
         difference_axis.axhline(0.0, color="black", linewidth=0.8)
@@ -497,7 +504,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         output_root
         / "CosmologicalRotatingCollapse1D_shell_ode.jpg"
     )
-    shell_count = len(saved_histories["high"]["radius_proper"])
+    shell_count = len(saved_histories["high"]["radius_comoving_code"])
     shell_indices = (
         int(0.2 * (shell_count - 1)),
         int(0.5 * (shell_count - 1)),
@@ -533,9 +540,9 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     for axis, label in zip(plot_axes, ("nonrotating", "moderate", "high")):
         data = saved_histories[label]
         image = axis.imshow(
-            np.log10(np.maximum(data["rho_proper"], 1.0e-300)),
+            np.log10(np.maximum(data["rho_comoving_code"], 1.0e-300)),
             origin="lower", aspect="auto",
-            extent=(data["radius_proper"][0], data["radius_proper"][-1], data["a"][0], data["a"][-1]),
+            extent=(data["radius_comoving_code"][0], data["radius_comoving_code"][-1], data["a"][0], data["a"][-1]),
         )
         axis.set_title(label)
         axis.set_xlabel("comoving radius $x$")
@@ -559,7 +566,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
             data["specific_angular_momentum"],
             origin="lower", aspect="auto", cmap="RdBu_r",
             vmin=-maximum_j, vmax=maximum_j,
-            extent=(data["radius_proper"][0], data["radius_proper"][-1], data["a"][0], data["a"][-1]),
+            extent=(data["radius_comoving_code"][0], data["radius_comoving_code"][-1], data["a"][0], data["a"][-1]),
         )
         axis.set_title(label)
         axis.set_xlabel("comoving radius $x$")

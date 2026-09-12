@@ -18,7 +18,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
@@ -104,8 +103,10 @@ def main(output_root=None):
     }
     initial = build_initial_condition(initial_config)
     rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)
@@ -161,7 +162,7 @@ def main(output_root=None):
     np.testing.assert_allclose(rotational_after, rotational_before, rtol=1.0e-12, atol=1.0e-14)
     np.testing.assert_allclose(total_change, thermal_change, rtol=1.0e-10, atol=1.0e-14)
 
-    rio.writehdf5(sim, output_dir / 'Output_final.hdf5')
+    rio._writehdf5(sim, output_dir / 'Output_final.hdf5')
     print('rotating hydrogen source-energy check passed')
     print('maximum |d E_rot| = %s' % np.max(np.abs(rotational_after - rotational_before)))
     print('maximum |d E_total - d E_thermal| = %s' % np.max(np.abs(total_change - thermal_change)))

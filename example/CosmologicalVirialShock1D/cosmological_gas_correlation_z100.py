@@ -21,7 +21,6 @@ import radhydropy.thermo_chemistry as rtc
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
@@ -990,8 +989,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
     config["par"]["output"]["directory"] = str(output_dir)
     config["par"]["output"]["directory"] = str(output_dir)
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

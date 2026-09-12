@@ -32,7 +32,6 @@ from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
 from radhydropy.units import quantity_to_value
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 import tools as et
@@ -554,10 +553,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         local["simulation"]["initial_condition_filename"]
     )
     config["par"]["output"].update(local["output"])
-    sim = Rsim(config["par"])
+    sim = rio.loadhdf5(
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
+    )
     diagnostic_solver = LinearGrowthDiagnosticSolver()
     sim.solver = diagnostic_solver
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()

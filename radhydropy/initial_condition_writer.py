@@ -606,6 +606,7 @@ class InitialConditionWriter:
                 "Energy_code",
                 "InternalEnergy_code",
                 "AngularMomentum_code",
+                "specific_angular_momentum_code",
                 "GravitationalPotentialEnergy_code",
                 "xHI",
                 "xHeI",

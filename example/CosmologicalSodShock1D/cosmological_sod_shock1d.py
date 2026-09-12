@@ -34,17 +34,28 @@ def _read_profile(filename, config):
     sim = rio.loadhdf5(config, filename)
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
-    boundary_comoving_code = sim.mesh.boundary_radarray
-    rho_comoving_code = sim.fluid.rho_radarray
-    temp_supercomoving_code = sim.fluid.temp_radarray
+    boundary_comoving_radarray = sim.mesh.boundary_radarray
+    rho_comoving_radarray = sim.fluid.rho_radarray
+    temp_supercomoving_radarray = sim.fluid.temp_radarray
+    boundary_comoving_code = np.asarray(
+        boundary_comoving_radarray.to(config["_code_units"].length_unit).value,
+        dtype=float,
+    )
+    rho_comoving_code = np.asarray(
+        rho_comoving_radarray.to(config["_code_units"].density_unit).value,
+        dtype=float,
+    )
+    temp_supercomoving_code = np.asarray(
+        temp_supercomoving_radarray.to(
+            config["_code_units"].temperature_unit
+        ).value,
+        dtype=float,
+    )
     return (
-        0.5 * np.asarray(
-            boundary_comoving_code.value[first:first + count + 1], dtype=float
-        )[:-1] + 0.5 * np.asarray(
-            boundary_comoving_code.value[first:first + count + 1], dtype=float
-        )[1:],
-        np.asarray(rho_comoving_code.value[first:first + count], dtype=float),
-        np.asarray(temp_supercomoving_code.value[first:first + count], dtype=float),
+        0.5 * boundary_comoving_code[first:first + count + 1][:-1]
+        + 0.5 * boundary_comoving_code[first:first + count + 1][1:],
+        rho_comoving_code[first:first + count],
+        temp_supercomoving_code[first:first + count],
         float(np.sum(np.asarray(sim.fluid.Mass_code[first:first + count], dtype=float))),
         float(np.sum(np.asarray(sim.fluid.Energy_code[first:first + count], dtype=float))),
     )
@@ -180,6 +191,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
             t_ref=quantity_to_value(cosmology_config.get("cosmology_t_ref", {"value": 1.0, "unit": "s"}), units.time_unit),
             a_ref=float(cosmology_config.get("cosmology_a_ref", 1.0)),
         )
+    case_config["_code_units"] = units
     case_config["_code_cosmology"] = code_cosmology
     ic_filename = output_dir / "InitialCondition.hdf5"
     writer = _build_initial_condition(case_config, units)

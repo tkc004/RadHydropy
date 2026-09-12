@@ -17,7 +17,6 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from radhydropy.cosmology import EinsteinDeSitter
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
 from example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
@@ -52,8 +51,7 @@ def main(config_filename=DEFAULT_CONFIG):
     filename = Path(par["simulation"]["initial_condition_filename"])
     if not filename.is_absolute():
         filename = config_filename.parent / filename
-    snapshot = Rsim(config["par"])
-    rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(filename))
+    snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     boundary_comoving_code = np.asarray(

@@ -17,7 +17,6 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
@@ -133,8 +132,10 @@ def run():
             **cosmology_parameters,
         )
         case_config["par"]["output"]["cadence"] = (final_tau - initial_tau) / 2.0 * units.time_unit
-        sim = Rsim(case_config["par"])
-        rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+        sim = rio.loadhdf5(
+            case_config,
+            case_config["par"]["simulation"]["initial_condition_filename"],
+        )
         sim.SetMesh()
         sim.SetFluid()
         sim.fluid.SetFluidTime(sim.par.tau_supercomoving_code)

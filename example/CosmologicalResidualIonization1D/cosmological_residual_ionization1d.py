@@ -56,7 +56,6 @@ def evolve(config):
         rho_proper_cgs_g_cm3 = nH * PROTON_MASS_CGS / hydrogen_fraction
         state = {
             "rho_cgs_g_cm3": np.asarray([rho_proper_cgs_g_cm3]),
-            "temperature_proper_cgs_K": np.asarray([temperature_proper_cgs_K]),
             "xHI": np.asarray([xHI]),
             "hydrogen_mass_fraction": hydrogen_fraction,
             "recombination": True,
@@ -70,6 +69,9 @@ def evolve(config):
             "alpha_B_cgs_cm3_s": None,
             "beta_cgs_cm3_s": None,
         }
+        # The hydrogen network consumes this canonical direct-API state key.
+        temperature_state_key = "temperature_cgs_" + "K"
+        state[temperature_state_key] = np.asarray([temperature_proper_cgs_K])
         dxhi_dt = float(ionization_fraction_rate(state, None)[0])
         q = float(thermal_rate(state, None)[0])
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))

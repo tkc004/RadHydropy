@@ -789,8 +789,13 @@ class Solver():
         if old_angular_momentum is not None:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
+            preserved_angular_momentum = (
+                old_angular_momentum
+                if old_angular_momentum.size == count
+                else old_angular_momentum[first:first + count]
+            )
             fluid.AngularMomentum_code[first:first + count] = (
-                old_angular_momentum[first:first + count]
+                preserved_angular_momentum
             )
         if dual_energy and getattr(fluid.eos, 'is_polytropic', False):
             internal = np.asarray(

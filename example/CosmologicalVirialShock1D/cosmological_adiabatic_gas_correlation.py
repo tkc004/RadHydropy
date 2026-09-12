@@ -24,7 +24,6 @@ import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 import tools as et
 
@@ -107,8 +106,10 @@ def run(config_filename=DEFAULT_CONFIG):
         "cie_cooling": False,
         "thermochemistry_network": "hydrogen",
     })
-    sim = Rsim(config["par"])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
+    )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
