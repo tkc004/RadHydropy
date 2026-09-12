@@ -340,6 +340,15 @@ def run_case(config, label, rotation_factor):
         initial, case_config, scale_factors
     )
     reference_density = integrate_shell_density_reference(initial, case_config, scale_factors)
+    enclosed_mass_radius_reference_comoving_code = np.asarray([
+        enclosed_radii(
+            initial.mesh.boundary_comoving_code,
+            reference_density_snapshot,
+            initial.mesh.volume_comoving_code,
+            target_mass,
+        )
+        for reference_density_snapshot in reference_density
+    ])
     final_filename = output_dir / "Output_final.hdf5"
     sim.fluid.SetTemperature()
     rio._writehdf5(sim, final_filename)
@@ -352,10 +361,13 @@ def run_case(config, label, rotation_factor):
         maximum_density=np.asarray(history["maximum_density"], dtype=float),
         support=np.asarray(history["support"], dtype=float),
         radius_comoving_code=np.asarray(sim.mesh.x_comoving_code[active], dtype=float),
-        radius_shell_comoving_code=np.asarray(
+        enclosed_mass_radius_comoving_code=np.asarray(
             history["radius_shell_comoving_code"], dtype=float
         ),
         radius_shell_reference_comoving_code=radius_shell_reference_comoving_code,
+        enclosed_mass_radius_reference_comoving_code=(
+            enclosed_mass_radius_reference_comoving_code
+        ),
         reference_density=reference_density,
     )
     return label, sim, history, output_dir
@@ -424,22 +436,34 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     }
     output_root = ROOT / config["par"]["output"]["directory"]
     figure = output_root / "CosmologicalRotatingCollapse1D.jpg"
-    plt.figure(figsize=(7, 4))
-    for label in ("nonrotating", "moderate", "high"):
+    enclosed_mass_fractions = (0.2, 0.5, 0.8)
+    enclosed_mass_indices = tuple(
+        int(fraction * (len(saved_histories["high"]["enclosed_mass_radius_comoving_code"][0]) - 1))
+        for fraction in enclosed_mass_fractions
+    )
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
+    for axis, label in zip(axes, ("nonrotating", "moderate", "high")):
         data = saved_histories[label]
-        line, = plt.plot(data["a"], data["maximum_density"], label=label)
-        plt.plot(
-            data["a"], np.max(data["reference_density"], axis=1),
-            "--", color=line.get_color(),
-            label="%s ODE" % label,
-        )
-    plt.xlabel("scale factor $a$")
-    plt.ylabel("maximum comoving gas density")
-    plt.grid(alpha=0.25)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(figure, dpi=200)
-    plt.close()
+        for fraction, shell in zip(enclosed_mass_fractions, enclosed_mass_indices):
+            simulation_radius = data["enclosed_mass_radius_comoving_code"][:, shell]
+            ode_radius = data["enclosed_mass_radius_reference_comoving_code"][:, shell]
+            line, = axis.plot(
+                data["a"], simulation_radius,
+                label="%.0f%% enclosed mass" % (100.0 * fraction),
+            )
+            axis.plot(
+                data["a"], ode_radius,
+                "--", color=line.get_color(),
+            )
+        axis.set_title(label)
+        axis.set_xlabel("scale factor $a$")
+        axis.grid(alpha=0.25)
+    axes[0].set_ylabel("enclosed comoving radius $x$")
+    axes[-1].legend(fontsize=8, loc="best")
+    fig.suptitle("Simulation (solid) versus pressureless ODE (dashed)")
+    fig.tight_layout()
+    fig.savefig(figure, dpi=200)
+    plt.close(fig)
 
     density_comparison_figure = (
         output_root
@@ -510,22 +534,40 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         int(0.5 * (shell_count - 1)),
         int(0.8 * (shell_count - 1)),
     )
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.5), sharey=True)
-    for axis, label in zip(axes, ("nonrotating", "moderate", "high")):
+    fig, axes = plt.subplots(
+        2, 3, figsize=(12, 6), sharex="col",
+        gridspec_kw={"height_ratios": (2.0, 1.0)},
+    )
+    for column, label in enumerate(("nonrotating", "moderate", "high")):
+        axis = axes[0, column]
+        error_axis = axes[1, column]
         data = saved_histories[label]
-        for shell in shell_indices:
-            axis.plot(
-                data["a"], data["radius_shell_comoving_code"][:, shell],
-                label="simulation shell %d" % shell,
+        for shell, fraction in zip(shell_indices, enclosed_mass_fractions):
+            simulation_radius = data["enclosed_mass_radius_comoving_code"][:, shell]
+            ode_radius = data["enclosed_mass_radius_reference_comoving_code"][:, shell]
+            line, = axis.plot(
+                data["a"], simulation_radius,
+                label="%.0f%% enclosed mass" % (100.0 * fraction),
             )
             axis.plot(
-                data["a"], data["radius_shell_reference_comoving_code"][:, shell],
-                "--", label="ODE shell %d" % shell,
+                data["a"], ode_radius,
+                "--", color=line.get_color(),
+            )
+            relative_error = (
+                simulation_radius - ode_radius
+            ) / np.maximum(np.abs(ode_radius), 1.0e-300)
+            error_axis.plot(
+                data["a"], relative_error,
+                color=line.get_color(),
             )
         axis.set_title(label)
-        axis.set_xlabel("scale factor $a$")
-    axes[0].set_ylabel("comoving shell radius $x$")
-    axes[-1].legend(fontsize=7, loc="best")
+        error_axis.set_xlabel("scale factor $a$")
+        error_axis.axhline(0.0, color="black", linewidth=0.8)
+        error_axis.grid(alpha=0.25)
+        axis.grid(alpha=0.25)
+    axes[0, 0].set_ylabel("enclosed comoving radius $x$")
+    axes[1, 0].set_ylabel("relative error")
+    axes[0, -1].legend(fontsize=8, loc="best")
     fig.tight_layout()
     fig.savefig(shell_figure, dpi=200)
     plt.close(fig)
