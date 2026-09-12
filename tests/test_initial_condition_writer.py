@@ -211,6 +211,120 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     )
 
 
+def test_writer_cosmological_prepare_and_hdf5_roundtrip():
+    config = deepcopy(load_nested_example_config(CONFIG_FILE))
+    config["par"]["cosmology"].update({
+        "cosmological_expansion": True,
+        "supercomoving_coordinates": True,
+    })
+    code_units = _code_units(config)
+    writer = InitialConditionWriter(
+        par_config=config["par"],
+        code_units=code_units,
+    )
+    simulation = writer.simulation
+    scale_factor = 0.5
+    time_cosmic_code = float(
+        simulation.par.cosmology.cosmic_time_from_scale_factor(scale_factor)
+    )
+    hubble_code = float(simulation.par.cosmology.hubble(time_cosmic_code))
+    hubble_unit_km_s_Mpc = (
+        code_units.velocity_unit.to_value("km/s")
+        / code_units.length_unit.to_value("Mpc")
+    )
+    context = CosmologyContext(
+        gamma=5.0 / 3.0,
+        cosmology=simulation.par.cosmology.type_name,
+        scale_factor=scale_factor,
+        hubble_parameter_km_s_Mpc=hubble_code * hubble_unit_km_s_Mpc,
+    )
+    simulation.par.cosmology_context = context
+    tau_supercomoving_code = float(
+        simulation.par.cosmology.supercomoving_time(time_cosmic_code)
+    )
+    simulation.par.tau_supercomoving_code = np.array([tau_supercomoving_code])
+    simulation.par.simulation.tau_supercomoving_code = (
+        simulation.par.tau_supercomoving_code.copy()
+    )
+    simulation.par.coordinate_frame = "comoving"
+    simulation.par.time_coordinate = "supercomoving"
+    simulation.par.velocity_representation = "supercomoving_peculiar"
+    simulation.par.density_representation = "comoving"
+    simulation.par.pressure_representation = "supercomoving"
+    simulation.par.temperature_representation = "supercomoving"
+    simulation.par.gas_angular_momentum = True
+    writer.box_size = _box_size(2.0, code_units, context)
+    writer.mesh.boundary_radarray = _radarray(
+        np.array([0.0, 1.0, 2.0]),
+        "boundary_proper_code",
+        code_units,
+        context,
+    )
+    writer.fluid.rho_radarray = _radarray(
+        np.array([2.0, 3.0]), "rho_proper_code", code_units, context
+    )
+    writer.fluid.vel_radarray = _radarray(
+        np.array([5.0, 5.0]), "vel_proper_code", code_units, context
+    )
+    writer.fluid.temp_radarray = _radarray(
+        np.array([8.0, 8.0]), "temp_proper_code", code_units, context
+    )
+    writer.fluid.pre_radarray = _radarray(
+        np.array([1.0, 1.0]), "pre_proper_code", code_units, context
+    )
+    simulation.fluid.mu = np.ones(2)
+    simulation.fluid.specific_angular_momentum_code = np.full(2, 0.25)
+
+    expected_boundary = _radarray(
+        np.array([0.0, 1.0, 2.0]), "boundary_proper_code", code_units, context
+    ).to_comoving().value
+    expected_density = _radarray(
+        np.array([2.0, 3.0]), "rho_proper_code", code_units, context
+    ).to_comoving().value
+    expected_temperature = _radarray(
+        np.array([8.0, 8.0]), "temp_proper_code", code_units, context
+    ).to_comoving().value
+    expected_velocity = _radarray(
+        np.array([5.0, 5.0]), "vel_proper_code", code_units, context
+    ).to_comoving(x_comoving_code=np.array([1.0, 3.0])).value
+
+    with tempfile.NamedTemporaryFile(suffix=".hdf5") as output:
+        writer.write(output.name)
+        prepared = writer.simulation
+        np.testing.assert_allclose(
+            prepared.mesh.boundary_comoving_code, expected_boundary
+        )
+        np.testing.assert_allclose(
+            prepared.fluid.rho_comoving_code, expected_density
+        )
+        np.testing.assert_allclose(
+            prepared.fluid.temp_supercomoving_code, expected_temperature
+        )
+        np.testing.assert_allclose(
+            prepared.fluid.vel_supercomoving_code, expected_velocity
+        )
+        np.testing.assert_allclose(
+            prepared.fluid.specific_angular_momentum_code, 0.25
+        )
+        assert np.all(np.isfinite(prepared.fluid.Energy_code))
+        restored = rio.loadhdf5(config, output.name)
+
+    np.testing.assert_allclose(
+        restored.mesh.boundary_comoving_code, expected_boundary
+    )
+    np.testing.assert_allclose(restored.fluid.rho_comoving_code, expected_density)
+    np.testing.assert_allclose(
+        restored.fluid.temp_supercomoving_code, expected_temperature
+    )
+    np.testing.assert_allclose(restored.fluid.vel_supercomoving_code, expected_velocity)
+    np.testing.assert_allclose(
+        restored.par.tau_supercomoving_code, [tau_supercomoving_code]
+    )
+    np.testing.assert_allclose(
+        restored.fluid.specific_angular_momentum_code, 0.25
+    )
+
+
 def test_writer_rejects_code_unit_mismatch():
     config = load_nested_example_config(CONFIG_FILE)
     wrong_units = CodeUnits.from_mapping(

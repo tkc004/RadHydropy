@@ -94,7 +94,8 @@ def _build_initial_condition(config, units):
             left,
             initial_condition["rho_left_proper"],
             initial_condition["rho_right_proper"],
-        )
+        ),
+        field_name="rho_proper_code",
     )
     writer.fluid.vel_radarray = writer.radarray(
         np.zeros(grid_cells) * units.velocity_unit
@@ -104,7 +105,8 @@ def _build_initial_condition(config, units):
             left,
             initial_condition["temperature_left_proper"],
             initial_condition["temperature_right_proper"],
-        )
+        ),
+        field_name="temp_proper_code",
     )
     writer.simulation.par.tau_supercomoving_code = np.array([0.0])
     writer.simulation.par.simulation.tau_supercomoving_code = np.array([0.0])

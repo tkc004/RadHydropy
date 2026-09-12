@@ -40,9 +40,9 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     changes = {
         name: _aperture_sum(data, profiles, key, radius_factor)
         for name, key in {
-            "delta_total": "gas_delta_total_energy",
-            "delta_thermal": "gas_delta_thermal_energy",
-            "delta_kinetic": "gas_delta_kinetic_energy",
+            "delta_total": "gas_delta_total_energy_code",
+            "delta_thermal": "gas_delta_thermal_energy_code",
+            "delta_kinetic": "gas_delta_kinetic_energy_code",
             "hydro": "gas_hydro_energy_change",
             "gravity": "gas_gravitational_work",
             "thermochemistry": "gas_thermochemistry_energy_change",

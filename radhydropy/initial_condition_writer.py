@@ -25,6 +25,8 @@ class _InitialConditionFieldGroup:
         if field_name.startswith("_"):
             object.__setattr__(self, field_name, value)
             return
+        if field_name == "eos" and "eos" not in self._allowed_fields:
+            raise AttributeError(f"unsupported initial-condition field {field_name!r}")
         if field_name not in self._allowed_fields:
             raise AttributeError(f"unsupported initial-condition field {field_name!r}")
         self._writer.set_field(field_name, value)
@@ -107,6 +109,7 @@ class InitialConditionWriter:
                 "pre_radarray",
                 "temp_radarray",
                 "ngamma_radarray",
+                "specific_angular_momentum_radarray",
             },
         )
 
@@ -496,10 +499,7 @@ class InitialConditionWriter:
         width_values = np.diff(boundary_values)
 
         geometry_state = getattr(mesh, "geometry_state", None)
-        if isinstance(source_boundary, RadArray):
-            area_values = np.ones_like(width_values)
-            volume_values = width_values.copy()
-        elif geometry_state is not None:
+        if geometry_state is not None:
             area_values = np.asarray(getattr(geometry_state, "area_proper_code" if not cosmological_schema else "area_comoving_code"), dtype=float)
             volume_values = np.asarray(getattr(geometry_state, "volume_proper_code" if not cosmological_schema else "volume_comoving_code"), dtype=float)
         else:
@@ -544,14 +544,42 @@ class InitialConditionWriter:
         specific_angular_momentum = getattr(
             fluid, "specific_angular_momentum_radarray", None
         )
-        if specific_angular_momentum is not None:
-            fluid.specific_angular_momentum_code = self._convert(
-                specific_angular_momentum,
-                "specific_angular_momentum_code",
-                context=context,
+        if specific_angular_momentum is None:
+            specific_angular_momentum = self._fields.get(
+                "specific_angular_momentum_radarray"
             )
+        if specific_angular_momentum is None:
+            specific_angular_momentum = getattr(
+                fluid, "specific_angular_momentum_code", None
+            )
+        if specific_angular_momentum is not None:
+            if hasattr(specific_angular_momentum, "units") and not isinstance(
+                specific_angular_momentum, (RadArray, RadQuantity)
+            ):
+                code_unit = _code_unit_for_spec(
+                    self.code_units,
+                    field_spec("specific_angular_momentum_code", self.code_units),
+                )
+                specific_angular_momentum = np.asarray(
+                    specific_angular_momentum.to_value(code_unit.units),
+                    dtype=float,
+                ) / float(code_unit.value)
+            else:
+                specific_angular_momentum = self._convert(
+                    specific_angular_momentum,
+                    "specific_angular_momentum_code",
+                    context=context,
+                )
+            fluid.specific_angular_momentum_code = specific_angular_momentum
         if not hasattr(fluid, "mu"):
             fluid.mu = np.ones_like(density_values)
+        specific_angular_momentum_values = getattr(
+            fluid, "specific_angular_momentum_code", None
+        )
+        if specific_angular_momentum_values is not None:
+            specific_angular_momentum_values = np.asarray(
+                specific_angular_momentum_values, dtype=float
+            ).copy()
 
         active_count = int(np.asarray(density_values).size)
         solver_ready = all(
@@ -570,6 +598,14 @@ class InitialConditionWriter:
             mesh._par = par
             simulation.SetMesh()
             fluid.SetUpFluid(par, mesh=mesh)
+            if specific_angular_momentum_values is not None:
+                fluid.specific_angular_momentum_code = (
+                    np.pad(
+                        specific_angular_momentum_values,
+                        (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)),
+                        mode="edge",
+                    )
+                )
             simulation.solver.SetConserved(
                 mesh,
                 fluid,
@@ -643,19 +679,29 @@ class InitialConditionWriter:
             geometry_fields = SUPERCOMOVING_RUNTIME_FIELDS
             fluid_fields = SUPERCOMOVING_RUNTIME_FIELDS
             time_value = getattr(
-                fluid,
+                par,
                 "tau_supercomoving_code",
                 getattr(
-                    getattr(fluid, "runtime_state", None),
+                    getattr(par, "simulation", None),
                     "tau_supercomoving_code",
                     getattr(
-                        getattr(par, "simulation", None),
+                        fluid,
                         "tau_supercomoving_code",
-                        getattr(par, "tau_supercomoving_code", 0.0),
+                        getattr(
+                            getattr(fluid, "runtime_state", None),
+                            "tau_supercomoving_code",
+                            0.0,
+                        ),
                     ),
                 ),
             )
             setattr(fluid, "tau_supercomoving_code", float(np.asarray(time_value).flat[0]))
+            par.tau_supercomoving_code = np.asarray(
+                [fluid.tau_supercomoving_code], dtype=float
+            )
+            par.simulation.tau_supercomoving_code = (
+                par.tau_supercomoving_code.copy()
+            )
             mesh.geometry_state = MeshGeometryState.from_arrays(
                 geometry_fields,
                 x_comoving_code=x_values,

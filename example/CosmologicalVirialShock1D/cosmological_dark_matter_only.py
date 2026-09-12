@@ -279,7 +279,7 @@ def run_live_shell_density_profiles(config):
     scale_factors = np.asarray([float(cosmology.scale_factor(time_cosmic_code)) for time_cosmic_code in times])
     comoving_bin_radii = bin_radii[None, :] / scale_factors[:, None]
     target_mass = quantity_to_value(
-        initial_condition["target_halo_mass"], units.mass_unit
+        initial_condition["target_halo_mass"], code_unit_system.mass_unit
     )
     virial_overdensity = 18.0 * np.pi**2
     analytic_rvir = (
@@ -397,7 +397,7 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
         )
     cosmology = EinsteinDeSitter.from_code_units(
         units,
-        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], code_unit_system.time_unit),
+        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], units.time_unit),
         a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     correlation_table = load_correlation_table(config_filename, config)
@@ -406,155 +406,6 @@ def main(config_filename=DEFAULT_CONFIG, final_time_override=None):
     config["_correlation_table"] = correlation_table
     run_lagrangian_top_hat(config)
     run_live_shell_density_profiles(config)
-    return
-    dm_ic = copy.deepcopy(initial_condition)
-    dm_ic["dark_matter_shells"] = int(
-        example.get("dm_only_shells", max(1024, int(initial_condition["dark_matter_shells"])))
-    )
-    dead_config = dict(config)
-    dead_config["initial_condition"] = dm_ic
-    dead_config["_code_unit_system"] = units
-    dead_config["_cosmology"] = cosmology
-    shells = et.make_dark_matter(dead_config)
-    dm_fraction = 1.0 - float(initial_condition["baryon_fraction"])
-    initial = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
-    final = quantity_to_value(
-        config["par"]["simulation"]["final_time"], units.time_unit
-    )
-    time_cosmic_code = float(cosmology.supercomoving_time(initial))
-    final_tau = float(cosmology.supercomoving_time(final))
-    timestep = float(example.get("dm_only_supercomoving_timestep", 0.002))
-    target_mass = quantity_to_value(
-        initial_condition["target_halo_mass"], units.mass_unit
-    )
-    target_dm_mass = target_mass * (1.0 - float(initial_condition["baryon_fraction"]))
-    delta_i = float(initial_condition["initial_overdensity"])
-    delta_c = 1.686
-    collapse_time = initial * (delta_c / delta_i) ** 1.5
-    turnaround_time = 0.5 * collapse_time
-    rho_comoving = float(cosmology.background_density(initial)) * float(
-        cosmology.scale_factor(initial)
-    ) ** 3
-    rho_ta = float(cosmology.background_density(turnaround_time))
-    rho_vir = float(cosmology.background_density(collapse_time))
-    analytic_rta = (target_mass / ((4.0 * np.pi / 3.0) * (9.0 * np.pi**2 / 16.0) * rho_ta)) ** (1.0 / 3.0)
-    analytic_rvir = (target_mass / ((4.0 * np.pi / 3.0) * (18.0 * np.pi**2) * rho_vir)) ** (1.0 / 3.0)
-    history_time = [initial]
-    history_inner_radius = [float(shells.radius[0])]
-    history_turnaround_radius = [np.nan]
-    history_turnaround_mass = [np.nan]
-    target_turnaround = None
-    initial_a = float(cosmology.scale_factor(initial))
-    initial_h = float(cosmology.hubble(initial))
-    initial_index = int(np.searchsorted(np.cumsum(shells.mass), target_dm_mass, side="left"))
-    initial_index = min(initial_index, shells.number_of_shells - 1)
-    previous_target_velocity = float(
-        initial_h * initial_a * shells.radius[initial_index]
-        + shells.velocity[initial_index] / initial_a
-    )
-    previous_target_radius = float(initial_a * shells.radius[initial_index])
-    previous_target_time = initial
-    steps = 0
-    while time_cosmic_code < final_tau:
-        dt = min(timestep, final_tau - time_cosmic_code)
-        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(time_cosmic_code))
-        scale_start = float(cosmology.scale_factor(cosmic_start))
-        rho_start = float(cosmology.background_density(cosmic_start)) * scale_start**3
-        background = lambda radius_comoving_code: (
-            4.0 * np.pi / 3.0 * rho_start * dm_fraction * np.asarray(radius_comoving_code)**3
-        )
-        time_end = time_cosmic_code + dt
-        cosmic_end = float(cosmology.cosmic_time_from_supercomoving(time_end))
-        scale_end = float(cosmology.scale_factor(cosmic_end))
-        shells.step(
-            dt,
-            crossing_safety_factor=float(example.get("dark_matter_crossing_safety_factor", 0.5)),
-            background_enclosed_mass=background,
-            scale_factor=scale_start,
-            scale_factor_end=scale_end,
-            cosmological=True,
-        )
-        time_cosmic_code = time_end
-        steps += 1
-        history_time.append(cosmic_end)
-        history_inner_radius.append(float(shells.radius[0]))
-        physical_radius = scale_end * shells.radius
-        physical_velocity = (
-            float(cosmology.hubble(cosmic_end)) * scale_end * shells.radius
-            + shells.velocity / scale_end
-        )
-        target_index = int(np.searchsorted(np.cumsum(shells.mass), target_dm_mass, side="left"))
-        target_index = min(target_index, shells.number_of_shells - 1)
-        target_velocity = float(physical_velocity[target_index])
-        # A Lagrangian shell changes from Hubble expansion to infall at
-        # turnaround: v_r goes from positive to negative.
-        if previous_target_velocity > 0.0 >= target_velocity and target_turnaround is None:
-            fraction = previous_target_velocity / (previous_target_velocity - target_velocity)
-            target_radius = float(
-                (1.0 - fraction) * previous_target_radius
-                + fraction * physical_radius[target_index]
-            )
-            target_turnaround = (
-                float((1.0 - fraction) * previous_target_time + fraction * cosmic_end),
-                target_radius,
-                float(shells.enclosed_mass(target_radius / scale_end)),
-            )
-        previous_target_velocity = target_velocity
-        previous_target_radius = float(physical_radius[target_index])
-        previous_target_time = cosmic_end
-        crossing = np.flatnonzero(
-            (physical_velocity[:-1] <= 0.0) & (physical_velocity[1:] >= 0.0)
-        )
-        if crossing.size:
-            index = int(crossing[0])
-            fraction = physical_velocity[index] / (
-                physical_velocity[index] - physical_velocity[index + 1]
-            )
-            radius_ta = physical_radius[index] + fraction * (
-                physical_radius[index + 1] - physical_radius[index]
-            )
-            history_turnaround_radius.append(float(radius_ta))
-            history_turnaround_mass.append(float(shells.enclosed_mass(radius_ta / scale_end)))
-        else:
-            history_turnaround_radius.append(np.nan)
-            history_turnaround_mass.append(np.nan)
-
-    if not np.all(np.isfinite(shells.radius)) or np.any(np.diff(shells.radius) < 0.0):
-        raise RuntimeError("dark-matter-only shells became invalid or unsorted")
-    directory = Path(config["par"]["output"]["directory"])
-    directory.mkdir(parents=True, exist_ok=True)
-    figure = directory / "CosmologicalDarkMatterOnly.jpg"
-    plt.figure(figsize=(6, 4))
-    plt.plot(history_time, history_inner_radius)
-    plt.xlabel("cosmic time [code units]")
-    plt.ylabel("innermost shell comoving radius")
-    plt.grid(alpha=0.25)
-    plt.tight_layout()
-    plt.savefig(figure, dpi=200)
-    plt.close()
-    print("dark-matter-only run passed")
-    print("steps = %d, shells = %d" % (steps, shells.number_of_shells))
-    print("final cosmic time = %.8g" % history_time[-1])
-    print("target halo mass = %.8g code masses (%.8g Msun)" % (target_mass, target_mass * units.mass_in_cgs / 1.98847e33))
-    print("analytic turnaround: t=%.8g, r=%.8g code lengths" % (turnaround_time, analytic_rta))
-    print("analytic virial: t=%.8g, r=%.8g code lengths" % (collapse_time, analytic_rvir))
-    final_a = float(cosmology.scale_factor(final))
-    final_h = float(cosmology.hubble(final))
-    final_index = int(np.searchsorted(np.cumsum(shells.mass), target_dm_mass, side="left"))
-    final_index = min(final_index, shells.number_of_shells - 1)
-    final_velocity = final_h * final_a * shells.radius[final_index] + shells.velocity[final_index] / final_a
-    print("target-shell final radius=%.8g, radial velocity=%.8g" % (final_a * shells.radius[final_index], final_velocity))
-    finite_ta = np.flatnonzero(np.isfinite(history_turnaround_radius))
-    if target_turnaround is not None:
-        print("numerical target-shell turnaround: t=%.8g, r=%.8g, M=%.8g code" % target_turnaround)
-    elif finite_ta.size:
-        index = int(finite_ta[-1])
-        print("numerical outer turnaround: t=%.8g, r=%.8g, M=%.8g code" % (
-            history_time[index], history_turnaround_radius[index], history_turnaround_mass[index]
-        ))
-    else:
-        print("numerical turnaround: not detected")
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

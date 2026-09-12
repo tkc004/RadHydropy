@@ -102,7 +102,7 @@ def main(output_root=None):
         ),
     }
     initial = build_initial_condition(initial_config)
-    rio.writehdf5(initial, config["par"]['simulation']['initial_condition_filename'])
+    initial.write(config["par"]['simulation']['initial_condition_filename'])
     sim = rio.loadhdf5(
         config,
         config["par"]["simulation"]["initial_condition_filename"],

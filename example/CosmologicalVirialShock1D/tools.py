@@ -9,8 +9,10 @@ import unyt
 
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.eos import EOS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
@@ -294,10 +296,30 @@ def build_initial_condition(config):
     if not bool(initial_condition.get('cmb_equilibrium_initial', False)):
         result.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
     result.fluid.vel_supercomoving_code = -a**2 * hubble * mean_delta * result.mesh.x_comoving_code / 3.0
+    if bool(par.get("hydrodynamics", {}).get("gas_angular_momentum", False)):
+        result.par.gas_angular_momentum = True
+        result.fluid.specific_angular_momentum_code = np.full(
+            grid_cells,
+            float(par["hydrodynamics"].get("gas_specific_angular_momentum", 0.0)),
+        )
     if 'gas_specific_angular_momentum' in initial_condition:
         result.fluid.specific_angular_momentum_code = np.full(grid_cells, float(initial_condition['gas_specific_angular_momentum']))
     refresh_typed_initial_condition(result)
-    return result
+    hubble_unit_km_s_Mpc = (
+        code_unit_system.velocity_unit.to_value("km/s")
+        / code_unit_system.length_unit.to_value("Mpc")
+    )
+    result.par.cosmology_context = CosmologyContext(
+        gamma=float(result.par.hydrodynamics.gamma),
+        cosmology=cosmology.type_name,
+        scale_factor=a,
+        hubble_parameter_km_s_Mpc=hubble * hubble_unit_km_s_Mpc,
+    )
+    return InitialConditionWriter(
+        result,
+        code_units=code_unit_system,
+        cosmology_context=result.par.cosmology_context,
+    ).prepare()
 
 
 def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1.0e4):
@@ -500,6 +522,7 @@ def splashback_radius(
 def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
     """Measure virial, shock, disc radii and enclosed total masses."""
     initial_condition = config["initial_condition"]
+    code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)

@@ -814,9 +814,17 @@ class Solver():
             fluid.InternalEnergy_code = as_named_array(np.maximum(internal, 0.0))
         if old_conserved is not None:
             inactive, old_mass, old_mom, old_energy = old_conserved
-            fluid.Mass_code[inactive] = old_mass[inactive]
-            fluid.Mom_code[inactive] = old_mom[inactive]
-            fluid.Energy_code[inactive] = old_energy[inactive]
+            first = int(par.mesh.ghost_cells)
+            count = int(par.mesh.grid_cells)
+            if old_mass.size == count:
+                inactive_active = inactive[first:first + count]
+                fluid.Mass_code[first:first + count][inactive_active] = old_mass[inactive_active]
+                fluid.Mom_code[first:first + count][inactive_active] = old_mom[inactive_active]
+                fluid.Energy_code[first:first + count][inactive_active] = old_energy[inactive_active]
+            else:
+                fluid.Mass_code[inactive] = old_mass[inactive]
+                fluid.Mom_code[inactive] = old_mom[inactive]
+                fluid.Energy_code[inactive] = old_energy[inactive]
         if (
             dual_energy and old_internal is not None
             and getattr(fluid.eos, 'is_polytropic', False)

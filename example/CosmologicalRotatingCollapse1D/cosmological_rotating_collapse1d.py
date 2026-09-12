@@ -270,7 +270,7 @@ def run_case(config, label, rotation_factor):
         ),
     }
     initial = build_initial_condition(case_config)
-    rio.writehdf5(initial, par["simulation"]["initial_condition_filename"])
+    initial.write(par["simulation"]["initial_condition_filename"])
     sim = rio.loadhdf5(
         case_config,
         case_config["par"]["simulation"]["initial_condition_filename"],

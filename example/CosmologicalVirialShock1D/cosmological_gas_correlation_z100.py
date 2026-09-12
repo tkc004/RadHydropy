@@ -9,6 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
+import unyt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -996,7 +997,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    initial_tau = np.asarray(sim.par.tau_supercomoving_code, dtype=float)
+    initial_tau = np.asarray(initial.par.tau_supercomoving_code, dtype=float)
     sim.par.tau_supercomoving_code = initial_tau.copy()
     sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
     sim.fluid.SetFluidTime(initial_tau)
@@ -1224,7 +1225,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         if np.isfinite(rvir) and np.isfinite(mvir) and mvir > 0.0:
             gas_inside_comoving_code = float(np.sum(gas_mass_comoving_code[gas_radius <= rvir]))
             radius_record["gas_mass_comoving_code_rvir"] = gas_inside_comoving_code
-            radius_record["normalized_baryon_fraction"] = gas_inside / (
+            radius_record["normalized_baryon_fraction"] = gas_inside_comoving_code / (
                 float(initial_condition["baryon_fraction"]) * mvir
             )
         else:
@@ -1636,7 +1637,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     per_cell["delta_kinetic_energy_code"] = per_cell["kinetic_energy_code"] - per_cell["kinetic_energy_code"][0]
     per_cell["delta_thermal_energy_code"] = per_cell["thermal_energy_code"] - per_cell["thermal_energy_code"][0]
     per_cell["energy_balance_residual"] = (
-        per_cell["delta_total_energy"]
+        per_cell["delta_total_energy_code"]
         - per_cell["hydro_energy_change"]
         - per_cell["gravitational_work"]
         - per_cell["thermochemistry_energy_change"]
@@ -1705,7 +1706,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     )
     plot_specific_angular_momentum_evolution(
         times, plot_radius, plot_density,
-        specific_angular_momentum[:, :plot_cell_count],
+        specific_angular_momentum_comoving_code[:, :plot_cell_count],
         virial_radius, splashback_radius, scale_factors,
         specific_angular_momentum_figure,
     )
@@ -1775,7 +1776,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         ]),
     )
     print("initial gas fraction = %.8g" % measured_fraction)
-    print("initial gas temperature = %.8g K" % temperature_proper_cgs_K)
+    print("initial gas temperature = %.8g K" % np.median(temperature_proper_cgs_K))
     print("final cosmic time = %.8g Gyr" % times[-1])
     dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
     dm_total_mass = np.asarray([
