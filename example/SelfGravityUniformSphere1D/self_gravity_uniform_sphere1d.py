@@ -40,7 +40,9 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_condition = config['initial_condition']
     eu.clean_previous_outputs(config)
     initial_state = et.build_initial_condition(config)
-    rio.writehdf5(initial_state, config['par']['simulation']['initial_condition_filename'])
+    initial_state.write(
+        config['par']['simulation']['initial_condition_filename'], validate=True
+    )
 
     config['par']['simulation'] = {
         **config['par']['simulation'],
@@ -57,7 +59,7 @@ def main(config_filename=DEFAULT_CONFIG):
         code_units=sim.par.units.CodeUnits,
     )
 
-    numerical = sim.par.gravity.model.acceleration_on_mesh(
+    numerical = sim.par.gravity.acceleration_on_mesh(
         sim.mesh,
         rho=sim.fluid.rho_proper_code,
         par=sim.par,

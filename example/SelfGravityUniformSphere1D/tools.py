@@ -4,8 +4,7 @@ import numpy as np
 import unyt
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
@@ -35,46 +34,39 @@ def build_initial_condition(config):
     )
     initial_condition = config['initial_condition']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    sim = Rsim(config['par'])
-    sim.par.mesh.grid_cells = grid_cells
-    sim.par.mesh.ghost_cells = 0
-    sim.par.simulation.coordinate_system = initial_condition['coordsys']
-    sim.par.simulation.box_size_proper_code = np.ones(1) * quantity_to_value(initial_condition['box_size_proper'], code_unit_system.length_unit)
-    sim.par.simulation.time_proper_code = quantity_to_value(initial_condition['time_proper'], code_unit_system.time_unit)
-
-    boundary_proper_code = np.linspace(
-        quantity_to_value(initial_condition['radius_inner_proper'], code_unit_system.length_unit),
-        quantity_to_value(initial_condition['radius_outer_proper'], code_unit_system.length_unit),
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_unit_system,
+    )
+    writer.simulation.par.simulation.coordinate_system = initial_condition['coordsys']
+    boundary_proper_unyt = np.linspace(
+        initial_condition['radius_inner_proper'],
+        initial_condition['radius_outer_proper'],
         grid_cells + 1,
     )
-    sim.mesh.boundary_proper_code = boundary_proper_code
-    sim.mesh.x_proper_code = spherical_cell_centers(boundary_proper_code)
-    sim.mesh.width_proper_code = np.diff(boundary_proper_code)
-    sim.mesh.area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1]**2
-    sim.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * (
-        boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3
+    boundary_proper_code = quantity_to_value(
+        boundary_proper_unyt, code_unit_system.length_unit
     )
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=sim.mesh.x_proper_code,
-        boundary_proper_code=sim.mesh.boundary_proper_code,
-        width_proper_code=sim.mesh.width_proper_code,
-        area_proper_code=sim.mesh.area_proper_code,
-        volume_proper_code=sim.mesh.volume_proper_code,
+    writer.box_size = writer.radquantity(initial_condition['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(
+        spherical_cell_centers(boundary_proper_code) * code_unit_system.length_unit
     )
-
-    sim.fluid.rho_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['rho_proper'], code_unit_system.density_unit)
-    sim.fluid.temp_proper_code = np.ones(grid_cells) * quantity_to_value(initial_condition['temperature_proper'], code_unit_system.temperature_unit)
-    sim.fluid.mu = np.ones(grid_cells) * float(initial_condition['mean_molecular_weight'])
-    sim.fluid.vel_proper_code = np.zeros(grid_cells, dtype=float)
-    sim.fluid.SetUpFluid(sim.par, sim.mesh)
-    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-
-    return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial_condition['rho_proper']
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * code_unit_system.velocity_unit
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * initial_condition['temperature_proper']
+    )
+    writer.simulation.fluid.mu = np.ones(grid_cells) * float(
+        initial_condition['mean_molecular_weight']
+    )
+    writer.simulation.par.simulation.time_proper_code = float(
+        initial_condition['time_proper'].to_value(code_unit_system.time_unit)
+    )
+    return writer
 
 def load_output_state(filename, config):
-    result = build_initial_condition(
-        config,
-    )
-    rio.readhdf5(result.par, result.mesh, result.fluid, filename)
-    return result
+    return rio.loadhdf5(config, filename)

@@ -9,9 +9,7 @@ from radhydropy.constants import (
     PROTON_MASS_CGS,
 )
 import radhydropy.io as rio
-from radhydropy.eos import EOS
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
@@ -90,68 +88,42 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     code_units = config['_code_units']
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    result = Rsim(config['par'])
-    result.par.mesh.ghost_cells = 0
-    box_size_proper_code = np.ones(1) * quantity_to_value(
-        initial['box_size_proper'], code_units.length_unit
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units,
     )
-    result.par.time_proper_code = np.ones(1) * quantity_to_value(
-        initial['time_proper'], code_units.time_unit
+    writer.simulation.par.simulation.coordinate_system = 'spherical'
+    boundary_proper_unyt = np.linspace(
+        initial['radius_inner_proper'], initial['radius_outer_proper'], grid_cells + 1,
     )
-    result.par.simulation.box_size_proper_code = box_size_proper_code
-    result.par.simulation.coordinate_system = 'spherical'
-    result.mesh.boundary_proper_code = np.linspace(
-        quantity_to_value(initial['radius_inner_proper'], code_units.length_unit),
-        quantity_to_value(initial['radius_outer_proper'], code_units.length_unit),
-        grid_cells + 1,
+    radius_proper_code = spherical_cell_centers(
+        quantity_to_value(boundary_proper_unyt, code_units.length_unit)
     )
-    result.mesh.x_proper_code = spherical_cell_centers(result.mesh.boundary_proper_code)
-    result.mesh.width_proper_code = np.diff(result.mesh.boundary_proper_code)
-    result.mesh.area_proper_code = 4.0 * np.pi * result.mesh.boundary_proper_code[:-1]**2
-    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary_proper_code**3)
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS, x_proper_code=result.mesh.x_proper_code,
-        boundary_proper_code=result.mesh.boundary_proper_code,
-        width_proper_code=result.mesh.width_proper_code, area_proper_code=result.mesh.area_proper_code,
-        volume_proper_code=result.mesh.volume_proper_code)
-    radius_proper_cgs_cm_unyt = np.asarray(result.mesh.x_proper_code, dtype=float) * code_units.length_unit
+    radius_proper_cgs_cm_unyt = radius_proper_code * code_units.length_unit
     rho_proper_cgs_g_cm3_unyt = equilibrium_density(
         radius_proper_cgs_cm_unyt,
         initial['rho_central_proper'],
         initial['radius_polytropic_proper'],
     )
     k_poly_cgs = polytropic_constant(initial['radius_polytropic_proper'])
-    result.fluid.rho_proper_code = quantity_to_value(rho_proper_cgs_g_cm3_unyt, code_units.density_unit)
-    result.fluid.temp_proper_code = quantity_to_value(
-        equilibrium_temperature(rho_proper_cgs_g_cm3_unyt, k_poly_cgs, initial['mu_dimensionless']),
-        code_units.temperature_unit,
+    temperature_proper_unyt = equilibrium_temperature(
+        rho_proper_cgs_g_cm3_unyt, k_poly_cgs, initial['mu_dimensionless']
     )
-    result.fluid.mu = np.ones(grid_cells) * initial['mu_dimensionless']
     radius_fraction_dimensionless = radius_proper_cgs_cm_unyt / initial['radius_polytropic_proper']
-    result.fluid.vel_proper_code = float(
-        initial['vel_perturbation_dimensionless']
-    ) * np.asarray(radius_fraction_dimensionless, dtype=float)
-    result.fluid.SetUpFluid(result.par, result.mesh)
-    result.solver.SetConserved(result.mesh, result.fluid, verbose=0)
-    return Rsim.FromComponents(result.par, result.mesh, result.fluid, result.solver)
+    velocity_proper_code_unyt = float(initial['vel_perturbation_dimensionless']) * np.asarray(
+        radius_fraction_dimensionless, dtype=float
+    ) * code_units.velocity_unit
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(radius_proper_code * code_units.length_unit)
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_cgs_g_cm3_unyt)
+    writer.fluid.vel_radarray = writer.radarray(velocity_proper_code_unyt)
+    writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
+    writer.simulation.fluid.mu = np.full(grid_cells, float(initial['mu_dimensionless']))
+    writer.simulation.par.simulation.time_proper_code = quantity_to_value(
+        initial['time_proper'], code_units.time_unit
+    )
+    return writer
 
 
 def read_output(filename, config):
-    par = config['par']
-    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    result = Rsim(config["par"])
-    rio.readhdf5(result.par, result.mesh, result.fluid, filename)
-    result.mesh.x_proper_code = spherical_cell_centers(
-        result.mesh.boundary_proper_code
-    )
-    result.fluid.eos = EOS(
-        result.par.hydrodynamics.eos_type,
-        result.par.hydrodynamics.gamma,
-        code_units,
-    )
-    result.fluid.pre_proper_code = result.fluid.eos.pressure(
-        result.fluid.rho_proper_code,
-        result.fluid.temp_proper_code,
-        result.fluid.mu,
-    )
-    return result
+    return rio.loadhdf5(config, filename)

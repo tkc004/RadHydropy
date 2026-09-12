@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
+from radhydropy.eos import EOS
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
@@ -50,7 +51,7 @@ def _profile(sim, rho_proper_code, pre_proper_code):
     radius_proper_code = np.asarray(sim.mesh.x_proper_code[interior], dtype=float)
     code = sim.par.units.CodeUnits
     radius_proper_cgs_cm_unyt = radius_proper_code * code.length_unit
-    gravity = sim.par.gravity.model.acceleration_on_mesh(
+    gravity = sim.par.gravity.acceleration_on_mesh(
         sim.mesh, rho_proper_code, sim.par
     )[interior]
     gravity_cgs = quantity_to_value(
@@ -79,13 +80,12 @@ def _profile(sim, rho_proper_code, pre_proper_code):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    initial_mapping = config['initial_condition']
     eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     config['_code_units'] = code_units
     initial_condition = et.build_initial_condition(config)
     initial_filename = Path(config['par']['simulation']['initial_condition_filename'])
-    rio.writehdf5(initial_condition, initial_filename)
+    initial_condition.write(initial_filename, validate=True)
 
     config['par']['simulation']['initial_condition_filename'] = str(initial_filename)
     sim = Rsim(config['par'])
@@ -137,16 +137,40 @@ def main(config_filename=DEFAULT_CONFIG):
         raise FileNotFoundError('no output snapshots were written')
     final = et.read_output(output, config)
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
+    initial_mapping = config['initial_condition']
     k_poly_cgs = et.polytropic_constant(initial_mapping['radius_polytropic_proper'])
-    radius_proper_cgs_cm_unyt = np.asarray(final.mesh.x_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.length_unit
-    rho_final = np.asarray(final.fluid.rho_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.density_unit
-    pressure_final = np.asarray(final.fluid.pre_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.pressure_unit
+    code_units = sim.par.units.CodeUnits
+    boundary_proper_code = quantity_to_value(
+        final.mesh.boundary_radarray, code_units.length_unit
+    )
+    radius_proper_code = et.spherical_cell_centers(boundary_proper_code)[interior]
+    radius_proper_cgs_cm_unyt = radius_proper_code * code_units.length_unit
+    rho_final = final.fluid.rho_radarray[interior].to(code_units.density_unit)
+    rho_final_proper_code = quantity_to_value(rho_final, code_units.density_unit)
+    temperature_final_proper_code = quantity_to_value(
+        final.fluid.temp_radarray[interior], code_units.temperature_unit
+    )
+    final_eos = EOS(
+        final.par.hydrodynamics.eos_type,
+        final.par.hydrodynamics.gamma,
+        code_units,
+    )
+    pressure_final = final_eos.pressure(
+        rho_final_proper_code,
+        temperature_final_proper_code,
+        final.fluid.mu[interior],
+    ) * code_units.pressure_unit
     rho_expected_proper_cgs_g_cm3_unyt = et.equilibrium_density(
         radius_proper_cgs_cm_unyt,
         initial_mapping['rho_central_proper'],
         initial_mapping['radius_polytropic_proper'],
     )
-    radius_proper_cgs_cm_unyt, gravity_cgs, residual = _profile(sim, final.fluid.rho_proper_code, pressure_final)
+    rho_profile_proper_code = quantity_to_value(
+        final.fluid.rho_radarray, code_units.density_unit
+    )
+    radius_proper_cgs_cm_unyt, gravity_cgs, residual = _profile(
+        sim, rho_profile_proper_code, pressure_final
+    )
     rho_error = np.max(np.abs((rho_final - rho_expected_proper_cgs_g_cm3_unyt) / rho_expected_proper_cgs_g_cm3_unyt))
     residual_scale = np.max(np.abs(rho_final * gravity_cgs))
     residual_norm = np.max(np.abs(residual)) / max(residual_scale, np.finfo(float).tiny)
@@ -157,8 +181,7 @@ def main(config_filename=DEFAULT_CONFIG):
     rho_final_cgs = quantity_to_value(rho_final, 'g/cm**3')
     rho_expected_proper_cgs_g_cm3 = quantity_to_value(rho_expected_proper_cgs_g_cm3_unyt, 'g/cm**3')
     vel_proper_cgs_cm_s = quantity_to_value(
-        np.asarray(final.fluid.vel_proper_code[interior], dtype=float) * sim.par.units.CodeUnits.velocity_unit,
-        'cm/s',
+        final.fluid.vel_radarray[interior].to(code_units.velocity_unit), 'cm/s'
     )
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))
     axes[0].plot(radius_proper_pc, rho_final_cgs, label='final')
