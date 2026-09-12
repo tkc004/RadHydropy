@@ -19,7 +19,7 @@ import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
-import tools
+from example.OutflowSphVacuum1D import tools
 
 
 DEFAULT_CONFIG = Path(__file__).with_name('outflow_sph_vacuum1d.yaml')
@@ -35,9 +35,9 @@ def run(config_filename=DEFAULT_CONFIG):
     units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
     config['_code_units'] = units
     initial = tools.build_initial_condition(config)
-    rio.writehdf5(
-        initial,
+    initial.write(
         rundir / config["par"]['simulation']['initial_condition_filename'],
+        validate=False,
     )
 
     sim = Rsim(config["par"])
@@ -51,22 +51,28 @@ def run(config_filename=DEFAULT_CONFIG):
         Path(output['directory']).glob(f"{output['filename_prefix']}_*.hdf5")
     )
     for filename in output_files:
-        snapshot = Rsim(config["par"])
-        rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, filename)
-        rho_proper_code = np.asarray(snapshot.fluid.rho_proper_code, dtype=float)
-        temp_proper_code = np.asarray(snapshot.fluid.temp_proper_code, dtype=float)
+        snapshot = rio.loadhdf5(config, filename)
+        rho_proper_code = snapshot.fluid.rho_radarray.to(
+            units.density_unit
+        ).value
+        temp_proper_code = snapshot.fluid.temp_radarray.to(
+            units.temperature_unit
+        ).value
         energy_code = np.asarray(snapshot.fluid.Energy_code, dtype=float)
         if not (np.all(np.isfinite(rho_proper_code)) and np.all(rho_proper_code >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid density')
         if not (np.all(np.isfinite(energy_code)) and np.all(energy_code >= 0.0)):
             raise RuntimeError('vacuum outflow produced invalid energy')
-        profiles.append((float(snapshot.fluid.time_proper_code), rho_proper_code, temp_proper_code, np.asarray(snapshot.mesh.boundary_proper_code)))
+        boundary_proper_code = snapshot.mesh.boundary_radarray.to(
+            units.length_unit
+        ).value
+        profiles.append((float(snapshot.fluid.time_proper_code), rho_proper_code, temp_proper_code, boundary_proper_code))
 
     if not profiles:
         raise RuntimeError('vacuum outflow produced no output snapshots')
     filled = [
         np.count_nonzero(
-            rho[first:first + active_count] > config["par"]['hydrodynamics']['cfl_density_floor']
+            rho[first:first + active_count] > config["par"]['diagnostics']['cfl_density_floor']
         )
         for _, rho, _, _ in profiles
     ]

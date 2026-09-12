@@ -1,10 +1,8 @@
 """Initial condition and plotting helpers for outflow into vacuum."""
 
 import numpy as np
-from radhydropy.arrays import as_named_array
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def analytic_density_profile(radius_proper_code, time_proper_code, config, cell_faces=None):
@@ -12,7 +10,7 @@ def analytic_density_profile(radius_proper_code, time_proper_code, config, cell_
     radius_proper_code = np.asarray(radius_proper_code, dtype=float)
     initial = config['initial_condition']
     boundary = config['par']['boundary']
-    code_units = config['_code_units']
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     injection_radius_proper_code = quantity_to_value(
         initial['radius_injection_proper'], code_units.length_unit
     )
@@ -42,36 +40,31 @@ def analytic_density_profile(radius_proper_code, time_proper_code, config, cell_
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-    code_units = config['_code_units']
-    sim = Rsim(config['par'])
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     grid_cells = int(initial['grid_cells'])
-    sim.par.mesh.grid_cells = grid_cells
-    injection_radius_code = quantity_to_value(initial['radius_injection_proper'], code_units.length_unit)
-    box_size_code = quantity_to_value(initial['box_size_proper'], code_units.length_unit)
-    sim.mesh.boundary_proper_code = as_named_array(np.linspace(
-        injection_radius_code, injection_radius_code + box_size_code, grid_cells + 1
-    ))
-    sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells))
-    sim.fluid.temp_proper_code = as_named_array(np.zeros(grid_cells))
-    sim.fluid.rho_proper_code = as_named_array(np.zeros(grid_cells))
-    sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
-    sim.SetMesh()
-    sim.fluid.SetUpFluid(sim.par, sim.mesh)
-    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-    first = int(sim.par.mesh.ghost_cells)
-    last = first + grid_cells
-    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
-    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'mu', 'Energy_code', 'InternalEnergy_code'):
-        if hasattr(sim.fluid, field):
-            setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
-    sim.par.mesh.ghost_cells = 0
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=sim.mesh.x_proper_code[first:last],
-        boundary_proper_code=sim.mesh.boundary_proper_code,
-        width_proper_code=sim.mesh.width_proper_code[first:last],
-        area_proper_code=sim.mesh.area_proper_code[first:last],
-        volume_proper_code=sim.mesh.volume_proper_code[first:last],
+    boundary_proper_unyt = np.linspace(
+        0.0, 1.0, grid_cells + 1
+    ) * initial['box_size_proper'] + initial['radius_injection_proper']
+    inner_proper_unyt = boundary_proper_unyt[:-1]
+    outer_proper_unyt = boundary_proper_unyt[1:]
+    coordinate_proper_unyt = 0.75 * (
+        outer_proper_unyt**4 - inner_proper_unyt**4
+    ) / (outer_proper_unyt**3 - inner_proper_unyt**3)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units
     )
-    sim.fluid._refresh_runtime_state()
-    return sim
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * code_units.velocity_unit
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.zeros(grid_cells) * code_units.temperature_unit
+    )
+    writer.fluid.rho_radarray = writer.radarray(
+        np.zeros(grid_cells) * code_units.density_unit
+    )
+    writer.simulation.fluid.mu = np.full(
+        grid_cells, float(initial['mean_molecular_weight'])
+    )
+    return writer

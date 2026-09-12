@@ -23,10 +23,10 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.eos import EOS
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
-from basic_hydro_utils import make_initial_condition as make_canonical_initial_condition
 
 
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
@@ -38,34 +38,51 @@ def make_initial_condition(config):
     )
     ic = config['initial_condition']
     n = int(ic["grid_cells"])
-    box_size_proper_code = float(
-        ic["box_size_proper"].to_value(code_unit_system.length_unit)
+    boundary_proper_unyt = np.linspace(0.0, 1.0, n + 1) * ic["box_size_proper"]
+    coordinate_proper_unyt = 0.5 * (
+        boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]
     )
-    boundary_proper_code = np.linspace(0.0, box_size_proper_code, n + 1)
-    return make_canonical_initial_condition(
-        config,
-        boundary_proper_code=boundary_proper_code,
-        rho_proper_code=np.full(n, float(ic["rho_proper"].to_value("g/cm**3"))),
-        vel_proper_code=np.full(n, float(ic["vel_proper"].to_value(code_unit_system.velocity_unit))),
-        temp_proper_code=np.full(n, float(ic["temperature_proper"].to_value("K"))),
-        mu_dimensionless=np.full(n, float(ic["mean_molecular_weight"])),
+    writer = InitialConditionWriter(
+        par_config=config["par"], code_units=code_unit_system
     )
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(n) * ic["rho_proper"]
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.ones(n) * ic["vel_proper"]
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(n) * ic["temperature_proper"]
+    )
+    writer.simulation.fluid.mu = np.full(
+        n, float(ic["mean_molecular_weight"])
+    )
+    return writer
 
 
 def read_profile(filename, config):
     code_unit_system = CodeUnits.from_mapping(
         config['par']['units']['CodeUnits']
     )
-    sim = Rsim(config['par'])
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
+    sim = rio.loadhdf5(config, filename)
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
+    boundary_proper_code = sim.mesh.boundary_radarray.to(
+        code_unit_system.length_unit
+    ).value
     coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(boundary_proper_code**3)
-    rho_proper_code = np.asarray(sim.fluid.rho_proper_code, dtype=float)[first:last]
-    vel_proper_code = np.asarray(sim.fluid.vel_proper_code, dtype=float)[first:last]
-    temp_proper_code = np.asarray(sim.fluid.temp_proper_code, dtype=float)[first:last]
+    rho_proper_code = sim.fluid.rho_radarray.to(
+        code_unit_system.density_unit
+    ).value[first:last]
+    vel_proper_code = sim.fluid.vel_radarray.to(
+        code_unit_system.velocity_unit
+    ).value[first:last]
+    temp_proper_code = sim.fluid.temp_radarray.to(
+        code_unit_system.temperature_unit
+    ).value[first:last]
     mu_dimensionless = np.asarray(sim.fluid.mu, dtype=float)[first:last]
     eos = EOS(
         "polytropic",
@@ -83,7 +100,7 @@ def read_profile(filename, config):
         "pre_proper_code": pre_proper_code,
         "kinetic_energy_proper_code": float(np.sum(kinetic_energy_proper_code)),
         "thermal_energy_proper_code": float(np.sum(thermal_energy_proper_code)),
-        "time_proper_code": float(np.asarray(sim.par.time_proper_code).flat[0]),
+        "time_proper_code": float(np.asarray(sim.fluid.time_proper_code).flat[0]),
     }
 
 
@@ -102,6 +119,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     root = Path(config["par"]["output"]["directory"])
     root.mkdir(parents=True, exist_ok=True)
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    base_initial_condition = config["initial_condition"]
     all_profiles = {}
 
     for resolution in resolutions:
@@ -114,8 +132,9 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         initial_condition["grid_cells"] = resolution
         resolution_config["par"]["mesh"]["grid_cells"] = resolution
         initial = make_initial_condition(resolution_config)
-        rio.writehdf5(
-            initial, resolution_config["par"]["simulation"]["initial_condition_filename"]
+        initial.write(
+            resolution_config["par"]["simulation"]["initial_condition_filename"],
+            validate=True,
         )
 
         sim = Rsim(resolution_config["par"])

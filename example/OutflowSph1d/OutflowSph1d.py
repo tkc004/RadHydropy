@@ -24,7 +24,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import radhydropy.io as rio
 import example_utils as eu
-import tools as et
+from example.OutflowSph1d import tools as et
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('OutflowSph1d.yaml')
@@ -41,7 +41,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     config['_code_units'] = code_units_obj
     ric = et.build_initial_condition(config)
-    rio.writehdf5(ric, config["par"]['simulation']['initial_condition_filename'])
+    ric.write(config["par"]['simulation']['initial_condition_filename'], validate=True)
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()

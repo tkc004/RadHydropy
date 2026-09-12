@@ -6,65 +6,46 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits
 
 
 def build_initial_condition(config):
     initial = config['initial_condition']
-    code_units = config['_code_units']
-    sim = Rsim(config['par'])
     grid_cells = int(initial['grid_cells'])
-    sim.par.mesh.grid_cells = grid_cells
-    sim.mesh.boundary_proper_code = as_named_array(np.linspace(
-        0.0, quantity_to_value(initial['box_size_proper'], code_units.length_unit), grid_cells + 1
-    ))
-    sim.fluid.vel_proper_code = as_named_array(np.full(
-        grid_cells, quantity_to_value(initial['vel_proper'], code_units.velocity_unit)
-    ))
-    sim.fluid.temp_proper_code = as_named_array(np.full(
-        grid_cells, quantity_to_value(initial['temperature_proper'], code_units.temperature_unit)
-    ))
-    sim.fluid.rho_proper_code = as_named_array(np.full(
-        grid_cells, quantity_to_value(initial['rho_proper'], code_units.density_unit)
-    ))
-    sim.fluid.mu = as_named_array(np.full(grid_cells, initial['mean_molecular_weight']))
-    sim.SetMesh()
-    sim.fluid.SetUpFluid(sim.par, sim.mesh)
-    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-    first = int(sim.par.mesh.ghost_cells)
-    last = first + grid_cells
-    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
-    for field in ('rho_proper_code', 'vel_proper_code', 'temp_proper_code', 'mu', 'Energy_code', 'InternalEnergy_code'):
-        if hasattr(sim.fluid, field):
-            setattr(sim.fluid, field, as_named_array(getattr(sim.fluid, field)[first:last]))
-    sim.par.mesh.ghost_cells = 0
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=sim.mesh.x_proper_code[first:last],
-        boundary_proper_code=sim.mesh.boundary_proper_code,
-        width_proper_code=sim.mesh.width_proper_code[first:last],
-        area_proper_code=sim.mesh.area_proper_code[first:last],
-        volume_proper_code=sim.mesh.volume_proper_code[first:last],
+    boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
+    coordinate_proper_unyt = 0.5 * (
+        boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]
     )
-    sim.fluid._refresh_runtime_state()
-    return sim
+    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
+    writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['vel_proper']
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['temperature_proper']
+    )
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['rho_proper']
+    )
+    writer.simulation.fluid.mu = np.full(
+        grid_cells, float(initial['mean_molecular_weight'])
+    )
+    return writer
 
 def plot_snapshot(outfilename, config, **kwargs):
 
-    rout = Rsim(config["par"])
+    rout = rio.loadhdf5(config, outfilename)
     code_units_obj = config['_code_units']
-    rout.par.units.CodeUnits = code_units_obj
-    rout.par.unit_system = code_units_obj.unit_system
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
     first = int(rout.par.mesh.ghost_cells)
     last = first + int(rout.par.mesh.grid_cells)
-    boundary_proper_code = rout.mesh.boundary_proper_code
+    boundary_proper_code = rout.mesh.boundary_radarray.to(code_units_obj.length_unit).value
     x_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
+    rho_proper_code = rout.fluid.rho_radarray.to(code_units_obj.density_unit).value
     plt.plot(x_proper_code[first:last] * code_units_obj.length_unit,
-             rout.fluid.rho_proper_code[first:last] * code_units_obj.density_unit,
+             rho_proper_code[first:last] * code_units_obj.density_unit,
              **kwargs)
     plt.axvline(
         x=(rout.fluid.time_proper_code * code_units_obj.time_unit)
