@@ -7,7 +7,7 @@ import unyt
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import quantity_to_value
-import SedovTaylor_analytic as sa
+from example.SedovTaylor1D import SedovTaylor_analytic as sa
 
 def set_plot_style():
     plt.rcParams.update({"figure.figsize": (18, 6), "font.size": 14})
@@ -25,10 +25,11 @@ def build_initial_condition(config):
     cut = 1
     energy_proper_code = quantity_to_value(ic["explosion_energy"], units.energy_unit)
     pre_proper_code = (par["hydrodynamics"]["gamma"]-1) * energy_proper_code / volume_proper_code[cut]
-    from radhydropy.rsim import Rsim
-    probe = Rsim(config["par"]).fluid.eos.temperature(rho_proper_code[cut], pre_proper_code, mu_dimensionless[cut])
-    temp_proper_code[cut] = float(np.asarray(probe))
     writer = InitialConditionWriter(par_config=par, code_units=units)
+    probe = writer.simulation.fluid.eos.temperature(
+        rho_proper_code[cut], pre_proper_code, mu_dimensionless[cut]
+    )
+    temp_proper_code[cut] = float(np.asarray(probe))
     writer.box_size = writer.radquantity(size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(unyt.unyt_array(rho_proper_code, units.density_unit))
@@ -39,23 +40,47 @@ def build_initial_condition(config):
 
 def plot_snapshot(filename, config, **kwargs):
     sim = rio.loadhdf5(config, filename)
-    first=int(sim.par.mesh.ghost_cells); last=first+int(sim.par.mesh.grid_cells)
-    b=np.asarray(sim.mesh.boundary_radarray.to_value(config["_code_units"].length_unit))
-    x=.5*(b[:-1]+b[1:])[first:last]
+    grid_cells = int(sim.par.mesh.grid_cells)
+    ghost_cells = int(sim.par.mesh.ghost_cells)
+    units = config["_code_units"]
+    boundary_values = np.asarray(
+        sim.mesh.boundary_radarray.to(units.length_unit).value,
+        dtype=float,
+    )
+    if boundary_values.size == grid_cells + 1:
+        boundary_active = boundary_values
+    elif boundary_values.size == grid_cells + 2 * ghost_cells + 1:
+        boundary_active = boundary_values[ghost_cells:ghost_cells + grid_cells + 1]
+    else:
+        raise ValueError("unexpected Sedov Cartesian boundary RadArray shape")
+    x = .5 * (boundary_active[:-1] + boundary_active[1:])
     box_size_proper_code = quantity_to_value(
         config["initial_condition"]["box_size_proper"],
-        config["_code_units"].length_unit,
+        units.length_unit,
     )
     left_half = x <= 0.5 * box_size_proper_code
-    rho_proper_code = sim.fluid.rho_radarray.to_value(config["_code_units"].density_unit)
-    temp_proper_code = sim.fluid.temp_radarray.to_value(config["_code_units"].temperature_unit)
-    vel_proper_code = sim.fluid.vel_radarray.to_value(config["_code_units"].velocity_unit)
-    pre_proper_code = sim.fluid.eos.pressure(rho_proper_code, temp_proper_code, sim.fluid.mu)
+    def active_values(radarray, unit):
+        values = np.asarray(radarray.to(unit).value, dtype=float)
+        if values.size == grid_cells:
+            return values
+        if values.size == grid_cells + 2 * ghost_cells:
+            return values[ghost_cells:ghost_cells + grid_cells]
+        raise ValueError("unexpected Sedov Cartesian fluid RadArray shape")
+
+    rho_proper_code = active_values(sim.fluid.rho_radarray, units.density_unit)
+    temp_proper_code = active_values(sim.fluid.temp_radarray, units.temperature_unit)
+    vel_proper_code = active_values(sim.fluid.vel_radarray, units.velocity_unit)
+    mu_values = np.asarray(sim.fluid.mu, dtype=float)
+    if mu_values.size != grid_cells:
+        mu_values = mu_values[ghost_cells:ghost_cells + grid_cells]
+    pre_proper_code = sim.fluid.eos.pressure(
+        rho_proper_code, temp_proper_code, mu_values
+    )
     color = kwargs.get("color")
-    plt.subplot(1,3,1); plt.plot(x[left_half], np.asarray(pre_proper_code)[first:last][left_half], **kwargs)
-    plt.subplot(1,3,2); plt.plot(x[left_half], vel_proper_code[first:last][left_half], **kwargs)
-    plt.subplot(1,3,3); plt.plot(x[left_half], rho_proper_code[first:last][left_half], **kwargs)
-    time_proper_unyt = float(np.asarray(sim.fluid.time_proper_code).flat[0]) * config["_code_units"].time_unit
+    plt.subplot(1,3,1); plt.plot(x[left_half], np.asarray(pre_proper_code)[left_half], **kwargs)
+    plt.subplot(1,3,2); plt.plot(x[left_half], vel_proper_code[left_half], **kwargs)
+    plt.subplot(1,3,3); plt.plot(x[left_half], rho_proper_code[left_half], **kwargs)
+    time_proper_unyt = float(np.asarray(sim.fluid.time_proper_code).flat[0]) * units.time_unit
     if time_proper_unyt > 0.0 * unyt.s:
         ic, par, units = config["initial_condition"], config["par"], config["_code_units"]
         explosion_energy_unyt = ic["explosion_energy"]

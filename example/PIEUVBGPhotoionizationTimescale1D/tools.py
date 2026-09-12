@@ -22,7 +22,7 @@ def build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial['temperature_proper'])
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.ngamma_radarray = writer.radarray(
-        np.zeros(grid_cells) / unyt.cm**3, field_name='ngamma_code', representation=None
+        np.zeros(grid_cells) / unyt.cm**3
     )
     writer.simulation.fluid.xHI = np.ones(grid_cells)
     writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])

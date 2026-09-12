@@ -155,6 +155,7 @@ class InitialConditionWriter:
                 "vel_supercomoving_code",
                 "temp_supercomoving_code",
                 "pre_supercomoving_code",
+                "ngamma_comoving_code",
             )
             if cosmological_schema
             else (
@@ -163,15 +164,19 @@ class InitialConditionWriter:
                 "vel_proper_code",
                 "temp_proper_code",
                 "pre_proper_code",
+                "ngamma_proper_code",
             )
         )
         if representation is not None:
             representation_fields = {
                 "proper": (
                     "boundary_proper_code", "rho_proper_code", "vel_proper_code",
-                    "temp_proper_code", "pre_proper_code",
+                    "temp_proper_code", "pre_proper_code", "ngamma_proper_code",
                 ),
-                "comoving": ("boundary_comoving_code", "rho_comoving_code"),
+                "comoving": (
+                    "boundary_comoving_code", "rho_comoving_code",
+                    "ngamma_comoving_code",
+                ),
                 "supercomoving": (
                     "vel_supercomoving_code", "temp_supercomoving_code",
                     "pre_supercomoving_code",
@@ -201,6 +206,8 @@ class InitialConditionWriter:
             "temp_supercomoving_code": self.code_units.temperature_unit,
             "pre_proper_code": self.code_units.pressure_unit,
             "pre_supercomoving_code": self.code_units.pressure_unit,
+            "ngamma_proper_code": self.code_units.number_density_unit,
+            "ngamma_comoving_code": self.code_units.number_density_unit,
         }
         if representation is not None:
             field_units = tuple(field_units_by_name[name] for name in field_names)
@@ -355,6 +362,8 @@ class InitialConditionWriter:
             "temp_proper_code": "temp_radarray",
             "pre_supercomoving_code": "pre_radarray",
             "pre_proper_code": "pre_radarray",
+            "ngamma_comoving_code": "ngamma_radarray",
+            "ngamma_proper_code": "ngamma_radarray",
         }.get(field_name)
         source_field = {
             "boundary_comoving_code": "boundary_proper_code",
@@ -362,6 +371,7 @@ class InitialConditionWriter:
             "vel_supercomoving_code": "vel_proper_code",
             "temp_supercomoving_code": "temp_proper_code",
             "pre_supercomoving_code": "pre_proper_code",
+            "ngamma_comoving_code": "ngamma_proper_code",
         }.get(field_name)
         value = self._fields.get(field_name)
         # A prepared runtime simulation owns the canonical target field.  Use
@@ -613,8 +623,35 @@ class InitialConditionWriter:
             area_values = np.asarray(getattr(geometry_state, "area_proper_code" if not cosmological_schema else "area_comoving_code"), dtype=float)
             volume_values = np.asarray(getattr(geometry_state, "volume_proper_code" if not cosmological_schema else "volume_comoving_code"), dtype=float)
         else:
-            area_values = np.ones_like(width_values)
-            volume_values = width_values.copy()
+            coordinate_system = getattr(
+                getattr(par, "simulation", None), "coordinate_system", "cartesian"
+            )
+            if cosmological_schema or coordinate_system == "cartesian":
+                area_values = np.ones_like(width_values)
+                if not cosmological_schema:
+                    area_config = getattr(getattr(par, "mesh", None), "area_proper", None)
+                    if area_config is not None:
+                        area_values *= float(
+                            area_config.to_value(self.code_units.area_unit)
+                        )
+                volume_values = width_values * area_values
+            elif coordinate_system == "spherical":
+                inner_radius_values = boundary_values[:-1]
+                outer_radius_values = boundary_values[1:]
+                area_values = 4.0 * np.pi * inner_radius_values**2
+                volume_values = (
+                    4.0 * np.pi / 3.0
+                    * (outer_radius_values**3 - inner_radius_values**3)
+                )
+                volume_denominator = outer_radius_values**3 - inner_radius_values**3
+                x_values = 0.5 * (inner_radius_values + outer_radius_values)
+                nonzero_volume = volume_denominator != 0.0
+                x_values[nonzero_volume] = 0.75 * (
+                    outer_radius_values[nonzero_volume]**4
+                    - inner_radius_values[nonzero_volume]**4
+                ) / volume_denominator[nonzero_volume]
+            else:
+                raise ValueError(f"unsupported coordinate system {coordinate_system!r}")
 
         source_x = self._fields.get(
             "x_proper_code" if not cosmological_schema else "x_comoving_code"
@@ -648,9 +685,14 @@ class InitialConditionWriter:
         setattr(fluid, velocity_field, velocity_values)
         setattr(fluid, temperature_field, temperature_values)
         setattr(fluid, pressure_field, pressure_values)
-        ngamma_radarray = self._fields.get("ngamma_radarray")
-        if ngamma_radarray is not None:
-            fluid.ngamma_code = self._code_values(ngamma_radarray)
+        ngamma_field = (
+            "ngamma_comoving_code" if cosmological_schema else "ngamma_proper_code"
+        )
+        source_ngamma = self._field(ngamma_field, fluid, required=False)
+        if source_ngamma is not None:
+            fluid.ngamma_code = self._convert(
+                source_ngamma, ngamma_field, context=context,
+            )
         specific_angular_momentum = getattr(
             fluid, "specific_angular_momentum_radarray", None
         )

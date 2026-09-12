@@ -26,10 +26,8 @@ if str(example_root) not in sys.path:
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-from radhydropy.rsim import Rsim
-from radhydropy.arrays import as_named_array
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 import radhydropy.io as rio
 import example_utils as eu
 
@@ -38,69 +36,48 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiation_pressure_slab1d.y
 
 
 def build_initial_condition(config):
-
     initial = config['initial_condition']
+    code_units = config["_code_units"]
     grid_cells = int(config["par"]['mesh']['grid_cells'])
-    sim = Rsim(config["par"])
-    code_units = sim.par.units.CodeUnits
-    sim.par.simulation.box_size_proper_code = quantity_to_value(
-        initial['box_size_proper'], code_units.length_unit
+    writer = InitialConditionWriter(par_config=config["par"], code_units=code_units)
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(
+        np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
     )
-    sim.par.simulation.time_proper_code = quantity_to_value(
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['rho_proper']
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['vel_proper']
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['temperature_proper']
+    )
+    writer.simulation.fluid.mu = np.full(
+        grid_cells, initial['mean_molecular_weight']
+    )
+    writer.simulation.fluid.xHI = np.full(
+        grid_cells, config["par"]['chemistry']['hydrogen_xHI_initial']
+    )
+    writer.simulation.par.simulation.time_proper_code = quantity_to_value(
         initial.get('time_proper', 0.0 * unyt.s), code_units.time_unit
     )
-    sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
-        code_units.length_unit,
-    ))
-    boundary_proper_code = sim.mesh.boundary_proper_code
-    width_proper_code = np.diff(boundary_proper_code)
-    area_proper_code = np.ones(grid_cells) * quantity_to_value(
-        config["par"]['mesh']['area_proper'], code_units.area_unit
-    )
-    volume_proper_code = width_proper_code * area_proper_code
-    coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=coordinate_proper_code,
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=width_proper_code,
-        area_proper_code=area_proper_code,
-        volume_proper_code=volume_proper_code,
-    )
-    sim.fluid.rho_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['rho_proper'], code_units.density_unit
-    ))
-    sim.fluid.vel_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['vel_proper'], code_units.velocity_unit
-    ))
-    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * initial['temperature_proper'], code_units.temperature_unit
-    ))
-    sim.fluid.mu = np.ones(grid_cells) * initial['mean_molecular_weight']
-    sim.fluid.xHI = np.ones(
-        grid_cells
-    ) * config["par"]['chemistry']['hydrogen_xHI_initial']
-    sim.fluid.SetFluidTime(sim.par.simulation.time_proper_code)
-    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    sim.fluid.SetPressure()
-    sim.fluid._refresh_runtime_state()
-    return sim
+    return writer
 
 
 def write_initial_condition(config):
-    sim = build_initial_condition(config)
-    rio.writehdf5(sim, config['par']['simulation']['initial_condition_filename'])
+    writer = build_initial_condition(config)
+    writer.write(config['par']['simulation']['initial_condition_filename'], validate=True)
 
 
 def _total_momentum(fluid, config):
-    par = config['_output_par']
+    par = config['_runtime_par']
     interior = slice(par.mesh.ghost_cells, par.mesh.ghost_cells + par.mesh.grid_cells)
     return float(np.sum(np.asarray(fluid.Mom_code[interior], dtype=float)))
 
 
 def _absorbed_momentum(source_result, mesh, config, dt):
-    par = config['_output_par']
+    par = config['_runtime_par']
     absorbed = source_result.get("absorbed_photon_rate")
     energies = source_result.get("photon_energy_cgs_erg")
     if absorbed is None or energies is None:
@@ -119,21 +96,19 @@ def _absorbed_momentum(source_result, mesh, config, dt):
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
+    config['_code_units'] = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
     eu.clean_previous_outputs(config)
     write_initial_condition(config)
 
-    sim = Rsim(config["par"])
-    rio.readhdf5(
-        sim.par,
-        sim.mesh,
-        sim.fluid,
-        config["par"]['simulation']['initial_condition_filename'],
+    sim = rio.loadhdf5(
+        config, config["par"]['simulation']['initial_condition_filename']
     )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    config['_output_par'] = sim.par
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
+    config['_runtime_par'] = sim.par
 
     time_s = [0.0]
     gas_momentum = [_total_momentum(sim.fluid, config)]

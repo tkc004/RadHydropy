@@ -23,10 +23,8 @@ os.environ.setdefault(
 
 import example_utils as eu
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.arrays import as_named_array
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import quantity_to_value
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("thin_shell_ode.yaml")
@@ -37,50 +35,34 @@ def _build_initial_condition(config):
     """Write a one-cell, fixed-mass shell IC in the normal example format."""
 
     initial = config['initial_condition']
-    sim = Rsim(config["par"])
-    code = sim.par.units.CodeUnits
+    code = config["_code_units"]
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     if grid_cells != 1:
         raise ValueError('thin-shell IC requires exactly one active grid cell')
-    sim.par.simulation.box_size_proper_code = quantity_to_value(
-        initial['box_size_proper'], code.length_unit
+    writer = InitialConditionWriter(par_config=config["par"], code_units=code)
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(
+        np.array([0.0, 1.0]) * initial['box_size_proper']
     )
-    sim.par.simulation.time_proper_code = 0.0
-    boundary_proper_code = as_named_array(quantity_to_value(
-        np.array([0.0, initial['box_size_proper'].to_value(unyt.cm)]) * unyt.cm,
-        code.length_unit,
-    ))
-    area_proper_code = quantity_to_value(config["par"]['mesh']['area_proper'], code.area_unit)
-    width_proper_code = np.diff(boundary_proper_code)
-    volume_proper_code = width_proper_code * area_proper_code
-    sim.mesh.boundary_proper_code = boundary_proper_code
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1]),
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=width_proper_code,
-        area_proper_code=np.ones(1) * area_proper_code,
-        volume_proper_code=volume_proper_code,
+    shell_mass_unyt = initial['shell_mass']
+    shell_volume_proper_unyt = (
+        initial['box_size_proper'] * config["par"]['mesh']['area_proper']
     )
-    shell_mass = initial['shell_mass'].to_value(unyt.g)
-    sim.fluid.rho_proper_code = as_named_array(
-        np.array([shell_mass]) / volume_proper_code
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(1) * (shell_mass_unyt / shell_volume_proper_unyt)
     )
-    sim.fluid.vel_proper_code = as_named_array(np.zeros(1, dtype=float))
-    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.array([initial['temperature_proper']]), code.temperature_unit
-    ))
-    sim.fluid.mu = np.ones(1)
-    sim.fluid.SetFluidTime(0.0)
-    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    sim.fluid.SetPressure()
-    sim.fluid._refresh_runtime_state()
-    return sim
+    writer.fluid.vel_radarray = writer.radarray(np.zeros(1) * code.velocity_unit)
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(1) * initial['temperature_proper']
+    )
+    writer.simulation.fluid.mu = np.ones(1)
+    writer.simulation.par.simulation.time_proper_code = 0.0
+    return writer
 
 
 def _write_initial_condition(config):
-    sim = _build_initial_condition(config)
-    rio.writehdf5(sim, config['par']['simulation']['initial_condition_filename'])
+    writer = _build_initial_condition(config)
+    writer.write(config['par']['simulation']['initial_condition_filename'], validate=True)
 
 
 def _source_step(
@@ -119,22 +101,20 @@ def _source_step(
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
+    config['_code_units'] = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
 
     initial = config['initial_condition']
     eu.clean_previous_outputs(config)
     Path(config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     _write_initial_condition(config)
 
-    sim = Rsim(config["par"])
-    rio.readhdf5(
-        sim.par,
-        sim.mesh,
-        sim.fluid,
-        config["par"]['simulation']['initial_condition_filename'],
+    sim = rio.loadhdf5(
+        config, config["par"]['simulation']['initial_condition_filename']
     )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
 
     code = sim.par.units.CodeUnits
     luminosity_cgs_erg_s = config["par"]["radiation"]["radiation_pressure_source_luminosity"].to_value(

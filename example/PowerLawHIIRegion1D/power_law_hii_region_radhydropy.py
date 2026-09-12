@@ -76,8 +76,6 @@ def build_initial_condition(config):
     )
     writer.fluid.ngamma_radarray = writer.radarray(
         np.zeros(ncell) / unyt.cm**3,
-        field_name="ngamma_code",
-        representation=None,
     )
     writer.simulation.fluid.xHI = as_named_array(np.ones(ncell))
     writer.simulation.fluid.mu = as_named_array(np.ones(ncell))

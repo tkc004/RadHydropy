@@ -175,6 +175,18 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
         np.testing.assert_allclose(proper.value, expected_proper)
         np.testing.assert_allclose(round_trip.value, result.value)
 
+    photon_comoving = writer.radarray(
+        5.0 * code_units.number_density_unit,
+        representation="comoving",
+    )
+    assert photon_comoving.field_spec.quantity == "number_density"
+    assert photon_comoving.representation == "comoving"
+    np.testing.assert_allclose(photon_comoving.to_proper().value, 40.0)
+    np.testing.assert_allclose(
+        photon_comoving.to_proper().to_comoving().value,
+        photon_comoving.value,
+    )
+
     with pytest.warns(UserWarning, match="representation='proper'.*cosmological"):
         proper = writer.radarray(6.0 * code_units.density_unit)
     assert proper.field_spec.quantity == "mass_density"

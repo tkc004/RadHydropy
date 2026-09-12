@@ -34,10 +34,8 @@ def build_initial_condition(config):
         initial['time_proper'], code_units.time_unit
     )
     writer.simulation.fluid.xHI = as_named_array(np.full(grid_cells, initial['neutral_fraction']))
-    writer.simulation.fluid.ngamma_code = as_named_array(
-        (np.ones(grid_cells) * initial['photon_number_density']).to_value(
-            code_units.number_density_unit
-        )
+    writer.fluid.ngamma_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['photon_number_density']
     )
     writer.simulation.fluid.mu = as_named_array(
         np.full(grid_cells, initial['mean_molecular_weight'])

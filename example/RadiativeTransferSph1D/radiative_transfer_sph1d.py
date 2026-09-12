@@ -33,9 +33,9 @@ os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
 os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
 
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
 import example_utils as eu
 import tools as et
+from radhydropy.units import CodeUnits
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name('radiative_transfer_sph1d.yaml')
@@ -47,6 +47,7 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
 
     config = nested
+    config['_code_units'] = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     eu.clean_previous_outputs(nested)
 
     Path(nested["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
@@ -54,8 +55,9 @@ def main(config_filename=DEFAULT_CONFIG):
 
     et.write_initial_condition(config)
 
-    mainrun = Rsim(nested["par"])
-    rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
+    mainrun = rio.loadhdf5(
+        config, nested["par"]['simulation']['initial_condition_filename']
+    )
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
@@ -67,11 +69,9 @@ def main(config_filename=DEFAULT_CONFIG):
     rio.write_numbered_hdf5(mainrun, 0)
 
     output_filename = Path(nested["par"]['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
-    out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
-    config['_output_par'] = out_par
+    output_snapshot = et.load_output_state(output_filename, config)
     relative_error = et.save_plot(
-        out_mesh,
-        out_fluid,
+        output_snapshot,
         config,
         str(
             Path(nested["par"]['output']['directory'])

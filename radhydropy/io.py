@@ -382,6 +382,7 @@ def _attach_radarray_views(group, target, dataset_names, canonical_schema,
             "vel_supercomoving_code": ("vel_radarray", "vel_supercomoving_code"),
             "temp_supercomoving_code": ("temp_radarray", "temp_supercomoving_code"),
             "pre_supercomoving_code": ("pre_radarray", "pre_supercomoving_code"),
+            "ngamma_code": ("ngamma_radarray", "ngamma_comoving_code"),
         }
     else:
         mapping = {
@@ -395,6 +396,7 @@ def _attach_radarray_views(group, target, dataset_names, canonical_schema,
             "temp_code": ("temp_radarray", "temp_proper_code"),
             "temp_proper_code": ("temp_radarray", "temp_proper_code"),
             "pre_proper_code": ("pre_radarray", "pre_proper_code"),
+            "ngamma_code": ("ngamma_radarray", "ngamma_proper_code"),
         }
     for dataset_name, (view_name, canonical_name) in mapping.items():
         if allowed_names is not None and dataset_name not in allowed_names:

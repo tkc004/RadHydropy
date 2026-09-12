@@ -104,6 +104,16 @@ _FIELD_DEFINITIONS = {
         "unit_property": "specific_angular_momentum_unit", "representation": "physical",
         "physical_relation": "physical = stored",
     },
+    "ngamma_proper_code": {
+        "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
+        "unit_property": "number_density_unit", "representation": "proper",
+        "physical_relation": "physical = stored",
+    },
+    "ngamma_comoving_code": {
+        "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
+        "unit_property": "number_density_unit", "representation": "comoving",
+        "physical_relation": "physical = stored / a**3",
+    },
     "ngamma_code": {
         "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
         "unit_property": "number_density_unit", "representation": "physical",

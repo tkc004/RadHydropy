@@ -7,7 +7,7 @@ import unyt
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import quantity_to_value
-from SedovTaylor_analytic import get_blastwave_solution
+from example.SedovTaylorSph1d.SedovTaylor_analytic import get_blastwave_solution
 
 def set_plot_style():
     plt.rcParams.update({"figure.figsize": (18, 6), "font.size": 14})
@@ -27,9 +27,15 @@ def build_initial_condition(config):
     cut = (coordinate_proper_code < quantity_to_value(ic["radius_explosion_proper"], units.length_unit)) & (coordinate_proper_code >= boundary_proper_code[0])
     energy_proper_code = quantity_to_value(ic["explosion_energy"], units.energy_unit)
     pre_proper_code = (float(par["hydrodynamics"]["gamma"]) - 1) * energy_proper_code / np.sum(volume_proper_code[cut])
-    from radhydropy.rsim import Rsim
-    temp_proper_code[cut] = np.asarray(Rsim(config["par"]).fluid.eos.temperature(rho_proper_code[cut], np.full(np.count_nonzero(cut), pre_proper_code), mu_dimensionless[cut]), dtype=float)
     writer = InitialConditionWriter(par_config=par, code_units=units)
+    temp_proper_code[cut] = np.asarray(
+        writer.simulation.fluid.eos.temperature(
+            rho_proper_code[cut],
+            np.full(np.count_nonzero(cut), pre_proper_code),
+            mu_dimensionless[cut],
+        ),
+        dtype=float,
+    )
     writer.box_size = writer.radquantity(start_proper_unyt + size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(unyt.unyt_array(rho_proper_code, units.density_unit))
@@ -42,17 +48,38 @@ def plot_snapshot(filename, config, **kwargs):
     sim = rio.loadhdf5(config, filename)
     units = config["_code_units"]
     first = int(sim.par.mesh.ghost_cells)
-    last = first + int(sim.par.mesh.grid_cells)
-    boundary_proper_code = np.asarray(sim.mesh.boundary_radarray.to_value(units.length_unit))
+    count = int(sim.par.mesh.grid_cells)
+    boundary_values = np.asarray(
+        sim.mesh.boundary_radarray.to(units.length_unit).value,
+        dtype=float,
+    )
+    if boundary_values.size == count + 1:
+        boundary_proper_code = boundary_values
+    elif boundary_values.size == count + 2 * first + 1:
+        boundary_proper_code = boundary_values[first:first + count + 1]
+    else:
+        raise ValueError("unexpected Sedov spherical boundary RadArray shape")
     coordinate_proper_code = .5 * (
         boundary_proper_code[:-1] + boundary_proper_code[1:]
-    )[first:last]
-    rho_proper_code = sim.fluid.rho_radarray.to_value(units.density_unit)
-    temp_proper_code = sim.fluid.temp_radarray.to_value(units.temperature_unit)
+    )
+
+    def active_values(radarray, unit):
+        values = np.asarray(radarray.to(unit).value, dtype=float)
+        if values.size == count:
+            return values
+        if values.size == count + 2 * first:
+            return values[first:first + count]
+        raise ValueError("unexpected Sedov spherical fluid RadArray shape")
+
+    rho_proper_code = active_values(sim.fluid.rho_radarray, units.density_unit)
+    temp_proper_code = active_values(sim.fluid.temp_radarray, units.temperature_unit)
+    mu_values = np.asarray(sim.fluid.mu, dtype=float)
+    if mu_values.size != count:
+        mu_values = mu_values[first:first + count]
     pressure_proper_code = sim.fluid.eos.pressure(
         rho_proper_code,
         temp_proper_code,
-        sim.fluid.mu,
+        mu_values,
     )
 
     length_cgs_per_code = float(units.length_unit.to_value("cm"))
@@ -62,56 +89,61 @@ def plot_snapshot(filename, config, **kwargs):
     time_cgs_per_code = float(units.time_unit.to_value("s"))
     coordinate_proper_cgs_cm = coordinate_proper_code * length_cgs_per_code
     pressure_proper_cgs_erg_cm3 = (
-        np.asarray(pressure_proper_code)[first:last] * pressure_cgs_per_code
+        np.asarray(pressure_proper_code) * pressure_cgs_per_code
     )
     velocity_proper_cgs_cm_s = (
-        sim.fluid.vel_radarray.to_value(units.velocity_unit)[first:last] * velocity_cgs_per_code
+        active_values(sim.fluid.vel_radarray, units.velocity_unit) * velocity_cgs_per_code
     )
     rho_proper_cgs_g_cm3 = (
-        rho_proper_code[first:last] * density_cgs_per_code
+        rho_proper_code * density_cgs_per_code
     )
 
     time_proper_cgs_s = (
         float(np.asarray(sim.fluid.time_proper_code).reshape(-1)[0])
         * time_cgs_per_code
     )
-    ic = config["initial_condition"]
-    analytic_radius_cgs_cm, analytic_rho_cgs_g_cm3, analytic_velocity_cgs_cm_s, analytic_pressure_cgs_erg_cm3, _ = get_blastwave_solution(
-        float(ic["explosion_energy"].to_value("erg")),
-        float(ic["rho_proper"].to_value("g/cm**3")),
-        3,
-        float(config["par"]["hydrodynamics"]["gamma"]),
-        0,
-        time_proper_cgs_s,
-    )
-    analytic_valid = (
-        np.isfinite(analytic_radius_cgs_cm)
-        & np.isfinite(analytic_rho_cgs_g_cm3)
-        & np.isfinite(analytic_velocity_cgs_cm_s)
-        & np.isfinite(analytic_pressure_cgs_erg_cm3)
-    )
+    analytic_valid = None
+    if time_proper_cgs_s > 0.0:
+        ic = config["initial_condition"]
+        analytic_radius_cgs_cm, analytic_rho_cgs_g_cm3, analytic_velocity_cgs_cm_s, analytic_pressure_cgs_erg_cm3, _ = get_blastwave_solution(
+            float(ic["explosion_energy"].to_value("erg")),
+            float(ic["rho_proper"].to_value("g/cm**3")),
+            3,
+            float(config["par"]["hydrodynamics"]["gamma"]),
+            0,
+            time_proper_cgs_s,
+        )
+        analytic_valid = (
+            np.isfinite(analytic_radius_cgs_cm)
+            & np.isfinite(analytic_rho_cgs_g_cm3)
+            & np.isfinite(analytic_velocity_cgs_cm_s)
+            & np.isfinite(analytic_pressure_cgs_erg_cm3)
+        )
 
     pressure_axis = plt.subplot(1, 3, 1)
     pressure_axis.plot(coordinate_proper_cgs_cm, pressure_proper_cgs_erg_cm3, **kwargs)
-    pressure_axis.plot(
-        analytic_radius_cgs_cm[analytic_valid],
-        analytic_pressure_cgs_erg_cm3[analytic_valid],
-        "k--",
-        linewidth=1.5,
-    )
+    if analytic_valid is not None:
+        pressure_axis.plot(
+            analytic_radius_cgs_cm[analytic_valid],
+            analytic_pressure_cgs_erg_cm3[analytic_valid],
+            "k--",
+            linewidth=1.5,
+        )
     velocity_axis = plt.subplot(1, 3, 2)
     velocity_axis.plot(coordinate_proper_cgs_cm, velocity_proper_cgs_cm_s, **kwargs)
-    velocity_axis.plot(
-        analytic_radius_cgs_cm[analytic_valid],
-        analytic_velocity_cgs_cm_s[analytic_valid],
-        "k--",
-        linewidth=1.5,
-    )
+    if analytic_valid is not None:
+        velocity_axis.plot(
+            analytic_radius_cgs_cm[analytic_valid],
+            analytic_velocity_cgs_cm_s[analytic_valid],
+            "k--",
+            linewidth=1.5,
+        )
     density_axis = plt.subplot(1, 3, 3)
     density_axis.plot(coordinate_proper_cgs_cm, rho_proper_cgs_g_cm3, **kwargs)
-    density_axis.plot(
-        analytic_radius_cgs_cm[analytic_valid],
-        analytic_rho_cgs_g_cm3[analytic_valid],
-        "k--",
-        linewidth=1.5,
-    )
+    if analytic_valid is not None:
+        density_axis.plot(
+            analytic_radius_cgs_cm[analytic_valid],
+            analytic_rho_cgs_g_cm3[analytic_valid],
+            "k--",
+            linewidth=1.5,
+        )

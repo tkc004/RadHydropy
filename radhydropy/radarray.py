@@ -125,6 +125,8 @@ class RadArray(unyt.unyt_array):
                 values / a ** (3.0 * (gamma - 1.0)),
                 "temp_proper_code",
             )
+        if quantity == "number_density":
+            return self._target(values / a**3, "ngamma_proper_code")
         if quantity == "pressure":
             gamma = self.cosmology.gamma
             return self._target(values / a ** (3.0 * gamma), "pre_proper_code")
@@ -164,6 +166,8 @@ class RadArray(unyt.unyt_array):
                 values * a ** (3.0 * (gamma - 1.0)),
                 "temp_supercomoving_code",
             )
+        if source.representation == "proper" and quantity == "number_density":
+            return self._target(values * a**3, "ngamma_comoving_code")
         if source.representation == "proper" and quantity == "pressure":
             gamma = self.cosmology.gamma
             return self._target(

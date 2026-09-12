@@ -100,7 +100,6 @@ def build_initial_condition(config):
     )
     writer.fluid.ngamma_radarray = writer.radarray(
         photon_number_density_cgs_cm3_unyt,
-        field_name="ngamma_code",
     )
     time_proper_code = quantity_to_value(
         initial.get("time_proper", 0.0 * units.time_unit),
