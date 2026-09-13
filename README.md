@@ -1,40 +1,20 @@
 # RadHydropy
 
-RadHydropy is a Python package for idealized one-dimensional hydrodynamics
-simulations. It is designed for Cartesian and spherical test problems, uses a
-shared internal code-unit system for runtime calculations, and reads/writes
-simulation state through HDF5 files.
+RadHydropy is a one-dimensional finite-volume hydrodynamics package for
+Cartesian and spherical test problems. It supports ideal-gas fluid evolution,
+gravity, thermo-chemistry, radiative transfer, cosmological coordinates, and
+HDF5-based initial conditions and snapshots.
 
-The code currently provides:
+The main user entry point is the example workflow:
 
-- mesh setup with ghost cells for Cartesian and spherical coordinates;
-- primitive and conserved fluid state handling;
-- ideal-gas pressure, temperature, energy-density, and sound-speed helpers;
-- a finite-volume hydrodynamics solver with GLF/Rusanov interface fluxes;
-- boundary-condition handling for periodic, open, reflecting, spherical open,
-  inflow, and outflow modes;
-- an optional chemistry composition selector with hydrogen microphysics now
-  organized under `radhydropy/chemistry_species/`, alongside implicit
-  neutral-fraction evolution and source-term subcycling;
-- optional one-dimensional long-characteristic radiative transfer coupled to
-  photon number density;
-- HDF5 input/output helpers; and
-- plotting utilities for one-dimensional outputs.
-
-The runtime requires a ``CodeUnits`` block in the run parameters, and the same
-unit system must be written into the HDF5 header. This is compulsory: RadHydropy
-does not fall back to cgs for current example workflows. Physical inputs are
-converted to that internal unit system at initialization, so the solver and
-source terms can work in a consistent code-unit space while the example YAML
-files still use readable physical units. Example-side helper functions can
-still present ``unyt``-friendly interfaces, but they should convert to code
-units or plain floats internally on hot paths.
-
-Full documentation: https://tkc004.github.io/RadHydropy/
+```text
+nested YAML → InitialConditionWriter → HDF5 initial condition
+            → Rsim → HDF5 snapshots → loadhdf5 and typed RadArray views
+```
 
 ## Installation
 
-Clone the repository and install it in editable mode:
+Install the package in editable mode:
 
 ```bash
 git clone <repository-url>
@@ -42,237 +22,179 @@ cd RadHydropy
 python -m pip install -e .
 ```
 
-The core package depends on `numpy`, `h5py`, and `unyt`. These are installed
-automatically from `pyproject.toml`.
-
-For development and documentation work, install the optional extras:
+For tests and documentation, install the optional dependencies:
 
 ```bash
 python -m pip install -e ".[test,docs]"
 ```
 
-Run the test suite with:
+## Run your first example
 
-```bash
-pytest
-```
-
-## Quick Start
-
-The fastest way to try the code is to run one of the bundled examples. For
-example, the Sod shock tube setup loads a YAML configuration, builds the
-initial-condition file, runs the coupled hydrodynamics update, writes
-`Output_*.hdf5` files, and plots the result:
+Run examples from their own directories so relative configuration paths and
+helper imports resolve correctly:
 
 ```bash
 cd example/SodShock1D
 python sodshock1d.py
 ```
 
-Every example is run from its own directory (or with paths relative to the
-repository root), and accepts its YAML file explicitly when variants exist:
+The script builds an HDF5 initial condition, runs the solver, and writes
+`Output_*.hdf5` files and a figure in the example directory.
+
+Examples with variants accept an explicit configuration:
 
 ```bash
-cd example/CosmologicalSodShock1D
-python cosmological_sod_shock1d.py --config cosmological_sod_shock1d.yaml
+cd example/StellarWindBubble1D
+python stellar_wind_bubble1d.py \
+  --config stellar_wind_bubble1d_no_metal.yaml
 ```
 
-The YAML boundary is complete and nested: `par` contains solver/runtime
-parameters, `initial_condition` contains only data used to build the HDF5 IC,
-and `example` contains plotting, comparison, and other workflow controls.
+Other useful starting points are:
 
-The latest examples follow the same pattern:
+```bash
+cd example/UniformEdSThermochemistry1D
+python uniform_eds_thermochemistry1d.py
 
-1. load the nested `par`, `initial_condition`, and `example` sections from
-   the example YAML file;
-2. convert YAML `{value, unit}` entries to `unyt` quantities with
-   `example_utils.load_nested_example_config()`;
-3. create and validate an HDF5 initial-condition file from `initial_condition`
-   with `InitialConditionWriter`;
-4. construct `Rsim` with nested runtime parameters;
-5. call `RunAll()`; and
-6. inspect or plot the output files.
-
-The builder prepares the initial condition; it does not evolve the simulation.
-After writing, use `Rsim` to run or `rio.loadhdf5(config_data, filename)` to
-load an IC or snapshot. The loader returns typed `*_radarray` views for
-dimensional mesh and fluid data. Builders with custom typed finalization may
-instead return an assembled `Rsim` state and serialize it with
-`rio.writehdf5`.
-
-The bundled YAML files define the internal unit system under
-`par.units.CodeUnits`:
-
-```yaml
-par:
-  units:
-    CodeUnits:
-      name: galactic_unit_system
-      InternalUnitSystem:
-        UnitMass_in_cgs: 4.92e31
-        UnitLength_in_cgs: 3.08567758e21
-        UnitVelocity_in_cgs: 1.0e5
-        UnitCurrent_in_cgs: 1.0
-        UnitTemp_in_cgs: 1.0
+cd ../StaticStromgrenSphere1D
+python static_stromgren_sphere1d.py
 ```
 
-That block is required for the current runtime path and must also be stored in
-the HDF5 header. The example loaders and startup conversion step use it to
-convert mesh, fluid, gravity, and source-term inputs once at initialization.
-Example helpers such as gravity profiles and hydrostatic reference solutions
-should accept ``unyt`` quantities at the script boundary but evaluate in code
-units or floats internally.
+## Minimal Python workflow
 
-The runner also exposes lower-level stepping methods when an example or test
-needs finer control:
-
-- `Step(mode="hydro")` advances only the finite-volume hydrodynamics update.
-- `Step(mode="sources")` advances thermo-chemistry and radiative-transfer
-  sources without a hydrodynamic flux update.
-- `Step(mode="hydro_sources")` performs the standard coupled update used by
-  the bundled examples.
-- `Evolve(final_time=...)` loops over `Step(...)` and returns counters for the
-  number of hydro and source updates.
-
-## Minimal Simulation Runner
-
-RadHydropy runs from a YAML example configuration plus an HDF5
-initial-condition file. The high-level `Rsim` class reads the initial
-condition, prepares mesh and fluid state, advances the solver, and writes HDF5
-outputs.
+The following is the standard pattern used by the bundled examples. Run it
+from `example/SodShock1D`:
 
 ```python
 from pathlib import Path
 
-from radhydropy.analysis import rplot1d
 import radhydropy.io as rio
 from example_utils import load_nested_example_config
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-import tools as et
-import matplotlib.pyplot as plt
+import tools as example_tools
 
-config = Path("example/SodShock1D/sodshock1d.yaml")
+config = Path("sodshock1d.yaml")
 config_data = load_nested_example_config(config)
-par_config = config_data["par"]
-code_units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
+config_data["_code_units"] = CodeUnits.from_mapping(
+    config_data["par"]["units"]["CodeUnits"]
+)
 
-config_data["_code_units"] = code_units
-writer = et.build_initial_condition(config_data)
+writer = example_tools.build_initial_condition(config_data)
 writer.write(
-    par_config["simulation"]["initial_condition_filename"],
+    config_data["par"]["simulation"]["initial_condition_filename"],
     validate=True,
 )
 
-sim = Rsim(par_config)
+sim = Rsim(config_data["par"])
 sim.RunAll()
 
-sim = rio.loadhdf5(config_data, "Output_001.hdf5")
-radii = sim.mesh.boundary_radarray
-density = sim.fluid.rho_radarray
-rplot1d(sim, yquan="rho")
-plt.show()
+snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
+radius = snapshot.mesh.boundary_radarray
+density = snapshot.fluid.rho_radarray
 ```
 
-This is the same pattern used by the example scripts: load the YAML
-file, generate ``InitialCondition.hdf5`` from ``initial_condition`` using the
-unit system under ``par.units.CodeUnits``, then launch the run with ``Rsim``.
-``build_initial_condition(config)`` receives the complete nested configuration
-and normally returns an ``InitialConditionWriter``; call ``write(...,
-validate=True)`` on it to
-serialize the initial condition. Builders returning an assembled ``Rsim``
-state may use ``rio.writehdf5`` instead.
-The helper converts ``{value, unit}`` mappings to ``unyt`` quantities and
-resolves paths against the example directory.
-The plotting step reloads the first output snapshot with ``loadhdf5`` and uses
-its ``*_radarray`` views for dimensional data before rendering the density
-profile.
+`InitialConditionWriter` constructs and validates the initial state. `Rsim`
+evolves it. `loadhdf5` reloads an initial condition or snapshot and exposes
+typed `*_radarray` views for dimensional mesh and fluid data.
 
-For maintained spherical examples, use ``OutflowSph`` rather than the
-experimental ``WindSph`` boundary. The current ``StellarWindBubble1D``
-no-metal configuration is validated with hydrodynamics ``order: 0``.
+## Configuration model
 
-To use explicit output times instead of a fixed cadence, set
-`par.output.time_list_filename` to a txt file whose first non-empty line is the
-time unit and whose remaining lines are the output times. Include the final
-simulation time if you want the last state written as an output snapshot. For
-example, the bundled example configs typically point to files such as
-``output_times.txt``:
+Every maintained example uses one complete nested YAML configuration:
 
-```text
-yr
-0.0
-1.0e4
-2.0e4
+| Section | Purpose |
+| --- | --- |
+| `par` | Runtime, mesh, solver, output, and code-unit settings |
+| `initial_condition` | Physical inputs used to build the initial state |
+| `example` | Plotting, comparison, and workflow-specific settings |
+
+The `par.units.CodeUnits` block is required. Physical YAML values use explicit
+`{value, unit}` mappings, for example:
+
+```yaml
+par:
+  simulation:
+    final_time: {value: 1.0, unit: s}
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  temperature_proper: {value: 1.0e4, unit: K}
 ```
 
+Use explicit representations in configuration and diagnostics, such as
+`rho_proper`, `temperature_proper`, `rho_proper_code`, and
+`rho_comoving_code`. Convert unit-bearing Python values with
+`quantity_to_value` or `.to_value()`.
 
-If you want manual control over the evolution loop, use the canonical stepping
-API directly:
+Maintained spherical examples use `OutflowSph`. The
+`StellarWindBubble1D` no-metal configuration is validated with hydrodynamics
+`order: 0`.
 
-```python
-step = sim.Step(mode="hydro_sources")
-print(step["dt"], step["hydro_steps"], step["source_steps"])
+## Development and validation
 
-counters = sim.Evolve(
-    final_time=sim.par.simulation.final_time,
-    mode="hydro_sources",
-)
-print(counters)
+Run the full test suite with:
+
+```bash
+python -m pytest
 ```
 
-For fixed-density thermo-chemistry tests such as the static Stromgren sphere,
-`Rsim.EvolveStaticThermochemistry(...)` evolves the thermo-chemistry and
-radiative-transfer source terms without a hydrodynamic update.
+For example or configuration changes, also run:
 
-## Project Layout
+```bash
+python -m pytest -q tests/test_example_alignment.py
+python -m sphinx -b html docs /tmp/radhydropy-docs
+git diff --check
+```
+
+## Project layout
 
 ```text
 RadHydropy/
-  radhydropy/             solver package
-    rsim/                 high-level run orchestration and lifecycle
-    solver/               finite-volume updates, fluxes, sources, and timesteps
-    thermo_networks/      hydrogen, H/He, CIE, PIE, Compton, and C²-Ray networks
+  radhydropy/             solver package and runtime APIs
+    rsim/                 run orchestration and lifecycle
+    solver/               finite-volume updates and source stepping
+    thermo_networks/      hydrogen, H/He, CIE, PIE, Compton, and C²-Ray
     chemistry_species/    species microphysics
     initial_condition_writer.py
-                          typed, validated IC construction boundary
-    radarray.py           representation-aware dimensional field views
+                          validated initial-condition construction
+    radarray.py           representation-aware dimensional fields
     units.py              code-unit definitions and conversions
-    cosmology.py          cosmological models and scale-factor helpers
+    cosmology.py          cosmological models and scale factors
     params.py             nested runtime parameters and defaults
     example_config.py     nested YAML configuration loading
     io.py                 HDF5 initial-condition and snapshot I/O
-  example/                runnable example problems and configurations
-    all_parameters_default.yaml
-                          complete nested ``par`` defaults
-    example_utils.py      shared IC-driven example loader and helpers
-    <ExampleName>/        scripts, strict nested YAML, plots, and diagnostics
-  docs/                   Sphinx documentation and detailed example pages
+  example/                runnable examples and configurations
+    example_utils.py      shared example loader and helpers
+    <ExampleName>/        scripts, YAML, plots, and diagnostics
+  docs/                   Sphinx documentation and example pages
   tests/                  unit and regression tests
     test_example_alignment.py
-                          repository-wide nested example/configuration audit
+                          nested example/configuration audit
   tools/                  spectrum-generation and supporting tools
-  .github/workflows/      documentation deployment workflow
-  .codex/skills/          repository-local RadHydropy skill guidance
-  pyproject.toml          package metadata and documentation dependencies
+  .github/workflows/      CI and documentation deployment
+  .codex/skills/          repository-local RadHydropy guidance
+  pyproject.toml          package metadata and dependencies
   README.md               project overview and usage guide
 ```
 
 ## Documentation
 
-The rendered docs include the installation guide, quickstart, example gallery,
-and API reference, plus standalone pages for the main simulation subsystems:
-
 - [Installation guide](docs/installation.rst)
 - [Quickstart](docs/quickstart.rst)
-- [Initial-condition parameters](docs/initial_conditions.rst)
-- [Hydrodynamics solver](docs/hydrodynamics.rst)
+- [Initial conditions](docs/initial_conditions.rst)
+- [Snapshots](docs/snapshots.rst)
+- [Hydrodynamics](docs/hydrodynamics.rst)
 - [Gravity](docs/gravity.rst)
-- [Thermo-chemistry solver](docs/thermo_chemistry.rst)
-- [Boundary conditions](docs/boundary_conditions.rst)
+- [Thermo-chemistry](docs/thermo_chemistry.rst)
 - [Radiative transfer](docs/radiative_transfer.rst)
 - [Examples](docs/examples.rst)
 - [API reference](docs/api/index.rst)
 
-For HTML documentation builds, see the
-[installation guide](docs/installation.rst).
+The rendered documentation is available at
+<https://tkc004.github.io/RadHydropy/>.
