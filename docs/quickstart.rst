@@ -150,16 +150,6 @@ The returned writer is not the evolved simulation. It is the IC assembly
 object; construct or load the runtime separately with ``Rsim`` or
 ``loadhdf5``.
 
-Basic proper-coordinate hydro examples may delegate their final assembly to
-``example/basic_hydro_utils.py:make_initial_condition``. Its profile arrays
-must already be named and converted as ``boundary_proper_code``,
-``rho_proper_code``, ``vel_proper_code``, ``temp_proper_code``, and
-``mu_dimensionless``. It owns ghost-cell setup, typed geometry, conserved-state
-construction, active-cell/EOS consistency checks, and
-``Rsim.FromComponents(...)`` serialization. Cosmological examples must build
-their explicit comoving/supercomoving fields instead of using this proper-code
-helper as an adapter.
-
 Strict unit formatting
 ----------------------
 

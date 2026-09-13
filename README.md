@@ -234,6 +234,11 @@ RadHydropy/
     solver/               finite-volume updates, fluxes, sources, and timesteps
     thermo_networks/      hydrogen, H/He, CIE, PIE, Compton, and C²-Ray networks
     chemistry_species/    species microphysics
+    initial_condition_writer.py
+                          typed, validated IC construction boundary
+    radarray.py           representation-aware dimensional field views
+    units.py              code-unit definitions and conversions
+    cosmology.py          cosmological models and scale-factor helpers
     params.py             nested runtime parameters and defaults
     example_config.py     nested YAML configuration loading
     io.py                 HDF5 initial-condition and snapshot I/O
@@ -244,6 +249,8 @@ RadHydropy/
     <ExampleName>/        scripts, strict nested YAML, plots, and diagnostics
   docs/                   Sphinx documentation and detailed example pages
   tests/                  unit and regression tests
+    test_example_alignment.py
+                          repository-wide nested example/configuration audit
   tools/                  spectrum-generation and supporting tools
   .github/workflows/      documentation deployment workflow
   .codex/skills/          repository-local RadHydropy skill guidance

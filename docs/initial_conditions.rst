@@ -99,29 +99,10 @@ and returns either an ``InitialConditionWriter`` or an already assembled typed
 attached to the complete configuration under a descriptive private key at the
 call site.
 
-For the basic proper-coordinate hydro examples, the shared
-``example/basic_hydro_utils.py`` function
-``make_initial_condition(config, ...)`` provides the common finalization
-boundary. Its required arrays are already converted proper-code arrays:
-
-* ``boundary_proper_code`` has ``grid_cells + 1`` entries;
-* ``rho_proper_code``, ``vel_proper_code``, ``temp_proper_code``, and
-  ``mu_dimensionless`` have one entry per active cell; and
-* optional ``area_proper_code`` contains one custom cell-area value per active
-  cell and is used to build ``volume_proper_code``.
-
-The helper constructs ``Rsim(config["par"])``, initializes typed mesh/fluid
-geometry, builds conserved mass/momentum/energy fields, validates finite and
-positive active-cell state plus EOS consistency, removes setup ghost cells,
-and returns ``Rsim.FromComponents(...)``. A successful HDF5 write alone is not
-an IC validation; active cells must pass these checks before the run starts.
-
-``make_initial_condition`` currently implements the proper-code contract only.
-Cosmological examples must build their explicit comoving/supercomoving mesh
-and fluid fields and serialize the matching typed state; they must not use the
-proper-code helper as a generic adapter. Likewise, physical YAML quantities
-must be converted with ``quantity_to_value`` or ``.to_value`` before becoming
-NumPy arrays—``float(quantity)`` is not a unit conversion.
+Physical YAML quantities must be converted with ``quantity_to_value`` or
+``.to_value`` before becoming NumPy arrays—``float(quantity)`` is not a unit
+conversion. Cosmological examples retain their explicit comoving or
+supercomoving representation through IC construction and serialization.
 
 After construction, write a returned writer with ``writer.write(filename)`` or
 an assembled state with ``radhydropy.io.writehdf5``. For readback, call
