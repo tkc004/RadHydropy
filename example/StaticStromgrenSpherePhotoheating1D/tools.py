@@ -12,10 +12,11 @@ import unyt
 import example_utils as eu
 
 import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.hydrogen import collisional_equilibrium_neutral_fraction
 from radhydropy.units import (
+    CodeUnits,
     code_quantity_to_cgs,
     quantity_to_value,
 )
@@ -73,77 +74,55 @@ def _attach_proper_runtime_states(mesh, fluid):
     )
 
 
-def build_static_problem(config):
-    """Build the photoheating IC with the canonical nested runtime objects."""
+def _build_writer(config):
+    """Create the photoheating IC through the shared writer boundary."""
 
     chemistry = config["par"].get('chemistry', {})
-    thermo = config["par"].get('thermochemistry', {})
     radiation = config["par"].get('radiation', {})
     initial = config['initial_condition']
     grid_cells = int(config["par"]['mesh']['grid_cells'])
-    sim = Rsim(config["par"])
-    code_units_obj = sim.par.units.CodeUnits
-    sim.par.simulation.box_size_proper_code = quantity_to_value(
-        initial['box_size_proper'], code_units_obj.length_unit
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=units, ic_config=initial,
     )
-    sim.par.simulation.time_proper_code = quantity_to_value(
-        initial.get('time_proper', 0.0 * unyt.Myr), code_units_obj.time_unit
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(
+        np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
     )
-    sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
-        code_units_obj.length_unit,
-    ))
-    boundary_proper_code = sim.mesh.boundary_proper_code
-    width_proper_code = np.diff(boundary_proper_code)
-    volume_proper_code = 4.0 * np.pi / 3.0 * (
-        boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
-    )
-    coordinate_proper_code = 0.75 * (
-        boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4
-    ) / (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
-    area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=coordinate_proper_code,
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=width_proper_code,
-        area_proper_code=area_proper_code,
-        volume_proper_code=volume_proper_code,
-    )
-    sim.fluid.rho_proper_code = as_named_array(quantity_to_value((
+    writer.fluid.rho_radarray = writer.radarray(
         np.ones(grid_cells)
         * initial['hydrogen_number_density']
         * unyt.mp
         / chemistry.get('hydrogen_mass_fraction', 1.0)
-    ).to(unyt.g / unyt.cm**3), code_units_obj.density_unit))
-    sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells, dtype=float))
+    )
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * units.velocity_unit
+    )
     temperature_proper_unyt = np.ones(grid_cells) * initial.get(
         'temperature_proper', 1.0e4 * unyt.K
     )
-    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        temperature_proper_unyt, code_units_obj.temperature_unit
-    ))
-    sim.fluid.mu = np.ones(grid_cells)
+    writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
+    writer.fluid.mu = np.ones(grid_cells)
     if initial.get('hydrogen_initial_collisional_equilibrium', False):
-        sim.fluid.xHI = np.ones(grid_cells) * collisional_equilibrium_neutral_fraction(
+        writer.fluid.xHI = np.ones(grid_cells) * collisional_equilibrium_neutral_fraction(
             initial.get('temperature_proper', 1.0e4 * unyt.K).to_value(unyt.K)
         )
     else:
-        sim.fluid.xHI = np.ones(grid_cells) * chemistry.get(
+        writer.fluid.xHI = np.ones(grid_cells) * chemistry.get(
             'hydrogen_xHI_initial',
             1.0,
         )
-    if sim.par.thermochemistry.network == 'hydrogen_helium':
-        sim.fluid.xHeI = np.ones(grid_cells) * chemistry.get(
+    if config['par']['thermochemistry'].get('network') == 'hydrogen_helium':
+        writer.simulation.fluid.xHeI = np.ones(grid_cells) * chemistry.get(
             'hydrogen_helium_xHeI_initial', 1.0
         )
-        sim.fluid.xHeII = np.ones(grid_cells) * chemistry.get(
+        writer.simulation.fluid.xHeII = np.ones(grid_cells) * chemistry.get(
             'hydrogen_helium_xHeII_initial', 0.0
         )
-        sim.fluid.xHeIII = np.ones(grid_cells) * chemistry.get(
+        writer.simulation.fluid.xHeIII = np.ones(grid_cells) * chemistry.get(
             'hydrogen_helium_xHeIII_initial', 0.0
         )
-        sim.fluid.mu = np.ones(grid_cells) / (
+        writer.fluid.mu = np.ones(grid_cells) / (
             chemistry.get('hydrogen_mass_fraction', 1.0)
             + chemistry.get('helium_mass_fraction', 0.0) / 4.0
         )
@@ -151,29 +130,29 @@ def build_static_problem(config):
     if group_edges is not None:
         ngroup = len(group_edges) - 1
         photon_number_density_cgs_cm3_unyt = np.zeros((ngroup, grid_cells)) / unyt.cm**3
-        sim.fluid.ngamma_code = as_named_array(quantity_to_value(
-            photon_number_density_cgs_cm3_unyt,
-            code_units_obj.number_density_unit,
-        ))
+        writer.fluid.ngamma_radarray = writer.radarray(
+            photon_number_density_cgs_cm3_unyt
+        )
     else:
         photon_number_density_cgs_cm3_unyt = np.ones(grid_cells) * radiation.get(
             'hydrogen_ngamma_initial', 0.0 / unyt.cm**3
         )
-        sim.fluid.ngamma_code = as_named_array(quantity_to_value(
-            photon_number_density_cgs_cm3_unyt,
-            code_units_obj.number_density_unit,
-        ))
-    sim.fluid.SetFluidTime(sim.par.simulation.time_proper_code)
-    _attach_proper_runtime_states(sim.mesh, sim.fluid)
+        writer.fluid.ngamma_radarray = writer.radarray(
+            photon_number_density_cgs_cm3_unyt
+        )
+    return writer
+
+
+def build_static_problem(config):
+    """Build the photoheating IC through the shared writer boundary."""
+    sim = _build_writer(config).prepare(validate=True)
     return sim.par, sim.mesh, sim.fluid, sim.solver
 
 
 def write_initial_condition(config):
     """Build the raw IC state, replace any stale snapshot, and write it."""
-    par, mesh, fluid, solver = build_static_problem(config)
-    sim = Rsim.FromComponents(par, mesh, fluid, solver)
     filename = config['par']['simulation']['initial_condition_filename']
-    rio.writehdf5(sim, filename)
+    _build_writer(config).write(filename, validate=True)
 
 
 def _refresh_mesh_geometry(mesh, config):

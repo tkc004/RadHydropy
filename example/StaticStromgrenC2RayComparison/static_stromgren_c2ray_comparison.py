@@ -128,7 +128,7 @@ def _plot(histories, config, filename):
     ax_difference.axhline(0.0, color='0.3', lw=1.0, ls=':', label='Reference')
     ax.set_ylabel('Ionization-front radius [kpc]')
     ax_difference.set(xlabel='Time [Myr]', ylabel=r'$(R-R_{100000})/R_{100000}$')
-    ax.set_xlim(0.0, time[-1].to_value(unyt.Myr))
+    ax.set_xlim(0.0, time_proper_Myr[-1].to_value(unyt.Myr))
     ax.set_ylim(0.0, example['plot_radius_max'].to_value(unyt.kpc))
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False, fontsize=8, loc='lower right')

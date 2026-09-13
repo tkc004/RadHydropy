@@ -10,9 +10,9 @@ import unyt
 
 import radhydropy.thermo_networks.hydrogen as rth
 import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
-from radhydropy.units import code_quantity_to_cgs, quantity_to_value
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     MeshGeometryState,
@@ -60,53 +60,38 @@ def _attach_proper_runtime_states(mesh, fluid):
     )
 
 
-def build_static_problem(config):
-    """Build the initial state using the canonical nested runtime objects."""
-
+def _build_writer(config):
+    """Create the proper-coordinate IC writer for the static benchmark."""
     initial = config['initial_condition']
+    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     grid_cells = int(config["par"]['mesh']['grid_cells'])
-    sim = Rsim(config["par"])
-    code_units = sim.par.units.CodeUnits
-    sim.par.simulation.box_size_proper_code = float(
-        quantity_to_value(initial['box_size_proper'], code_units.length_unit)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=units, ic_config=initial,
     )
-    sim.par.simulation.time_proper_code = 0.0
-    sim.mesh.boundary_proper_code = as_named_array(quantity_to_value(
-        np.linspace(0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1) * unyt.cm,
-        code_units.length_unit,
-    ))
-    boundary_proper_code = sim.mesh.boundary_proper_code
-    width_proper_code = np.diff(boundary_proper_code)
-    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
-    x_proper_code = 0.75 * (boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4) / (
-        boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
+    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.mesh.boundary_radarray = writer.radarray(
+        np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
     )
-    area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=x_proper_code,
-        boundary_proper_code=boundary_proper_code,
-        width_proper_code=width_proper_code,
-        area_proper_code=area_proper_code,
-        volume_proper_code=volume_proper_code,
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp
     )
-    sim.fluid.rho_proper_code = as_named_array(quantity_to_value((
-        np.ones(grid_cells)
-        * initial['hydrogen_number_density']
-        * unyt.mp
-    ).to(unyt.g / unyt.cm**3), code_units.density_unit))
-    sim.fluid.vel_proper_code = as_named_array(np.zeros(grid_cells, dtype=float))
-    sim.fluid.temp_proper_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * 1.0e4 * unyt.K, code_units.temperature_unit
-    ))
-    sim.fluid.mu = np.ones(grid_cells)
-    sim.fluid.xHI = np.ones(grid_cells)
-    sim.fluid.ngamma_code = as_named_array(quantity_to_value(
-        np.ones(grid_cells) * sim.par.radiation.hydrogen_ngamma_initial,
-        code_units.number_density_unit,
-    ))
-    sim.fluid.SetFluidTime(0.0)
-    _attach_proper_runtime_states(sim.mesh, sim.fluid)
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(grid_cells) * units.velocity_unit
+    )
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(grid_cells) * 1.0e4 * unyt.K
+    )
+    writer.fluid.mu = np.ones(grid_cells)
+    writer.fluid.xHI = np.ones(grid_cells)
+    writer.fluid.ngamma_radarray = writer.radarray(
+        np.ones(grid_cells) * config['par']['thermochemistry']['hydrogen_ngamma_initial']
+    )
+    return writer
+
+
+def build_static_problem(config):
+    """Build the proper-coordinate IC through the shared writer boundary."""
+    sim = _build_writer(config).prepare(validate=True)
     return sim.par, sim.mesh, sim.fluid, sim.solver
 
 
@@ -152,9 +137,9 @@ def _refresh_mesh_geometry(mesh, config):
 
 def write_initial_condition(config):
     """Build the raw IC state and write it to ``ICfilename``."""
-    par, mesh, fluid, solver = build_static_problem(config)
+    writer = _build_writer(config)
     filename = config['par']['simulation']['initial_condition_filename']
-    rio.writehdf5(Rsim.FromComponents(par, mesh, fluid, solver), filename)
+    writer.write(filename, validate=True)
 
 
 def load_output_state(outputfilename, config):
