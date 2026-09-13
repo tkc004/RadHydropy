@@ -118,7 +118,8 @@ The full field-level reference remains in
      - Initial and boundary composition for thermo-chemistry.
    * - ``par.gravity``
      - self-gravity, external gravity, and potential controls
-     - Gas and external gravitational fields. See :doc:`gravity`.
+     - Gas and external gravitational fields only. Cosmology controls are in
+       ``par.cosmology``. See :doc:`gravity`.
    * - ``par.cosmology``
      - expansion, coordinate conversion, and background-model controls
      - Cosmological expansion and reference background. See :doc:`cosmology`.
@@ -221,10 +222,57 @@ Include the configured final time when the final state should be written.
 Cosmological parameters
 -----------------------
 
-Cosmological runs configure the background under ``par.cosmology``. When
-``supercomoving_coordinates`` is enabled, RadHydropy automatically assigns the
-matching coordinate frame, time coordinate, and fluid representations. A
-minimal Einstein--de Sitter setup is:
+All cosmological-background controls belong under ``par.cosmology``. They do
+not belong under ``par.gravity``: ``par.gravity`` contains the gravitational
+source options, while ``par.cosmology`` selects the expanding background and
+its coordinate transformation.
+
+The main ``par.cosmology`` fields are:
+
+.. list-table:: ``par.cosmology`` fields
+   :header-rows: 1
+   :widths: 34 46 20
+
+   * - Field
+     - Meaning
+     - Typical value
+   * - ``cosmological``
+     - Enable the cosmological runtime and background model.
+     - ``true`` or ``false``
+   * - ``cosmological_expansion``
+     - Evolve the cosmological scale factor during the run.
+     - ``true`` or ``false``
+   * - ``supercomoving_coordinates``
+     - Use the supercomoving time and fluid-variable representation.
+     - ``true`` or ``false``
+   * - ``cosmological_background_boundary_reconstruction``
+     - Include the background force when reconstructing boundary states.
+     - ``true`` or ``false``
+   * - ``cosmology_type``
+     - Select the background model.
+     - ``einstein_de_sitter`` or ``lambda_cdm``
+   * - ``cosmology_t_ref``
+     - Reference cosmic time for the scale-factor convention.
+     - ``{value: ..., unit: ...}``
+   * - ``cosmology_a_ref``
+     - Scale factor at the reference time.
+     - dimensionless
+   * - ``cosmology_hubble_ref``
+     - Optional Hubble parameter at the reference time.
+     - unit-bearing or ``null``
+   * - ``cosmology_omega_m``
+     - Matter density parameter for the background model.
+     - dimensionless
+   * - ``cosmology_omega_lambda``
+     - Dark-energy density parameter for the background model.
+     - dimensionless
+
+When ``supercomoving_coordinates`` is enabled, RadHydropy automatically
+assigns the matching coordinate frame, time coordinate, and fluid
+representations under ``par.simulation``. Do not duplicate those derived
+representation fields under ``par.cosmology``.
+
+A minimal Einstein--de Sitter setup is:
 
 .. code-block:: yaml
 

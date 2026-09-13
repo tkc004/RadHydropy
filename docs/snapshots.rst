@@ -13,39 +13,78 @@ Snapshot files contain two top-level groups:
 * ``Header``
 * ``Data``
 
-The ``Header`` group stores:
+``Header`` group
+~~~~~~~~~~~~~~~~
 
-* the coordinate-system, grid, time, and box-size metadata;
-* ``CodeUnits`` describing the complete base code-unit system;
-* the active runtime configuration as header attributes; and
-* optionally, a ``Provenance`` group containing the YAML configuration used
-  to create the snapshot.
+``Header`` contains the information needed to interpret and restart the
+datasets in ``Data``.  Its contents are divided between datasets and HDF5
+attributes:
 
-The ``Data`` group stores the evolved fluid fields:
+Header datasets:
 
-* representation-qualified mesh and fluid fields such as
-  ``boundary_proper_code``, ``rho_proper_code``, ``vel_proper_code``, and
-  ``temp_proper_code``;
-* ``Energy_code`` and ``Mass_code`` when those fields are present;
-* ``mu`` and ``xHI`` for the corresponding chemistry state; and
-* ``ngamma_code`` when radiative transfer is active.
+* ``time_proper_code`` and ``box_size_proper_code`` for a proper-coordinate
+  snapshot;
+* ``tau_supercomoving_code`` and ``box_size_comoving_code`` for a
+  cosmological snapshot.
 
-Dimensional datasets declare their storage convention in the
-``storage_unit`` attribute. Canonical hydrodynamic IC/snapshot fields use
+The ``CodeUnits`` attribute stores the complete base code-unit mapping.  It
+is required by the current loader for fields stored in code units.
+
+Header attributes commonly describe:
+
+* geometry and mesh: ``CoordinateSystem``, ``GridCells``, and ``GhostCells``;
+* the runtime state: ``ICfilename``, ``ScaleFactor``, and the saved time or
+  box-size conventions;
+* field interpretation: ``CoordinateFrame``, ``TimeCoordinate``,
+  ``VelocityRepresentation``, ``DensityRepresentation``,
+  ``PressureRepresentation``, and ``TemperatureRepresentation``;
+* cosmology, when enabled: ``CosmologyType``, the reference scale and time,
+  and the serialized cosmology context;
+* solver and physics configuration, including the EOS, gravity,
+  thermochemistry, radiation, and diagnostic settings; and
+* cumulative diagnostics such as gravity work and hydro-boundary energy.
+
+Not every attribute is present in every file.  Values may be strings,
+scalars, arrays, or serialized mappings, so use ``loadhdf5`` to interpret
+them as RadHydropy parameters rather than parsing attributes by hand.
+
+``Data`` group
+~~~~~~~~~~~~~~
+
+``Data`` contains one HDF5 dataset for each saved mesh, fluid, chemistry, or
+radiation field.  The dataset name is the on-disk runtime name, for example:
+
+* geometry and hydro state: ``boundary_proper_code``, ``rho_proper_code``,
+  ``vel_proper_code``, and ``temp_proper_code`` (or the corresponding
+  comoving/supercomoving names);
+* conserved or diagnostic fields: ``Mass_code``, ``Energy_code``, and
+  ``InternalEnergy_code`` when present; and
+* optional physics fields: ``mu``, ``xHI``, ``ngamma_code``, and dark-matter
+  shell fields when their physics modules are enabled.
+
+Cell-centered fields have one value per active/ghost cell in the saved
+layout.  A one-dimensional boundary field has one more value than the
+corresponding cell-centered field because it describes cell interfaces.
+
+Each dimensional dataset can carry attributes such as ``units``,
+``storage_unit``, ``quantity``, ``dimensions``, ``code_unit_cgs``,
+``representation``, ``coordinate_frame``, ``physical_relation``,
+``scale_factor``, and ``scale_factor_power``.  These attributes describe how
+the stored numbers are to be interpreted.  In particular, ``storage_unit``
+may be ``code`` or ``cgs``; the ``_code`` suffix alone is not a sufficient
+unit declaration.  ``Header.attrs["CodeUnits"]`` supplies the base scales for fields
+stored in code units.
+
+Canonical hydrodynamic IC/snapshot fields normally use
 ``storage_unit = code`` and store numerical code values directly. Chemistry
 and thermochemistry fields with a documented cgs contract may use
-``storage_unit = cgs`` instead. Representation metadata is stored in
-attributes such as ``quantity``, ``dimensions``, ``code_unit_cgs``,
-``representation``, ``coordinate_frame``, ``physical_relation``, and
-``scale_factor_power`` where applicable. ``Header/CodeUnits`` supplies the
-base code-unit system for fields stored in code units. The ``_code`` suffix
-identifies the runtime field and normally agrees with code-unit storage, but
-the authoritative storage convention is the dataset metadata.
+``storage_unit = cgs`` instead. The ``_code`` suffix normally agrees with
+code-unit storage, but the dataset metadata is authoritative.
 
-When a snapshot is reloaded, :func:`radhydropy.io.loadhdf5` uses the required
-``Header/CodeUnits`` block and each field's ``storage_unit`` plus
-representation metadata to restore typed runtime fields such as
-``fluid.rho_proper_code`` or ``fluid.rho_comoving_code``.
+When a snapshot is reloaded, :func:`radhydropy.io.loadhdf5` uses
+``Header.attrs["CodeUnits"]`` and each field's ``storage_unit`` plus representation
+metadata to restore typed runtime fields such as ``fluid.rho_proper_code`` or
+``fluid.rho_comoving_code``.
 
 The loader returns an ``Rsim`` object. Its main analysis-facing components are:
 
@@ -92,7 +131,7 @@ The canonical field names depend on the coordinate representation:
      - ``box_size_comoving_code``
 
 The ``*_code`` fields are numerical solver fields. Their interpretation comes
-from the field metadata and ``Header/CodeUnits``; do not infer a physical unit
+from the field metadata and ``Header.attrs["CodeUnits"]``; do not infer a physical unit
 from the suffix alone. For analysis, use the corresponding typed RadArray
 views, which preserve units, representation, coordinate frame, and cosmology
 metadata.
@@ -124,8 +163,62 @@ Reading Snapshot Files
 ----------------------
 
 Use :func:`radhydropy.io.loadhdf5` with the complete nested ``config`` to
-reload a snapshot into a parameter, mesh, and fluid object. This is the same
-validated loader used for initial-condition files.
+reload a snapshot into a parameter, mesh, and fluid object. This is the
+preferred path for analysis and restart because it validates the header,
+restores code units, and reconstructs the field metadata and cosmology
+context.
+
+.. code-block:: python
+
+   import radhydropy.io as rio
+
+   snapshot = rio.loadhdf5(config, "Output_001.hdf5")
+
+   # Header-derived runtime information.
+   print(snapshot.par.simulation.coordinate_system)
+   print(snapshot.par.mesh.grid_cells)
+   print(snapshot.par.mesh.ghost_cells)
+   print(snapshot.par.CodeUnits)
+
+   # Data fields as metadata-carrying RadArray values.
+   boundary_radarray = snapshot.mesh.boundary_radarray
+   density_radarray = snapshot.fluid.rho_radarray
+   velocity_radarray = snapshot.fluid.vel_radarray
+   temperature_radarray = snapshot.fluid.temp_radarray
+
+   # Dataset metadata restored by the loader.  The exact on-disk name depends
+   # on whether this is a proper or cosmological snapshot.
+   for field_name, metadata in snapshot.par.field_metadata.items():
+       if field_name.startswith("rho_"):
+           print(field_name, metadata)
+
+The neutral ``*_radarray`` accessors select the representation used by the
+file.  For example, a cosmological file returns its comoving density and
+supercomoving velocity through the same ``rho_radarray`` and ``vel_radarray``
+properties.  These are ``RadArray`` objects, not plain ``unyt_array``
+objects: they preserve units, field specification, coordinate frame, and
+cosmology context.  Use ``to_proper()`` or ``to_comoving()`` when a
+representation conversion is needed, and use ``to_value()`` or ``to_cgs()``
+only at the boundary to plotting or numerical code that expects ordinary
+values.
+
+For file-layout debugging only, the raw HDF5 groups can be inspected with
+``h5py``:
+
+.. code-block:: python
+
+   import h5py
+
+   with h5py.File("Output_001.hdf5", "r") as handle:
+       print(sorted(handle["Header"].keys()))
+       print(sorted(handle["Data"].keys()))
+       print(handle["Header"].attrs["CoordinateSystem"])
+       first_data_name = next(iter(handle["Data"]))
+       print(first_data_name, handle["Data"][first_data_name].attrs)
+
+Raw ``h5py`` access returns stored numbers and HDF5 metadata; it does not
+construct RadHydropy's units or cosmology-aware arrays.  Use it to inspect a
+file's physical layout, then use ``loadhdf5`` for interpretation and analysis.
 
 Analyzing a snapshot
 --------------------

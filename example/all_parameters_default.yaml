@@ -191,7 +191,7 @@ par:
     hydrogen_beta: null  # Optional collisional-ionization coefficient.
 
   cosmology:
-    cosmological: false  # Enable cosmological gravity mode.
+    cosmological: false  # Enable the cosmological runtime/background mode.
     cosmological_expansion: false  # Evolve the cosmological scale factor.
     supercomoving_coordinates: false  # Use supercomoving coordinate variables.
     cosmological_background_boundary_reconstruction: false  # Reconstruct background force at boundaries.
