@@ -53,13 +53,17 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
 
     example_config = config['example']
     output_config = config["par"]['output']
-    eu.clean_previous_outputs(config)
+    if not plot_only:
+        eu.clean_previous_outputs(config)
 
     if not plot_only:
         code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
         config['_code_units'] = code_units_obj
         initial_condition = et.build_initial_condition(config)
-        rio.writehdf5(initial_condition, config["par"]['simulation']['initial_condition_filename'])
+        initial_condition.write(
+            config["par"]['simulation']['initial_condition_filename'],
+            validate=True,
+        )
         mainrun = Rsim(config["par"])
         mainrun.RunAll(outputtime=0)
 

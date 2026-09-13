@@ -6,10 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
-from radhydropy.units import CodeUnits, quantity_to_value
-from radhydropy.rsim import Rsim
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits
 import weaver_analytic as wa
 
 
@@ -45,77 +43,40 @@ def set_plot_style():
 
 
 def build_initial_condition(config):
+    """Build the proper-coordinate IC through the shared writer boundary."""
     initial_config = config['initial_condition']
-
-    code_units = config['_code_units']
-    boundary_config = config["par"]['boundary']
+    code_units = config.get('_code_units') or CodeUnits.from_mapping(
+        config['par']['units']['CodeUnits']
+    )
     grid_cells = int(initial_config['grid_cells'])
-    sim = Rsim(config["par"])
-    sim.par.simulation.coordinate_system = initial_config['coordinate_system']
-    sim.par.simulation.box_size_proper_code = np.asarray(
-        quantity_to_value(initial_config['box_size_proper'], code_units.length_unit),
-        dtype=float,
-    )
-    sim.fluid.time_proper_code = float(
-        np.asarray(quantity_to_value(initial_config['time_proper'], code_units.time_unit))
-    )
     boundary_proper_unyt = np.linspace(
         initial_config['radius_injection_proper'],
         initial_config['radius_injection_proper'] + initial_config['box_size_proper'],
         grid_cells + 1,
     )
-    sim.mesh.boundary_proper_code = as_named_array(
-        quantity_to_value(boundary_proper_unyt, code_units.length_unit)
+    writer = InitialConditionWriter(
+        par_config=config['par'],
+        code_units=code_units,
+        ic_config=initial_config,
     )
-    boundary_values = sim.mesh.boundary_proper_code
-    width_values = np.diff(boundary_values)
-    volume_values = (4.0 * np.pi / 3.0) * (
-        boundary_values[1:] ** 3 - boundary_values[:-1] ** 3
+    writer.box_size = writer.radquantity(
+        initial_config['radius_injection_proper']
+        + initial_config['box_size_proper']
     )
-    coordinate_values = 0.75 * (
-        boundary_values[1:] ** 4 - boundary_values[:-1] ** 4
-    ) / (boundary_values[1:] ** 3 - boundary_values[:-1] ** 3)
-    area_values = 4.0 * np.pi * boundary_values[:-1] ** 2
-    sim.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=coordinate_values,
-        boundary_proper_code=boundary_values,
-        width_proper_code=width_values,
-        area_proper_code=area_values,
-        volume_proper_code=volume_values,
-    )
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     rho_proper_unyt = initial_config['rho_proper'] * np.ones(grid_cells)
     vel_proper_unyt = initial_config['vel_proper'] * np.ones(grid_cells)
     temp_proper_unyt = initial_config['temperature_proper'] * np.ones(grid_cells)
-    sim.fluid.rho_proper_code = as_named_array(
-        quantity_to_value(rho_proper_unyt, code_units.density_unit)
-    )
-    sim.fluid.vel_proper_code = as_named_array(
-        quantity_to_value(vel_proper_unyt, code_units.velocity_unit)
-    )
-    sim.fluid.temp_proper_code = as_named_array(
-        quantity_to_value(temp_proper_unyt, code_units.temperature_unit)
-    )
-    sim.fluid.mu = initial_config['mean_molecular_weight'] * np.ones(grid_cells)
-    sim.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    for name, unit in (
-        ('rho_proper_code', code_units.density_unit),
-        ('vel_proper_code', code_units.velocity_unit),
-        ('temp_proper_code', code_units.temperature_unit),
-    ):
-        setattr(sim.fluid, name, as_named_array(quantity_to_value(getattr(sim.fluid, name), unit)))
-
-    sim.fluid.SetPressure()
-    sim.fluid._refresh_runtime_state()
-    return sim
+    writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
+    writer.fluid.vel_radarray = writer.radarray(vel_proper_unyt)
+    writer.fluid.temp_radarray = writer.radarray(temp_proper_unyt)
+    writer.fluid.mu = initial_config['mean_molecular_weight'] * np.ones(grid_cells)
+    return writer
 
 def load_output_state(outfilename, config):
-    """Load an output snapshot into a lightweight simulation wrapper."""
+    """Load an output snapshot through the typed nested-config boundary."""
     initial_config = config['initial_condition']
-
-    rout = build_initial_condition(config)
-    code_units_obj = config['_code_units']
-    rio.readhdf5(rout.par, rout.mesh, rout.fluid, outfilename)
+    rout = rio.loadhdf5(config, outfilename)
     # Solver outputs retain ghost zones, whereas the example diagnostics are
     # defined on the physical domain.  Trim every cell-centered fluid field
     # and the corresponding faces before calculating profiles or shell
@@ -125,58 +86,53 @@ def load_output_state(outfilename, config):
     configured_count = int(config["par"].get('mesh', {}).get(
         'grid_cells', initial_config['grid_cells']
     ))
-    boundary_count = len(rout.mesh.boundary_proper_code) - 1
+    boundary_count = len(rout.mesh.boundary_radarray) - 1
     # Output snapshots contain ghost cells; the initial-condition snapshot
     # contains active cells only and is therefore already diagnostic-ready.
     count = configured_count
     if boundary_count == configured_count + 2 * first:
         stop = first + count
-        rout.mesh.boundary_proper_code = rout.mesh.boundary_proper_code[first:stop + 1]
-        for name, value in vars(rout.fluid).items():
-            try:
-                value_length = len(value)
-            except TypeError:
-                continue
-            if value_length == boundary_count:
-                setattr(rout.fluid, name, value[first:stop])
-    rout.fluid.time_proper_code = float(np.asarray(rout.fluid.time_proper_code))
-    boundary_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.mesh.boundary_proper_code, dtype=float), code_units_obj.length_unit
-    )
-    rout.mesh.boundary_proper_code = boundary_proper_code_unyt
-    velocity_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.fluid.vel_proper_code, dtype=float), code_units_obj.velocity_unit
-    )
-    rout.fluid.vel_proper_code = velocity_proper_code_unyt
-    temperature_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.fluid.temp_proper_code, dtype=float), code_units_obj.temperature_unit
-    )
-    rout.fluid.temp_proper_code = temperature_proper_code_unyt
-    density_proper_code_unyt = unyt.unyt_array(
-        np.asarray(rout.fluid.rho_proper_code, dtype=float), code_units_obj.density_unit
-    )
-    rout.fluid.rho_proper_code = density_proper_code_unyt
-    rout.fluid.mu = np.asarray(rout.fluid.mu, dtype=float)
-    if hasattr(rout.fluid, 'xHI'):
-        rout.fluid.xHI = np.asarray(rout.fluid.xHI, dtype=float)
-    if hasattr(rout.fluid, 'ngamma_code'):
-        photon_number_density_code_unyt = unyt.unyt_array(
-            np.asarray(rout.fluid.ngamma_code, dtype=float),
-            code_units_obj.number_density_unit,
-        )
-        rout.fluid.ngamma_code = photon_number_density_code_unyt
+        rout.mesh.boundary_radarray = rout.mesh.boundary_radarray[first:stop + 1]
+        for field_name in ('rho_radarray', 'vel_radarray', 'temp_radarray'):
+            field = getattr(rout.fluid, field_name)
+            setattr(rout.fluid, field_name, field[first:stop])
+        rout.fluid.mu = np.asarray(rout.fluid.mu)[first:stop]
     return rout
+
+
+def _boundary_proper_unyt(rout):
+    """Return the restored proper-coordinate boundary for diagnostics."""
+    if hasattr(rout.mesh, 'boundary_radarray'):
+        return rout.mesh.boundary_radarray
+    return rout.mesh.boundary_proper_code
+
+
+def _rho_proper_unyt(rout):
+    """Return the restored proper density for diagnostics."""
+    if hasattr(rout.fluid, 'rho_radarray'):
+        return rout.fluid.rho_radarray
+    return rout.fluid.rho_proper_code
+
+
+def _temp_proper_unyt(rout):
+    """Return the restored proper temperature for diagnostics."""
+    if hasattr(rout.fluid, 'temp_radarray'):
+        return rout.fluid.temp_radarray
+    return rout.fluid.temp_proper_code
 
 
 def numerical_forward_shock_radius(rout, search_fraction=0.1):
     """Estimate the forward-shock radius from the steepest pressure drop."""
 
-    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    boundary_proper_unyt = _boundary_proper_unyt(rout)
+    x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
+    rho_proper_cgs_g_cm3 = _rho_proper_unyt(rout).to(unyt.g / unyt.cm**3)
+    temperature_cgs_K = _temp_proper_unyt(rout).to(unyt.K)
     pressure_bubble_proper_unyt = (
-        rout.fluid.rho_proper_code
+        rho_proper_cgs_g_cm3
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
-        * rout.fluid.temp_proper_code
+        * temperature_cgs_K
     ).to(unyt.dyn / unyt.cm**2)
 
     coordinate_values = x_proper_code.to_value(x_proper_code.units)
@@ -226,8 +182,9 @@ def shell_inner_edge_radius(
     the first one encountered after the launch region.
     """
 
-    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
-    rho_proper_unyt = rout.fluid.rho_proper_code
+    boundary_proper_unyt = _boundary_proper_unyt(rout)
+    x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
+    rho_proper_unyt = _rho_proper_unyt(rout)
 
     coordinate_values = x_proper_code.to_value(x_proper_code.units)
     rho_proper_values = rho_proper_unyt.to_value(rho_proper_unyt.units)
@@ -307,7 +264,8 @@ def weaver_forward_shock_radius(rout, config):
 def _snapshot_coordinate(rout, xunit=unyt.pc):
     """Return nonnegative cell-center coordinates for a snapshot."""
 
-    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    boundary_proper_unyt = _boundary_proper_unyt(rout)
+    x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
     coordinate_values = x_proper_code.to_value(xunit)
     nonnegative = coordinate_values >= 0.0
     return x_proper_code[nonnegative], coordinate_values[nonnegative]
@@ -318,7 +276,7 @@ def plot_density_snapshot(ax, rout, **kwargs):
 
     plt.sca(ax)
     x_proper_code, coordinate_values = _snapshot_coordinate(rout)
-    rho_proper_unyt = rout.fluid.rho_proper_code.to(unyt.g / unyt.cm**3)
+    rho_proper_unyt = _rho_proper_unyt(rout).to(unyt.g / unyt.cm**3)
     ax.plot(coordinate_values, rho_proper_unyt.to_value(unyt.g / unyt.cm**3), **kwargs)
     ax.set_yscale('log')
 
@@ -328,7 +286,7 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
 
     plt.sca(ax)
     x_proper_code, coordinate_values = _snapshot_coordinate(rout)
-    temperature_proper_unyt = rout.fluid.temp_proper_code.to(unyt.K)
+    temperature_proper_unyt = _temp_proper_unyt(rout).to(unyt.K)
     ax.plot(coordinate_values, temperature_proper_unyt.to_value(unyt.K), **kwargs)
     ax.set_yscale('log')
 
@@ -336,7 +294,8 @@ def plot_temperature_snapshot(ax, rout, **kwargs):
 def plot_profile_snapshot(ax, rout, yquan, xunit=unyt.pc, **kwargs):
     """Plot one radial profile on a supplied axis using ``xunit``."""
 
-    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    boundary_proper_unyt = _boundary_proper_unyt(rout)
+    x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
     coordinate_values = x_proper_code.to_value(xunit)
     nonnegative = coordinate_values >= 0.0
     ax.plot(
@@ -366,7 +325,7 @@ def make_profile_figure(snapshots, config):
         plot_profile_snapshot(
             ax_density,
             rout,
-            'rho_proper_code',
+            'rho_radarray',
             ls='none',
             marker='o',
             mfc='none',
@@ -376,7 +335,7 @@ def make_profile_figure(snapshots, config):
         plot_profile_snapshot(
             ax_temperature,
             rout,
-            'temp_proper_code',
+            'temp_radarray',
             ls='none',
             marker='o',
             mfc='none',
@@ -466,16 +425,19 @@ def make_radius_figure(snapshots, config):
 def numerical_bubble_pressure(rout, radius_shell_proper_unyt):
     """Estimate the bubble pressure from a cavity-side annulus."""
 
-    x_proper_code = 0.5 * (rout.mesh.boundary_proper_code[1:] + rout.mesh.boundary_proper_code[:-1])
+    boundary_proper_unyt = _boundary_proper_unyt(rout)
+    x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
     coordinate_values = x_proper_code.to_value(unyt.pc)
     nonnegative = coordinate_values >= 0.0
     coordinate_values = coordinate_values[nonnegative]
     radius_shell_proper_pc = radius_shell_proper_unyt.to_value(unyt.pc)
+    rho_proper_cgs_g_cm3 = _rho_proper_unyt(rout).to(unyt.g / unyt.cm**3)
+    temperature_cgs_K = _temp_proper_unyt(rout).to(unyt.K)
     pressure_bubble_proper_unyt = (
-        rout.fluid.rho_proper_code
+        rho_proper_cgs_g_cm3
         / (rout.fluid.mu * unyt.mp)
         * unyt.kb
-        * rout.fluid.temp_proper_code
+        * temperature_cgs_K
     ).to(unyt.dyn / unyt.cm**2)
     pressure_values = pressure_bubble_proper_unyt.to_value(pressure_bubble_proper_unyt.units)[nonnegative]
 
