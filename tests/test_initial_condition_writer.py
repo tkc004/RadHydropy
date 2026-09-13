@@ -156,6 +156,18 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
         ("supercomoving", 3.0 * code_units.velocity_unit, "velocity", None),
         ("supercomoving", 4.0 * code_units.pressure_unit, "pressure", 128.0),
         ("supercomoving", 5.0 * code_units.temperature_unit, "temperature", 20.0),
+        (
+            "proper",
+            6.0 * code_units.length_unit * code_units.velocity_unit,
+            "specific_angular_momentum",
+            6.0,
+        ),
+        (
+            "supercomoving",
+            7.0 * code_units.length_unit * code_units.velocity_unit,
+            "specific_angular_momentum",
+            7.0,
+        ),
     )
     for representation, values, quantity, expected_proper in cases:
         result = writer.radarray(values, representation=representation)
@@ -373,7 +385,7 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
     writer.fluid.pre_radarray = _radarray(
         np.array([1.0, 1.0]), "pre_proper_code", code_units, context
     )
-    simulation.fluid.mu = np.ones(2)
+    writer.fluid.mu = np.array([0.6, 1.2])
     simulation.fluid.specific_angular_momentum_code = np.full(2, 0.25)
 
     expected_boundary = _radarray(
@@ -407,6 +419,7 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
         np.testing.assert_allclose(
             prepared.fluid.specific_angular_momentum_code, 0.25
         )
+        np.testing.assert_allclose(prepared.fluid.mu, [0.6, 1.2])
         assert np.all(np.isfinite(prepared.fluid.Energy_code))
         restored = rio.loadhdf5(config, output.name)
 

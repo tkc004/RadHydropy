@@ -3,7 +3,6 @@
 import numpy as np
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
@@ -43,14 +42,6 @@ def build_initial_condition(config):
     writer = InitialConditionWriter(
         ic_config=config["initial_condition"],
         par_config=config['par'], code_units=code_units,
-        cosmology_context=CosmologyContext(
-            gamma=float(config['par'].get('hydrodynamics', {}).get('gamma', 5.0 / 3.0)),
-            cosmology=cosmology.type_name, scale_factor=scale_factor,
-            hubble_parameter_km_s_Mpc=float(cosmology.hubble(time_cosmic_code)) * (
-                code_units.velocity_unit.to_value('km/s')
-                / code_units.length_unit.to_value('Mpc')
-            ),
-        ),
     )
     sim = writer.simulation
     sim.par.simulation.coordinate_system = 'spherical'

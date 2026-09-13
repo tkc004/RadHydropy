@@ -44,7 +44,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(n) * (unyt.cm / unyt.s))
     writer.fluid.temp_radarray = writer.radarray(temp_proper_unyt)
-    writer.simulation.fluid.mu = mu_dimensionless
+    writer.fluid.mu = mu_dimensionless
     return writer
 
 def plot_snapshot(filename, config, **kwargs):

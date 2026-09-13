@@ -19,7 +19,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
@@ -91,12 +90,6 @@ def _build_initial_condition(config, units):
         ic_config=config["initial_condition"],
         par_config=par_config,
         code_units=units,
-        cosmology_context=CosmologyContext(
-            gamma=float(par_config["hydrodynamics"]["gamma"]),
-            cosmology=config["_code_cosmology"].type_name,
-            scale_factor=1.0,
-            hubble_parameter_km_s_Mpc=0.0,
-        ),
     )
     writer.box_size = writer.radquantity(box_size_comoving_unyt)
     writer.mesh.boundary_radarray = writer.radarray(
@@ -108,11 +101,11 @@ def _build_initial_condition(config, units):
             initial_condition["rho_left_proper"],
             initial_condition["rho_right_proper"],
         ),
-        representation="proper",
+        representation="comoving",
     )
     writer.fluid.vel_radarray = writer.radarray(
         np.zeros(grid_cells) * units.velocity_unit,
-        representation="proper",
+        representation="supercomoving",
     )
     writer.fluid.temp_radarray = writer.radarray(
         np.where(
@@ -120,11 +113,9 @@ def _build_initial_condition(config, units):
             initial_condition["temperature_left_proper"],
             initial_condition["temperature_right_proper"],
         ),
-        representation="proper",
+        representation="supercomoving",
     )
-    writer.simulation.par.tau_supercomoving_code = np.array([0.0])
-    writer.simulation.par.simulation.tau_supercomoving_code = np.array([0.0])
-    writer.simulation.fluid.mu = np.full(
+    writer.fluid.mu = np.full(
         grid_cells, float(initial_condition["mu"])
     )
     return writer

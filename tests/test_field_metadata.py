@@ -91,6 +91,12 @@ class FieldSpecTests(unittest.TestCase):
             "specific_angular_momentum_code": (
                 "specific_angular_momentum", (0, 1, 1, 0, 0), "physical"
             ),
+            "specific_angular_momentum_proper_code": (
+                "specific_angular_momentum", (0, 1, 1, 0, 0), "proper"
+            ),
+            "specific_angular_momentum_supercomoving_code": (
+                "specific_angular_momentum", (0, 1, 1, 0, 0), "supercomoving"
+            ),
             "ngamma_code": ("number_density", (0, -3, 0, 0, 0), "physical"),
         }
 

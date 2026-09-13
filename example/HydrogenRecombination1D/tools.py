@@ -34,7 +34,7 @@ def build_initial_condition(config):
         np.ones(grid_cells) * initial['temperature_proper']
     )
     writer.simulation.fluid.xHI = as_named_array(np.full(grid_cells, initial['neutral_fraction']))
-    writer.simulation.fluid.mu = as_named_array(
+    writer.fluid.mu = as_named_array(
         np.full(grid_cells, initial['mean_molecular_weight'])
     )
     return writer

@@ -80,7 +80,7 @@ def build_initial_condition(config):
         np.zeros(ncell) / unyt.cm**3,
     )
     writer.simulation.fluid.xHI = as_named_array(np.ones(ncell))
-    writer.simulation.fluid.mu = as_named_array(np.ones(ncell))
+    writer.fluid.mu = as_named_array(np.ones(ncell))
     writer.simulation.fluid.SetFluidTime(0.0)
     return writer
 

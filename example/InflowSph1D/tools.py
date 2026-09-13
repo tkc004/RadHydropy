@@ -50,7 +50,7 @@ def build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(grid_cells) * initial['temperature_proper']
     )
-    writer.simulation.fluid.mu = np.full(
+    writer.fluid.mu = np.full(
         grid_cells, float(initial['mean_molecular_weight'])
     )
     return writer

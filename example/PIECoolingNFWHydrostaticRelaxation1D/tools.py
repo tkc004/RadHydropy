@@ -49,7 +49,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(rho_proper_cgs_g_cm3_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_virial_unyt)
-    writer.simulation.fluid.mu = np.full(grid_cells, initial['mu'])
+    writer.fluid.mu = np.full(grid_cells, initial['mu'])
     return writer
 
 

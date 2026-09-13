@@ -104,6 +104,16 @@ _FIELD_DEFINITIONS = {
         "unit_property": "specific_angular_momentum_unit", "representation": "physical",
         "physical_relation": "physical = stored",
     },
+    "specific_angular_momentum_proper_code": {
+        "quantity": "specific_angular_momentum", "dimensions": (0, 1, 1, 0, 0),
+        "unit_property": "specific_angular_momentum_unit", "representation": "proper",
+        "physical_relation": "physical = stored",
+    },
+    "specific_angular_momentum_supercomoving_code": {
+        "quantity": "specific_angular_momentum", "dimensions": (0, 1, 1, 0, 0),
+        "unit_property": "specific_angular_momentum_unit", "representation": "supercomoving",
+        "physical_relation": "physical = stored",
+    },
     "ngamma_proper_code": {
         "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
         "unit_property": "number_density_unit", "representation": "proper",

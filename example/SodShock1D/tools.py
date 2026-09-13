@@ -123,7 +123,7 @@ def build_initial_condition(config):
         * ic["temperature_proper"]
         * np.where(shocked_cells, ic["temperature_ratio"], 1.0)
     )
-    writer.simulation.fluid.mu = mu_dimensionless
+    writer.fluid.mu = mu_dimensionless
     return writer
 
 def analytic_density_profile(config, state):

@@ -76,13 +76,12 @@ def build_initial_condition(config):
     writer.fluid.pre_radarray = writer.radarray(
         np.ones(count) * initial_condition['pressure_proper']
     )
-    writer.simulation.fluid.mu = np.ones(count)
-    writer.simulation.fluid.specific_angular_momentum_radarray = writer.radarray(
+    writer.fluid.mu = np.ones(count)
+    writer.fluid.specific_angular_momentum_radarray = writer.radarray(
         np.sqrt(
             quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
             * x_proper_code
         ) * units.length_unit.units * units.velocity_unit.units,
-        field_name='specific_angular_momentum_code',
         representation=None,
     )
     return writer
@@ -94,7 +93,7 @@ def run_rsim(config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     initial = build_initial_condition(config)
     specific_angular_momentum_proper_code = np.asarray(
-        initial.simulation.fluid.specific_angular_momentum_radarray, dtype=float
+        initial.fluid.specific_angular_momentum_radarray, dtype=float
     ).copy()
     ic_filename = ROOT / par['simulation']['initial_condition_filename']
     ic_filename.parent.mkdir(parents=True, exist_ok=True)

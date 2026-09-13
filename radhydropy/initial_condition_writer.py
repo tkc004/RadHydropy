@@ -33,6 +33,14 @@ class _InitialConditionFieldGroup:
             raise AttributeError(f"unsupported initial-condition field {field_name!r}")
         self._writer.set_field(field_name, value)
 
+    def __getattr__(self, field_name):
+        if field_name in self._allowed_fields:
+            try:
+                return self._writer._fields[field_name]
+            except KeyError:
+                pass
+        raise AttributeError(field_name)
+
 
 class InitialConditionWriter:
     """Prepare representation-aware IC fields before shared HDF5 writing.
@@ -66,7 +74,11 @@ class InitialConditionWriter:
         cosmological = getattr(
             cosmology_parameters,
             "cosmological",
-            getattr(simulation.par, "cosmological", False),
+            getattr(
+                simulation.par,
+                "cosmological_gravity",
+                getattr(simulation.par, "supercomoving_coordinates", False),
+            ),
         )
         supercomoving_coordinates = getattr(
             cosmology_parameters,
@@ -120,6 +132,35 @@ class InitialConditionWriter:
                     hubble_parameter_km_s_Mpc or 0.0
                 ),
             )
+        elif cosmological and supercomoving_coordinates and ic_config is not None:
+            cosmic_time = ic_config.get("time_cosmic")
+            cosmology_model = getattr(cosmology_parameters, "model", None)
+            if cosmic_time is not None and cosmology_model is not None:
+                cosmic_time_code = float(
+                    np.asarray(
+                        self._to_code_values(cosmic_time, self.code_units.time_unit)
+                    ).flat[0]
+                )
+                scale_factor_value = float(
+                    cosmology_model.scale_factor(cosmic_time_code)
+                )
+                hubble_code = float(cosmology_model.hubble(cosmic_time_code))
+                hubble_unit_km_s_Mpc = (
+                    self.code_units.velocity_unit.to_value("km/s")
+                    / self.code_units.length_unit.to_value("Mpc")
+                )
+                simulation.par.cosmology_context = CosmologyContext(
+                    gamma=float(simulation.par.hydrodynamics.gamma),
+                    cosmology=cosmology_model.type_name,
+                    isothermal=(
+                        getattr(simulation.par.hydrodynamics, "eos_type", "")
+                        == "isothermal"
+                    ),
+                    scale_factor=scale_factor_value,
+                    hubble_parameter_km_s_Mpc=(
+                        hubble_code * hubble_unit_km_s_Mpc
+                    ),
+                )
         self.mesh = _InitialConditionFieldGroup(
             self,
             {
@@ -136,8 +177,31 @@ class InitialConditionWriter:
                 "temp_radarray",
                 "ngamma_radarray",
                 "specific_angular_momentum_radarray",
+                "mu",
+                "xHI",
             },
         )
+
+    @staticmethod
+    def _cosmological_schema(simulation):
+        """Return whether ICs use comoving/supercomoving representations."""
+        par = simulation.par
+        cosmology = getattr(par, "cosmology", None)
+        cosmological = getattr(
+            cosmology,
+            "cosmological",
+            getattr(
+                par,
+                "cosmological_gravity",
+                getattr(par, "supercomoving_coordinates", False),
+            ),
+        )
+        supercomoving = getattr(
+            cosmology,
+            "supercomoving_coordinates",
+            getattr(par, "supercomoving_coordinates", False),
+        )
+        return bool(cosmological and supercomoving)
 
     @classmethod
     def from_rsim(cls, simulation, *, provenance=None):
@@ -146,10 +210,7 @@ class InitialConditionWriter:
     def _primitive_field_name(self, values, context, representation=None):
         if not hasattr(values, "units"):
             raise TypeError("writer.radarray requires a unit-bearing array")
-        cosmological_schema = bool(
-            getattr(self.simulation.par, "cosmological_expansion", False)
-            and getattr(self.simulation.par, "supercomoving_coordinates", False)
-        )
+        cosmological_schema = self._cosmological_schema(self.simulation)
         field_names = (
             (
                 "boundary_comoving_code",
@@ -158,6 +219,7 @@ class InitialConditionWriter:
                 "temp_supercomoving_code",
                 "pre_supercomoving_code",
                 "ngamma_comoving_code",
+                "specific_angular_momentum_supercomoving_code",
             )
             if cosmological_schema
             else (
@@ -167,6 +229,7 @@ class InitialConditionWriter:
                 "temp_proper_code",
                 "pre_proper_code",
                 "ngamma_proper_code",
+                "specific_angular_momentum_proper_code",
             )
         )
         if representation is not None:
@@ -174,6 +237,7 @@ class InitialConditionWriter:
                 "proper": (
                     "boundary_proper_code", "rho_proper_code", "vel_proper_code",
                     "temp_proper_code", "pre_proper_code", "ngamma_proper_code",
+                    "specific_angular_momentum_proper_code",
                 ),
                 "comoving": (
                     "boundary_comoving_code", "rho_comoving_code",
@@ -182,6 +246,7 @@ class InitialConditionWriter:
                 "supercomoving": (
                     "vel_supercomoving_code", "temp_supercomoving_code",
                     "pre_supercomoving_code",
+                    "specific_angular_momentum_supercomoving_code",
                 ),
             }
             if representation not in representation_fields:
@@ -196,6 +261,8 @@ class InitialConditionWriter:
             self.code_units.velocity_unit,
             self.code_units.temperature_unit,
             self.code_units.pressure_unit,
+            self.code_units.number_density_unit,
+            self.code_units.length_unit * self.code_units.velocity_unit,
         )
         field_units_by_name = {
             "boundary_proper_code": self.code_units.length_unit,
@@ -210,6 +277,8 @@ class InitialConditionWriter:
             "pre_supercomoving_code": self.code_units.pressure_unit,
             "ngamma_proper_code": self.code_units.number_density_unit,
             "ngamma_comoving_code": self.code_units.number_density_unit,
+            "specific_angular_momentum_proper_code": self.code_units.length_unit * self.code_units.velocity_unit,
+            "specific_angular_momentum_supercomoving_code": self.code_units.length_unit * self.code_units.velocity_unit,
         }
         if representation is not None:
             field_units = tuple(field_units_by_name[name] for name in field_names)
@@ -250,7 +319,13 @@ class InitialConditionWriter:
             cosmological = getattr(
                 cosmology_parameters,
                 "cosmological",
-                getattr(self.simulation.par, "cosmological", False),
+                getattr(
+                    self.simulation.par,
+                    "cosmological_gravity",
+                    getattr(
+                        self.simulation.par, "supercomoving_coordinates", False
+                    ),
+                ),
             )
             supercomoving_coordinates = getattr(
                 cosmology_parameters,
@@ -271,7 +346,13 @@ class InitialConditionWriter:
             cosmological = getattr(
                 cosmology_parameters,
                 "cosmological",
-                getattr(self.simulation.par, "cosmological", False),
+                getattr(
+                    self.simulation.par,
+                    "cosmological_gravity",
+                    getattr(
+                        self.simulation.par, "supercomoving_coordinates", False
+                    ),
+                ),
             )
             supercomoving_coordinates = getattr(
                 cosmology_parameters,
@@ -576,10 +657,7 @@ class InitialConditionWriter:
         par = simulation.par
         mesh = simulation.mesh
         fluid = simulation.fluid
-        cosmological_schema = bool(
-            getattr(par, "cosmological_expansion", False)
-            and getattr(par, "supercomoving_coordinates", False)
-        )
+        cosmological_schema = self._cosmological_schema(simulation)
         boundary_field = (
             "boundary_comoving_code"
             if cosmological_schema
@@ -725,8 +803,14 @@ class InitialConditionWriter:
                     context=context,
                 )
             fluid.specific_angular_momentum_code = specific_angular_momentum
-        if not hasattr(fluid, "mu"):
+        mu = self._fields.get("mu")
+        if mu is not None:
+            fluid.mu = self._code_values(mu)
+        elif not hasattr(fluid, "mu"):
             fluid.mu = np.ones_like(density_values)
+        xhi = self._fields.get("xHI")
+        if xhi is not None:
+            fluid.xHI = self._code_values(xhi)
         specific_angular_momentum_values = getattr(
             fluid, "specific_angular_momentum_code", None
         )
@@ -832,23 +916,41 @@ class InitialConditionWriter:
         if cosmological_schema:
             geometry_fields = SUPERCOMOVING_RUNTIME_FIELDS
             fluid_fields = SUPERCOMOVING_RUNTIME_FIELDS
-            time_value = getattr(
-                par,
-                "tau_supercomoving_code",
-                getattr(
-                    getattr(par, "simulation", None),
+            if self.ic_config is not None and "time_cosmic" in self.ic_config:
+                cosmic_time = self._to_code_values(
+                    self.ic_config["time_cosmic"], self.code_units.time_unit
+                )
+                cosmology_model = getattr(
+                    getattr(par, "cosmology", None), "model", None
+                )
+                if cosmology_model is None:
+                    raise ValueError(
+                        "cosmological IC time conversion requires par.cosmology.model"
+                    )
+                cosmic_time_value = float(np.asarray(cosmic_time).flat[0])
+                time_value = (
+                    0.0
+                    if cosmic_time_value == 0.0
+                    else cosmology_model.supercomoving_time(cosmic_time_value)
+                )
+            else:
+                time_value = getattr(
+                    par,
                     "tau_supercomoving_code",
                     getattr(
-                        fluid,
+                        getattr(par, "simulation", None),
                         "tau_supercomoving_code",
                         getattr(
-                            getattr(fluid, "runtime_state", None),
+                            fluid,
                             "tau_supercomoving_code",
-                            0.0,
+                            getattr(
+                                getattr(fluid, "runtime_state", None),
+                                "tau_supercomoving_code",
+                                0.0,
+                            ),
                         ),
                     ),
-                ),
-            )
+                )
             setattr(fluid, "tau_supercomoving_code", float(np.asarray(time_value).flat[0]))
             par.tau_supercomoving_code = np.asarray(
                 [fluid.tau_supercomoving_code], dtype=float

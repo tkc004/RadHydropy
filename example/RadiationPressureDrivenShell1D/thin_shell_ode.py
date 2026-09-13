@@ -57,7 +57,7 @@ def _build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(1) * initial['temperature_proper']
     )
-    writer.simulation.fluid.mu = np.ones(1)
+    writer.fluid.mu = np.ones(1)
     return writer
 
 

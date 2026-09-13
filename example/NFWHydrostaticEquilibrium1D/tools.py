@@ -147,7 +147,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_proper_unyt)
-    writer.simulation.fluid.mu = np.full(grid_cells, initial_condition['mu'])
+    writer.fluid.mu = np.full(grid_cells, initial_condition['mu'])
     return writer
 
 def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_filename):

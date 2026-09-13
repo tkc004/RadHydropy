@@ -7,7 +7,6 @@ import unyt
 
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.eos import EOS
 from radhydropy.initial_condition_writer import InitialConditionWriter
@@ -33,7 +32,7 @@ DEFAULT_CENTRAL_CORE_MODEL = False
 
 def cell_centres(boundary_comoving_code):
     inner, outer = boundary_comoving_code[:-1], boundary_comoving_code[1:]
-    return 0.75 * (outer**4 - inner**4) / np.maximum(outer**3 - inner**3, 1.0e-300)
+    return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
 def radius_perturbation_comoving_code(config):
@@ -209,60 +208,40 @@ def build_initial_condition(config):
     initial_condition = config['initial_condition']
     par = config['par']
     grid_cells = int(par['mesh']['grid_cells'])
-    writer = InitialConditionWriter(
-        par_config=par,
-        code_units=code_unit_system,
-    )
-    result = writer.simulation
     time_cosmic_code = quantity_to_value(
         initial_condition['time_cosmic'], code_unit_system.time_unit
     )
-    result.par.tau_supercomoving_code = np.array([cosmology.supercomoving_time(time_cosmic_code)])
-    result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
-    result.par.simulation.box_size_comoving_code = quantity_to_value(
-        initial_condition['radius_outer_comoving'], code_unit_system.length_unit
+    writer = InitialConditionWriter(
+        par_config=par,
+        code_units=code_unit_system,
+        ic_config=initial_condition,
     )
-    result.par.simulation.coordinate_system = 'spherical'
-    result.par.hydrodynamics.gamma = 5.0 / 3.0
-    result.par.cosmological_expansion = True
-    result.par.supercomoving_coordinates = True
-    result.par.cosmological_gravity = True
-    result.par.selfgravity = True
-    result.par.externalgravity = False
-    result.par.set_cosmology_model(cosmology)
-    result.par.cosmology_type = cosmology.type_name
-    result.par.cosmology_t_ref = cosmology.t_ref
-    result.par.cosmology_a_ref = cosmology.a_ref
-    result.par.coordinate_frame = 'comoving'
-    result.par.time_coordinate = 'supercomoving'
-    result.par.velocity_representation = 'supercomoving_peculiar'
-    result.par.density_representation = 'comoving'
-    result.par.pressure_representation = 'supercomoving'
-    result.par.temperature_representation = 'supercomoving'
-    radius_inner = quantity_to_value(
-        initial_condition['radius_inner_comoving'], code_unit_system.length_unit
-    )
-    radius_outer = quantity_to_value(
-        initial_condition['radius_outer_comoving'], code_unit_system.length_unit
-    )
-    result.mesh.boundary_comoving_code = np.geomspace(
+    result = writer.simulation
+    # Keep the mesh geometry as unyt data until it enters the writer.  This
+    # avoids converting the configured radii to code values and multiplying
+    # by the length unit again later.
+    radius_inner = initial_condition['radius_inner_comoving']
+    radius_outer = initial_condition['radius_outer_comoving']
+    boundary_comoving_code = np.geomspace(
         radius_inner, radius_outer, grid_cells + 1
     )
-    inner_wall = quantity_to_value(
-        initial_condition.get('inner_wall_radius_comoving', initial_condition['radius_inner_comoving']),
-        code_unit_system.length_unit,
+    inner_wall = initial_condition.get(
+        'inner_wall_radius_comoving', initial_condition['radius_inner_comoving']
     )
-    result.mesh.boundary_comoving_code[0] = 0.0 if inner_wall <= 0.0 else inner_wall
-    result.mesh.x_comoving_code = cell_centres(result.mesh.boundary_comoving_code)
-    result.mesh.area_comoving_code = 4.0 * np.pi * result.mesh.boundary_comoving_code[:-1]**2
-    result.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(result.mesh.boundary_comoving_code**3)
+    boundary_comoving_code[0] = (
+        0.0 * boundary_comoving_code.units if inner_wall <= 0.0 else inner_wall
+    )
+    # The correlation-profile helper works with numerical code coordinates;
+    # the boundary itself remains a unit-bearing array for writer.radarray.
+    x_comoving_code = cell_centres(boundary_comoving_code).to_value(
+        code_unit_system.length_unit
+    )
     a = float(cosmology.scale_factor(time_cosmic_code))
     hubble = float(cosmology.hubble(time_cosmic_code))
     rho_total = float(cosmology.background_density(time_cosmic_code))
-    rho_comoving = rho_total * a**3
     fb = float(initial_condition['baryon_fraction'])
     delta, mean_delta = density_contrast_profile(
-        result.mesh.x_comoving_code,
+        x_comoving_code,
         config,
         length_unit_mpc_h=(
             float(code_unit_system.length_in_cgs)
@@ -270,15 +249,19 @@ def build_initial_condition(config):
             * float(initial_condition.get('correlation_h', 0.674))
         ),
     )
-    result.fluid.rho_comoving_code = rho_comoving * fb * (1.0 + delta) * np.ones(grid_cells)
+    # Build primitive quantities in proper units.  InitialConditionWriter
+    # converts these RadArrays into the configured comoving representations.
+    rho_proper_code = rho_total * fb * (1.0 + delta)
     rho_total_cgs = rho_total * code_unit_system.mass_in_cgs / code_unit_system.length_in_cgs**3
     n_h = rho_total_cgs * fb * float(initial_condition['hydrogen_mass_fraction']) * (1.0 + delta) / PROTON_MASS_CGS
     redshift = 1.0 / a - 1.0
+    xHI = None
+    specific_angular_momentum_code = None
     if bool(initial_condition.get('cmb_equilibrium_initial', False)):
         temp_phys = np.full(grid_cells, cmb_temperature(redshift, initial_condition.get('cmb_temperature_0', 2.7255)))
         electron_fraction = np.full(grid_cells, cmb_equilibrium_electron_fraction(initial_condition))
-        result.fluid.xHI = 1.0 - electron_fraction
-        result.fluid.mu = 1.0 / (float(initial_condition['hydrogen_mass_fraction']) * (2.0 - result.fluid.xHI))
+        xHI = 1.0 - electron_fraction
+        mu = 1.0 / (float(initial_condition['hydrogen_mass_fraction']) * (2.0 - xHI))
     elif redshift > float(initial_condition.get('uv_background_on_redshift', 10.0)):
         temp_phys = quantity_to_value(
             initial_condition.get('cie_temperature_proper', 10.0),
@@ -286,50 +269,56 @@ def build_initial_condition(config):
         )
     else:
         temp_phys = pie_temperature(pie_table, float(np.median(n_h)), redshift) if pie_table else 1.0e4
-    result.fluid.temp_supercomoving_code = temp_phys * a**2 * np.ones(grid_cells)
+    temp_proper_code = temp_phys * np.ones(grid_cells)
     if not bool(initial_condition.get('cmb_equilibrium_initial', False)):
-        result.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
-    result.fluid.vel_supercomoving_code = -a**2 * hubble * mean_delta * result.mesh.x_comoving_code / 3.0
+        mu = np.full(grid_cells, float(initial_condition['mu']))
+    # Include the Hubble-flow term in the proper velocity.  The writer's
+    # proper-to-supercomoving conversion subtracts that term and retains the
+    # perturbation velocity in the runtime state.
+    vel_proper_code = (
+        a * hubble * (1.0 - mean_delta / 3.0) * x_comoving_code
+    )
     if bool(par.get("hydrodynamics", {}).get("gas_angular_momentum", False)):
         result.par.gas_angular_momentum = True
-        result.fluid.specific_angular_momentum_code = np.full(
+        specific_angular_momentum_code = np.full(
             grid_cells,
             float(par["hydrodynamics"].get("gas_specific_angular_momentum", 0.0)),
         )
     if 'gas_specific_angular_momentum' in initial_condition:
-        result.fluid.specific_angular_momentum_code = np.full(grid_cells, float(initial_condition['gas_specific_angular_momentum']))
-    refresh_typed_initial_condition(result)
-    hubble_unit_km_s_Mpc = (
-        code_unit_system.velocity_unit.to_value("km/s")
-        / code_unit_system.length_unit.to_value("Mpc")
-    )
-    result.par.cosmology_context = CosmologyContext(
-        gamma=float(result.par.hydrodynamics.gamma),
-        cosmology=cosmology.type_name,
-        scale_factor=a,
-        hubble_parameter_km_s_Mpc=hubble * hubble_unit_km_s_Mpc,
-    )
+        specific_angular_momentum_code = np.full(
+            grid_cells, float(initial_condition['gas_specific_angular_momentum'])
+        )
     writer.mesh.boundary_radarray = writer.radarray(
-        result.mesh.boundary_comoving_code * code_unit_system.length_unit,
+        boundary_comoving_code,
         representation="comoving",
     )
     writer.fluid.rho_radarray = writer.radarray(
-        result.fluid.rho_comoving_code * code_unit_system.density_unit,
-        representation="comoving",
+        rho_proper_code * code_unit_system.density_unit,
+        representation="proper",
     )
     writer.fluid.vel_radarray = writer.radarray(
-        result.fluid.vel_supercomoving_code * code_unit_system.velocity_unit,
-        representation="supercomoving",
+        vel_proper_code * code_unit_system.velocity_unit,
+        representation="proper",
     )
     writer.fluid.temp_radarray = writer.radarray(
-        result.fluid.temp_supercomoving_code * code_unit_system.temperature_unit,
-        representation="supercomoving",
+        temp_proper_code * code_unit_system.temperature_unit,
+        representation="proper",
     )
-    if hasattr(result.fluid, "specific_angular_momentum_code"):
+    pressure_proper_code = EOS(
+        "polytropic", 5.0 / 3.0, code_unit_system
+    ).pressure(rho_proper_code, temp_proper_code, mu)
+    writer.fluid.pre_radarray = writer.radarray(
+        pressure_proper_code * code_unit_system.pressure_unit.units,
+        representation="proper",
+    )
+    writer.fluid.mu = mu
+    if xHI is not None:
+        writer.fluid.xHI = xHI
+    if specific_angular_momentum_code is not None:
         writer.fluid.specific_angular_momentum_radarray = writer.radarray(
-            result.fluid.specific_angular_momentum_code
-            * code_unit_system.specific_angular_momentum_unit,
-            field_name="specific_angular_momentum_code",
+            specific_angular_momentum_code
+            * code_unit_system.length_unit
+            * code_unit_system.velocity_unit,
         )
     return writer
 

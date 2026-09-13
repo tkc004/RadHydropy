@@ -61,7 +61,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * mean_density)
     writer.fluid.vel_radarray = writer.radarray(expansion_rate * coordinate_unyt)
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_proper_cgs_K)
-    writer.simulation.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
+    writer.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
     return writer
 
 def _snapshot_profiles(filename, config):

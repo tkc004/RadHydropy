@@ -60,15 +60,13 @@ def build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(count) * initial_condition['temperature_proper']
     )
-    writer.simulation.fluid.mu = np.ones(count)
-    writer.simulation.fluid.specific_angular_momentum_radarray = writer.radarray(
+    writer.fluid.mu = np.ones(count)
+    writer.fluid.specific_angular_momentum_radarray = writer.radarray(
         float(initial_condition['rotation_factor'])
         * np.sqrt(
             quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
             * radius_proper_code
         ) * units.length_unit.units * units.velocity_unit.units,
-        field_name='specific_angular_momentum_code',
-        representation=None,
     )
     return writer
 
@@ -104,12 +102,12 @@ def run_simulation(config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     count = int(par['mesh']['grid_cells'])
     initial = build_initial_condition(config)
-    specific_angular_momentum_proper_code = np.asarray(
-        initial.simulation.fluid.specific_angular_momentum_radarray, dtype=float
-    ).copy()
     filename = ROOT / par['simulation']['initial_condition_filename']
     filename.parent.mkdir(parents=True, exist_ok=True)
     initial.write(filename)
+    specific_angular_momentum_proper_code = np.asarray(
+        initial.simulation.fluid.specific_angular_momentum_code, dtype=float
+    ).copy()
     sim = rio.loadhdf5(config, str(filename))
     if hasattr(sim.fluid, 'specific_angular_momentum_code'):
         del sim.fluid.specific_angular_momentum_code

@@ -1294,12 +1294,4 @@ class Par:
 
     def set_cosmology_model(self, model):
         """Update the cosmology model while retaining structured settings."""
-        self.cosmology = CosmologyParameters(
-            type=self.cosmology_type,
-            t_ref=self.cosmology_t_ref,
-            a_ref=self.cosmology_a_ref,
-            omega_m=self.cosmology_omega_m,
-            omega_lambda=self.cosmology_omega_lambda,
-            hubble_ref=self.cosmology_hubble_ref,
-            model=model,
-        )
+        self.cosmology.model = model

@@ -144,7 +144,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)
     writer.fluid.vel_radarray = writer.radarray(weight * vel_inflow_proper_unyt)
     writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
-    writer.simulation.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
+    writer.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
     return writer
 
 def load_output_state(filename, config):

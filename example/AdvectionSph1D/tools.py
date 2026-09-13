@@ -25,7 +25,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.ones(n) * initial["vel_proper"])
     writer.fluid.temp_radarray = writer.radarray(np.ones(n) * initial["temperature_proper"])
-    writer.simulation.fluid.mu = np.full(n, float(initial["mean_molecular_weight"]))
+    writer.fluid.mu = np.full(n, float(initial["mean_molecular_weight"]))
     return writer
 
 

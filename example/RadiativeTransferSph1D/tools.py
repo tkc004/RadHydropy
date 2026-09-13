@@ -34,7 +34,7 @@ def build_static_problem(config):
     writer.fluid.ngamma_radarray = writer.radarray(
         np.ones(grid_cells) * config['par']['thermochemistry']['hydrogen_ngamma_initial'],
     )
-    writer.simulation.fluid.mu = np.ones(grid_cells)
+    writer.fluid.mu = np.ones(grid_cells)
     writer.simulation.fluid.xHI = np.ones(grid_cells)
     return writer
 

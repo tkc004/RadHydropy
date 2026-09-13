@@ -57,7 +57,7 @@ def make_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(n) * ic["temperature_proper"]
     )
-    writer.simulation.fluid.mu = np.full(
+    writer.fluid.mu = np.full(
         n, float(ic["mean_molecular_weight"])
     )
     return writer

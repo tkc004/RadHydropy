@@ -24,7 +24,7 @@ DEFAULT_CENTRAL_CORE_MODEL = False
 
 def cell_centres(boundary_comoving_code):
     inner, outer = boundary_comoving_code[:-1], boundary_comoving_code[1:]
-    return 0.75 * (outer**4 - inner**4) / np.maximum(outer**3 - inner**3, 1.0e-300)
+    return 0.75 * (outer**4 - inner**4) / (outer**3 - inner**3)
 
 
 def radius_perturbation_comoving_code(config):

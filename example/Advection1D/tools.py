@@ -29,7 +29,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.ones(grid_cells) * initial['vel_proper'])
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial['temperature_proper'])
-    writer.simulation.fluid.mu = np.full(grid_cells, float(initial['mean_molecular_weight']))
+    writer.fluid.mu = np.full(grid_cells, float(initial['mean_molecular_weight']))
     return writer
 
 def plot_snapshot(outfilename, config, **kwargs):

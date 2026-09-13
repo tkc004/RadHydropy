@@ -560,7 +560,7 @@ def _write_cosmology_header(header, par, output_time, code_units):
     if not getattr(par, "cosmological_expansion", False):
         return
     cosmology_parameters = getattr(par, "cosmology", None)
-    cosmology = getattr(cosmology_parameters, "model", None)
+    cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
     if cosmology is None:
         raise ValueError("cosmological_expansion requires par.cosmology.model")
     if getattr(par, "supercomoving_coordinates", False):
@@ -679,7 +679,7 @@ def _restore_cosmology_context_from_header(par, header):
 def _runtime_field_spec(field_name, par, code_units, output_time):
     """Build metadata for a canonical runtime field at write time."""
     cosmology_parameters = getattr(par, "cosmology", None)
-    cosmology = getattr(cosmology_parameters, "model", None)
+    cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
     if cosmology is None or not getattr(par, "cosmological_expansion", False):
         return field_spec(field_name, code_units)
     if getattr(par, "supercomoving_coordinates", False):

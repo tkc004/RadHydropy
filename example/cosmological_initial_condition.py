@@ -4,7 +4,6 @@ import copy
 
 import numpy as np
 
-from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.runtime_fields import MeshGeometryState, SUPERCOMOVING_RUNTIME_FIELDS
 
@@ -18,30 +17,12 @@ def build_initial_condition(config):
     writer = InitialConditionWriter(
         ic_config=config["initial_condition"],
         par_config=copy.deepcopy(par),
-        cosmology_context=CosmologyContext(
-            gamma=float(par["hydrodynamics"]["gamma"]),
-            cosmology=code_cosmology.type_name,
-        ),
     )
     result = writer.simulation
     code_units = writer.code_units
     grid_cells = int(par["mesh"]["grid_cells"])
     initial_time_code = float(
         initial_condition["time_cosmic"].to_value(code_units.time_unit)
-    )
-    scale_factor = float(code_cosmology.scale_factor(initial_time_code))
-    hubble_unit_km_s_Mpc = (
-        code_units.velocity_unit.to_value("km/s")
-        / code_units.length_unit.to_value("Mpc")
-    )
-    result.par.cosmology_context = CosmologyContext(
-        gamma=float(par["hydrodynamics"]["gamma"]),
-        cosmology=code_cosmology.type_name,
-        scale_factor=scale_factor,
-        hubble_parameter_km_s_Mpc=(
-            float(code_cosmology.hubble(initial_time_code))
-            * hubble_unit_km_s_Mpc
-        ),
     )
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True
@@ -160,7 +141,6 @@ def build_initial_condition(config):
         writer.fluid.specific_angular_momentum_radarray = writer.radarray(
             np.asarray(config["_specific_angular_momentum_code"], dtype=float)
             * (code_units.length_unit**2 / code_units.time_unit),
-            field_name="specific_angular_momentum_code",
         )
     result.fluid.tau_supercomoving_code = float(result.par.tau_supercomoving_code[0])
     return writer

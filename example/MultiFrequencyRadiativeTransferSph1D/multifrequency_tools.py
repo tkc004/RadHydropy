@@ -62,7 +62,7 @@ def build_initial_condition(config):
         helium_mass_fraction = float(
             chemistry.get("helium_mass_fraction", 0.0)
         )
-        writer.simulation.fluid.mu = as_named_array(
+        writer.fluid.mu = as_named_array(
             np.full(
                 grid_cells,
                 1.0 / (hydrogen_mass_fraction + helium_mass_fraction / 4.0),
@@ -87,7 +87,7 @@ def build_initial_condition(config):
             )
         )
     else:
-        writer.simulation.fluid.mu = as_named_array(
+        writer.fluid.mu = as_named_array(
             np.ones(grid_cells, dtype=float)
         )
 

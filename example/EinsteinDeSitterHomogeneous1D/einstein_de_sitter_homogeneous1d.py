@@ -13,7 +13,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 import example_utils as eu
@@ -41,20 +40,10 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
         "cosmological_expansion": True,
         "supercomoving_coordinates": True,
     }
-    scale_factor = float(cosmology.scale_factor(t0))
     writer = InitialConditionWriter(
         ic_config=config["initial_condition"],
         par_config=par,
         code_units=units,
-        cosmology_context=CosmologyContext(
-            gamma=float(par["hydrodynamics"]["gamma"]),
-            cosmology=cosmology.type_name,
-            scale_factor=scale_factor,
-            hubble_parameter_km_s_Mpc=float(cosmology.hubble(t0)) * (
-                units.velocity_unit.to_value("km/s")
-                / units.length_unit.to_value("Mpc")
-            ),
-        ),
     )
     sim = writer.simulation
     writer.box_size = writer.radquantity(1.0 * units.length_unit)

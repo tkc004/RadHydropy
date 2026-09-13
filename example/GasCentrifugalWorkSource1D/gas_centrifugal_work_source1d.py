@@ -45,13 +45,12 @@ def build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(1) * initial_condition['temperature_proper']
     )
-    writer.simulation.fluid.mu = np.ones(1)
-    writer.simulation.fluid.specific_angular_momentum_radarray = writer.radarray(
+    writer.fluid.mu = np.ones(1)
+    writer.fluid.specific_angular_momentum_radarray = writer.radarray(
         np.atleast_1d(quantity_to_value(
             initial_condition['specific_angular_momentum'],
             units.length_unit * units.velocity_unit,
         )) * units.length_unit.units * units.velocity_unit.units,
-        field_name='specific_angular_momentum_code',
         representation=None,
     )
     return writer
@@ -84,7 +83,7 @@ def run_simulation(config):
     ghost_cells = int(sim.par.mesh.ghost_cells)
     sim.fluid.specific_angular_momentum_code = as_named_array(np.concatenate((
         np.zeros(ghost_cells),
-        np.asarray(initial.simulation.fluid.specific_angular_momentum_radarray, dtype=float),
+        np.asarray(initial.simulation.fluid.specific_angular_momentum_code, dtype=float),
         np.zeros(ghost_cells),
     )))
     sim.fluid.AngularMomentum_code = as_named_array(

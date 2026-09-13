@@ -27,7 +27,7 @@ def build_initial_condition(config):
         np.zeros(grid_cells) / unyt.cm**3
     )
     writer.simulation.fluid.xHI = np.ones(grid_cells)
-    writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
+    writer.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
     return writer
 
 def clean_outputs(output_dir):

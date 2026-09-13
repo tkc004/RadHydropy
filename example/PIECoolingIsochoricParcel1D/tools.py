@@ -28,5 +28,5 @@ def build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * temperature_proper_unyt)
     rho_proper_unyt = np.ones(grid_cells) * hydrogen_number_density_unyt * unyt.mp / hydrogen_mass_fraction
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
-    writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
+    writer.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
     return writer

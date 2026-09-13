@@ -143,6 +143,10 @@ class RadArray(unyt.unyt_array):
                 hubble_code * a * np.asarray(x_comoving_code) + values / a,
                 "vel_proper_code",
             )
+        if quantity == "specific_angular_momentum":
+            return self._target(
+                values, "specific_angular_momentum_proper_code"
+            )
 
         raise ValueError(f"unsupported proper conversion for {quantity!r}")
 
@@ -186,6 +190,10 @@ class RadArray(unyt.unyt_array):
             return self._target(
                 a * (values - hubble_code * a * np.asarray(x_comoving_code)),
                 "vel_supercomoving_code",
+            )
+        if source.representation == "proper" and quantity == "specific_angular_momentum":
+            return self._target(
+                values, "specific_angular_momentum_supercomoving_code"
             )
         raise ValueError(f"unsupported comoving conversion for {quantity!r}")
 

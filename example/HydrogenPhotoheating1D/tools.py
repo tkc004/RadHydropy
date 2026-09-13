@@ -39,7 +39,7 @@ def build_initial_condition(config):
     writer.fluid.ngamma_radarray = writer.radarray(
         np.ones(grid_cells) * initial['photon_number_density']
     )
-    writer.simulation.fluid.mu = as_named_array(
+    writer.fluid.mu = as_named_array(
         np.full(grid_cells, initial['mean_molecular_weight'])
     )
     return writer

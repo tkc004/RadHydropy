@@ -38,7 +38,7 @@ def build_initial_condition(config):
     writer.fluid.vel_radarray = writer.radarray(
         np.zeros(grid_cells) * code_units.velocity_unit
     )
-    writer.simulation.fluid.mu = np.ones(grid_cells) * float(initial['mu'])
+    writer.fluid.mu = np.ones(grid_cells) * float(initial['mu'])
     return writer
 
 

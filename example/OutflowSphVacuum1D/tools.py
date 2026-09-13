@@ -65,7 +65,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(
         np.zeros(grid_cells) * code_units.density_unit
     )
-    writer.simulation.fluid.mu = np.full(
+    writer.fluid.mu = np.full(
         grid_cells, float(initial['mean_molecular_weight'])
     )
     return writer
