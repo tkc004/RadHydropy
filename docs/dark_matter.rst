@@ -56,8 +56,8 @@ through the event and resorts the shell records.
 Approximate crossing batching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The optional ``dark_matter_crossing_batch_fraction`` runtime parameter controls
-how aggressively predicted crossings are batched.  Its default value is
+The optional ``par.dark_matter.crossing_batch_fraction`` runtime parameter
+controls how aggressively predicted crossings are batched.  Its default value is
 ``0.0``, which resolves each crossing at its predicted event time.  A positive
 value permits the integrator to advance past a predicted crossing by up to
 that fraction of the requested dark-matter timestep before resolving the
@@ -69,7 +69,8 @@ For example, to use a batch fraction of 0.5 in an example configuration:
 .. code-block:: yaml
 
    par:
-     dark_matter_crossing_batch_fraction: 0.5
+     dark_matter:
+       crossing_batch_fraction: 0.5
 
 The value is also available as ``--crossing-batch-fraction`` in the
 ``CosmologicalVirialShock1D`` gas-correlation runner.  Shell masses remain
@@ -79,10 +80,11 @@ only changes the timing of crossing resolution.
 Cosmological coupling
 ---------------------
 
-With ``par.gravity.cosmological_gravity`` and
-``par.gravity.supercomoving_coordinates`` enabled, gas and
-dark matter use one common excess-mass field. For a shell at comoving radius
-``x``,
+With ``par.cosmology.cosmological`` and
+``par.cosmology.supercomoving_coordinates`` enabled, gas and dark matter use
+one common excess-mass field. These controls belong to ``par.cosmology``;
+``par.gravity`` remains the group for self-gravity and external-gravity
+options. For a shell at comoving radius ``x``,
 
 .. math::
 

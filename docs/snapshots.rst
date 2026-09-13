@@ -8,10 +8,11 @@ layout as the initial-condition file. The filenames usually follow the pattern
 File Layout
 -----------
 
-Snapshot files contain two top-level groups:
+Snapshot files contain the following top-level groups:
 
 * ``Header``
 * ``Data``
+* ``DarkMatter`` when live shell state is present.
 
 ``Header`` group
 ~~~~~~~~~~~~~~~~
@@ -59,8 +60,8 @@ radiation field.  The dataset name is the on-disk runtime name, for example:
   comoving/supercomoving names);
 * conserved or diagnostic fields: ``Mass_code``, ``Energy_code``, and
   ``InternalEnergy_code`` when present; and
-* optional physics fields: ``mu``, ``xHI``, ``ngamma_code``, and dark-matter
-  shell fields when their physics modules are enabled.
+* optional physics fields: ``mu``, ``xHI``, and ``ngamma_code`` when their
+  physics modules are enabled.
 
 Cell-centered fields have one value per active/ghost cell in the saved
 layout.  A one-dimensional boundary field has one more value than the
@@ -80,6 +81,40 @@ Canonical hydrodynamic IC/snapshot fields normally use
 and thermochemistry fields with a documented cgs contract may use
 ``storage_unit = cgs`` instead. The ``_code`` suffix normally agrees with
 code-unit storage, but the dataset metadata is authoritative.
+
+``DarkMatter`` group
+~~~~~~~~~~~~~~~~~~~~
+
+When live spherical dark-matter shells are enabled, the snapshot contains a
+top-level ``DarkMatter`` group alongside ``Header`` and ``Data``. It stores
+one dataset per shell property:
+
+.. list-table:: Dark-matter shell datasets
+   :header-rows: 1
+   :widths: 38 42 20
+
+   * - Dataset
+     - Meaning
+     - Stored quantity
+   * - ``Radius``
+     - Current shell radius, sorted in shell order.
+     - code length
+   * - ``RadialVelocity``
+     - Current radial shell velocity.
+     - code velocity
+   * - ``Mass``
+     - Mass carried by each shell.
+     - code mass
+   * - ``SpecificAngularMomentum``
+     - Specific angular momentum carried by each shell.
+     - code length-squared/time
+
+The group may also have a ``Softening`` attribute. The shell datasets are
+Lagrangian state arrays rather than mesh fields, so they are not exposed as
+``*_radarray`` mesh accessors. Their storage units are interpreted using the
+snapshot's code-unit system. In a cosmological run, the shell radius and
+velocity follow the run's comoving/supercomoving runtime representation; do
+not interpret them as proper physical values just from the dataset names.
 
 When a snapshot is reloaded, :func:`radhydropy.io.loadhdf5` uses
 ``Header.attrs["CodeUnits"]`` and each field's ``storage_unit`` plus representation
@@ -137,9 +172,10 @@ views, which preserve units, representation, coordinate frame, and cosmology
 metadata.
 
 Optional fields include ``mu`` for mean molecular weight, ``xHI`` for neutral
-hydrogen fraction, ``ngamma_code`` for photon number density, and dark-matter
-shell fields when the corresponding physics is enabled. The exact datasets
-present can be inspected through ``snapshot.par.field_metadata``.
+hydrogen fraction, and ``ngamma_code`` for photon number density. The exact
+datasets present in ``Data`` can be inspected through
+``snapshot.par.field_metadata``; dark-matter shell datasets are listed in the
+separate ``DarkMatter`` group.
 
 Snapshot Provenance
 -------------------
@@ -212,6 +248,8 @@ For file-layout debugging only, the raw HDF5 groups can be inspected with
    with h5py.File("Output_001.hdf5", "r") as handle:
        print(sorted(handle["Header"].keys()))
        print(sorted(handle["Data"].keys()))
+       if "DarkMatter" in handle:
+           print(sorted(handle["DarkMatter"].keys()))
        print(handle["Header"].attrs["CoordinateSystem"])
        first_data_name = next(iter(handle["Data"]))
        print(first_data_name, handle["Data"][first_data_name].attrs)
@@ -277,6 +315,48 @@ To inspect available fields and their storage metadata:
 The metadata is the authoritative description of a dataset's storage
 convention. This is safer than assuming that every HDF5 array is in cgs or
 that every field with a ``_code`` suffix has the same representation.
+
+Reading dark-matter shells
+--------------------------
+
+``loadhdf5`` restores a live shell group to ``snapshot.par.dark_matter`` as a
+``DarkMatterShells`` object. Its shell arrays are numerical code-unit arrays,
+not ``RadArray`` objects, because they are particle-like Lagrangian state
+rather than cell-centered mesh fields. Convert them explicitly with the
+restored code-unit system before analysis:
+
+.. code-block:: python
+
+   import unyt
+   import radhydropy.io as rio
+
+   snapshot = rio.loadhdf5(config, "Output_001.hdf5")
+   shells = getattr(snapshot.par, "dark_matter", None)
+
+   if shells is not None:
+       radius = unyt.unyt_array(
+           shells.radius, snapshot.par.CodeUnits.length_unit
+       )
+       radial_velocity = unyt.unyt_array(
+           shells.velocity, snapshot.par.CodeUnits.velocity_unit
+       )
+       mass = unyt.unyt_array(shells.mass, snapshot.par.CodeUnits.mass_unit)
+       specific_angular_momentum = unyt.unyt_array(
+           shells.angular_momentum,
+           snapshot.par.CodeUnits.length_unit
+           * snapshot.par.CodeUnits.velocity_unit,
+       )
+
+       radius_kpc = radius.to_value("kpc")
+       velocity_km_s = radial_velocity.to_value("km/s")
+       total_mass = mass.sum()
+
+The raw restored mapping is also available as
+``snapshot.par.dark_matter_snapshot`` with keys ``radius``, ``velocity``,
+``mass``, ``angular_momentum``, and ``softening``. Use the ``DarkMatterShells``
+object for shell ordering and runtime quantities; use the mapping when a
+simple serialization-compatible view is sufficient. If the file has no
+``DarkMatter`` group, neither live shell state nor this mapping is created.
 
 Practical Notes
 ---------------

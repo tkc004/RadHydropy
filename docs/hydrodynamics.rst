@@ -5,6 +5,119 @@ RadHydropy advances the fluid with a one-dimensional finite-volume Euler
 solver for mass, momentum, and energy. The solver is implemented in
 :mod:`radhydropy.solver` and is coordinated by :class:`radhydropy.rsim.Rsim`.
 
+Hydrodynamics Parameters
+------------------------
+
+Hydrodynamics controls belong under ``par.hydrodynamics``. They configure the
+equation of state, face-state reconstruction, numerical flux, admissibility
+protection, and optional energy or angular-momentum variables. They do not
+configure boundary conditions, gravity, or source-network integration; those
+settings belong under ``par.boundary``, ``par.gravity``,
+``par.thermochemistry``, and ``par.timestep`` respectively.
+
+The main fields are:
+
+.. list-table:: ``par.hydrodynamics`` fields
+   :header-rows: 1
+   :widths: 34 46 20
+
+   * - Field
+     - Purpose
+     - Typical value
+   * - ``eos_type``
+     - Select the equation of state.
+     - ``polytropic``
+   * - ``gamma``
+     - Ratio of specific heats for the ideal-gas EOS.
+     - ``1.4`` or ``1.6667``
+   * - ``temperature_proper``
+     - Default proper gas temperature used by the runtime when needed.
+     - ``{value: ..., unit: K}``
+   * - ``CFL``
+     - Courant number used to estimate the hydro timestep.
+     - ``0.1``
+   * - ``order``
+     - Reconstruction order: ``0`` is piecewise constant; higher values use
+       reconstructed face states.
+     - ``0``, ``1``, or ``2``
+   * - ``riemann_solver``
+     - Numerical flux solver at cell faces.
+     - ``Rusanov``, ``HLLC``, or ``exact``
+   * - ``flux_limiter``
+     - Slope limiter used by reconstructed states.
+     - ``minmod``, ``vanleer``, ``MC``, or ``superbee``
+   * - ``dual_energy``
+     - Evolve an auxiliary internal-energy variable for cold/high-Mach flows.
+     - ``true`` or ``false``
+   * - ``dual_energy_eta1`` / ``dual_energy_eta2``
+     - Thresholds controlling pressure selection and synchronization.
+     - ``1.0e-3`` / ``1.0e-1``
+   * - ``dual_energy_consistency_factor``
+     - Tolerance for conservative and auxiliary-energy consistency.
+     - ``1.0e-1``
+   * - ``dual_energy_pressure_selection``
+     - Pressure source policy: ``switch``, ``conservative``, or ``internal``.
+     - ``switch``
+   * - ``dual_energy_entropy_limiter``
+     - Apply the optional entropy limiter to the dual-energy update.
+     - ``true`` or ``false``
+   * - ``dual_energy_pressure_floor``
+     - Minimum dimensionless pressure estimate used when both estimates fail.
+     - ``1.0e-20``
+   * - ``positivity_preserving``
+     - Limit updates that would produce invalid density or energy states.
+     - ``true``
+   * - ``positivity_density_floor`` / ``positivity_energy_floor``
+     - Code-unit floors used by positivity protection.
+     - ``0.0``
+   * - ``hydro_integrator``
+     - Time integrator for the hydro update.
+     - ``euler``, ``rk2``, or ``rk3``
+   * - ``boundary_mass_loading_timestep``
+     - Limit the timestep when boundary inflow loads cell mass.
+     - ``true`` or ``false``
+   * - ``gas_angular_momentum``
+     - Evolve gas specific angular momentum in spherical geometry.
+     - ``true`` or ``false``
+   * - ``gas_rotational_energy``
+     - Include rotational energy in the gas energy state.
+     - ``true`` or ``false``
+   * - ``angular_momentum_flux_scheme``
+     - Flux scheme for gas angular momentum.
+     - ``fct`` or ``upwind``
+   * - ``gravity_potential_energy``
+     - Include gravitational potential energy in diagnostics.
+     - ``true`` or ``false``
+   * - ``cfl_density_floor`` / ``hydro_temperature_floor``
+     - Floors used to protect timestep and temperature estimates.
+     - ``0.0`` / ``null``
+   * - ``temperature_jump_error_threshold``
+     - Temperature-jump threshold for a diagnostic failure or warning.
+     - ``1.0e8``
+
+A typical configuration is:
+
+.. code-block:: yaml
+
+   par:
+     hydrodynamics:
+       eos_type: polytropic
+       gamma: 1.4
+       CFL: 0.1
+       order: 1
+       riemann_solver: Rusanov
+       flux_limiter: minmod
+       dual_energy: true
+       dual_energy_eta1: 1.0e-3
+       dual_energy_eta2: 1.0e-1
+       positivity_preserving: true
+       hydro_integrator: euler
+
+The complete default set is maintained in
+``example/all_parameters_default.yaml``. In particular, ``CFL`` chooses the
+hydrodynamic stability limit but does not replace the optional absolute or
+source-specific limits under ``par.timestep``.
+
 Finite-Volume Update
 --------------------
 

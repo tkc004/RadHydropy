@@ -42,6 +42,8 @@ settings are:
        energy_diagnostics: true
      gravity:
        selfgravity: true
+     cosmology:
+       cosmological: true
        cosmological_expansion: true
        supercomoving_coordinates: true
        cosmology_type: einstein_de_sitter

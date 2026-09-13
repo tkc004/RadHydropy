@@ -187,6 +187,7 @@ RadHydropy/
 
 - [Installation guide](docs/installation.rst)
 - [Quickstart](docs/quickstart.rst)
+- [Architecture and runtime flow](docs/architecture.rst)
 - [Initial conditions](docs/initial_conditions.rst)
 - [Snapshots](docs/snapshots.rst)
 - [Hydrodynamics](docs/hydrodynamics.rst)

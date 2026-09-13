@@ -138,7 +138,8 @@ conversions from the HDF5 cosmology header.
 Enable the mode with::
 
    par:
-     gravity:
+     cosmology:
+       cosmological: true
        cosmological_expansion: true
        supercomoving_coordinates: true
        cosmology_type: einstein_de_sitter
