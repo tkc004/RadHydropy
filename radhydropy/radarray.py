@@ -61,6 +61,7 @@ class RadArray(unyt.unyt_array):
         code_units,
         field_spec,
         cosmology,
+        field_name=None,
     ):
         if not isinstance(field_spec, FieldSpec):
             raise TypeError("field_spec must be a FieldSpec")
@@ -71,6 +72,7 @@ class RadArray(unyt.unyt_array):
         obj.code_units = code_units
         obj.field_spec = field_spec
         obj.cosmology = cosmology
+        obj.field_name = field_name
         return obj
 
     def __array_finalize__(self, obj):
@@ -80,6 +82,7 @@ class RadArray(unyt.unyt_array):
         self.code_units = getattr(obj, "code_units", None)
         self.field_spec = getattr(obj, "field_spec", None)
         self.cosmology = getattr(obj, "cosmology", None)
+        self.field_name = getattr(obj, "field_name", None)
 
     @property
     def representation(self):
@@ -103,7 +106,15 @@ class RadArray(unyt.unyt_array):
             code_units=self.code_units,
             field_spec=target_spec,
             cosmology=self.cosmology,
+            field_name=field_name,
         )
+
+    def _representation_field_name(self, proper_name, comoving_name):
+        if self.field_name in {"radius_proper_code", "radius_comoving_code"}:
+            return proper_name.replace("boundary_", "radius_"), comoving_name.replace(
+                "boundary_", "radius_"
+            )
+        return proper_name, comoving_name
 
     def to_proper(self, *, x_comoving_code=None):
         """Return a new array converted to the proper-code representation."""
@@ -116,7 +127,10 @@ class RadArray(unyt.unyt_array):
         quantity = source.quantity
 
         if quantity == "radius":
-            return self._target(values * a, "boundary_proper_code")
+            proper_name, _ = self._representation_field_name(
+                "boundary_proper_code", "boundary_comoving_code"
+            )
+            return self._target(values * a, proper_name)
         if quantity == "mass_density":
             return self._target(values / a**3, "rho_proper_code")
         if quantity == "temperature":
@@ -161,7 +175,10 @@ class RadArray(unyt.unyt_array):
         quantity = source.quantity
 
         if source.representation == "proper" and quantity == "radius":
-            return self._target(values / a, "boundary_comoving_code")
+            _, comoving_name = self._representation_field_name(
+                "boundary_proper_code", "boundary_comoving_code"
+            )
+            return self._target(values / a, comoving_name)
         if source.representation == "proper" and quantity == "mass_density":
             return self._target(values * a**3, "rho_comoving_code")
         if source.representation == "proper" and quantity == "temperature":
@@ -377,6 +394,7 @@ class RadQuantity(unyt.unyt_quantity):
         code_units,
         field_spec,
         cosmology,
+        field_name=None,
     ):
         if not isinstance(field_spec, FieldSpec):
             raise TypeError("field_spec must be a FieldSpec")
@@ -387,6 +405,7 @@ class RadQuantity(unyt.unyt_quantity):
         obj.code_units = code_units
         obj.field_spec = field_spec
         obj.cosmology = cosmology
+        obj.field_name = field_name
         return obj
 
     def __array_finalize__(self, obj):
@@ -396,6 +415,7 @@ class RadQuantity(unyt.unyt_quantity):
         self.code_units = getattr(obj, "code_units", None)
         self.field_spec = getattr(obj, "field_spec", None)
         self.cosmology = getattr(obj, "cosmology", None)
+        self.field_name = getattr(obj, "field_name", None)
 
     @property
     def representation(self):
@@ -419,7 +439,15 @@ class RadQuantity(unyt.unyt_quantity):
             code_units=self.code_units,
             field_spec=target_spec,
             cosmology=self.cosmology,
+            field_name=field_name,
         )
+
+    def _representation_field_name(self, proper_name, comoving_name):
+        if self.field_name in {"radius_proper_code", "radius_comoving_code"}:
+            return proper_name.replace("boundary_", "radius_"), comoving_name.replace(
+                "boundary_", "radius_"
+            )
+        return proper_name, comoving_name
 
     def to_proper(self, *, x_comoving_code=None):
         """Return a new scalar converted to the proper-code representation."""
@@ -431,7 +459,10 @@ class RadQuantity(unyt.unyt_quantity):
         value = float(self.value)
         quantity = source.quantity
         if quantity == "radius":
-            return self._target(value * a, "boundary_proper_code")
+            proper_name, _ = self._representation_field_name(
+                "boundary_proper_code", "boundary_comoving_code"
+            )
+            return self._target(value * a, proper_name)
         if quantity == "mass_density":
             return self._target(value / a**3, "rho_proper_code")
         if quantity == "temperature":
@@ -457,6 +488,10 @@ class RadQuantity(unyt.unyt_quantity):
                 hubble_code * a * float(x_comoving_code) + value / a,
                 "vel_proper_code",
             )
+        if quantity == "specific_angular_momentum":
+            return self._target(
+                value, "specific_angular_momentum_proper_code"
+            )
         raise ValueError(f"unsupported proper conversion for {quantity!r}")
 
     def to_comoving(self, *, x_comoving_code=None):
@@ -469,7 +504,10 @@ class RadQuantity(unyt.unyt_quantity):
         value = float(self.value)
         quantity = source.quantity
         if quantity == "radius":
-            return self._target(value / a, "boundary_comoving_code")
+            _, comoving_name = self._representation_field_name(
+                "boundary_proper_code", "boundary_comoving_code"
+            )
+            return self._target(value / a, comoving_name)
         if quantity == "mass_density":
             return self._target(value * a**3, "rho_comoving_code")
         if quantity == "temperature":
@@ -495,11 +533,25 @@ class RadQuantity(unyt.unyt_quantity):
                 a * (value - hubble_code * a * float(x_comoving_code)),
                 "vel_supercomoving_code",
             )
+        if quantity == "specific_angular_momentum":
+            return self._target(
+                value, "specific_angular_momentum_supercomoving_code"
+            )
         raise ValueError(f"unsupported comoving conversion for {quantity!r}")
 
     def to_cgs(self):
         """Return the current scalar as an ordinary cgs ``unyt_quantity``."""
         return unyt.unyt_quantity(self.value, self.units).in_cgs()
+
+    def to_value(self, units=None, equivalence=None):
+        """Return the scalar value after an explicit unit conversion."""
+        ordinary_quantity = unyt.unyt_quantity(float(self.value), self.units)
+        return ordinary_quantity.to_value(units, equivalence=equivalence)
+
+    def to(self, units, equivalence=None):
+        """Return an ordinary unit-bearing scalar in ``units``."""
+        ordinary_quantity = unyt.unyt_quantity(float(self.value), self.units)
+        return ordinary_quantity.to(units, equivalence=equivalence)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         rad_inputs = [value for value in inputs if isinstance(value, (RadArray, RadQuantity))]

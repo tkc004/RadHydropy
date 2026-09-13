@@ -19,10 +19,13 @@ complete nested configuration, not only ``config["par"]``:
    snapshot = rio.loadhdf5(config, "Output_001.hdf5")
 
 The returned object is an ``Rsim`` with restored ``par``, ``mesh``, and
-``fluid`` components. The loader validates the file header against the
-configured coordinate system, grid size, code-unit system, cosmology, and
-field representations before returning the object. See :doc:`../snapshots`
-for the field layout and analysis examples.
+``fluid`` components. If the file contains live dark-matter shells, it also
+has a typed ``dark_matter`` analysis component with ``*_radarray`` fields;
+the mutable solver shell object remains available as
+``snapshot.par.dark_matter``. The loader validates the file header against
+the configured coordinate system, grid size, code-unit system, cosmology,
+and field representations before returning the object. See
+:doc:`../snapshots` for the field layout and analysis examples.
 
 All I/O members
 ---------------

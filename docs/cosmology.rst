@@ -1,5 +1,5 @@
-Supercomoving Cosmology
-========================
+Cosmology and Supercomoving Coordinates
+=======================================
 
 RadHydropy's cosmological mode uses supercomoving variables following the
 formulation of Martel and Shapiro and its use in Gnedin et al. The stored
@@ -29,6 +29,70 @@ the corresponding supercomoving scaling:
 
 For ``gamma=5/3``, a homogeneous adiabatically expanding gas has constant
 stored density, velocity, pressure, and energy.
+
+Cosmological parameters
+-----------------------
+
+All cosmological-background controls belong under ``par.cosmology``. They do
+not belong under ``par.gravity``: ``par.gravity`` contains gravitational
+source options, while ``par.cosmology`` selects the expanding background and
+its coordinate transformation.
+
+.. list-table:: ``par.cosmology`` fields
+   :header-rows: 1
+   :widths: 34 46 20
+
+   * - Field
+     - Meaning
+     - Typical value
+   * - ``cosmological``
+     - Enable the cosmological runtime and background model.
+     - ``true`` or ``false``
+   * - ``cosmological_expansion``
+     - Evolve the cosmological scale factor during the run.
+     - ``true`` or ``false``
+   * - ``supercomoving_coordinates``
+     - Use the supercomoving time and fluid-variable representation.
+     - ``true`` or ``false``
+   * - ``cosmological_background_boundary_reconstruction``
+     - Include the background force when reconstructing boundary states.
+     - ``true`` or ``false``
+   * - ``cosmology_type``
+     - Select the background model.
+     - ``einstein_de_sitter`` or ``lambda_cdm``
+   * - ``cosmology_t_ref``
+     - Reference cosmic time for the scale-factor convention.
+     - ``{value: ..., unit: ...}``
+   * - ``cosmology_a_ref``
+     - Scale factor at the reference time.
+     - dimensionless
+   * - ``cosmology_hubble_ref``
+     - Optional Hubble parameter at the reference time.
+     - unit-bearing or ``null``
+   * - ``cosmology_omega_m``
+     - Matter density parameter for the background model.
+     - dimensionless
+   * - ``cosmology_omega_lambda``
+     - Dark-energy density parameter for the background model.
+     - dimensionless
+
+When ``supercomoving_coordinates`` is enabled, RadHydropy automatically
+assigns the matching coordinate frame, time coordinate, and fluid
+representations under ``par.simulation``. Do not duplicate those derived
+representation fields under ``par.cosmology``.
+
+A minimal Einstein--de Sitter setup is:
+
+.. code-block:: yaml
+
+   par:
+     cosmology:
+       cosmological: true
+       cosmological_expansion: true
+       supercomoving_coordinates: true
+       cosmology_type: einstein_de_sitter
+       cosmology_t_ref: {value: 1.0, unit: Myr}
+       cosmology_a_ref: 1.0
 
 Modified equations
 ------------------

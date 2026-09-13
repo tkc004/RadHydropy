@@ -33,6 +33,16 @@ _FIELD_DEFINITIONS = {
         "unit_property": "length_unit", "representation": "comoving",
         "physical_relation": "physical = a * stored",
     },
+    "radius_proper_code": {
+        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit", "representation": "proper",
+        "physical_relation": "physical = stored",
+    },
+    "radius_comoving_code": {
+        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit", "representation": "comoving",
+        "physical_relation": "physical = a * stored",
+    },
     "rho_proper_code": {
         "quantity": "mass_density", "dimensions": (1, -3, 0, 0, 0),
         "unit_property": "density_unit", "representation": "proper",
@@ -75,6 +85,11 @@ _FIELD_DEFINITIONS = {
         "physical_relation": "physical = stored / a**(3*gamma)",
     },
     "Mass_code": {
+        "quantity": "mass", "dimensions": (1, 0, 0, 0, 0),
+        "unit_property": "mass_unit", "representation": "physical",
+        "physical_relation": "physical = stored",
+    },
+    "dark_matter_mass_code": {
         "quantity": "mass", "dimensions": (1, 0, 0, 0, 0),
         "unit_property": "mass_unit", "representation": "physical",
         "physical_relation": "physical = stored",

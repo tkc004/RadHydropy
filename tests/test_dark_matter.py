@@ -370,6 +370,7 @@ def test_dark_matter_snapshot_group_is_written():
             self.time = np.array([0.0])
             self.box_size_proper_code = np.array([2.0])
             self.dark_matter = dm
+            self.hydrodynamics = SimpleNamespace(gamma=1.4, eos_type="polytropic")
             self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
             self.simulation = SimpleNamespace(
                 box_size_proper_code=self.box_size_proper_code, time_code=self.time
@@ -428,6 +429,7 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
             self.time = np.array([0.0])
             self.box_size_proper_code = np.array([2.0])
             self.dark_matter = dm
+            self.hydrodynamics = SimpleNamespace(gamma=1.4, eos_type="polytropic")
             self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
             self.simulation = SimpleNamespace(
                 box_size_proper_code=self.box_size_proper_code, time_code=self.time
@@ -465,3 +467,15 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
     assert np.allclose(reconstructed.angular_momentum, dm.angular_momentum)
     assert np.isclose(reconstructed.softening, dm.softening)
     assert loaded_par.dark_matter_snapshot["mass"].shape == dm.mass.shape
+    typed = loaded_par.dark_matter_radarrays
+    assert typed.number_of_shells == dm.number_of_shells
+    assert typed.radius_radarray.field_spec.quantity == "radius"
+    assert typed.radius_radarray.field_spec.representation == "proper"
+    assert typed.radial_velocity_radarray.field_spec.quantity == "velocity"
+    assert typed.dark_matter_mass_radarray.field_spec.quantity == "mass"
+    assert (
+        typed.specific_angular_momentum_radarray.field_spec.quantity
+        == "specific_angular_momentum"
+    )
+    assert np.allclose(typed.radius_radarray.to_value(units.length_unit), dm.radius)
+    assert np.isclose(typed.softening_radquantity.to_value(units.length_unit), dm.softening)

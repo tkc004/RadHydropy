@@ -44,6 +44,7 @@ def _array(values, field_name):
             ),
         ),
         cosmology=CONTEXT,
+        field_name=field_name,
     )
 
 
@@ -61,6 +62,7 @@ def _quantity(value, field_name):
             ),
         ),
         cosmology=CONTEXT,
+        field_name=field_name,
     )
 
 
@@ -68,6 +70,7 @@ class RadArrayTests(unittest.TestCase):
     def test_scalar_quantity_round_trips_all_cosmological_fields(self):
         cases = (
             ("boundary_comoving_code", "boundary_proper_code", 2.0, 1.0),
+            ("radius_comoving_code", "radius_proper_code", 2.0, 1.0),
             ("rho_comoving_code", "rho_proper_code", 8.0, 64.0),
             ("temp_supercomoving_code", "temp_proper_code", 8.0, 32.0),
             ("pre_supercomoving_code", "pre_proper_code", 64.0, 2048.0),
@@ -102,6 +105,20 @@ class RadArrayTests(unittest.TestCase):
             float(proper_radquantity.to_comoving(x_comoving_code=4.0).value),
             2.0,
         )
+
+    def test_specific_angular_momentum_preserves_shell_field_name_on_conversion(self):
+        source = _quantity(2.0, "specific_angular_momentum_supercomoving_code")
+        proper = source.to_proper()
+        self.assertEqual(
+            proper.field_spec,
+            field_spec(
+                "specific_angular_momentum_proper_code",
+                CODE_UNITS,
+                cosmology=CONTEXT.cosmology,
+                scale_factor=CONTEXT.scale_factor,
+            ),
+        )
+        self.assertAlmostEqual(float(proper.value), 2.0)
 
     def test_scalar_mixed_representations_are_rejected(self):
         proper_radquantity = _quantity(1.0, "rho_proper_code")

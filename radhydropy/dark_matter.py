@@ -5,6 +5,37 @@ import numpy as np
 from radhydropy.units import _code_units, _gravitational_constant_code, quantity_to_value
 
 
+class DarkMatterSnapshot:
+    """Typed analysis view of a restored dark-matter shell snapshot.
+
+    The mutable :class:`DarkMatterShells` solver state remains a separate
+    object with plain code-unit NumPy arrays.  This view contains the
+    representation-aware ``RadArray``/``RadQuantity`` fields used by analysis.
+    """
+
+    def __init__(
+        self,
+        *,
+        radius_radarray,
+        radial_velocity_radarray,
+        dark_matter_mass_radarray,
+        specific_angular_momentum_radarray,
+        softening_radquantity,
+    ):
+        self.radius_radarray = radius_radarray
+        self.radial_velocity_radarray = radial_velocity_radarray
+        self.dark_matter_mass_radarray = dark_matter_mass_radarray
+        self.specific_angular_momentum_radarray = (
+            specific_angular_momentum_radarray
+        )
+        self.softening_radquantity = softening_radquantity
+
+    @property
+    def number_of_shells(self):
+        """Number of shells in the restored snapshot."""
+        return int(self.radius_radarray.size)
+
+
 class EnclosedGasMassProfile:
     """Piecewise-constant spherical gas-mass profile for one hydro state.
 

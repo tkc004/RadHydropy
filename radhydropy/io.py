@@ -11,7 +11,7 @@ import yaml
 import radhydropy.utils as ru
 from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
 from radhydropy.arrays import as_named_array
-from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.dark_matter import DarkMatterShells, DarkMatterSnapshot
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     PROPER_RUNTIME_FIELDS,
@@ -20,7 +20,7 @@ from radhydropy.runtime_fields import (
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.field_metadata import FieldSpec, field_spec
-from radhydropy.radarray import RadArray
+from radhydropy.radarray import RadArray, RadQuantity
 try:
     from sympy.core.basic import Basic as SympyBasic
 except Exception:  # pragma: no cover - optional dependency shape
@@ -417,6 +417,7 @@ def _attach_radarray_views(group, target, dataset_names, canonical_schema,
                 code_units=code_units,
                 field_spec=spec,
                 cosmology=cosmology,
+                field_name=canonical_name,
             ),
         )
     # Keep auxiliary dimensional fields discoverable without inventing
@@ -447,8 +448,79 @@ def _attach_radarray_views(group, target, dataset_names, canonical_schema,
                 code_units=code_units,
                 field_spec=spec,
                 cosmology=cosmology,
+                field_name=dataset_name,
             ),
         )
+
+
+def _attach_dark_matter_radarray_views(
+    group, par, code_units, cosmology, canonical_schema
+):
+    """Restore the typed analysis view for a ``DarkMatter`` HDF5 group."""
+    if group is None or cosmology is None:
+        return None
+    if canonical_schema == "cosmological":
+        field_names = {
+            "Radius": "radius_comoving_code",
+            "RadialVelocity": "vel_supercomoving_code",
+            "Mass": "dark_matter_mass_code",
+            "SpecificAngularMomentum": "specific_angular_momentum_supercomoving_code",
+        }
+    else:
+        field_names = {
+            "Radius": "radius_proper_code",
+            "RadialVelocity": "vel_proper_code",
+            "Mass": "dark_matter_mass_code",
+            "SpecificAngularMomentum": "specific_angular_momentum_proper_code",
+        }
+    views = {}
+    for dataset_name, canonical_name in field_names.items():
+        if dataset_name not in group or not hasattr(par, dataset_name):
+            raise ValueError(
+                f"DarkMatter group is missing required dataset {dataset_name!r}"
+            )
+        dataset = group[dataset_name]
+        spec = _radarray_field_spec(
+            dataset, canonical_name, code_units, cosmology
+        )
+        views[dataset_name] = RadArray(
+            np.asarray(getattr(par, dataset_name), dtype=float),
+            code_units=code_units,
+            field_spec=spec,
+            cosmology=cosmology,
+            field_name=canonical_name,
+        )
+
+    softening_runtime_code = _restore_header_attr_value(
+        group.attrs.get("Softening", 0.0)
+    )
+    if hasattr(softening_runtime_code, "to_value"):
+        softening_runtime_code = float(
+            np.asarray(softening_runtime_code.to_value(code_units.length_unit))
+        )
+    else:
+        softening_runtime_code = float(softening_runtime_code)
+    softening_field_name = (
+        "radius_comoving_code"
+        if canonical_schema == "cosmological"
+        else "radius_proper_code"
+    )
+    softening_spec = _radarray_field_spec(
+        group["Radius"], softening_field_name, code_units, cosmology
+    )
+    return DarkMatterSnapshot(
+        radius_radarray=views["Radius"],
+        radial_velocity_radarray=views["RadialVelocity"],
+        dark_matter_mass_radarray=views["Mass"],
+        specific_angular_momentum_radarray=views["SpecificAngularMomentum"],
+        softening_radquantity=RadQuantity(
+            softening_runtime_code,
+            code_units=code_units,
+            field_spec=softening_spec,
+            cosmology=cosmology,
+            field_name=softening_field_name,
+        ),
+    )
 
 
 def _yaml_config_value(value):
@@ -946,6 +1018,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
                 "hydrodynamics", "boundary", "timestep", "thermochemistry",
                 "gravity", "output", "simulation", "diagnostics", "mesh",
                 "chemistry", "angular_momentum", "dark_matter_config",
+                "dark_matter_radarrays",
                 "dual_energy_config", "positivity", "radiation", "units",
             }:
                 continue
@@ -1190,18 +1263,51 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
             dark_matter = getattr(gravity, "dark_matter", None)
         if dark_matter is not None:
             dmdata = fic.create_group("DarkMatter")
+            dm_radius_name = (
+                "radius_comoving_code"
+                if cosmological_schema
+                else "radius_proper_code"
+            )
+            dm_velocity_name = (
+                "vel_supercomoving_code"
+                if cosmological_schema
+                else "vel_proper_code"
+            )
+            dm_angular_momentum_name = (
+                "specific_angular_momentum_supercomoving_code"
+                if cosmological_schema
+                else "specific_angular_momentum_proper_code"
+            )
             _write_quantity(dmdata, "Radius", dark_matter.radius,
                             code_units=code_units, scale_key="length_cgs_cm",
-                            default_unit=unyt.cm)
+                            default_unit=unyt.cm,
+                            field_spec_obj=_runtime_field_spec(
+                                dm_radius_name, ric.par, code_units, output_time
+                            ))
             _write_quantity(dmdata, "RadialVelocity", dark_matter.velocity,
                             code_units=code_units, scale_key="velocity_cgs_cm_s",
-                            default_unit=unyt.cm / unyt.s)
+                            default_unit=unyt.cm / unyt.s,
+                            field_spec_obj=_runtime_field_spec(
+                                dm_velocity_name, ric.par, code_units, output_time
+                            ))
             _write_quantity(dmdata, "Mass", dark_matter.mass,
                             code_units=code_units, scale_key="mass_g",
-                            default_unit=unyt.g)
+                            default_unit=unyt.g,
+                            field_spec_obj=_runtime_field_spec(
+                                "dark_matter_mass_code",
+                                ric.par,
+                                code_units,
+                                output_time,
+                            ))
             _write_quantity(dmdata, "SpecificAngularMomentum", dark_matter.angular_momentum,
                             code_units=code_units, scale_key="specific_angular_momentum",
-                            default_unit=unyt.cm**2 / unyt.s)
+                            default_unit=unyt.cm**2 / unyt.s,
+                            field_spec_obj=_runtime_field_spec(
+                                dm_angular_momentum_name,
+                                ric.par,
+                                code_units,
+                                output_time,
+                            ))
             dmdata.attrs["Softening"] = _header_attr_value(
                 dark_matter.softening * code_units.length_unit
             )
@@ -1565,6 +1671,13 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 softening=snapshot["softening"],
                 code_units=code_units,
             )
+            par.dark_matter_radarrays = _attach_dark_matter_radarray_views(
+                dmdata,
+                par,
+                code_units,
+                getattr(par, "cosmology_context", None),
+                "cosmological" if canonical_cosmological_schema else "proper",
+            )
 
 
 def loadhdf5(config, ICfilename):
@@ -1584,7 +1697,7 @@ def loadhdf5(config, ICfilename):
     radhydropy.rsim.Rsim
         Runtime object containing restored ``par``, ``mesh``, and ``fluid``
         state. Dimensional analysis should use the typed ``*_radarray`` views
-        on ``mesh`` and ``fluid``.
+        on ``mesh``, ``fluid``, and the optional ``dark_matter`` component.
 
     Notes
     -----
@@ -1593,7 +1706,9 @@ def loadhdf5(config, ICfilename):
     ``rho_proper_code``; cosmological files restore fields such as
     ``rho_comoving_code`` and ``vel_supercomoving_code``. Chemistry,
     radiation, provenance, and live dark-matter state are restored when those
-    groups are present in the file.
+    groups are present in the file. Live shell solver state remains available
+    through ``snapshot.par.dark_matter``; the typed analysis view is exposed
+    as ``snapshot.dark_matter``.
     """
     if not hasattr(config, "__getitem__"):
         raise TypeError("loadhdf5 expects a nested configuration mapping")
@@ -1614,5 +1729,8 @@ def loadhdf5(config, ICfilename):
         restored.mesh,
         restored.fluid,
         ICfilename,
+    )
+    restored.dark_matter = getattr(
+        restored.par, "dark_matter_radarrays", None
     )
     return restored

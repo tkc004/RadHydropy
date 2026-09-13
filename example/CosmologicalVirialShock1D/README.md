@@ -78,7 +78,15 @@ twice. It saves the evolving physical gas-density profiles and the live-DM
 `outputs_correlation_gas_adiabatic/AdiabaticGasDensityProfiles.npz`, together
 with `AdiabaticGasDensityProfiles.jpg`. The plot uses comoving radius on its
 x-axis and marks each profile's corresponding proper virial radius converted
-to comoving coordinates. The adiabatic control starts with
+to comoving coordinates. Each diagnostic time also writes an HDF5 snapshot
+named `CosmologicalGasCorrelationZ100_Snapshot_###.hdf5`. These can be loaded
+with `radhydropy.io.loadhdf5()`; the restored shell data are available through
+`snapshot.dark_matter.radius_radarray`,
+`snapshot.dark_matter.radial_velocity_radarray`, and
+`snapshot.dark_matter.dark_matter_mass_radarray`. The dark-matter density plot
+uses the restored shell masses with the snapshot softening length, applying the
+same effective `r + softening` radius used by the shell force law. The adiabatic
+control starts with
 `T = 2.7255(1+z) K` and a configurable residual post-recombination electron
 fraction (`2e-4` by default), then evolves Compton CMB heating/cooling at the
 instantaneous redshift. Atomic recombination, collisional ionization, UV

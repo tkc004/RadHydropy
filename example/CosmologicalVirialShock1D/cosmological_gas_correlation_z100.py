@@ -1180,6 +1180,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     gas_profiles = []
     radius_history = []
     dm_profiles = []
+    hdf5_snapshot_files = []
     gas_energy_history = []
     dm_energy_history = []
     halo_crossing_history = []
@@ -1188,6 +1189,24 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
 
     def save_snapshot(time_cosmic_code):
         nonlocal previous_halo_mask
+        snapshot_index = len(hdf5_snapshot_files)
+        snapshot_filename = output_dir / (
+            f"{figure_prefix}_Snapshot_{snapshot_index:03d}.hdf5"
+        )
+        rio._writehdf5(sim, snapshot_filename)
+        hdf5_snapshot_files.append(snapshot_filename)
+        restored_snapshot = rio.loadhdf5(config, str(snapshot_filename))
+        restored_dark_matter = restored_snapshot.dark_matter
+        dark_matter_radius_comoving_code = np.asarray(
+            restored_dark_matter.radius_radarray.to_value(units.length_unit),
+            dtype=float,
+        )
+        dark_matter_mass_comoving_code = np.asarray(
+            restored_dark_matter.dark_matter_mass_radarray.to_value(
+                units.mass_unit
+            ),
+            dtype=float,
+        )
         gas_profile = et.gas_density_profile(sim, time_cosmic_code, config)
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
@@ -1257,7 +1276,19 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
                 radius_record[report_key] = np.nan
         gas_profiles.append(gas_profile)
         radius_history.append(radius_record)
-        dm_profile = et.density_profiles(sim, dm, time_cosmic_code, config)
+        dm_profile = et.density_profiles(
+            sim,
+            dm,
+            time_cosmic_code,
+            config,
+            dark_matter_snapshot=restored_dark_matter,
+        )
+        # Keep the explicitly restored RadArray coordinates in the saved
+        # profile alongside the softened density-bin centers.
+        dm_profile["dm_radius_comoving_code"] = (
+            dark_matter_radius_comoving_code
+        )
+        dm_profile["dm_mass_comoving_code"] = dark_matter_mass_comoving_code
         dm_profile["scale_factor"] = scale_factor
         dm_profiles.append(dm_profile)
         gas_energy_history.append(_energy_cell_state(sim))
@@ -1761,6 +1792,10 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         radius_proper_kpc=_pad_profile_history(dm_profiles, "dm_radius_proper_kpc"),
         rho_proper_code=_pad_profile_history(dm_profiles, "dm_rho_proper_code"),
         mass_code=_pad_profile_history(dm_profiles, "dm_mass_comoving_code"),
+        softening_comoving_code=np.asarray([
+            item.get("dm_softening_comoving_code", np.nan)
+            for item in dm_profiles
+        ]),
         total_mass=np.asarray([
             item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles
         ]),
@@ -1818,6 +1853,7 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     print("velocity figure = %s" % velocity_figure)
     print("dark-matter figure = %s" % dm_figure)
     print("dark-matter data = %s" % dm_data_file)
+    print("HDF5 snapshots = %s" % output_dir)
     print("gas/DM density comparison = %s" % density_comparison_figure)
     print("energy audit = %s" % energy_audit_file)
     print("per-cell/shell energy history = %s" % energy_entity_file)

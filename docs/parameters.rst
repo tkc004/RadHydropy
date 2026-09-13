@@ -227,45 +227,8 @@ not belong under ``par.gravity``: ``par.gravity`` contains the gravitational
 source options, while ``par.cosmology`` selects the expanding background and
 its coordinate transformation.
 
-The main ``par.cosmology`` fields are:
-
-.. list-table:: ``par.cosmology`` fields
-   :header-rows: 1
-   :widths: 34 46 20
-
-   * - Field
-     - Meaning
-     - Typical value
-   * - ``cosmological``
-     - Enable the cosmological runtime and background model.
-     - ``true`` or ``false``
-   * - ``cosmological_expansion``
-     - Evolve the cosmological scale factor during the run.
-     - ``true`` or ``false``
-   * - ``supercomoving_coordinates``
-     - Use the supercomoving time and fluid-variable representation.
-     - ``true`` or ``false``
-   * - ``cosmological_background_boundary_reconstruction``
-     - Include the background force when reconstructing boundary states.
-     - ``true`` or ``false``
-   * - ``cosmology_type``
-     - Select the background model.
-     - ``einstein_de_sitter`` or ``lambda_cdm``
-   * - ``cosmology_t_ref``
-     - Reference cosmic time for the scale-factor convention.
-     - ``{value: ..., unit: ...}``
-   * - ``cosmology_a_ref``
-     - Scale factor at the reference time.
-     - dimensionless
-   * - ``cosmology_hubble_ref``
-     - Optional Hubble parameter at the reference time.
-     - unit-bearing or ``null``
-   * - ``cosmology_omega_m``
-     - Matter density parameter for the background model.
-     - dimensionless
-   * - ``cosmology_omega_lambda``
-     - Dark-energy density parameter for the background model.
-     - dimensionless
+The complete ``par.cosmology`` field table and the physical meaning of each
+control are documented in :doc:`cosmology`.
 
 When ``supercomoving_coordinates`` is enabled, RadHydropy automatically
 assigns the matching coordinate frame, time coordinate, and fluid
@@ -285,29 +248,8 @@ A minimal Einstein--de Sitter setup is:
        cosmology_t_ref: {value: 1.0, unit: Myr}
        cosmology_a_ref: 1.0
 
-See :doc:`cosmology` for scale-factor conventions and cosmological initial
-conditions. Gas angular momentum and dark-matter shell parameters are covered
-in :doc:`dark_matter` and the relevant example pages.
-
-Initial conditions and snapshots
---------------------------------
-
-Initial-condition construction is documented in :doc:`initial_conditions`.
-The current example boundary is ``InitialConditionWriter``; use
-``writer.write(filename, validate=True)`` before starting ``Rsim``.
-
-For post-processing, load an IC or snapshot with the complete nested
-configuration and use typed ``*_radarray`` views:
-
-.. code-block:: python
-
-   import radhydropy.io as rio
-
-   snapshot = rio.loadhdf5(config, "Output_001.hdf5")
-   radius_proper_radarray = snapshot.mesh.boundary_radarray
-   density_proper_radarray = snapshot.fluid.rho_radarray
-
-See :doc:`snapshots` for the HDF5 layout, field metadata, and provenance.
+Gas angular momentum and dark-matter shell parameters are covered in
+:doc:`dark_matter` and the relevant example pages.
 
 Source and diagnostic references
 --------------------------------

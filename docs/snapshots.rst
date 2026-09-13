@@ -111,10 +111,12 @@ one dataset per shell property:
 
 The group may also have a ``Softening`` attribute. The shell datasets are
 Lagrangian state arrays rather than mesh fields, so they are not exposed as
-``*_radarray`` mesh accessors. Their storage units are interpreted using the
-snapshot's code-unit system. In a cosmological run, the shell radius and
-velocity follow the run's comoving/supercomoving runtime representation; do
-not interpret them as proper physical values just from the dataset names.
+mesh accessors on ``snapshot.mesh``; they are exposed through the typed
+``snapshot.dark_matter`` component instead. Their storage units are
+interpreted using the snapshot's code-unit system. In a cosmological run, the
+shell radius and velocity follow the run's comoving/supercomoving runtime
+representation; do not interpret them as proper physical values just from the
+dataset names.
 
 When a snapshot is reloaded, :func:`radhydropy.io.loadhdf5` uses
 ``Header.attrs["CodeUnits"]`` and each field's ``storage_unit`` plus representation
@@ -133,6 +135,9 @@ The loader returns an ``Rsim`` object. Its main analysis-facing components are:
    Typed fluid fields, including ``rho_radarray``, ``vel_radarray``, and
    ``temp_radarray``. Chemistry adds ``mu`` and ``xHI``; radiative transfer
    adds photon-number fields when present.
+``snapshot.dark_matter``
+   Optional typed shell fields such as ``radius_radarray`` and
+   ``dark_matter_mass_radarray`` when a ``DarkMatter`` group is present.
 
 Field formats
 -------------
@@ -320,43 +325,47 @@ Reading dark-matter shells
 --------------------------
 
 ``loadhdf5`` restores a live shell group to ``snapshot.par.dark_matter`` as a
-``DarkMatterShells`` object. Its shell arrays are numerical code-unit arrays,
-not ``RadArray`` objects, because they are particle-like Lagrangian state
-rather than cell-centered mesh fields. Convert them explicitly with the
-restored code-unit system before analysis:
+``DarkMatterShells`` solver object and exposes a separate typed analysis view
+as ``snapshot.dark_matter``. The analysis view uses ``RadArray`` fields even
+though the shells are Lagrangian rather than cell-centered mesh data:
 
 .. code-block:: python
 
-   import unyt
    import radhydropy.io as rio
 
    snapshot = rio.loadhdf5(config, "Output_001.hdf5")
-   shells = getattr(snapshot.par, "dark_matter", None)
+   dark_matter = snapshot.dark_matter
 
-   if shells is not None:
-       radius = unyt.unyt_array(
-           shells.radius, snapshot.par.CodeUnits.length_unit
-       )
-       radial_velocity = unyt.unyt_array(
-           shells.velocity, snapshot.par.CodeUnits.velocity_unit
-       )
-       mass = unyt.unyt_array(shells.mass, snapshot.par.CodeUnits.mass_unit)
-       specific_angular_momentum = unyt.unyt_array(
-           shells.angular_momentum,
-           snapshot.par.CodeUnits.length_unit
-           * snapshot.par.CodeUnits.velocity_unit,
-       )
+   radius_radarray = dark_matter.radius_radarray
+   radial_velocity_radarray = dark_matter.radial_velocity_radarray
+   dark_matter_mass_radarray = dark_matter.dark_matter_mass_radarray
+   specific_angular_momentum_radarray = (
+       dark_matter.specific_angular_momentum_radarray
+   )
+   softening_radquantity = dark_matter.softening_radquantity
 
-       radius_kpc = radius.to_value("kpc")
-       velocity_km_s = radial_velocity.to_value("km/s")
-       total_mass = mass.sum()
+   radius_kpc = radius_radarray.to_value("kpc")
+   velocity_km_s = radial_velocity_radarray.to_value("km/s")
+   total_mass = dark_matter_mass_radarray.sum()
 
-The raw restored mapping is also available as
+For a cosmological snapshot, ``radius_radarray`` and
+``radial_velocity_radarray`` preserve the comoving/supercomoving
+representation. Convert explicitly when a physical diagnostic is required:
+
+.. code-block:: python
+
+   radius_proper_radarray = radius_radarray.to_proper()
+   velocity_proper_radarray = radial_velocity_radarray.to_proper(
+       x_comoving_code=radius_radarray
+   )
+
+The raw restored mapping remains available as
 ``snapshot.par.dark_matter_snapshot`` with keys ``radius``, ``velocity``,
 ``mass``, ``angular_momentum``, and ``softening``. Use the ``DarkMatterShells``
-object for shell ordering and runtime quantities; use the mapping when a
-simple serialization-compatible view is sufficient. If the file has no
-``DarkMatter`` group, neither live shell state nor this mapping is created.
+object at ``snapshot.par.dark_matter`` for shell ordering and solver/runtime
+quantities; use the mapping when a simple serialization-compatible view is
+sufficient. If the file has no ``DarkMatter`` group, ``snapshot.dark_matter``
+is ``None`` and no live shell state is restored.
 
 Practical Notes
 ---------------

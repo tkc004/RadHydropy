@@ -67,6 +67,8 @@ class FieldSpecTests(unittest.TestCase):
             "boundary": ("radius", (0, 1, 0, 0, 0), "proper"),
             "boundary_proper_code": ("radius", (0, 1, 0, 0, 0), "proper"),
             "boundary_comoving_code": ("radius", (0, 1, 0, 0, 0), "comoving"),
+            "radius_proper_code": ("radius", (0, 1, 0, 0, 0), "proper"),
+            "radius_comoving_code": ("radius", (0, 1, 0, 0, 0), "comoving"),
             "rho_proper_code": ("mass_density", (1, -3, 0, 0, 0), "proper"),
             "rho_comoving_code": ("mass_density", (1, -3, 0, 0, 0), "comoving"),
             "vel_proper_code": ("velocity", (0, 0, 1, 0, 0), "proper"),
@@ -80,6 +82,7 @@ class FieldSpecTests(unittest.TestCase):
                 "pressure", (1, -3, 2, 0, 0), "supercomoving"
             ),
             "Mass_code": ("mass", (1, 0, 0, 0, 0), "physical"),
+            "dark_matter_mass_code": ("mass", (1, 0, 0, 0, 0), "physical"),
             "Energy_code": ("energy", (1, 0, 2, 0, 0), "physical"),
             "InternalEnergy_code": ("energy", (1, 0, 2, 0, 0), "physical"),
             "GravitationalPotentialEnergy_code": (
@@ -98,6 +101,8 @@ class FieldSpecTests(unittest.TestCase):
                 "specific_angular_momentum", (0, 1, 1, 0, 0), "supercomoving"
             ),
             "ngamma_code": ("number_density", (0, -3, 0, 0, 0), "physical"),
+            "ngamma_proper_code": ("number_density", (0, -3, 0, 0, 0), "proper"),
+            "ngamma_comoving_code": ("number_density", (0, -3, 0, 0, 0), "comoving"),
         }
 
         self.assertEqual(set(expected), set(_FIELD_DEFINITIONS))

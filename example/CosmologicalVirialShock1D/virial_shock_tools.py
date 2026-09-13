@@ -718,18 +718,55 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
     }
 
 
-def density_profiles(sim, dark_matter, time_cosmic_code, config):
-    """Return physical gas and shell-based DM density profiles."""
+def density_profiles(
+    sim,
+    dark_matter,
+    time_cosmic_code,
+    config,
+    dark_matter_snapshot=None,
+):
+    """Return physical gas and softened shell-based DM density profiles.
+
+    When ``dark_matter_snapshot`` is supplied, the shell coordinates, masses,
+    and softening length come from the restored typed HDF5 analysis view.  The
+    density bins use the same ``r + softening`` effective radius as the live
+    shell force law.
+    """
     cosmology = config["_cosmology"]
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     a = float(cosmology.scale_factor(time_cosmic_code))
     gas = gas_density_profile(sim, time_cosmic_code, config)
 
-    order = np.argsort(dark_matter.radius)
-    dm_radius_comoving = np.asarray(dark_matter.radius[order], dtype=float)
-    dm_mass_comoving_code = np.asarray(dark_matter.mass[order], dtype=float)
-    dm_radius = a * dm_radius_comoving
+    if dark_matter_snapshot is None:
+        dm_radius_comoving_code = np.asarray(dark_matter.radius, dtype=float)
+        dm_mass_comoving_code = np.asarray(dark_matter.mass, dtype=float)
+        dm_softening_comoving_code = float(dark_matter.softening)
+    else:
+        dm_radius_comoving_code = np.asarray(
+            dark_matter_snapshot.radius_radarray.to_value(
+                sim.par.units.CodeUnits.length_unit
+            ),
+            dtype=float,
+        )
+        dm_mass_comoving_code = np.asarray(
+            dark_matter_snapshot.dark_matter_mass_radarray.to_value(
+                sim.par.units.CodeUnits.mass_unit
+            ),
+            dtype=float,
+        )
+        dm_softening_comoving_code = float(
+            dark_matter_snapshot.softening_radquantity.to_value(
+                sim.par.units.CodeUnits.length_unit
+            )
+        )
+    order = np.argsort(dm_radius_comoving_code)
+    dm_radius_comoving_code = dm_radius_comoving_code[order]
+    dm_mass_comoving_code = dm_mass_comoving_code[order]
+    dm_radius_softened_comoving_code = (
+        dm_radius_comoving_code + max(dm_softening_comoving_code, 0.0)
+    )
+    dm_radius = a * dm_radius_softened_comoving_code
     if dm_radius.size > 1:
         dm_edges = np.empty(dm_radius.size + 1)
         dm_edges[1:-1] = np.sqrt(dm_radius[:-1] * dm_radius[1:])
@@ -747,6 +784,7 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
         "dm_radius_proper_kpc": dm_radius,
         "dm_rho_proper_code": dm_density_comoving_code,
         "dm_mass_comoving_code": dm_mass_comoving_code,
+        "dm_softening_comoving_code": dm_softening_comoving_code,
         "dm_total_mass_comoving_code": float(np.sum(dm_mass_comoving_code) + getattr(dark_matter, "central_core_mass", 0.0)),
         "dm_crossing_events": int(getattr(dark_matter, "total_crossing_event_count", 0)),
         "dm_origin_reflections": int(getattr(dark_matter, "total_origin_reflection_count", 0)),
