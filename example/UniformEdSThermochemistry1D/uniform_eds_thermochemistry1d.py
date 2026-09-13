@@ -18,7 +18,6 @@ sys.path.insert(0, str(EXAMPLE_ROOT.parent))
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 import copy
-from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value
 from tools import build_initial_condition, analytic_compton_temperature
 import example_utils as eu
@@ -35,6 +34,7 @@ def run_case(config, atomic_cooling):
         a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     case_config = copy.deepcopy(config)
+    case_config["_code_units"] = code_unit_system
     initial_condition = case_config["initial_condition"]
     label = "atomic_compton" if atomic_cooling else "compton_only"
     case_config["par"]["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
@@ -42,24 +42,34 @@ def run_case(config, atomic_cooling):
     case_config["par"]["output"]["filename_prefix"] = f"{label}_Output"
     case_config["par"]["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
     case_config["par"]["output"]["directory"] = str(EXAMPLE_ROOT / "outputs")
-    case_config["par"]["output"]["directory"] = case_config["par"]["output"]["directory"]
     Path(case_config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     source_dt = float(case_config["example"].get("source_timestep", 2.0))
 
     initial = build_initial_condition(case_config)
-    rio.writehdf5(initial, case_config["par"]["simulation"]["initial_condition_filename"])
+    initial.write(
+        case_config["par"]["simulation"]["initial_condition_filename"],
+        validate=True,
+    )
 
-    sim = Rsim(case_config["par"])
-    sim.par.cosmology = cosmology
-    rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
+    sim = rio.loadhdf5(
+        case_config,
+        case_config["par"]["simulation"]["initial_condition_filename"],
+    )
     sim.SetMesh()
     sim.SetFluid()
     initial_time_proper_code = float(
-        np.asarray(initial.fluid.time_proper_code, dtype=float).reshape(-1)[0]
+        np.asarray(
+            quantity_to_value(
+                initial_condition["time_cosmic"],
+                case_config["_code_units"].time_unit,
+            ),
+            dtype=float,
+        ).reshape(-1)[0]
     )
     sim.par.time_proper_code = np.asarray([initial_time_proper_code])
     sim.par.simulation.time_proper_code = initial_time_proper_code
     sim.fluid.SetFluidTime(initial_time_proper_code)
+    sim.par.cosmology.model = cosmology
     sim.SetInitFluid()
     # SetUpFluid/SetInitFluid starts the runtime clock at its default.  This
     # proper-time EdS source benchmark must resume at the IC time before any
@@ -79,8 +89,6 @@ def run_case(config, atomic_cooling):
         )
     ):
         raise RuntimeError("proper-time startup clocks disagree after SetInitFluid")
-    sim.par.cosmology = cosmology
-
     # Rsim.Run normally obtains an outer timestep from the hydro CFL
     # estimator.  This is a source-only uniform-cell benchmark, so provide a
     # fixed outer timestep while retaining the Rsim.Run execution path.
@@ -115,12 +123,12 @@ def run_case(config, atomic_cooling):
 
     def step_backend(**kwargs):
         time_cosmic_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
-        scale_factor = float(sim.par.cosmology.model.scale_factor(time_cosmic_code))
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
         reset_conserved_from_temperature()
         result = sim.Step(**kwargs)
         time_cosmic_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
-        scale_factor = float(sim.par.cosmology.model.scale_factor(time_cosmic_code))
+        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         history["time_cosmic_cgs_s"].append(
             time_cosmic_code * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
         )

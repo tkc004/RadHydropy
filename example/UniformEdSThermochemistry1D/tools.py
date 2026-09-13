@@ -4,98 +4,51 @@ import numpy as np
 import unyt
 
 from radhydropy.constants import PROTON_MASS_CGS
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
-)
-from radhydropy.rsim import Rsim
 from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def build_initial_condition(config):
-    """Build a typed few-cell proper-code initial condition."""
+    """Build the proper-coordinate IC through the shared writer boundary."""
     code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    cosmology_config = config["par"]["cosmology"]
-    cosmology = EinsteinDeSitter.from_code_units(
-        code_unit_system,
-        t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], code_unit_system.time_unit),
-        a_ref=float(cosmology_config["cosmology_a_ref"]),
-    )
-    result = Rsim(config["par"])
     initial_condition = config["initial_condition"]
     count = int(config["par"]["mesh"]["grid_cells"])
-    radius_inner_proper_code = quantity_to_value(
-        initial_condition["radius_inner_proper"], code_unit_system.length_unit
+    writer_ic_config = dict(initial_condition)
+    writer_ic_config["time_proper"] = initial_condition["time_cosmic"]
+    writer = InitialConditionWriter(
+        par_config=config["par"],
+        code_units=code_unit_system,
+        ic_config=writer_ic_config,
     )
-    radius_outer_proper_code = quantity_to_value(
-        initial_condition["radius_outer_proper"], code_unit_system.length_unit
-    )
-    initial_time_proper_code = quantity_to_value(
-        initial_condition["time_cosmic"], code_unit_system.time_unit
-    )
-
-    result.par.mesh.ghost_cells = 0
-    result.par.simulation.coordinate_system = "spherical"
-    result.par.simulation.box_size_comoving_code = np.asarray([radius_outer_proper_code])
-    result.par.simulation.time_proper_code = initial_time_proper_code
-    result.par.cosmology = cosmology
-    result.par.time_proper_code = np.asarray([initial_time_proper_code])
-
-    result.mesh.boundary_proper_code = np.linspace(
-        radius_inner_proper_code, radius_outer_proper_code, count + 1
-    )
-    result.mesh.x_proper_code = 0.75 * (
-        result.mesh.boundary_proper_code[1:] ** 4
-        - result.mesh.boundary_proper_code[:-1] ** 4
-    ) / np.maximum(
-        result.mesh.boundary_proper_code[1:] ** 3
-        - result.mesh.boundary_proper_code[:-1] ** 3,
-        1.0e-300,
-    )
-    result.mesh.area_proper_code = 4.0 * np.pi * result.mesh.boundary_proper_code[:-1] ** 2
-    result.mesh.volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(
-        result.mesh.boundary_proper_code ** 3
-    )
+    boundary_proper_unyt = np.linspace(
+        0.0, 1.0, count + 1
+    ) * (
+        initial_condition["radius_outer_proper"]
+        - initial_condition["radius_inner_proper"]
+    ) + initial_condition["radius_inner_proper"]
+    writer.box_size = writer.radquantity(initial_condition["radius_outer_proper"])
+    writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
 
     hydrogen_number_density_cgs_cm3 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))
     hydrogen_mass_fraction = float(initial_condition["hydrogen_mass_fraction"])
-    rho_cgs_g_cm3 = hydrogen_number_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
-    rho_proper_code = rho_cgs_g_cm3 / float(code_unit_system.density_unit.to_value("g/cm**3"))
-    temperature_cgs_K = float(initial_condition["temperature_proper"].to_value("K"))
-    temperature_proper_code = temperature_cgs_K / float(code_unit_system.temperature_unit.to_value("K"))
+    rho_proper_cgs_g_cm3_unyt = (
+        hydrogen_number_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction
+    ) * unyt.g / unyt.cm**3
     xHI_dimensionless = float(initial_condition["xHI"])
     mu_dimensionless = 1.0 / (hydrogen_mass_fraction * (2.0 - xHI_dimensionless))
-
-    result.fluid.rho_proper_code = np.full(count, rho_proper_code)
-    result.fluid.vel_proper_code = np.zeros(count)
-    result.fluid.temp_proper_code = np.full(count, temperature_proper_code)
-    result.fluid.xHI = np.full(count, xHI_dimensionless)
-    result.fluid.mu = np.full(count, mu_dimensionless)
-    result.fluid.time_proper_code = initial_time_proper_code
-    result.fluid.runtime_fields = PROPER_RUNTIME_FIELDS
-    result.fluid.SetPressure()
-    result.fluid.SetEnergyDensity()
-    result.mesh.geometry_state = MeshGeometryState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        x_proper_code=result.mesh.x_proper_code,
-        boundary_proper_code=result.mesh.boundary_proper_code,
-        width_proper_code=np.diff(result.mesh.boundary_proper_code),
-        area_proper_code=result.mesh.area_proper_code,
-        volume_proper_code=result.mesh.volume_proper_code,
+    writer.fluid.rho_radarray = writer.radarray(
+        np.ones(count) * rho_proper_cgs_g_cm3_unyt
     )
-    result.fluid.runtime_state = FluidRuntimeState.from_arrays(
-        PROPER_RUNTIME_FIELDS,
-        rho_proper_code=result.fluid.rho_proper_code,
-        vel_proper_code=result.fluid.vel_proper_code,
-        pre_proper_code=result.fluid.pre_proper_code,
-        temp_proper_code=result.fluid.temp_proper_code,
-        time_proper_code=result.fluid.time_proper_code,
-        mu_dimensionless=result.fluid.mu,
-        xHI_dimensionless=result.fluid.xHI,
+    writer.fluid.vel_radarray = writer.radarray(
+        np.zeros(count) * code_unit_system.velocity_unit
     )
-    return result
+    writer.fluid.temp_radarray = writer.radarray(
+        np.ones(count) * initial_condition["temperature_proper"]
+    )
+    writer.fluid.xHI = np.full(count, xHI_dimensionless)
+    writer.fluid.mu = np.full(count, mu_dimensionless)
+    return writer
 
 
 def analytic_compton_temperature(
