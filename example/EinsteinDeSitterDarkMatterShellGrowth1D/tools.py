@@ -70,6 +70,7 @@ def make_shells(config, overdensity=None):
         / (3.0 * radius_comoving_code[~inside]**2)
     )
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'],
         code_units=code_unit_system,
     )

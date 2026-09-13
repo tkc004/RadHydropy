@@ -104,6 +104,7 @@ def build_initial_condition(config):
     )
 
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config["par"],
         code_units=units,
     )

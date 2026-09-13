@@ -41,6 +41,7 @@ def build_initial_condition(config):
     time_cosmic_code = quantity_to_value(initial_condition['time_cosmic'], code_units.time_unit)
     scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'], code_units=code_units,
         cosmology_context=CosmologyContext(
             gamma=float(config['par'].get('hydrodynamics', {}).get('gamma', 5.0 / 3.0)),

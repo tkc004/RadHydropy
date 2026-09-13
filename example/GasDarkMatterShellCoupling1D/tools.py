@@ -22,7 +22,7 @@ def build_initial_condition(config):
     )
     x_proper_code = 0.75 * (boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
     boundary_proper_unyt = boundary_proper_code * code_units.length_unit
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.simulation.par.cosmology_context = CosmologyContext(
         gamma=1.000001, cosmology='proper'
     )

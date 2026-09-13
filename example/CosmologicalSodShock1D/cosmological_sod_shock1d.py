@@ -88,6 +88,7 @@ def _build_initial_condition(config, units):
     left = cell_centers_comoving_unyt < 0.5 * box_size_comoving_unyt
 
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=par_config,
         code_units=units,
         cosmology_context=CosmologyContext(

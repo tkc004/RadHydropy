@@ -43,6 +43,7 @@ def make_initial_condition(config):
         boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]
     )
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config["par"], code_units=code_unit_system
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)

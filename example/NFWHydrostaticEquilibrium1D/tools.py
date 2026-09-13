@@ -141,7 +141,7 @@ def build_initial_condition(config):
         initial_condition['mu'],
         initial_condition['gas_fraction'],
     )
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)

@@ -14,7 +14,10 @@ def build_initial_condition(config):
     box_size_proper_unyt = initial["box_size_proper"]
     boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
     coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
-    writer = InitialConditionWriter(par_config=config["par"], code_units=code_units)
+    writer = InitialConditionWriter(
+        par_config=config["par"], code_units=code_units,
+        ic_config=initial,
+    )
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * initial["rho_proper"])
@@ -34,7 +37,4 @@ def build_initial_condition(config):
             field_name="specific_angular_momentum_code",
             representation=None,
         )
-    writer.simulation.par.simulation.time_proper_code = initial["time_proper"].to_value(
-        code_units.time_unit
-    )
     return writer

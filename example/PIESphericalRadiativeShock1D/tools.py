@@ -26,14 +26,15 @@ def build_initial_condition(config):
     velocity_proper_unyt = np.where(
         coordinate_proper_unyt < 0.5 * (initial['radius_inner_proper'] + initial['radius_outer_proper']),
         initial['vel_outflow_proper'], initial['vel_inflow_proper'])
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(boundary_proper_unyt[-1])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(velocity_proper_unyt)
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial['temperature_inflow_proper'])
     writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
-    writer.simulation.par.simulation.time_proper_code = initial['time_proper'].to_value(code_units.time_unit)
     return writer
 
 

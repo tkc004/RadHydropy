@@ -18,7 +18,7 @@ def build_initial_condition(config):
         boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]
     )
     code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(

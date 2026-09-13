@@ -35,6 +35,7 @@ def build_initial_condition(config):
         np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
     )
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'],
         code_units=code_units,
     )

@@ -35,6 +35,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
+  time_proper: {value: 0.0, unit: s}
   grid_cells: 64
   coordinate_system: spherical
   radius_inner_proper: {value: 1.0, unit: kpc}

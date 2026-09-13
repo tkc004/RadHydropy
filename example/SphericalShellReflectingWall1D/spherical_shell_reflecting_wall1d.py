@@ -52,6 +52,7 @@ def make_initial_condition(config):
     grid_cells = int(ic["grid_cells"])
     writer = InitialConditionWriter(
         par_config=config["par"], code_units=code_unit_system,
+        ic_config=ic,
     )
     writer.simulation.par.simulation.coordinate_system = ic["coordinate_system"]
     radius_inner_proper_code = quantity_to_value(
@@ -95,7 +96,6 @@ def make_initial_condition(config):
     writer.simulation.fluid.mu = np.full(
         grid_cells, float(ic["mean_molecular_weight"])
     )
-    writer.simulation.par.simulation.time_proper_code = 0.0
     return writer
 
 

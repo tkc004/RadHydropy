@@ -116,7 +116,7 @@ def build_initial_condition(config):
         initial_condition['gravity_strength'],
         code_unit_system=code_units,
     )
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)

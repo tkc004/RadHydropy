@@ -62,7 +62,9 @@ def build_initial_condition(config):
         initial['radius_core_proper'].to_value(unyt.cm),
         initial['density_power_law_exponent'],
     ) / unyt.cm**3
-    writer = InitialConditionWriter(par_config=config["par"], code_units=code)
+    writer = InitialConditionWriter(
+        par_config=config["par"], code_units=code, ic_config=initial,
+    )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(
         radius_proper_code * code.length_unit
@@ -79,7 +81,6 @@ def build_initial_condition(config):
     )
     writer.simulation.fluid.xHI = as_named_array(np.ones(ncell))
     writer.simulation.fluid.mu = as_named_array(np.ones(ncell))
-    writer.simulation.par.simulation.time_proper_code = 0.0
     writer.simulation.fluid.SetFluidTime(0.0)
     return writer
 

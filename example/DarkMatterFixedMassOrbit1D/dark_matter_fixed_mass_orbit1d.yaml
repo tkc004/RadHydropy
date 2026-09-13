@@ -16,6 +16,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
+  time_proper: {value: 0.0, unit: s}
   central_mass_dimensionless: 1.0
   shell_mass_dimensionless: 1.0e-12
   radius_initial_orbit_dimensionless: 0.4

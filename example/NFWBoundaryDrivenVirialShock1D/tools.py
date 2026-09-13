@@ -138,7 +138,7 @@ def build_initial_condition(config):
         (1.0 - weight) * temperature_hot_proper_unyt.to_value(unyt.K)
         + weight * temperature_cold_proper_unyt.to_value(unyt.K)
     ) * unyt.K
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_cgs_cm_unyt)
     writer.mesh.x_radarray = writer.radarray(radius_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)

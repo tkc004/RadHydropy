@@ -64,6 +64,7 @@ def _build_initial_condition(case_config):
         case_config["par"]["units"]["CodeUnits"]
     )
     writer = InitialConditionWriter(
+        ic_config=case_config["initial_condition"],
         par_config=case_config["par"],
         code_units=code_units,
     )

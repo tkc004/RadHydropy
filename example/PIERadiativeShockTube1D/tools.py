@@ -30,14 +30,15 @@ def build_initial_condition(config):
     )
     hydrogen_mass_fraction = float(config['par']['thermochemistry']['hydrogen_mass_fraction'])
     rho_proper_unyt = initial['hydrogen_number_density'] * unyt.mp / hydrogen_mass_fraction
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(velocity_proper_unyt)
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial['temperature_proper'])
     writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
-    writer.simulation.par.simulation.time_proper_code = initial['time_proper'].to_value(code_units.time_unit)
     return writer
 
 

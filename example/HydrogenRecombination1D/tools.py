@@ -19,7 +19,9 @@ def build_initial_condition(config):
     initial = config['initial_condition']
     units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
     grid_cells = int(config['par']['mesh']['grid_cells'])
-    writer = InitialConditionWriter(par_config=config['par'], code_units=units)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=units, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(initial['box_size_proper'])
     writer.mesh.boundary_radarray = writer.radarray(
         np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
@@ -30,9 +32,6 @@ def build_initial_condition(config):
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * units.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(grid_cells) * initial['temperature_proper']
-    )
-    writer.simulation.par.simulation.time_proper_code = quantity_to_value(
-        initial['time_proper'], units.time_unit
     )
     writer.simulation.fluid.xHI = as_named_array(np.full(grid_cells, initial['neutral_fraction']))
     writer.simulation.fluid.mu = as_named_array(

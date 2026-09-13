@@ -90,6 +90,7 @@ def build_initial_condition(config):
     grid_cells = int(config['par']['mesh']['grid_cells'])
     writer = InitialConditionWriter(
         par_config=config['par'], code_units=code_units,
+        ic_config=initial,
     )
     writer.simulation.par.simulation.coordinate_system = 'spherical'
     boundary_proper_unyt = np.linspace(
@@ -119,9 +120,6 @@ def build_initial_condition(config):
     writer.fluid.vel_radarray = writer.radarray(velocity_proper_code_unyt)
     writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
     writer.simulation.fluid.mu = np.full(grid_cells, float(initial['mu_dimensionless']))
-    writer.simulation.par.simulation.time_proper_code = quantity_to_value(
-        initial['time_proper'], code_units.time_unit
-    )
     return writer
 
 

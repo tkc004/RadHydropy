@@ -33,7 +33,7 @@ def build_initial_condition(config):
     units = CodeUnits.from_mapping(par['units']['CodeUnits'])
     radius_proper_unyt = initial_condition['radius_proper']
     boundary_proper_unyt = radius_proper_unyt + np.array([-0.5, 0.5]) * units.length_unit
-    writer = InitialConditionWriter(par_config=config['par'], code_units=units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=units, ic_config=config["initial_condition"])
     writer.box_size = writer.radquantity(boundary_proper_unyt[-1])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(
@@ -52,6 +52,7 @@ def build_initial_condition(config):
             units.length_unit * units.velocity_unit,
         )) * units.length_unit.units * units.velocity_unit.units,
         field_name='specific_angular_momentum_code',
+        representation=None,
     )
     return writer
 

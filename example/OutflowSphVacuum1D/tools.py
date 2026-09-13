@@ -51,6 +51,7 @@ def build_initial_condition(config):
         outer_proper_unyt**4 - inner_proper_unyt**4
     ) / (outer_proper_unyt**3 - inner_proper_unyt**3)
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'], code_units=code_units
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)

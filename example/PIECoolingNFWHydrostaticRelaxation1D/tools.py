@@ -42,7 +42,7 @@ def build_initial_condition(config):
         radius_proper_unyt, np.asarray(boundary_proper_code) * code_units.length_unit, halo, temperature_virial_unyt,
         initial['mu'], initial['gas_fraction'],
     )
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.box_size = writer.radquantity(initial['box_size_proper'])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(x_proper_code * code_units.length_unit)

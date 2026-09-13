@@ -144,13 +144,15 @@ def build_initial_condition(config):
         reference_radius=coordinate_proper_unyt[0],
         code_unit_system=code_unit_system,
     )
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_unit_system)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_unit_system,
+        ic_config=initial_condition,
+    )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_unit_system.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(np.ones(grid_cells) * initial_condition['temperature_proper'])
-    writer.simulation.par.simulation.time_proper_code = quantity_to_value(initial_condition['time_proper'], code_unit_system.time_unit)
     writer.simulation.fluid.mu = np.full(grid_cells, initial_condition['mean_molecular_weight'])
     return writer
 def plot_snapshot(outfilename, config, **kwargs):

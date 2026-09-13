@@ -16,6 +16,7 @@ def build_initial_condition(config):
     code_cosmology = config["_code_cosmology"]
 
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=copy.deepcopy(par),
         cosmology_context=CosmologyContext(
             gamma=float(par["hydrodynamics"]["gamma"]),

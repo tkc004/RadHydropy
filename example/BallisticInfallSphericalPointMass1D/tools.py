@@ -47,7 +47,7 @@ def build_initial_condition(config):
     boundary_proper_unyt += ic["radius_inner_proper"]
     coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
     rho_proper_unyt = np.ones(n) * ic["rho_reference_proper"]
-    writer = InitialConditionWriter(par_config=config["par"], code_units=units)
+    writer = InitialConditionWriter(par_config=config["par"], code_units=units, ic_config=config["initial_condition"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(n) * units.velocity_unit)

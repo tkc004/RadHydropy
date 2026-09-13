@@ -43,6 +43,7 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     }
     scale_factor = float(cosmology.scale_factor(t0))
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=par,
         code_units=units,
         cosmology_context=CosmologyContext(

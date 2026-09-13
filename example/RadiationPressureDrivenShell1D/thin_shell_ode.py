@@ -39,7 +39,9 @@ def _build_initial_condition(config):
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     if grid_cells != 1:
         raise ValueError('thin-shell IC requires exactly one active grid cell')
-    writer = InitialConditionWriter(par_config=config["par"], code_units=code)
+    writer = InitialConditionWriter(
+        par_config=config["par"], code_units=code, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(initial['box_size_proper'])
     writer.mesh.boundary_radarray = writer.radarray(
         np.array([0.0, 1.0]) * initial['box_size_proper']
@@ -56,7 +58,6 @@ def _build_initial_condition(config):
         np.ones(1) * initial['temperature_proper']
     )
     writer.simulation.fluid.mu = np.ones(1)
-    writer.simulation.par.simulation.time_proper_code = 0.0
     return writer
 
 

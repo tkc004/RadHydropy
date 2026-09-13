@@ -37,7 +37,9 @@ def build_initial_condition(config):
     ).to(unyt.g / unyt.cm**3)
     temperature_proper_unyt = np.ones(grid_cells) * initial["temperature_proper"]
 
-    writer = InitialConditionWriter(par_config=par_config, code_units=units)
+    writer = InitialConditionWriter(
+        par_config=par_config, code_units=units, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
@@ -101,12 +103,6 @@ def build_initial_condition(config):
     writer.fluid.ngamma_radarray = writer.radarray(
         photon_number_density_cgs_cm3_unyt,
     )
-    time_proper_code = quantity_to_value(
-        initial.get("time_proper", 0.0 * units.time_unit),
-        units.time_unit,
-    )
-    writer.simulation.par.simulation.time_proper_code = time_proper_code
-    writer.simulation.fluid.SetFluidTime(time_proper_code)
     return writer
 
 

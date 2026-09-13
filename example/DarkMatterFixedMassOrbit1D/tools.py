@@ -20,6 +20,7 @@ def make_shell(config):
     )
     velocity_initial_proper_code = vel_proper_code
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'],
         code_units=code_unit_system,
     )

@@ -47,5 +47,6 @@ par:
     source_photon_rate: {value: 1.0e49, unit: 1/s}
     radiative_transfer_direction: 1
 initial_condition:
+  time_proper: {value: 0.0, unit: s}
   box_size_proper: {value: 1.0, unit: pc}
 example: {}

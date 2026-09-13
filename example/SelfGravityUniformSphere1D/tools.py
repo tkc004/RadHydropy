@@ -36,6 +36,7 @@ def build_initial_condition(config):
     grid_cells = int(config['par']['mesh']['grid_cells'])
     writer = InitialConditionWriter(
         par_config=config['par'], code_units=code_unit_system,
+        ic_config=initial_condition,
     )
     writer.simulation.par.simulation.coordinate_system = initial_condition['coordsys']
     boundary_proper_unyt = np.linspace(
@@ -62,9 +63,6 @@ def build_initial_condition(config):
     )
     writer.simulation.fluid.mu = np.ones(grid_cells) * float(
         initial_condition['mean_molecular_weight']
-    )
-    writer.simulation.par.simulation.time_proper_code = float(
-        initial_condition['time_proper'].to_value(code_unit_system.time_unit)
     )
     return writer
 

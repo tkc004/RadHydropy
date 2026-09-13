@@ -29,7 +29,7 @@ def build_initial_condition(config):
         * ic["explosion_energy"]
         / volume_proper_unyt[cut]
     )
-    writer = InitialConditionWriter(par_config=par, code_units=units)
+    writer = InitialConditionWriter(par_config=par, code_units=units, ic_config=config["initial_condition"])
     # Invert the configured EOS so the temperature and deposited energy are
     # thermodynamically consistent when the writer prepares the IC.
     temp_proper_unyt[cut] = (

@@ -34,6 +34,7 @@ par:
         UnitCurrent_in_cgs: 1.0
         UnitTemp_in_cgs: 1.0
 initial_condition:
+  time_proper: {value: 0.0, unit: s}
   box_size_proper: {value: 1.0, unit: pc}
   radius_shell_initial_proper: {value: 0.2, unit: pc}
   shell_mass: {value: 1.482077e32, unit: g}

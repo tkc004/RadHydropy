@@ -11,6 +11,7 @@ def build_initial_condition(config):
     writer = InitialConditionWriter(
         par_config=config["par"],
         code_units=config["_code_units"],
+        ic_config=initial,
     )
     grid_cells = int(initial["grid_cells"])
     radius_inner_proper_unyt = initial["radius_inner_proper"]
@@ -33,9 +34,6 @@ def build_initial_condition(config):
     )
     writer.simulation.fluid.mu = np.full(
         grid_cells, float(initial["mean_molecular_weight"])
-    )
-    writer.simulation.par.simulation.time_proper_code = float(
-        initial["time_proper"].to_value(config["_code_units"].time_unit)
     )
     return writer
 

@@ -19,7 +19,9 @@ def build_static_problem(config):
     initial = config['initial_condition']
     grid_cells = int(config["par"]['mesh']['grid_cells'])
     code_units = config['_code_units']
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(initial['box_size_proper'])
     writer.mesh.boundary_radarray = writer.radarray(
         np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
@@ -34,7 +36,6 @@ def build_static_problem(config):
     )
     writer.simulation.fluid.mu = np.ones(grid_cells)
     writer.simulation.fluid.xHI = np.ones(grid_cells)
-    writer.simulation.par.simulation.time_proper_code = 0.0
     return writer
 
 

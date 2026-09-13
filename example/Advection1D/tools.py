@@ -23,7 +23,7 @@ def build_initial_condition(config):
             coordinate_proper_unyt > 0.75 * box_size_proper_unyt,
         )
     ] *= 0.5
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)

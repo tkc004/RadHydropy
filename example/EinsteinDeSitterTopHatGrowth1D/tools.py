@@ -55,6 +55,7 @@ def build_initial_condition(config):
     scale_factor = cosmology.scale_factor(time_cosmic_code)
     hubble = cosmology.hubble(time_cosmic_code)
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'], code_units=code_units,
         cosmology_context=CosmologyContext(
             gamma=float(config['par']['hydrodynamics']['gamma']),

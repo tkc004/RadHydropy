@@ -21,6 +21,7 @@ def make_shells(config):
         * np.sqrt(radius_dimensionless)
     )
     writer = InitialConditionWriter(
+        ic_config=config["initial_condition"],
         par_config=config['par'],
         code_units=code_unit_system,
     )

@@ -48,6 +48,7 @@ class InitialConditionWriter:
         *,
         par_config=None,
         code_units=None,
+        ic_config=None,
         box_size=None,
         cosmology_context=None,
         scale_factor=None,
@@ -80,6 +81,7 @@ class InitialConditionWriter:
                 f"supercomoving_coordinates={bool(supercomoving_coordinates)}"
             )
         self.code_units = simulation.par.units.CodeUnits
+        self.ic_config = ic_config
         self.provenance = provenance
         self.box_size = box_size
         self._fields = {}
@@ -875,19 +877,24 @@ class InitialConditionWriter:
         else:
             geometry_fields = PROPER_RUNTIME_FIELDS
             fluid_fields = PROPER_RUNTIME_FIELDS
-            time_value = getattr(
-                fluid,
-                "time_proper_code",
-                getattr(
-                    getattr(fluid, "runtime_state", None),
+            if self.ic_config is not None and "time_proper" in self.ic_config:
+                time_value = self._to_code_values(
+                    self.ic_config["time_proper"], self.code_units.time_unit
+                )
+            else:
+                time_value = getattr(
+                    fluid,
                     "time_proper_code",
                     getattr(
-                        getattr(par, "simulation", None),
+                        getattr(fluid, "runtime_state", None),
                         "time_proper_code",
-                        getattr(par, "time_proper_code", 0.0),
+                        getattr(
+                            getattr(par, "simulation", None),
+                            "time_proper_code",
+                            getattr(par, "time_proper_code", 0.0),
+                        ),
                     ),
-                ),
-            )
+                )
             setattr(fluid, "time_proper_code", float(np.asarray(time_value).flat[0]))
             mesh.geometry_state = MeshGeometryState.from_arrays(
                 geometry_fields,

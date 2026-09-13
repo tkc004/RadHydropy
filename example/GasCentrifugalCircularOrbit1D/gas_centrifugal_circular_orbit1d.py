@@ -60,7 +60,7 @@ def build_initial_condition(config):
     x_proper_code = 0.75 * (
         boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4
     ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
-    writer = InitialConditionWriter(par_config=config['par'], code_units=units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=units, ic_config=config["initial_condition"])
     writer.box_size = writer.radquantity(radius_outer_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(x_proper_code * units.length_unit)
@@ -83,6 +83,7 @@ def build_initial_condition(config):
             * x_proper_code
         ) * units.length_unit.units * units.velocity_unit.units,
         field_name='specific_angular_momentum_code',
+        representation=None,
     )
     return writer
 

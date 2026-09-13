@@ -55,7 +55,7 @@ def build_initial_condition(config):
     )
     cmb_temperature = initial_condition.get('cmb_temperature_0', initial_condition['temperature_proper'])
     temperature_proper_cgs_K = cmb_temperature * (1.0 + float(initial_condition['initial_redshift']))
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_unyt)
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * mean_density)

@@ -13,8 +13,9 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     simulation = config["par"]['simulation']
     mesh = config["par"]['mesh']
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
-    time_proper_code = quantity_to_value(initial['time_proper'], code_units.time_unit)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units, ic_config=initial,
+    )
     grid_cells = int(mesh['grid_cells'])
     boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
     density_proper_cgs_g_cm3_unyt = (
@@ -29,7 +30,6 @@ def build_initial_condition(config):
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(grid_cells) * initial['temperature_proper']
     )
-    writer.simulation.par.simulation.time_proper_code = time_proper_code
     writer.simulation.fluid.xHI = np.full(grid_cells, initial['xHI'])
     writer.simulation.fluid.mu = np.full(
         grid_cells, initial['mean_molecular_weight']

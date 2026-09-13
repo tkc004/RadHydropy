@@ -30,7 +30,7 @@ def build_initial_condition(config):
         * ic["explosion_energy"]
         / np.sum(volume_proper_unyt[cut])
     )
-    writer = InitialConditionWriter(par_config=par, code_units=units)
+    writer = InitialConditionWriter(par_config=par, code_units=units, ic_config=config["initial_condition"])
     # Invert the configured EOS so the temperature written into the IC gives
     # the same pressure, density, and mean molecular weight.
     temp_proper_unyt[cut] = (

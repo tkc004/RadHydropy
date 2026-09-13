@@ -65,7 +65,7 @@ def build_initial_condition(config):
             initial_condition["point_mass"],
             coordinate_proper_unyt[0],
     )
-    writer = InitialConditionWriter(par_config=config["par"], code_units=code_unit_system)
+    writer = InitialConditionWriter(par_config=config["par"], code_units=code_unit_system, ic_config=config["initial_condition"])
     writer.box_size = writer.radquantity(initial_condition["radius_outer_proper"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)

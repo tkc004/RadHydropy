@@ -59,6 +59,7 @@ par:
     filename_prefix: Output_PowerLawHIIRegion1D_w1p4
     time_list_filename: output_times_w1p4.txt
 initial_condition:
+  time_proper: {value: 0.0, unit: s}
   number_of_cells: 8192
   box_size_proper: {value: 5.0, unit: pc}
   temperature_proper: {value: 100.0, unit: K}

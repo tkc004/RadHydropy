@@ -15,7 +15,9 @@ def build_initial_condition(config):
     code_units = config['_code_units']
     boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
     rho_proper_unyt = np.ones(grid_cells) * initial['hydrogen_number_density'] * initial['proton_mass'] / initial['hydrogen_mass_fraction']
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units)
+    writer = InitialConditionWriter(
+        par_config=config['par'], code_units=code_units, ic_config=initial,
+    )
     writer.box_size = writer.radquantity(initial['box_size_proper'])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * initial['vel_proper'])
@@ -26,7 +28,6 @@ def build_initial_condition(config):
     )
     writer.simulation.fluid.xHI = np.ones(grid_cells)
     writer.simulation.fluid.mu = np.full(grid_cells, initial['mean_molecular_weight'])
-    writer.simulation.par.simulation.time_proper_code = initial['time_proper'].to_value(code_units.time_unit)
     return writer
 
 def clean_outputs(output_dir):
