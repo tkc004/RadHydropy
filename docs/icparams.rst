@@ -71,24 +71,12 @@ The Advection1D example uses a nested ``initial_condition`` block like this:
    initial_condition:
      grid_cells: 100
      coordinate_system: cartesian
-     box_size_proper:
-       value: 4.0
-       unit: cm
-     time_proper:
-       value: 0.0
-       unit: s
-     rho_proper:
-       value: 1.0
-       unit: g/cm**3
-     vel_proper:
-       value: 0.0
-       unit: km/s
-     temperature_proper:
-       value: 1.5506894880146205e-08
-       unit: K
+     box_size_proper: {value: 1.0, unit: cm}
+     time_proper: {value: 0.0, unit: s}
+     rho_proper: {value: 1.0, unit: g/cm**3}
+     vel_proper: {value: 1.0, unit: cm/s}
+     temperature_proper: {value: 1.0e-10, unit: K}
      mean_molecular_weight: 1.0
-     density_ratio: 0.1
-     temperature_ratio: 0.8
 
 These values are loaded with
 ``example_utils.load_nested_example_config`` and written to

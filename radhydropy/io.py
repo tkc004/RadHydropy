@@ -1570,10 +1570,30 @@ def readhdf5(par, mesh, fluid, ICfilename):
 def loadhdf5(config, ICfilename):
     """Construct and load an ``Rsim`` from a nested configuration.
 
-    This is the object-returning convenience API.  The lower-level
-    :func:`readhdf5` API remains available for callers that already own the
-    ``par``, ``mesh``, and ``fluid`` objects and need its compatibility
-    validation behavior.
+    Parameters
+    ----------
+    config : mapping
+        Complete nested example configuration containing at least ``par``.
+        The loader compares the file header with the runtime coordinate system,
+        grid size, code units, cosmology, and field representations.
+    ICfilename : path-like
+        Initial-condition or snapshot HDF5 file to load.
+
+    Returns
+    -------
+    radhydropy.rsim.Rsim
+        Runtime object containing restored ``par``, ``mesh``, and ``fluid``
+        state. Dimensional analysis should use the typed ``*_radarray`` views
+        on ``mesh`` and ``fluid``.
+
+    Notes
+    -----
+    The file header supplies the authoritative code-unit and representation
+    metadata. Proper-coordinate files restore fields such as
+    ``rho_proper_code``; cosmological files restore fields such as
+    ``rho_comoving_code`` and ``vel_supercomoving_code``. Chemistry,
+    radiation, provenance, and live dark-matter state are restored when those
+    groups are present in the file.
     """
     if not hasattr(config, "__getitem__"):
         raise TypeError("loadhdf5 expects a nested configuration mapping")

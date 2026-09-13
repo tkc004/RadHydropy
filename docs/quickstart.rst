@@ -108,9 +108,9 @@ plain numerical values only at an explicit plotting or numerical boundary:
    from radhydropy.analysis import rplot1d
 
    snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
-   radius_proper_unyt = snapshot.mesh.boundary_radarray
-   density_proper_unyt = snapshot.fluid.rho_radarray
-   density_cgs_g_cm3 = density_proper_unyt.to_cgs()
+   radius_proper_radarray = snapshot.mesh.boundary_radarray
+   density_proper_radarray = snapshot.fluid.rho_radarray
+   density_cgs_unyt = density_proper_radarray.to_cgs()
 
    rplot1d(snapshot, yquan="rho")
 

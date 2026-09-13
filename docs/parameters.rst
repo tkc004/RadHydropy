@@ -117,9 +117,11 @@ The full field-level reference remains in
      - composition fractions and species-state controls
      - Initial and boundary composition for thermo-chemistry.
    * - ``par.gravity``
-     - self-gravity, external gravity, and cosmology controls
-     - Gas gravity and cosmological background. See :doc:`gravity` and
-       :doc:`cosmology`.
+     - self-gravity, external gravity, and potential controls
+     - Gas and external gravitational fields. See :doc:`gravity`.
+   * - ``par.cosmology``
+     - expansion, coordinate conversion, and background-model controls
+     - Cosmological expansion and reference background. See :doc:`cosmology`.
    * - ``par.dark_matter``
      - shell crossing, softening, and timestep controls
      - Live dark-matter shell evolution. See :doc:`dark_matter`.
@@ -219,23 +221,17 @@ Include the configured final time when the final state should be written.
 Cosmological parameters
 -----------------------
 
-Cosmological runs keep their coordinate and variable representations explicit
-in ``par.simulation`` and ``par.gravity``. A minimal Einstein--de Sitter setup
-is:
+Cosmological runs configure the background under ``par.cosmology``. When
+``supercomoving_coordinates`` is enabled, RadHydropy automatically assigns the
+matching coordinate frame, time coordinate, and fluid representations. A
+minimal Einstein--de Sitter setup is:
 
 .. code-block:: yaml
 
    par:
-     simulation:
-       coordinate_frame: comoving
-       time_coordinate: supercomoving
-       velocity_representation: supercomoving_peculiar
-       density_representation: comoving
-       pressure_representation: supercomoving
-       temperature_representation: supercomoving
-     gravity:
+     cosmology:
+       cosmological: true
        cosmological_expansion: true
-       cosmological_gravity: true
        supercomoving_coordinates: true
        cosmology_type: einstein_de_sitter
        cosmology_t_ref: {value: 1.0, unit: Myr}
@@ -260,8 +256,8 @@ configuration and use typed ``*_radarray`` views:
    import radhydropy.io as rio
 
    snapshot = rio.loadhdf5(config, "Output_001.hdf5")
-   radius_proper_unyt = snapshot.mesh.boundary_radarray
-   density_proper_unyt = snapshot.fluid.rho_radarray
+   radius_proper_radarray = snapshot.mesh.boundary_radarray
+   density_proper_radarray = snapshot.fluid.rho_radarray
 
 See :doc:`snapshots` for the HDF5 layout, field metadata, and provenance.
 

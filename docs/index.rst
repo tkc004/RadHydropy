@@ -21,6 +21,7 @@ The package is organized around a small simulation workflow:
 
    installation
    quickstart
+   architecture
    parameters
    radarray
    icparams
