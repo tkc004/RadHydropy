@@ -23,9 +23,12 @@ def write_numbered_hdf5(sim, outindex):
     # does not append a second set of ghost cells.
     from radhydropy.io import _writehdf5
     _writehdf5(sim, filename)
+    return filename
 
 
-def hdf5_output_callback(sim, outputtime=0, output_state=None):
+def hdf5_output_callback(
+    sim, outputtime=0, output_state=None, snapshot_callback=None,
+):
     """Return a callback that writes HDF5 snapshots at fixed cadence."""
     if output_state is None:
         output_state = {
@@ -55,8 +58,13 @@ def hdf5_output_callback(sim, outputtime=0, output_state=None):
         if getattr(sim.par, 'verbose', 0) >= 1:
             print("time, dt", getattr(sim.fluid, runtime_fields(sim.par).time), dt)
         if output_state['outtime'] >= sim.par.output.cadence:
-            sim.fluid.SetTemperature()
-            write_numbered_hdf5(sim, output_state['outindex'])
+            snapshot_filename = write_numbered_hdf5(
+                sim, output_state['outindex']
+            )
+            if snapshot_callback is not None:
+                snapshot_callback(
+                    sim, snapshot_filename, output_state['outindex']
+                )
             output_state['last_output_time_s'] = float(
                 np.asarray(
                     getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float
@@ -79,6 +87,9 @@ def run_with_output_times(
     step_backend=None,
     step_backend_kwargs=None,
     output_writer=None,
+    before_step_callback=None,
+    history_callback=None,
+    snapshot_callback=None,
 ):
     """Run a simulation using an explicit output-time list."""
     start = time.time()
@@ -90,7 +101,13 @@ def run_with_output_times(
         step_backend_kwargs = {}
     print("--- Initization finished. Start running ... ---")
     print("--- %s seconds ---" % (time.time() - start))
-    output_writer(sim, 0)
+    if before_step_callback is not None:
+        before_step_callback(sim)
+    initial_filename = output_writer(sim, 0)
+    if snapshot_callback is not None:
+        snapshot_callback(sim, initial_filename, 0)
+    if history_callback is not None:
+        history_callback(sim)
     last_output_time_s = float(np.asarray(
         getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float
     ))
@@ -160,6 +177,8 @@ def run_with_output_times(
         )) < target_time_value - time_tol:
             if stop_condition is not None and stop_condition(sim):
                 break
+            if before_step_callback is not None:
+                before_step_callback(sim)
             dt = sim.GetStepTime(final_time=target_time)
             if getattr(sim.par, 'verbose', 0) >= 1:
                 print("time, dt", getattr(sim.fluid, runtime_fields(sim.par).time), dt)
@@ -170,6 +189,8 @@ def run_with_output_times(
                 **step_backend_kwargs,
             )
             report_progress(step, dt)
+            if history_callback is not None:
+                history_callback(sim)
         if stop_condition is not None and stop_condition(sim):
             break
         # Euler/source steps can cross a target by a roundoff- or CFL-sized
@@ -178,8 +199,9 @@ def run_with_output_times(
         if float(np.asarray(
             getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float
         )) >= target_time_value - time_tol:
-            sim.fluid.SetTemperature()
-            output_writer(sim, outindex)
+            snapshot_filename = output_writer(sim, outindex)
+            if snapshot_callback is not None:
+                snapshot_callback(sim, snapshot_filename, outindex)
             last_output_time_s = float(np.asarray(
                 getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float
             ))
@@ -191,6 +213,8 @@ def run_with_output_times(
     )) < final_time_value - time_tol:
         if stop_condition is not None and stop_condition(sim):
             break
+        if before_step_callback is not None:
+            before_step_callback(sim)
         dt = sim.GetStepTime(final_time=final_time)
         if getattr(sim.par, 'verbose', 0) >= 1:
                 print("time, dt", getattr(sim.fluid, runtime_fields(sim.par).time), dt)
@@ -201,12 +225,15 @@ def run_with_output_times(
             **step_backend_kwargs,
         )
         report_progress(step, dt)
+        if history_callback is not None:
+            history_callback(sim)
 
     if stop_condition is not None and abs(float(np.asarray(
         getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float
     )) - last_output_time_s) > time_tol:
-        sim.fluid.SetTemperature()
-        output_writer(sim, outindex)
+        snapshot_filename = output_writer(sim, outindex)
+        if snapshot_callback is not None:
+            snapshot_callback(sim, snapshot_filename, outindex)
 
     print("--- Simulation finished. ---")
     print("--- %s seconds ---" % (time.time() - start))

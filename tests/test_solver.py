@@ -189,6 +189,11 @@ def make_code_par(boundcond='Periodic'):
     par.hydrogen_radiation_evolution = False
     par.hydrogen_sigma_gamma = 1.0e-18
     par.hydrogen_epsilon_gamma = 0.0
+    par.dual_energy_eta1 = 1.0e-3
+    par.dual_energy_eta2 = 1.0e-1
+    par.dual_energy_consistency_factor = 1.0e-1
+    par.dual_energy_pressure_floor = 1.0e-20
+    par.dual_energy_pressure_selection = 'switch'
     par.radiative_transfer = False
     par.radiative_transfer_method = 'long_characteristics'
     par.radiative_transfer_boundary_flux = 0.0
@@ -1862,6 +1867,41 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(backend_calls), 3)
         self.assertEqual(fluid.time_proper_code, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
+
+    def test_rsim_evolve_runs_before_step_callback_before_timestep_estimate(self):
+        par = make_code_par()
+        par.hydrogen_chemistry = False
+        mesh = make_code_mesh()
+        fluid = make_code_fluid()
+        fluid.rho_proper_code = np.ones(8, dtype=float)
+        fluid.vel_proper_code = np.zeros(8, dtype=float)
+        fluid.temp_proper_code = np.zeros(8, dtype=float)
+        fluid.mu = np.ones(8, dtype=float)
+        fluid.SetPressure()
+        fluid.time_proper_code = 0.0 * unyt.s
+        sim = Rsim.FromComponents(par, mesh, fluid)
+        events = []
+
+        sim.GetStepTime = lambda dt=None, final_time=None: (
+            events.append("get_step_time") or 0.1 * unyt.s
+        )
+
+        def before_step(current_sim):
+            events.append("before_step")
+
+        def step_backend(dt=None, mode=None, **kwargs):
+            events.append("step")
+            fluid.time_proper_code += dt
+            return {"dt": dt, "hydro_steps": 1, "source_steps": 0}
+
+        sim.Evolve(
+            final_time=0.1 * unyt.s,
+            mode="sources",
+            before_step_callback=before_step,
+            step_backend=step_backend,
+        )
+
+        self.assertEqual(events, ["before_step", "get_step_time", "step"])
 
 
 if __name__ == '__main__':

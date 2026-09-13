@@ -30,6 +30,7 @@ par:
   output:
     directory: outputs_virial_shock_smoke
     filename_prefix: Output
+    cadence: {value: 100.0, unit: kpc/(km/s)}
   cosmology:
     cosmological: true
     cosmological_expansion: true
@@ -86,5 +87,4 @@ initial_condition:
   uv_background_on_redshift: 10.0
   cie_temperature_proper: {value: 0.0001, unit: K}
 example:
-  gas_profile_cadence: 0.01
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

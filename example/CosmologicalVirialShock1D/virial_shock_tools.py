@@ -833,6 +833,10 @@ class VolumeSmoothedDarkMatter:
         """Advance the wrapped shells while retaining smoothed force lookup."""
         return self.shells.step(*args, **kwargs)
 
+    def crossing_timestep(self, safety_factor=0.1):
+        """Return the wrapped shell crossing limit for hydro timestep control."""
+        return self.shells.crossing_timestep(safety_factor=safety_factor)
+
     @property
     def last_substep_count(self):
         return self.shells.last_substep_count

@@ -317,7 +317,10 @@ def _require_unitless_runtime_parameters(sim):
 
     for name, value in vars(sim.par).items():
         if name in {
-            "par_config", "nested_par_config", "units", "unit_system", "CodeUnits"
+            "par_config", "nested_par_config", "units", "unit_system", "CodeUnits",
+            # These are persisted, unit-bearing analysis views restored from
+            # HDF5, not mutable solver runtime parameters.
+            "dark_matter_snapshot", "dark_matter_radarrays",
         }:
             continue
         visit(value, f"par.{name}")

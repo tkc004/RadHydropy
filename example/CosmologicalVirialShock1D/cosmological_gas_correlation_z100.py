@@ -25,7 +25,11 @@ from radhydropy.gravity import Gravity
 from radhydropy.solver import Solver
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.rsim.core import Rsim
 import virial_shock_tools as et
+from physics import CosmologicalVirialShockPhysics
+from diagnostics import CosmologicalVirialShockDiagnostics
+from cosmological_gas_correlation_runtime import CosmologicalRunCallbacks
 from example_utils import load_nested_example_config
 import plot_entropy_evolution as entropy_plotter
 import plot_halo_energy_accounting as energy_plotter
@@ -378,20 +382,14 @@ def plot_temperature_density_evolution(
         temp_edges = np.linspace(log_temp.min(), log_temp.max(), bin_count + 1)
         counts, _, _ = np.histogram2d(log_rho, log_temp,
                                       bins=(rho_edges, temp_edges))
-        rho_centers = 0.5 * (rho_edges[:-1] + rho_edges[1:])
-        temp_centers = 0.5 * (temp_edges[:-1] + temp_edges[1:])
         count_max = float(counts.max())
-        if count_max > 1.0:
-            levels = np.geomspace(1.0, count_max, 16)
-        else:
-            levels = np.array([0.5, 1.5])
-        image = axis.contourf(
-            10.0 ** rho_centers,
-            10.0 ** temp_centers,
+        image = axis.pcolormesh(
+            10.0 ** rho_edges,
+            10.0 ** temp_edges,
             np.ma.masked_less_equal(counts.T, 0.0),
-            levels=levels,
             norm=LogNorm(vmin=1.0, vmax=max(1.0, count_max)),
             cmap="magma",
+            shading="auto",
         )
         fig.colorbar(image, ax=axis, label="cell count")
     axis.set_xlabel(r"physical hydrogen number density $n_H$ [cm$^{-3}$]")
@@ -954,6 +952,13 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         figure_prefix += str(output_suffix)
     output_dir.mkdir(parents=True, exist_ok=True)
     ic_filename = output_dir / "InitialCondition.hdf5"
+    config["par"]["output"]["directory"] = str(output_dir)
+    config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
+    if thermo.get("metal_pie_table_filename"):
+        table_filename = Path(thermo["metal_pie_table_filename"])
+        if not table_filename.is_absolute():
+            table_filename = config_filename.parent / table_filename
+        config["par"]["metal_pie_table"] = MetalPIETable(table_filename)
 
     initial_writer = et.build_initial_condition(config)
     initial = initial_writer.simulation
@@ -963,9 +968,12 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
             initial.par.mesh.grid_cells,
             float(hydro.get("gas_specific_angular_momentum", 0.0)),
         )
-    initial_writer.write(ic_filename)
     config["_dark_matter_softening"] = config["par"]["dark_matter"]["softening"]
     dm = et.make_dark_matter(config)
+    # Serialize the live shell state with the IC so RunAll can restore both
+    # the mutable solver object and its typed analysis view.
+    initial.par.dark_matter = dm
+    initial_writer.write(ic_filename)
 
     baryon_fraction = float(initial_condition["baryon_fraction"])
     gas_mass_comoving_code = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
@@ -988,50 +996,6 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
     if not np.isclose(temperature_proper_cgs_K, expected_temperature, rtol=1.0e-8):
         raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
 
-    config["par"]["simulation"]["initial_condition_filename"] = str(ic_filename)
-    config["par"]["output"]["directory"] = str(output_dir)
-    config["par"]["output"]["directory"] = str(output_dir)
-    sim = rio.loadhdf5(
-        config,
-        config["par"]["simulation"]["initial_condition_filename"],
-    )
-    sim.SetMesh()
-    sim.SetFluid()
-    sim.SetInitFluid()
-    initial_tau = np.asarray(initial.par.tau_supercomoving_code, dtype=float)
-    sim.par.tau_supercomoving_code = initial_tau.copy()
-    sim.par.simulation.tau_supercomoving_code = initial_tau.copy()
-    sim.fluid.SetFluidTime(initial_tau)
-    if not (
-        np.allclose(sim.par.tau_supercomoving_code, initial_tau)
-        and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
-        and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
-    ):
-        raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
-    sim.par.cosmology = cosmology
-    # IC/HDF5 restoration serializes the PIE table as metadata.  Rehydrate
-    # the interpolation object before the run switches to the PIE network.
-    metal_table = getattr(sim.par, "metal_pie_table", None)
-    if isinstance(metal_table, dict):
-        table_filename = Path(thermo["metal_pie_table_filename"])
-        if not table_filename.is_absolute():
-            table_filename = config_filename.parent / table_filename
-        sim.par.metal_pie_table = MetalPIETable(table_filename)
-        if hasattr(sim.par, "radiation"):
-            sim.par.radiation.metal_pie_table = sim.par.metal_pie_table
-    dm_for_gas = (
-        et.VolumeSmoothedDarkMatter(dm)
-        if bool(hydro.get("smooth_dm_force_for_gas", False))
-        else dm
-    )
-    sim.par.gravity = Gravity(
-        selfgravity=True, cosmological=True, cosmology=sim.par.cosmology,
-        dark_matter=dm_for_gas, code_units=sim.par.units.CodeUnits,
-    )
-    sim.par.dark_matter = dm
-    sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
-    sim.par.gas_background_fraction = baryon_fraction
-
     initial_a = float(cosmology.scale_factor(initial_time))
     minimum_temperature = configured_minimum_temperature
     if minimum_temperature is not None:
@@ -1053,814 +1017,66 @@ def run(config_filename=DEFAULT_CONFIG, final_time_override=None,
         )
         transition_tau = float(cosmology.supercomoving_time(transition_time))
 
-    active_network = None
-
-    def configure_thermochemistry(time_cosmic_code):
-        """Select the pre/post-transition source at the current redshift."""
-        nonlocal active_network
-        if transition_redshift is None:
-            return
-        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
-        redshift = max(0.0, 1.0 / scale_factor - 1.0)
-        if redshift > transition_redshift:
-            sim.par.thermochemistry_network = "hydrogen"
-            sim.par.metal_pie_enabled = False
-            sim.par.hydrogen_chemistry = True
-            sim.par.hydrogen_recombination = True
-            sim.par.hydrogen_collisional_ionization = True
-            sim.par.hydrogen_atomic_cooling = True
-            sim.par.hydrogen_update_mu = True
-            sim.par.hydrogen_thermal_coupling = True
-            sim.par.compton_cmb_enabled = True
-        else:
-            sim.par.thermochemistry_network = "pie_uvbg_cooling"
-            sim.par.metal_pie_enabled = True
-            sim.par.metal_pie_redshift = transition_redshift
-            sim.par.hydrogen_chemistry = False
-            sim.par.hydrogen_update_mu = False
-            sim.par.hydrogen_thermal_coupling = False
-            sim.par.compton_cmb_enabled = False
-        if sim.par.thermochemistry_network != active_network:
-            active_network = sim.par.thermochemistry_network
-            print(
-                "thermochemistry=%s at z=%.6g"
-                % (active_network, redshift),
-                flush=True,
-            )
-
-    def update_cosmic_boundary(time_cosmic_code):
-        """Set the outer cosmic gas state in supercomoving hydro units."""
-        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
-        background_physical = float(cosmology.background_density(time_cosmic_code))
-        # The IC is initialized in CMB equilibrium at the starting redshift,
-        # so its physical temperature is T_CMB,0 / a_initial.  Evolve that
-        # state adiabatically (T proportional to a^-2) for the outer gas.
-        temperature_initial_cgs_K = cmb_temperature_0_cgs_K / initial_a
-        temperature_physical = temperature_initial_cgs_K * (
-            initial_a / scale_factor
-        ) ** 2
-
-        # The boundary is specified physically, then converted explicitly to
-        # the hydro representation.  For this gamma=5/3 supercomoving case,
-        # rho_comoving_code = rho_phys*a^3 and T_code = T_phys*a^2; both happen to be
-        # constant for a homogeneous adiabatic background, as they should.
-        sim.par.boundary.rho_inflow_proper = (
-            baryon_fraction * background_physical * scale_factor**3
-        )
-        sim.par.boundary.vel_inflow_proper = 0.0
-        sim.par.boundary.temperature_inflow_proper = temperature_physical * scale_factor**2
-        sim.par.boundary.inflow_mu = float(initial_condition.get("mu", 0.59))
-        sim.par.compton_cmb_redshift = 1.0 / scale_factor - 1.0
-        # Hydro stores supercomoving temperature; keep the physical floor at
-        # the configured value as the scale factor changes.
-        sim.par.hydro_temperature_floor = (
-            None
-            if minimum_temperature is None
-            else minimum_temperature * scale_factor**2
-        )
-
-    def preserve_outer_background_cell():
-        """Reset the outer active cell to the analytic EdS reservoir state."""
-        first = int(sim.par.mesh.ghost_cells)
-        index = first + int(sim.par.mesh.grid_cells) - 1
-        old_mass = float(np.asarray(sim.fluid.Mass_code, dtype=float)[index])
-        old_energy = float(np.asarray(sim.fluid.Energy_code, dtype=float)[index])
-        rho_comoving_code = float(np.asarray(sim.par.boundary.rho_inflow_proper, dtype=float))
-        vel_supercomoving_code = float(np.asarray(sim.par.boundary.vel_inflow_proper, dtype=float))
-        temperature_supercomoving_code = float(
-            np.asarray(sim.par.boundary.temperature_inflow_proper, dtype=float)
-        )
-        mu = float(np.asarray(sim.par.boundary.inflow_mu, dtype=float))
-        volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code, dtype=float)[index])
-        pre_supercomoving_code = float(np.asarray(
-            sim.fluid.eos.pressure(rho_comoving_code, temperature_supercomoving_code, mu), dtype=float
-        ))
-        sim.fluid.rho_comoving_code[index] = rho_comoving_code
-        sim.fluid.vel_supercomoving_code[index] = vel_supercomoving_code
-        sim.fluid.temp_supercomoving_code[index] = temperature_proper_cgs_K
-        sim.fluid.mu[index] = mu
-        sim.fluid.pre_supercomoving_code[index] = pre_supercomoving_code
-        sim.fluid.Mass_code[index] = rho_comoving_code * volume_comoving_code
-        sim.fluid.Mom_code[index] = rho_comoving_code * vel_supercomoving_code * volume_comoving_code
-        sim.fluid.Energy_code[index] = float(np.asarray(
-            sim.fluid.eos.total_energy_density(rho_comoving_code, vel_supercomoving_code, pre_supercomoving_code),
-            dtype=float,
-        )) * volume_comoving_code
-        thermal_energy_density = float(np.asarray(
-            sim.fluid.eos.thermal_energy_density(pre_supercomoving_code), dtype=float,
-        ))
-        if hasattr(sim.fluid, "eth"):
-            sim.fluid.eth_code[index] = thermal_energy_density
-        if hasattr(sim.fluid, "InternalEnergy_code"):
-            # SetConserved intentionally preserves the active-cell dual-energy
-            # field.  The explicitly reset EdS reservoir must therefore
-            # synchronize its conserved thermal energy here as well.
-            sim.fluid.InternalEnergy_code[index] = thermal_energy_density * volume_comoving_code
-        return (
-            float(np.asarray(sim.fluid.Mass_code, dtype=float)[index]) - old_mass,
-            float(np.asarray(sim.fluid.Energy_code, dtype=float)[index]) - old_energy,
-        )
-
-    configure_thermochemistry(initial_time)
-    update_cosmic_boundary(initial_time)
-    preserve_outer_background_cell()
-    # The timestep estimate must see the current comoving reservoir in the
-    # ghost cells, rather than the default InflowSph state from SetInitFluid.
-    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
-    sim.solver.SetConserved(sim.mesh, sim.fluid)
-
     final_time = (
         float(final_time_override)
         if final_time_override is not None
         else quantity_to_value(simulation["final_time"], units.time_unit)
     )
     target_tau = float(cosmology.supercomoving_time(final_time))
-    cadence = float(example.get("gas_profile_cadence", 0.10))
-    next_snapshot = initial_time
-    gas_profiles = []
-    radius_history = []
-    dm_profiles = []
-    hdf5_snapshot_files = []
-    gas_energy_history = []
-    dm_energy_history = []
-    halo_crossing_history = []
-    previous_halo_mask = None
-    steps = 0
-
-    def save_snapshot(time_cosmic_code):
-        nonlocal previous_halo_mask
-        snapshot_index = len(hdf5_snapshot_files)
-        snapshot_filename = output_dir / (
-            f"{figure_prefix}_Snapshot_{snapshot_index:03d}.hdf5"
-        )
-        rio._writehdf5(sim, snapshot_filename)
-        hdf5_snapshot_files.append(snapshot_filename)
-        restored_snapshot = rio.loadhdf5(config, str(snapshot_filename))
-        restored_dark_matter = restored_snapshot.dark_matter
-        dark_matter_radius_comoving_code = np.asarray(
-            restored_dark_matter.radius_radarray.to_value(units.length_unit),
-            dtype=float,
-        )
-        dark_matter_mass_comoving_code = np.asarray(
-            restored_dark_matter.dark_matter_mass_radarray.to_value(
-                units.mass_unit
-            ),
-            dtype=float,
-        )
-        gas_profile = et.gas_density_profile(sim, time_cosmic_code, config)
-        first = int(sim.par.mesh.ghost_cells)
-        last = first + int(sim.par.mesh.grid_cells)
-        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
-        gas_profile["temperature_proper_cgs_K"] = (
-            np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / scale_factor**2
-        )
-        if hasattr(sim.fluid, "specific_angular_momentum_code"):
-            gas_profile["specific_angular_momentum_comoving_code"] = np.asarray(
-                sim.fluid.specific_angular_momentum_code[first:last], dtype=float
-            ).copy()
-        physical_velocity = cosmology.physical_velocity(
-            np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float),
-            np.asarray(sim.fluid.vel_supercomoving_code[first:last], dtype=float),
-            float(sim.fluid.tau_supercomoving_code),
-        )
-        signed_velocity_km_s = (
-            np.asarray(physical_velocity, dtype=float)
-            * float(sim.par.units.CodeUnits.velocity_in_cgs) / 1.0e5
-        )
-        gas_profile["radial_velocity_proper_km_s"] = signed_velocity_km_s
-        gas_profile["velocity_proper_km_s"] = np.abs(signed_velocity_km_s)
-        gas_profile.update(_instantaneous_source_diagnostics(sim, gas_profile))
-        radius_record = et.profiles(
-            sim, dm, time_cosmic_code, config,
-            density_bin_count=example.get("dm_density_bins", 128),
-        )
-        gas_radius = np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
-        gas_edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
-        gas_mass_comoving_code = (
-            np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
-            * (4.0 * np.pi / 3.0)
-            * np.diff(gas_edges**3)
-        )
-        rvir = float(radius_record.get("rvir_kpc", np.nan))
-        mvir = float(radius_record.get("mvir", np.nan))
-        if np.isfinite(rvir) and np.isfinite(mvir) and mvir > 0.0:
-            gas_inside_comoving_code = float(np.sum(gas_mass_comoving_code[gas_radius <= rvir]))
-            radius_record["gas_mass_comoving_code_rvir"] = gas_inside_comoving_code
-            radius_record["normalized_baryon_fraction"] = gas_inside_comoving_code / (
-                float(initial_condition["baryon_fraction"]) * mvir
-            )
-        else:
-            radius_record["gas_mass_comoving_code_rvir"] = np.nan
-            radius_record["normalized_baryon_fraction"] = np.nan
-        shock_index = int(radius_record.get("shock_cell_index", -1))
-        if 0 <= shock_index < int(sim.par.mesh.grid_cells):
-            # These scalar values are deliberately extracted after shock
-            # selection from the same snapshot and cell.  They are the only
-            # quantities intended for a local gamma_eff comparison.
-            for source_key, report_key in (
-                ("q_cgs_erg_cm3_s", "shock_q_cgs_erg_cm3_s"),
-                ("rho_dot_cgs_g_cm3_s", "shock_rho_dot_cgs_g_cm3_s"),
-                ("specific_energy_cgs_erg_g", "shock_specific_energy_cgs_erg_g"),
-                ("local_mach", "shock_local_mach"),
-                ("gamma_eff", "shock_gamma_eff"),
-            ):
-                radius_record[report_key] = float(
-                    np.asarray(gas_profile[source_key], dtype=float)[shock_index]
-                )
-        else:
-            for report_key in (
-                "shock_q_cgs_erg_cm3_s", "shock_rho_dot_cgs_g_cm3_s",
-                "shock_specific_energy_cgs_erg_g", "shock_local_mach",
-                "shock_gamma_eff",
-            ):
-                radius_record[report_key] = np.nan
-        gas_profiles.append(gas_profile)
-        radius_history.append(radius_record)
-        dm_profile = et.density_profiles(
-            sim,
-            dm,
-            time_cosmic_code,
-            config,
-            dark_matter_snapshot=restored_dark_matter,
-        )
-        # Keep the explicitly restored RadArray coordinates in the saved
-        # profile alongside the softened density-bin centers.
-        dm_profile["dm_radius_comoving_code"] = (
-            dark_matter_radius_comoving_code
-        )
-        dm_profile["dm_mass_comoving_code"] = dark_matter_mass_comoving_code
-        dm_profile["scale_factor"] = scale_factor
-        dm_profiles.append(dm_profile)
-        gas_energy_history.append(_energy_cell_state(sim))
-        dm_energy_history.append(_dark_matter_energy_state(dm))
-        current_halo_radius = radius_history[-1].get("rvir_kpc", np.nan)
-        current_halo_mask = (
-            np.isfinite(current_halo_radius)
-            & (np.asarray(gas_profile["radius_proper_kpc"], dtype=float)
-               <= float(current_halo_radius))
-        )
-        crossing = {"entered_cells": int(np.count_nonzero(
-            current_halo_mask & ~previous_halo_mask
-        )) if previous_halo_mask is not None else 0,
-            "exited_cells": int(np.count_nonzero(
-                previous_halo_mask & ~current_halo_mask
-            )) if previous_halo_mask is not None else 0}
-        for key in ("total_energy_code", "thermal_energy_code", "kinetic_energy_code", "gravitational_work",
-                    "hydro_energy_change", "thermochemistry_energy_change", "compression_work",
-                    "shock_work"):
-            if previous_halo_mask is None:
-                value = 0.0
-            else:
-                old_values = np.asarray(gas_energy_history[-2][key], dtype=float)
-                new_values = np.asarray(gas_energy_history[-1][key], dtype=float)
-                entered = current_halo_mask & ~previous_halo_mask
-                exited = previous_halo_mask & ~current_halo_mask
-                value = float(np.sum(new_values[entered]) - np.sum(old_values[exited]))
-            crossing[key] = value
-        halo_crossing_history.append(crossing)
-        previous_halo_mask = current_halo_mask
-
-    save_snapshot(initial_time)
-    audit_initial = _energy_audit_state(sim)
-    first = int(sim.par.mesh.ghost_cells)
-    last = first + int(sim.par.mesh.grid_cells)
-    angular_initial = float(np.sum(np.asarray(
-        sim.fluid.AngularMomentum_code[first:last], dtype=float
-    ))) if hasattr(sim.fluid, "AngularMomentum_code") else 0.0
-    energy_audit = {
-        "step": [0],
-        "time_cosmic_Gyr": [initial_time * sim.par.units.CodeUnits.time_unit.to_value("Gyr")],
-        "dt": [0.0],
-        "scale_factor": [initial_a],
-        **{key: [value] for key, value in audit_initial.items()},
-        "gravitational_work": [0.0],
-        "hydro_boundary_energy_flux": [0.0],
-        "background_reservoir_mass_change": [0.0],
-        "background_reservoir_energy_change": [0.0],
-        "thermochemistry_energy_change": [0.0],
-        "energy_closure_residual": [0.0],
-        "inner_wall_momentum_flux": [0.0],
-        "inner_wall_energy_flux": [0.0],
-        "angular_momentum_total": [angular_initial],
-        "angular_momentum_change": [0.0],
-        "angular_momentum_boundary_change": [0.0],
-        "angular_momentum_conservation_residual": [0.0],
-    }
-    next_snapshot += cadence
-    while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-12:
-        cosmic_start = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
-        )
-        configure_thermochemistry(cosmic_start)
-        update_cosmic_boundary(cosmic_start)
-        preserve_outer_background_cell()
-        # Keep the outer ghost reservoir synchronized before GetStepTime().
-        sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
-        sim.solver.SetConserved(sim.mesh, sim.fluid)
-        dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.tau_supercomoving_code))
-        if transition_tau is not None and float(sim.fluid.tau_supercomoving_code) < transition_tau:
-            dt = min(dt, transition_tau - float(sim.fluid.tau_supercomoving_code))
-        # Capture the finite inner-wall Riemann flux before Step refreshes the
-        # temporary face arrays.
-        wall_face = int(sim.par.mesh.ghost_cells)
-        sim.solver.SetInterFaceFlux(
-            sim.mesh, sim.fluid, sim.par.boundary.condition,
-            method=getattr(sim.par, "riemann_solver", "Rusanov"),
-            order=int(sim.par.hydrodynamics.order),
-        )
-        wall_momentum_flux = float(
-            np.asarray(sim.fluid.Mom_code.flux, dtype=float)[wall_face]
-        )
-        wall_energy_flux = float(
-            np.asarray(sim.fluid.Energy_code.flux, dtype=float)[wall_face]
-        )
-        angular_before = float(np.sum(np.asarray(
-            sim.fluid.AngularMomentum_code[first:last], dtype=float
-        ))) if hasattr(sim.fluid, "AngularMomentum_code") else 0.0
-        angular_boundary_change = 0.0
-        if hasattr(sim.fluid, "AngularMomentum_code"):
-            # AddFluxes applies +dt*(F_left A_left - F_right A_right) to
-            # the active domain.  Include the final paired-face positivity
-            # factors, since those are the actual flux corrections used.
-            angular_flux_area = (
-                np.asarray(sim.fluid.AngularMomentum_code.flux, dtype=float)
-                * np.asarray(sim.mesh.area_comoving_code, dtype=float)
-            )
-        # This run has active Compton/atomic or PIE thermal sources.  Using
-        # hydro-only mode would select the networks but never apply their
-        # energy update.
-        sim.Step(dt=dt, mode="hydro_sources")
-        angular_after = float(np.sum(np.asarray(
-            sim.fluid.AngularMomentum_code[first:last], dtype=float
-        ))) if hasattr(sim.fluid, "AngularMomentum_code") else 0.0
-        if hasattr(sim.fluid, "AngularMomentum_code"):
-            factors = np.asarray(
-                getattr(sim.solver, "_last_face_limiter_factors",
-                        np.ones_like(angular_flux_area)),
-                dtype=float,
-            )
-            angular_flux_area *= factors
-            angular_boundary_change = float(
-                dt * (angular_flux_area[first] - angular_flux_area[last])
-            )
-        angular_change = angular_after - angular_before
-        angular_residual = angular_change - angular_boundary_change
-        if bool(getattr(sim.par, "gas_angular_momentum", False)) and (
-            steps % 100 == 0
-        ):
-            first = int(sim.par.mesh.ghost_cells)
-            last = first + int(sim.par.mesh.grid_cells)
-            gas_mass_comoving_code = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
-            angular = np.asarray(
-                sim.fluid.AngularMomentum_code[first:last], dtype=float
-            )
-            specific = np.divide(
-                angular, gas_mass_comoving_code, out=np.zeros_like(angular), where=gas_mass_comoving_code > 0.0
-            )
-            print(
-                "angular diagnostic: step=%d j=[%.8g, %.8g] "
-                "dJ=%.8g boundary=%.8g residual=%.8g"
-                % (steps, np.nanmin(specific), np.nanmax(specific),
-                   angular_change, angular_boundary_change,
-                   angular_residual),
-                flush=True,
-            )
-        energy_audit["angular_momentum_total"].append(angular_after)
-        energy_audit["angular_momentum_change"].append(angular_change)
-        energy_audit["angular_momentum_boundary_change"].append(
-            angular_boundary_change
-        )
-        energy_audit["angular_momentum_conservation_residual"].append(
-            angular_residual
-        )
-        energy_audit["inner_wall_momentum_flux"].append(
-            wall_momentum_flux
-        )
-        energy_audit["inner_wall_energy_flux"].append(
-            wall_energy_flux
-        )
-        steps += 1
-        time_cosmic_code = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
-        )
-        update_cosmic_boundary(time_cosmic_code)
-        reservoir_mass_change, reservoir_energy_change = (
-            preserve_outer_background_cell()
-        )
-        audit_state = _energy_audit_state(sim)
-        previous_energy = energy_audit["total_gas_energy_code"][-1]
-        energy_change = audit_state["total_gas_energy_code"] - previous_energy
-        gravity_work = float(getattr(sim, "last_gravity_work", 0.0))
-        boundary_flux = float(
-            getattr(sim, "last_hydro_boundary_energy_flux", 0.0)
-        )
-        thermo_change = float(
-            getattr(sim, "last_thermochemistry_energy_change", 0.0)
-        )
-        floor_injection = (
-            audit_state["dual_energy_floor_injected_energy"]
-            - energy_audit["dual_energy_floor_injected_energy"][-1]
-        )
-        for key, value in audit_state.items():
-            energy_audit[key].append(value)
-        energy_audit["step"].append(steps)
-        energy_audit["time_cosmic_Gyr"].append(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
-        )
-        energy_audit["dt"].append(dt)
-        energy_audit["scale_factor"].append(
-            float(cosmology.scale_factor(time_cosmic_code))
-        )
-        energy_audit["gravitational_work"].append(gravity_work)
-        energy_audit["hydro_boundary_energy_flux"].append(boundary_flux)
-        energy_audit["background_reservoir_mass_change"].append(
-            reservoir_mass_change
-        )
-        energy_audit["background_reservoir_energy_change"].append(
-            reservoir_energy_change
-        )
-        energy_audit["thermochemistry_energy_change"].append(thermo_change)
-        energy_audit["energy_closure_residual"].append(
-            energy_change
-            - boundary_flux
-            - reservoir_energy_change
-            - gravity_work
-            - thermo_change
-            - floor_injection
-        )
-        if steps == 1 or steps % 100 == 0:
-            first = int(sim.par.mesh.ghost_cells)
-            last = first + int(sim.par.mesh.grid_cells)
-            inner = slice(first, min(last, first + 16))
-            print(
-                "step=%d cosmic_time=%.6g dt=%.6g crossing_dt=%.6g "
-                "Tmax_inner=%.6g vmax_inner=%.6g csmax_inner=%.6g"
-                % (
-                    steps, time_cosmic_code, dt, dm.crossing_timestep(),
-                    np.nanmax(np.asarray(sim.fluid.temp_supercomoving_code[inner], dtype=float)),
-                    np.nanmax(np.abs(np.asarray(sim.fluid.vel_supercomoving_code[inner], dtype=float))),
-                    np.nanmax(np.asarray(sim.fluid.cs_code[inner], dtype=float)),
-                ),
-                flush=True,
-            )
-        if time_cosmic_code >= next_snapshot or time_cosmic_code >= final_time - 1.0e-10:
-            save_snapshot(time_cosmic_code)
-            while next_snapshot <= time_cosmic_code + 1.0e-12:
-                next_snapshot += cadence
-
-    times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])
-    radius_comoving_code = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
-    rho_comoving_code = np.asarray([item["rho_proper_code"] for item in gas_profiles])
-    temperature_proper_cgs_K = np.asarray(
-        [item["temperature_proper_cgs_K"] for item in gas_profiles]
+    config["par"]["simulation"]["final_time"] = target_tau
+    runner = Rsim(config["par"])
+    physics = CosmologicalVirialShockPhysics(
+        runner,
+        cosmology,
+        initial_condition,
+        baryon_fraction,
+        initial_a,
+        cmb_temperature_0_cgs_K,
+        temperature_proper_cgs_K,
+        minimum_temperature=minimum_temperature,
+        transition_redshift=transition_redshift,
     )
-    vel_supercomoving_code = np.asarray(
-        [item["velocity_proper_km_s"] for item in gas_profiles]
+    diagnostics = CosmologicalVirialShockDiagnostics(
+        config, initial_condition, runner, dm, units, cosmology,
+        _instantaneous_source_diagnostics, _energy_cell_state,
+        _dark_matter_energy_state, _energy_audit_state,
+        {
+            "output_dir": output_dir, "figure_prefix": figure_prefix,
+            "example": example, "hydro": hydro, "units": units,
+            "initial_condition": initial_condition,
+            "baryon_fraction": baryon_fraction,
+            "configured_temperature_plot_ymin": configured_temperature_plot_ymin,
+            "minimum_temperature": minimum_temperature,
+            "measured_fraction": measured_fraction,
+            "plot_mass_history": plot_mass_history,
+            "plot_radius_history": plot_radius_history,
+            "plot_temperature_evolution": plot_temperature_evolution,
+            "plot_specific_angular_momentum_evolution": plot_specific_angular_momentum_evolution,
+            "plot_density_evolution": plot_density_evolution,
+            "plot_temperature_density_evolution": plot_temperature_density_evolution,
+            "plot_velocity_evolution": plot_velocity_evolution,
+            "plot_baryon_fraction_evolution": plot_baryon_fraction_evolution,
+            "plot_dark_matter_density_evolution": plot_dark_matter_density_evolution,
+            "plot_baryon_normalized_density_comparison": plot_baryon_normalized_density_comparison,
+            "entropy_plotter": entropy_plotter, "energy_plotter": energy_plotter,
+            "PROTON_MASS_CGS": PROTON_MASS_CGS,
+            "quantity_to_value": quantity_to_value,
+            "_pad_energy_history": _pad_energy_history,
+            "_pad_profile_history": _pad_profile_history,
+        },
     )
-    specific_angular_momentum_comoving_code = np.asarray(
-        [item.get("specific_angular_momentum_comoving_code", np.zeros_like(radius_comoving_code))
-         for item in gas_profiles]
+    callbacks = CosmologicalRunCallbacks(
+        config_filename, thermo, hydro, cosmology, baryon_fraction,
+        physics, diagnostics, initial_time, initial_a,
     )
-    radial_velocity = np.asarray(
-        [item["radial_velocity_proper_km_s"] for item in gas_profiles]
+    runner.RunAll(
+        mode="hydro_sources",
+        before_step_callback=callbacks.before_step,
+        history_callback=callbacks.history,
+        snapshot_callback=callbacks.snapshot,
+        stop_condition=lambda current_sim: False,
     )
-    scale_factors = np.asarray([item["scale_factor"] for item in gas_profiles])
-    plot_exclude_outer_cells = max(
-        0, int(example.get("plot_exclude_outer_cells", 0))
-    )
-    plot_cell_count = max(1, radius_comoving_code.size - plot_exclude_outer_cells)
-    plot_radius = radius_comoving_code[:plot_cell_count]
-    plot_density = rho_comoving_code[:, :plot_cell_count]
-    plot_temperature = temperature_proper_cgs_K[:, :plot_cell_count]
-    plot_velocity = vel_supercomoving_code[:, :plot_cell_count]
-    plot_gas_profiles = []
-    for profile in gas_profiles:
-        trimmed = dict(profile)
-        for key in (
-            "radius_proper_kpc", "rho_proper_code",
-            "temperature_proper_cgs_K", "velocity_proper_km_s",
-            "radial_velocity_proper_km_s",
-            "specific_angular_momentum_comoving_code",
-        ):
-            if key in trimmed:
-                trimmed[key] = np.asarray(trimmed[key])[:plot_cell_count]
-        plot_gas_profiles.append(trimmed)
-    virial_radius = np.asarray([item["rvir_kpc"] for item in radius_history])
-    splashback_radius = np.asarray(
-        [item["rsplashback_kpc"] for item in radius_history]
-    )
-    virial_temperature = np.asarray([item["tvir_cgs_K"] for item in radius_history])
-    history = {
-        key: np.asarray([item[key] for item in radius_history])
-        for key in radius_history[0]
-    }
-    history["scale_factor"] = scale_factors
-    data_file = output_dir / (figure_prefix + ".npz")
-    np.savez(data_file, **history,
-             radius_comoving_kpc=radius_comoving_code, rho_proper_code=rho_comoving_code,
-             temperature_proper_cgs_K=temperature_proper_cgs_K,
-             velocity_proper_km_s=vel_supercomoving_code,
-             radial_velocity_proper_km_s=radial_velocity,
-             specific_angular_momentum_comoving_code=specific_angular_momentum_comoving_code,
-             q_cgs_erg_cm3_s=np.asarray([item["q_cgs_erg_cm3_s"] for item in gas_profiles]),
-             rho_dot_cgs_g_cm3_s=np.asarray([item["rho_dot_cgs_g_cm3_s"] for item in gas_profiles]),
-             specific_energy_cgs_erg_g=np.asarray([item["specific_energy_cgs_erg_g"] for item in gas_profiles]),
-             local_mach=np.asarray([item["local_mach"] for item in gas_profiles]),
-             gamma_eff=np.asarray([item["gamma_eff"] for item in gas_profiles]),
-             rvir_proper_kpc=virial_radius,
-             virial_temperature_cgs_K=virial_temperature)
-    baryon_fraction_figure = output_dir / (
-        figure_prefix + "_BaryonMassFraction_TimeEvolution.jpg"
-    )
-    plot_baryon_fraction_evolution(
-        times,
-        np.asarray([
-            item["normalized_baryon_fraction"] for item in radius_history
-        ]),
-        np.asarray([
-            item["mvir"] for item in radius_history
-        ]) * float(sim.par.units.CodeUnits.mass_in_cgs) / 1.98847e33,
-        scale_factors,
-        baryon_fraction_figure,
-        float(initial_condition["baryon_fraction"]),
-    )
-    entropy_plotter.main(
-        output_dir,
-        figure_prefix,
-        gamma=float(hydro["gamma"]),
-        exclude_outer_cells=plot_exclude_outer_cells,
-    )
-    energy_audit_file = output_dir / (figure_prefix + "_EnergyAudit.npz")
-    np.savez(energy_audit_file, **{
-        key: np.asarray(value, dtype=float)
-        for key, value in energy_audit.items()
-    })
-    # Per-snapshot component histories complement the per-step global audit.
-    # Gas rows are physical cells; DM rows are shell IDs, padded with NaN when
-    # a shell has been absorbed into the unresolved central core.
-    per_cell = {
-        "time_cosmic_Gyr": np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles]),
-        "mass_code": _pad_energy_history(gas_energy_history, "mass_code"),
-        "total_energy_code": _pad_energy_history(gas_energy_history, "total_energy_code"),
-        "kinetic_energy_code": _pad_energy_history(gas_energy_history, "kinetic_energy_code"),
-        "thermal_energy_code": _pad_energy_history(gas_energy_history, "thermal_energy_code"),
-        "gravitational_work": _pad_energy_history(
-            gas_energy_history, "gravitational_work"
-        ),
-        "hydro_energy_change": _pad_energy_history(
-            gas_energy_history, "hydro_energy_change"
-        ),
-        "thermochemistry_energy_change": _pad_energy_history(
-            gas_energy_history, "thermochemistry_energy_change"
-        ),
-        "compression_work": _pad_energy_history(
-            gas_energy_history, "compression_work"
-        ),
-        "shock_work": _pad_energy_history(gas_energy_history, "shock_work"),
-        "dual_energy_total_thermal": _pad_energy_history(
-            gas_energy_history, "dual_energy_total_thermal"
-        ),
-        "dual_energy_internal_density": _pad_energy_history(
-            gas_energy_history, "dual_energy_internal_density"
-        ),
-        "dual_energy_total_pressure": _pad_energy_history(
-            gas_energy_history, "dual_energy_total_pressure"
-        ),
-        "dual_energy_dual_pressure": _pad_energy_history(
-            gas_energy_history, "dual_energy_dual_pressure"
-        ),
-        "dual_energy_total_valid": _pad_energy_history(
-            gas_energy_history, "dual_energy_total_valid"
-        ),
-        "dual_energy_dual_valid": _pad_energy_history(
-            gas_energy_history, "dual_energy_dual_valid"
-        ),
-        "dual_energy_pressure_selection_code": _pad_energy_history(
-            gas_energy_history, "dual_energy_pressure_selection_code"
-        ),
-        "halo_crossing_total_energy": np.asarray(
-            [item["total_energy_code"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_crossing_thermal_energy": np.asarray(
-            [item["thermal_energy_code"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_crossing_kinetic_energy": np.asarray(
-            [item["kinetic_energy_code"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_crossing_gravitational_work": np.asarray(
-            [item["gravitational_work"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_crossing_thermochemistry_energy_change": np.asarray(
-            [item["thermochemistry_energy_change"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_crossing_compression_work": np.asarray(
-            [item["compression_work"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_crossing_shock_work": np.asarray(
-            [item["shock_work"] for item in halo_crossing_history], dtype=float
-        ),
-        "halo_entered_cells": np.asarray(
-            [item["entered_cells"] for item in halo_crossing_history], dtype=int
-        ),
-        "halo_exited_cells": np.asarray(
-            [item["exited_cells"] for item in halo_crossing_history], dtype=int
-        ),
-    }
-    per_cell["delta_total_energy_code"] = per_cell["total_energy_code"] - per_cell["total_energy_code"][0]
-    per_cell["delta_kinetic_energy_code"] = per_cell["kinetic_energy_code"] - per_cell["kinetic_energy_code"][0]
-    per_cell["delta_thermal_energy_code"] = per_cell["thermal_energy_code"] - per_cell["thermal_energy_code"][0]
-    per_cell["energy_balance_residual"] = (
-        per_cell["delta_total_energy_code"]
-        - per_cell["hydro_energy_change"]
-        - per_cell["gravitational_work"]
-        - per_cell["thermochemistry_energy_change"]
-    )
-    per_shell = {
-        "time_cosmic_Gyr": np.asarray([item["time_cosmic_Gyr"] for item in dm_profiles]),
-        "shell_id": _pad_energy_history(dm_energy_history, "id", fill=-1),
-        "radius_comoving_code": _pad_energy_history(dm_energy_history, "radius_comoving_code"),
-        "vel_supercomoving_code": _pad_energy_history(dm_energy_history, "vel_supercomoving_code"),
-        "mass_code": _pad_energy_history(dm_energy_history, "mass_code"),
-        "kinetic_energy_code": _pad_energy_history(dm_energy_history, "kinetic_energy_code"),
-        "potential_energy_code": _pad_energy_history(dm_energy_history, "potential_energy_code"),
-        "total_energy_code": _pad_energy_history(dm_energy_history, "total_energy_code"),
-    }
-    per_shell["delta_kinetic_energy_code"] = per_shell["kinetic_energy_code"] - per_shell["kinetic_energy_code"][0]
-    per_shell["delta_potential_energy_code"] = per_shell["potential_energy_code"] - per_shell["potential_energy_code"][0]
-    per_shell["delta_total_energy_code"] = per_shell["total_energy_code"] - per_shell["total_energy_code"][0]
-    energy_entity_file = output_dir / (figure_prefix + "_EnergyByCellAndShell.npz")
-    np.savez(
-        energy_entity_file,
-        **{f"gas_{key}": value for key, value in per_cell.items()},
-        **{f"dm_{key}": value for key, value in per_shell.items()},
-    )
-    energy_balance_figure = None
-    if bool(hydro.get("energy_diagnostics", True)):
-        try:
-            energy_plotter.main(output_dir, figure_prefix, radius_factor=2.0)
-            energy_balance_figure = output_dir / (
-                figure_prefix + "_2RvirEnergyBalance_TimeEvolution.jpg"
-            )
-        except RuntimeError as error:
-            # A developing perturbation may not yet have a resolved r200.
-            # Keep the run and its ordinary diagnostics usable; the energy
-            # plot will be generated automatically once a resolved halo exists.
-            print("energy-balance figure skipped: %s" % error)
-    figure = output_dir / (figure_prefix + ".jpg")
-    radius_figure = output_dir / (figure_prefix + "_Radii.jpg")
-    plot_mass_history(history, figure)
-    plot_radius_history(history, radius_figure)
-    temperature_figure = output_dir / (figure_prefix + "_Temperatures.jpg")
-    temperature_plot_ymin = (
-        configured_temperature_plot_ymin
-        if configured_temperature_plot_ymin is not None
-        else minimum_temperature
-    )
-    if hasattr(temperature_plot_ymin, "to_value"):
-        temperature_plot_ymin = float(temperature_plot_ymin.to_value("K"))
-    else:
-        temperature_plot_ymin = float(temperature_plot_ymin)
-    plot_temperature_evolution(
-        times, plot_radius, plot_density, plot_temperature, virial_radius, splashback_radius,
-        scale_factors,
-        virial_temperature,
-        temperature_figure,
-        minimum_temperature=temperature_plot_ymin,
-        inner_radius=quantity_to_value(
-            initial_condition.get("inner_wall_radius_comoving", initial_condition["radius_inner_comoving"]),
-            units.length_unit,
-        ),
-        box_boundary=quantity_to_value(
-            initial_condition["radius_outer_comoving"], units.length_unit
-        ),
-    )
-    specific_angular_momentum_figure = output_dir / (
-        figure_prefix + "_SpecificAngularMomentum.jpg"
-    )
-    plot_specific_angular_momentum_evolution(
-        times, plot_radius, plot_density,
-        specific_angular_momentum_comoving_code[:, :plot_cell_count],
-        virial_radius, splashback_radius, scale_factors,
-        specific_angular_momentum_figure,
-    )
-    density_figure = output_dir / (figure_prefix + "_Densities.jpg")
-    cosmic_gas_density_z0 = baryon_fraction * float(
-        cosmology.background_density(cosmology.t_ref)
-    )
-    plot_density_evolution(
-        times, plot_radius, plot_density, virial_radius, scale_factors, density_figure,
-        ymin=0.1 * cosmic_gas_density_z0,
-    )
-    temperature_density_figure = output_dir / (
-        figure_prefix + "_TemperatureDensity.jpg"
-    )
-    plot_temperature_density_evolution(
-        times, plot_density, plot_temperature, temperature_density_figure, ymin=0.1,
-        density_to_nH_cgs_cm3=(
-            float(sim.par.units.CodeUnits.mass_in_cgs)
-            / float(sim.par.units.CodeUnits.length_in_cgs) ** 3
-            * float(initial_condition["hydrogen_mass_fraction"])
-            / PROTON_MASS_CGS
-        ),
-    )
-    velocity_figure = output_dir / (figure_prefix + "_Velocity.jpg")
-    plot_velocity_evolution(
-        times, plot_radius, plot_density, plot_velocity, virial_radius, scale_factors,
-        velocity_figure,
-    )
-    dm_figure = output_dir / (figure_prefix + "_DarkMatterDensities.jpg")
-    plot_dark_matter_density_evolution(
-        dm_profiles, plot_radius, dm_figure,
-        density_bin_count=example.get("dm_density_bins"),
-    )
-    density_comparison_figure = output_dir / (
-        figure_prefix + "_GasDarkMatterBaryonNormalized.jpg"
-    )
-    plot_baryon_normalized_density_comparison(
-        plot_gas_profiles, dm_profiles, initial_condition["baryon_fraction"],
-        virial_radius,
-        density_comparison_figure,
-    )
-    dm_data_file = output_dir / (figure_prefix + "_DarkMatterDensities.npz")
-    np.savez(
-        dm_data_file,
-        time_cosmic_Gyr=np.asarray([item["time_cosmic_Gyr"] for item in dm_profiles]),
-        scale_factor=np.asarray([item["scale_factor"] for item in dm_profiles]),
-        mean_rho_comoving_code=np.asarray([
-            item.get("dm_mean_density_code", np.nan) for item in dm_profiles
-        ]),
-        radius_proper_kpc=_pad_profile_history(dm_profiles, "dm_radius_proper_kpc"),
-        rho_proper_code=_pad_profile_history(dm_profiles, "dm_rho_proper_code"),
-        mass_code=_pad_profile_history(dm_profiles, "dm_mass_comoving_code"),
-        softening_comoving_code=np.asarray([
-            item.get("dm_softening_comoving_code", np.nan)
-            for item in dm_profiles
-        ]),
-        total_mass=np.asarray([
-            item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles
-        ]),
-        crossing_events=np.asarray([
-            item.get("dm_crossing_events", 0) for item in dm_profiles
-        ], dtype=int),
-        origin_reflections=np.asarray([
-            item.get("dm_origin_reflections", 0) for item in dm_profiles
-        ], dtype=int),
-        central_core_mass=np.asarray([
-            item.get("dm_central_core_mass", 0.0) for item in dm_profiles
-        ]),
-        central_core_radius_kpc=np.asarray([
-            item.get("dm_central_core_radius_kpc", 0.0) for item in dm_profiles
-        ]),
-    )
-    print("initial gas fraction = %.8g" % measured_fraction)
-    print("initial gas temperature = %.8g K" % np.median(temperature_proper_cgs_K))
-    print("final cosmic time = %.8g Gyr" % times[-1])
-    dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
-    dm_total_mass = np.asarray([
-        item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles
-    ])
-    if dm_total_mass.size and np.isfinite(dm_total_mass[0]):
-        mass_error = np.max(np.abs(dm_total_mass - dm_total_mass[0]))
-        if mass_error > 1.0e-10 * max(abs(dm_total_mass[0]), 1.0):
-            raise RuntimeError(
-                "live dark-matter mass is not conserved: maximum error %.8g"
-                % mass_error
-            )
-        print("dark-matter total mass = %.8g code masses" % dm_total_mass[-1])
-        print(
-            "dark-matter shell crossings = %d, origin reflections = %d"
-            % (
-                sum(item.get("dm_crossing_events", 0) for item in dm_profiles),
-                sum(item.get("dm_origin_reflections", 0) for item in dm_profiles),
-            )
-        )
-    if dm_substeps.size:
-        print(
-            "dark-matter substeps per hydro step = %.8g mean, %d max, %d total"
-            % (
-                np.mean(dm_substeps),
-                np.max(dm_substeps),
-                np.sum(dm_substeps),
-            )
-        )
-    print("data = %s" % data_file)
-    print("figure = %s" % figure)
-    print("radius figure = %s" % radius_figure)
-    print("temperature figure = %s" % temperature_figure)
-    print("specific-angular-momentum figure = %s" % specific_angular_momentum_figure)
-    print("entropy figure = %s" % (output_dir / (figure_prefix + "_Entropy.jpg")))
-    print("temperature-density figure = %s" % temperature_density_figure)
-    print("velocity figure = %s" % velocity_figure)
-    print("dark-matter figure = %s" % dm_figure)
-    print("dark-matter data = %s" % dm_data_file)
-    print("HDF5 snapshots = %s" % output_dir)
-    print("gas/DM density comparison = %s" % density_comparison_figure)
-    print("energy audit = %s" % energy_audit_file)
-    print("per-cell/shell energy history = %s" % energy_entity_file)
-    print("baryon mass fraction figure = %s" % baryon_fraction_figure)
-    if energy_balance_figure is not None:
-        print("2-rvir energy balance figure = %s" % energy_balance_figure)
-    return data_file
+    return diagnostics.finalize(runner)
 
 
 if __name__ == "__main__":

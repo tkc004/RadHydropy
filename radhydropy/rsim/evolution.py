@@ -14,6 +14,7 @@ def Evolve(
     stop_condition=None,
     step_backend=None,
     step_backend_kwargs=None,
+    before_step_callback=None,
 ):
     """Evolve the simulation with a pluggable step backend."""
     if final_time is None:
@@ -30,6 +31,8 @@ def Evolve(
     while getattr(sim.fluid, time_field) < final_time:
         if stop_condition is not None and stop_condition(sim):
             break
+        if before_step_callback is not None:
+            before_step_callback(sim)
         dt = sim.GetStepTime(final_time=final_time)
         step = step_backend(
             dt=dt,
@@ -37,6 +40,7 @@ def Evolve(
             advect_chemistry=advect_chemistry,
             **step_backend_kwargs,
         )
+        sim.last_step_dt = dt
         counters["hydro_steps"] += step["hydro_steps"]
         counters["source_steps"] += step["source_steps"]
         progress_steps += step["hydro_steps"]
@@ -65,6 +69,9 @@ def Run(
     stop_condition=None,
     step_backend=None,
     step_backend_kwargs=None,
+    before_step_callback=None,
+    history_callback=None,
+    snapshot_callback=None,
 ):
     """Run the simulation loop and write periodic HDF5 outputs."""
     sim.WriteUsedParameters()
@@ -74,6 +81,9 @@ def Run(
             outputtime=outputtime,
             mode=mode,
             advect_chemistry=advect_chemistry,
+            before_step_callback=before_step_callback,
+            history_callback=history_callback,
+            snapshot_callback=snapshot_callback,
             stop_condition=stop_condition,
             step_backend=step_backend,
             step_backend_kwargs=step_backend_kwargs,
@@ -85,22 +95,34 @@ def Run(
     print("--- %s seconds ---" % (
         time.time() - getattr(sim, "_start_time", time.time())
     ))
-    rio.write_numbered_hdf5(sim, 0)
+    if before_step_callback is not None:
+        before_step_callback(sim)
+    initial_filename = rio.write_numbered_hdf5(sim, 0)
+    if snapshot_callback is not None:
+        snapshot_callback(sim, initial_filename, 0)
+    output_state = {}
     sim.Evolve(
         final_time=sim.par.simulation.final_time,
         mode=mode,
         advect_chemistry=advect_chemistry,
+        before_step_callback=before_step_callback,
+        history_callback=history_callback,
         output_callback=rio.hdf5_output_callback(
             sim,
             outputtime=outputtime,
+            output_state=output_state,
+            snapshot_callback=snapshot_callback,
         ),
         stop_condition=stop_condition,
         step_backend=step_backend,
         step_backend_kwargs=step_backend_kwargs,
     )
     if stop_condition is not None:
-        sim.fluid.SetTemperature()
-        rio.write_numbered_hdf5(sim, 0)
+        final_filename = rio.write_numbered_hdf5(
+            sim, output_state.get("outindex", 1)
+        )
+        if snapshot_callback is not None:
+            snapshot_callback(sim, final_filename, 0)
     print("--- Simulation finished. ---") 
     print("--- %s seconds ---" % (
         time.time() - getattr(sim, "_start_time", time.time())
@@ -114,6 +136,9 @@ def RunAll(
     stop_condition=None,
     step_backend=None,
     step_backend_kwargs=None,
+    before_step_callback=None,
+    history_callback=None,
+    snapshot_callback=None,
 ):
     """Run the full workflow from initial-condition read through outputs."""
     sim.Callreadhdf5()
@@ -124,6 +149,9 @@ def RunAll(
         outputtime=outputtime,
         mode=mode,
         advect_chemistry=advect_chemistry,
+        before_step_callback=before_step_callback,
+        history_callback=history_callback,
+        snapshot_callback=snapshot_callback,
         stop_condition=stop_condition,
         step_backend=step_backend,
         step_backend_kwargs=step_backend_kwargs,

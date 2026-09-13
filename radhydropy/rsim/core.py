@@ -199,6 +199,7 @@ class Rsim():
         stop_condition=None,
         step_backend=None,
         step_backend_kwargs=None,
+        before_step_callback=None,
     ):
         from .evolution import Evolve
 
@@ -207,6 +208,7 @@ class Rsim():
             final_time=final_time,
             mode=mode,
             advect_chemistry=advect_chemistry,
+            before_step_callback=before_step_callback,
             history_callback=history_callback,
             output_callback=output_callback,
             stop_condition=stop_condition,
@@ -299,6 +301,9 @@ class Rsim():
         stop_condition=None,
         step_backend=None,
         step_backend_kwargs=None,
+        before_step_callback=None,
+        history_callback=None,
+        snapshot_callback=None,
     ):
         from .evolution import Run
 
@@ -307,6 +312,9 @@ class Rsim():
             outputtime=outputtime,
             mode=mode,
             advect_chemistry=advect_chemistry,
+            before_step_callback=before_step_callback,
+            history_callback=history_callback,
+            snapshot_callback=snapshot_callback,
             stop_condition=stop_condition,
             step_backend=step_backend,
             step_backend_kwargs=step_backend_kwargs,
@@ -320,6 +328,9 @@ class Rsim():
         stop_condition=None,
         step_backend=None,
         step_backend_kwargs=None,
+        before_step_callback=None,
+        history_callback=None,
+        snapshot_callback=None,
     ):
         from .evolution import RunAll
 
@@ -328,6 +339,9 @@ class Rsim():
             outputtime=outputtime,
             mode=mode,
             advect_chemistry=advect_chemistry,
+            before_step_callback=before_step_callback,
+            history_callback=history_callback,
+            snapshot_callback=snapshot_callback,
             stop_condition=stop_condition,
             step_backend=step_backend,
             step_backend_kwargs=step_backend_kwargs,

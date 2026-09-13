@@ -50,6 +50,7 @@ par:
   output:
     directory: outputs_correlation_gas
     filename_prefix: Output
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_gas_correlation_unit_system
@@ -95,7 +96,9 @@ example:
   figure_prefix: CosmologicalGasCorrelationZ100
   dm_density_bins: 48
   temperature_plot_ymin: {value: 1.0, unit: K}
-  plot_exclude_outer_cells: 2
-  gas_profile_cadence: 0.1
+  # The outer four zones are the imposed/background boundary layer.  Keep
+  # them out of profile and phase-space plots so their boundary cooling track
+  # is not mistaken for physical halo gas.
+  plot_exclude_outer_cells: 4
   linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5
   minimum_temperature:

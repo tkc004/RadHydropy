@@ -15,6 +15,8 @@ import yaml
 from radhydropy.rsim import Rsim
 from radhydropy.params import Par
 import radhydropy.io as rio
+import radhydropy.output as output
+from radhydropy.runtime_fields import MeshGeometryState
 
 
 CODE_UNITS = {
@@ -100,6 +102,166 @@ class Testing(unittest.TestCase):
                 [0.0, 1.0, 3.0],
             )
             self.assertEqual(fluid.time_proper_code, 3.0 * unyt.s)
+
+    def test_run_with_output_times_notifies_snapshot_callback_with_written_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / 'output_times.txt'
+            path.write_text('\n'.join(['s', '1.0']))
+            fluid = SimpleNamespace(
+                time_proper_code=0.0 * unyt.s,
+                SetTemperature=lambda: None,
+            )
+            par = parameter_namespace(
+                outputtimefilename=str(path),
+                timesim=1.0 * unyt.s,
+                outdir=str(tmpdir),
+                outfileprefix='Output',
+            )
+            sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+            callbacks = []
+
+            def fake_write(current_sim, index):
+                filename = Path(tmpdir) / ('written_%d.hdf5' % index)
+                filename.touch()
+                return str(filename)
+
+            def fake_step(dt=None, mode=None, **kwargs):
+                fluid.time_proper_code += dt
+                return {'dt': dt, 'hydro_steps': 1, 'source_steps': 0}
+
+            sim.GetStepTime = lambda dt=None, final_time=None: (
+                final_time - fluid.time_proper_code
+            )
+            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+                rio.run_with_output_times(
+                    sim,
+                    mode='sources',
+                    step_backend=fake_step,
+                    snapshot_callback=lambda current_sim, filename, index: callbacks.append(
+                        (filename, index, Path(filename).exists())
+                    ),
+                )
+
+            self.assertEqual([index for _, index, _ in callbacks], [0, 1])
+            self.assertTrue(all(exists for _, _, exists in callbacks))
+
+    def test_run_with_output_times_orders_pre_step_history_and_snapshot_callbacks(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / 'output_times.txt'
+            path.write_text('\n'.join(['s', '1.0']))
+            fluid = SimpleNamespace(
+                time_proper_code=0.0 * unyt.s,
+                SetTemperature=lambda: None,
+            )
+            par = parameter_namespace(
+                outputtimefilename=str(path),
+                timesim=1.0 * unyt.s,
+                outdir=str(tmpdir),
+                outfileprefix='Output',
+            )
+            sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+            events = []
+
+            def fake_write(current_sim, index):
+                filename = Path(tmpdir) / ('ordered_%d.hdf5' % index)
+                filename.touch()
+                events.append('write_%d' % index)
+                return str(filename)
+
+            def fake_get_step_time(dt=None, final_time=None):
+                events.append('get_step_time')
+                return final_time - fluid.time_proper_code
+
+            def fake_step(dt=None, mode=None, **kwargs):
+                events.append('step')
+                fluid.time_proper_code += dt
+                return {'dt': dt, 'hydro_steps': 1, 'source_steps': 0}
+
+            sim.GetStepTime = fake_get_step_time
+            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+                rio.run_with_output_times(
+                    sim,
+                    mode='sources',
+                    step_backend=fake_step,
+                    before_step_callback=lambda current_sim: events.append('before_step'),
+                    history_callback=lambda current_sim: events.append('history'),
+                    snapshot_callback=lambda current_sim, filename, index: events.append(
+                        'snapshot_%d' % index
+                    ),
+                )
+
+            self.assertEqual(
+                events,
+                ['before_step', 'write_0', 'snapshot_0', 'history',
+                 'before_step', 'get_step_time', 'step', 'history',
+                 'write_1', 'snapshot_1'],
+            )
+
+    def test_fixed_cadence_snapshot_callback_runs_after_initial_write(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            par = parameter_namespace(
+                timesim=0.0 * unyt.s,
+                outdir=str(tmpdir),
+                outfileprefix='Output',
+                outdeltatime=1.0 * unyt.s,
+            )
+            fluid = SimpleNamespace(
+                time_proper_code=0.0 * unyt.s,
+                SetTemperature=lambda: None,
+            )
+            sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+            events = []
+            sim.WriteUsedParameters = lambda: None
+            sim.Evolve = lambda **kwargs: events.append('evolve')
+
+            def fake_write(current_sim, index):
+                filename = Path(tmpdir) / ('fixed_%d.hdf5' % index)
+                filename.touch()
+                events.append('write_%d' % index)
+                return str(filename)
+
+            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+                sim.Run(
+                    snapshot_callback=lambda current_sim, filename, index: events.append(
+                        'snapshot_%d_exists_%s' % (index, Path(filename).exists())
+                    ),
+                )
+
+            self.assertEqual(
+                events,
+                ['write_0', 'snapshot_0_exists_True', 'evolve'],
+            )
+
+    def test_fixed_cadence_output_callback_notifies_after_serialization(self):
+        par = parameter_namespace(
+            timesim=1.0 * unyt.s,
+            outdir='unused',
+            outfileprefix='Output',
+            outdeltatime=1.0 * unyt.s,
+        )
+        fluid = SimpleNamespace(
+            time_proper_code=1.0 * unyt.s,
+            SetTemperature=lambda: None,
+        )
+        sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+        events = []
+        output_state = {'outtime': 1.0 * unyt.s, 'outindex': 1}
+
+        def fake_write(current_sim, index):
+            events.append('write')
+            return 'actual_filename.hdf5'
+
+        with mock.patch.object(output, 'write_numbered_hdf5', side_effect=fake_write):
+            callback = output.hdf5_output_callback(
+                sim,
+                snapshot_callback=lambda current_sim, filename, index: events.append(
+                    ('snapshot', filename, index)
+                ),
+                output_state=output_state,
+            )
+            callback(sim, {'dt': 0.1 * unyt.s})
+
+        self.assertEqual(events, ['write', ('snapshot', 'actual_filename.hdf5', 1)])
 
     def test_run_honors_stop_condition_in_source_only_mode(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -235,9 +397,14 @@ class Testing(unittest.TestCase):
             captured_plots.append((x, y, kwargs))
 
         def fake_readhdf5(par, mesh, fluid, outfilename):
-            mesh.geometry_state.boundary_proper_code = np.linspace(0.0, 3.0, 4)
+            mesh.geometry_state = MeshGeometryState(
+                boundary_proper_code=np.linspace(0.0, 7.0, 8),
+            )
+            mesh.boundary_radarray = np.linspace(0.0, 7.0, 8) * unyt.cm
             fluid.rho_proper_code = np.linspace(1.0, 7.0, 7)
             fluid.vel_proper_code = np.linspace(-3.0, 3.0, 7)
+            fluid.rho_radarray = fluid.rho_proper_code * (unyt.g / unyt.cm**3)
+            fluid.vel_radarray = fluid.vel_proper_code * (unyt.cm / unyt.s)
 
         with mock.patch.object(module.rio, 'readhdf5', fake_readhdf5), \
             mock.patch.object(module.plt, 'plot', side_effect=fake_plot), \

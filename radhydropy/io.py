@@ -953,10 +953,17 @@ def write_numbered_hdf5(sim, outindex):
     return implementation(sim, outindex)
 
 
-def hdf5_output_callback(sim, outputtime=0, output_state=None):
+def hdf5_output_callback(
+    sim, outputtime=0, output_state=None, snapshot_callback=None,
+):
     from .output import hdf5_output_callback as implementation
 
-    return implementation(sim, outputtime, output_state)
+    return implementation(
+        sim,
+        outputtime,
+        output_state,
+        snapshot_callback=snapshot_callback,
+    )
 
 
 def run_with_output_times(
@@ -967,6 +974,9 @@ def run_with_output_times(
     stop_condition=None,
     step_backend=None,
     step_backend_kwargs=None,
+    before_step_callback=None,
+    history_callback=None,
+    snapshot_callback=None,
 ):
     from .output import run_with_output_times as implementation
 
@@ -979,6 +989,9 @@ def run_with_output_times(
         step_backend=step_backend,
         step_backend_kwargs=step_backend_kwargs,
         output_writer=write_numbered_hdf5,
+        before_step_callback=before_step_callback,
+        history_callback=history_callback,
+        snapshot_callback=snapshot_callback,
     )
 
 def _writehdf5(ric, ICfilename, *, provenance=None):
