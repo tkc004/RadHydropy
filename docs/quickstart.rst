@@ -1,24 +1,69 @@
 Quickstart
 ==========
 
-RadHydropy runs from a complete nested YAML example configuration plus an HDF5
-initial-condition file. The high-level :class:`radhydropy.rsim.Rsim` class
-prepares mesh and fluid state, advances the solver, and writes HDF5 outputs.
-Use :func:`radhydropy.io.loadhdf5` when an initial condition or snapshot needs
-to be loaded for inspection or restart.
+RadHydropy examples use three nested YAML sections and a validated HDF5
+initial-condition file:
 
-The runtime requires a ``CodeUnits`` block in the nested ``par`` section. This is
-mandatory: the current workflow does not fall back to cgs. Example
-configurations define an internal unit system with ``InternalUnitSystem`` and
-RadHydropy converts the mesh, fluid, gravity, and source-term inputs into that
-code-unit system at startup. This keeps the hot paths in a consistent internal
-unit space even when the YAML files are written in physical units. Example
-helpers can accept ``unyt`` objects at the boundary, but they must use explicit
-``.to_value(...)`` or ``quantity_to_value(...)`` conversions before repeated
-evaluation; do not rely on ``float(quantity)``.
+``par``
+   Runtime, mesh, solver, output, and code-unit settings.
+``initial_condition``
+   Physical inputs used to construct the initial state.
+``example``
+   Plotting, comparison, and other workflow-specific settings.
 
-Minimum Runner
+Every maintained example provides a complete configuration with a mandatory
+``par.units.CodeUnits`` block.
+
+Run an example
 --------------
+
+The quickest way to verify an installation is to run the Sod shock-tube
+example from its own directory:
+
+.. code-block:: bash
+
+   cd example/SodShock1D
+   python sodshock1d.py
+
+The script builds an initial condition, runs the solver, and writes HDF5
+snapshots and a figure in the example directory. Examples with variants accept
+an explicit configuration, for example:
+
+.. code-block:: bash
+
+   cd example/StellarWindBubble1D
+   python stellar_wind_bubble1d.py \
+      --config stellar_wind_bubble1d_no_metal.yaml
+
+Run examples from their own directories so relative configuration paths,
+output directories, and helper imports resolve correctly.
+
+The standard workflow
+---------------------
+
+The example lifecycle is:
+
+.. code-block:: text
+
+   nested YAML
+       |
+       v
+   InitialConditionWriter -- writer.write(validate=True) --> InitialCondition.hdf5
+       |
+       v
+   Rsim(config["par"]).RunAll() --> Output_*.hdf5
+       |
+       v
+   loadhdf5(config, snapshot) --> typed runtime state and *_radarray views
+
+The builder prepares the initial condition; ``Rsim`` evolves it; ``loadhdf5``
+reloads an IC or snapshot for inspection or restart.
+
+Minimal runner
+--------------
+
+This is the complete pattern used by the bundled examples. Run the snippet
+from ``example/SodShock1D``:
 
 .. code-block:: python
 
@@ -30,11 +75,12 @@ Minimum Runner
    from radhydropy.units import CodeUnits
    import tools as et
 
-   config = Path("example/SodShock1D/sodshock1d.yaml")
+   config = Path("sodshock1d.yaml")
    config_data = load_nested_example_config(config)
    config_data["_code_units"] = CodeUnits.from_mapping(
        config_data["par"]["units"]["CodeUnits"]
    )
+
    writer = et.build_initial_condition(config_data)
    writer.write(
        config_data["par"]["simulation"]["initial_condition_filename"],
@@ -44,157 +90,45 @@ Minimum Runner
    sim = Rsim(config_data["par"])
    sim.RunAll()
 
-This is the same pattern used by the bundled example scripts: load the YAML
-file, generate ``InitialCondition.hdf5`` from the nested
-``initial_condition`` section with the mandatory ``CodeUnits`` attached, then
-launch the run with ``Rsim``. The helper resolves paths against the example
-directory.
-Gravity examples such as the hydrostatic point-mass and ballistic-infall
-benchmarks follow the same pattern but also pass ``CodeUnits`` into their
-analytic gravity helpers so the internal math stays float-first.
+The builder receives the complete nested configuration and normally returns an
+``InitialConditionWriter``. Physical values remain unit-bearing until they are
+assigned to the writer. The writer validates the active mesh and fluid state
+before serialization.
 
-For post-processing, load the complete configuration and use the typed
-``*_radarray`` views returned by ``loadhdf5``:
-
-.. code-block:: python
-
-   snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
-   radius_comoving_unyt = snapshot.mesh.boundary_radarray
-   density_comoving_unyt = snapshot.fluid.rho_radarray
-   density_cgs_g_cm3 = density_comoving_unyt.to_cgs()
-
-The parallel canonical fields such as ``rho_comoving_code`` are plain numeric
-solver state. Example readers, plotters, and diagnostics should use the
-RadArray views and convert to ``.value`` only at an explicit numerical
-boundary.
-
-Initial-condition builder contract
------------------------------------
-
-Every example builder receives the complete nested ``config`` mapping. The
-builder reads runtime settings from ``config["par"]`` and physical IC inputs
-from ``config["initial_condition"]``. The normal sequence is:
-
-1. ``load_nested_example_config`` loads the YAML and converts
-   ``{value, unit}`` mappings to ``unyt`` quantities.
-2. ``CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])`` creates
-   the configured conversion system.
-3. ``build_initial_condition(config)`` converts physical inputs explicitly and
-   normally returns an ``InitialConditionWriter``.
-4. Call ``writer.write(filename, validate=True)`` to serialize the IC. Builders that return
-   an already assembled typed ``Rsim`` state may use
-   ``radhydropy.io.writehdf5(state, filename)`` instead.
-5. Use ``radhydropy.io.loadhdf5(config, filename)`` to load an IC or snapshot
-   for inspection or restart, then run the returned ``Rsim`` object.
-
-What ``build_initial_condition(config)`` does
-----------------------------------------------
-
-The builder is the boundary between physical YAML inputs and the numerical
-initial condition. It selects ``config["initial_condition"]``, converts the
-configured ``CodeUnits`` into a writer, creates unit-bearing mesh and fluid
-profiles, and assigns them through the writer's RadArray/RadQuantity methods.
-The writer then derives pressure, geometry, and conserved state when
-``write`` is called. A minimal proper-coordinate builder looks like this:
-
-.. code-block:: python
-
-   import numpy as np
-   from radhydropy.initial_condition_writer import InitialConditionWriter
-   from radhydropy.units import CodeUnits
-
-   def build_initial_condition(config):
-       ic = config["initial_condition"]
-       units = config["_code_units"]
-       cells = int(ic["grid_cells"])
-       boundary_proper_unyt = np.linspace(
-           0.0, 1.0, cells + 1
-       ) * ic["box_size_proper"]
-       shocked = (
-           (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]) / 2.0
-           > 0.5 * ic["box_size_proper"]
-       )
-
-       writer = InitialConditionWriter(
-           par_config=config["par"],
-           code_units=units,
-           ic_config=ic,
-       )
-       writer.box_size = writer.radquantity(ic["box_size_proper"])
-       writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
-       writer.fluid.rho_radarray = writer.radarray(
-           ic["rho_proper"] * np.where(shocked, ic["density_ratio"], 1.0)
-       )
-       writer.fluid.vel_radarray = writer.radarray(
-           np.zeros(cells) * units.velocity_unit
-       )
-       writer.fluid.temp_radarray = writer.radarray(
-           ic["temperature_proper"]
-           * np.where(shocked, ic["temperature_ratio"], 1.0)
-       )
-       writer.fluid.mu = np.full(
-           cells, float(ic["mean_molecular_weight"])
-       )
-       return writer
-
-   config["_code_units"] = CodeUnits.from_mapping(
-       config["par"]["units"]["CodeUnits"]
-   )
-   writer = build_initial_condition(config)
-   writer.write(
-       config["par"]["simulation"]["initial_condition_filename"],
-       validate=True,
-   )
-
-The returned writer is not the evolved simulation. It is the IC assembly
-object; construct or load the runtime separately with ``Rsim`` or
-``loadhdf5``.
-
-Strict unit formatting
-----------------------
-
-Physical YAML values always use ``{value, unit}``; do not write bare physical
-floats. YAML keys remain semantic, for example ``rho_proper``,
-``temperature_proper``, ``time_cosmic``, and ``radius_outer_comoving``. Runtime
-values identify their representation and units, such as
-``rho_proper_code``, ``vel_supercomoving_code``, or
-``temperature_cgs_K``. A unit-bearing Python value additionally ends in
-``_unyt``. Convert with ``quantity_to_value`` or ``.to_value`` before passing
-values to NumPy, EOS, geometry, or solver calls; ``float(quantity)`` is not a
-unit conversion.
-
-Runtime Parameters
+Inspect a snapshot
 ------------------
 
-Start with the bundled Sod-shock YAML configuration:
+Load snapshots with the complete nested configuration. Use typed
+``*_radarray`` fields for dimensional mesh and fluid data, and convert to
+plain numerical values only at an explicit plotting or numerical boundary:
+
+.. code-block:: python
+
+   import radhydropy.io as rio
+   from radhydropy.analysis import rplot1d
+
+   snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
+   radius_proper_unyt = snapshot.mesh.boundary_radarray
+   density_proper_unyt = snapshot.fluid.rho_radarray
+   density_cgs_g_cm3 = density_proper_unyt.to_cgs()
+
+   rplot1d(snapshot, yquan="rho")
+
+The canonical runtime fields, such as ``rho_proper_code`` or
+``rho_comoving_code``, are numerical solver state. Their suffix identifies the
+representation; do not replace it with generic names such as ``density`` in
+new diagnostics.
+
+Configuration rules
+-------------------
+
+Physical YAML values use ``{value, unit}`` mappings:
 
 .. code-block:: yaml
 
    par:
      simulation:
-       name: SodShock1d
-       initial_condition_filename: InitialCondition.hdf5
-       coordinate_system: cartesian
        final_time: {value: 1.0, unit: s}
-     mesh:
-       ghost_cells: 2
-       area_proper: {value: 1.0, unit: cm**2}
-     hydrodynamics:
-       eos_type: polytropic
-       gamma: 1.4
-       CFL: 0.1
-       order: 1
-     boundary:
-       condition: Periodic
-     timestep:
-       dtmin: {value: 2.0e-8, unit: s}
-       dtmax: {value: 2.0e-1, unit: s}
-     output:
-       directory: .
-       filename_prefix: Output
-       cadence: {value: 0.1, unit: s}
-     diagnostics:
-       verbose: 0
      units:
        CodeUnits:
          name: cgs_unit_system
@@ -205,123 +139,55 @@ Start with the bundled Sod-shock YAML configuration:
            UnitCurrent_in_cgs: 1.0
            UnitTemp_in_cgs: 1.0
    initial_condition:
-     grid_cells: 1000
-     coordinate_system: cartesian
-     box_size_proper: {value: 4.0, unit: cm}
-     time_proper: {value: 0.0, unit: s}
-     rho_proper: {value: 1.0, unit: g/cm**3}
-     vel_proper: {value: 0.0, unit: km/s}
-     temperature_proper: {value: 1.5506894880146205e-08, unit: K}
-     mean_molecular_weight: 1.0
-     density_ratio: 0.1
-     temperature_ratio: 0.8
-   example:
-     output_index: 2
-     plot_filename: SodShock1D.jpg
+     temperature_proper: {value: 1.0e4, unit: K}
 
-The complete nested ``par`` block controls the solver and run lifecycle. Use
-the following canonical nested names:
+Use explicit representation names for physical values, such as
+``rho_proper``, ``temperature_proper``, ``time_cosmic``, and
+``radius_outer_comoving``. In Python, convert unit-bearing values with
+``quantity_to_value`` or ``.to_value``; ``float(quantity)`` is not a unit
+conversion.
 
-* ``par.simulation.name`` and ``par.simulation.initial_condition_filename``
-  identify the run and IC file.
-* ``par.simulation.coordinate_system`` and ``par.simulation.final_time``
-  select geometry and the stopping time.
-* ``par.mesh.grid_cells``, ``par.mesh.ghost_cells``, and
-  ``par.mesh.area_proper`` define the mesh.
-* ``par.hydrodynamics.eos_type``, ``gamma``, ``CFL``, and ``order`` define the
-  fluid update.
-* ``par.boundary.condition`` selects ``Periodic``, ``Open``, ``Reflecting``,
-  ``OpenSph``, ``InflowSph``, or ``OutflowSph``.
-  ``WindSph`` is experimental and is not used by maintained examples.
-* ``par.timestep.dtmin`` and ``par.timestep.dtmax`` constrain the step size.
-* ``par.output.directory``, ``filename_prefix``, ``cadence`` (or
-  ``time_interval``), and optional ``time_list_filename`` control saved
-  snapshots; ``directory`` is an
-  example-workflow output location.
-* ``par.units.CodeUnits`` is mandatory and defines the internal unit system.
+The most important runtime owners are:
 
-Unit-bearing values use ``{value, unit}`` mappings. Workflow-only values such
-as plot names, output indices, comparison settings, and convergence controls
-belong under ``example`` rather than ``par``. See :doc:`parameters` for the
-complete runtime parameter reference.
+* ``par.simulation``: run name, coordinate system, IC filename, and final time;
+* ``par.mesh``: grid size, ghost cells, and geometry;
+* ``par.hydrodynamics``: EOS, ``gamma``, CFL, and reconstruction ``order``;
+* ``par.boundary``: Cartesian or spherical boundary condition;
+* ``par.timestep``: minimum and maximum timestep controls;
+* ``par.output``: output directory, filename prefix, and cadence or time list;
+* ``par.units.CodeUnits``: the required internal unit system.
 
-See :doc:`initial_conditions` for a standalone description of the initial-condition
-parameters used by the bundled YAML examples.
+Maintained spherical examples use ``OutflowSph``. The
+``StellarWindBubble1D`` no-metal configuration is validated with
+hydrodynamics ``order: 0``.
 
-To use explicit output times instead of a fixed cadence, set
-``par.output.time_list_filename`` to a txt file whose first non-empty line is
-the time unit and whose remaining lines are the output times. Include
-``par.simulation.final_time`` if you want the final state written as an output
-snapshot. For example,
-the bundled example configs typically point to files such as ``output_times.txt``:
+Advanced control
+----------------
 
-.. code-block:: text
-
-   yr
-   0.0
-   1.0e4
-   2.0e4
-
-Stepping API
-------------
-
-The high-level runner also exposes a canonical stepping interface through
-:meth:`radhydropy.rsim.Rsim.Step` and :meth:`radhydropy.rsim.Rsim.Evolve`.
-This keeps hydrodynamics, source terms, and output scheduling on a single code
-path.
-
-Use :meth:`radhydropy.rsim.Rsim.Step` for one controlled update:
+Use ``Step`` for one controlled update and ``Evolve`` for a custom evolution
+loop:
 
 .. code-block:: python
 
-   dt = sim.Step(mode="hydro_sources")["dt"]
-
-Available ``mode`` values are:
-
-* ``"hydro"`` for a finite-volume hydrodynamic step only;
-* ``"sources"`` for thermo-chemistry and radiative-transfer sources only; and
-* ``"hydro_sources"`` for the coupled update used by the standard run loop.
-
-For hydro-only steps, ``hydro_integrator="ssprk2"`` enables the optional
-second-order SSP Runge-Kutta update.
-
-Use :meth:`radhydropy.rsim.Rsim.Evolve` to advance until a target time:
-
-.. code-block:: python
+   result = sim.Step(mode="hydro_sources")
+   print(result["dt"])
 
    counters = sim.Evolve(
        final_time=sim.par.simulation.final_time,
        mode="hydro_sources",
    )
-   print(counters["hydro_steps"], counters["source_steps"])
+   print(counters)
 
-The main runner helper remains :meth:`radhydropy.rsim.Rsim.Run`.
+Available modes are ``"hydro"``, ``"sources"``, and
+``"hydro_sources"``. For fixed-density Stromgren-style tests,
+``Rsim.EvolveStaticThermochemistry(...)`` advances thermo-chemistry and
+radiative-transfer sources without a hydrodynamic flux update.
 
-For fixed-density Stromgren-style tests, use
-:meth:`radhydropy.rsim.Rsim.EvolveStaticThermochemistry`, which evolves the
-static thermo-chemistry/radiative-transfer state without a hydrodynamic flux
-update. See :doc:`thermo_chemistry` for a standalone description of the
-thermo-chemistry solver and its example workflows.
+To schedule explicit output times, set ``par.output.time_list_filename`` to a
+text file whose first non-empty line is the time unit and whose remaining lines
+are output times. Include ``par.simulation.final_time`` when the final state
+should be written.
 
-See :doc:`hydrodynamics` for a standalone description of the finite-volume
-Euler update, reconstruction order, fluxes, and boundary handling.
-See :doc:`boundary_conditions` for a standalone description of the supported
-boundary-condition modes and the geometry-specific ghost-cell treatment.
-See :doc:`initial_conditions` for the HDF5 structure used to build
-``InitialCondition.hdf5``.
-See :doc:`snapshots` for the HDF5 structure written by output snapshots.
-
-Plotting Output
----------------
-
-After a run, load an output file and plot a fluid quantity with
-:func:`radhydropy.analysis.rplot1d`:
-
-.. code-block:: python
-
-   from radhydropy.analysis import rplot1d
-   import radhydropy.io as rio
-
-   snapshot = rio.loadhdf5(config_data, "Output_001.hdf5")
-   density = snapshot.fluid.rho_radarray
-   rplot1d(snapshot, yquan="rho")
+See :doc:`initial_conditions` for the HDF5 IC contract,
+:doc:`snapshots` for output files, :doc:`parameters` for the complete nested
+runtime reference, and :doc:`examples` for runnable workflows.
