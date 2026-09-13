@@ -22,7 +22,7 @@ with explicit adaptive subcycling; the default ``cooling_safety_factor`` is
 ``0.1``. The source update enforces the configured
 ``cooling_temperature_floor``.
 
-The plotting script produces four comparison figures:
+The plotting script produces four comparison figures for each configuration:
 
 * density and temperature profiles with the analytic shock location marked at
   each snapshot;
@@ -35,31 +35,33 @@ The profiles are useful for checking the shell structure directly, while the
 time-series plots show whether the simulated bubble follows the expected
 energy-driven scaling.
 
-.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_no_metal_profiles.jpg
+.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_with_metal_profiles.jpg
    :width: 100%
    :alt: Stellar-wind bubble density and temperature profiles
 
-   Density and temperature profiles with the analytic shock location marked
-   for each snapshot.
+   Density and temperature profiles for the metal-enriched run, with the
+   analytic shock location marked for each snapshot.
 
-.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_no_metal_radius.jpg
+.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_with_metal_radius.jpg
    :width: 100%
    :alt: Stellar-wind bubble radius comparison
 
-   Cavity-side inner-shell-edge radius compared against the Weaver et al.
-   (1977) radius.
+   Metal-enriched cavity-side inner-shell-edge radius compared against the
+   Weaver et al. (1977) radius.
 
-.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_no_metal_velocity.jpg
+.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_with_metal_velocity.jpg
    :width: 100%
    :alt: Stellar-wind bubble shock velocity comparison
 
-   Shock velocity compared against the Weaver et al. (1977) solution.
+   Metal-enriched shock velocity compared against the Weaver et al. (1977)
+   solution.
 
-.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_no_metal_pressure.jpg
+.. figure:: ../example/StellarWindBubble1D/StellarWindBubble1D_with_metal_pressure.jpg
    :width: 100%
    :alt: Stellar-wind bubble pressure comparison
 
-   Bubble pressure compared against the Weaver et al. (1977) solution.
+   Metal-enriched bubble pressure compared against the Weaver et al. (1977)
+   solution.
 
 To run either configuration:
 
@@ -69,7 +71,14 @@ To run either configuration:
    python stellar_wind_bubble1d.py --config stellar_wind_bubble1d.yaml
    python stellar_wind_bubble1d.py --config stellar_wind_bubble1d_no_metal.yaml
 
-Both configurations use ``InitialCondition.hdf5`` and ``Output_*.hdf5`` in
-the example directory, so run them separately if the snapshots need to be
-preserved. The figure prefixes remain distinct: ``with_metal`` and
-``no_metal``.
+Both configurations write their own initial-condition file and numbered
+snapshots in the example directory (``InitialCondition.hdf5`` for the metal
+case and ``InitialCondition_no_metal.hdf5`` for the baseline). Run them
+separately if the snapshots need to be preserved. The figure prefixes remain
+distinct: ``with_metal`` and ``no_metal``.
+
+Both runs use ``OutflowSph`` and hydrodynamics ``order: 0``. Each verified
+run writes ten numbered snapshots (``Output_000`` through ``Output_009``) and
+completes the configured ``0.1 Myr`` evolution. The no-metal run is the
+validated hydrogen-only, no-radiative-cooling baseline; ``order: 1`` is not a
+supported configuration for this example.

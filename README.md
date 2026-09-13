@@ -87,15 +87,18 @@ The latest examples follow the same pattern:
    the example YAML file;
 2. convert YAML `{value, unit}` entries to `unyt` quantities with
    `example_utils.load_nested_example_config()`;
-3. create an HDF5 initial-condition file from `initial_condition`;
+3. create and validate an HDF5 initial-condition file from `initial_condition`
+   with `InitialConditionWriter`;
 4. construct `Rsim` with nested runtime parameters;
 5. call `RunAll()`; and
 6. inspect or plot the output files.
 
 The builder prepares the initial condition; it does not evolve the simulation.
 After writing, use `Rsim` to run or `rio.loadhdf5(config_data, filename)` to
-load an IC or snapshot. Builders with custom typed finalization may instead
-return an assembled `Rsim` state and serialize it with `rio.writehdf5`.
+load an IC or snapshot. The loader returns typed `*_radarray` views for
+dimensional mesh and fluid data. Builders with custom typed finalization may
+instead return an assembled `Rsim` state and serialize it with
+`rio.writehdf5`.
 
 The bundled YAML files define the internal unit system under
 `par.units.CodeUnits`:
@@ -156,7 +159,10 @@ code_units = CodeUnits.from_mapping(par_config["units"]["CodeUnits"])
 
 config_data["_code_units"] = code_units
 writer = et.build_initial_condition(config_data)
-writer.write(par_config["simulation"]["initial_condition_filename"])
+writer.write(
+    par_config["simulation"]["initial_condition_filename"],
+    validate=True,
+)
 
 sim = Rsim(par_config)
 sim.RunAll()
@@ -172,7 +178,8 @@ This is the same pattern used by the example scripts: load the YAML
 file, generate ``InitialCondition.hdf5`` from ``initial_condition`` using the
 unit system under ``par.units.CodeUnits``, then launch the run with ``Rsim``.
 ``build_initial_condition(config)`` receives the complete nested configuration
-and normally returns an ``InitialConditionWriter``; call ``write`` on it to
+and normally returns an ``InitialConditionWriter``; call ``write(...,
+validate=True)`` on it to
 serialize the initial condition. Builders returning an assembled ``Rsim``
 state may use ``rio.writehdf5`` instead.
 The helper converts ``{value, unit}`` mappings to ``unyt`` quantities and
@@ -180,6 +187,10 @@ resolves paths against the example directory.
 The plotting step reloads the first output snapshot with ``loadhdf5`` and uses
 its ``*_radarray`` views for dimensional data before rendering the density
 profile.
+
+For maintained spherical examples, use ``OutflowSph`` rather than the
+experimental ``WindSph`` boundary. The current ``StellarWindBubble1D``
+no-metal configuration is validated with hydrodynamics ``order: 0``.
 
 To use explicit output times instead of a fixed cadence, set
 `par.output.time_list_filename` to a txt file whose first non-empty line is the

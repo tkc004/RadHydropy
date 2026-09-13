@@ -41,10 +41,10 @@ For spherical problems:
   velocity, and temperature at the outer ghost cells.
 * ``OutflowSph`` imposes the primitive state at the inner ghost cells and
   copies the outer interior state outward.
-* ``WindSph`` imposes a freely expanding wind at the inner boundary: the
-  ghost-cell density follows :math:`\rho \propto r^{-2}`, while velocity and
-  temperature are set by the outflow parameters.  A matching resolved launch
-  region should be initialized in the active cells.
+* ``WindSph`` is experimental and is not used by maintained RadHydropy
+  examples. Use ``OutflowSph`` for example workflows; the
+  ``StellarWindBubble1D`` case uses that established boundary with an explicit
+  resolved injection region.
 
 The solver also keeps the origin flux and center momentum consistent with the
 spherical geometry so that the cell adjacent to ``r = 0`` remains symmetric.

@@ -6,10 +6,11 @@ from the CMB temperature at ``z=100`` to ``z=10`` in an
 Einstein--de Sitter cosmology.  The interval is scaled to approximately
 1.3 Gyr so the temperature evolution is visible.
 
-The example runs both a Compton-only case and an atomic-cooling-plus-Compton
-case through ``Rsim.Run(mode="sources")``.  The Compton-only history is
-compared with the analytic EdS temperature equation, while the atomic run is
-shown as a numerical cooling comparison.
+The example writes each case with ``InitialConditionWriter``, reloads it with
+``radhydropy.io.loadhdf5``, and runs both a Compton-only case and an
+atomic-cooling-plus-Compton case through ``Rsim.Run(mode="sources")``.  The
+Compton-only history is compared with the analytic EdS temperature equation,
+while the atomic run is shown as a numerical cooling comparison.
 The configuration selects the coupled implicit source solver and sets the
 fallback to ``error``, so neither run can silently use explicit subcycling.
 
@@ -30,3 +31,7 @@ The source files are available in the repository:
 
 * :download:`run script <../example/UniformEdSThermochemistry1D/uniform_eds_thermochemistry1d.py>`
 * :download:`configuration <../example/UniformEdSThermochemistry1D/uniform_eds_thermochemistry1d.yaml>`
+
+The verified run reaches ``z=10`` with maximum Compton-only relative
+temperature error ``7.20e-4``. Both cases selected the coupled implicit source
+solver with no explicit fallback.

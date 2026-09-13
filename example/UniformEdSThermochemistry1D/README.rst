@@ -1,10 +1,12 @@
 Uniform EdS Thermo-Chemistry
 ============================
 
-This example evolves four uniform spherical gas cells with
+This example builds a validated HDF5 initial condition with
+``InitialConditionWriter`` and evolves four uniform spherical gas cells with
 ``Rsim.Run(mode="sources")``.  The four cells are uniform, gravity and fluxes
 are disabled, while the EdS cosmology and thermo-chemistry source path remain
-active.
+active. Each case is restored through ``radhydropy.io.loadhdf5`` before the
+source-only run.
 
 The gas starts at the CMB temperature at ``z=100`` and evolves to ``z=10``.
 The code-unit reference time is chosen so this interval spans about 1.3 Gyr,
@@ -28,3 +30,6 @@ Run from this directory with::
    python uniform_eds_thermochemistry1d.py
 
 The figure is written to ``outputs/UniformEdSThermochemistry1D.jpg``.
+The verified run reaches ``z=10`` with a maximum Compton-only relative
+temperature error of ``7.20e-4``; both cases select the coupled implicit
+source solver.

@@ -32,8 +32,8 @@ operate in the internal unit system instead of repeatedly converting units on
 the hot paths.
 
 Snapshot and initial-condition files still carry units in HDF5, and
-``radhydropy.io.loadhdf5``/``readhdf5`` require ``Header.attrs["CodeUnits"]``
-to be present. The loader reconstructs the code-unit mapping, restores plain
+``radhydropy.io.loadhdf5`` requires ``Header.attrs["CodeUnits"]`` to be
+present. The loader reconstructs the code-unit mapping, restores plain
 canonical arrays for the solver, and exposes typed ``*_radarray`` views for
 example readers and diagnostics. There is no cgs fallback in the current
 workflow.

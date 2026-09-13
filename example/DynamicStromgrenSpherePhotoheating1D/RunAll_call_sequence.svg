@@ -43,9 +43,9 @@
   <path class="arrow" d="M 800 452 L 800 488"/>
 
   <rect class="box" x="190" y="490" width="1220" height="96"/>
-  <text class="step" x="220" y="524">4. Callreadhdf5()</text>
+  <text class="step" x="220" y="524">4. Call loadhdf5()</text>
   <text class="body" x="220" y="550">Read InitialCondition.hdf5, validate dimensions, and set the start time.</text>
-  <text class="note" x="220" y="574">rio.readhdf5() + checkparams() + Fluid.SetFluidTime()</text>
+  <text class="note" x="220" y="574">rio.loadhdf5() + typed state setup + Fluid.SetFluidTime()</text>
 
   <path class="arrow" d="M 800 586 L 800 622"/>
 

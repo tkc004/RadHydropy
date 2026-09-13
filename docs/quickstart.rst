@@ -38,6 +38,7 @@ Minimum Runner
    writer = et.build_initial_condition(config_data)
    writer.write(
        config_data["par"]["simulation"]["initial_condition_filename"],
+       validate=True,
    )
 
    sim = Rsim(config_data["par"])
@@ -80,7 +81,7 @@ from ``config["initial_condition"]``. The normal sequence is:
    the configured conversion system.
 3. ``build_initial_condition(config)`` converts physical inputs explicitly and
    normally returns an ``InitialConditionWriter``.
-4. Call ``writer.write(filename)`` to serialize the IC. Builders that return
+4. Call ``writer.write(filename, validate=True)`` to serialize the IC. Builders that return
    an already assembled typed ``Rsim`` state may use
    ``radhydropy.io.writehdf5(state, filename)`` instead.
 5. Use ``radhydropy.io.loadhdf5(config, filename)`` to load an IC or snapshot
@@ -100,6 +101,7 @@ The writer then derives pressure, geometry, and conserved state when
 
    import numpy as np
    from radhydropy.initial_condition_writer import InitialConditionWriter
+   from radhydropy.units import CodeUnits
 
    def build_initial_condition(config):
        ic = config["initial_condition"]
@@ -116,6 +118,7 @@ The writer then derives pressure, geometry, and conserved state when
        writer = InitialConditionWriter(
            par_config=config["par"],
            code_units=units,
+           ic_config=ic,
        )
        writer.box_size = writer.radquantity(ic["box_size_proper"])
        writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
@@ -129,7 +132,7 @@ The writer then derives pressure, geometry, and conserved state when
            ic["temperature_proper"]
            * np.where(shocked, ic["temperature_ratio"], 1.0)
        )
-       writer.simulation.fluid.mu = np.full(
+       writer.fluid.mu = np.full(
            cells, float(ic["mean_molecular_weight"])
        )
        return writer
@@ -138,7 +141,10 @@ The writer then derives pressure, geometry, and conserved state when
        config["par"]["units"]["CodeUnits"]
    )
    writer = build_initial_condition(config)
-   writer.write(config["par"]["simulation"]["initial_condition_filename"])
+   writer.write(
+       config["par"]["simulation"]["initial_condition_filename"],
+       validate=True,
+   )
 
 The returned writer is not the evolved simulation. It is the IC assembly
 object; construct or load the runtime separately with ``Rsim`` or
@@ -224,8 +230,7 @@ Start with the bundled Sod-shock YAML configuration:
      plot_filename: SodShock1D.jpg
 
 The complete nested ``par`` block controls the solver and run lifecycle. Use
-the current names below; older flat names such as ``timesim``, ``nogrid``, and
-``boundcond`` are not accepted:
+the following canonical nested names:
 
 * ``par.simulation.name`` and ``par.simulation.initial_condition_filename``
   identify the run and IC file.
@@ -237,6 +242,7 @@ the current names below; older flat names such as ``timesim``, ``nogrid``, and
   fluid update.
 * ``par.boundary.condition`` selects ``Periodic``, ``Open``, ``Reflecting``,
   ``OpenSph``, ``InflowSph``, or ``OutflowSph``.
+  ``WindSph`` is experimental and is not used by maintained examples.
 * ``par.timestep.dtmin`` and ``par.timestep.dtmax`` constrain the step size.
 * ``par.output.directory``, ``filename_prefix``, ``cadence`` (or
   ``time_interval``), and optional ``time_list_filename`` control saved

@@ -37,17 +37,23 @@ When ``CodeUnits`` is enabled, RadHydropy writes fields such as ``Density`` in
 their stored physical units and converts them back into code-unit numeric
 arrays when the file is loaded. In practice this means fields are read back as
 explicitly named arrays such as ``fluid.rho_proper_code`` or
-``fluid.rho_comoving_code`` in the runtime code-unit system. ``readhdf5`` now
+``fluid.rho_comoving_code`` in the runtime code-unit system. The loader
 requires ``Header.attrs["CodeUnits"]`` to be present and raises an error if it
 is missing.
 
 Reading and Writing
 -------------------
 
-Use :func:`radhydropy.io.writehdf5` to write an initial-condition file and
-:func:`radhydropy.io.readhdf5` to load it into a simulation. The helper
-functions preserve the units attached to the stored quantities, and the reader
-uses the header ``CodeUnits`` block to recover the runtime unit system.
+Use :class:`radhydropy.initial_condition_writer.InitialConditionWriter` for
+the preferred writer-backed path. Write the returned writer with
+``writer.write(filename, validate=True)`` and load the initial condition or a
+snapshot through :func:`radhydropy.io.loadhdf5` with the complete nested
+configuration. The loader uses the header ``CodeUnits`` block to recover the
+runtime unit system and returns typed mesh/fluid fields.
+
+An already assembled typed ``Rsim`` state may still be serialized with
+:func:`radhydropy.io.writehdf5`; this is a separate state-serialization path,
+not the preferred example IC-construction boundary.
 
 IC builder contract
 -------------------
@@ -121,7 +127,7 @@ After construction, write a returned writer with ``writer.write(filename)`` or
 an assembled state with ``radhydropy.io.writehdf5``. For readback, call
 ``radhydropy.io.loadhdf5(config, filename)`` and use its ``*_radarray`` views
 for dimensional mesh and fluid data.
-When a provenance group is present, ``readhdf5`` restores it as
+When a provenance group is present, ``loadhdf5`` restores it as
 ``par.provenance``; a subsequent snapshot write can reuse that metadata.
 Avoid ad-hoc ``SimpleNamespace``/dynamic containers and direct snapshot
 ``h5py`` reads in active example workflows.

@@ -42,7 +42,7 @@ base code-unit system for fields stored in code units. The ``_code`` suffix
 identifies the runtime field and normally agrees with code-unit storage, but
 the authoritative storage convention is the dataset metadata.
 
-When a snapshot is reloaded, :func:`radhydropy.io.readhdf5` uses the required
+When a snapshot is reloaded, :func:`radhydropy.io.loadhdf5` uses the required
 ``Header/CodeUnits`` block and each field's ``storage_unit`` plus
 representation metadata to restore typed runtime fields such as
 ``fluid.rho_proper_code`` or ``fluid.rho_comoving_code``.
@@ -68,9 +68,9 @@ metadata. On readback, the mapping is restored as ``par.provenance``.
 Reading Snapshot Files
 ----------------------
 
-Use :func:`radhydropy.io.readhdf5` with ``Rsim(config["par"])`` to reload a
-snapshot into a parameter, mesh, and fluid object. This is the same function
-used to load the initial-condition file.
+Use :func:`radhydropy.io.loadhdf5` with the complete nested ``config`` to
+reload a snapshot into a parameter, mesh, and fluid object. This is the same
+validated loader used for initial-condition files.
 
 Practical Notes
 ---------------
