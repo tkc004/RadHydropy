@@ -15,6 +15,7 @@ import radhydropy.thermo_chemistry as rtc
 from radhydropy.units import CodeUnits
 from radhydropy.thermo_networks.hydrogen import _fast_sync_state_to_fluid
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.solver.gravity_sources import _synchronize_gravity_energy_roundoff
 
 
 class Par:
@@ -230,6 +231,34 @@ class Mesh:
 
 
 class Testing(unittest.TestCase):
+    def test_gravity_roundoff_energy_synchronization_repairs_only_tiny_deficit(self):
+        geometry = SimpleNamespace(
+            volume=np.array([1.0]),
+            coordinate=np.array([1.0]),
+        )
+        solver = SimpleNamespace(
+            _geometry_state=lambda mesh, par: geometry,
+        )
+        mesh = SimpleNamespace()
+        par = SimpleNamespace(
+            mesh=SimpleNamespace(ghost_cells=0, grid_cells=1),
+            cfl_density_floor=0.0,
+            dual_energy=True,
+            gas_rotational_energy=False,
+        )
+        fluid = SimpleNamespace(
+            Mass_code=np.array([1.0]),
+            Mom_code=np.array([2.0]),
+            Energy_code=np.array([1.9999995]),
+        )
+
+        correction = _synchronize_gravity_energy_roundoff(
+            solver, mesh, fluid, par, fluid.Mom_code
+        )
+
+        self.assertAlmostEqual(correction, 5.0e-7)
+        self.assertEqual(float(fluid.Energy_code[0]), 2.0)
+
     def test_hllc_uniform_state_returns_physical_flux(self):
         rho = np.array([1.0, 2.0])
         velocity = np.array([0.75, -0.25])

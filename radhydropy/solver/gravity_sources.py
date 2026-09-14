@@ -49,6 +49,77 @@ def _gravity_model(solver, par):
         cosmology=getattr(par, "cosmology", None),
     )
 
+
+def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
+    """Remove a sub-ULP-scale ``E < K`` deficit after a gravity update.
+
+    Gravity updates momentum and total energy with mathematically identical
+    midpoint work, but evaluating the two expressions separately can leave a
+    tiny negative thermal remainder in kinetic-energy-dominated cells.  Only
+    correct deficits within the admissibility roundoff allowance; substantive
+    deficits remain visible to the normal conserved-state check.
+    """
+    if not hasattr(fluid, "Energy_code"):
+        return 0.0
+    mass = np.asarray(fluid.Mass_code, dtype=float)
+    energy = np.asarray(fluid.Energy_code, dtype=float)
+    momentum = np.asarray(momentum, dtype=float)
+    kinetic = np.zeros_like(energy)
+    np.divide(
+        0.5 * momentum**2,
+        mass,
+        out=kinetic,
+        where=mass > 0.0,
+    )
+    required = kinetic
+    if getattr(par, "gas_rotational_energy", False):
+        angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
+        radius = np.abs(np.asarray(
+            solver._geometry_state(mesh, par).coordinate, dtype=float
+        ))
+        rotational = np.zeros_like(energy)
+        valid = (mass > 0.0) & (radius > 0.0) & np.isfinite(angular)
+        rotational[valid] = 0.5 * angular[valid]**2 / (
+            mass[valid] * radius[valid]**2
+        )
+        required = required + rotational
+    density_floor = max(
+        0.0, float(np.asarray(getattr(par, "cfl_density_floor", 0.0)))
+    )
+    volume = np.asarray(solver._geometry_state(mesh, par).volume, dtype=float)
+    resolved = mass > density_floor * np.maximum(volume, 0.0)
+    finite = np.isfinite(mass) & np.isfinite(energy) & np.isfinite(required)
+    scale = np.maximum(
+        np.maximum(np.abs(energy), required), np.finfo(float).tiny
+    )
+    relative_tolerance = (
+        1.0e-6
+        if getattr(par, "dual_energy", False)
+        else 1.0e-7
+    )
+    # The midpoint work and kinetic-energy expressions have different
+    # evaluation order.  Allow a small margin at this source boundary before
+    # handing the state to the stricter global admissibility check.
+    synchronization_tolerance = 1.05 * relative_tolerance
+    deficit = required - energy
+    correct = (
+        resolved & finite & (mass > 0.0) & (deficit > 0.0)
+        & (deficit <= synchronization_tolerance * scale)
+    )
+    if not np.any(correct):
+        solver.last_gravity_roundoff_energy = 0.0
+        solver.last_gravity_roundoff_energy_by_cell = None
+        return 0.0
+    correction = np.zeros_like(energy)
+    correction[correct] = deficit[correct]
+    fluid.Energy_code[...] = energy + correction
+    first = int(par.mesh.ghost_cells)
+    last = first + int(par.mesh.grid_cells)
+    solver.last_gravity_roundoff_energy = float(np.sum(correction[first:last]))
+    solver.last_gravity_roundoff_energy_by_cell = correction[first:last].copy()
+    return solver.last_gravity_roundoff_energy
+
+
 def ApplyGravity(solver, dt, mesh, fluid, par):
     """Apply the combined external and gas self-gravity source update."""
     interior = solver._interior_slice(par)
@@ -209,6 +280,9 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     ) * rotational_acceleration * dt_value
     fluid.Mom_code[...] = new_momentum
     fluid.Energy_code[...] = new_energy
+    _synchronize_gravity_energy_roundoff(
+        solver, mesh, fluid, par, new_momentum
+    )
     if (
         gravity is not None
         and hasattr(fluid, 'GravitationalPotentialEnergy_code')

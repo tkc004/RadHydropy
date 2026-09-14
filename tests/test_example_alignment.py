@@ -500,7 +500,7 @@ def test_text_report_headers_use_representation_and_unit_names():
 
 def test_cosmological_diagnostics_do_not_mix_coordinate_representations():
     """A comoving diagnostic must not be populated from proper-radius fields."""
-    filename = EXAMPLE_ROOT / "CosmologicalVirialShock1D" / "cosmological_gas_correlation_z100.py"
+    filename = EXAMPLE_ROOT / "CosmologicalVirialShock1D" / "cosmological_gas_correlation_support.py"
     source = filename.read_text(encoding="utf-8")
     required_assignments = (
         'radius_proper_kpc = np.asarray(profile["dm_radius_proper_kpc"]',

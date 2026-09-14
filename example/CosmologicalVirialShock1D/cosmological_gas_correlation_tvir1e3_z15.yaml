@@ -47,6 +47,7 @@ par:
   output:
     directory: outputs_correlation_gas_tvir1e3_z15_gas1024
     filename_prefix: Output
+    time_list_filename: outputs_correlation_gas_tvir1e3_z15_gas1024/output_times.txt
   units:
     CodeUnits:
       name: cosmological_gas_correlation_unit_system
@@ -93,6 +94,5 @@ example:
   dm_density_bins: 128
   temperature_plot_ymin: {value: 1.0, unit: K}
   plot_exclude_outer_cells: 2
-  gas_profile_cadence: 0.05
   linear_correlation_table_filename: outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5
   minimum_temperature:

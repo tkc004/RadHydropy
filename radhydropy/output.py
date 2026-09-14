@@ -188,6 +188,7 @@ def run_with_output_times(
                 advect_chemistry=advect_chemistry,
                 **step_backend_kwargs,
             )
+            sim.last_step_dt = dt
             report_progress(step, dt)
             if history_callback is not None:
                 history_callback(sim)
@@ -224,6 +225,7 @@ def run_with_output_times(
             advect_chemistry=advect_chemistry,
             **step_backend_kwargs,
         )
+        sim.last_step_dt = dt
         report_progress(step, dt)
         if history_callback is not None:
             history_callback(sim)

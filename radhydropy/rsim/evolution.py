@@ -45,13 +45,19 @@ def Evolve(
         counters["source_steps"] += step["source_steps"]
         progress_steps += step["hydro_steps"]
         if progress_steps % 1000 == 0:
+            final_time_value = float(final_time)
+            progress_percent = (
+                100.0
+                if final_time_value == 0.0
+                else 100.0 * float(getattr(sim.fluid, time_field)) / final_time_value
+            )
             print(
                 "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
                 % (
                     progress_steps,
                     float(getattr(sim.fluid, time_field)),
                     float(dt),
-                    100.0 * float(getattr(sim.fluid, time_field)) / float(final_time),
+                    progress_percent,
                 ),
                 flush=True,
             )

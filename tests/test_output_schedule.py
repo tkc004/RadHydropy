@@ -7,6 +7,8 @@ from unittest import mock
 import importlib.util
 import sys
 import os
+from contextlib import redirect_stdout
+from io import StringIO
 
 import numpy as np
 import unyt
@@ -17,6 +19,7 @@ from radhydropy.params import Par
 import radhydropy.io as rio
 import radhydropy.output as output
 from radhydropy.runtime_fields import MeshGeometryState
+from radhydropy.rsim.evolution import Evolve
 
 
 CODE_UNITS = {
@@ -32,6 +35,25 @@ CODE_UNITS = {
 
 
 class Testing(unittest.TestCase):
+    def test_evolve_reports_reference_epoch_final_time_without_dividing_by_zero(self):
+        fluid = SimpleNamespace(time_proper_code=-1.0)
+        sim = SimpleNamespace(
+            par=SimpleNamespace(),
+            fluid=fluid,
+            GetStepTime=lambda final_time=None: 0.001,
+        )
+
+        def step(**kwargs):
+            fluid.time_proper_code += 0.001
+            return {'dt': 0.001, 'hydro_steps': 1, 'source_steps': 0}
+
+        output = StringIO()
+        with redirect_stdout(output):
+            counters = Evolve(sim, final_time=0.0, step_backend=step)
+
+        self.assertEqual(counters["hydro_steps"], 1000)
+        self.assertIn("(100.00%)", output.getvalue())
+
     def test_load_output_time_list_reads_unit_from_first_line(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / 'output_times.txt'
@@ -102,6 +124,7 @@ class Testing(unittest.TestCase):
                 [0.0, 1.0, 3.0],
             )
             self.assertEqual(fluid.time_proper_code, 3.0 * unyt.s)
+            self.assertEqual(sim.last_step_dt, 2.0 * unyt.s)
 
     def test_run_with_output_times_notifies_snapshot_callback_with_written_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
