@@ -14,6 +14,7 @@ from radhydropy.runtime_fields import (
     runtime_fields,
 )
 from radhydropy.arrays import as_named_array
+from radhydropy.arrays import NamedArray
 
 
 def _cosmological_par():
@@ -65,3 +66,20 @@ def test_runtime_arrays_reject_unitful_values():
         MeshGeometryState(x_proper_code=np.ones(2) * unyt.cm)
     with pytest.raises(TypeError, match="unitless"):
         FluidRuntimeState(rho_proper_code=np.ones(2) * unyt.g / unyt.cm**3)
+
+
+def test_named_array_copy_false_allows_required_dtype_copy():
+    source = np.array([1, 2], dtype=np.int64)
+    result = NamedArray(source, dtype=float, copy=False)
+
+    assert isinstance(result, NamedArray)
+    assert result.dtype == np.dtype(float)
+    np.testing.assert_array_equal(result, source)
+
+
+def test_named_array_copy_true_is_independent():
+    source = np.array([1.0, 2.0])
+    result = NamedArray(source, copy=True)
+
+    result[0] = 9.0
+    assert source[0] == 1.0

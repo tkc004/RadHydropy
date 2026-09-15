@@ -7,8 +7,11 @@ class NamedArray(np.ndarray):
     """A plain NumPy array that can carry extra attributes."""
 
     def __new__(cls, input_array, unit=None, dtype=float, copy=False, **kwargs):
-        obj = np.array(input_array, dtype=dtype, copy=copy).view(cls)
-        return obj
+        if copy:
+            arr = np.array(input_array, dtype=dtype, copy=True)
+        else:
+            arr = np.asarray(input_array, dtype=dtype)
+        return arr.view(cls)
 
     def __array_finalize__(self, obj):
         # NumPy calls this when new views are created; we intentionally keep
