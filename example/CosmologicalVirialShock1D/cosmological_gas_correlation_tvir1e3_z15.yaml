@@ -48,6 +48,7 @@ par:
     directory: outputs_correlation_gas_tvir1e3_z15_gas1024
     filename_prefix: Output
     time_list_filename: outputs_correlation_gas_tvir1e3_z15_gas1024/output_times.txt
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_gas_correlation_unit_system

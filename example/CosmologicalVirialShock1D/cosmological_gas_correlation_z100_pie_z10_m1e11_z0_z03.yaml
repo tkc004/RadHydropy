@@ -28,6 +28,7 @@ par:
   output:
     directory: outputs_correlation_gas_pie_z10_m1e11_z0_z03
     filename_prefix: Output
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_gas_correlation_pie_z10_m1e11_z0_z03_unit_system

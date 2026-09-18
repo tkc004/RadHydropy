@@ -22,6 +22,7 @@ par:
   output:
     directory: outputs
     density_plot_bins: 48
+    cadence: {value: 0.1, unit: kpc/(km/s)}
 initial_condition:
   radius_inner_comoving: {value: 3.0, unit: kpc}
   radius_outer_comoving: {value: 4000.0, unit: kpc}

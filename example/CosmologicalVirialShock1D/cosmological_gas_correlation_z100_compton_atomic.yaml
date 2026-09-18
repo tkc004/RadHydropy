@@ -43,6 +43,7 @@ par:
   output:
     directory: outputs_correlation_gas_compton_atomic
     filename_prefix: Output
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_gas_correlation_compton_atomic_unit_system

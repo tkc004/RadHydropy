@@ -39,6 +39,7 @@ par:
   output:
     directory: outputs_correlation_gas_chemistry_no_thermal_coupling
     filename_prefix: Output
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_gas_correlation_chemistry_no_thermal_coupling_unit_system

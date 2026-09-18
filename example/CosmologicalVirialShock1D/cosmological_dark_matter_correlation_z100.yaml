@@ -21,6 +21,7 @@ par:
   output:
     directory: outputs_correlation
     filename_prefix: Output
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_dark_matter_correlation_unit_system

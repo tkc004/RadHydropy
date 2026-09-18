@@ -38,6 +38,7 @@ par:
   output:
     directory: outputs_linear_growth
     filename_prefix: Output
+    cadence: {value: 0.1, unit: kpc/(km/s)}
   units:
     CodeUnits:
       name: cosmological_linear_growth_unit_system
