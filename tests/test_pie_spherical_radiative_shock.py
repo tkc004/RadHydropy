@@ -57,12 +57,14 @@ def test_spherical_ic_density_is_mass_density():
         'par': {
             'mesh': {'grid_cells': initial_condition['nogrid']},
             'thermochemistry': {'hydrogen_mass_fraction': 0.76},
+            'units': {'CodeUnits': code_units},
         },
         'initial_condition': initial_condition,
         'example': {},
         '_code_units': code_units,
     })
+    initial.prepare()
     assert np.isclose(
-        (initial.fluid.rho_proper_code[0] * code_units.density_unit).to_value('g/cm**3'),
+        (initial.simulation.fluid.rho_proper_code[0] * code_units.density_unit).to_value('g/cm**3'),
         1.0e-3 * TOOLS.PROTON_MASS_G / 0.76,
     )

@@ -1,13 +1,11 @@
 """HDF5 input and output helpers for simulations."""
 
 from pathlib import Path
-import hashlib
 
 import h5py
 import os
 import unyt
 import numpy as np
-import yaml
 import radhydropy.utils as ru
 from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
 from radhydropy.arrays import as_named_array
@@ -21,105 +19,43 @@ from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmology_context import CosmologyContext
 from radhydropy.field_metadata import FieldSpec, field_spec
 from radhydropy.radarray import RadArray, RadQuantity
-try:
-    from sympy.core.basic import Basic as SympyBasic
-except Exception:  # pragma: no cover - optional dependency shape
-    SympyBasic = None
+from radhydropy.io.metadata import (
+    _header_attr_value,
+    _provenance_yaml_text,
+    _read_provenance,
+    _restore_header_attr_value,
+    _write_provenance,
+    parameter_tree,
+    update_used_parameters_yaml,
+    write_used_parameters,
+)
+from radhydropy.io.fields import (
+    normalize_attr_name,
+    populate_group_targets,
+    read_any_dataset,
+    scale_unit_for_key,
+    write_quantity,
+)
+from radhydropy.io.cosmology import (
+    restore_cosmology_context_from_header,
+    restore_cosmology_from_header,
+    runtime_field_spec,
+    write_cosmology_header,
+)
 
-
+# Internal names remain stable while the field implementation lives in its
+# dedicated module.  These are direct imports, not public compatibility APIs.
+_scale_unit_for_key = scale_unit_for_key
+_normalize_attr_name = normalize_attr_name
+_read_any_dataset = read_any_dataset
+_populate_group_targets = populate_group_targets
+_write_quantity = write_quantity
+_write_cosmology_header = write_cosmology_header
+_restore_cosmology_from_header = restore_cosmology_from_header
+_restore_cosmology_context_from_header = restore_cosmology_context_from_header
+_runtime_field_spec = runtime_field_spec
 class SnapshotConfigurationError(ValueError):
     """Raised when a snapshot is incompatible with the supplied runtime."""
-
-
-def _provenance_yaml_value(value):
-    """Convert nested configuration values into YAML-safe values."""
-    if isinstance(value, unyt.array.unyt_array):
-        numeric_value = np.asarray(value.value)
-        if numeric_value.ndim == 0:
-            numeric_value = numeric_value.item()
-        else:
-            numeric_value = numeric_value.tolist()
-        return {"value": numeric_value, "unit": str(value.units)}
-    if isinstance(value, dict):
-        return {
-            str(key): _provenance_yaml_value(item)
-            for key, item in value.items()
-            if not str(key).startswith("_")
-        }
-    if isinstance(value, (list, tuple)):
-        return [_provenance_yaml_value(item) for item in value]
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    return str(value)
-
-
-def _provenance_yaml_text(value):
-    if isinstance(value, bytes):
-        return value.decode("utf-8")
-    if isinstance(value, str):
-        return value
-    return yaml.safe_dump(
-        _provenance_yaml_value(value),
-        sort_keys=True,
-        default_flow_style=False,
-    )
-
-
-def _write_provenance(header, provenance):
-    """Write reproducibility metadata under ``Header/Provenance``."""
-    if provenance is None:
-        return
-    if not hasattr(provenance, "get"):
-        raise TypeError("HDF5 provenance must be supplied as a mapping")
-    source_yaml = _provenance_yaml_text(
-        provenance.get("source_config_yaml", "")
-    )
-    effective_value = provenance.get("effective_config_yaml")
-    if effective_value is None:
-        effective_value = provenance.get("effective_config", {})
-    effective_yaml = _provenance_yaml_text(effective_value)
-    provenance_group = header.create_group("Provenance")
-    string_dtype = h5py.string_dtype(encoding="utf-8")
-    provenance_group.create_dataset(
-        "source_config_yaml", data=source_yaml, dtype=string_dtype
-    )
-    provenance_group.create_dataset(
-        "effective_config_yaml", data=effective_yaml, dtype=string_dtype
-    )
-    provenance_group.attrs["source_config_sha256"] = hashlib.sha256(
-        source_yaml.encode("utf-8")
-    ).hexdigest()
-    provenance_group.attrs["effective_config_sha256"] = hashlib.sha256(
-        effective_yaml.encode("utf-8")
-    ).hexdigest()
-    for key in (
-        "schema_version",
-        "source_config_filename",
-        "git_commit",
-        "git_dirty",
-        "initial_condition_sha256",
-    ):
-        if key in provenance and provenance[key] is not None:
-            provenance_group.attrs[key] = _header_attr_value(provenance[key])
-
-
-def _read_provenance(header):
-    if "Provenance" not in header:
-        return None
-    group = header["Provenance"]
-    decode = lambda value: value.decode("utf-8") if isinstance(value, bytes) else value
-    provenance = {
-        "source_config_yaml": decode(group["source_config_yaml"][()]),
-        "effective_config_yaml": decode(group["effective_config_yaml"][()]),
-    }
-    for key, value in group.attrs.items():
-        restored = _restore_header_attr_value(value)
-        provenance[key] = restored
-    return provenance
 
 
 def _code_units_from_parameter(par):
@@ -232,7 +168,7 @@ def _validate_snapshot_configuration(par, header, header_code_units):
             )
 
 
-def _scale_unit_for_key(scale_key):
+def _legacy_scale_unit_for_key(scale_key):
     return {
         "length_cgs_cm": unyt.cm,
         "mass_g": unyt.g,
@@ -258,7 +194,7 @@ def _scale_unit_for_key(scale_key):
     }.get(scale_key, None)
 
 
-def _normalize_attr_name(name):
+def _legacy_normalize_attr_name(name):
     """Return a safe Python attribute name for an HDF5 dataset name."""
     normalized = []
     for char in str(name):
@@ -270,7 +206,7 @@ def _normalize_attr_name(name):
     return result or "field"
 
 
-def _read_any_dataset(dataset, code_units=None, scale_key=None):
+def _legacy_read_any_dataset(dataset, code_units=None, scale_key=None):
     """Read a dataset and normalize it into code-unit numeric arrays.
 
     When ``code_units`` and ``scale_key`` are provided, the stored dataset is
@@ -317,7 +253,7 @@ def _read_any_dataset(dataset, code_units=None, scale_key=None):
     return as_named_array(data)
 
 
-def _populate_group_targets(group, targets, code_units=None, scale_map=None):
+def _legacy_populate_group_targets(group, targets, code_units=None, scale_map=None):
     scale_map = scale_map or {}
     for name, dataset in group.items():
         if not isinstance(dataset, h5py.Dataset):
@@ -523,54 +459,7 @@ def _attach_dark_matter_radarray_views(
     )
 
 
-def _yaml_config_value(value):
-    """Convert a value to a YAML config friendly representation."""
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, unyt.unit_object.Unit):
-        return str(value)
-    if SympyBasic is not None and isinstance(value, SympyBasic):
-        return str(value)
-    if hasattr(value, "to_dict") and callable(value.to_dict):
-        return _yaml_config_value(value.to_dict())
-    if hasattr(value, "units"):
-        raw_value = np.asarray(value.to_value(value.units))
-        if raw_value.shape == () or raw_value.size == 1:
-            return {
-                "value": float(raw_value.reshape(-1)[0]),
-                "unit": str(value.units),
-            }
-        return {
-            "value": raw_value.tolist(),
-            "unit": str(value.units),
-        }
-    if isinstance(value, dict):
-        return {str(key): _yaml_config_value(val) for key, val in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_yaml_config_value(item) for item in value]
-    if isinstance(value, np.ndarray):
-        if value.shape == () or value.size == 1:
-            return value.reshape(-1)[0].item()
-        return value.tolist()
-    if callable(value):
-        return getattr(value, "__name__", value.__class__.__name__)
-    if hasattr(value, "__dict__") and not isinstance(value, type):
-        return {
-            key: _yaml_config_value(item)
-            for key, item in vars(value).items()
-            if not key.startswith("_")
-        }
-    if isinstance(value, Path):
-        return str(value)
-    return value
-
-
-def parameter_tree(value):
-    """Convert an arbitrary value into a YAML-safe, human-readable object."""
-    return _yaml_config_value(value)
-
-
-def _write_quantity(
+def _legacy_write_quantity(
     group, name, value, code_units=None, scale_key=None, default_unit=None,
     metadata=None, field_spec_obj=None,
 ):
@@ -627,7 +516,7 @@ def _write_quantity(
     return dataset
 
 
-def _write_cosmology_header(header, par, output_time, code_units):
+def _legacy_write_cosmology_header(header, par, output_time, code_units):
     """Write the canonical cosmology metadata contract to ``Header``."""
     if not getattr(par, "cosmological_expansion", False):
         return
@@ -673,7 +562,7 @@ def _write_cosmology_header(header, par, output_time, code_units):
     header.attrs["Gamma"] = float(par.hydrodynamics.gamma)
 
 
-def _restore_cosmology_from_header(par, header, code_units):
+def _legacy_restore_cosmology_from_header(par, header, code_units):
     """Restore and validate cosmology metadata from an HDF5 ``Header``."""
     enabled = bool(getattr(par, "cosmological_expansion", False))
     cosmology_type = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
@@ -717,7 +606,7 @@ def _restore_cosmology_from_header(par, header, code_units):
         par.cosmology = cosmology
 
 
-def _restore_cosmology_context_from_header(par, header):
+def _legacy_restore_cosmology_context_from_header(par, header):
     """Restore the immutable snapshot conversion context from ``Header``."""
     gamma_value = header.attrs.get("Gamma")
     scale_factor_value = header.attrs.get("ScaleFactor")
@@ -748,7 +637,7 @@ def _restore_cosmology_context_from_header(par, header):
     return context
 
 
-def _runtime_field_spec(field_name, par, code_units, output_time):
+def _legacy_runtime_field_spec(field_name, par, code_units, output_time):
     """Build metadata for a canonical runtime field at write time."""
     cosmology_parameters = getattr(par, "cosmology", None)
     cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
@@ -775,224 +664,6 @@ def _runtime_field_spec(field_name, par, code_units, output_time):
         hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
     )
 
-
-def _used_parameters_payload(par_config=None, initial_condition=None, existing=None):
-    payload = {}
-    if isinstance(existing, dict):
-        payload.update(existing)
-    if par_config is not None:
-        payload["par"] = {
-            key: _yaml_config_value(value)
-            for key, value in sorted(par_config.items())
-            if not str(key).startswith("_")
-        }
-    elif "par" not in payload:
-        payload["par"] = {}
-    if initial_condition is not None:
-        payload["initial_condition"] = {
-            key: _yaml_config_value(value)
-            for key, value in sorted(initial_condition.items())
-            if not str(key).startswith("_")
-        }
-    elif "initial_condition" not in payload:
-        payload["initial_condition"] = {}
-    return payload
-
-
-def update_used_parameters_yaml(path, par_config=None, initial_condition=None):
-    """Create or update a config-style ``used_parameters.yaml`` file."""
-    path = Path(path)
-    existing = {}
-    if path.exists():
-        try:
-            with path.open("r", encoding="utf-8") as handle:
-                loaded = yaml.safe_load(handle)
-        except yaml.YAMLError:
-            loaded = None
-        if isinstance(loaded, dict):
-            existing = loaded
-    payload = _used_parameters_payload(
-        par_config=par_config,
-        initial_condition=initial_condition,
-        existing=existing,
-    )
-    with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=False, default_flow_style=False)
-    return path
-
-
-def write_used_parameters(path, par):
-    """Write the active runtime parameters to a YAML file."""
-    path = Path(path)
-    nested_par_config = getattr(par, "nested_par_config", None)
-    if isinstance(nested_par_config, dict):
-        runtime_parameters = {
-            group: _yaml_config_value(nested_par_config.get(group, {}))
-            for group in (
-                "simulation", "mesh", "hydrodynamics", "boundary", "timestep",
-                "output", "diagnostics", "units", "thermochemistry", "chemistry",
-                "gravity", "dark_matter", "radiation",
-            )
-        }
-        runtime_parameters.update(
-            {
-                key: _yaml_config_value(value)
-                for key, value in nested_par_config.items()
-                if key not in runtime_parameters
-            }
-        )
-    else:
-        # Retain serialization for programmatically constructed legacy
-        # namespaces, while all YAML-driven ``Par`` instances use the nested
-        # configuration preserved by ``Par``.
-        runtime_parameters = {
-            key: parameter_tree(value)
-            for key, value in sorted(vars(par).items())
-            if not key.startswith("_")
-            and key not in {"par_config", "initial_condition"}
-        }
-    payload = {
-        "par": runtime_parameters,
-        "initial_condition": parameter_tree(
-            getattr(par, "initial_condition", None)
-        ),
-        "example": {},
-    }
-    with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=False, default_flow_style=False)
-    return path
-
-
-def _header_attr_value(value):
-    """Convert a runtime parameter into an HDF5-attribute-friendly value."""
-    tree = parameter_tree(value)
-    if tree is None:
-        return yaml.safe_dump(None, sort_keys=True, default_flow_style=False)
-    if isinstance(tree, (str, bytes, int, float, bool)):
-        return tree
-    if isinstance(tree, np.generic):
-        return tree.item()
-    if isinstance(tree, np.ndarray):
-        if tree.dtype == object or tree.dtype.kind == "U":
-            return yaml.safe_dump(tree.tolist(), sort_keys=True, default_flow_style=False)
-        return tree
-    if isinstance(tree, (list, tuple)) and all(
-        isinstance(item, (str, bytes, int, float, bool, np.generic))
-        for item in tree
-    ):
-        array = np.asarray(tree)
-        if array.dtype == object or array.dtype.kind == "U":
-            return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
-        return array
-    return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
-
-
-def _restore_header_attr_value(value):
-    """Convert a stored HDF5 header attribute back into a Python value."""
-    if isinstance(value, bytes):
-        value = value.decode("utf-8")
-    if isinstance(value, np.generic):
-        value = value.item()
-    if isinstance(value, np.ndarray):
-        if value.shape == ():
-            return _restore_header_attr_value(value.item())
-        return np.asarray([_restore_header_attr_value(item) for item in value.tolist()])
-    if isinstance(value, str):
-        try:
-            loaded = yaml.safe_load(value)
-            if isinstance(loaded, str):
-                return loaded
-            return _restore_header_attr_value(loaded)
-        except yaml.YAMLError:
-            return value
-    if isinstance(value, dict):
-        if {'value', 'unit'} <= value.keys():
-            restored_value = _restore_header_attr_value(value['value'])
-            unit = unyt.Unit(value['unit'])
-            if isinstance(restored_value, list):
-                restored_value = np.asarray(restored_value)
-            return np.asarray(restored_value) * unit
-        return {key: _restore_header_attr_value(item) for key, item in value.items()}
-    return value
-
-
-def load_output_time_list(filename):
-    """Load explicit output times from a text file."""
-    if not filename:
-        return None
-
-    outputtimepath = Path(filename)
-    if not outputtimepath.exists():
-        raise FileNotFoundError(f"Output-time file not found: {outputtimepath}")
-
-    unit = None
-    output_times = []
-    with outputtimepath.open() as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-            if not line or line.startswith('#'):
-                continue
-            tokens = line.split()
-            if unit is None:
-                unit = tokens[0]
-                for token in tokens[1:]:
-                    output_times.append(float(token))
-                continue
-            for token in tokens:
-                output_times.append(float(token))
-
-    if unit is None:
-        raise ValueError(f"Output-time file is empty: {outputtimepath}")
-
-    return np.asarray(output_times, dtype=float) * unyt.Unit(unit)
-
-
-def write_numbered_hdf5(sim, outindex):
-    from .output import write_numbered_hdf5 as implementation
-
-    return implementation(sim, outindex)
-
-
-def hdf5_output_callback(
-    sim, outputtime=0, output_state=None, snapshot_callback=None,
-):
-    from .output import hdf5_output_callback as implementation
-
-    return implementation(
-        sim,
-        outputtime,
-        output_state,
-        snapshot_callback=snapshot_callback,
-    )
-
-
-def run_with_output_times(
-    sim,
-    outputtime=0,
-    mode="hydro_sources",
-    advect_chemistry=True,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    before_step_callback=None,
-    history_callback=None,
-    snapshot_callback=None,
-):
-    from .output import run_with_output_times as implementation
-
-    return implementation(
-        sim,
-        outputtime=outputtime,
-        mode=mode,
-        advect_chemistry=advect_chemistry,
-        stop_condition=stop_condition,
-        step_backend=step_backend,
-        step_backend_kwargs=step_backend_kwargs,
-        output_writer=write_numbered_hdf5,
-        before_step_callback=before_step_callback,
-        history_callback=history_callback,
-        snapshot_callback=snapshot_callback,
-    )
 
 def _writehdf5(ric, ICfilename, *, provenance=None):
     """Write simulation state to a RadHydropy HDF5 file.
@@ -1737,7 +1408,12 @@ def loadhdf5(config, ICfilename):
     from radhydropy.rsim import Rsim
 
     restored = Rsim(par_config)
-    readhdf5(
+    # Resolve through the package façade so callers that replace the public
+    # reader for diagnostics/tests observe the same behavior as before the
+    # io.py -> io/ package migration.
+    from radhydropy import io as public_io
+
+    public_io.readhdf5(
         restored.par,
         restored.mesh,
         restored.fluid,

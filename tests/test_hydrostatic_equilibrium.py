@@ -40,7 +40,9 @@ def _code_units():
 
 
 def _floatify_hydrostatic_simwrap(simwrap, code_units):
-    simwrap.fluid.eos = EOS("isothermal", gamma=1.0, code_units=code_units)
+    simwrap.simulation.fluid.eos = EOS("isothermal", gamma=1.0, code_units=code_units)
+    simwrap.prepare()
+    simwrap = simwrap.simulation
     simwrap.mesh.boundary_proper_code = _to_float(simwrap.mesh.boundary_proper_code, code_units.length_unit)
     simwrap.mesh.x_proper_code = _to_float(
         simwrap.mesh.x_proper_code,
@@ -132,6 +134,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
             "par": {
                 "mesh": {"grid_cells": nogrid},
                 "units": {"CodeUnits": code_units},
+                "hydrodynamics": {"eos_type": "isothermal", "gamma": 1.0},
             },
             "initial_condition": initial_condition,
             "example": {},
@@ -306,6 +309,7 @@ class Testing(unittest.TestCase):
                 "par": {
                     "mesh": {"grid_cells": initial_condition["nogrid"]},
                     "units": {"CodeUnits": code_units},
+                    "hydrodynamics": {"eos_type": "isothermal", "gamma": 1.0},
                 },
                 "initial_condition": initial_condition,
                 "example": {},
@@ -318,7 +322,7 @@ class Testing(unittest.TestCase):
             dtype=float,
         )
         coordinate = np.asarray(
-            sim.mesh.x_proper_code[2:-2],
+            sim.mesh.x_proper_code,
             dtype=float,
         )
         dPdx = np.gradient(pressure, coordinate)

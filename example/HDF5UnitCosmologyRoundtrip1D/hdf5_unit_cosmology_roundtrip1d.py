@@ -52,6 +52,9 @@ def _case_config(config, case_name, case):
     case_par["cosmology"]["cosmological_expansion"] = bool(
         case["cosmological_expansion"]
     )
+    case_par["cosmology"]["cosmological"] = bool(
+        case["supercomoving_coordinates"]
+    )
     case_par["cosmology"]["supercomoving_coordinates"] = bool(
         case["supercomoving_coordinates"]
     )
@@ -99,7 +102,7 @@ def _build_initial_condition(case_config):
         time_cosmic_code = float(
             initial_condition["time_cosmic"].to_value(code_units.time_unit)
         )
-        cosmology = sim.par.cosmology
+        cosmology = sim.par.cosmology.model
         scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         hubble_parameter_code = float(cosmology.hubble(time_cosmic_code))
         hubble_unit_km_s_Mpc = (

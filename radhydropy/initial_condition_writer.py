@@ -179,6 +179,7 @@ class InitialConditionWriter:
                 "specific_angular_momentum_radarray",
                 "mu",
                 "xHI",
+                "eos",
             },
         )
 

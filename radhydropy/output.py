@@ -27,9 +27,12 @@ def write_numbered_hdf5(sim, outindex):
 
 
 def hdf5_output_callback(
-    sim, outputtime=0, output_state=None, snapshot_callback=None,
+    sim, outputtime=0, output_state=None, output_writer=None,
+    snapshot_callback=None,
 ):
     """Return a callback that writes HDF5 snapshots at fixed cadence."""
+    if output_writer is None:
+        output_writer = write_numbered_hdf5
     if output_state is None:
         output_state = {
             'outtime': 0.0 * sim.par.simulation.final_time,
@@ -58,7 +61,7 @@ def hdf5_output_callback(
         if getattr(sim.par, 'verbose', 0) >= 1:
             print("time, dt", getattr(sim.fluid, runtime_fields(sim.par).time), dt)
         if output_state['outtime'] >= sim.par.output.cadence:
-            snapshot_filename = write_numbered_hdf5(
+            snapshot_filename = output_writer(
                 sim, output_state['outindex']
             )
             if snapshot_callback is not None:

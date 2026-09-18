@@ -588,8 +588,8 @@ class Testing(unittest.TestCase):
         self.assertEqual(par_config['mesh']['ghost_cells'], 2)
         self.assertEqual(par_config['hydrodynamics']['eos_type'], 'polytropic')
         self.assertEqual(par_config['hydrodynamics']['gamma'], 1.6666666666666667)
-        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
-        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 500.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 2000.0)
+        self.assertEqual(par_config['simulation']['final_time'].to_value(unyt.Myr), 2000.0)
         self.assertEqual(par_config['timestep']['chemistry_timestep'].to_value(unyt.Myr), 5.0)
         self.assertEqual(
             par_config['radiation']['source_photon_rate'].to_value(1.0 / unyt.s),
