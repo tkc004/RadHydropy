@@ -17,7 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import radhydropy.io as rio
+from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 import example_utils as eu
 import tools as et
@@ -125,28 +125,41 @@ def main(config_filename=DEFAULT_CONFIG):
     Path(output['directory']).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
 
-    initial_condition_filename = par['simulation']['initial_condition_filename']
-    sim = rio.loadhdf5(config, initial_condition_filename)
+    sim = Rsim(config['par'])
     config['_output_par'] = sim.par
-    sim.SetMesh()
-    sim.SetFluid()
-    sim.SetInitFluid()
 
     momentum_history = {
-        "time_proper_cgs_s": [0.0],
-        "gas_momentum": [_total_radial_momentum(sim, config)],
-        "radiation_momentum": [0.0],
+        "time_proper_cgs_s": [],
+        "gas_momentum": [],
+        "radiation_momentum": [],
     }
-    radiation_pressure, gas_pressure = _pressure_diagnostics(sim, None, config)
     pressure_history = {
-        "time_proper_cgs_s": [0.0],
-        "radiation_pressure": [radiation_pressure],
-        "gas_pressure": [gas_pressure],
+        "time_proper_cgs_s": [],
+        "radiation_pressure": [],
+        "gas_pressure": [],
     }
     radiation_momentum = 0.0
+    history_started = False
 
     def step_backend(dt=None, mode="hydro_sources", advect_chemistry=True):
-        nonlocal radiation_momentum
+        nonlocal history_started, radiation_momentum
+        if not history_started:
+            code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
+            time_s = float(np.asarray(sim.fluid.time_proper_code)) * float(
+                (1.0 * code.time_unit).to_value(unyt.s)
+            )
+            radiation_pressure, gas_pressure = _pressure_diagnostics(
+                sim, None, config
+            )
+            momentum_history["time_proper_cgs_s"].append(time_s)
+            momentum_history["gas_momentum"].append(
+                _total_radial_momentum(sim, config)
+            )
+            momentum_history["radiation_momentum"].append(0.0)
+            pressure_history["time_proper_cgs_s"].append(time_s)
+            pressure_history["radiation_pressure"].append(radiation_pressure)
+            pressure_history["gas_pressure"].append(gas_pressure)
+            history_started = True
         result = sim.Step(
             dt=dt,
             mode=mode,

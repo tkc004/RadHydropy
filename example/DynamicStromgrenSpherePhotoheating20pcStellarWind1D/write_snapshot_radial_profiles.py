@@ -11,15 +11,18 @@ from pathlib import Path
 
 import numpy as np
 import unyt
-import radhydropy.io as rio
-from radhydropy.units import quantity_to_value
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 EXAMPLE_ROOT = EXAMPLE_DIR.parent
+REPO_ROOT = EXAMPLE_ROOT.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
+from radhydropy.units import quantity_to_value
 import example_utils as eu
+import tools as et
 
 
 DEFAULT_CONFIG = EXAMPLE_DIR / (
@@ -29,10 +32,10 @@ DEFAULT_CONFIG = EXAMPLE_DIR / (
 
 def snapshot_time_myr(snapshot_filename, config):
     """Read the snapshot time from the HDF5 header and return Myr."""
-    snapshot = rio.loadhdf5(config, str(snapshot_filename))
-    time_proper_code = float(np.asarray(snapshot.fluid.time_proper_code).flat[0])
+    par, _, fluid = et.load_output_state(snapshot_filename, config)
+    time_proper_code = float(np.asarray(fluid.time_proper_code).flat[0])
     return quantity_to_value(
-        time_proper_code * snapshot.par.units.CodeUnits.time_unit,
+        time_proper_code * par.units.CodeUnits.time_unit,
         unyt.Myr,
     )
 

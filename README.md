@@ -5,6 +5,10 @@ Cartesian and spherical test problems. It supports ideal-gas fluid evolution,
 gravity, thermo-chemistry, radiative transfer, cosmological coordinates, and
 HDF5-based initial conditions and snapshots.
 
+The full documentation is available at
+<https://tkc004.github.io/RadHydropy/>.
+
+
 The main user entry point is the example workflow:
 
 ```text
@@ -197,5 +201,4 @@ RadHydropy/
 - [Examples](docs/examples.rst)
 - [API reference](docs/api/index.rst)
 
-The rendered documentation is available at
-<https://tkc004.github.io/RadHydropy/>.
+
