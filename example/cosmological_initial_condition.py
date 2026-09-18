@@ -29,7 +29,7 @@ def build_initial_condition(config):
     result.par.cosmological_gravity = bool(
         par.get("cosmology", {}).get("cosmological", False)
     )
-    result.par.cosmology = code_cosmology
+    result.par.set_cosmology_model(code_cosmology)
     result.par.cosmology_type = code_cosmology.type_name
     result.par.cosmology_t_ref = code_cosmology.t_ref
     result.par.cosmology_a_ref = code_cosmology.a_ref
