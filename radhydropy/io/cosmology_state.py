@@ -3,7 +3,7 @@
 import h5py
 import numpy as np
 
-from radhydropy.cosmology_state import (
+from radhydropy.cosmology.state import (
     SupercomovingHdf5State,
     SupercomovingMeshState,
     SupercomovingState,

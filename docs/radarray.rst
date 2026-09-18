@@ -13,7 +13,7 @@ They contain more than numerical values and units. Each object carries:
 * the configured :class:`radhydropy.units.CodeUnits`;
 * a :class:`radhydropy.field_metadata.FieldSpec` describing quantity,
   representation, coordinate frame, and storage relation; and
-* a :class:`radhydropy.cosmology_context.CosmologyContext` containing the
+* a :class:`radhydropy.cosmology.context.CosmologyContext` containing the
   scale factor, equation-of-state index, cosmology, and Hubble parameter when
   cosmological conversion is relevant.
 

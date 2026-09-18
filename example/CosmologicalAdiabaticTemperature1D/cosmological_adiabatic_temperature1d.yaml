@@ -21,7 +21,7 @@ par:
     filename_prefix: Output
     cadence: {value: 1.0, unit: s}
   cosmology:
-    cosmological: false
+    cosmological: true
     cosmological_expansion: true
     supercomoving_coordinates: true
     cosmology_type: lambda_cdm

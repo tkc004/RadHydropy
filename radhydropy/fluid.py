@@ -13,7 +13,7 @@ from radhydropy.state_boundaries import (
     SupercomovingCodeState,
     UnitBoundaryError,
 )
-from radhydropy.cosmological_variables import (
+from radhydropy.cosmology.variables import (
     supercomoving_scale,
     to_supercomoving_density,
     to_supercomoving_temperature,

@@ -10,7 +10,7 @@ import yaml
 
 from radhydropy.example_config import _load_yaml_value, _resolve_path
 
-from radhydropy.cosmological_variables import (
+from radhydropy.cosmology.variables import (
     physical_density,
     physical_pressure,
     physical_radius,

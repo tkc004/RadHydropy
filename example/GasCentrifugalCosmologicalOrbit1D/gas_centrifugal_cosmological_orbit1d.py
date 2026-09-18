@@ -22,7 +22,7 @@ from radhydropy.eos import EOS
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
-from radhydropy.cosmological_variables import (
+from radhydropy.cosmology.variables import (
     physical_radius,
     physical_velocity,
 )

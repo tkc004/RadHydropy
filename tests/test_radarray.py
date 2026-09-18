@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import _FIELD_DEFINITIONS, field_spec
 from radhydropy.radarray import (
     RadArray,

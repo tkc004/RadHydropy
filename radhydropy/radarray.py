@@ -3,7 +3,7 @@
 import numpy as np
 import unyt
 
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import (
     FieldSpec,
     field_spec as make_field_spec,

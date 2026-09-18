@@ -4,7 +4,7 @@ import numpy as np
 import unyt
 
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec
 from radhydropy.io.metadata import _restore_header_attr_value
 

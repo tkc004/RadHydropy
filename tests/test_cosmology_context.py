@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import FrozenInstanceError
 
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 
 
 class CosmologyContextTests(unittest.TestCase):

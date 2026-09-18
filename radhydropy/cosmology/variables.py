@@ -10,7 +10,8 @@ def supercomoving_scale(par, time=None):
     else:
         time_code = time
     tau = float(np.asarray(time_code, dtype=float))
-    cosmology = par.cosmology
+    cosmology_parameters = par.cosmology
+    cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
     _, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)
     return float(scale_factor), float(hubble)
 

@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec
 from radhydropy.radarray import RadArray, RepresentationMismatchError
 from radhydropy.units import CodeUnits

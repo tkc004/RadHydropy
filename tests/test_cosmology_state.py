@@ -1,7 +1,7 @@
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.cosmology_state import (
+from radhydropy.cosmology.state import (
     ProperCgsState,
     SupercomovingState,
     proper_to_supercomoving_time,
@@ -11,7 +11,7 @@ from radhydropy.cosmology_state import (
     validate_supercomoving_contract,
 )
 from radhydropy.units import CodeUnits
-from radhydropy.cosmology_state_io import (
+from radhydropy.io.cosmology_state import (
     read_supercomoving_state_hdf5,
     write_supercomoving_state_hdf5,
 )

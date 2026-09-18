@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from tests.parameter_fixtures import parameter_namespace
 
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.cosmological_variables import (
+from radhydropy.cosmology.variables import (
     physical_density,
     physical_temperature,
     physical_velocity,

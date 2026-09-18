@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from radhydropy.cosmological_variables import physical_temperature, supercomoving_scale
+from radhydropy.cosmology.variables import physical_temperature, supercomoving_scale
 
 
 def temperature_physical_cgs_K(sim):

@@ -16,7 +16,7 @@ from radhydropy.runtime_fields import (
     SUPERCOMOVING_RUNTIME_FIELDS,
 )
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import FieldSpec, field_spec
 from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.io.metadata import (

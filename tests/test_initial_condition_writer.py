@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from example.example_utils import load_nested_example_config
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec, hubble_parameter_code
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.radarray import RadArray, RadQuantity

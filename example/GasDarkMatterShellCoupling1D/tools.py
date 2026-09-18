@@ -4,7 +4,7 @@ import numpy as np
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import CodeUnits, quantity_to_value
 from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.cosmology_context import CosmologyContext
+from radhydropy.cosmology.context import CosmologyContext
 
 
 def build_initial_condition(config):
