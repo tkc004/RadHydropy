@@ -2,25 +2,61 @@
 import numpy as np
 from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim
-from radhydropy.units import quantity_to_value
 from basic_hydro_utils import make_initial_condition
+
 
 def build_initial_condition(config):
     initial, par, units = config["initial_condition"], config["par"], config["_code_units"]
-    n=int(initial["grid_cells"]); size_proper_code=quantity_to_value(initial["box_size_proper"],units.length_unit); boundary_proper_code=np.linspace(0,size_proper_code,n+1); x_proper_code=.5*(boundary_proper_code[:-1]+boundary_proper_code[1:]); left=x_proper_code < .5*size_proper_code
-    rho_proper_code=np.where(left, initial.get("rho_left_proper",initial.get("rho_proper", 1.0)), initial.get("rho_right_proper",initial.get("rho_proper", 1.0)))
-    vel_proper_code=np.full(n,quantity_to_value(initial["vel_proper"],units.velocity_unit)); mu=np.full(n,initial["mean_molecular_weight"])
+    n = int(initial["grid_cells"])
+    size_proper_code = initial["box_size_proper"].to(units.length_unit).value
+    boundary_proper_code = np.linspace(0.0, size_proper_code, n + 1)
+    x_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
+    left = x_proper_code < 0.5 * size_proper_code
+    rho_default = initial.get("rho_proper")
+    rho_left_proper_code = initial.get("rho_left_proper", rho_default).to(
+        units.density_unit
+    ).value
+    rho_right_proper_code = initial.get("rho_right_proper", rho_default).to(
+        units.density_unit
+    ).value
+    rho_proper_code = np.where(left, rho_left_proper_code, rho_right_proper_code)
+    vel_proper_code = np.full(
+        n, initial["vel_proper"].to(units.velocity_unit).value
+    )
+    mu = np.full(n, initial["mean_molecular_weight"])
     if "temperature_left_proper" in initial or "temperature_right_proper" in initial:
-        zero_temperature_proper_unyt = 0.0 * units.temperature_unit
-        temp_proper_code=np.where(left,initial.get("temperature_left_proper",initial.get("temperature_proper",zero_temperature_proper_unyt)),initial.get("temperature_right_proper",initial.get("temperature_proper",zero_temperature_proper_unyt)))
+        temperature_default = initial.get("temperature_proper")
+        temperature_left_proper_code = initial.get(
+            "temperature_left_proper", temperature_default
+        ).to(units.temperature_unit).value
+        temperature_right_proper_code = initial.get(
+            "temperature_right_proper", temperature_default
+        ).to(units.temperature_unit).value
+        temp_proper_code = np.where(
+            left, temperature_left_proper_code, temperature_right_proper_code
+        )
     elif "pressure_initial_proper" in initial:
-        rho_left = quantity_to_value(initial["rho_left_proper"], units.density_unit)
-        pressure_proper_code = quantity_to_value(initial["pressure_initial_proper"], units.pressure_unit)
-        temp_proper_code=np.full(n, pressure_proper_code / rho_left)
-    else: temp_proper_code=np.full(n,quantity_to_value(initial["temperature_proper"],units.temperature_unit))
-    temp_proper_code=np.asarray([quantity_to_value(v,units.temperature_unit) if hasattr(v,"to_value") else float(v) for v in temp_proper_code])
-    rho_proper_code=np.asarray([quantity_to_value(v,units.density_unit) if hasattr(v,"to_value") else float(v) for v in rho_proper_code])
-    return make_initial_condition(config, boundary_proper_code=boundary_proper_code, rho_proper_code=rho_proper_code, vel_proper_code=vel_proper_code, temp_proper_code=temp_proper_code, mu_dimensionless=mu, area_proper_code=np.ones(n)*quantity_to_value(config["par"]["mesh"]["area_proper"],units.area_unit))
+        pressure_proper_code = initial["pressure_initial_proper"].to(
+            units.pressure_unit
+        ).value
+        temp_proper_code = np.full(n, pressure_proper_code / rho_left_proper_code)
+    else:
+        temp_proper_code = np.full(
+            n, initial["temperature_proper"].to(units.temperature_unit).value
+        )
+    area_proper_code = np.ones(n) * par["mesh"]["area_proper"].to(
+        units.area_unit
+    ).value
+    return make_initial_condition(
+        config,
+        boundary_proper_code=boundary_proper_code,
+        rho_proper_code=rho_proper_code,
+        vel_proper_code=vel_proper_code,
+        temp_proper_code=temp_proper_code,
+        mu_dimensionless=mu,
+        area_proper_code=area_proper_code,
+        allow_vacuum=True,
+    )
 
 def _physical(state):
     first=int(state.par.mesh.ghost_cells); last=first+int(state.par.mesh.grid_cells); b=np.asarray(state.mesh.boundary_proper_code); return first,last,.5*(b[:-1]+b[1:])

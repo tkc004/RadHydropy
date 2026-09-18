@@ -16,7 +16,7 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.thermo_networks.hydrogen as rth
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
+from radhydropy.units import CodeUnits, code_quantity_to_cgs
 from radhydropy.runtime_fields import FluidRuntimeState, MeshGeometryState, PROPER_RUNTIME_FIELDS
 from basic_hydro_utils import make_initial_condition
 
@@ -30,12 +30,12 @@ def build_initial_condition(config):
         0.0, initial['box_size_proper'].to_value(unyt.cm), grid_cells + 1
     ) * unyt.cm
     boundary_proper_code = boundary_proper_cgs_cm_unyt.to_value(code_units.length_unit)
-    density_proper_code = np.ones(grid_cells) * quantity_to_value(
-        initial['rho_proper'], code_units.density_unit
-    )
-    temperature_proper_code = np.ones(grid_cells) * quantity_to_value(
-        initial['temperature_neutral_proper'], code_units.temperature_unit
-    )
+    density_proper_code = np.ones(grid_cells) * initial['rho_proper'].to(
+        code_units.density_unit
+    ).value
+    temperature_proper_code = np.ones(grid_cells) * initial[
+        'temperature_neutral_proper'
+    ].to(code_units.temperature_unit).value
     sim = make_initial_condition(
         config,
         boundary_proper_code=boundary_proper_code,
@@ -48,7 +48,9 @@ def build_initial_condition(config):
     radiation = config["par"]['radiation']
     sim.fluid.ngamma_code = np.full(
         grid_cells,
-        quantity_to_value(radiation.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3), code_units.number_density_unit),
+        radiation.get('hydrogen_ngamma_initial', 0.0 / unyt.cm**3).to(
+            code_units.number_density_unit
+        ).value,
     )
     sim.fluid._refresh_runtime_state()
     return sim.par, sim.mesh, sim.fluid, sim.solver
@@ -76,9 +78,9 @@ def load_output_state(outputfilename, config):
         mesh.width_proper_code = boundary_proper_code[1:] - boundary_proper_code[:-1]
         mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
         mesh.x_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-        mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(
-            par.mesh.area_proper, code_units.area_unit
-        )
+        mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * par.mesh.area_proper.to(
+            code_units_obj.area_unit
+        ).value
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
     elif par.simulation.coordinate_system == 'spherical':
         mesh.width_proper_code = boundary_proper_code[1:] - boundary_proper_code[:-1]
@@ -309,19 +311,13 @@ def make_piecewise_isothermal_step_backend(sim, config):
     return step_backend
 
 
-def _value_in_unit(value, unit):
-    return np.asarray(quantity_to_value(value, unit), dtype=float)
-
-
-def _scalar_in_unit(value, unit):
-    values = _value_in_unit(value, unit)
-    return float(np.reshape(values, -1)[0])
-
-
 def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
     par = config['_output_par']
     interior = interior_slice(config)
-    radius_proper_pc = _value_in_unit(mesh.x_proper_code[interior], unyt.pc)
+    boundary_proper_pc = mesh.boundary_radarray.to(unyt.pc).value
+    radius_proper_pc = 0.5 * (
+        boundary_proper_pc[:-1] + boundary_proper_pc[1:]
+    )[interior]
     xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
 
     ionized = xHII >= ionized_fraction
@@ -344,7 +340,11 @@ def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
 
 def append_history(history, mesh, fluid, config):
     par = config['_output_par']
-    history['time_proper_Myr'].append(_scalar_in_unit(fluid.time_proper_code, unyt.Myr))
+    time_proper_Myr = (
+        np.asarray(fluid.time_proper_code).flat[0]
+        * par.units.CodeUnits.time_unit
+    ).to(unyt.Myr).value
+    history['time_proper_Myr'].append(float(time_proper_Myr))
     history['front_radius_proper_pc'].append(ionization_front_position(mesh, fluid, config))
 
 
@@ -363,16 +363,26 @@ def load_history_from_outputs(outputfilenames, config):
 def density_snapshot(mesh, fluid, config):
     par = config['_output_par']
     interior = interior_slice(config)
-    ngamma_code = np.asarray(fluid.ngamma_code)
-    if ngamma_code.ndim > 1:
-        ngamma_code = np.sum(ngamma_code, axis=0)
+    boundary_proper_pc = mesh.boundary_radarray.to(unyt.pc).value
+    radius_proper_pc = 0.5 * (
+        boundary_proper_pc[:-1] + boundary_proper_pc[1:]
+    )[interior]
+    ngamma_radarray = fluid.ngamma_radarray[interior]
+    if ngamma_radarray.ndim > 1:
+        ngamma_radarray = np.sum(ngamma_radarray, axis=0)
+    time_proper_Myr = (
+        np.asarray(fluid.time_proper_code).flat[0]
+        * par.units.CodeUnits.time_unit
+    ).to(unyt.Myr).value
     return {
-        'time_proper_Myr': _scalar_in_unit(fluid.time_proper_code, unyt.Myr),
-        'radius_proper_pc': _value_in_unit(mesh.x_proper_code[interior], unyt.pc).copy(),
-        'rho_proper_cgs_g_cm3': _value_in_unit(fluid.rho_proper_code[interior], unyt.g / unyt.cm**3).copy(),
-        'radiation_density_cgs_cm3': _value_in_unit(
-            ngamma_code[interior], 1.0 / unyt.cm**3
-        ).copy(),
+        'time_proper_Myr': float(time_proper_Myr),
+        'radius_proper_pc': np.asarray(radius_proper_pc, dtype=float).copy(),
+        'rho_proper_cgs_g_cm3': fluid.rho_radarray[interior].to(
+            unyt.g / unyt.cm**3
+        ).value.copy(),
+        'radiation_density_cgs_cm3': ngamma_radarray.to(
+            1.0 / unyt.cm**3
+        ).value.copy(),
     }
 
 
@@ -460,7 +470,9 @@ def save_front_plot(history, config, figure_filename):
         time_proper_unyt,
         config,
     ).to_value(unyt.pc)
-    show_stagnation_radius = config.get('show_stagnation_radius', False)
+    show_stagnation_radius = config.get('example', {}).get(
+        'show_stagnation_radius', False
+    )
     if show_stagnation_radius:
         radius_stagnation_pc = stagnation_radius(config).to_value(unyt.pc)
 
@@ -535,7 +547,9 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         time_proper_unyt,
         config,
     ).to_value(unyt.pc)
-    show_stagnation_radius = config.get('show_stagnation_radius', False)
+    show_stagnation_radius = config.get('example', {}).get(
+        'show_stagnation_radius', False
+    )
     if show_stagnation_radius:
         radius_stagnation_pc = stagnation_radius(config).to_value(unyt.pc)
 

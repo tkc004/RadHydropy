@@ -7,7 +7,7 @@ from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
 
 
-def _validate_active_proper_state(sim, first, last):
+def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
     """Validate the active proper-code primitive and conserved state."""
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     vel_proper_code = np.asarray(sim.fluid.vel_proper_code[first:last], dtype=float)
@@ -27,7 +27,10 @@ def _validate_active_proper_state(sim, first, last):
         if not np.all(np.isfinite(field_values)):
             raise ValueError(f"active {field_name} contains non-finite values")
 
-    if np.any(rho_proper_code <= 0.0):
+    if allow_vacuum:
+        if np.any(rho_proper_code < 0.0):
+            raise ValueError("active rho_proper_code must be non-negative")
+    elif np.any(rho_proper_code <= 0.0):
         raise ValueError("active rho_proper_code must be strictly positive")
     if np.any(temp_proper_code < 0.0):
         raise ValueError("active temp_proper_code must be non-negative")
@@ -96,6 +99,7 @@ def make_initial_condition(
     temp_proper_code,
     mu_dimensionless,
     area_proper_code=None,
+    allow_vacuum=False,
 ):
     """Build a proper-code IC from a complete nested example configuration.
 
@@ -159,7 +163,9 @@ def make_initial_condition(
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     first = int(sim.par.mesh.ghost_cells)
     last = first + grid_cells
-    _validate_active_proper_state(sim, first, last)
+    _validate_active_proper_state(
+        sim, first, last, allow_vacuum=allow_vacuum
+    )
     sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
     for field in (
         "rho_proper_code", "vel_proper_code", "pre_proper_code",

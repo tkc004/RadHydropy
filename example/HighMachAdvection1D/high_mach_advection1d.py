@@ -52,7 +52,6 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     config['_code_units'] = code_units
     initial = et.build_initial_condition(config)
-    initial.fluid.eos = None
     rio.writehdf5(initial, config["par"]["simulation"]["initial_condition_filename"])
 
     sim = Rsim(config["par"])
@@ -136,7 +135,8 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     # fixed limits expose those regions as saturated colors without allowing
     # extreme vacuum values to hide the gas-side entropy structure.
     entropy_plot_values = entropy_values.copy()
-    entropy_plot_values[np.asarray(density_history) <= 0.0] = np.nan
+    density_history = np.asarray(rho_proper_code_history)
+    entropy_plot_values[density_history <= 0.0] = np.nan
     entropy_figure = exampleparams.get("entropy_plot_filename", "HighMachAdvection1D_EntropyEvolution.jpg")
     save_profile_map(
         entropy_plot_values,
@@ -155,7 +155,7 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     )
     temperature_figure = "HighMachAdvection1D_TemperatureEvolution.jpg"
     save_profile_map(
-        temperature_history,
+        np.asarray(temp_proper_code_history),
         temperature_figure,
         "High-Mach advection temperature evolution",
         r"$\log_{10}(T\,[\mathrm{K}])$",
