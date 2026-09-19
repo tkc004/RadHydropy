@@ -1139,6 +1139,7 @@ class Testing(unittest.TestCase):
         par.nogrid = 4
         par.mesh.grid_cells = 4
         par.positivity_preserving = True
+        par.positivity_factor_method = 'invariant_domain'
         mesh = make_code_mesh(4)
         mesh._par = par
         fluid = SimpleNamespace(
@@ -1170,6 +1171,7 @@ class Testing(unittest.TestCase):
         par.positivity_energy_floor = 0.0
         par.cfl_density_floor = 0.0
         par.dual_energy = True
+        par.positivity_factor_method = 'analytical'
         mesh = make_code_mesh(5)
         mesh._par = par
         mass = np.array([

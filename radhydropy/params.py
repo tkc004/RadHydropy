@@ -114,6 +114,10 @@ refparams = {
     'hydro_temperature_floor': None,
     # Conservative invariant-domain limiter for finite-volume hydro updates.
     'positivity_preserving': True,
+    # Face-factor recovery method: bisection is the compatibility default;
+    # analytical uses the quadratic invariant-domain boundary; invariant_domain
+    # uses a vectorized conservative line search.
+    'positivity_factor_method': 'bisection',
     'positivity_density_floor': 0.0,
     'positivity_energy_floor': 0.0,
     'relaxation_damping_time': None,
@@ -290,6 +294,7 @@ class HydrodynamicsParameters:
     dual_energy_pressure_selection: str = 'switch'
     dual_energy_entropy_limiter: bool = False
     positivity_preserving: bool = True
+    positivity_factor_method: str = 'bisection'
     positivity_density_floor: float = 0.0
     positivity_energy_floor: float = 0.0
     gas_angular_momentum: bool = False
@@ -494,6 +499,7 @@ class PositivityParameters:
     """Structured view of invariant-domain limiting controls."""
 
     enabled: bool = True
+    factor_method: str = 'bisection'
     density_floor: float = 0.0
     energy_floor: float = 0.0
 
@@ -625,6 +631,7 @@ class Par:
                 'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
                 'flux_limiter': 'flux_limiter',
                 'positivity_preserving': 'positivity_preserving',
+                'positivity_factor_method': 'positivity_factor_method',
                 'positivity_density_floor': 'positivity_density_floor',
                 'positivity_energy_floor': 'positivity_energy_floor',
                 'dual_energy': 'dual_energy',
@@ -911,6 +918,7 @@ class Par:
             dual_energy_pressure_selection=self.dual_energy_pressure_selection,
             dual_energy_entropy_limiter=self.dual_energy_entropy_limiter,
             positivity_preserving=self.positivity_preserving,
+            positivity_factor_method=self.positivity_factor_method,
             positivity_density_floor=self.positivity_density_floor,
             positivity_energy_floor=self.positivity_energy_floor,
             gas_angular_momentum=self.gas_angular_momentum,
@@ -1102,6 +1110,7 @@ class Par:
     def _sync_positivity_parameters(self):
         self.positivity = PositivityParameters(
             enabled=self.positivity_preserving,
+            factor_method=self.positivity_factor_method,
             density_floor=self.positivity_density_floor,
             energy_floor=self.positivity_energy_floor,
         )
