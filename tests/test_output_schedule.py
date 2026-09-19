@@ -255,6 +255,49 @@ class Testing(unittest.TestCase):
                 ['write_0', 'snapshot_0_exists_True', 'evolve'],
             )
 
+    def test_fixed_cadence_final_snapshot_callback_uses_written_index(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            par = parameter_namespace(
+                timesim=0.0 * unyt.s,
+                outdir=str(tmpdir),
+                outfileprefix='Output',
+                outdeltatime=1.0 * unyt.s,
+            )
+            fluid = SimpleNamespace(
+                time_proper_code=0.0 * unyt.s,
+                SetTemperature=lambda: None,
+            )
+            sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+            callbacks = []
+            sim.WriteUsedParameters = lambda: None
+
+            def fake_write(current_sim, index):
+                filename = Path(tmpdir) / ('fixed_%d.hdf5' % index)
+                filename.touch()
+                return str(filename)
+
+            def fake_evolve(**kwargs):
+                output_callback = kwargs['output_callback']
+                output_callback(
+                    sim, {'dt': 1.0 * unyt.s, 'hydro_steps': 1, 'source_steps': 0}
+                )
+                output_callback(
+                    sim, {'dt': 1.0 * unyt.s, 'hydro_steps': 1, 'source_steps': 0}
+                )
+
+            sim.Evolve = fake_evolve
+            with mock.patch.object(
+                rio, 'write_numbered_hdf5', side_effect=fake_write
+            ):
+                sim.Run(
+                    stop_condition=lambda current_sim: True,
+                    snapshot_callback=lambda current_sim, filename, index: callbacks.append(
+                        (Path(filename).stem, index)
+                    ),
+                )
+
+            self.assertEqual(callbacks, [('fixed_0', 0), ('fixed_1', 1), ('fixed_2', 2)])
+
     def test_fixed_cadence_output_callback_notifies_after_serialization(self):
         par = parameter_namespace(
             timesim=1.0 * unyt.s,

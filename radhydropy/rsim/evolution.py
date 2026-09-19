@@ -124,11 +124,12 @@ def Run(
         step_backend_kwargs=step_backend_kwargs,
     )
     if stop_condition is not None:
+        final_index = output_state.get("outindex", 1)
         final_filename = rio.write_numbered_hdf5(
-            sim, output_state.get("outindex", 1)
+            sim, final_index
         )
         if snapshot_callback is not None:
-            snapshot_callback(sim, final_filename, 0)
+            snapshot_callback(sim, final_filename, final_index)
     print("--- Simulation finished. ---") 
     print("--- %s seconds ---" % (
         time.time() - getattr(sim, "_start_time", time.time())
