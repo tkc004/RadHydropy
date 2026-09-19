@@ -19,6 +19,7 @@ par:
     order: 1
     riemann_solver: HLLC
     dual_energy: true
+    positivity_factor_method: invariant_domain
     dual_energy_eta1: 0.001
     dual_energy_eta2: 0.1
     dual_energy_consistency_factor: 0.1

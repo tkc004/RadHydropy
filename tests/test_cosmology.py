@@ -118,13 +118,18 @@ def test_supercomoving_scale_requires_canonical_parameter_state():
             )
         )
 
-    with pytest.raises(AttributeError):
-        supercomoving_scale(
-            SimpleNamespace(
-                tau_supercomoving_code=1.0,
-                cosmology=cosmology,
-            )
+    direct_model_par = SimpleNamespace(
+        tau_supercomoving_code=cosmology.supercomoving_time(1.5),
+        cosmology=cosmology,
+    )
+    scale_factor, hubble = supercomoving_scale(direct_model_par)
+    _, expected_scale_factor, expected_hubble = (
+        cosmology.background_state_from_supercomoving(
+            direct_model_par.tau_supercomoving_code
         )
+    )
+    assert scale_factor == pytest.approx(expected_scale_factor)
+    assert hubble == pytest.approx(expected_hubble)
 
 
 def test_supercomoving_scale_uses_real_par_startup_clock():

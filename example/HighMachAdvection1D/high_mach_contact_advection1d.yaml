@@ -19,6 +19,7 @@ par:
     dual_energy_pressure_floor: 1.0e-20
     hydro_temperature_floor:
     positivity_preserving: true
+    positivity_factor_method: invariant_domain
   boundary:
     condition: Periodic
   timestep:

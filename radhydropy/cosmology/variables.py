@@ -8,7 +8,8 @@ def supercomoving_scale(par, tau_supercomoving_code=None):
     if tau_supercomoving_code is None:
         tau_supercomoving_code = par.tau_supercomoving_code
     tau = float(np.asarray(tau_supercomoving_code, dtype=float))
-    cosmology = par.cosmology.model
+    cosmology_parameters = par.cosmology
+    cosmology = getattr(cosmology_parameters, 'model', cosmology_parameters)
     _, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)
     return float(scale_factor), float(hubble)
 
