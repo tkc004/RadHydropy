@@ -44,7 +44,8 @@ def temperature_physical_cgs_K(sim):
         temperature = temperature * float(code.temperature_in_cgs)
     if getattr(sim.par, 'supercomoving_coordinates', False):
         scale_factor, _ = supercomoving_scale(
-            sim.par, time=time_runtime_code
+            sim.par,
+            tau_supercomoving_code=time_runtime_code,
         )
         temperature = physical_temperature(
             temperature, scale_factor, float(sim.fluid.eos.gamma)

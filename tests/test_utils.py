@@ -35,6 +35,26 @@ class Testing(unittest.TestCase):
         self.assertEqual(temp[1], 0.0 * unyt.K)
         self.assertEqual(sound_speed[1], 0.0 * unyt.cm/unyt.s)
 
+    def test_cal_sound_speed_unitless_inputs(self):
+        pressure = np.array([4.0, 0.0])
+        rho = np.array([1.0, 0.0])
+
+        sound_speed = ru.CalSoundSpeed(pressure, rho, 5.0 / 3.0)
+
+        np.testing.assert_allclose(
+            sound_speed, np.array([np.sqrt(20.0 / 3.0), 0.0])
+        )
+
+    def test_cal_sound_speed_unitful_inputs(self):
+        pressure = np.array([4.0, 0.0]) * unyt.dyn / unyt.cm**2
+        rho = np.array([1.0, 0.0]) * unyt.g / unyt.cm**3
+
+        sound_speed = ru.CalSoundSpeed(pressure, rho, 5.0 / 3.0)
+
+        expected = np.sqrt(20.0 / 3.0) * unyt.cm / unyt.s
+        self.assertEqual(sound_speed.units, expected.units)
+        np.testing.assert_allclose(sound_speed.value, [expected.value, 0.0])
+
     def test_apply_flux_limiter_handles_flat_regions(self):
         q = np.array([1.0, 1.0, 2.0]) * unyt.g
         flux_0 = np.zeros(3) * unyt.g/unyt.s

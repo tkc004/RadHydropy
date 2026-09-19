@@ -1,6 +1,10 @@
 """CFL timestep calculation for the finite-volume solver."""
 
 import numpy as np
+from radhydropy.runtime_fields import (
+    select_fluid_primitive_arrays,
+    select_mesh_geometry_arrays,
+)
 
 
 def get_time_step(solver, mesh, fluid, par, CFL=None):
@@ -9,42 +13,17 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         CFL = par.hydrodynamics.CFL
     geometry = getattr(mesh, "geometry_state", None)
     if geometry is not None:
-        if getattr(par, "supercomoving_coordinates", False):
-            xdelta = geometry.width_comoving_code
-            mesh_area = geometry.area_comoving_code
-            mesh_volume = geometry.volume_comoving_code
-            mesh_coordinate = geometry.x_comoving_code
-        else:
-            xdelta = geometry.width_proper_code
-            mesh_area = geometry.area_proper_code
-            mesh_volume = geometry.volume_proper_code
-            mesh_coordinate = geometry.x_proper_code
+        mesh_coordinate, _, xdelta, mesh_area, mesh_volume = (
+            select_mesh_geometry_arrays(geometry, par)
+        )
     else:
         raise ValueError("timestep calculation requires typed mesh geometry state")
     fluid.SetSoundSpeed()
     runtime_state = getattr(fluid, "runtime_state", None)
-    if runtime_state is not None:
-        if getattr(par, "supercomoving_coordinates", False):
-            velocity = runtime_state.vel_supercomoving_code
-            density_field = runtime_state.rho_comoving_code
-            pressure_field = runtime_state.pre_supercomoving_code
-            time_runtime_code = runtime_state.tau_supercomoving_code
-        else:
-            velocity = runtime_state.vel_proper_code
-            density_field = runtime_state.rho_proper_code
-            pressure_field = runtime_state.pre_proper_code
-            time_runtime_code = runtime_state.time_proper_code
-    else:
-        if getattr(par, "supercomoving_coordinates", False):
-            velocity = fluid.vel_supercomoving_code
-            density_field = fluid.rho_comoving_code
-            pressure_field = fluid.pre_supercomoving_code
-            time_runtime_code = fluid.tau_supercomoving_code
-        else:
-            velocity = fluid.vel_proper_code
-            density_field = fluid.rho_proper_code
-            pressure_field = fluid.pre_proper_code
-            time_runtime_code = fluid.time_proper_code
+    runtime_state = fluid if runtime_state is None else runtime_state
+    density_field, velocity, pressure_field, _, time_runtime_code = (
+        select_fluid_primitive_arrays(runtime_state, par)
+    )
     vsignal = np.absolute(velocity) + fluid.cs_code
     density = np.asarray(density_field, dtype=float)
     if xdelta.shape != vsignal.shape:

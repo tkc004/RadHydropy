@@ -163,6 +163,50 @@ SUPERCOMOVING_RUNTIME_FIELDS = RuntimeFieldNames(
 )
 
 
+def select_fluid_primitive_arrays(runtime_state, par):
+    """Return primitive arrays for the configured runtime representation."""
+    fields = runtime_fields(par)
+    if fields is PROPER_RUNTIME_FIELDS:
+        return (
+            runtime_state.rho_proper_code,
+            runtime_state.vel_proper_code,
+            runtime_state.pre_proper_code,
+            runtime_state.temp_proper_code,
+            runtime_state.time_proper_code,
+        )
+    if fields is SUPERCOMOVING_RUNTIME_FIELDS:
+        return (
+            runtime_state.rho_comoving_code,
+            runtime_state.vel_supercomoving_code,
+            runtime_state.pre_supercomoving_code,
+            runtime_state.temp_supercomoving_code,
+            runtime_state.tau_supercomoving_code,
+        )
+    raise ValueError("unsupported runtime field representation")
+
+
+def select_mesh_geometry_arrays(geometry, par):
+    """Return mesh geometry arrays for the configured representation."""
+    fields = runtime_fields(par)
+    if fields is PROPER_RUNTIME_FIELDS:
+        return (
+            geometry.x_proper_code,
+            geometry.boundary_proper_code,
+            geometry.width_proper_code,
+            geometry.area_proper_code,
+            geometry.volume_proper_code,
+        )
+    if fields is SUPERCOMOVING_RUNTIME_FIELDS:
+        return (
+            geometry.x_comoving_code,
+            geometry.boundary_comoving_code,
+            geometry.width_comoving_code,
+            geometry.area_comoving_code,
+            geometry.volume_comoving_code,
+        )
+    raise ValueError("unsupported runtime field representation")
+
+
 def runtime_fields(par):
     """Return the canonical field contract for ``par``.
 

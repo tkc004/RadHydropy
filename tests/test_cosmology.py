@@ -89,10 +89,10 @@ def test_supercomoving_physical_conversions():
 def test_supercomoving_variable_round_trip():
     cosmology = EinsteinDeSitter()
     tau = cosmology.supercomoving_time(2.0)
-    class Par:
-        time = tau
-    par = Par()
-    par.cosmology = cosmology
+    par = SimpleNamespace(
+        tau_supercomoving_code=tau,
+        cosmology=SimpleNamespace(model=cosmology),
+    )
     a, hubble = supercomoving_scale(par)
     gamma = 5.0 / 3.0
     radius = np.array([2.0])
@@ -107,13 +107,61 @@ def test_supercomoving_variable_round_trip():
     assert np.allclose(physical_velocity(velocity, radius, a, hubble), physical_vel)
 
 
+def test_supercomoving_scale_requires_canonical_parameter_state():
+    cosmology = EinsteinDeSitter()
+
+    with pytest.raises(AttributeError):
+        supercomoving_scale(
+            SimpleNamespace(
+                simulation=SimpleNamespace(time_code=1.0),
+                cosmology=SimpleNamespace(model=cosmology),
+            )
+        )
+
+    with pytest.raises(AttributeError):
+        supercomoving_scale(
+            SimpleNamespace(
+                tau_supercomoving_code=1.0,
+                cosmology=cosmology,
+            )
+        )
+
+
+def test_supercomoving_scale_uses_real_par_startup_clock():
+    par = Par({
+        "CodeUnits": {
+            "UnitMass_in_cgs": 1.0e33,
+            "UnitLength_in_cgs": 1.0e18,
+            "UnitVelocity_in_cgs": 1.0e5,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        },
+        "cosmological_expansion": True,
+        "supercomoving_coordinates": True,
+        "cosmology_type": "einstein_de_sitter",
+    })
+    tau_supercomoving_code = par.cosmology.model.supercomoving_time(2.0)
+    par.tau_supercomoving_code = tau_supercomoving_code
+
+    scale_factor, hubble = supercomoving_scale(par)
+    _, expected_scale_factor, expected_hubble = (
+        par.cosmology.model.background_state_from_supercomoving(
+            tau_supercomoving_code
+        )
+    )
+
+    assert scale_factor == pytest.approx(expected_scale_factor)
+    assert hubble == pytest.approx(expected_hubble)
+    assert scale_factor != pytest.approx(1.0)
+
+
 def test_supercomoving_specific_angular_momentum_is_scale_factor_invariant():
     cosmology = EinsteinDeSitter()
     tau = cosmology.supercomoving_time(2.0)
-    class Par:
-        time = tau
-    par = Par()
-    par.cosmology = cosmology
+    par = SimpleNamespace(
+        tau_supercomoving_code=tau,
+        cosmology=SimpleNamespace(model=cosmology),
+    )
     a, _ = supercomoving_scale(par)
 
     comoving_radius = np.array([2.0, 4.0])
@@ -130,11 +178,10 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     cosmology = EinsteinDeSitter()
     tau = cosmology.supercomoving_time(2.0)
 
-    class Par:
-        time = tau
-
-    par = Par()
-    par.cosmology = cosmology
+    par = SimpleNamespace(
+        tau_supercomoving_code=tau,
+        cosmology=SimpleNamespace(model=cosmology),
+    )
     a, _ = supercomoving_scale(par)
     x = np.array([1.5, 3.0])
     physical_radius = a * x
@@ -162,6 +209,10 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
         gas_rotational_energy=True,
         gas_angular_momentum=True,
         supercomoving_coordinates=True,
+        cosmological_expansion=True,
+        coordinate_frame='comoving',
+        time_coordinate='supercomoving',
+        velocity_representation='supercomoving_peculiar',
     )
     energy_sc = Solver()._rotational_energy_density(mesh, fluid, options)
     energy_phys = 0.5 * physical_density_value * physical_tangential_velocity**2
@@ -175,7 +226,6 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     tau = cosmology.supercomoving_time(2.0)
 
     class Par:
-        time = tau
         nogrid = 1
         noghost = 0
         mesh = SimpleNamespace(ghost_cells=0, grid_cells=1)
@@ -189,7 +239,8 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
         velocity_representation = 'supercomoving_peculiar'
 
     par = Par()
-    par.cosmology = cosmology
+    par.tau_supercomoving_code = tau
+    par.cosmology = SimpleNamespace(model=cosmology)
     a, _ = supercomoving_scale(par)
     x = 2.0
     physical_radius = a * x
