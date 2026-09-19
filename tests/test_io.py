@@ -277,6 +277,63 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(loaded_fluid.rho_proper_code, [2.0, 3.0])
         np.testing.assert_allclose(loaded_fluid.vel_proper_code, [4.0, 5.0])
 
+    def test_readhdf5_rejects_generic_header_schema(self):
+        snapshot = self._validation_snapshot()
+        sim = SimpleNamespace(
+            par=snapshot.par, mesh=snapshot.mesh, fluid=snapshot.fluid
+        )
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, "a") as handle:
+                handle["Header"].move("time_proper_code", "time_code")
+                handle["Header"].move("box_size_proper_code", "box_size_code")
+
+            with self.assertRaisesRegex(ValueError, "unsupported generic"):
+                rio.readhdf5(
+                    parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS),
+                    SimpleNamespace(),
+                    SimpleNamespace(),
+                    output.name,
+                )
+
+    def test_readhdf5_rejects_generic_primitive_schema(self):
+        snapshot = self._validation_snapshot()
+        sim = SimpleNamespace(
+            par=snapshot.par, mesh=snapshot.mesh, fluid=snapshot.fluid
+        )
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, "a") as handle:
+                handle["Data"].move("rho_proper_code", "rho_code")
+
+            with self.assertRaisesRegex(ValueError, "unsupported generic"):
+                rio.readhdf5(
+                    parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS),
+                    SimpleNamespace(),
+                    SimpleNamespace(),
+                    output.name,
+                )
+
+    def test_readhdf5_rejects_physical_boundary_metadata(self):
+        snapshot = self._validation_snapshot()
+        sim = SimpleNamespace(
+            par=snapshot.par, mesh=snapshot.mesh, fluid=snapshot.fluid
+        )
+        with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
+            rio.writehdf5(sim, output.name)
+            with h5py.File(output.name, "a") as handle:
+                handle["Data"]["boundary_proper_code"].attrs[
+                    "representation"
+                ] = "physical"
+
+            with self.assertRaisesRegex(ValueError, "expected 'proper'"):
+                rio.readhdf5(
+                    parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS),
+                    SimpleNamespace(),
+                    SimpleNamespace(),
+                    output.name,
+                )
+
     def test_hdf5_roundtrip_preserves_gas_angular_momentum_fields(self):
         par = parameter_namespace(
             coordsys='cartesian',

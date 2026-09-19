@@ -53,6 +53,12 @@ _restore_cosmology_context_from_header = restore_cosmology_context_from_header
 _runtime_field_spec = runtime_field_spec
 
 
+_GENERIC_HEADER_DATASETS = frozenset({"time_code", "box_size_code"})
+_GENERIC_PRIMITIVE_DATASETS = frozenset(
+    {"boundary", "rho_code", "vel_code", "temp_code", "pre_code"}
+)
+
+
 class SnapshotConfigurationError(ValueError):
     """Raised when a snapshot is incompatible with the supplied runtime."""
 
@@ -178,12 +184,6 @@ def _radarray_field_spec(dataset, canonical_name, code_units, cosmology):
         metadata["storage_unit"] = "code"
     try:
         restored = FieldSpec.from_metadata(metadata)
-        # ``boundary`` is an older physical/proper alias.  RadArray uses the
-        # explicit ``proper`` representation so that conversion dispatch is
-        # unambiguous on readback.
-        if canonical_name == "boundary_proper_code" and restored.representation == "physical":
-            raise ValueError("legacy physical boundary alias")
-        return restored
     except (TypeError, ValueError):
         hubble = (
             cosmology.hubble_parameter_km_s_Mpc
@@ -197,6 +197,23 @@ def _radarray_field_spec(dataset, canonical_name, code_units, cosmology):
             scale_factor=cosmology.scale_factor,
             hubble_parameter_km_s_Mpc=hubble,
         )
+    expected_representation = None
+    if canonical_name.endswith("_comoving_code"):
+        expected_representation = "comoving"
+    elif canonical_name.endswith("_supercomoving_code"):
+        expected_representation = "supercomoving"
+    elif canonical_name.endswith("_proper_code"):
+        expected_representation = "proper"
+    if (
+        expected_representation is not None
+        and restored.representation != expected_representation
+    ):
+        raise ValueError(
+            f"{dataset.name!r} uses representation "
+            f"{restored.representation!r}; expected "
+            f"{expected_representation!r} for {canonical_name!r}"
+        )
+    return restored
 
 
 def _attach_radarray_views(group, target, dataset_names, canonical_schema,
@@ -221,14 +238,9 @@ def _attach_radarray_views(group, target, dataset_names, canonical_schema,
         }
     else:
         mapping = {
-            "boundary": ("boundary_radarray", "boundary_proper_code"),
             "boundary_proper_code": ("boundary_radarray", "boundary_proper_code"),
-            "boundary_comoving_code": ("boundary_radarray", "boundary_comoving_code"),
-            "rho_code": ("rho_radarray", "rho_proper_code"),
             "rho_proper_code": ("rho_radarray", "rho_proper_code"),
-            "vel_code": ("vel_radarray", "vel_proper_code"),
             "vel_proper_code": ("vel_radarray", "vel_proper_code"),
-            "temp_code": ("temp_radarray", "temp_proper_code"),
             "temp_proper_code": ("temp_radarray", "temp_proper_code"),
             "pre_proper_code": ("pre_radarray", "pre_proper_code"),
             "ngamma_code": ("ngamma_radarray", "ngamma_proper_code"),
@@ -399,7 +411,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
                 "dual_energy_config", "positivity", "radiation", "units",
             }:
                 continue
-            if cosmological_schema and key in {"time_code", "box_size_code"}:
+            if key in {"time_code", "box_size_code"}:
                 continue
             if cosmological_schema is False and key in {
                 "tau_supercomoving_code",
@@ -457,8 +469,12 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.cm,
             metadata={
                 "quantity": "radius",
-                "coordinate_frame": getattr(ric.par, "coordinate_frame", "physical"),
-                "representation": getattr(ric.par, "coordinate_frame", "physical"),
+                "coordinate_frame": (
+                    "comoving" if cosmological_schema else "physical"
+                ),
+                "representation": (
+                    "comoving" if cosmological_schema else "proper"
+                ),
                 "physical_relation": (
                     "physical = a * stored"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -478,8 +494,12 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.cm,
             metadata={
                 "quantity": "radius",
-                "coordinate_frame": getattr(ric.par, "coordinate_frame", "physical"),
-                "representation": getattr(ric.par, "coordinate_frame", "physical"),
+                "coordinate_frame": (
+                    "comoving" if cosmological_schema else "physical"
+                ),
+                "representation": (
+                    "comoving" if cosmological_schema else "proper"
+                ),
                 "physical_relation": (
                     "physical = a * stored"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -502,7 +522,9 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.g / unyt.cm**3,
             metadata={
                 "quantity": "mass_density",
-                "representation": getattr(ric.par, "density_representation", "physical"),
+                "representation": (
+                    "comoving" if cosmological_schema else "proper"
+                ),
                 "scale_factor_power": 3.0 if getattr(ric.par, "supercomoving_coordinates", False) else 0.0,
                 "physical_relation": (
                     "physical = stored / a**3"
@@ -526,7 +548,9 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.cm / unyt.s,
             metadata={
                 "quantity": "velocity",
-                "representation": getattr(ric.par, "velocity_representation", "physical"),
+                "representation": (
+                    "supercomoving" if cosmological_schema else "proper"
+                ),
                 "physical_relation": (
                     "physical = H*a*x + stored/a"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -550,9 +574,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
             metadata={
                 "quantity": "temperature",
                 "representation": (
-                    getattr(ric.par, "temperature_representation", "physical")
-                    if getattr(ric.par, "supercomoving_coordinates", False)
-                    else "physical"
+                    "supercomoving" if cosmological_schema else "proper"
                 ),
                 "scale_factor_power": (
                     3.0 * (ric.par.hydrodynamics.gamma - 1.0)
@@ -628,7 +650,6 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
                 if not isinstance(dataset, h5py.Dataset):
                     continue
                 if dataset_name in {
-                    "boundary", "rho_code", "vel_code", "temp_code",
                     "boundary_comoving_code", "rho_comoving_code",
                     "vel_supercomoving_code", "temp_supercomoving_code",
                 }:
@@ -715,9 +736,8 @@ def writehdf5(ric, ICfilename, *, provenance=None):
 def readhdf5(par, mesh, fluid, ICfilename): 
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
 
-    Canonical ``*_code`` datasets are restored into the runtime code-unit
-    system when ``CodeUnits`` is available in the file header, so fields such
-    as ``fluid.rho_code`` come back as plain numeric arrays in code units.
+    Canonical representation-specific datasets are restored into the runtime
+    code-unit system when ``CodeUnits`` is available in the file header.
     """
     ICfilename = str(ICfilename)
     print(f"--- reading {ICfilename} --- ")
@@ -776,6 +796,24 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 "Number of grids in IC (%s) and run (%s) do not agree!"
                 % (grid_cells, expected_nogrid)
             )
+        gdata = fic["Data"]
+        generic_header_names = (
+            _GENERIC_HEADER_DATASETS.intersection(header.keys())
+            or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
+        )
+        if generic_header_names:
+            names = ", ".join(sorted(generic_header_names))
+            raise ValueError(
+                f"HDF5 header uses unsupported generic field name(s): {names}; "
+                "use the representation-specific schema"
+            )
+        generic_data_names = _GENERIC_PRIMITIVE_DATASETS.intersection(gdata.keys())
+        if generic_data_names:
+            names = ", ".join(sorted(generic_data_names))
+            raise ValueError(
+                f"HDF5 data uses unsupported generic field name(s): {names}; "
+                "use the representation-specific schema"
+            )
         # The canonical representation is encoded by the typed header
         # datasets.  Parameter attributes may contain stale fields from an
         # input namespace, so they must not decide the restart schema.
@@ -789,21 +827,26 @@ def readhdf5(par, mesh, fluid, ICfilename):
         )
         if canonical_cosmological_schema and canonical_proper_schema:
             raise ValueError("HDF5 header mixes cosmological and proper schemas")
-        if canonical_cosmological_schema and (
-            "time_code" in header or "box_size_code" in header
-        ):
-            raise ValueError("cosmological HDF5 headers must not use generic time/box names")
+        if not canonical_cosmological_schema and not canonical_proper_schema:
+            raise ValueError(
+                "HDF5 header has no canonical representation-specific time and "
+                "box-size datasets"
+            )
+        if canonical_cosmological_schema:
+            required_header_names = {
+                "tau_supercomoving_code", "box_size_comoving_code"
+            }
+        else:
+            required_header_names = {
+                "time_proper_code", "box_size_proper_code"
+            }
+        missing_header_names = required_header_names.difference(header.keys())
+        if missing_header_names:
+            names = ", ".join(sorted(missing_header_names))
+            raise ValueError(f"HDF5 header is missing canonical dataset(s): {names}")
         header_scale_map = {
-            (
-                "tau_supercomoving_code"
-                if canonical_cosmological_schema
-                else "time_proper_code" if canonical_proper_schema else "time_code"
-            ): "time_s",
-            (
-                "box_size_comoving_code"
-                if canonical_cosmological_schema
-                else "box_size_proper_code" if canonical_proper_schema else "box_size_code"
-            ): "length_cgs_cm",
+            "tau_supercomoving_code" if canonical_cosmological_schema else "time_proper_code": "time_s",
+            "box_size_comoving_code" if canonical_cosmological_schema else "box_size_proper_code": "length_cgs_cm",
         }
         _populate_group_targets(
             header,
@@ -841,12 +884,12 @@ def readhdf5(par, mesh, fluid, ICfilename):
             time_field = (
                 "tau_supercomoving_code"
                 if canonical_cosmological_schema
-                else "time_proper_code" if canonical_proper_schema else "time_code"
+                else "time_proper_code"
             )
             box_field = (
                 "box_size_comoving_code"
                 if canonical_cosmological_schema
-                else "box_size_proper_code" if canonical_proper_schema else "box_size_code"
+                else "box_size_proper_code"
             )
             runtime_time = getattr(par, time_field)
             if hasattr(runtime_time, "to_value"):
@@ -864,19 +907,13 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 par.simulation.box_size_proper_code = getattr(par, box_field)
             if canonical_cosmological_schema:
                 fluid.tau_supercomoving_code = par.simulation.time_code
-            elif canonical_proper_schema:
-                fluid.time_proper_code = par.simulation.time_code
             else:
-                fluid.time_code = par.simulation.time_code.copy() if hasattr(
-                    par.simulation.time_code, "copy"
-                ) else float(par.simulation.time_code)
+                fluid.time_proper_code = par.simulation.time_code
         else:
-            # Plain parameter namespaces are accepted only as an I/O boundary
-            # for callers that do not construct a full Par object.
             time_field = (
                 "tau_supercomoving_code"
                 if canonical_cosmological_schema
-                else "time_proper_code" if canonical_proper_schema else "time_code"
+                else "time_proper_code"
             )
             runtime_time = getattr(par, time_field)
             if hasattr(runtime_time, "to_value"):
@@ -889,24 +926,17 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 )
             if canonical_cosmological_schema:
                 fluid.tau_supercomoving_code = runtime_time
-            elif canonical_proper_schema:
-                fluid.time_proper_code = runtime_time
             else:
-                fluid.time_code = runtime_time
+                fluid.time_proper_code = runtime_time
 
         #second, save mesh and fluid data:
-        gdata = fic["Data"]
         data_scale_map = {
-            "boundary": "length_cgs_cm",
             "boundary_proper_code": "length_cgs_cm",
             "boundary_comoving_code": "length_cgs_cm",
-            "rho_code": "density_cgs_g_cm3",
             "rho_proper_code": "density_cgs_g_cm3",
             "rho_comoving_code": "density_cgs_g_cm3",
-            "vel_code": "velocity_cgs_cm_s",
             "vel_proper_code": "velocity_cgs_cm_s",
             "vel_supercomoving_code": "velocity_cgs_cm_s",
-            "temp_code": "temperature_cgs_K",
             "temp_proper_code": "temperature_cgs_K",
             "temp_supercomoving_code": "temperature_cgs_K",
             "ngamma_code": "number_density_cgs_cm3",
@@ -932,7 +962,6 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units,
             snapshot_cosmology,
             allowed_names={
-                "boundary",
                 "boundary_proper_code",
                 "boundary_comoving_code",
             },
@@ -945,13 +974,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
             code_units,
             snapshot_cosmology,
             allowed_names={
-                "rho_code",
                 "rho_proper_code",
                 "rho_comoving_code",
-                "vel_code",
                 "vel_proper_code",
                 "vel_supercomoving_code",
-                "temp_code",
                 "temp_proper_code",
                 "temp_supercomoving_code",
                 "pre_proper_code",
