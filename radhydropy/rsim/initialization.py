@@ -217,38 +217,20 @@ def ConvertParametersToCodeUnits(sim):
     # otherwise, for example, ``simulation.final_time`` can retain the
     # unitful YAML value while the flat ``timesim`` attribute is code-valued.
     initialize_groups = getattr(sim.par, "_initialize_parameter_groups", None)
-    if initialize_groups is not None:
-        initialize_groups()
-        sync_simulation = getattr(
-            sim.par, "_sync_simulation_parameters", None
+    if initialize_groups is None:
+        raise TypeError(
+            "ConvertParametersToCodeUnits requires the canonical Par "
+            "parameter container"
         )
-        if sync_simulation is not None:
-            sync_simulation()
-        configure_cosmology = getattr(sim.par, "_configure_cosmology", None)
-        if configure_cosmology is not None and getattr(
-            sim.par, "cosmological_expansion", False
-        ):
-            configure_cosmology()
-    else:
-        for sync_name in (
-            "_sync_simulation_parameters",
-            "_sync_output_parameters",
-            "_sync_timestep_parameters",
-        ):
-            sync = getattr(sim.par, sync_name, None)
-            if sync is not None:
-                sync()
-    # Preserve compatibility with lightweight parameter namespaces used by
-    # component-level callers, which do not provide Par's sync methods.
-    simulation = getattr(sim.par, "simulation", None)
-    if simulation is not None and not hasattr(sim.par, "_sync_simulation_parameters"):
-        for nested_name, flat_name in (
-            ("final_time", "timesim"),
-            ("time_code", "time"),
-            ("box_size_proper_code", "length"),
-        ):
-            if hasattr(simulation, nested_name) and hasattr(sim.par, flat_name):
-                setattr(simulation, nested_name, getattr(sim.par, flat_name))
+    initialize_groups()
+    sync_simulation = getattr(sim.par, "_sync_simulation_parameters", None)
+    if sync_simulation is not None:
+        sync_simulation()
+    configure_cosmology = getattr(sim.par, "_configure_cosmology", None)
+    if configure_cosmology is not None and getattr(
+        sim.par, "cosmological_expansion", False
+    ):
+        configure_cosmology()
     _require_unitless_runtime_parameters(sim)
     source_rate = getattr(sim.par, 'source_photon_rate', None)
     if source_rate is None and hasattr(sim.par, '_parameter'):

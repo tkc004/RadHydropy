@@ -3,9 +3,11 @@
 import pytest
 import unyt
 import numpy as np
+from types import SimpleNamespace
 
 from radhydropy.params import Par
 from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 
 CODE_UNITS = {
@@ -221,3 +223,13 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     assert sim.par.hydrogen_beta == pytest.approx(3.0e-54)
     assert sim.par.hydrogen_implicit_absolute_temperature_tolerance == pytest.approx(10.0)
     assert sim.par.cmb_temperature_0 == pytest.approx(2.0)
+
+
+def test_convert_parameters_rejects_lightweight_parameter_namespace():
+    sim = Rsim.__new__(Rsim)
+    sim.par = SimpleNamespace(
+        units=SimpleNamespace(CodeUnits=CodeUnits.from_mapping(CODE_UNITS)),
+    )
+
+    with pytest.raises(TypeError, match="canonical Par"):
+        sim.ConvertParametersToCodeUnits()
