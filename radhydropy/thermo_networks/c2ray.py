@@ -28,6 +28,7 @@ from radhydropy.units import (
     PHOTON_FLUX_UNIT,
     PHOTON_RATE_UNIT,
     _code_units,
+    from_unit_value,
     time_seconds,
     quantity_or_code_to_cgs,
 )
@@ -865,3 +866,26 @@ def _ensure_fluid_photon_shape(fluid, photon_density, par):
         np.zeros((target[0], len(density)), dtype=float)
         if len(target) == 2 else np.zeros(len(density), dtype=float)
     )
+
+
+def sync_fluid_photon_density(fluid, photon_density, par, interior):
+    """Write a C²-Ray photon density into the runtime fluid field."""
+
+    _ensure_fluid_photon_shape(fluid, photon_density, par)
+    code = _code_units(par)
+    photon_density_code = from_unit_value(
+        photon_density,
+        code.number_density_unit,
+    )
+    if np.ndim(photon_density_code) == 2:
+        destination = fluid.ngamma_code
+        if destination.shape[-1] == photon_density_code.shape[-1]:
+            destination[...] = photon_density_code
+        else:
+            destination[:, interior] = photon_density_code
+    else:
+        destination = fluid.ngamma_code
+        if destination.shape[-1] == np.shape(photon_density_code)[-1]:
+            destination[...] = photon_density_code
+        else:
+            destination[interior] = photon_density_code

@@ -458,6 +458,17 @@ class InitialConditionWriter:
             "ngamma_comoving_code": "ngamma_proper_code",
         }.get(field_name)
         value = self._fields.get(field_name)
+        if value is None and field_name in (
+            "ngamma_proper_code", "ngamma_comoving_code"
+        ):
+            # ``ngamma_code`` is the mutable solver field.  The dimensional
+            # ``ngamma_radarray`` is an analysis view and may be stale after
+            # thermochemistry has updated the runtime state.
+            value = getattr(container, "ngamma_code", None)
+            if value is not None and hasattr(value, "units") and not isinstance(
+                value, (RadArray, RadQuantity)
+            ):
+                value = None
         # A prepared runtime simulation owns the canonical target field.  Use
         # it before the analysis-oriented ``*_radarray`` view, which may carry
         # stale or differently represented metadata after a restart.
@@ -770,10 +781,12 @@ class InitialConditionWriter:
             "ngamma_comoving_code" if cosmological_schema else "ngamma_proper_code"
         )
         source_ngamma = self._field(ngamma_field, fluid, required=False)
+        source_ngamma_values = None
         if source_ngamma is not None:
-            fluid.ngamma_code = self._convert(
+            source_ngamma_values = self._convert(
                 source_ngamma, ngamma_field, context=context,
             )
+            fluid.ngamma_code = source_ngamma_values.copy()
         specific_angular_momentum = getattr(
             fluid, "specific_angular_momentum_radarray", None
         )
@@ -837,6 +850,26 @@ class InitialConditionWriter:
             mesh._par = par
             simulation.SetMesh()
             fluid.SetUpFluid(par, mesh=mesh)
+            if source_ngamma_values is not None:
+                # SetUpFluid initializes radiation fields for a fresh solver
+                # state.  Snapshot preparation must retain the caller's
+                # canonical photon density instead of replacing it with zeros.
+                photon_values = np.asarray(source_ngamma_values, dtype=float)
+                if photon_values.ndim == 1 and photon_values.size != active_count:
+                    photon_values = photon_values[
+                        original_ghost_cells:original_ghost_cells + active_count
+                    ]
+                elif photon_values.ndim == 2 and photon_values.shape[-1] != active_count:
+                    photon_values = photon_values[
+                        ..., original_ghost_cells:original_ghost_cells + active_count
+                    ]
+                fluid.ngamma_code = np.pad(
+                    photon_values,
+                    ((0, 0), (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)))
+                    if photon_values.ndim == 2
+                    else (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)),
+                    mode="edge",
+                )
             if specific_angular_momentum_values is not None:
                 fluid.specific_angular_momentum_code = (
                     np.pad(

@@ -89,6 +89,29 @@ def test_c2ray_initial_trace_does_not_change_chemistry():
     np.testing.assert_allclose(state["ngamma_cgs_cm3"], result.photon_density[0])
 
 
+def test_c2ray_syncs_multigroup_photon_density_to_active_fluid_cells():
+    fluid = SimpleNamespace(
+        rho_proper_code=np.ones(6),
+        ngamma_code=np.zeros((2, 6)),
+    )
+    photon_density_cgs_cm3 = np.array(
+        [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+    )
+
+    c2ray.sync_fluid_photon_density(
+        fluid,
+        photon_density_cgs_cm3,
+        make_par(),
+        slice(1, 5),
+    )
+
+    np.testing.assert_array_equal(
+        fluid.ngamma_code,
+        [[0.0, 1.0, 2.0, 3.0, 4.0, 0.0],
+         [0.0, 5.0, 6.0, 7.0, 8.0, 0.0]],
+    )
+
+
 def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
     state = make_state(ncell=3)
     state.update(

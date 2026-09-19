@@ -199,6 +199,9 @@ class Testing(unittest.TestCase):
             Energy_code=np.ones(2) * unyt.erg,
             ngamma_code=np.ones(2) / unyt.cm**3,
         )
+        # The analysis view can remain stale after runtime chemistry updates;
+        # serialization must use the mutable canonical solver field.
+        fluid.ngamma_radarray = np.zeros(2)
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
         loaded_par = parameter_namespace(coordsys='cartesian', CodeUnits=CODE_UNITS)
