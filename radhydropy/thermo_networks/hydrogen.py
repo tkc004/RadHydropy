@@ -1938,6 +1938,60 @@ def _copy_fast_source_state(state):
     return copy.deepcopy(state)
 
 
+def _source_array_scale(state, name, active_indices):
+    """Return a compact scale summary for an explicit-source diagnostic."""
+    values = state.get(name)
+    if values is None:
+        return f"{name}=unavailable"
+    values = np.asarray(values, dtype=float)
+    if values.ndim == 0:
+        selected = values.reshape(1)
+    elif active_indices.size:
+        selected = values[active_indices]
+    else:
+        selected = values.reshape(-1)
+    finite = selected[np.isfinite(selected)]
+    if finite.size == 0:
+        return f"{name}=no-finite-values"
+    return (
+        f"{name}=min:{np.min(finite):.6e},"
+        f"max:{np.max(finite):.6e},"
+        f"max_abs:{np.max(np.abs(finite)):.6e}"
+    )
+
+
+def _raise_invalid_source_timestep(
+    state, candidate_dt_s, remaining_s, thermal_rate
+):
+    """Raise a diagnostic error when an explicit source step cannot progress."""
+    active = np.asarray(
+        state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
+        dtype=bool,
+    )
+    active_indices = np.flatnonzero(active)
+    scales = "; ".join(
+        (
+            _source_array_scale(state, "rho_cgs_g_cm3", active_indices),
+            _source_array_scale(state, "temperature_cgs_K", active_indices),
+            _source_array_scale(
+                state, "specific_energy_cgs_erg_g", active_indices
+            ),
+            _source_array_scale(
+                {"thermal_rate_cgs_erg_cm3_s": thermal_rate},
+                "thermal_rate_cgs_erg_cm3_s",
+                active_indices,
+            ),
+            _source_array_scale(state, "source_rate_s", active_indices),
+        )
+    )
+    raise RuntimeError(
+        "hydrogen explicit source timestep is non-finite or non-positive; "
+        f"active_cell_indices={active_indices.tolist()}, "
+        f"candidate_dt_s={candidate_dt_s!r}, "
+        f"remaining_s={remaining_s!r}; {scales}"
+    )
+
+
 def _explicit_source_state_update(state, remaining_s, par):
     """Advance a local source state with the existing explicit subcycler."""
     source_steps = 0
@@ -1960,7 +2014,9 @@ def _explicit_source_state_update(state, remaining_s, par):
             verbose=getattr(par, 'verbose', 0) >= 2,
         )
         if not np.isfinite(sub_dt_s) or sub_dt_s <= 0.0:
-            sub_dt_s = remaining_s
+            _raise_invalid_source_timestep(
+                state, sub_dt_s, remaining_s, thermal_rate
+            )
         sub_dt_s = min(sub_dt_s, remaining_s)
 
         if state['thermal_coupling']:
@@ -2860,7 +2916,9 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             verbose=getattr(par, 'verbose', 0) >= 2,
         )
         if not np.isfinite(sub_dt_s) or sub_dt_s <= zero_time_s:
-            sub_dt_s = remaining_s
+            _raise_invalid_source_timestep(
+                state, sub_dt_s, remaining_s, thermal_rate
+            )
         if sub_dt_s > remaining_s:
             sub_dt_s = remaining_s
 

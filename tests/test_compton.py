@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from types import SimpleNamespace
 from tests.parameter_fixtures import parameter_namespace
+import radhydropy.thermo_networks.hydrogen as hydrogen_network
 
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.thermo_networks.hydrogen import (
@@ -16,6 +17,44 @@ from radhydropy.thermo_networks.hydrogen import (
     ionization_fraction_rate,
     thermal_rate,
 )
+
+
+@pytest.mark.parametrize("invalid_dt", [0.0, np.nan, np.inf])
+def test_explicit_hydrogen_source_rejects_invalid_timestep(
+    monkeypatch, invalid_dt
+):
+    state = {
+        "active": np.array([True, False, True]),
+        "rho_cgs_g_cm3": np.array([1.0e-24, 0.0, 2.0e-24]),
+        "temperature_cgs_K": np.array([1.0e4, 0.0, 2.0e4]),
+        "specific_energy_cgs_erg_g": np.array([1.0e12, 0.0, 2.0e12]),
+        "source_rate_s": np.array([3.0, 0.0, 4.0]),
+        "thermal_coupling": False,
+        "hydrogen_update_mu": False,
+        "recombination": False,
+        "collisional_ionization": False,
+    }
+
+    monkeypatch.setattr(
+        hydrogen_network,
+        "get_timestep",
+        lambda *args, **kwargs: (invalid_dt, None),
+    )
+
+    with pytest.raises(RuntimeError, match="hydrogen explicit source timestep") as exc:
+        hydrogen_network._explicit_source_state_update(
+            state, remaining_s=10.0, par=SimpleNamespace(verbose=0)
+        )
+
+    message = str(exc.value)
+    assert "active_cell_indices=[0, 2]" in message
+    assert f"candidate_dt_s={invalid_dt!r}" in message
+    assert "remaining_s=10.0" in message
+    assert "rho_cgs_g_cm3=" in message
+    assert "temperature_cgs_K=" in message
+    assert "specific_energy_cgs_erg_g=" in message
+    assert "thermal_rate_cgs_erg_cm3_s=unavailable" in message
+    assert "source_rate_s=" in message
 
 
 def test_source_stability_limit_overrides_configured_source_dtmin():
@@ -537,6 +576,17 @@ def test_coupled_implicit_error_fallback_raises():
     )
     par.hydrogen_implicit_max_iterations = 0
     with pytest.raises(RuntimeError, match='did not converge'):
+        apply_thermochemistry_fast(1.0, mesh, fluid, par)
+
+
+def test_public_explicit_source_rejects_invalid_timestep():
+    _, par, fluid, mesh, _ = _source_test_problem(solver='explicit')
+    par.hydrogen_source_CFL = 0.0
+
+    with pytest.raises(
+        RuntimeError,
+        match='hydrogen explicit source timestep.*active_cell_indices',
+    ):
         apply_thermochemistry_fast(1.0, mesh, fluid, par)
 
 
