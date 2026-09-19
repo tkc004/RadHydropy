@@ -1,10 +1,4 @@
-"""Small, explicit nested parameter fixtures for focused unit tests.
-
-The production code consumes nested parameter groups.  These fixtures retain
-the flat names only where a test is exercising file-format metadata or legacy
-input construction; the groups themselves are ordinary namespaces, not
-attribute-forwarding compatibility proxies.
-"""
+"""Small, explicit representation-specific parameter fixtures."""
 
 from types import SimpleNamespace
 
@@ -21,7 +15,8 @@ def parameter_namespace(**values):
         coordinate_system=values.get("coordsys"),
         final_time=values.get("timesim"),
         initial_condition_filename=values.get("ICfilename"),
-        time_code=values.get("time_code"),
+        time_proper_code=values.get("time_proper_code"),
+        tau_supercomoving_code=values.get("tau_supercomoving_code"),
         box_size_proper_code=values.get("box_size_proper"),
         box_size_comoving_code=values.get("box_size_proper"),
     )

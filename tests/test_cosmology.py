@@ -286,7 +286,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     )
     par = parameter_namespace(
         coordsys='spherical', nogrid=2, noghost=0,
-        CodeUnits=units, time_code=tau_initial,
+        CodeUnits=units, tau_supercomoving_code=tau_initial,
         box_size_proper=3.0 * units.length_unit,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='einstein_de_sitter',
@@ -349,11 +349,11 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         loaded_par.tau_supercomoving_code = tau_restart
         loaded_fluid.tau_supercomoving_code = tau_restart
         restart_scale = cosmology.scale_factor(cosmic_times[1])
-        restart_rho_code = np.asarray(
+        restart_rho_comoving_code = np.asarray(
             loaded_fluid.rho_comoving_code, dtype=float
         )
         restart_j = np.asarray(loaded_fluid.specific_angular_momentum_code, dtype=float)
-        restart_energy = 0.5 * restart_rho_code * (restart_j / x)**2
+        restart_energy = 0.5 * restart_rho_comoving_code * (restart_j / x)**2
         physical_restart_energy = (
             0.5 * (physical_density_at_a1 / restart_scale**3)
             * (j / (restart_scale * x))**2
@@ -372,7 +372,7 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
         coordsys='cartesian', nogrid=2, noghost=0,
-        CodeUnits=units, time_code=tau, box_size_proper=2.0,
+        CodeUnits=units, tau_supercomoving_code=tau, box_size_proper=2.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='einstein_de_sitter',
         cosmology_t_ref=1.0, cosmology_a_ref=1.0,
@@ -428,7 +428,7 @@ def test_lambda_cdm_header_round_trip():
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
         coordsys='cartesian', nogrid=1, noghost=0,
-        CodeUnits=units, time_code=tau, box_size_proper=1.0,
+        CodeUnits=units, tau_supercomoving_code=tau, box_size_proper=1.0,
         cosmological_expansion=True, supercomoving_coordinates=True,
         cosmology=cosmology, cosmology_type='lambda_cdm',
         cosmology_t_ref=2.0, cosmology_a_ref=1.0,

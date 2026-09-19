@@ -61,13 +61,13 @@ def _attach_proper_runtime_state(mesh, fluid):
         volume_proper_code=width_proper_code,
     )
     density_proper_code = np.asarray(
-        fluid.rho_code.to_value(unyt.g / unyt.cm**3), dtype=float
+        fluid.rho_proper_code.to_value(unyt.g / unyt.cm**3), dtype=float
     )
     velocity_proper_code = np.asarray(
-        fluid.vel_code.to_value(unyt.cm / unyt.s), dtype=float
+        fluid.vel_proper_code.to_value(unyt.cm / unyt.s), dtype=float
     )
     temperature_proper_code = np.asarray(
-        fluid.temp_code.to_value(unyt.K), dtype=float
+        fluid.temp_proper_code.to_value(unyt.K), dtype=float
     )
     fluid.rho_proper_code = density_proper_code
     fluid.vel_proper_code = velocity_proper_code
@@ -140,7 +140,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=0.0 * unyt.s,
+            time_proper_code=0.0 * unyt.s,
             box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -148,9 +148,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
@@ -184,15 +184,15 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=2,
-            time_code=0.0 * unyt.s,
+            time_proper_code=0.0 * unyt.s,
             box_size_proper=2.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
         mesh = SimpleNamespace(boundary=np.array([0.0, 1.0, 2.0]) * unyt.cm)
         fluid = SimpleNamespace(
-            rho_code=np.ones(2) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(2) * unyt.cm / unyt.s,
-            temp_code=np.ones(2) * unyt.K,
+            rho_proper_code=np.ones(2) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(2) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(2) * unyt.K,
             mu=np.ones(2),
             xHI=np.ones(2),
             Mass_code=np.ones(2) * unyt.g,
@@ -216,8 +216,11 @@ class Testing(unittest.TestCase):
                 assert not {'Density', 'Velocity', 'Temperature', 'Mass', 'Energy'}.intersection(data_names)
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
-        np.testing.assert_allclose(loaded_fluid.rho_proper_code, fluid.rho_code.value)
-        np.testing.assert_allclose(loaded_fluid.ngamma_code, fluid.ngamma_code.value)
+        np.testing.assert_allclose(loaded_fluid.rho_proper_code, fluid.rho_proper_code)
+        np.testing.assert_allclose(
+            np.asarray(loaded_fluid.ngamma_code),
+            np.asarray(fluid.ngamma_code),
+        )
         np.testing.assert_allclose(loaded_mesh.boundary_proper_code, mesh.boundary.to_value(unyt.cm))
 
     def test_hdf5_canonical_fields_are_stored_as_code_values(self):
@@ -338,7 +341,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=0.0 * unyt.s,
+            time_proper_code=0.0 * unyt.s,
             box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -348,9 +351,9 @@ class Testing(unittest.TestCase):
         specific = np.array([1.0, 2.0, 3.0]) * unyt.cm**2 / unyt.s
         angular = np.array([4.0, 5.0, 6.0]) * unyt.g * unyt.cm**2 / unyt.s
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
             specific_angular_momentum_code=specific,
             AngularMomentum_code=angular,
@@ -380,7 +383,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=1.5 * unyt.s,
+            time_proper_code=1.5 * unyt.s,
             box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
             custom_scalar=7,
@@ -391,9 +394,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
@@ -434,7 +437,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=0.0 * unyt.s,
+            time_proper_code=0.0 * unyt.s,
             box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -442,9 +445,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
@@ -505,7 +508,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=1.5 * unyt.s,
+            time_proper_code=1.5 * unyt.s,
             box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
             custom_scalar=7,
@@ -515,9 +518,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
@@ -545,7 +548,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=1.5 * unyt.s,
+            time_proper_code=1.5 * unyt.s,
             box_size_proper=3.0 * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -553,11 +556,11 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
-            time_code=2.5 * unyt.s,
+            time_proper_code=2.5 * unyt.s,
         )
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
         sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
@@ -565,13 +568,13 @@ class Testing(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix='.hdf5') as output:
             rio.writehdf5(sim, output.name)
 
-        self.assertEqual(par.time_code, 1.5 * unyt.s)
+        self.assertEqual(par.time_proper_code, 1.5 * unyt.s)
 
     def test_hdf5_roundtrip_preserves_neutral_fraction_when_present(self):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=np.array([0.0]) * unyt.s,
+            time_proper_code=np.array([0.0]) * unyt.s,
             box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -579,9 +582,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g/unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm/unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g/unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm/unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
             xHI=np.array([1.0, 0.5, 0.0]),
         )
@@ -602,7 +605,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=np.array([0.0]) * unyt.s,
+            time_proper_code=np.array([0.0]) * unyt.s,
             box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -610,9 +613,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g/unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm/unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g/unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm/unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
             ngamma_code=np.array([0.0, 1.0, 2.0]) / unyt.cm**3,
         )
@@ -634,7 +637,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=np.array([0.0]) * unyt.s,
+            time_proper_code=np.array([0.0]) * unyt.s,
             box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -642,9 +645,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
             InternalEnergy_code=np.array([1.0, 2.0, 3.0]) * unyt.erg,
         )
@@ -669,7 +672,7 @@ class Testing(unittest.TestCase):
         par = parameter_namespace(
             coordsys='cartesian',
             nogrid=3,
-            time_code=np.array([0.0]) * unyt.s,
+            time_proper_code=np.array([0.0]) * unyt.s,
             box_size_proper=np.array([3.0]) * unyt.cm,
             CodeUnits=CODE_UNITS,
         )
@@ -677,9 +680,9 @@ class Testing(unittest.TestCase):
             boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
         )
         fluid = SimpleNamespace(
-            rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-            vel_code=np.zeros(3) * unyt.cm / unyt.s,
-            temp_code=np.ones(3) * unyt.K,
+            rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+            vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+            temp_proper_code=np.ones(3) * unyt.K,
             mu=np.ones(3),
         )
         mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
@@ -840,7 +843,7 @@ class Testing(unittest.TestCase):
                 par = parameter_namespace(
                     coordsys='cartesian',
                     nogrid=3,
-                    time_code=0.0 * unyt.s,
+                    time_proper_code=0.0 * unyt.s,
                     box_size_proper=3.0 * unyt.cm,
                     CodeUnits=CODE_UNITS,
                 )
@@ -848,9 +851,9 @@ class Testing(unittest.TestCase):
                     boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
                 )
                 fluid = SimpleNamespace(
-                    rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-                    vel_code=np.zeros(3) * unyt.cm / unyt.s,
-                    temp_code=np.ones(3) * unyt.K,
+                    rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+                    vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+                    temp_proper_code=np.ones(3) * unyt.K,
                     mu=np.ones(3),
                 )
                 mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
@@ -878,7 +881,7 @@ class Testing(unittest.TestCase):
                 par = parameter_namespace(
                     coordsys='cartesian',
                     nogrid=3,
-                    time_code=0.0 * unyt.s,
+                    time_proper_code=0.0 * unyt.s,
                     box_size_proper=3.0 * unyt.cm,
                     CodeUnits=CODE_UNITS,
                 )
@@ -886,9 +889,9 @@ class Testing(unittest.TestCase):
                     boundary=np.linspace(0.0, 3.0, 4) * unyt.cm,
                 )
                 fluid = SimpleNamespace(
-                    rho_code=np.ones(3) * unyt.g / unyt.cm**3,
-                    vel_code=np.zeros(3) * unyt.cm / unyt.s,
-                    temp_code=np.ones(3) * unyt.K,
+                    rho_proper_code=np.ones(3) * unyt.g / unyt.cm**3,
+                    vel_proper_code=np.zeros(3) * unyt.cm / unyt.s,
+                    temp_proper_code=np.ones(3) * unyt.K,
                     mu=np.ones(3),
                 )
                 mesh, fluid = _attach_proper_runtime_state(mesh, fluid)
