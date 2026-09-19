@@ -55,6 +55,18 @@ def test_fluid_primitive_updates_reject_unconfigured_runtime_representation():
             getattr(fluid, method_name)()
 
 
+def test_hydrogen_helium_mu_rejects_unconfigured_runtime_representation():
+    fluid = Fluid()
+    fluid.rho_code = np.ones(2)
+    fluid.xHI = np.ones(2)
+    fluid.xHeI = np.ones(2)
+    fluid.xHeII = np.zeros(2)
+    fluid.xHeIII = np.zeros(2)
+
+    with pytest.raises(UnitBoundaryError, match="representation-specific"):
+        fluid.SetHydrogenHeliumMu()
+
+
 def test_fluid_setup_converts_physical_builder_arrays_before_runtime_state():
     code_units = CodeUnits.from_mapping(
         {

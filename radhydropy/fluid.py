@@ -217,7 +217,10 @@ class Fluid():
         elif self.runtime_fields is SUPERCOMOVING_RUNTIME_FIELDS:
             density = self.rho_comoving_code
         else:
-            density = self.rho_code
+            raise UnitBoundaryError(
+                "SetHydrogenHeliumMu requires configured "
+                "representation-specific runtime fields"
+            )
         nH = hydrogen_mass_fraction * np.asarray(density, dtype=float) / unyt.mp.to_value(unyt.g)
         nHe = helium_mass_fraction * np.asarray(density, dtype=float) / (4.0 * unyt.mp.to_value(unyt.g))
         ne = nH * (1.0 - xHI) + nHe * (xHeII + 2.0 * xHeIII)
