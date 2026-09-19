@@ -7,16 +7,13 @@ import os
 import unyt
 import numpy as np
 import radhydropy.utils as ru
-from radhydropy.units import CodeUnits, code_unit_scales, code_quantity_to_cgs, _code_units
-from radhydropy.arrays import as_named_array
+from radhydropy.units import CodeUnits, _code_units
 from radhydropy.dark_matter import DarkMatterShells, DarkMatterSnapshot
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     PROPER_RUNTIME_FIELDS,
     SUPERCOMOVING_RUNTIME_FIELDS,
 )
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import FieldSpec, field_spec
 from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.io.metadata import (
@@ -54,6 +51,8 @@ _write_cosmology_header = write_cosmology_header
 _restore_cosmology_from_header = restore_cosmology_from_header
 _restore_cosmology_context_from_header = restore_cosmology_context_from_header
 _runtime_field_spec = runtime_field_spec
+
+
 class SnapshotConfigurationError(ValueError):
     """Raised when a snapshot is incompatible with the supplied runtime."""
 
@@ -166,106 +165,6 @@ def _validate_snapshot_configuration(par, header, header_code_units):
                 f"snapshot {parameter_key} {header_value!r} does not match "
                 f"runtime {parameter_key} {expected_value!r}"
             )
-
-
-def _legacy_scale_unit_for_key(scale_key):
-    return {
-        "length_cgs_cm": unyt.cm,
-        "mass_g": unyt.g,
-        "velocity_cgs_cm_s": unyt.cm / unyt.s,
-        "time_s": unyt.s,
-        "temperature_cgs_K": unyt.K,
-        "area_cgs_cm2": unyt.cm**2,
-        "volume_cgs_cm3": unyt.cm**3,
-        "density_cgs_g_cm3": unyt.g / unyt.cm**3,
-        "pressure_cgs_erg_cm3": unyt.erg / unyt.cm**3,
-        "energy_cgs_erg": unyt.erg,
-        "specific_energy_cgs_erg_g": unyt.erg / unyt.g,
-        "momentum_g_cgs_cm_s": unyt.g * unyt.cm / unyt.s,
-        "mass_flux_g_cgs_cm2_s": unyt.g / (unyt.cm**2 * unyt.s),
-        "energy_flux_cgs_erg_cm2_s": unyt.erg / (unyt.cm**2 * unyt.s),
-        "number_density_cgs_cm3": 1.0 / unyt.cm**3,
-        "photon_flux_per_cgs_cm2_s": 1.0 / (unyt.cm**2 * unyt.s),
-        "photon_rate_per_s": 1.0 / unyt.s,
-        "alpha_cgs_cm3_s": unyt.cm**3 / unyt.s,
-        "acceleration_cgs_cm_s2": unyt.cm / unyt.s**2,
-        "specific_angular_momentum": unyt.cm**2 / unyt.s,
-        "angular_momentum": unyt.g * unyt.cm**2 / unyt.s,
-    }.get(scale_key, None)
-
-
-def _legacy_normalize_attr_name(name):
-    """Return a safe Python attribute name for an HDF5 dataset name."""
-    normalized = []
-    for char in str(name):
-        if char.isalnum() or char == "_":
-            normalized.append(char)
-        else:
-            normalized.append("_")
-    result = "".join(normalized).strip("_")
-    return result or "field"
-
-
-def _legacy_read_any_dataset(dataset, code_units=None, scale_key=None):
-    """Read a dataset and normalize it into code-unit numeric arrays.
-
-    When ``code_units`` and ``scale_key`` are provided, the stored dataset is
-    interpreted in its declared unit, converted to the corresponding cgs scale
-    for that physical quantity, and then divided by the runtime code-unit
-    scale.
-    """
-    data = np.asarray(dataset[()], dtype=float)
-    storage_unit = dataset.attrs.get("storage_unit", None)
-    if isinstance(storage_unit, bytes):
-        storage_unit = storage_unit.decode("utf-8")
-    if storage_unit == "code":
-        metadata = {
-            key: _restore_header_attr_value(value)
-            for key, value in dataset.attrs.items()
-            if key not in {"units", "storage_unit"}
-        }
-        metadata["storage_unit"] = storage_unit
-        try:
-            FieldSpec.from_metadata(metadata)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Dataset {dataset.name!r} has invalid FieldSpec metadata"
-            ) from exc
-        return as_named_array(data)
-    if storage_unit not in {None, "cgs"}:
-        raise ValueError(
-            f"Dataset {dataset.name!r} has unsupported storage_unit "
-            f"{storage_unit!r}"
-        )
-    unit_name = dataset.attrs.get("units", None)
-    if code_units is not None and scale_key is not None:
-        scales = code_unit_scales(code_units)
-        if unit_name:
-            stored_unit = unyt.Unit(unit_name)
-            cgs_unit = _scale_unit_for_key(scale_key)
-            if cgs_unit is not None:
-                data = unyt.unyt_array(data, stored_unit).to_value(cgs_unit)
-        return as_named_array(data / scales[scale_key])
-    if unit_name:
-        raise ValueError(
-            f"Cannot read dataset {dataset.name!r} with units {unit_name!r} without a code-unit mapping."
-        )
-    return as_named_array(data)
-
-
-def _legacy_populate_group_targets(group, targets, code_units=None, scale_map=None):
-    scale_map = scale_map or {}
-    for name, dataset in group.items():
-        if not isinstance(dataset, h5py.Dataset):
-            continue
-        value = _read_any_dataset(
-            dataset,
-            code_units=code_units,
-            scale_key=scale_map.get(name),
-        )
-        attr_name = _normalize_attr_name(name)
-        for target in targets:
-            setattr(target, attr_name, value)
 
 
 def _radarray_field_spec(dataset, canonical_name, code_units, cosmology):
@@ -456,212 +355,6 @@ def _attach_dark_matter_radarray_views(
             cosmology=cosmology,
             field_name=softening_field_name,
         ),
-    )
-
-
-def _legacy_write_quantity(
-    group, name, value, code_units=None, scale_key=None, default_unit=None,
-    metadata=None, field_spec_obj=None,
-):
-    def _unit_label(unit_obj):
-        return str(getattr(unit_obj, "units", unit_obj))
-
-    if code_units is None and scale_key is not None:
-        raise ValueError(f"{name} requires code_units for HDF5 serialization")
-
-    storage_unit = (
-        field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
-    )
-    if field_spec_obj is not None and storage_unit == "code":
-        if code_units is None or scale_key is None:
-            raise ValueError(
-                f"{name} requires code_units and scale_key for code storage"
-            )
-        code_unit = _scale_unit_for_key(scale_key)
-        if code_unit is None:
-            raise ValueError(f"no code-unit scale is defined for {scale_key!r}")
-        if hasattr(value, "to_value"):
-            data = np.asarray(value.to_value(code_unit))
-        else:
-            data = np.asarray(value, dtype=float)
-        unit = str(code_unit)
-    elif hasattr(value, "to_value"):
-        if code_units is not None and scale_key is not None:
-            unit_obj = _scale_unit_for_key(scale_key)
-            if unit_obj is None:
-                unit_obj = value.units
-            data = np.asarray(value.to_value(unit_obj))
-            unit = _unit_label(unit_obj)
-        else:
-            data = np.asarray(value.to_value(value.units))
-            unit = str(value.units)
-    elif code_units is not None and scale_key is not None:
-        unit_obj = _scale_unit_for_key(scale_key)
-        if unit_obj is None:
-            unit_obj = unyt.Unit(default_unit) if default_unit is not None else None
-        data = code_quantity_to_cgs(value, code_units, scale_key)
-        unit = _unit_label(unit_obj) if unit_obj is not None else "dimensionless"
-    else:
-        data = np.asarray(value)
-        unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
-    dataset = group.create_dataset(name, data=data)
-    dataset.attrs["units"] = unit
-    dataset.attrs["storage_unit"] = storage_unit
-    if field_spec_obj is not None:
-        for key, metadata_value in field_spec_obj.to_metadata().items():
-            if metadata_value is not None:
-                dataset.attrs[key] = metadata_value
-    for key, metadata_value in (metadata or {}).items():
-        dataset.attrs[key] = metadata_value
-    return dataset
-
-
-def _legacy_write_cosmology_header(header, par, output_time, code_units):
-    """Write the canonical cosmology metadata contract to ``Header``."""
-    if not getattr(par, "cosmological_expansion", False):
-        return
-    cosmology_parameters = getattr(par, "cosmology", None)
-    cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
-    if cosmology is None:
-        raise ValueError("cosmological_expansion requires par.cosmology.model")
-    if getattr(par, "supercomoving_coordinates", False):
-        tau = float(np.asarray(output_time, dtype=float))
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(tau))
-    else:
-        cosmic_time = float(np.asarray(output_time, dtype=float))
-        tau = float(cosmology.supercomoving_time(cosmic_time))
-    header.attrs["CosmologyType"] = cosmology.type_name
-    header.attrs["CosmologyTRef"] = float(cosmology.t_ref)
-    header.attrs["CosmologyARef"] = float(cosmology.a_ref)
-    if cosmology.type_name == "lambda_cdm":
-        header.attrs["CosmologyOmegaM"] = float(cosmology.omega_m)
-        header.attrs["CosmologyOmegaLambda"] = float(cosmology.omega_lambda)
-        header.attrs["CosmologyHubbleRef"] = float(cosmology._hubble_ref)
-    header.attrs["CoordinateFrame"] = getattr(par, "coordinate_frame", "physical")
-    header.attrs["TimeCoordinate"] = getattr(par, "time_coordinate", "cosmic")
-    header.attrs["VelocityRepresentation"] = getattr(par, "velocity_representation", "physical")
-    header.attrs["DensityRepresentation"] = getattr(par, "density_representation", "physical")
-    header.attrs["PressureRepresentation"] = getattr(par, "pressure_representation", "physical")
-    header.attrs["TemperatureRepresentation"] = getattr(par, "temperature_representation", "physical")
-    header.attrs["ScaleFactor"] = float(cosmology.scale_factor(cosmic_time))
-    header.attrs["CosmicTime"] = cosmic_time
-    header.attrs["time_cosmic_code"] = cosmic_time
-    header.attrs["CosmicTimeUnits"] = str(code_units.time_unit)
-    header.attrs["SupercomovingTime"] = tau
-    header.attrs["tau_supercomoving_code"] = tau
-    header.attrs["SupercomovingTimeUnits"] = str(code_units.time_unit)
-    header.attrs["HubbleParameter"] = float(cosmology.hubble(cosmic_time))
-    header.attrs["HubbleParameterUnits"] = str(1.0 / code_units.time_unit)
-    hubble_unit_km_s_Mpc = (
-        code_units.velocity_unit.to_value(unyt.km / unyt.s)
-        / code_units.length_unit.to_value(unyt.Mpc)
-    )
-    header.attrs["HubbleParameterKmS_Mpc"] = (
-        float(cosmology.hubble(cosmic_time)) * hubble_unit_km_s_Mpc
-    )
-    header.attrs["Gamma"] = float(par.hydrodynamics.gamma)
-
-
-def _legacy_restore_cosmology_from_header(par, header, code_units):
-    """Restore and validate cosmology metadata from an HDF5 ``Header``."""
-    enabled = bool(getattr(par, "cosmological_expansion", False))
-    cosmology_type = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
-    if not enabled and cosmology_type is None:
-        return
-    if cosmology_type not in (
-        None, "einstein_de_sitter", "lambda_cdm",
-    ):
-        raise ValueError("unsupported CosmologyType in HDF5 header: %s" % cosmology_type)
-    t_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyTRef", 1.0)))
-    a_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyARef", 1.0)))
-    par.cosmological_expansion = True
-    is_lcdm = cosmology_type == "lambda_cdm"
-    par.cosmology_type = "lambda_cdm" if is_lcdm else "einstein_de_sitter"
-    par.cosmology_t_ref = t_ref
-    par.cosmology_a_ref = a_ref
-    if is_lcdm:
-        omega_m = float(_restore_header_attr_value(
-            header.attrs.get("CosmologyOmegaM", 0.3)))
-        omega_lambda = float(_restore_header_attr_value(
-            header.attrs.get("CosmologyOmegaLambda", 0.7)))
-        hubble_ref = float(_restore_header_attr_value(
-            header.attrs.get("CosmologyHubbleRef", 0.0)))
-        if hubble_ref <= 0.0:
-            hubble_ref = None
-        par.cosmology_omega_m = omega_m
-        par.cosmology_omega_lambda = omega_lambda
-        par.cosmology_hubble_ref = hubble_ref
-        cosmology = LambdaCDM.from_code_units(
-            code_units, t_ref=t_ref, a_ref=a_ref,
-            omega_m=omega_m, omega_lambda=omega_lambda,
-            hubble_ref=hubble_ref,
-        )
-    else:
-        cosmology = EinsteinDeSitter.from_code_units(
-            code_units, t_ref=t_ref, a_ref=a_ref
-        )
-    if hasattr(par, "set_cosmology_model"):
-        par.set_cosmology_model(cosmology)
-    else:
-        par.cosmology = cosmology
-
-
-def _legacy_restore_cosmology_context_from_header(par, header):
-    """Restore the immutable snapshot conversion context from ``Header``."""
-    gamma_value = header.attrs.get("Gamma")
-    scale_factor_value = header.attrs.get("ScaleFactor")
-    hubble_value = header.attrs.get("HubbleParameterKmS_Mpc")
-    if gamma_value is None or scale_factor_value is None or hubble_value is None:
-        return None
-    cosmology_name = _restore_header_attr_value(
-        header.attrs.get("CosmologyType", "proper")
-    )
-    try:
-        context = CosmologyContext(
-            gamma=float(_restore_header_attr_value(gamma_value)),
-            cosmology=str(cosmology_name),
-            isothermal=(
-                getattr(getattr(par, "hydrodynamics", None), "eos_type", "")
-                == "isothermal"
-            ),
-            scale_factor=float(_restore_header_attr_value(scale_factor_value)),
-            hubble_parameter_km_s_Mpc=float(
-                _restore_header_attr_value(hubble_value)
-            ),
-        )
-    except (TypeError, ValueError):
-        # Older examples may record an isothermal gamma=1.0.  That is a
-        # valid solver setting, but not a valid adiabatic conversion context.
-        return None
-    par.cosmology_context = context
-    return context
-
-
-def _legacy_runtime_field_spec(field_name, par, code_units, output_time):
-    """Build metadata for a canonical runtime field at write time."""
-    cosmology_parameters = getattr(par, "cosmology", None)
-    cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
-    if cosmology is None or not getattr(par, "cosmological_expansion", False):
-        return field_spec(field_name, code_units)
-    if getattr(par, "supercomoving_coordinates", False):
-        cosmic_time = float(cosmology.cosmic_time_from_supercomoving(output_time))
-    else:
-        cosmic_time = float(output_time)
-    scale_factor = float(cosmology.scale_factor(cosmic_time))
-    hubble_parameter_km_s_Mpc = None
-    if field_name == "vel_supercomoving_code":
-        hubble_code = float(cosmology.hubble(cosmic_time))
-        hubble_unit_km_s_Mpc = (
-            code_units.velocity_unit.to_value(unyt.km / unyt.s)
-            / code_units.length_unit.to_value(unyt.Mpc)
-        )
-        hubble_parameter_km_s_Mpc = hubble_code * hubble_unit_km_s_Mpc
-    return field_spec(
-        field_name,
-        code_units,
-        cosmology=cosmology.type_name,
-        scale_factor=scale_factor,
-        hubble_parameter_km_s_Mpc=hubble_parameter_km_s_Mpc,
     )
 
 
