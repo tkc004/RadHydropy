@@ -23,27 +23,28 @@ class Testing(unittest.TestCase):
 
         result = rrt.trace_long_characteristics(
             mesh,
-            rho,
-            xHI,
-            sigma_gamma=1.0 * unyt.cm**2,
+            absorber_densities={"HI": rho / unyt.mp.to_value(unyt.g) * xHI},
+            cross_sections_cgs_cm2={"HI": [1.0 * unyt.cm**2]},
             boundary_flux=boundary_flux,
         )
 
-        expected_face_flux = 10.0 * np.exp(-np.arange(4))
+        expected_face_flux = (10.0 * np.exp(-np.arange(4)))[None, :]
         np.testing.assert_allclose(
             np.asarray(result.face_photon_flux),
             expected_face_flux,
             rtol=1.0e-5,
         )
-        expected_cell_flux = expected_face_flux[:-1] * (1.0 - np.exp(-1.0))
+        expected_cell_flux = expected_face_flux[:, :-1] * (1.0 - np.exp(-1.0))
         np.testing.assert_allclose(
             np.asarray(result.cell_photon_flux),
             expected_cell_flux,
             rtol=1.0e-5,
         )
-        np.testing.assert_allclose(result.optical_depth, np.ones(3), rtol=1.0e-5)
+        np.testing.assert_allclose(
+            result.optical_depth, np.ones((1, 3)), rtol=1.0e-5
+        )
 
-    def test_one_group_general_path_matches_legacy_hydrogen_path(self):
+    def test_single_group_uses_canonical_grouped_shape(self):
         mesh = SimpleNamespace(
             coordsys="cartesian",
             boundary=np.array([0.0, 1.0, 2.0], dtype=float),
@@ -52,14 +53,7 @@ class Testing(unittest.TestCase):
         )
         rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
         xHI = np.array([1.0, 0.5])
-        legacy = rrt.trace_long_characteristics(
-            mesh,
-            rho,
-            xHI,
-            sigma_gamma=1.0 * unyt.cm**2,
-            boundary_flux=10.0 / (unyt.cm**2 * unyt.s),
-        )
-        general = rrt.trace_long_characteristics(
+        result = rrt.trace_long_characteristics(
             mesh,
             group_edges_eV=[13.6, 24.6],
             absorber_densities={
@@ -70,14 +64,10 @@ class Testing(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            general.optical_depth,
-            legacy.optical_depth,
+            result.optical_depth,
+            np.ones((1, 2)) * np.array([1.0, 0.5]),
         )
-        np.testing.assert_allclose(
-            general.cell_photon_density,
-            legacy.cell_photon_density,
-        )
-        self.assertEqual(general.cell_photon_density.shape, (2,))
+        self.assertEqual(result.cell_photon_density.shape, (1, 2))
 
     def test_multigroup_long_characteristics_combines_absorbers(self):
         mesh = SimpleNamespace(
@@ -189,9 +179,8 @@ class Testing(unittest.TestCase):
 
         result = rrt.trace_long_characteristics(
             mesh,
-            rho,
-            xHI,
-            sigma_gamma=0.0 * unyt.cm**2,
+            absorber_densities={"HI": rho / unyt.mp.to_value(unyt.g) * xHI},
+            cross_sections_cgs_cm2={"HI": [0.0 * unyt.cm**2]},
             source_photon_rate=source_photon_rate,
             coordsys="spherical",
         )
@@ -201,9 +190,9 @@ class Testing(unittest.TestCase):
             np.array([12.0, 12.0], dtype=float)
             / np.asarray(mesh.vol, dtype=float)
             / unyt.c.to_value(unyt.cm / unyt.s)
-        )
+        )[None, :]
         np.testing.assert_allclose(np.asarray(result.cell_photon_density), expected_density)
-        self.assertGreater(result.cell_photon_density[0], result.cell_photon_density[1])
+        self.assertGreater(result.cell_photon_density[0, 0], result.cell_photon_density[0, 1])
 
     def test_trace_photon_density_returns_cgs_number_density(self):
         state = {
@@ -229,8 +218,8 @@ class Testing(unittest.TestCase):
         ngamma_cgs_cm3 = rrt.trace_photon_density(state, par)
 
         self.assertIsInstance(ngamma_cgs_cm3, np.ndarray)
-        self.assertEqual(ngamma_cgs_cm3.shape, (1,))
-        self.assertGreater(ngamma_cgs_cm3[0], 0.0)
+        self.assertEqual(ngamma_cgs_cm3.shape, (1, 1))
+        self.assertGreater(ngamma_cgs_cm3[0, 0], 0.0)
 
     def test_trace_photon_density_converts_code_unit_parameters(self):
         code_units = CodeUnits.from_mapping(
@@ -274,10 +263,12 @@ class Testing(unittest.TestCase):
                 boundary=state["boundary_cgs_cm"],
                 vol=state["volume_cgs_cm3"],
             ),
-            state["rho_cgs_g_cm3"],
-            state["xHI"],
-            hydrogen_mass_fraction=1.0,
-            sigma_gamma=0.5 * scales["area_cgs_cm2"] * unyt.cm**2,
+            absorber_densities={
+                "HI": state["rho_cgs_g_cm3"] / unyt.mp.to_value(unyt.g)
+            },
+            cross_sections_cgs_cm2={
+                "HI": [0.5 * scales["area_cgs_cm2"] * unyt.cm**2]
+            },
             boundary_flux=0.0 * scales["photon_flux_per_cgs_cm2_s"] / (
                 unyt.cm**2 * unyt.s
             ),

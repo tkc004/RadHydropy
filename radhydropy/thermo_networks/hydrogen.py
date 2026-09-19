@@ -2878,11 +2878,18 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
                         vol=state['volume_cgs_cm3'],
                         coordsys=getattr(par, 'coordsys', 'cartesian'),
                     ),
-                    rho=state['rho_cgs_g_cm3'],
-                    xHI=state['xHI'],
-                    hydrogen_mass_fraction=state['hydrogen_mass_fraction'],
+                    absorber_densities={
+                        'HI': (
+                            state['hydrogen_mass_fraction']
+                            * state['rho_cgs_g_cm3']
+                            / PROTON_MASS_CGS
+                            * np.clip(state['xHI'], 0.0, 1.0)
+                        )
+                    },
                     # ``sigma_gamma_cgs_cm2`` is already expressed in cgs cm^2.
-                    sigma_gamma=np.asarray(state['sigma_gamma_cgs_cm2'], dtype=float),
+                    cross_sections_cgs_cm2={
+                        'HI': np.asarray(state['sigma_gamma_cgs_cm2'], dtype=float)
+                    },
                     boundary_flux=boundary_flux,
                     # ``source_rate_s`` is already in cgs s^-1.  It was
                     # previously multiplied by the inverse code time unit a

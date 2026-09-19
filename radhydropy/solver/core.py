@@ -5,7 +5,11 @@ import radhydropy.chemistry_species.hydrogen as rh
 import radhydropy.radiative_transfer as rrt
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-from radhydropy.constants import DEFAULT_SIGMA_GAMMA_CGS_CM2, SPEED_OF_LIGHT_CGS
+from radhydropy.constants import (
+    DEFAULT_SIGMA_GAMMA_CGS_CM2,
+    PROTON_MASS_CGS,
+    SPEED_OF_LIGHT_CGS,
+)
 from radhydropy.units import (
     CGS_AREA_UNIT,
     CGS_MASS_DENSITY_UNIT,
@@ -187,10 +191,16 @@ class Solver():
                 )
             result = rrt.trace_long_characteristics(
                 submesh,
-                np.asarray(density_runtime_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
-                np.asarray(fluid.xHI[interior], dtype=float),
-                hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-                sigma_gamma=sigma_groups,
+                absorber_densities={
+                    'HI': (
+                        getattr(par, 'hydrogen_mass_fraction', 1.0)
+                        * np.asarray(density_runtime_code[interior], dtype=float)
+                        * scales['density_cgs_g_cm3']
+                        / PROTON_MASS_CGS
+                        * np.clip(np.asarray(fluid.xHI[interior], dtype=float), 0.0, 1.0)
+                    )
+                },
+                cross_sections_cgs_cm2={'HI': sigma_groups},
                 boundary_flux=boundary_groups,
                 source_photon_rate=source_groups,
                 direction=rrt._parameter_value(par, 'radiative_transfer_direction', 1),
@@ -201,13 +211,14 @@ class Solver():
                 np.asarray(result.cell_photon_density, dtype=float)
                 / scales['number_density_cgs_cm3']
             )
-            if np.ndim(photon_density_code) == 2:
-                expected_shape = (photon_density_code.shape[0], len(density_runtime_code))
-                if np.shape(fluid.ngamma_code) != expected_shape:
-                    fluid.ngamma_code = np.zeros(expected_shape, dtype=float)
-                fluid.ngamma_code[:, interior] = photon_density_code
-            else:
-                fluid.ngamma_code[interior] = photon_density_code
+            if np.ndim(photon_density_code) != 2:
+                raise ValueError(
+                    "radiative-transfer result must have shape (ngroup, ncell)"
+                )
+            expected_shape = (photon_density_code.shape[0], len(density_runtime_code))
+            if np.shape(fluid.ngamma_code) != expected_shape:
+                fluid.ngamma_code = np.zeros(expected_shape, dtype=float)
+            fluid.ngamma_code[:, interior] = photon_density_code
             return result
         sigma_value = getattr(par, 'hydrogen_sigma_gamma', DEFAULT_SIGMA_GAMMA_CGS_CM2)
         boundary_value = rrt._parameter_value(par, 'radiative_transfer_boundary_flux', 0.0)
@@ -238,19 +249,33 @@ class Solver():
             )
         result = rrt.trace_long_characteristics(
             submesh,
-            np.asarray(density_runtime_code[interior], dtype=float) * scales['density_cgs_g_cm3'],
-            np.asarray(fluid.xHI[interior], dtype=float),
-            hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0),
-            sigma_gamma=sigma_gamma_cgs_cm2,
+            absorber_densities={
+                'HI': (
+                    getattr(par, 'hydrogen_mass_fraction', 1.0)
+                    * np.asarray(density_runtime_code[interior], dtype=float)
+                    * scales['density_cgs_g_cm3']
+                    / PROTON_MASS_CGS
+                    * np.clip(np.asarray(fluid.xHI[interior], dtype=float), 0.0, 1.0)
+                )
+            },
+            cross_sections_cgs_cm2={'HI': sigma_gamma_cgs_cm2},
             boundary_flux=boundary_flux,
             source_photon_rate=source_photon_rate,
             direction=rrt._parameter_value(par, 'radiative_transfer_direction', 1),
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
         )
-        fluid.ngamma_code[interior] = (
+        photon_density_code = (
             np.asarray(result.cell_photon_density, dtype=float)
             / scales['number_density_cgs_cm3']
         )
+        if np.ndim(photon_density_code) != 2:
+            raise ValueError(
+                "radiative-transfer result must have shape (ngroup, ncell)"
+            )
+        expected_shape = (photon_density_code.shape[0], len(density_runtime_code))
+        if np.shape(fluid.ngamma_code) != expected_shape:
+            fluid.ngamma_code = np.zeros(expected_shape, dtype=float)
+        fluid.ngamma_code[:, interior] = photon_density_code
         return result
 
     def _spherical_origin_face_index(self, mesh):

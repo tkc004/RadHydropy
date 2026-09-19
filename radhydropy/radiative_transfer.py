@@ -426,8 +426,8 @@ def _build_group_optical_depth(
     return np.maximum(optical_depth, 0.0)
 
 
-def _stack_group_results(group_results, squeeze):
-    """Stack single-group results, preserving the legacy one-group shape."""
+def _stack_group_results(group_results):
+    """Stack per-group transport results into the canonical grouped shape."""
     fields = (
         "optical_depth",
         "face_photon_flux",
@@ -439,16 +439,13 @@ def _stack_group_results(group_results, squeeze):
     values = []
     for field in fields:
         stacked = np.stack([getattr(result, field) for result in group_results])
-        values.append(stacked[0] if squeeze else stacked)
+        values.append(stacked)
     return LongCharacteristicResult(*values)
 
 
 def trace_long_characteristics(
     mesh,
-    rho=None,
-    xHI=None,
-    hydrogen_mass_fraction=1.0,
-    sigma_gamma=DEFAULT_SIGMA_GAMMA_CGS_CM2,
+    *,
     boundary_flux=0.0,
     source_photon_rate=0.0,
     direction=1,
@@ -457,13 +454,12 @@ def trace_long_characteristics(
     absorber_densities=None,
     cross_sections_cgs_cm2=None,
 ):
-    """Trace one or more photon groups through one-dimensional opacity.
+    """Trace grouped photon transport through one-dimensional opacity.
 
-    The legacy ``rho``/``xHI`` arguments describe a hydrogen-only absorber.
-    General multi-group transport can instead provide ``absorber_densities``
-    and ``cross_sections_cgs_cm2``. Densities are in ``cm**-3`` and cross sections
-    are in ``cm**2``. Results have shape ``(ngroup, ncell)`` for multiple
-    groups, and retain the legacy ``(ncell,)`` shape for one group.
+    ``absorber_densities`` maps absorber names to cell-centered number
+    densities in ``cm**-3``. ``cross_sections_cgs_cm2`` maps the same names to
+    one cross section per photon group in ``cm**2``. All result arrays have
+    shape ``(ngroup, ncell)``; a single group is represented as ``ngroup=1``.
     """
 
     coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
@@ -472,24 +468,9 @@ def trace_long_characteristics(
 
     edge_ngroup = _normalize_group_edges(group_edges_eV)
 
-    if absorber_densities is None:
-        if rho is None or xHI is None:
-            raise ValueError("rho and xHI are required for hydrogen transport")
-        rho_cgs_g_cm3 = np.asarray(rho, dtype=float)
-        xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
-        absorber_densities = {
-            "HI": (
-                hydrogen_mass_fraction
-                * rho_cgs_g_cm3
-                / PROTON_MASS_CGS
-                * xHI
-            )
-        }
-        if cross_sections_cgs_cm2 is None:
-            cross_sections_cgs_cm2 = {"HI": sigma_gamma}
-    elif cross_sections_cgs_cm2 is None:
+    if absorber_densities is None or cross_sections_cgs_cm2 is None:
         raise ValueError(
-            "cross_sections_cgs_cm2 is required with absorber_densities"
+            "absorber_densities and cross_sections_cgs_cm2 are required"
         )
 
     if not absorber_densities:
@@ -555,7 +536,7 @@ def trace_long_characteristics(
                 direction,
             )
         group_results.append(result)
-    return _stack_group_results(group_results, squeeze=ngroup == 1)
+    return _stack_group_results(group_results)
 
 
 def _state_mesh_for_radiative_transfer(state, par):
@@ -626,10 +607,15 @@ def trace_photon_density(state, par):
             return np.asarray(trace_long_characteristics(mesh, absorber_densities=absorbers, cross_sections_cgs_cm2=cross_sections, boundary_flux=boundary_groups, source_photon_rate=source_groups, direction=_parameter_value(par, "radiative_transfer_direction", 1), coordsys=getattr(par, "coordsys", "spherical"), group_edges_eV=group_edges_eV).cell_photon_density, dtype=float)
         result = trace_long_characteristics(
             mesh,
-            rho_proper_cgs_g_cm3,
-            xHI_dimensionless,
-            hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
-            sigma_gamma=sigma_groups,
+            absorber_densities={
+                "HI": (
+                    getattr(par, "hydrogen_mass_fraction", 1.0)
+                    * rho_proper_cgs_g_cm3
+                    / PROTON_MASS_CGS
+                    * np.clip(xHI_dimensionless, 0.0, 1.0)
+                )
+            },
+            cross_sections_cgs_cm2={"HI": sigma_groups},
             boundary_flux=boundary_groups,
             source_photon_rate=source_groups,
             direction=_parameter_value(par, "radiative_transfer_direction", 1),
@@ -657,10 +643,15 @@ def trace_photon_density(state, par):
     )
     result = trace_long_characteristics(
         mesh,
-        rho_proper_cgs_g_cm3,
-        xHI_dimensionless,
-        hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
-        sigma_gamma=sigma_gamma_cgs_cm2,
+        absorber_densities={
+            "HI": (
+                getattr(par, "hydrogen_mass_fraction", 1.0)
+                * rho_proper_cgs_g_cm3
+                / PROTON_MASS_CGS
+                * np.clip(xHI_dimensionless, 0.0, 1.0)
+            )
+        },
+        cross_sections_cgs_cm2={"HI": sigma_gamma_cgs_cm2},
         boundary_flux=boundary_flux,
         source_photon_rate=source_photon_rate,
         direction=_parameter_value(par, "radiative_transfer_direction", 1),
