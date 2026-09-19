@@ -162,7 +162,9 @@ class Fluid():
                 )
             )
         else:
-            self.pre_code = self.eos.pressure(self.rho_code, self.temp_code, self.mu)
+            raise UnitBoundaryError(
+                "SetPressure requires configured representation-specific runtime fields"
+            )
         self._refresh_runtime_state()
         
     def SetEnergyDensity(self):
@@ -172,7 +174,9 @@ class Fluid():
         elif self.runtime_fields is SUPERCOMOVING_RUNTIME_FIELDS:
             pressure = self.pre_supercomoving_code
         else:
-            pressure = self.pre_code
+            raise UnitBoundaryError(
+                "SetEnergyDensity requires configured representation-specific runtime fields"
+            )
         self.eth_code = self.eos.thermal_energy_density(pressure)
         
     def SetSoundSpeed(self):
@@ -186,9 +190,9 @@ class Fluid():
             pressure = self.pre_supercomoving_code
             temperature = self.temp_supercomoving_code
         else:
-            density = self.rho_code
-            pressure = self.pre_code
-            temperature = self.temp_code
+            raise UnitBoundaryError(
+                "SetSoundSpeed requires configured representation-specific runtime fields"
+            )
         self.cs_code = self.eos.sound_speed(
             density,
             pressure,

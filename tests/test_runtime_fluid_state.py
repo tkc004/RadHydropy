@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 import unyt
 
 from radhydropy.eos import EOS
@@ -12,6 +13,7 @@ from radhydropy.runtime_fields import (
     SUPERCOMOVING_RUNTIME_FIELDS,
     runtime_fields,
 )
+from radhydropy.state_boundaries import UnitBoundaryError
 
 
 def test_supercomoving_fluid_runtime_state_has_explicit_fields():
@@ -39,6 +41,18 @@ def test_fluid_setup_records_selected_runtime_state():
         velocity_representation="proper",
     )
     assert runtime_fields(par).density == "rho_proper_code"
+
+
+def test_fluid_primitive_updates_reject_unconfigured_runtime_representation():
+    fluid = Fluid()
+    fluid.eos = EOS("polytropic", gamma=5.0 / 3.0)
+    fluid.rho_code = np.ones(2)
+    fluid.temp_code = np.ones(2)
+    fluid.mu = np.ones(2)
+
+    for method_name in ("SetPressure", "SetEnergyDensity", "SetSoundSpeed"):
+        with pytest.raises(UnitBoundaryError, match="representation-specific"):
+            getattr(fluid, method_name)()
 
 
 def test_fluid_setup_converts_physical_builder_arrays_before_runtime_state():

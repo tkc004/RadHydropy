@@ -78,21 +78,31 @@ class Testing(unittest.TestCase):
     def test_isothermal_set_conserved_keeps_only_kinetic_energy(self):
         fluid = Fluid()
         fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
-        fluid.rho_code = np.ones(8) * 2.0
-        fluid.vel_code = np.ones(8) * 3.0
-        fluid.temp_code = np.ones(8) * 100.0
+        fluid.rho_proper_code = np.ones(8) * 2.0
+        fluid.vel_proper_code = np.ones(8) * 3.0
+        fluid.temp_proper_code = np.ones(8) * 100.0
+        fluid.time_proper_code = 0.0
+        fluid.runtime_fields = PROPER_RUNTIME_FIELDS
         fluid.mu = np.ones(8)
         fluid.SetPressure()
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            rho_proper_code=fluid.rho_code, vel_proper_code=fluid.vel_code,
-            pre_proper_code=fluid.pre_code, temp_proper_code=fluid.temp_code, time_proper_code=0.0,
+            rho_proper_code=fluid.rho_proper_code,
+            vel_proper_code=fluid.vel_proper_code,
+            pre_proper_code=fluid.pre_proper_code,
+            temp_proper_code=fluid.temp_proper_code,
+            time_proper_code=fluid.time_proper_code,
             mu_dimensionless=fluid.mu,
         )
 
         Solver().SetConserved(Mesh(), fluid)
 
-        expected = 0.5 * fluid.rho_code * fluid.vel_code**2 * Mesh().geometry_state.volume_proper_code
+        expected = (
+            0.5
+            * fluid.rho_proper_code
+            * fluid.vel_proper_code**2
+            * Mesh().geometry_state.volume_proper_code
+        )
         np.testing.assert_allclose(np.asarray(fluid.Energy_code), expected)
 
     def test_isothermal_rejects_dual_energy(self):
@@ -108,15 +118,20 @@ class Testing(unittest.TestCase):
         mesh = Mesh()
         fluid = Fluid()
         fluid.eos = EOS('isothermal', gamma=1.0, code_units=CODE_UNITS)
-        fluid.rho_code = np.ones(8)
-        fluid.vel_code = np.zeros(8)
-        fluid.temp_code = np.ones(8) * 250.0
+        fluid.rho_proper_code = np.ones(8)
+        fluid.vel_proper_code = np.zeros(8)
+        fluid.temp_proper_code = np.ones(8) * 250.0
+        fluid.time_proper_code = 0.0
+        fluid.runtime_fields = PROPER_RUNTIME_FIELDS
         fluid.mu = np.ones(8)
         fluid.SetPressure()
         fluid.runtime_state = FluidRuntimeState.from_arrays(
             PROPER_RUNTIME_FIELDS,
-            rho_proper_code=fluid.rho_code, vel_proper_code=fluid.vel_code,
-            pre_proper_code=fluid.pre_code, temp_proper_code=fluid.temp_code, time_proper_code=0.0,
+            rho_proper_code=fluid.rho_proper_code,
+            vel_proper_code=fluid.vel_proper_code,
+            pre_proper_code=fluid.pre_proper_code,
+            temp_proper_code=fluid.temp_proper_code,
+            time_proper_code=fluid.time_proper_code,
             mu_dimensionless=fluid.mu,
         )
         Solver().SetConserved(mesh, fluid)
@@ -124,8 +139,12 @@ class Testing(unittest.TestCase):
         fluid.Energy_code[:] = 0.0
         Solver().SetPrimitive(mesh, fluid)
 
-        expected_pressure = fluid.eos.pressure(fluid.rho_code, fluid.temp_code, fluid.mu)
-        np.testing.assert_allclose(np.asarray(fluid.pre_code), np.asarray(expected_pressure))
+        expected_pressure = fluid.eos.pressure(
+            fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+        )
+        np.testing.assert_allclose(
+            np.asarray(fluid.pre_proper_code), np.asarray(expected_pressure)
+        )
 
     def test_code_unit_temperature_is_zero_for_zero_density(self):
         eos = EOS('polytropic', gamma=5.0 / 3.0, code_units=CODE_UNITS)
