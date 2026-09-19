@@ -746,6 +746,32 @@ class Testing(unittest.TestCase):
 
         self.assertAlmostEqual(snapshot['time_Myr'], 2.0)
 
+    def test_photoheating_static_history_normalizes_reference_snapshot(self):
+        history = {
+            'time_Myr': [0.0, 1.0],
+            'front_radius_kpc': [0.0, 2.0],
+            'reference_snapshot': {
+                'time_Myr': 1.0,
+                'radius_kpc': np.array([1.0, 2.0]),
+                'xHI': np.array([1.0, 0.0]),
+                'temperature_cgs_K': np.array([100.0, 1.0e4]),
+            },
+        }
+
+        normalized = static_stromgren_photoheating_tools.normalize_static_history(
+            history
+        )
+
+        self.assertEqual(normalized['time_proper_Myr'], [0.0, 1.0])
+        self.assertEqual(normalized['front_radius_proper_kpc'], [0.0, 2.0])
+        self.assertEqual(normalized['reference_snapshot']['time_proper_Myr'], 1.0)
+        np.testing.assert_array_equal(
+            normalized['reference_snapshot']['radius_proper_kpc'],
+            [1.0, 2.0],
+        )
+        self.assertNotIn('time_Myr', normalized)
+        self.assertNotIn('radius_kpc', normalized['reference_snapshot'])
+
     def test_static_stromgren_sphere_photon_budget_uses_physical_units(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

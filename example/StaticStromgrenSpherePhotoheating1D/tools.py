@@ -252,6 +252,18 @@ def append_history(history, mesh, fluid, config):
     history['mean_ionized_temp_cgs_K'].append(mean_ionized_temperature(fluid, config))
 
 
+def normalize_static_history(history):
+    """Normalize core Stromgren history fields for example diagnostics."""
+
+    history['time_proper_Myr'] = history.pop('time_Myr')
+    history['front_radius_proper_kpc'] = history.pop('front_radius_kpc')
+    reference_snapshot = history.get('reference_snapshot')
+    if reference_snapshot is not None:
+        reference_snapshot['time_proper_Myr'] = reference_snapshot.pop('time_Myr')
+        reference_snapshot['radius_proper_kpc'] = reference_snapshot.pop('radius_kpc')
+    return history
+
+
 def load_log_reference_profile(filename, radius_unit):
     if filename is None or not os.path.exists(filename):
         return None

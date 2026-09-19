@@ -79,6 +79,7 @@ def main(config_filename=DEFAULT_CONFIG):
         include_thermal_history=True,
         reference_time=example['reference_time'],
     )
+    et.normalize_static_history(history)
 
     output_filename = Path(nested['par']['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
     rio.writehdf5(mainrun, output_filename)
