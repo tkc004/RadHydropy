@@ -118,10 +118,10 @@ def gaussiansph(r, sig):
     return np.exp(-0.5 * np.power(r, 2.) / np.power(sig, 2.)) / (np.sqrt(2.0*np.pi) * sig)**3
 
 
-def CalGradient(quan,xdelta):
+def CalGradient(quan, width_runtime_code):
     """Calculate a centered periodic gradient."""
     # only work for periodic boundary condition!
-    dqdx = (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2. * xdelta)
+    dqdx = (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2. * width_runtime_code)
     return dqdx
 
 def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cmax: float) -> float:

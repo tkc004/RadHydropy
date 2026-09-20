@@ -13,7 +13,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         CFL = par.hydrodynamics.CFL
     geometry = getattr(mesh, "geometry_state", None)
     if geometry is not None:
-        mesh_coordinate, _, xdelta, mesh_area, mesh_volume = (
+        mesh_coordinate, _, width_runtime_code, area_runtime_code, volume_runtime_code = (
             select_mesh_geometry_arrays(geometry, par)
         )
     else:
@@ -26,12 +26,12 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     )
     vsignal = np.absolute(velocity) + fluid.cs_code
     density = np.asarray(density_field, dtype=float)
-    if xdelta.shape != vsignal.shape:
+    if width_runtime_code.shape != vsignal.shape:
         interior = solver._interior_slice(par)
-        if xdelta[interior].shape == vsignal.shape:
-            xdelta = xdelta[interior]
+        if width_runtime_code[interior].shape == vsignal.shape:
+            width_runtime_code = width_runtime_code[interior]
             density = density[interior]
-        elif vsignal[interior].shape == xdelta.shape:
+        elif vsignal[interior].shape == width_runtime_code.shape:
             vsignal = vsignal[interior]
             density = density[interior]
 
@@ -40,18 +40,18 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     # can leave a ghost velocity temporarily very large while the active
     # solution remains valid.  Keep the full signal-speed array for later
     # flux work, and reduce only over the active cells here.
-    active_xdelta = xdelta
+    active_width_runtime_code = width_runtime_code
     active_density = density
     active_vsignal = vsignal
     first = int(par.mesh.ghost_cells)
     active_count = int(par.mesh.grid_cells)
     active_slice = slice(first, first + active_count)
     if (
-        xdelta.ndim == 1
+        width_runtime_code.ndim == 1
         and vsignal.ndim == 1
         and len(vsignal) >= first + active_count + first
     ):
-        active_xdelta = xdelta[active_slice]
+        active_width_runtime_code = width_runtime_code[active_slice]
         active_density = density[active_slice]
         active_vsignal = vsignal[active_slice]
 
@@ -61,23 +61,23 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     # for imposed spherical winds, where the first ghost cell can be much
     # faster than every active cell.  Include only the two interface-adjacent
     # ghost cells; farther ghost cells cannot directly affect this update.
-    cfl_xdelta = active_xdelta
+    cfl_width_runtime_code = active_width_runtime_code
     cfl_density = active_density
     cfl_vsignal = active_vsignal
     cfl_indices = np.arange(first, first + active_count)
     if (
-        xdelta.ndim == 1
+        width_runtime_code.ndim == 1
         and vsignal.ndim == 1
-        and len(xdelta) == len(vsignal)
+        and len(width_runtime_code) == len(vsignal)
         and first > 0
         and first + active_count < len(vsignal)
         and getattr(getattr(par, 'boundary', None), 'condition', None)
         in ('InflowSph', 'OutflowSph', 'WindSph')
     ):
         interface_indices = np.array([first - 1, first + active_count])
-        cfl_xdelta = np.concatenate((
-            np.asarray(active_xdelta, dtype=float),
-            np.asarray(xdelta[interface_indices], dtype=float),
+        cfl_width_runtime_code = np.concatenate((
+            np.asarray(active_width_runtime_code, dtype=float),
+            np.asarray(width_runtime_code[interface_indices], dtype=float),
         ))
         cfl_density = np.concatenate((
             np.asarray(active_density, dtype=float),
@@ -110,7 +110,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     if np.any(cfl_density_zero):
         cfl_vsignal = np.asarray(cfl_vsignal, dtype=float).copy()
         cfl_vsignal[cfl_density_zero] = 0.0
-    dt_array = solver._safe_divide(CFL * cfl_xdelta, cfl_vsignal)
+    dt_array = solver._safe_divide(CFL * cfl_width_runtime_code, cfl_vsignal)
 
     # A prescribed spherical wind/inflow can have a density very different
     # from the first active cell.  The wave-speed CFL condition alone then
@@ -127,7 +127,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         boundary_condition in ('InflowSph', 'OutflowSph')
         and hasattr(fluid, 'Mass_code')
         and first + 1 < len(fluid.Mass_code)
-        and first < len(mesh_area)
+        and first < len(area_runtime_code)
     ):
         if boundary_condition == 'InflowSph':
             boundary_density = getattr(boundary, 'rho_inflow_proper', 0.0)
@@ -137,7 +137,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             boundary_velocity = getattr(boundary, 'vel_outflow_proper', 0.0)
         mass_flux = abs(float(np.asarray(boundary_density))) * abs(
             float(np.asarray(boundary_velocity))
-        ) * abs(float(np.asarray(mesh_area[first])))
+        ) * abs(float(np.asarray(area_runtime_code[first])))
         # The reconstructed boundary/front stencil can deliver the imposed
         # flux into the next active cell as the wind front advances.  Use the
         # lower mass of the two receiving cells so the constraint follows a
@@ -186,7 +186,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 cfl_density[active_index],
                 velocity[diagnostic_index],
                 fluid.cs_code[diagnostic_index],
-                cfl_xdelta[active_index],
+                cfl_width_runtime_code[active_index],
             )
         )
     if dt > dtmax:
@@ -214,13 +214,13 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
                 np.asarray(velocity)[diagnostic_index],
                 np.asarray(fluid.cs_code)[diagnostic_index],
                 np.asarray(vsignal)[diagnostic_index],
-                np.asarray(xdelta)[diagnostic_index],
+                np.asarray(width_runtime_code)[diagnostic_index],
                 np.asarray(pressure_field)[diagnostic_index],
                 dtmin_value,
                 dtmax_value,
             )
         )
-        cell_volume = np.asarray(mesh_volume)[diagnostic_index]
+        cell_volume = np.asarray(volume_runtime_code)[diagnostic_index]
         cell_rho_code = np.asarray(density_field)[diagnostic_index]
         cell_vel_code = np.asarray(velocity)[diagnostic_index]
         cell_energy_density = (

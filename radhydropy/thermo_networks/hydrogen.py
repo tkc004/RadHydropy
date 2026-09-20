@@ -2507,12 +2507,14 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         fluid._refresh_runtime_state()
         runtime_state = fluid.runtime_state
     _, _, _, temp_runtime_code, _ = _canonical_fluid_primitive_arrays(fluid, par)
-    temp_code = np.asarray(temp_runtime_code[interior], dtype=float).copy()
-    temp_code[active] = temperature[active]
+    temperature_runtime_code = np.asarray(
+        temp_runtime_code[interior], dtype=float
+    ).copy()
+    temperature_runtime_code[active] = temperature[active]
     if getattr(par, 'supercomoving_coordinates', False):
-        fluid.temp_supercomoving_code[interior] = temp_code
+        fluid.temp_supercomoving_code[interior] = temperature_runtime_code
     else:
-        fluid.temp_proper_code[interior] = temp_code
+        fluid.temp_proper_code[interior] = temperature_runtime_code
     if state.get('thermal_coupling', False):
         # The source state stores specific energies in physical cgs units
         # (erg/g), while Fluid pressure and Energy use the code velocity

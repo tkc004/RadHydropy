@@ -51,7 +51,7 @@ refparams = {
     'temperature_proper':2.7*unyt.K, # default gas/background temperature
     'hydro_integrator': 'euler',
     'initial_time': None,
-    'time_code': 0.0 * unyt.s,
+    'time_proper_code': 0.0 * unyt.s,
     'timesim':2.0*unyt.s, # final simulation time
     'box_size_proper': None,
     'CFL':0.1, # CFL condition for time-step
@@ -392,7 +392,7 @@ class SimulationParameters:
     initial_condition_filename: object = None
     coordinate_system: str = 'cartesian'
     final_time: object = None
-    time_code: object = None
+    time_proper_code: object = None
     box_size_proper_code: object = None
     box_size_comoving_code: object = None
     cosmological_expansion: bool = False
@@ -618,8 +618,8 @@ class Par:
                 'initial_time': 'initial_time',
                 'box_size_proper': 'box_size_proper',
                 'box_size_comoving_cgs_cm': 'box_size_comoving_cgs_cm',
-                'time_proper': 'time_code',
-                'current_time': 'time_code',
+                'time_proper': 'time_proper_code',
+                'current_time': 'time_proper_code',
             },
             'mesh': {
                 'grid_cells': 'nogrid', 'ghost_cells': 'noghost',
@@ -1008,7 +1008,7 @@ class Par:
             initial_condition_filename=self.ICfilename,
             coordinate_system=self._parameter('coordsys'),
             final_time=self._parameter('timesim'),
-            time_code=getattr(self, 'time_code', None),
+            time_proper_code=getattr(self, 'time_proper_code', None),
             box_size_proper_code=getattr(self, 'box_size_proper', None),
             cosmological_expansion=self.cosmological_expansion,
             supercomoving_coordinates=self.supercomoving_coordinates,

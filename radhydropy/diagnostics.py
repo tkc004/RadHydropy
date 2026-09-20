@@ -321,6 +321,8 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
         try:
             filename = Path(output_dir) / 'temperature_jump_error.txt'
             filename.write_text(diagnostic + '\n', encoding='utf-8')
-        except (OSError, TypeError, ValueError):
+        except OSError:
+            # The source-state failure is authoritative; an unwritable
+            # diagnostic directory must not hide it.
             pass
     raise RuntimeError(diagnostic)

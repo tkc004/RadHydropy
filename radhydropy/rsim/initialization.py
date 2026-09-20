@@ -7,6 +7,7 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from radhydropy.runtime_fields import runtime_fields
 from radhydropy.units import (
     _CODE_UNIT_GROUPS, apply_code_unit_specs, code_units_from_system,
     code_quantity_to_cgs, time_seconds, quantity_to_value,
@@ -57,9 +58,8 @@ def Callreadhdf5(sim):
         sim.par.units.CodeUnits,
     )
     sim.checkparams()
-    sim.fluid.SetFluidTime(
-        sim.par.simulation.time_code
-    )
+    time_field = runtime_fields(sim.par).time
+    sim.fluid.SetFluidTime(getattr(sim.par, time_field))
     print("--- Start Initial Time ---")
 
 def SetMesh(sim):
@@ -152,7 +152,7 @@ def ConvertParametersToCodeUnits(sim):
     nested_specs = {
         "simulation": (
             ("final_time", "time"),
-            ("time_code", "time"),
+            ("time_proper_code", "time"),
             ("initial_time", "time"),
             ("box_size_proper_code", "length"),
         ),

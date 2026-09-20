@@ -169,12 +169,14 @@ def to_proper_state(state, cosmology, code_units, gamma):
     tau = float(state.tau_supercomoving_code)
     cosmic_time, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)
     x_code = np.asarray(state.x_comoving_code, dtype=float)
-    rho_code = np.asarray(state.rho_comoving_code, dtype=float)
+    rho_comoving_code = np.asarray(state.rho_comoving_code, dtype=float)
     velocity_code = np.asarray(state.vel_supercomoving_code, dtype=float)
     pressure_code = np.asarray(state.pre_supercomoving_code, dtype=float)
     temperature_code = np.asarray(state.temp_supercomoving_code, dtype=float)
     x_proper = scale_factor * x_code * scales["length_cgs_cm"]
-    rho_proper = rho_code / scale_factor**3 * scales["density_cgs_g_cm3"]
+    rho_proper = (
+        rho_comoving_code / scale_factor**3 * scales["density_cgs_g_cm3"]
+    )
     peculiar_velocity = velocity_code / scale_factor * scales["velocity_cgs_cm_s"]
     pressure = (
         pressure_code / scale_factor ** (3.0 * float(gamma))

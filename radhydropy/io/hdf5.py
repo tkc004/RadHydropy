@@ -900,15 +900,15 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 runtime_time = float(
                     np.asarray(runtime_time, dtype=float).reshape(-1)[0]
                 )
-            par.simulation.time_code = runtime_time
+            setattr(par.simulation, time_field, runtime_time)
             if canonical_cosmological_schema:
                 par.simulation.box_size_comoving_code = getattr(par, box_field)
             else:
                 par.simulation.box_size_proper_code = getattr(par, box_field)
             if canonical_cosmological_schema:
-                fluid.tau_supercomoving_code = par.simulation.time_code
+                fluid.tau_supercomoving_code = runtime_time
             else:
-                fluid.time_proper_code = par.simulation.time_code
+                fluid.time_proper_code = runtime_time
         else:
             time_field = (
                 "tau_supercomoving_code"

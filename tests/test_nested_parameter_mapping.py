@@ -190,7 +190,7 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     sim = Rsim(config)
     sim.ConvertParametersToCodeUnits()
     assert sim.par.simulation.final_time == pytest.approx(2.0)
-    assert sim.par.simulation.time_code == pytest.approx(1.0)
+    assert sim.par.simulation.time_proper_code == pytest.approx(1.0)
     assert sim.par.simulation.box_size_proper_code == pytest.approx(3.0)
     assert sim.par.area_proper == pytest.approx(2.0)
     assert sim.par.boundary.rho_inflow_proper == pytest.approx(3.0)

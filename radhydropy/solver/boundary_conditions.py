@@ -250,11 +250,10 @@ def _apply_wind_spherical_boundary(
     runtime = runtime_fields(par)
     geometry = getattr(mesh, 'geometry_state', None)
     if geometry is None:
-        boundary_position = np.asarray(mesh.boundary, dtype=float)
-    else:
-        boundary_position = np.asarray(
-            getattr(geometry, runtime.boundary), dtype=float
-        )
+        raise ValueError('WindSph requires typed mesh geometry state')
+    boundary_position = np.asarray(
+        getattr(geometry, runtime.boundary), dtype=float
+    )
     radius = np.abs(
         0.5 * (boundary_position[:noghost] + boundary_position[1:noghost + 1])
     )

@@ -93,13 +93,13 @@ class Fluid():
                 velocity_code = self.runtime_state.vel_proper_code
                 temperature_code = self.runtime_state.temp_proper_code
                 pressure_code = self.runtime_state.pre_proper_code
-                time_code = self.runtime_state.time_proper_code
+                time_runtime_code = self.runtime_state.time_proper_code
             else:
                 density_code = self.runtime_state.rho_comoving_code
                 velocity_code = self.runtime_state.vel_supercomoving_code
                 temperature_code = self.runtime_state.temp_supercomoving_code
                 pressure_code = self.runtime_state.pre_supercomoving_code
-                time_code = self.runtime_state.tau_supercomoving_code
+                time_runtime_code = self.runtime_state.tau_supercomoving_code
             specific_energy_code = None
             if hasattr(self, "eth_code"):
                 specific_energy_code = np.divide(
@@ -130,7 +130,7 @@ class Fluid():
                     vel_proper_code=velocity_code,
                     temp_proper_code=temperature_code,
                     pre_proper_code=pressure_code,
-                    time_proper_code=time_code,
+                    time_proper_code=time_runtime_code,
                 )
             else:
                 state_kwargs.update(
@@ -138,7 +138,7 @@ class Fluid():
                     vel_supercomoving_code=velocity_code,
                     temp_supercomoving_code=temperature_code,
                     pre_supercomoving_code=pressure_code,
-                    tau_supercomoving_code=time_code,
+                    tau_supercomoving_code=time_runtime_code,
                 )
             return state_type(**state_kwargs)
         raise UnitBoundaryError(
@@ -517,7 +517,9 @@ class Fluid():
                 )
             )
         else:
-            self.temp_code = self.eos.temperature(self.rho_code, self.pre_code, self.mu)
+            raise UnitBoundaryError(
+                "SetTemperature requires configured representation-specific runtime fields"
+            )
         self._refresh_runtime_state()
 
     def SetFluidTime(self, time_proper_code):

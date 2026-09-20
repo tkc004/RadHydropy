@@ -469,7 +469,7 @@ class Gravity:
                 raise ValueError(
                     "cosmological dark-matter shells require supercomoving cosmology"
                 )
-            # ``par.simulation.time_code`` is generally only an
+            # ``par.simulation.time_proper_code`` is generally only an
             # initialization/restart value. Prefer an explicit live time,
             # then the live attribute set by ApplyGravity, and finally use the
             # initialization parameter.

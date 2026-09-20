@@ -75,7 +75,7 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
     if getattr(par, "gas_rotational_energy", False):
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
         radius = np.abs(np.asarray(
-            solver._geometry_state(mesh, par).coordinate, dtype=float
+            solver._geometry_state(mesh, par).coordinate_runtime_code, dtype=float
         ))
         rotational = np.zeros_like(energy)
         valid = (mass > 0.0) & (radius > 0.0) & np.isfinite(angular)
@@ -86,8 +86,10 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
     density_floor = max(
         0.0, float(np.asarray(getattr(par, "cfl_density_floor", 0.0)))
     )
-    volume = np.asarray(solver._geometry_state(mesh, par).volume, dtype=float)
-    resolved = mass > density_floor * np.maximum(volume, 0.0)
+    volume_runtime_code = np.asarray(
+        solver._geometry_state(mesh, par).volume_runtime_code, dtype=float
+    )
+    resolved = mass > density_floor * np.maximum(volume_runtime_code, 0.0)
     finite = np.isfinite(mass) & np.isfinite(energy) & np.isfinite(required)
     scale = np.maximum(
         np.maximum(np.abs(energy), required), np.finfo(float).tiny
@@ -158,13 +160,16 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     # current conserved fields so the gravity momentum and work updates
     # use the same state.
     fields = runtime_fields(par)
-    volume = np.asarray(
-        solver._geometry_state(mesh, par).volume, dtype=float
+    volume_runtime_code = np.asarray(
+        solver._geometry_state(mesh, par).volume_runtime_code, dtype=float
     )
     mass = np.asarray(fluid.Mass_code, dtype=float)
     momentum = np.asarray(fluid.Mom_code, dtype=float)
     current_rho = np.zeros_like(mass)
-    np.divide(mass, volume, out=current_rho, where=volume > 0.0)
+    np.divide(
+        mass, volume_runtime_code, out=current_rho,
+        where=volume_runtime_code > 0.0,
+    )
     current_vel = np.zeros_like(momentum)
     np.divide(momentum, mass, out=current_vel, where=mass > 0.0)
     if gravity is None:
@@ -195,7 +200,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             angular_momentum, mass, out=specific, where=mass > 0.0
         )
         radius = np.abs(np.asarray(
-            solver._geometry_state(mesh, par).coordinate, dtype=float
+            solver._geometry_state(mesh, par).coordinate_runtime_code, dtype=float
         ))
         valid_radius = (
             (radius > 0.0) & np.isfinite(radius)
@@ -227,7 +232,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     if rotational_support:
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
         radius = np.abs(np.asarray(
-            solver._geometry_state(mesh, par).coordinate, dtype=float
+            solver._geometry_state(mesh, par).coordinate_runtime_code, dtype=float
         ))
         rotational_energy = np.zeros_like(mass)
         valid_rotational = (

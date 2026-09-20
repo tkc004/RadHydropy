@@ -78,11 +78,11 @@ class Solver():
             geometry, par
         )
         return SimpleNamespace(
-            coordinate=coordinate,
-            boundary=boundary,
-            width=width,
-            area=area,
-            volume=volume,
+            coordinate_runtime_code=coordinate,
+            boundary_runtime_code=boundary,
+            width_runtime_code=width,
+            area_runtime_code=area,
+            volume_runtime_code=volume,
         )
 
     def _fluid_primitive_state(self, fluid, par):
@@ -139,9 +139,9 @@ class Solver():
         if geometry is None:
             raise ValueError("radiative transfer requires typed mesh geometry state")
         geometry_state = self._geometry_state(mesh, par)
-        boundary_field = geometry_state.boundary
-        volume_field = geometry_state.volume
-        area_field = geometry_state.area
+        boundary_field = geometry_state.boundary_runtime_code
+        volume_field = geometry_state.volume_runtime_code
+        area_field = geometry_state.area_runtime_code
         boundary = np.asarray(
             boundary_field[interior.start : interior.stop + 1], dtype=float
         )
@@ -286,10 +286,12 @@ class Solver():
         return result
 
     def _spherical_origin_face_index(self, mesh):
-        if getattr(mesh, 'coordsys', None) != 'spherical' or not hasattr(mesh, 'boundary'):
+        if getattr(mesh, 'coordsys', None) != 'spherical':
             return None
         boundary = np.asarray(
-            self._geometry_state(mesh, getattr(mesh, '_par', None)).boundary,
+            self._geometry_state(
+                mesh, getattr(mesh, '_par', None)
+            ).boundary_runtime_code,
             dtype=float,
         )
         origin_faces = np.where(boundary[:-1] == 0.0)[0]
@@ -333,14 +335,14 @@ class Solver():
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)
         geometry = self._geometry_state(mesh, par)
-        coordinate = np.asarray(geometry.coordinate[first:last], dtype=float)
+        coordinate = np.asarray(geometry.coordinate_runtime_code[first:last], dtype=float)
         core_local = coordinate < float(radius)
         if not np.any(core_local) or np.all(core_local):
             raise ValueError(
                 'radius_core_proper must contain at least one, but not all, '
                 'resolved cells'
             )
-        core = np.zeros(len(geometry.coordinate), dtype=bool)
+        core = np.zeros(len(geometry.coordinate_runtime_code), dtype=bool)
         core[first:last] = core_local
         core_indices = np.flatnonzero(core)
         state = {
@@ -475,7 +477,7 @@ class Solver():
             pre_runtime_code,
             temp_runtime_code,
         ) = self._active_primitive_arrays(fluid, par)
-        vol = self._geometry_state(mesh, par).volume
+        vol = self._geometry_state(mesh, par).volume_runtime_code
         rho = np.asarray(self._safe_divide(fluid.Mass_code, vol), dtype=float)
         active = np.isfinite(rho) & (rho > 0.0)
         fluid.active = active
@@ -755,7 +757,9 @@ class Solver():
                 np.asarray(fluid.Mom_code, dtype=float).copy(),
                 np.asarray(fluid.Energy_code, dtype=float).copy(),
             )
-        vol = self._geometry_state(mesh, getattr(mesh, '_par', None)).volume
+        vol = self._geometry_state(
+            mesh, getattr(mesh, '_par', None)
+        ).volume_runtime_code
         fluid.Mass_code = as_named_array(rho_runtime_code * vol)
         fluid.Mom_code = as_named_array(rho_runtime_code * vel_runtime_code * vol)
         if hasattr(fluid, 'specific_angular_momentum_code') or old_angular_momentum is not None:
@@ -888,7 +892,7 @@ class Solver():
     def SetGradient(self, mesh, fluid):
         """Calculate centered gradients for density, velocity, and pressure."""
         par = getattr(mesh, '_par', None)
-        xdelta = self._geometry_state(mesh, par).width
+        width_runtime_code = self._geometry_state(mesh, par).width_runtime_code
         primitive = self._fluid_primitive_state(fluid, par)
         periodic = (
             par is not None
@@ -903,39 +907,41 @@ class Solver():
             count = int(par.mesh.grid_cells)
             for quantity in (density_code, velocity_code, pressure_code):
                 quantity.grad = self._periodic_physical_gradient(
-                    quantity, xdelta, first, count
+                    quantity, width_runtime_code, first, count
                 )
         else:
-            density_code.grad = ru.CalGradient(density_code, xdelta)
-            velocity_code.grad = ru.CalGradient(velocity_code, xdelta)
-            pressure_code.grad = ru.CalGradient(pressure_code, xdelta)
+            density_code.grad = ru.CalGradient(density_code, width_runtime_code)
+            velocity_code.grad = ru.CalGradient(velocity_code, width_runtime_code)
+            pressure_code.grad = ru.CalGradient(pressure_code, width_runtime_code)
         if hasattr(fluid, 'specific_angular_momentum_code'):
             if periodic:
                 fluid.specific_angular_momentum_code.grad = (
                     self._periodic_physical_gradient(
                         fluid.specific_angular_momentum_code,
-                        xdelta,
+                        width_runtime_code,
                         first,
                         count,
                     )
                 )
             else:
                 fluid.specific_angular_momentum_code.grad = ru.CalGradient(
-                    fluid.specific_angular_momentum_code, xdelta
+                    fluid.specific_angular_momentum_code, width_runtime_code
                 )
 
     @staticmethod
-    def _periodic_physical_gradient(quantity, xdelta, first, count):
+    def _periodic_physical_gradient(quantity, width_runtime_code, first, count):
         """Build periodic gradients from physical cells and mirror ghosts."""
         values = np.asarray(quantity, dtype=float)
         last = first + count
         gradient = np.zeros_like(values)
         physical_values = values[first:last]
-        physical_xdelta = np.asarray(xdelta[first:last], dtype=float)
+        physical_width_runtime_code = np.asarray(
+            width_runtime_code[first:last], dtype=float
+        )
         gradient[first:last] = (
             ru.periodic_roll(physical_values, -1)
             - ru.periodic_roll(physical_values, 1)
-        ) / (2.0 * physical_xdelta)
+        ) / (2.0 * physical_width_runtime_code)
         if first:
             gradient[:first] = gradient[last - first:last]
         if last < len(gradient):
@@ -1113,16 +1119,16 @@ class Solver():
                 )
             if order == 1:
                 self.SetGradient(mesh, fluid)
-                density_code.R.first, density_code.L.first = ru.extrapolateToFace(density_code, geometry.boundary, density_code.grad, order=1)
-                velocity_code.R.first, velocity_code.L.first = ru.extrapolateToFace(velocity_code, geometry.boundary, velocity_code.grad, order=1)
-                pressure_code.R.first, pressure_code.L.first = ru.extrapolateToFace(pressure_code, geometry.boundary, pressure_code.grad, order=1)
+                density_code.R.first, density_code.L.first = ru.extrapolateToFace(density_code, geometry.boundary_runtime_code, density_code.grad, order=1)
+                velocity_code.R.first, velocity_code.L.first = ru.extrapolateToFace(velocity_code, geometry.boundary_runtime_code, velocity_code.grad, order=1)
+                pressure_code.R.first, pressure_code.L.first = ru.extrapolateToFace(pressure_code, geometry.boundary_runtime_code, pressure_code.grad, order=1)
                 if hasattr(fluid, 'specific_angular_momentum_code'):
                     (
                         fluid.specific_angular_momentum_code.R.first,
                         fluid.specific_angular_momentum_code.L.first,
                     ) = ru.extrapolateToFace(
                         fluid.specific_angular_momentum_code,
-                        geometry.boundary,
+                        geometry.boundary_runtime_code,
                         fluid.specific_angular_momentum_code.grad,
                         order=1,
                     )
@@ -1287,7 +1293,7 @@ class Solver():
             # Check the reconstructed states themselves.  A centered
             # reconstruction can overshoot across the imposed spherical wind
             # jump even when both cell-centered states are positive.  Testing
-            # only ``rho_code.L/R`` therefore lets an inadmissible high-order
+            # only reconstructed density ``L/R`` therefore lets an inadmissible high-order
             # flux through when the positivity limiter is disabled.
             reconstructed_density = (
                 np.asarray(density_code.L.first, dtype=float),
@@ -1384,23 +1390,23 @@ class Solver():
         if not getattr(par, 'positivity_preserving', True):
             dt_value = float(np.asarray(dt, dtype=float))
             geometry = self._geometry_state(mesh, par)
-            area = np.asarray(geometry.area, dtype=float)
+            area_runtime_code = np.asarray(geometry.area_runtime_code, dtype=float)
             fluid.Mass_code += dt_value * (
-                np.asarray(mass_face, dtype=float) * area
-                - ru.periodic_roll(np.asarray(mass_face, dtype=float) * area, -1)
+                np.asarray(mass_face, dtype=float) * area_runtime_code
+                - ru.periodic_roll(np.asarray(mass_face, dtype=float) * area_runtime_code, -1)
             )
             fluid.Mom_code += dt_value * (
-                np.asarray(mom_face, dtype=float) * area
-                - ru.periodic_roll(np.asarray(mom_face, dtype=float) * area, -1)
+                np.asarray(mom_face, dtype=float) * area_runtime_code
+                - ru.periodic_roll(np.asarray(mom_face, dtype=float) * area_runtime_code, -1)
                 + (np.asarray(geometric_mom, dtype=float)
                    if geometric_mom is not None else 0.0)
             )
             fluid.Energy_code += dt_value * (
-                np.asarray(energy_face, dtype=float) * area
-                - ru.periodic_roll(np.asarray(energy_face, dtype=float) * area, -1)
+                np.asarray(energy_face, dtype=float) * area_runtime_code
+                - ru.periodic_roll(np.asarray(energy_face, dtype=float) * area_runtime_code, -1)
             )
             if angular_face is not None and hasattr(fluid, 'AngularMomentum_code'):
-                angular_area = np.asarray(angular_face, dtype=float) * area
+                angular_area = np.asarray(angular_face, dtype=float) * area_runtime_code
                 fluid.AngularMomentum_code += dt_value * (
                     angular_area - ru.periodic_roll(angular_area, -1)
                 )
@@ -1416,7 +1422,7 @@ class Solver():
                    if angular_face is not None else None)
         geometry = self._geometry_state(mesh, par)
         radius = (
-            np.abs(np.asarray(geometry.coordinate, dtype=float))
+            np.abs(np.asarray(geometry.coordinate_runtime_code, dtype=float))
             if angular is not None
             else None
         )
@@ -1428,13 +1434,13 @@ class Solver():
             last = min(first + int(par.mesh.grid_cells), count)
         physical = np.zeros(count, dtype=bool)
         physical[first:last] = True
-        volume = np.asarray(geometry.volume, dtype=float)
+        volume_runtime_code = np.asarray(geometry.volume_runtime_code, dtype=float)
         mass_floor = max(
             0.0, float(np.asarray(getattr(par, 'positivity_density_floor', 0.0)))
-        ) * volume
+        ) * volume_runtime_code
         energy_floor = max(
             0.0, float(np.asarray(getattr(par, 'positivity_energy_floor', 0.0)))
-        ) * volume
+        ) * volume_runtime_code
         relative_tolerance = (
             # Keep the same roundoff allowance used by the global increment
             # limiter.  Dual energy may tolerate tiny E-K cancellation, but
@@ -1447,7 +1453,8 @@ class Solver():
         # Numerical vacuum is not a resolved state and should not contribute
         # a spurious momentum/energy constraint to its neighboring face.
         vacuum_mass = (
-            float(np.asarray(getattr(par, 'cfl_density_floor', 0.0))) * volume
+            float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
+            * volume_runtime_code
         )
         vacuum = mass <= np.maximum(vacuum_mass, 0.0)
         mass[vacuum] = 0.0
@@ -1550,11 +1557,11 @@ class Solver():
         mass_face = np.asarray(mass_face, dtype=float)
         mom_face = np.asarray(mom_face, dtype=float)
         energy_face = np.asarray(energy_face, dtype=float)
-        area = np.asarray(geometry.area, dtype=float)
-        delta_mass = dt_value * mass_face * area
-        delta_mom = dt_value * mom_face * area
-        delta_energy = dt_value * energy_face * area
-        delta_angular = (dt_value * np.asarray(angular_face, dtype=float) * area
+        area_runtime_code = np.asarray(geometry.area_runtime_code, dtype=float)
+        delta_mass = dt_value * mass_face * area_runtime_code
+        delta_mom = dt_value * mom_face * area_runtime_code
+        delta_energy = dt_value * energy_face * area_runtime_code
+        delta_angular = (dt_value * np.asarray(angular_face, dtype=float) * area_runtime_code
                          if angular_face is not None else None)
         # Accept the unlimited conservative update immediately when possible.
         # This is the overwhelmingly common path and avoids limiter overhead.
@@ -1568,6 +1575,21 @@ class Solver():
             angular + delta_angular - ru.periodic_roll(delta_angular, -1)
             if angular is not None else None
         )
+        # Test the complete conservative update, including the spherical
+        # pressure source, before limiting either contribution separately.
+        # A smooth uniform state can have equal and opposite flux-divergence
+        # and geometric terms; limiting those terms independently would
+        # manufacture momentum from an otherwise admissible update.
+        if np.all(valid(full_mass, full_mom, full_energy, full_angular)):
+            fluid.Mass_code[...] = full_mass
+            fluid.Mom_code[...] = full_mom
+            fluid.Energy_code[...] = full_energy
+            if full_angular is not None:
+                fluid.AngularMomentum_code[...] = full_angular
+            self._last_face_limiter_factors = np.ones_like(
+                np.asarray(mass_face, dtype=float)
+            )
+            return 1.0
         factor_method = str(getattr(
             par, 'positivity_factor_method', 'invariant_domain'
         )).lower()
@@ -2238,7 +2260,7 @@ class Solver():
         )
         first = int(par.mesh.ghost_cells)
         geometry = self._geometry_state(mesh, par)
-        if first >= len(factors) or first >= len(geometry.area):
+        if first >= len(factors) or first >= len(geometry.area_runtime_code):
             return 0.0
         rejected_fraction = max(0.0, 1.0 - float(factors[first]))
         if rejected_fraction <= 0.0:
@@ -2258,14 +2280,14 @@ class Solver():
             else 0.0
         )
         wind_specific_energy = 0.5 * velocity_wind**2 + wind_internal
-        area = float(np.asarray(geometry.area[first]))
+        area_runtime_code = float(np.asarray(geometry.area_runtime_code[first]))
         dt_value = float(np.asarray(dt))
-        mass_rate = rho_wind * velocity_wind * area
-        momentum_rate = (rho_wind * velocity_wind**2 + pressure_wind) * area
+        mass_rate = rho_wind * velocity_wind * area_runtime_code
+        momentum_rate = (rho_wind * velocity_wind**2 + pressure_wind) * area_runtime_code
         energy_rate = velocity_wind * (
             0.5 * rho_wind * velocity_wind**2
             + fluid.eos.gamma * pressure_wind / (fluid.eos.gamma - 1.0)
-        ) * area
+        ) * area_runtime_code
         correction_mass = rejected_fraction * dt_value * mass_rate
         correction_momentum = rejected_fraction * dt_value * momentum_rate
         correction_energy = rejected_fraction * dt_value * energy_rate
@@ -2354,7 +2376,7 @@ class Solver():
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
                 # simple to implement but very diffusive
                 # calculate cmax
-                fluid.cmax = geometry.width / np.amin(self.dt)
+                fluid.cmax = geometry.width_runtime_code / np.amin(self.dt)
             elif method=='Rusanov':
                 # Local Lax Friedrich schem
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)  
@@ -2405,7 +2427,7 @@ class Solver():
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
         geometry = self._geometry_state(mesh, getattr(mesh, '_par', None))
-        area = geometry.area
+        area_runtime_code = geometry.area_runtime_code
         par = getattr(mesh, '_par', None)
         pressure_runtime_code = None
         velocity_runtime_code = None
@@ -2416,19 +2438,19 @@ class Solver():
             _, velocity_runtime_code, pressure_runtime_code, _ = (
                 self._active_primitive_arrays(fluid, par)
             )
-        df_Mass_code = fluid.Mass_code.flux * area - ru.periodic_roll(fluid.Mass_code.flux * area, -1)
-        df_Mom_code = fluid.Mom_code.flux * area - ru.periodic_roll(fluid.Mom_code.flux * area, -1)
-        df_Energy_code = fluid.Energy_code.flux * area - ru.periodic_roll(fluid.Energy_code.flux * area, -1)
+        df_Mass_code = fluid.Mass_code.flux * area_runtime_code - ru.periodic_roll(fluid.Mass_code.flux * area_runtime_code, -1)
+        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(fluid.Mom_code.flux * area_runtime_code, -1)
+        df_Energy_code = fluid.Energy_code.flux * area_runtime_code - ru.periodic_roll(fluid.Energy_code.flux * area_runtime_code, -1)
         df_AngularMomentum = None
         if hasattr(fluid, 'AngularMomentum_code'):
-            angular_flux_area = fluid.AngularMomentum_code.flux * area
+            angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
             df_AngularMomentum = (
                 angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
             )
         potential_face = self._gravity_potential_faces(mesh, getattr(mesh, '_par', None))
         df_potential = None
         if potential_face is not None:
-            potential_flux_area = potential_face * fluid.Mass_code.flux * area
+            potential_flux_area = potential_face * fluid.Mass_code.flux * area_runtime_code
             df_potential = (
                 potential_flux_area
                 - ru.periodic_roll(potential_flux_area, -1)
@@ -2436,8 +2458,8 @@ class Solver():
         if getattr(mesh, 'coordsys', None) == 'spherical':
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
-            area_right = ru.periodic_roll(area, -1)
-            df_Mom_code += pressure_runtime_code * (area_right - area)
+            area_right = ru.periodic_roll(area_runtime_code, -1)
+            df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)
 
         dual_energy = (
             self._dual_energy_enabled(getattr(mesh, '_par', None))
@@ -2474,21 +2496,21 @@ class Solver():
             if origin_face is not None:
                 internal_flux[origin_face] = 0.0
             df_InternalEnergy = (
-                internal_flux * area
-                - ru.periodic_roll(internal_flux * area, -1)
+                internal_flux * area_runtime_code
+                - ru.periodic_roll(internal_flux * area_runtime_code, -1)
             )
             if getattr(mesh, 'coordsys', None) == 'spherical':
                 # Account for spherical pressure work using the same
                 # interface pressure implied by the Riemann momentum flux.
                 df_InternalEnergy -= (
-                    ru.periodic_roll(face_pressure * face_velocity * area, -1)
-                    - face_pressure * face_velocity * area
+                    ru.periodic_roll(face_pressure * face_velocity * area_runtime_code, -1)
+                    - face_pressure * face_velocity * area_runtime_code
                 )
 
         geometric_mom = None
         if getattr(mesh, 'coordsys', None) == 'spherical':
-            area_right = ru.periodic_roll(area, -1)
-            geometric_mom = pressure_runtime_code * (area_right - area)
+            area_right = ru.periodic_roll(area_runtime_code, -1)
+            geometric_mom = pressure_runtime_code * (area_right - area_runtime_code)
         positivity_factor = self._positivity_limited_face_fluxes(
             fluid, dt, mesh, par,
             fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux,
@@ -2520,14 +2542,14 @@ class Solver():
             internal_factors = self._positivity_limited_internal_flux(
                 fluid.InternalEnergy_code,
                 limited_internal_flux,
-                area,
+                area_runtime_code,
                 dt,
                 physical,
             )
             limited_internal_flux *= internal_factors
             limited_df_internal = (
-                limited_internal_flux * area
-                - ru.periodic_roll(limited_internal_flux * area, -1)
+                limited_internal_flux * area_runtime_code
+                - ru.periodic_roll(limited_internal_flux * area_runtime_code, -1)
             )
             if getattr(mesh, 'coordsys', None) == 'spherical':
                 # Retain the established spherical pressure-work
@@ -2537,8 +2559,8 @@ class Solver():
                 # can over-limit cold expanding cells.
                 limited_df_internal -= pressure_runtime_code * (
                     ru.periodic_roll(
-                        factors * face_velocity * area, -1
-                    ) - factors * face_velocity * area
+                        factors * face_velocity * area_runtime_code, -1
+                    ) - factors * face_velocity * area_runtime_code
                 )
             candidate_internal = (
                 np.asarray(fluid.InternalEnergy_code, dtype=float)
@@ -2648,7 +2670,7 @@ class Solver():
                 and not self._thermochemistry_enabled(fluid, par)
             ):
                 volume = np.asarray(
-                    self._geometry_state(mesh, par).volume, dtype=float
+                    self._geometry_state(mesh, par).volume_runtime_code, dtype=float
                 )
                 old_density = np.divide(
                     old_mass_for_internal,
@@ -2703,7 +2725,7 @@ class Solver():
                 dtype=float,
             )
             limited_potential_flux_area = (
-                potential_face * fluid.Mass_code.flux * factors * area
+                potential_face * fluid.Mass_code.flux * factors * area_runtime_code
             )
             fluid.GravitationalPotentialEnergy_code += dt * (
                 limited_potential_flux_area
@@ -2792,15 +2814,15 @@ class Solver():
         )
         acceleration = acceleration_cgs / scales["acceleration_cgs_cm_s2"]
         volume = np.asarray(
-            self._geometry_state(mesh, par).volume[interior], dtype=float
+            self._geometry_state(mesh, par).volume_runtime_code[interior], dtype=float
         )
         momentum = fluid.Mom_code[interior]
         energy = fluid.Energy_code[interior]
-        rho_code = density_runtime_code[interior]
+        density_runtime_code = density_runtime_code[interior]
         velocity = velocity_runtime_code[interior]
-        momentum[valid] += rho_code[valid] * acceleration[valid] * volume[valid] * dt
+        momentum[valid] += density_runtime_code[valid] * acceleration[valid] * volume[valid] * dt
         energy[valid] += (
-            rho_code[valid]
+            density_runtime_code[valid]
             * velocity[valid]
             * acceleration[valid]
             * volume[valid]

@@ -233,8 +233,8 @@ class Mesh:
 class Testing(unittest.TestCase):
     def test_gravity_roundoff_energy_synchronization_repairs_only_tiny_deficit(self):
         geometry = SimpleNamespace(
-            volume=np.array([1.0]),
-            coordinate=np.array([1.0]),
+            volume_runtime_code=np.array([1.0]),
+            coordinate_runtime_code=np.array([1.0]),
         )
         solver = SimpleNamespace(
             _geometry_state=lambda mesh, par: geometry,
@@ -310,7 +310,7 @@ class Testing(unittest.TestCase):
             CodeUnits=CODE_UNITS,
             EOStype='polytropic',
             gamma=1.4,
-            time_code=0.0,
+            time_proper_code=0.0,
         )
         sim.mesh = SimpleNamespace()
         sim.fluid = RealFluid()
@@ -322,11 +322,11 @@ class Testing(unittest.TestCase):
             par.EOStype = 'polytropic'
             par.gamma = 5.0 / 3.0
             par.CodeUnits = restored_units
-            par.time_code = 7.0
+            par.time_proper_code = 7.0
             par.hydrodynamics.eos_type = 'polytropic'
             par.hydrodynamics.gamma = 5.0 / 3.0
             par.units.CodeUnits = restored_units
-            par.simulation.time_code = 7.0
+            par.simulation.time_proper_code = 7.0
             par.mesh.grid_cells = 1
 
         readhdf5.side_effect = restore_header
