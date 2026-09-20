@@ -110,7 +110,7 @@ def output_files(output_directory, output_filename_prefix):
     return sorted(glob.glob(output_directory + "/" + output_filename_prefix + "_*.hdf5"))
 
 
-def save_history_plot(history, filename, config, target_xHI):
+def save_history_plot(history, filename, config, target_xHI):  # noqa: N803
     initial = config["initial_condition"]
 
     time_proper_yr = np.asarray(history["time_proper_yr"])

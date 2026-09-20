@@ -116,7 +116,7 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
     return solver.last_gravity_roundoff_energy
 
 
-def ApplyGravity(solver, dt, mesh, fluid, par):
+def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
     """Apply the combined external and gas self-gravity source update."""
     interior = solver.interior_slice(par)
     gravity = solver.gravity_model(par)

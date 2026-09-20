@@ -6,7 +6,7 @@ import numpy as np
 import unyt
 
 
-def stromgren_radius(source_photon_rate_unyt, hydrogen_number_density_unyt, alpha_B_unyt):
+def stromgren_radius(source_photon_rate_unyt, hydrogen_number_density_unyt, alpha_B_unyt):  # noqa: N803
     """Return the on-the-spot Stromgren radius."""
     radius_cubed = (
         3.0
@@ -20,7 +20,7 @@ def stromgren_optical_depth(
     source_photon_rate_unyt,
     hydrogen_number_density_unyt,
     sigma_gamma_unyt,
-    alpha_B_unyt,
+    alpha_B_unyt,  # noqa: N803
 ):
     """Return ``tau_S = nH sigma_gamma R_S``."""
     radius_stromgren_proper_unyt = stromgren_radius(
@@ -33,7 +33,7 @@ def stromgren_optical_depth(
     ).to_value("")
 
 
-def recombination_time(hydrogen_number_density_unyt, alpha_B_unyt):
+def recombination_time(hydrogen_number_density_unyt, alpha_B_unyt):  # noqa: N803
     """Return the case-B recombination time."""
     return (1.0 / (alpha_B_unyt * hydrogen_number_density_unyt)).to(unyt.Myr)
 
@@ -42,7 +42,7 @@ def ionization_front_radius(
     time_proper_code,
     source_photon_rate_unyt,
     hydrogen_number_density_unyt,
-    alpha_B_unyt,
+    alpha_B_unyt,  # noqa: N803
 ):
     """Return ``R_I(t) = R_S [1 - exp(-t / tau_r)]^(1/3)``."""
     radius_stromgren_proper_unyt = stromgren_radius(
@@ -64,7 +64,7 @@ def neutral_fraction_profile(
     radius_proper_unyt,
     hydrogen_number_density_unyt,
     sigma_gamma_unyt,
-    alpha_B_unyt,
+    alpha_B_unyt,  # noqa: N803
     source_photon_rate_unyt,
     inner_radius_proper_unyt=0.1 * unyt.kpc,
     nsteps=60000,

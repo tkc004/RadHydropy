@@ -8,7 +8,7 @@ import unyt
 import radhydropy.thermo_networks.hydrogen as rth
 
 
-def recombination_rate_cgs_s(temperature_proper_cgs_K_unyt, hydrogen_number_density_cgs_cm3_unyt):
+def recombination_rate_cgs_s(temperature_proper_cgs_K_unyt, hydrogen_number_density_cgs_cm3_unyt):  # noqa: N803
     """Return ``nH alpha_B`` for case-B recombination."""
     alpha_B = rth.cgs_alpha_B(temperature_proper_cgs_K_unyt.to_value(unyt.K))
     nH = hydrogen_number_density_cgs_cm3_unyt.to_value(1.0 / unyt.cm**3)
@@ -18,7 +18,7 @@ def recombination_rate_cgs_s(temperature_proper_cgs_K_unyt, hydrogen_number_dens
 def ionized_fraction_dimensionless(
     time_proper_yr,
     initial_neutral_fraction_dimensionless,
-    temperature_proper_cgs_K_unyt,
+    temperature_proper_cgs_K_unyt,  # noqa: N803
     hydrogen_number_density_cgs_cm3_unyt,
 ):
     """Return the pure case-B ionized fraction."""

@@ -78,7 +78,7 @@ def _advance_until(
     return counters
 
 
-def Evolve(
+def Evolve(  # noqa: N802
     sim,
     final_time=None,
     mode="hydro_sources",
@@ -107,7 +107,7 @@ def Evolve(
     )
 
 
-def Run(
+def Run(  # noqa: N802
     sim,
     outputtime=0,
     mode="hydro_sources",
@@ -173,7 +173,7 @@ def Run(
     print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
 
 
-def RunAll(
+def RunAll(  # noqa: N802
     sim,
     outputtime=0,
     mode="hydro_sources",

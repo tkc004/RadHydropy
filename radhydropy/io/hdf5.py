@@ -69,7 +69,7 @@ _GENERIC_PRIMITIVE_DATASETS = frozenset(
 _validate_snapshot_configuration = validate_snapshot_configuration
 
 
-def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
+def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
     """Write an already-prepared runtime state to an HDF5 snapshot.
 
     The output file contains a ``Header`` group for metadata and a ``Data``
@@ -450,13 +450,13 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
         )
 
 
-def writehdf5(ric, ICfilename, *, provenance=None):
+def writehdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
     """Prepare and write an initial-condition HDF5 file.
 
     Representation-aware IC values are prepared by the shared
     :class:`InitialConditionWriter` boundary before serialization.
     """
-    from radhydropy.initial_condition_writer import InitialConditionWriter
+    from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: PLC0415
 
     return InitialConditionWriter.from_rsim(
         ric,
@@ -464,7 +464,7 @@ def writehdf5(ric, ICfilename, *, provenance=None):
     ).write(ICfilename)
 
 
-def readhdf5(par, mesh, fluid, ICfilename):
+def readhdf5(par, mesh, fluid, ICfilename):  # noqa: N803
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
 
     Canonical representation-specific datasets are restored into the runtime
@@ -817,7 +817,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
             )
 
 
-def loadhdf5(config, ICfilename):
+def loadhdf5(config, ICfilename):  # noqa: N803
     """Construct and load an ``Rsim`` from a nested configuration.
 
     Parameters
@@ -859,13 +859,13 @@ def loadhdf5(config, ICfilename):
 
     # Import locally to keep the I/O module independent from Rsim's import
     # path during package initialization.
-    from radhydropy.rsim import Rsim
+    from radhydropy.rsim import Rsim  # noqa: PLC0415
 
     restored = Rsim(par_config)
     # Resolve through the package façade so callers that replace the public
     # reader for diagnostics/tests observe the same behavior as before the
     # io.py -> io/ package migration.
-    from radhydropy import io as public_io
+    from radhydropy import io as public_io  # noqa: PLC0415
 
     public_io.readhdf5(
         restored.par,

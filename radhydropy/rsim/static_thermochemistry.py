@@ -174,7 +174,7 @@ def _store_static_reference_snapshot(sim, history, state, time_s, reference_time
 
 def _finish_static_thermochemistry(sim, state, time_s):
     if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") == "c2ray":
-        from radhydropy.thermo_networks import c2ray
+        from radhydropy.thermo_networks import c2ray  # noqa: PLC0415
 
         state["ngamma_cgs_cm3"] = state.get("ngamma_cgs_cm3")
         c2ray.sync_fluid_photon_density(
@@ -191,7 +191,7 @@ def _finish_static_thermochemistry(sim, state, time_s):
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
 
 
-def EvolveStaticThermochemistry(
+def EvolveStaticThermochemistry(  # noqa: N802
     sim,
     final_time,
     source_timestep,

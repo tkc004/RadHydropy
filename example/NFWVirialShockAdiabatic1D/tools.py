@@ -113,7 +113,7 @@ def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
     return density_ratio, pressure_ratio / density_ratio
 
 
-def _locate_shock(radius_proper_kpc, temperature_proper_cgs_K, virial_radius_proper_kpc):
+def _locate_shock(radius_proper_kpc, temperature_proper_cgs_K, virial_radius_proper_kpc):  # noqa: N803
     gradient = np.abs(
         np.diff(np.log(np.maximum(temperature_proper_cgs_K, 1.0))) / np.diff(radius_proper_kpc),
     )

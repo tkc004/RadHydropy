@@ -24,7 +24,7 @@ def write_numbered_hdf5(sim, outindex):
     # The live runtime already owns ghost-filled, solver-ready state.  Route
     # snapshots directly to the serializer so the IC preparation boundary
     # does not append a second set of ghost cells.
-    from radhydropy.io import write_snapshot_hdf5
+    from radhydropy.io import write_snapshot_hdf5  # noqa: PLC0415
 
     write_snapshot_hdf5(sim, filename)
     return filename
@@ -141,7 +141,7 @@ def run_with_output_times(
     current_time = getattr(sim.fluid, runtime_fields(sim.par).time)
     final_time = sim.par.simulation.final_time
     time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
-    from radhydropy.io import load_output_time_list
+    from radhydropy.io import load_output_time_list  # noqa: PLC0415
 
     output_times = load_output_time_list(getattr(sim.par, "outputtimefilename", None))
     if output_times is None:
@@ -174,7 +174,7 @@ def run_with_output_times(
             )
         ]
 
-    from radhydropy.rsim.evolution import _advance_until
+    from radhydropy.rsim.evolution import _advance_until  # noqa: PLC0415
 
     outindex = 1
     for target_time in output_times:

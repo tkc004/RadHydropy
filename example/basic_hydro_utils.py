@@ -239,7 +239,7 @@ def finalize_initial_condition(sim, grid_cells, extra_fields=()):
 
 def physical_snapshot(config, filename):
     sim = Rsim(config["par"])
-    import radhydropy.io as rio
+    import radhydropy.io as rio  # noqa: PLC0415
 
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)

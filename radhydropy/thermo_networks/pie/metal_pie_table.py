@@ -68,7 +68,7 @@ class MetalPIETable:
         weight = (value - grid[index]) / (grid[index + 1] - grid[index])
         return index, weight
 
-    def _coordinates(self, temperature_cgs_K, hydrogen_density_cgs_cm3, third_axis):
+    def _coordinates(self, temperature_cgs_K, hydrogen_density_cgs_cm3, third_axis):  # noqa: N803
         log_t = np.log10(np.maximum(np.asarray(temperature_cgs_K, dtype=float), 1.0))
         log_n = np.log10(np.maximum(np.asarray(hydrogen_density_cgs_cm3, dtype=float), 1.0e-99))
         third = np.asarray(third_axis, dtype=float)
@@ -100,7 +100,7 @@ class MetalPIETable:
 
     def rates(
         self,
-        temperature_cgs_K,
+        temperature_cgs_K,  # noqa: N803
         hydrogen_density_cgs_cm3,
         ionization_parameter=None,
         metallicity=1.0,

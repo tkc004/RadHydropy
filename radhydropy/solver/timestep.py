@@ -13,7 +13,7 @@ from radhydropy.runtime_fields import (
 )
 
 
-def get_time_step(solver, mesh, fluid, par, CFL=None):
+def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
     """Return a CFL-limited timestep in the active time coordinate."""
     if CFL is None:
         CFL = par.hydrodynamics.CFL

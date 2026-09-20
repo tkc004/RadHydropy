@@ -14,7 +14,7 @@ from radhydropy.runtime_fields import (
 )
 
 
-def GetStepTime(sim, dt=None, final_time=None):
+def GetStepTime(sim, dt=None, final_time=None):  # noqa: N802
     """Return a timestep, clipped to ``final_time`` when supplied."""
     if dt is None:
         dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
@@ -47,7 +47,7 @@ def GetStepTime(sim, dt=None, final_time=None):
     return dt
 
 
-def PrepareConservedStep(sim, fluid=None):
+def PrepareConservedStep(sim, fluid=None):  # noqa: N802
     """Apply boundaries and refresh conserved variables before a step."""
     if fluid is None:
         fluid = sim.fluid
@@ -59,7 +59,7 @@ def PrepareConservedStep(sim, fluid=None):
     )
 
 
-def AdvanceHydroFluxes(sim, dt, fluid=None):
+def AdvanceHydroFluxes(sim, dt, fluid=None):  # noqa: N802
     """Advance the Euler flux update and return mass data for scalar advection."""
     if fluid is None:
         fluid = sim.fluid
@@ -291,7 +291,7 @@ def _hydro_step_ssprk2(
     }
 
 
-def Step(
+def Step(  # noqa: N802
     sim,
     dt=None,
     mode="hydro_sources",

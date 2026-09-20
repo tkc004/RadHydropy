@@ -90,7 +90,7 @@ def strong_shock_expectation(gamma, upstream_velocity_cgs_cm_s, mu):
 
 def cooling_length_estimate(
     table,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     rho_proper_cgs_g_cm3,
     hydrogen_mass_fraction,
     mu,

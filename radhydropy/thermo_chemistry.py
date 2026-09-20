@@ -126,7 +126,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
         getattr(par, "radiative_transfer", False)
         and getattr(par, "radiative_transfer_temporal_scheme", "c2ray") == "c2ray"
     ):
-        from radhydropy.thermo_networks import c2ray
+        from radhydropy.thermo_networks import c2ray  # noqa: PLC0415
 
         return c2ray.apply_fast(dt, mesh, fluid, par)
     network = get_network(par)
@@ -162,7 +162,7 @@ def evolve_static_source_state(
     """Evolve a fixed-density source state with the selected RT scheme."""
     scheme = getattr(par, "radiative_transfer_temporal_scheme", "c2ray")
     if scheme == "c2ray":
-        from radhydropy.thermo_networks import c2ray
+        from radhydropy.thermo_networks import c2ray  # noqa: PLC0415
 
         return c2ray.evolve_static_state(
             state,

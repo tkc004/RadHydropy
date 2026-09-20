@@ -40,7 +40,7 @@ CASES = (
 class CollidingStreamsSolver(Solver):
     """Maintain an inner outward stream and an outer inward stream."""
 
-    def SetBoundary(self, mesh, fluid, par):
+    def SetBoundary(self, mesh, fluid, par):  # noqa: N802
         first = par.mesh.ghost_cells
         first + par.mesh.grid_cells - 1
         right_start = first + par.mesh.grid_cells

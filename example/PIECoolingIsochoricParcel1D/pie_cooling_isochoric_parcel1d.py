@@ -43,7 +43,7 @@ BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 def _net_rate(
     table,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     hydrogen_number_density_cgs_cm3,
     metallicity,
     redshift,
@@ -75,7 +75,7 @@ def _equilibrium_temperature(table, hydrogen_number_density_cgs_cm3, metallicity
     return float(np.exp(x0 - y0 * (x1 - x0) / (y1 - y0)))
 
 
-def _snapshot(filename, config, time_proper_Myr=None):
+def _snapshot(filename, config, time_proper_Myr=None):  # noqa: N803
     eu.require_complete_example_config(config, "_snapshot")
     snapshot = rio.loadhdf5(config, filename)
     first = int(snapshot.par.mesh.ghost_cells)
@@ -93,7 +93,7 @@ def _snapshot(filename, config, time_proper_Myr=None):
     }
 
 
-def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, table):
+def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, table):  # noqa: N803
 
     hydro = config["par"]["hydrodynamics"]
     thermo = config["par"]["thermochemistry"]

@@ -29,7 +29,7 @@ def test_shock_radius_finds_density_jump():
 
 
 def test_spherical_ic_density_is_mass_density():
-    import unyt
+    import unyt  # noqa: PLC0415
 
     initial_condition = {
         "nogrid": 4,
@@ -43,7 +43,7 @@ def test_spherical_ic_density_is_mass_density():
         "temperature_inflow_proper": 1.0e4 * unyt.K,
         "mean_molecular_weight": 0.62,
     }
-    from radhydropy.units import CodeUnits
+    from radhydropy.units import CodeUnits  # noqa: PLC0415
 
     code_units = CodeUnits.from_mapping(
         {

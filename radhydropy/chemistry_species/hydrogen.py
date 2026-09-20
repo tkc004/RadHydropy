@@ -24,12 +24,12 @@ def photon_excess_energy(epsilon_gamma=DEFAULT_EPSILON_GAMMA_CGS_ERG):
     return np.asarray(epsilon_gamma, dtype=float)
 
 
-def clip_neutral_fraction(xHI):
+def clip_neutral_fraction(xHI):  # noqa: N803
     """Return neutral hydrogen fraction limited to the physical range."""
     return np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
 
 
-def mean_molecular_weight_mu(xHI, hydrogen_mass_fraction=1.0):
+def mean_molecular_weight_mu(xHI, hydrogen_mass_fraction=1.0):  # noqa: N803
     """Return mean molecular weight for a pure H mixture with neutral fraction ``xHI``."""
     xHI = clip_neutral_fraction(xHI)
     return 1.0 / (hydrogen_mass_fraction * (2.0 - xHI))

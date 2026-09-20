@@ -145,12 +145,12 @@ def proper_code_state_from_physical(
     temp_unyt,
     pre_unyt=None,
     specific_energy_unyt=None,
-    Mass_unyt=None,
-    Mom_unyt=None,
-    Energy_unyt=None,
+    Mass_unyt=None,  # noqa: N803
+    Mom_unyt=None,  # noqa: N803
+    Energy_unyt=None,  # noqa: N803
     ngamma_unyt=None,
     mu_dimensionless=None,
-    xHI_dimensionless=None,
+    xHI_dimensionless=None,  # noqa: N803
     time_unyt=None,
 ):
     """Convert physical ``unyt`` quantities into strict code arrays."""

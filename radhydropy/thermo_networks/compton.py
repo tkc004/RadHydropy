@@ -21,11 +21,11 @@ RADIATION_DENSITY_CONSTANT_CGS = float(
 
 
 def cmb_compton_rate(
-    temperature_cgs_K,
+    temperature_cgs_K,  # noqa: N803
     electron_density_cgs_cm3,
     enabled=False,
     redshift=0.0,
-    cmb_temperature_0_cgs_K=2.7255,
+    cmb_temperature_0_cgs_K=2.7255,  # noqa: N803
 ):
     """Return CMB Compton heating/cooling in ``erg cm^-3 s^-1``.
 

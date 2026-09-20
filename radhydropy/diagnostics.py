@@ -16,7 +16,7 @@ from radhydropy.runtime_fields import (
 )
 
 
-def temperature_physical_cgs_K(sim):
+def temperature_physical_cgs_K(sim):  # noqa: N802
     """Return the simulation gas temperature in physical kelvin."""
     runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
     try:

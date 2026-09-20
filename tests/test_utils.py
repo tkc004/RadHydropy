@@ -20,7 +20,7 @@ class Testing(unittest.TestCase):
         preex = rho / (mu * unyt.mp) * unyt.kb * temp
         self.assertEqual(precal, preex)
 
-    def test_CheckParamDimen(self):
+    def test_CheckParamDimen(self):  # noqa: N802
         params = {"vini": 1.0 * unyt.s}
         testdim = ru.CheckParamDimen(params)
         self.assertEqual(testdim, "vini")

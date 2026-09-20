@@ -41,7 +41,7 @@ def load_output_time_list(filename: str | None) -> Any:
 
 
 def write_numbered_hdf5(sim: Any, outindex: int) -> Any:
-    from radhydropy.output import write_numbered_hdf5 as implementation
+    from radhydropy.output import write_numbered_hdf5 as implementation  # noqa: PLC0415
 
     return implementation(sim, outindex)
 
@@ -52,8 +52,8 @@ def hdf5_output_callback(
     output_state: Any = None,
     snapshot_callback: Any = None,
 ) -> Any:
-    from radhydropy import io as public_io
-    from radhydropy.output import hdf5_output_callback as implementation
+    from radhydropy import io as public_io  # noqa: PLC0415
+    from radhydropy.output import hdf5_output_callback as implementation  # noqa: PLC0415
 
     return implementation(
         sim,
@@ -76,8 +76,8 @@ def run_with_output_times(
     history_callback: Any = None,
     snapshot_callback: Any = None,
 ) -> Any:
-    from radhydropy import io as public_io
-    from radhydropy.output import run_with_output_times as implementation
+    from radhydropy import io as public_io  # noqa: PLC0415
+    from radhydropy.output import run_with_output_times as implementation  # noqa: PLC0415
 
     return implementation(
         sim,

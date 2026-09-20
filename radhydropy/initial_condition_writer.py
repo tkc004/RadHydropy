@@ -62,7 +62,7 @@ class InitialConditionWriter:
         box_size=None,
         cosmology_context=None,
         scale_factor=None,
-        hubble_parameter_km_s_Mpc=None,
+        hubble_parameter_km_s_Mpc=None,  # noqa: N803
         provenance=None,
     ):
         if simulation is None:
@@ -1112,7 +1112,7 @@ class InitialConditionWriter:
 
     def write(self, filename, *, validate=False):
         """Prepare and write the state, optionally validating active cells."""
-        from radhydropy import io
+        from radhydropy import io  # noqa: PLC0415
 
         self.prepare(validate=validate)
         return io.write_snapshot_hdf5(

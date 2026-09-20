@@ -23,7 +23,7 @@ def periodic_roll(values, shift):
     return out
 
 
-def SafeDivide(numerator, denominator):
+def SafeDivide(numerator, denominator):  # noqa: N802
     """Divide two ``unyt`` quantities and return zero where the denominator is zero."""
     if hasattr(numerator, "units") or hasattr(denominator, "units"):
         numerator_value, denominator_value = np.broadcast_arrays(
@@ -56,7 +56,7 @@ def SafeDivide(numerator, denominator):
     return as_named_array(quotient)
 
 
-def CalPressure(rho, temp, mu):
+def CalPressure(rho, temp, mu):  # noqa: N802
     """Calculate ideal-gas pressure from density, temperature, and molecular weight."""
     if hasattr(rho, "units") or hasattr(temp, "units"):
         return rho / (mu * unyt.mp) * unyt.kb * temp
@@ -65,7 +65,7 @@ def CalPressure(rho, temp, mu):
     )
 
 
-def CalTemperature(rho, pressure, mu):
+def CalTemperature(rho, pressure, mu):  # noqa: N802
     """Calculate ideal-gas temperature from density, pressure, and molecular weight."""
     if not (hasattr(rho, "units") or hasattr(pressure, "units")):
         return (
@@ -77,12 +77,12 @@ def CalTemperature(rho, pressure, mu):
     return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
 
-def CalEnergyDensity(pressure, gamma):
+def CalEnergyDensity(pressure, gamma):  # noqa: N802
     """Calculate thermal energy density for a polytropic gas."""
     return pressure / (gamma - 1.0)
 
 
-def CalSoundSpeed(pressure, rho, gamma):
+def CalSoundSpeed(pressure, rho, gamma):  # noqa: N802
     """Calculate adiabatic sound speed and zero invalid values."""
     if not (hasattr(pressure, "units") or hasattr(rho, "units")):
         pressure_over_rho = SafeDivide(pressure, rho)
@@ -95,7 +95,7 @@ def CalSoundSpeed(pressure, rho, gamma):
     return soundspeed
 
 
-def CheckParamDimen(params):
+def CheckParamDimen(params):  # noqa: N802
     """Validate known dimensional parameters.
 
     Returns ``True`` when all recognized parameters have compatible dimensions;
@@ -118,7 +118,7 @@ def CheckParamDimen(params):
     return True
 
 
-def CheckDimension(a, dimcheck):
+def CheckDimension(a, dimcheck):  # noqa: N802
     """Raise a ``unyt`` error if ``a`` is not dimensionally compatible."""
     if not hasattr(a, "units"):
         return
@@ -139,13 +139,13 @@ def gaussiansph(r, sig):
     return np.exp(-0.5 * np.power(r, 2.0) / np.power(sig, 2.0)) / (np.sqrt(2.0 * np.pi) * sig) ** 3
 
 
-def CalGradient(quan, width_runtime_code):
+def CalGradient(quan, width_runtime_code):  # noqa: N802
     """Calculate a centered periodic gradient."""
     # only work for periodic boundary condition!
     return (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2.0 * width_runtime_code)
 
 
-def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cmax: float) -> float:
+def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cmax: float) -> float:  # noqa: N802, N803
     """Calculate a Lax-Friedrichs interface flux."""
     # Global Lax Friedrich function
     # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)
@@ -155,7 +155,7 @@ def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cm
     return InterFaceFlux
 
 
-def CalFluxLimiter(rlim, limiter="minmod"):
+def CalFluxLimiter(rlim, limiter="minmod"):  # noqa: N802
     """Calculate a slope limiter from the ratio of neighboring gradients."""
     if limiter == "minmod":
         firststep = np.minimum(np.ones(len(rlim)), rlim)
@@ -178,7 +178,7 @@ def CalFluxLimiter(rlim, limiter="minmod"):
     return philim
 
 
-def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):
+def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):  # noqa: N802
     """Extrapolate cell-centered values to left and right faces."""
     # numpy roll Rroll, put the right value to this cell
     if order == 0:
@@ -194,7 +194,7 @@ def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):
     return flux_L, flux_R
 
 
-def GetFQ(rho, vel, pre, gamma):
+def GetFQ(rho, vel, pre, gamma):  # noqa: N802
     """Return Euler fluxes and conserved densities for mass, momentum, and energy."""
     Fmass = rho * vel
     qmass = rho
@@ -208,7 +208,7 @@ def GetFQ(rho, vel, pre, gamma):
     return Fmass, qmass, Fmom, qmom, FEn, qEn
 
 
-def CalFluxFromLR(rho_L, rho_R, u_L, u_R, p_L, p_R, gamma, cmax):
+def CalFluxFromLR(rho_L, rho_R, u_L, u_R, p_L, p_R, gamma, cmax):  # noqa: N802, N803
     """Calculate Rusanov/GLF fluxes from left and right primitive states."""
     Fmass_L, qmass_L, Fmom_L, qmom_L, FEn_L, qEn_L = GetFQ(rho_L, u_L, p_L, gamma)
     Fmass_R, qmass_R, Fmom_R, qmom_R, FEn_R, qEn_R = GetFQ(rho_R, u_R, p_R, gamma)
@@ -219,7 +219,7 @@ def CalFluxFromLR(rho_L, rho_R, u_L, u_R, p_L, p_R, gamma, cmax):
     return Mass_flux, Mom_flux, Energy_flux
 
 
-def ApplyFluxLimiter(q, flux_1, flux_0, limiter="minmod"):
+def ApplyFluxLimiter(q, flux_1, flux_0, limiter="minmod"):  # noqa: N802
     """Blend first-order and second-order fluxes using a slope limiter."""
     # numpy roll Rroll, put the right value to this cell
     q_l1 = periodic_roll(q, 1)

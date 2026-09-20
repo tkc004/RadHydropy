@@ -21,7 +21,7 @@ class Rsim:
     """Coordinate parameters, mesh, fluid state, solver, and output."""
 
     def _initialize_runtime_state(self, *args, **kwargs):
-        from .state import _initialize_runtime_state
+        from .state import _initialize_runtime_state  # noqa: PLC0415
 
         return _initialize_runtime_state(self, *args, **kwargs)
 
@@ -40,7 +40,7 @@ class Rsim:
         )
 
     @classmethod
-    def FromComponents(cls, par, mesh, fluid, solver=None):
+    def FromComponents(cls, par, mesh, fluid, solver=None):  # noqa: N802
         """Create a runner from already-initialized objects."""
         sim = cls.__new__(cls)
         sim.par = par
@@ -51,62 +51,62 @@ class Rsim:
         sim._initialize_runtime_state()
         return sim
 
-    def Callreadhdf5(self):
-        from .initialization import Callreadhdf5
+    def Callreadhdf5(self):  # noqa: N802
+        from .initialization import Callreadhdf5  # noqa: PLC0415
 
         return Callreadhdf5(self)
 
-    def SetMesh(self):
-        from .initialization import SetMesh
+    def SetMesh(self):  # noqa: N802
+        from .initialization import SetMesh  # noqa: PLC0415
 
         return SetMesh(self)
 
-    def SetFluid(self):
-        from .initialization import SetFluid
+    def SetFluid(self):  # noqa: N802
+        from .initialization import SetFluid  # noqa: PLC0415
 
         return SetFluid(self)
 
-    def SetInitFluid(self):
-        from .initialization import SetInitFluid
+    def SetInitFluid(self):  # noqa: N802
+        from .initialization import SetInitFluid  # noqa: PLC0415
 
         return SetInitFluid(self)
 
-    def ConvertParametersToCodeUnits(self):
-        from .initialization import ConvertParametersToCodeUnits
+    def ConvertParametersToCodeUnits(self):  # noqa: N802
+        from .initialization import ConvertParametersToCodeUnits  # noqa: PLC0415
 
         return ConvertParametersToCodeUnits(self)
 
     def _require_code_units(self):
-        from .initialization import _require_code_units
+        from .initialization import _require_code_units  # noqa: PLC0415
 
         return _require_code_units(self)
 
-    def WriteUsedParameters(self, filename="used_parameters.yaml"):
+    def WriteUsedParameters(self, filename="used_parameters.yaml"):  # noqa: N802
         """Write the active runtime parameters to a text file in the CWD."""
         return rio.write_used_parameters(Path.cwd() / filename, self.par)
 
-    def GetStepTime(self, dt=None, final_time=None):
-        from .stepping import GetStepTime
+    def GetStepTime(self, dt=None, final_time=None):  # noqa: N802
+        from .stepping import GetStepTime  # noqa: PLC0415
 
         return GetStepTime(self, dt=dt, final_time=final_time)
 
-    def PrepareConservedStep(self, fluid=None):
-        from .stepping import PrepareConservedStep
+    def PrepareConservedStep(self, fluid=None):  # noqa: N802
+        from .stepping import PrepareConservedStep  # noqa: PLC0415
 
         return PrepareConservedStep(self, fluid=fluid)
 
-    def AdvanceHydroFluxes(self, dt, fluid=None):
-        from .stepping import AdvanceHydroFluxes
+    def AdvanceHydroFluxes(self, dt, fluid=None):  # noqa: N802
+        from .stepping import AdvanceHydroFluxes  # noqa: PLC0415
 
         return AdvanceHydroFluxes(self, dt, fluid=fluid)
 
-    def AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=None):
-        from .sources import AdvectChemistryScalars
+    def AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=None):  # noqa: N802
+        from .sources import AdvectChemistryScalars  # noqa: PLC0415
 
         return AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=fluid)
 
-    def UpdateThermochemistryPrimitiveState(self, update_pressure=True, fluid=None):
-        from .sources import UpdateThermochemistryPrimitiveState
+    def UpdateThermochemistryPrimitiveState(self, update_pressure=True, fluid=None):  # noqa: N802
+        from .sources import UpdateThermochemistryPrimitiveState  # noqa: PLC0415
 
         return UpdateThermochemistryPrimitiveState(
             self,
@@ -115,7 +115,7 @@ class Rsim:
         )
 
     def _sync_hydro_state(self, fluid=None):
-        from .stepping import _sync_hydro_state
+        from .stepping import _sync_hydro_state  # noqa: PLC0415
 
         return _sync_hydro_state(self, fluid=fluid)
 
@@ -123,7 +123,7 @@ class Rsim:
         """Refresh hydro primitive and conserved state after an update."""
         return self._sync_hydro_state(fluid=fluid)
 
-    def FinalizeHydroStep(
+    def FinalizeHydroStep(  # noqa: N802
         self,
         dt,
         old_mass,
@@ -134,7 +134,7 @@ class Rsim:
         gravity_dt=None,
         apply_gravity=True,
     ):
-        from .sources import FinalizeHydroStep
+        from .sources import FinalizeHydroStep  # noqa: PLC0415
 
         return FinalizeHydroStep(
             self,
@@ -148,13 +148,13 @@ class Rsim:
             apply_gravity=apply_gravity,
         )
 
-    def ApplyThermochemistrySources(self, dt):
-        from .sources import ApplyThermochemistrySources
+    def ApplyThermochemistrySources(self, dt):  # noqa: N802
+        from .sources import ApplyThermochemistrySources  # noqa: PLC0415
 
         return ApplyThermochemistrySources(self, dt)
 
     def _synchronize_thermochemistry_internal_energy(self):
-        from .sources import _synchronize_thermochemistry_internal_energy
+        from .sources import _synchronize_thermochemistry_internal_energy  # noqa: PLC0415
 
         return _synchronize_thermochemistry_internal_energy(self)
 
@@ -169,7 +169,7 @@ class Rsim:
         return copy.deepcopy(fluid)
 
     def _hydro_step_once(self, dt, fluid=None, advect_chemistry=True, apply_gravity=True):
-        from .stepping import _hydro_step_once
+        from .stepping import _hydro_step_once  # noqa: PLC0415
 
         return _hydro_step_once(
             self,
@@ -180,7 +180,7 @@ class Rsim:
         )
 
     def _hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
-        from .stepping import _hydro_step_ssprk2
+        from .stepping import _hydro_step_ssprk2  # noqa: PLC0415
 
         return _hydro_step_ssprk2(
             self,
@@ -190,18 +190,18 @@ class Rsim:
         )
 
     def _accumulate_gravity_work(self):
-        from .sources import _accumulate_gravity_work
+        from .sources import _accumulate_gravity_work  # noqa: PLC0415
 
         return _accumulate_gravity_work(self)
 
-    def Step(
+    def Step(  # noqa: N802
         self,
         dt=None,
         mode="hydro_sources",
         advect_chemistry=True,
         hydro_integrator="euler",
     ):
-        from .stepping import Step
+        from .stepping import Step  # noqa: PLC0415
 
         return Step(
             self,
@@ -211,7 +211,7 @@ class Rsim:
             hydro_integrator=hydro_integrator,
         )
 
-    def Evolve(
+    def Evolve(  # noqa: N802
         self,
         final_time=None,
         mode="hydro_sources",
@@ -223,7 +223,7 @@ class Rsim:
         step_backend_kwargs=None,
         before_step_callback=None,
     ):
-        from .evolution import Evolve
+        from .evolution import Evolve  # noqa: PLC0415
 
         return Evolve(
             self,
@@ -239,73 +239,73 @@ class Rsim:
         )
 
     def _static_front_radius_from_state(self, *args, **kwargs):
-        from .static_thermochemistry import _static_front_radius_from_state
+        from .static_thermochemistry import _static_front_radius_from_state  # noqa: PLC0415
 
         return _static_front_radius_from_state(self, *args, **kwargs)
 
     def _append_static_history(self, *args, **kwargs):
-        from .static_thermochemistry import _append_static_history
+        from .static_thermochemistry import _append_static_history  # noqa: PLC0415
 
         return _append_static_history(self, *args, **kwargs)
 
     def _snapshot_static_state(self, *args, **kwargs):
-        from .static_thermochemistry import _snapshot_static_state
+        from .static_thermochemistry import _snapshot_static_state  # noqa: PLC0415
 
         return _snapshot_static_state(self, *args, **kwargs)
 
     def _initial_static_history(self, *args, **kwargs):
-        from .static_thermochemistry import _initial_static_history
+        from .static_thermochemistry import _initial_static_history  # noqa: PLC0415
 
         return _initial_static_history(self, *args, **kwargs)
 
     def _static_reference_time_seconds(self, *args, **kwargs):
-        from .static_thermochemistry import _static_reference_time_seconds
+        from .static_thermochemistry import _static_reference_time_seconds  # noqa: PLC0415
 
         return _static_reference_time_seconds(self, *args, **kwargs)
 
     def _static_step_limit_seconds(self, *args, **kwargs):
-        from .static_thermochemistry import _static_step_limit_seconds
+        from .static_thermochemistry import _static_step_limit_seconds  # noqa: PLC0415
 
         return _static_step_limit_seconds(self, *args, **kwargs)
 
     def _static_recombination_rate(self, *args, **kwargs):
-        from .static_thermochemistry import _static_recombination_rate
+        from .static_thermochemistry import _static_recombination_rate  # noqa: PLC0415
 
         return _static_recombination_rate(self, *args, **kwargs)
 
     def _apply_static_thermal_update(self, *args, **kwargs):
-        from .static_thermochemistry import _apply_static_thermal_update
+        from .static_thermochemistry import _apply_static_thermal_update  # noqa: PLC0415
 
         return _apply_static_thermal_update(self, *args, **kwargs)
 
     def _advance_source_thermochemistry_state(self, *args, **kwargs):
-        from .static_thermochemistry import _advance_source_thermochemistry_state
+        from .static_thermochemistry import _advance_source_thermochemistry_state  # noqa: PLC0415
 
         return _advance_source_thermochemistry_state(self, *args, **kwargs)
 
     def _refresh_static_photon_density(self, *args, **kwargs):
-        from .static_thermochemistry import _refresh_static_photon_density
+        from .static_thermochemistry import _refresh_static_photon_density  # noqa: PLC0415
 
         return _refresh_static_photon_density(self, *args, **kwargs)
 
     def _store_static_reference_snapshot(self, *args, **kwargs):
-        from .static_thermochemistry import _store_static_reference_snapshot
+        from .static_thermochemistry import _store_static_reference_snapshot  # noqa: PLC0415
 
         return _store_static_reference_snapshot(self, *args, **kwargs)
 
     def _finish_static_thermochemistry(self, *args, **kwargs):
-        from .static_thermochemistry import _finish_static_thermochemistry
+        from .static_thermochemistry import _finish_static_thermochemistry  # noqa: PLC0415
 
         return _finish_static_thermochemistry(self, *args, **kwargs)
 
-    def EvolveStaticThermochemistry(
+    def EvolveStaticThermochemistry(  # noqa: N802
         self,
         final_time,
         source_timestep,
         include_thermal_history=False,
         reference_time=None,
     ):
-        from .static_thermochemistry import EvolveStaticThermochemistry
+        from .static_thermochemistry import EvolveStaticThermochemistry  # noqa: PLC0415
 
         return EvolveStaticThermochemistry(
             self,
@@ -315,7 +315,7 @@ class Rsim:
             reference_time=reference_time,
         )
 
-    def Run(
+    def Run(  # noqa: N802
         self,
         outputtime=0,
         mode="hydro_sources",
@@ -327,7 +327,7 @@ class Rsim:
         history_callback=None,
         snapshot_callback=None,
     ):
-        from .evolution import Run
+        from .evolution import Run  # noqa: PLC0415
 
         return Run(
             self,
@@ -342,7 +342,7 @@ class Rsim:
             step_backend_kwargs=step_backend_kwargs,
         )
 
-    def RunAll(
+    def RunAll(  # noqa: N802
         self,
         outputtime=0,
         mode="hydro_sources",
@@ -354,7 +354,7 @@ class Rsim:
         history_callback=None,
         snapshot_callback=None,
     ):
-        from .evolution import RunAll
+        from .evolution import RunAll  # noqa: PLC0415
 
         return RunAll(
             self,

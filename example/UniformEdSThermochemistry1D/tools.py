@@ -61,21 +61,21 @@ def build_initial_condition(config):
 
 def analytic_compton_temperature(
     cosmic_times_s,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     time_cosmic_cgs_s,
     cosmology,
     time_unit_s,
     hydrogen_number_density_cgs_cm3,
     hydrogen_mass_fraction,
-    xHI,
+    xHI,  # noqa: N803
     gamma,
-    cmb_temperature_0_cgs_K,
+    cmb_temperature_0_cgs_K,  # noqa: N803
     mu,
 ):
     """Return the EdS Compton-only solution using the linear ODE integral."""
-    from scipy.integrate import solve_ivp
+    from scipy.integrate import solve_ivp  # noqa: PLC0415
 
-    from radhydropy.thermo_networks.compton import cmb_compton_rate
+    from radhydropy.thermo_networks.compton import cmb_compton_rate  # noqa: PLC0415
 
     rho_proper_cgs_g_cm3 = (
         hydrogen_number_density_cgs_cm3 * PROTON_MASS_CGS / hydrogen_mass_fraction

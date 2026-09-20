@@ -127,7 +127,7 @@ def plot_lcdm_transfer_function(
     the figure is saved there and the figure is closed; the sampled ``(k, T)``
     arrays are returned in all cases.
     """
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # noqa: PLC0415
 
     if k_hmpc is None:
         k_hmpc = np.geomspace(1.0e-4, 1.0e2, 512)
@@ -168,7 +168,7 @@ def plot_linear_matter_power_spectrum(
     omega_lambda=0.685,
 ):
     """Plot the sigma8-normalized linear matter power spectrum."""
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # noqa: PLC0415
 
     if k_hmpc is None:
         k_hmpc = np.geomspace(1.0e-4, 1.0e2, 512)
@@ -217,7 +217,7 @@ def plot_linear_correlation_from_power_spectrum(
     ringing dominates the very small large-radius correlation signal.  The
     correlation-integral routine and generated table are not range-limited.
     """
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # noqa: PLC0415
 
     if radius_mpc_h is None:
         radius_mpc_h = np.geomspace(1.0e-2, 50.0, 512)

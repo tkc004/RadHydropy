@@ -11,7 +11,7 @@ from scipy.optimize import brentq
 
 def plot_xi_lambda(solution, filename=None, axis=None, **plot_kwargs):
     """Plot similarity time ``xi`` on x and shell radius ``lambda`` on y."""
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # noqa: PLC0415
 
     if axis is None:
         _, axis = plt.subplots()
@@ -189,7 +189,7 @@ def solve_eq41_self_similar(
     def save_branch(solution):
         # Every branch is monotonic in radius.  PCHIP avoids spurious extrema
         # when a crossing time is requested by a neighbouring branch.
-        from scipy.interpolate import PchipInterpolator
+        from scipy.interpolate import PchipInterpolator  # noqa: PLC0415
 
         order = np.argsort(solution.y[0])
         radius_dimensionless = solution.y[0][order]

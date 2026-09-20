@@ -37,7 +37,7 @@ DEFAULT_CONFIG = Path(__file__).with_name("spherical_shell_reflecting_wall1d.yam
 class InnerWallSolver(Solver):
     """Reflect at the finite inner face and copy the state at the outer face."""
 
-    def SetBoundary(self, mesh, fluid, par):
+    def SetBoundary(self, mesh, fluid, par):  # noqa: N802
         self.ApplyHydrostaticCore(mesh, fluid, par)
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells) - 1

@@ -52,7 +52,7 @@ class BertschingerBoundarySolver(Solver):
     temperature rather than taken from the YAML outflow values.
     """
 
-    def SetBoundary(self, mesh, fluid, par):
+    def SetBoundary(self, mesh, fluid, par):  # noqa: N802
         super().SetBoundary(mesh, fluid, par)
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)

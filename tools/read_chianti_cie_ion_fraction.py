@@ -73,7 +73,7 @@ def read_abundances(filename):
     return np.asarray(atomic_number), np.asarray(symbols), abundance
 
 
-def calculate_electron_density(table_file, abundance_file, metallicity, nH, temperatures):
+def calculate_electron_density(table_file, abundance_file, metallicity, nH, temperatures):  # noqa: N803
     if metallicity < 0:
         raise ValueError("metallicity must be non-negative")
     if nH < 0:

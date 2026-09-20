@@ -175,7 +175,7 @@ class FluidRuntimeState:
         fields: RuntimeFieldNames,
         *,
         mu_dimensionless: Any = None,
-        xHI_dimensionless: Any = None,
+        xHI_dimensionless: Any = None,  # noqa: N803
         **arrays: Any,
     ) -> "FluidRuntimeState":
         required = (

@@ -13,7 +13,7 @@ from scipy import special
 # nu is dimension of the problem
 
 
-def get_rho0(r, A0, w):
+def get_rho0(r, A0, w):  # noqa: N803
     """We assume a power law density profile:
     rho0 = A0 r^-w
     note that the dimenion of rho0 is [M/L^nu],
@@ -57,7 +57,7 @@ def get_beta_index(nu, w, g, wa):
     return b
 
 
-def get_Cc(nu, w, g, wa, b):
+def get_Cc(nu, w, g, wa, b):  # noqa: N802
     """Nu is dimension of the problem
     w is the exponent of initial density profile from rho0 = A r^-w
     g is the adiabatic index
@@ -78,7 +78,7 @@ def get_Cc(nu, w, g, wa, b):
     return Cc
 
 
-def getShockquan(g, nu, w, A0, Rs, t):
+def getShockquan(g, nu, w, A0, Rs, t):  # noqa: N802, N803
     """density, velocity and pressure of the shock
     g is the adiabatic index
     nu is dimension of the problem
@@ -92,7 +92,7 @@ def getShockquan(g, nu, w, A0, Rs, t):
     return rhos, vs, ps
 
 
-def getRs(E0, A0, nu, w, alpha, t):
+def getRs(E0, A0, nu, w, alpha, t):  # noqa: N802, N803
     """Get the shock radius
     E0 is the initial energy
     A0 is the normalization: initial density profile from rho0 = A0 r^-w
@@ -104,7 +104,7 @@ def getRs(E0, A0, nu, w, alpha, t):
     return np.power(E0 * t**2 / alpha / A0, 1.0 / (nu + 2.0 - w))
 
 
-def eta_func(F, b, Cc):
+def eta_func(F, b, Cc):  # noqa: N803
     """Get dimensionless radius"""
     return (
         np.power(F, -b[6])
@@ -113,7 +113,7 @@ def eta_func(F, b, Cc):
     )
 
 
-def D_func(F, b, Cc, w):
+def D_func(F, b, Cc, w):  # noqa: N802, N803
     """Get dimensionless density"""
     return (
         np.power(F, b[7])
@@ -123,13 +123,13 @@ def D_func(F, b, Cc, w):
     )
 
 
-def V_func(F, b, Cc):
+def V_func(F, b, Cc):  # noqa: N802, N803
     """Get dimensionless velocity"""
     eta = eta_func(F, b, Cc)
     return eta * F
 
 
-def P_func(F, b, Cc, w):
+def P_func(F, b, Cc, w):  # noqa: N802, N803
     """Get dimensionless pressure"""
     return (
         np.power(F, b[8])
@@ -158,7 +158,7 @@ def integral_solution(nu, g, w):
     return alpha, eta, Df, Vf, Pf
 
 
-def get_blastwave_solution(E0, A0, nu, g, w, t):
+def get_blastwave_solution(E0, A0, nu, g, w, t):  # noqa: N803
     """Calculate the blast wave solution with unit"""
     alpha, eta, Df, Vf, Pf = integral_solution(nu, g, w)
     Rs = getRs(E0, A0, nu, w, alpha, t)

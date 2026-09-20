@@ -126,14 +126,14 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         ), rate
 
     @staticmethod
-    def _energy_at_temperature(state, temperature_cgs_K):
+    def _energy_at_temperature(state, temperature_cgs_K):  # noqa: N803
         return (
             BOLTZMANN_CONSTANT_CGS
             * np.asarray(temperature_cgs_K, dtype=float)
             / ((state["gamma"] - 1.0) * state["mu"] * PROTON_MASS_CGS)
         )
 
-    def _implicit_energy_step(self, state, old_energy, dt_s, floor_cgs_K):
+    def _implicit_energy_step(self, state, old_energy, dt_s, floor_cgs_K):  # noqa: N803
         """Solve one backward-Euler thermal step with vectorized bisection."""
         table = state["par"].metal_pie_table
         lower_cgs_K = max(float(floor_cgs_K), 10.0 ** float(table.log_temperature[0]))
@@ -196,7 +196,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         trial_energy = np.maximum(trial_energy, floor_energy)
         return trial_energy, successful
 
-    def _implicit_converged_step(self, state, old_energy, dt_s, floor_cgs_K):
+    def _implicit_converged_step(self, state, old_energy, dt_s, floor_cgs_K):  # noqa: N803
         """Compare a full implicit step with two implicit half steps."""
         full_energy, full_ok = self._implicit_energy_step(
             state,
@@ -233,7 +233,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         )
         return half_energy, converged
 
-    def _explicit_fallback_step(self, state, old_energy, remaining_s, floor_cgs_K):
+    def _explicit_fallback_step(self, state, old_energy, remaining_s, floor_cgs_K):  # noqa: N803
         """Advance one chunk with the existing cooling-time subcycling."""
         state["specific_energy_cgs_erg_g"] = old_energy.copy()
         _update_temperature(state)

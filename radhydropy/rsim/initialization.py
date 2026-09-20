@@ -19,7 +19,7 @@ from radhydropy.units import (
 )
 
 
-def Callreadhdf5(sim):
+def Callreadhdf5(sim):  # noqa: N802
     """Read the configured initial-condition HDF5 file."""
     sim._require_code_units()
     rio.readhdf5(
@@ -68,17 +68,17 @@ def Callreadhdf5(sim):
     sim.fluid.SetFluidTime(getattr(sim.par, time_field))
 
 
-def SetMesh(sim):
+def SetMesh(sim):  # noqa: N802
     """Initialize mesh geometry and ghost cells."""
     sim.mesh.SetUpMesh(sim.par)
 
 
-def SetFluid(sim):
+def SetFluid(sim):  # noqa: N802
     """Initialize fluid ghost cells and pressure."""
     sim.fluid.SetUpFluid(sim.par, mesh=sim.mesh)
 
 
-def SetInitFluid(sim):
+def SetInitFluid(sim):  # noqa: N802
     """Apply initial boundaries and populate conserved variables."""
     sim.ConvertParametersToCodeUnits()
     if getattr(sim.par, "supercomoving_coordinates", False):
@@ -121,7 +121,7 @@ def SetInitFluid(sim):
         sim.solver.ApplyRadiativeTransfer(sim.mesh, sim.fluid, sim.par)
 
 
-def ConvertParametersToCodeUnits(sim):
+def ConvertParametersToCodeUnits(sim):  # noqa: N802
     """Convert only the runtime parameters into the internal unit system."""
     code = sim._require_code_units()
     if getattr(sim, "_runtime_parameters_converted_to_code_units", False):

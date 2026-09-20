@@ -48,9 +48,9 @@ DEFAULT_CONFIG = Path(__file__).resolve().with_name("compton_cmb_heating1d.yaml"
 
 def _analytic_temperature(
     time_proper_cgs_s,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     redshift,
-    nH_cgs_cm3,
+    nH_cgs_cm3,  # noqa: N803
     neutral_fraction,
 ):
     """Return the fixed-density analytic CMB-coupling temperature."""

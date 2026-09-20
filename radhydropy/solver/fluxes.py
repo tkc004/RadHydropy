@@ -32,7 +32,7 @@ def vacuum_safe_primitive_state(rho, vel, pre):
     )
 
 
-def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
+def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):  # noqa: N803
     """Return an HLLC Euler flux for positive, non-vacuum states.
 
     The caller supplies the Rusanov flux for vacuum, non-finite, or
@@ -113,7 +113,7 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
     return result, valid
 
 
-def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
+def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):  # noqa: N803
     states = fluid.eos.fluxes(rho_L, vel_L, pre_L)
     states_R = fluid.eos.fluxes(rho_R, vel_R, pre_R)
     if method != "HLLC" or not getattr(fluid.eos, "is_polytropic", False):

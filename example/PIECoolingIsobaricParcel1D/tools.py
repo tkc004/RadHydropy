@@ -12,9 +12,9 @@ BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 
 def hydrogen_number_density_isobaric_cgs_cm3(
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     density_initial_proper_cgs_cm3,
-    temperature_initial_proper_cgs_K,
+    temperature_initial_proper_cgs_K,  # noqa: N803
 ):
     """Return n_H for a parcel held at its initial ideal-gas pressure."""
     return (
@@ -25,8 +25,8 @@ def hydrogen_number_density_isobaric_cgs_cm3(
 
 
 def pressure_proper_cgs_erg_cm3_from_nh(
-    temperature_proper_cgs_K,
-    density_nH_cgs_cm3,
+    temperature_proper_cgs_K,  # noqa: N803
+    density_nH_cgs_cm3,  # noqa: N803
     hydrogen_mass_fraction,
     mu,
 ):
@@ -39,7 +39,7 @@ def pressure_proper_cgs_erg_cm3_from_nh(
     )
 
 
-def net_rate(table, temperature_proper_cgs_K, density_nH_cgs_cm3, metallicity, redshift):
+def net_rate(table, temperature_proper_cgs_K, density_nH_cgs_cm3, metallicity, redshift):  # noqa: N803
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
         density_nH_cgs_cm3,
@@ -52,8 +52,8 @@ def net_rate(table, temperature_proper_cgs_K, density_nH_cgs_cm3, metallicity, r
 def integrate_isobaric_case(
     table,
     density_initial_proper_cgs_cm3,
-    temperature_initial_proper_cgs_K,
-    time_final_proper_Myr,
+    temperature_initial_proper_cgs_K,  # noqa: N803
+    time_final_proper_Myr,  # noqa: N803
     output_count,
     hydrogen_mass_fraction,
     mu,
@@ -68,7 +68,7 @@ def integrate_isobaric_case(
     ``dT/dt = (gamma-1)/gamma * (mu m_p/k_B) * net_rate/rho``.
     """
 
-    def rhs(time_proper_Myr, state):
+    def rhs(time_proper_Myr, state):  # noqa: N803
         temperature_proper_cgs_K = max(float(state[0]), temperature_floor)
         density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(
             temperature_proper_cgs_K,
@@ -131,9 +131,9 @@ def integrate_isobaric_case(
 
 def isobaric_growth_rate(
     table,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     density_initial_proper_cgs_cm3,
-    temperature_initial_proper_cgs_K,
+    temperature_initial_proper_cgs_K,  # noqa: N803
     hydrogen_mass_fraction,
     mu,
     gamma,

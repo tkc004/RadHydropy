@@ -47,7 +47,7 @@ DEFAULT_CONFIG = EXAMPLE_DIR / "nfw_boundary_driven_virial_shock1d.yaml"
 class BoundaryAccretionSolver(Solver):
     """Use a non-injecting inner diode and maintained outer accretion."""
 
-    def SetBoundary(self, mesh, fluid, par):
+    def SetBoundary(self, mesh, fluid, par):  # noqa: N802
         first = par.mesh.ghost_cells
         right_start = first + par.mesh.grid_cells
         scales = code_unit_scales(par.units.CodeUnits)

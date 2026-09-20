@@ -384,7 +384,7 @@ def _trace_spherical(
     )
 
 
-def _normalize_group_edges(group_edges_eV):
+def _normalize_group_edges(group_edges_eV):  # noqa: N803
     """Validate group edges and return the number of photon groups."""
     if group_edges_eV is None:
         return None
@@ -457,7 +457,7 @@ def trace_long_characteristics(
     source_photon_rate=0.0,
     direction=1,
     coordsys=None,
-    group_edges_eV=None,
+    group_edges_eV=None,  # noqa: N803
     absorber_densities=None,
     cross_sections_cgs_cm2=None,
 ):

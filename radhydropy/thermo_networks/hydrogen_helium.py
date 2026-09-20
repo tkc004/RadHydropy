@@ -36,58 +36,58 @@ from radhydropy.units import (
 )
 
 
-def _alpha_heii(T):
+def _alpha_heii(T):  # noqa: N803
     """He II radiative recombination, Hummer & Storey (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.26e-14 * (570670.0 / T) ** 0.750
 
 
-def _alpha_heii_dielectronic(T):
+def _alpha_heii_dielectronic(T):  # noqa: N803
     """He II dielectronic recombination, Aldrovandi & Pequignot (1973)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.9e-3 * T**-1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
 
 
-def _alpha_heiii(T):
+def _alpha_heiii(T):  # noqa: N803
     """He III case-B recombination, Hui & Gnedin (1997)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     lam = 1263030.0 / T
     return 5.506e-14 * lam**1.5 * (1.0 + (460960.0 / T) ** 0.407) ** -2.242
 
 
-def _beta_hei(T):
+def _beta_hei(T):  # noqa: N803
     """He I collisional ionization, Theuns et al. (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 4.76e-11 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _beta_heii(T):
+def _beta_heii(T):  # noqa: N803
     """He II collisional ionization, Theuns et al. (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.14e-11 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_ion_hei(T):
+def _gamma_ion_hei(T):  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.88e-21 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_ion_heii(T):
+def _gamma_ion_heii(T):  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 9.90e-22 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_line_hei(T):
+def _gamma_line_hei(T):  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 9.10e-27 * T**-0.1687 * np.exp(-13179.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_line_heii(T):
+def _gamma_line_heii(T):  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 5.54e-17 * T**-0.397 * np.exp(-473638.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_rec_heii(T, case="B"):
+def _gamma_rec_heii(T, case="B"):  # noqa: N803
     """He II recombination cooling, using k_B T alpha (Hummer & Storey)."""
     alpha = _alpha_heii(T)
     if case.upper() == "A":
@@ -95,7 +95,7 @@ def _gamma_rec_heii(T, case="B"):
     return BOLTZMANN_CONSTANT_CGS * np.asarray(T, float) * alpha
 
 
-def _gamma_rec_heiii(T, case="B"):
+def _gamma_rec_heiii(T, case="B"):  # noqa: N803
     """He III recombination cooling, Hui & Gnedin (1997)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     lam = 1263030.0 / T
@@ -104,12 +104,12 @@ def _gamma_rec_heiii(T, case="B"):
     return 2.748e-29 * T * lam**1.970 * (1.0 + (lam / 2.250) ** 0.376) ** -3.720
 
 
-def _gamma_dielectronic_heii(T):
+def _gamma_dielectronic_heii(T):  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.24e-13 * T**-1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
 
 
-def _gamma_bremsstrahlung(T):
+def _gamma_bremsstrahlung(T):  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.42e-27 * np.sqrt(T) * (1.1 + 0.34 * np.exp(-((5.5 - np.log10(T)) ** 2) / 3.0))
 

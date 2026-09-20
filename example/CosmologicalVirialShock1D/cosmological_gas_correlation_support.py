@@ -240,7 +240,7 @@ def plot_temperature_evolution(
     times,
     radius_comoving_code,
     rho_comoving_code,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     virial_radius,
     splashback_radius,
     scale_factors,
@@ -454,11 +454,11 @@ def plot_specific_angular_momentum_evolution(
 def plot_temperature_density_evolution(
     times,
     rho_comoving_code,
-    temperature_proper_cgs_K,
+    temperature_proper_cgs_K,  # noqa: N803
     filename,
     bin_count=48,
     ymin=0.1,
-    density_to_nH_cgs_cm3=1.0,
+    density_to_nH_cgs_cm3=1.0,  # noqa: N803
 ):
     """Plot cell temperature against physical hydrogen number density."""
     rho_values = np.asarray(rho_comoving_code, dtype=float).ravel() * float(density_to_nH_cgs_cm3)

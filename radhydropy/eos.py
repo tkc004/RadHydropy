@@ -23,7 +23,7 @@ class EOS:
 
     """
 
-    def __init__(self, EOStype: str, gamma=5.0 / 3.0, code_units=None):
+    def __init__(self, EOStype: str, gamma=5.0 / 3.0, code_units=None):  # noqa: N803
         self.EOStype = EOStype
         self.gamma = gamma
         self.CodeUnits = code_units

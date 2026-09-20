@@ -352,7 +352,7 @@ def write_report(rows, filename):
         )
 
 
-def _gas_pressure(rho_proper_cgs_g_cm3, temperature_proper_cgs_K, mu_dimensionless):
+def _gas_pressure(rho_proper_cgs_g_cm3, temperature_proper_cgs_K, mu_dimensionless):  # noqa: N803
     return (
         rho_proper_cgs_g_cm3
         * BOLTZMANN_CONSTANT_CGS
@@ -361,7 +361,7 @@ def _gas_pressure(rho_proper_cgs_g_cm3, temperature_proper_cgs_K, mu_dimensionle
     )
 
 
-def _pie_net_rate(table, rho_proper_cgs_g_cm3, temperature_proper_cgs_K, config):
+def _pie_net_rate(table, rho_proper_cgs_g_cm3, temperature_proper_cgs_K, config):  # noqa: N803
 
     hydrogen_number_density_cgs_cm3 = (
         float(config["par"]["chemistry"]["hydrogen_mass_fraction"])

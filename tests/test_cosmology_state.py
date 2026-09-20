@@ -97,7 +97,7 @@ def test_proper_state_rejects_nonpositive_cosmic_time():
 
 
 def test_supercomoving_contract_rejects_legacy_velocity_name():
-    from types import SimpleNamespace
+    from types import SimpleNamespace  # noqa: PLC0415
 
     par = SimpleNamespace(
         coordinate_frame="comoving",
@@ -150,7 +150,7 @@ def test_canonical_hdf5_state_round_trip(tmp_path):
         restored.state.temp_supercomoving_code,
         state.temp_supercomoving_code,
     )
-    import h5py
+    import h5py  # noqa: PLC0415
 
     with h5py.File(filename, "r") as handle:
         assert "tau_supercomoving_code" in handle["Header"]

@@ -15,7 +15,7 @@ class CosmologicalVirialShockPhysics:
         initial_condition,
         baryon_fraction,
         initial_a,
-        cmb_temperature_0_cgs_K,
+        cmb_temperature_0_cgs_K,  # noqa: N803
         reservoir_temperature_supercomoving_code,
         minimum_temperature=None,
         transition_redshift=None,

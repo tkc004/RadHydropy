@@ -41,9 +41,9 @@ if str(HERE.parents[1]) not in sys.path:
 
 def _load_tools(example_dir):
     if example_dir.name == "DynamicStromgrenSpherePhotoheating20pc1D":
-        from DynamicStromgrenSpherePhotoheating20pc1D import tools
+        from DynamicStromgrenSpherePhotoheating20pc1D import tools  # noqa: PLC0415
     elif example_dir.name == "DynamicStromgrenSpherePhotoheating20pcStellarWind1D":
-        from DynamicStromgrenSpherePhotoheating20pcStellarWind1D import tools
+        from DynamicStromgrenSpherePhotoheating20pcStellarWind1D import tools  # noqa: PLC0415
     else:
         raise ValueError(f"unsupported Dynamic Stromgren example: {example_dir}")
     return tools

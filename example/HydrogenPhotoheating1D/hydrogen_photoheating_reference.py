@@ -20,7 +20,7 @@ def photoionization_equilibrium_temperature(excess_photoionization_energy_cgs_er
     return (excess_photoionization_energy_cgs_erg / (3.0 * unyt.kb)).to(unyt.K)
 
 
-def thermal_equilibrium_temperature(temperature_photoionization_cgs_K_unyt):
+def thermal_equilibrium_temperature(temperature_photoionization_cgs_K_unyt):  # noqa: N803
     """Return the approximate thermal-equilibrium reference temperature."""
     return 2.0 * temperature_photoionization_cgs_K_unyt
 
@@ -49,7 +49,7 @@ def neutral_fraction_reference(
     hydrogen_number_density_cgs_cm3_unyt,
     sigma_gamma_cgs_cm2,
     photon_number_density_cgs_cm3_unyt,
-    temperature_photoionization_cgs_K_unyt,
+    temperature_photoionization_cgs_K_unyt,  # noqa: N803
 ):
     """Return the equilibrium neutral-fraction reference ``tau_i / tau_r``."""
     tau_i = photoionization_timescale(

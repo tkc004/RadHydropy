@@ -38,7 +38,7 @@ import tools as et
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_photoionization1d.yaml")
 
 
-def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):
+def RunHydrogenPhotoionization(sim, target_neutral_fraction, outputtime=0):  # noqa: N802
     """Run the fixed-field photoionization example until neutral fraction falls."""
     return sim.RunAll(
         outputtime=outputtime,

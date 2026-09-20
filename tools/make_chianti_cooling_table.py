@@ -230,7 +230,7 @@ def check_environment(xuvtop_arg=None):
 
     if ch is None:
         try:
-            import ChiantiPy.core as ch_module
+            import ChiantiPy.core as ch_module  # noqa: PLC0415
         except ImportError as exc:
             raise RuntimeError(
                 "Could not import ChiantiPy. Install it with:\n\n    pip install ChiantiPy\n",
@@ -272,7 +272,7 @@ def _get_radloss_rate(radloss_object):
     return np.asarray(radloss_dict["rate"], dtype=float)
 
 
-def compute_cooling_vs_T_for_density(
+def compute_cooling_vs_T_for_density(  # noqa: N802
     temperatures,
     electron_density,
     abundance,

@@ -22,7 +22,7 @@ def _signed_norm(values):
     return SymLogNorm(linthresh=scale * 1.0e-5, vmin=-scale, vmax=scale)
 
 
-def _plot(fields, time_cosmic_Gyr, radius_proper_kpc, filename, title, ylabel):
+def _plot(fields, time_cosmic_Gyr, radius_proper_kpc, filename, title, ylabel):  # noqa: N803
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=True)
     radius_proper_kpc = np.asarray(radius_proper_kpc, dtype=float)
     time_grid = np.broadcast_to(

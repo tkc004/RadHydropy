@@ -8,7 +8,7 @@ import radhydropy.thermo_chemistry as rtc
 from radhydropy import diagnostics
 
 
-def AdvectChemistryScalars(sim, dt, old_mass, mass_flux, fluid=None):
+def AdvectChemistryScalars(sim, dt, old_mass, mass_flux, fluid=None):  # noqa: N802
     """Advect passive thermo-chemistry scalars after a hydro flux update."""
     if fluid is None:
         fluid = sim.fluid
@@ -22,7 +22,7 @@ def AdvectChemistryScalars(sim, dt, old_mass, mass_flux, fluid=None):
     )
 
 
-def UpdateThermochemistryPrimitiveState(sim, update_pressure=True, fluid=None):
+def UpdateThermochemistryPrimitiveState(sim, update_pressure=True, fluid=None):  # noqa: N802
     """Refresh temperature, mean molecular weight, and optionally pressure."""
     if fluid is None:
         fluid = sim.fluid
@@ -47,7 +47,7 @@ def UpdateThermochemistryPrimitiveState(sim, update_pressure=True, fluid=None):
         fluid.SetPressure()
 
 
-def FinalizeHydroStep(
+def FinalizeHydroStep(  # noqa: N802
     sim,
     dt,
     old_mass,
@@ -90,7 +90,7 @@ def FinalizeHydroStep(
     )
 
 
-def ApplyThermochemistrySources(sim, dt):
+def ApplyThermochemistrySources(sim, dt):  # noqa: N802
     """Apply radiative transport and thermo-chemistry source updates."""
     transport_result = None
     if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") != "c2ray":

@@ -221,7 +221,7 @@ def _code_unit_cgs(code_units, property_name):
     return float(unit.to_value(cgs_unit))
 
 
-def hubble_parameter_code(code_units, hubble_parameter_km_s_Mpc):
+def hubble_parameter_code(code_units, hubble_parameter_km_s_Mpc):  # noqa: N803
     """Convert an observational Hubble parameter to inverse code time."""
     unit_hubble_km_s_Mpc = code_units.velocity_unit.to_value(
         unyt.km / unyt.s,
@@ -237,7 +237,7 @@ def field_spec(
     scale_factor=1.0,
     scale_factor_power=0.0,
     conversion_factor=1.0,
-    hubble_parameter_km_s_Mpc=None,
+    hubble_parameter_km_s_Mpc=None,  # noqa: N803
 ):
     """Return the canonical :class:`FieldSpec` for a runtime field.
 

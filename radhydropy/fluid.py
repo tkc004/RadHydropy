@@ -160,7 +160,7 @@ class Fluid:
             "fluid must have a representation-specific typed runtime state",
         )
 
-    def SetPressure(self):
+    def SetPressure(self):  # noqa: N802
         """Set gas pressure from density, temperature, and mean molecular weight."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             self.pre_proper_code = as_named_array(
@@ -184,7 +184,7 @@ class Fluid:
             )
         self._refresh_runtime_state()
 
-    def SetEnergyDensity(self):
+    def SetEnergyDensity(self):  # noqa: N802
         """Set thermal energy density from pressure and the fluid EOS."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             pressure = self.pre_proper_code
@@ -196,7 +196,7 @@ class Fluid:
             )
         self.eth_code = self.eos.thermal_energy_density(pressure)
 
-    def SetSoundSpeed(self):
+    def SetSoundSpeed(self):  # noqa: N802
         """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             density = self.rho_proper_code
@@ -217,14 +217,14 @@ class Fluid:
             mu=self.mu,
         )
 
-    def SetHydrogenMu(self, hydrogen_mass_fraction=1.0):
+    def SetHydrogenMu(self, hydrogen_mass_fraction=1.0):  # noqa: N802
         """Set mean molecular weight from hydrogen neutral fraction."""
         self.mu = rh.mean_molecular_weight_mu(
             self.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
         )
 
-    def SetHydrogenHeliumMu(self, hydrogen_mass_fraction=0.75, helium_mass_fraction=0.25):
+    def SetHydrogenHeliumMu(self, hydrogen_mass_fraction=0.75, helium_mass_fraction=0.25):  # noqa: N802
         xHI = np.asarray(self.xHI, dtype=float)
         np.asarray(self.xHeI, dtype=float)
         xHeII = np.asarray(self.xHeII, dtype=float)
@@ -249,7 +249,7 @@ class Fluid:
             np.asarray(density, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)),
         )
 
-    def SetUpFluid(self, par, mesh=None):
+    def SetUpFluid(self, par, mesh=None):  # noqa: N802
         """Normalize primitive quantities into code units, append ghost cells, and
         initialize pressure.
 
@@ -534,7 +534,7 @@ class Fluid:
                 )
         self.SetPressure()
 
-    def SetTemperature(self):
+    def SetTemperature(self):  # noqa: N802
         """Set gas temperature from density, pressure, and mean molecular weight."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             self.temp_proper_code = as_named_array(
@@ -558,7 +558,7 @@ class Fluid:
             )
         self._refresh_runtime_state()
 
-    def SetFluidTime(self, time_proper_code):
+    def SetFluidTime(self, time_proper_code):  # noqa: N802
         """Set the current numeric proper-code fluid time.
 
         Physical time quantities are accepted only at this input boundary and

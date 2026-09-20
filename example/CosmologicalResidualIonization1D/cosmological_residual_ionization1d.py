@@ -106,7 +106,7 @@ def evolve(config):
 
 
 def main():
-    from example import example_utils as eu
+    from example import example_utils as eu  # noqa: PLC0415
 
     config = eu.load_nested_example_config(CONFIG)
     redshift, xe, temperature_proper_cgs_K = evolve(config)

@@ -43,7 +43,7 @@ class Testing(unittest.TestCase):
         self.mesh = Mesh()
         self.mesh.boundary_proper_code = np.linspace(1, 10, num=self.par.nogrid + 1) * unyt.cm
 
-    def test_SetUpMesh(self):
+    def test_SetUpMesh(self):  # noqa: N802
         self.mesh.SetUpMesh(self.par)
         self.assertEqual(len(self.mesh.volume_proper_code), self.par.nogrid + 2 * self.par.noghost)
         self.assertEqual(

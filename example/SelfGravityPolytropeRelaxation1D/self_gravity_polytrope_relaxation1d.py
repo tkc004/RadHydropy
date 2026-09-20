@@ -43,7 +43,7 @@ DEFAULT_CONFIG = (
 class PolytropeSolver(Solver):
     """Keep reflecting ghost temperatures consistent with the active state."""
 
-    def SetBoundary(self, mesh, fluid, par):
+    def SetBoundary(self, mesh, fluid, par):  # noqa: N802
         super().SetBoundary(mesh, fluid, par)
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)

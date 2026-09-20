@@ -32,9 +32,9 @@ PRESSURE_CONFIG = HERE / "dynamic_stromgren_sphere_photoheating20pc_radiation_pr
 
 def _load_tools(example_dir):
     if example_dir.name == "DynamicStromgrenSpherePhotoheating20pc1D":
-        from DynamicStromgrenSpherePhotoheating20pc1D import tools
+        from DynamicStromgrenSpherePhotoheating20pc1D import tools  # noqa: PLC0415
     elif example_dir.name == "DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D":
-        from DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D import tools
+        from DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D import tools  # noqa: PLC0415
     else:
         raise ValueError(f"unsupported Dynamic Stromgren example: {example_dir}")
     return tools

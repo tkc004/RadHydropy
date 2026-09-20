@@ -149,7 +149,7 @@ def output_files(output_directory, output_filename_prefix):
     return sorted(glob.glob(output_directory + "/" + output_filename_prefix + "_*.hdf5"))
 
 
-def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputtime=0):
+def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputtime=0):  # noqa: N802
     """Run the optically thin photoheating example with source switching."""
     rio.write_numbered_hdf5(sim, 0)
 
