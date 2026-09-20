@@ -313,97 +313,24 @@ class Solver():
 
     @staticmethod
     def _hydrostatic_core_enabled(par):
-        return str(getattr(par, 'gas_core_model', 'none')).lower() in (
-            'hydrostatic', 'hydrostatic_fixed', 'fixed_hydrostatic',
-        )
+        from .hydrostatic import hydrostatic_core_enabled
+
+        return hydrostatic_core_enabled(par)
 
     def InitializeHydrostaticCore(self, mesh, fluid, par):
-        """Initialize an optional fixed, pressure-supported central core.
+        from .hydrostatic import initialize_hydrostatic_core
 
-        The core is a deliberately simple subgrid model: its cell-centred
-        primitive state is retained as a pressure-bearing hydrostatic core,
-        while the resolved halo evolves outside ``radius_core_proper``.  It is
-        not a sink and does not remove gas from the calculation.
-        """
-        if not self._hydrostatic_core_enabled(par):
-            return
-        if getattr(mesh, 'coordsys', None) != 'spherical':
-            raise ValueError('gas_core_model requires a spherical mesh')
-        radius = getattr(par, 'radius_core_proper', None)
-        if radius is None or float(radius) <= 0.0:
-            raise ValueError('radius_core_proper must be positive for gas_core_model')
-        first = int(par.mesh.ghost_cells)
-        last = first + int(par.mesh.grid_cells)
-        geometry = self._geometry_state(mesh, par)
-        coordinate = np.asarray(geometry.coordinate_runtime_code[first:last], dtype=float)
-        core_local = coordinate < float(radius)
-        if not np.any(core_local) or np.all(core_local):
-            raise ValueError(
-                'radius_core_proper must contain at least one, but not all, '
-                'resolved cells'
-            )
-        core = np.zeros(len(geometry.coordinate_runtime_code), dtype=bool)
-        core[first:last] = core_local
-        core_indices = np.flatnonzero(core)
-        state = {
-            'core_mask': core,
-            'core_indices': core_indices,
-            'core_last': int(core_indices[-1]),
-        }
-        fields = runtime_fields(par)
-        primitive_names = (
-            fields.density,
-            fields.velocity,
-            fields.temperature,
-            fields.pressure,
-        )
-        for name in (*primitive_names, 'mu', 'xHI',
-                     'xHeI', 'xHeII', 'xHeIII',
-                     'specific_angular_momentum_code'):
-            if hasattr(fluid, name):
-                state[name] = np.asarray(getattr(fluid, name)[core], dtype=float).copy()
-        fluid._hydrostatic_core = state
-        par._hydrostatic_core_mask = core
-        par._hydrostatic_core_face = int(core_indices[-1] + 1)
+        return initialize_hydrostatic_core(self, mesh, fluid, par)
 
     def ApplyHydrostaticCore(self, mesh, fluid, par):
-        """Restore the fixed core state before a resolved-halo update."""
-        state = getattr(fluid, '_hydrostatic_core', None)
-        if state is None:
-            return
-        core = state['core_mask']
-        fields = runtime_fields(par)
-        primitive_names = (
-            fields.density,
-            fields.velocity,
-            fields.temperature,
-            fields.pressure,
-        )
-        for name in (*primitive_names, 'mu', 'xHI',
-                     'xHeI', 'xHeII', 'xHeIII',
-                     'specific_angular_momentum_code'):
-            if name in state and hasattr(fluid, name):
-                values = np.asarray(getattr(fluid, name), dtype=float).copy()
-                values[core] = state[name]
-                setattr(fluid, name, as_named_array(values))
-        # A fixed core is hydrostatic and has no resolved radial motion.
-        self._active_primitive_arrays(fluid, par)[1][core] = 0.0
+        from .hydrostatic import apply_hydrostatic_core
+
+        return apply_hydrostatic_core(self, mesh, fluid, par)
 
     def _apply_hydrostatic_core_flux(self, fluid, par):
-        """Close the resolved halo with a pressure-bearing, no-mass-flux core."""
-        face = getattr(par, '_hydrostatic_core_face', None)
-        state = getattr(fluid, '_hydrostatic_core', None)
-        if face is None or state is None:
-            return
-        core_last = state['core_last']
-        # The core is fixed-mass: pressure acts on the halo, but gas, energy,
-        # and radial momentum do not cross the core/halo interface.
-        fluid.Mass_code.flux[face] = 0.0
-        fluid.Energy_code.flux[face] = 0.0
-        _, velocity_runtime_code, pressure_runtime_code, _ = (
-            self._active_primitive_arrays(fluid, par)
-        )
-        fluid.Mom_code.flux[face] = pressure_runtime_code[core_last]
+        from .hydrostatic import apply_hydrostatic_core_flux
+
+        return apply_hydrostatic_core_flux(self, fluid, par)
 
     def _boundary_field_names(self, *args, **kwargs):
         from .boundary_conditions import _boundary_field_names
@@ -1095,82 +1022,9 @@ class Solver():
         ``order=0`` uses piecewise constant states. ``order=1`` applies a
         gradient reconstruction before limiting the fluxes.
         """
-        geometry = self._geometry_state(mesh, getattr(mesh, '_par', None))
-        density_code, velocity_code, pressure_code, _ = (
-            self._active_primitive_arrays(fluid, getattr(mesh, '_par', None))
-        )
-        # Start from neighbor-shifted cell states, then optionally replace them
-        # with reconstructed face values for second-order updates.
-        if order == 0 or order == 1:
-            # Keep face states independent from cell-centred primitives: the
-            # low-density numerical-vacuum mask may modify them in place.
-            density_code.R = as_named_array(np.asarray(density_code, dtype=float).copy())
-            density_code.L = ru.periodic_roll(density_code, 1)
-            velocity_code.R = as_named_array(np.asarray(velocity_code, dtype=float).copy())
-            velocity_code.L = ru.periodic_roll(velocity_code, 1)
-            pressure_code.R = as_named_array(np.asarray(pressure_code, dtype=float).copy())
-            pressure_code.L = ru.periodic_roll(pressure_code, 1)
-            if hasattr(fluid, 'specific_angular_momentum_code'):
-                fluid.specific_angular_momentum_code.R = as_named_array(
-                    np.asarray(fluid.specific_angular_momentum_code, dtype=float).copy()
-                )
-                fluid.specific_angular_momentum_code.L = ru.periodic_roll(
-                    fluid.specific_angular_momentum_code, 1
-                )
-            if order == 1:
-                self.SetGradient(mesh, fluid)
-                density_code.R.first, density_code.L.first = ru.extrapolateToFace(density_code, geometry.boundary_runtime_code, density_code.grad, order=1)
-                velocity_code.R.first, velocity_code.L.first = ru.extrapolateToFace(velocity_code, geometry.boundary_runtime_code, velocity_code.grad, order=1)
-                pressure_code.R.first, pressure_code.L.first = ru.extrapolateToFace(pressure_code, geometry.boundary_runtime_code, pressure_code.grad, order=1)
-                if hasattr(fluid, 'specific_angular_momentum_code'):
-                    (
-                        fluid.specific_angular_momentum_code.R.first,
-                        fluid.specific_angular_momentum_code.L.first,
-                    ) = ru.extrapolateToFace(
-                        fluid.specific_angular_momentum_code,
-                        geometry.boundary_runtime_code,
-                        fluid.specific_angular_momentum_code.grad,
-                        order=1,
-                    )
-                    # MUSCL reconstruction of j is a passive-scalar
-                    # reconstruction, but j also enters the rotational-energy
-                    # admissibility condition.  Keep both states at each face
-                    # inside the local cell-average range so an antidiffusive
-                    # gradient cannot create a new angular-momentum extremum.
-                    j_right_cell = np.asarray(
-                        fluid.specific_angular_momentum_code.R, dtype=float
-                    )
-                    j_left_cell = np.asarray(
-                        fluid.specific_angular_momentum_code.L, dtype=float
-                    )
-                    j_min = np.minimum(j_left_cell, j_right_cell)
-                    j_max = np.maximum(j_left_cell, j_right_cell)
-                    fluid.specific_angular_momentum_code.R.first = as_named_array(
-                        np.clip(
-                            np.asarray(
-                                fluid.specific_angular_momentum_code.R.first,
-                                dtype=float,
-                            ),
-                            j_min,
-                            j_max,
-                        )
-                    )
-                    fluid.specific_angular_momentum_code.L.first = as_named_array(
-                        np.clip(
-                            np.asarray(
-                                fluid.specific_angular_momentum_code.L.first,
-                                dtype=float,
-                            ),
-                            j_min,
-                            j_max,
-                        )
-                    )
-            self._apply_low_density_face_mask(
-                fluid, getattr(mesh, '_par', None), order
-            )
-            self._apply_cosmological_background_boundary_face(mesh, fluid, order)
-        else:
-            raise ValueError('order unknown: %s'%order)
+        from .fluxes import set_face_lr
+
+        return set_face_lr(self, mesh, fluid, order=order)
 
     def _apply_cosmological_background_boundary_face(self, mesh, fluid, order):
         """Replace the outer face states with the homogeneous EdS state."""
@@ -1244,89 +1098,9 @@ class Solver():
 
     def SetFluxOnFace(self,fluid,boundcond,order=0,par=None,method='Rusanov'):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
-        density_code, velocity_code, pressure_code, _ = (
-            self._active_primitive_arrays(fluid, par)
-        )
-        rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
-            density_code.L, velocity_code.L, pressure_code.L
-        )
-        rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
-            density_code.R, velocity_code.R, pressure_code.R
-        )
-        Mass_flux_0, Mom_flux_0, Energy_flux_0 = self._interface_fluxes(
-            fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
-        )
-        if order==0:
-            fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux = Mass_flux_0, Mom_flux_0, Energy_flux_0
-            fluid.angular_momentum_mass_flux_low = as_named_array(Mass_flux_0.copy())
-            fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
-            fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
-        elif order==1:
-            rho_L, vel_L, pre_L = self._vacuum_safe_primitive_state(
-                density_code.L.first, velocity_code.L.first, pressure_code.L.first
-            )
-            rho_R, vel_R, pre_R = self._vacuum_safe_primitive_state(
-                density_code.R.first, velocity_code.R.first, pressure_code.R.first
-            )
-            Mass_flux_1, Mom_flux_1, Energy_flux_1 = self._interface_fluxes(
-                fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
-            )
-            self.SetConservedDensityFlux(fluid, par=par)
-            limiter = getattr(par, 'flux_limiter', 'minmod') if par is not None else 'minmod'
-            fluid.Mass_code.flux, fluid.philim_Mass_code = ru.ApplyFluxLimiter(
-                fluid.Mass_code.q, Mass_flux_1, Mass_flux_0, limiter=limiter
-            )
-            fluid.Mom_code.flux, fluid.philim_Mom_code = ru.ApplyFluxLimiter(
-                fluid.Mom_code.q, Mom_flux_1, Mom_flux_0, limiter=limiter
-            )
-            fluid.Energy_code.flux, fluid.philim_Energy_code = ru.ApplyFluxLimiter(
-                fluid.Energy_code.q, Energy_flux_1, Energy_flux_0, limiter=limiter
-            )
-            fluid.angular_momentum_mass_flux_low = as_named_array(Mass_flux_0.copy())
-            fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
-            fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
-            # A MUSCL reconstruction is not valid across a vacuum jump.  Use
-            # the positivity-safe first-order flux on gas-vacuum faces; this
-            # preserves injection into vacuum while retaining order one away
-            # from the front.
-            floor = self._cfl_density_floor(par)
-            # Check the reconstructed states themselves.  A centered
-            # reconstruction can overshoot across the imposed spherical wind
-            # jump even when both cell-centered states are positive.  Testing
-            # only reconstructed density ``L/R`` therefore lets an inadmissible high-order
-            # flux through when the positivity limiter is disabled.
-            reconstructed_density = (
-                np.asarray(density_code.L.first, dtype=float),
-                np.asarray(density_code.R.first, dtype=float),
-            )
-            reconstructed_pressure = (
-                np.asarray(pressure_code.L.first, dtype=float),
-                np.asarray(pressure_code.R.first, dtype=float),
-            )
-            vacuum_face = np.zeros_like(
-                reconstructed_density[0], dtype=bool
-            )
-            for state_density, state_pressure in zip(
-                reconstructed_density, reconstructed_pressure
-            ):
-                vacuum_face |= (
-                    ~np.isfinite(state_density)
-                    | (state_density <= floor)
-                    | ~np.isfinite(state_pressure)
-                    | (state_pressure <= 0.0)
-                )
-            # A reconstructed face depends on neighboring cell gradients,
-            # and each cell update depends on its two bounding faces.  Once
-            # one reconstructed state is invalid, retain the complete local
-            # stencil at first order; reverting only that face still allows
-            # an adjacent high-order flux to combine with it and overshoot.
-            vacuum_face |= np.roll(vacuum_face, -1)
-            vacuum_face |= np.roll(vacuum_face, 1)
-            fluid.Mass_code.flux[vacuum_face] = Mass_flux_0[vacuum_face]
-            fluid.Mom_code.flux[vacuum_face] = Mom_flux_0[vacuum_face]
-            fluid.Energy_code.flux[vacuum_face] = Energy_flux_0[vacuum_face]
-        else:
-            raise ValueError('order unknown: %s'%order)
+        from .fluxes import set_flux_on_face
+
+        return set_flux_on_face(self, fluid, par=par, order=order, method=method)
 
     def _apply_low_density_flux_mask(self, fluid, par):
         """Block hydro flux through numerical-vacuum active cells.

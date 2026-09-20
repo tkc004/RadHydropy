@@ -127,3 +127,152 @@ def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
     ))
     flux = np.where(valid[None, :], hllc, rusanov)
     return tuple(flux[index] for index in range(3))
+
+
+def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
+    """Assemble limited mass, momentum, and energy face fluxes."""
+    density_code, velocity_code, pressure_code, _ = (
+        solver._active_primitive_arrays(fluid, par)
+    )
+    rho_L, vel_L, pre_L = vacuum_safe_primitive_state(
+        density_code.L, velocity_code.L, pressure_code.L
+    )
+    rho_R, vel_R, pre_R = vacuum_safe_primitive_state(
+        density_code.R, velocity_code.R, pressure_code.R
+    )
+    Mass_flux_0, Mom_flux_0, Energy_flux_0 = interface_fluxes(
+        fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
+    )
+    if order == 0:
+        fluid.Mass_code.flux = Mass_flux_0
+        fluid.Mom_code.flux = Mom_flux_0
+        fluid.Energy_code.flux = Energy_flux_0
+        fluid.angular_momentum_mass_flux_low = as_named_array(Mass_flux_0.copy())
+        fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
+        fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
+    elif order == 1:
+        rho_L, vel_L, pre_L = vacuum_safe_primitive_state(
+            density_code.L.first,
+            velocity_code.L.first,
+            pressure_code.L.first,
+        )
+        rho_R, vel_R, pre_R = vacuum_safe_primitive_state(
+            density_code.R.first,
+            velocity_code.R.first,
+            pressure_code.R.first,
+        )
+        Mass_flux_1, Mom_flux_1, Energy_flux_1 = interface_fluxes(
+            fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method
+        )
+        solver.SetConservedDensityFlux(fluid, par=par)
+        limiter = getattr(par, "flux_limiter", "minmod") if par is not None else "minmod"
+        fluid.Mass_code.flux, fluid.philim_Mass_code = ru.ApplyFluxLimiter(
+            fluid.Mass_code.q, Mass_flux_1, Mass_flux_0, limiter=limiter
+        )
+        fluid.Mom_code.flux, fluid.philim_Mom_code = ru.ApplyFluxLimiter(
+            fluid.Mom_code.q, Mom_flux_1, Mom_flux_0, limiter=limiter
+        )
+        fluid.Energy_code.flux, fluid.philim_Energy_code = ru.ApplyFluxLimiter(
+            fluid.Energy_code.q, Energy_flux_1, Energy_flux_0, limiter=limiter
+        )
+        fluid.angular_momentum_mass_flux_low = as_named_array(Mass_flux_0.copy())
+        fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
+        fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
+        # A MUSCL reconstruction is not valid across a vacuum jump.  Retain
+        # the first-order flux for the complete local stencil.
+        floor = solver._cfl_density_floor(par)
+        reconstructed_density = (
+            np.asarray(density_code.L.first, dtype=float),
+            np.asarray(density_code.R.first, dtype=float),
+        )
+        reconstructed_pressure = (
+            np.asarray(pressure_code.L.first, dtype=float),
+            np.asarray(pressure_code.R.first, dtype=float),
+        )
+        vacuum_face = np.zeros_like(reconstructed_density[0], dtype=bool)
+        for state_density, state_pressure in zip(
+            reconstructed_density, reconstructed_pressure
+        ):
+            vacuum_face |= (
+                ~np.isfinite(state_density)
+                | (state_density <= floor)
+                | ~np.isfinite(state_pressure)
+                | (state_pressure <= 0.0)
+            )
+        vacuum_face |= np.roll(vacuum_face, -1)
+        vacuum_face |= np.roll(vacuum_face, 1)
+        fluid.Mass_code.flux[vacuum_face] = Mass_flux_0[vacuum_face]
+        fluid.Mom_code.flux[vacuum_face] = Mom_flux_0[vacuum_face]
+        fluid.Energy_code.flux[vacuum_face] = Energy_flux_0[vacuum_face]
+    else:
+        raise ValueError("order unknown: %s" % order)
+
+
+def set_face_lr(solver, mesh, fluid, order=0):
+    """Construct left and right primitive states at cell faces."""
+    par = getattr(mesh, "_par", None)
+    geometry = solver._geometry_state(mesh, par)
+    density_code, velocity_code, pressure_code, _ = (
+        solver._active_primitive_arrays(fluid, par)
+    )
+    if order not in (0, 1):
+        raise ValueError("order unknown: %s" % order)
+
+    density_code.R = as_named_array(np.asarray(density_code, dtype=float).copy())
+    density_code.L = ru.periodic_roll(density_code, 1)
+    velocity_code.R = as_named_array(np.asarray(velocity_code, dtype=float).copy())
+    velocity_code.L = ru.periodic_roll(velocity_code, 1)
+    pressure_code.R = as_named_array(np.asarray(pressure_code, dtype=float).copy())
+    pressure_code.L = ru.periodic_roll(pressure_code, 1)
+    if hasattr(fluid, "specific_angular_momentum_code"):
+        fluid.specific_angular_momentum_code.R = as_named_array(
+            np.asarray(fluid.specific_angular_momentum_code, dtype=float).copy()
+        )
+        fluid.specific_angular_momentum_code.L = ru.periodic_roll(
+            fluid.specific_angular_momentum_code, 1
+        )
+    if order == 1:
+        solver.SetGradient(mesh, fluid)
+        density_code.R.first, density_code.L.first = ru.extrapolateToFace(
+            density_code, geometry.boundary_runtime_code, density_code.grad, order=1
+        )
+        velocity_code.R.first, velocity_code.L.first = ru.extrapolateToFace(
+            velocity_code, geometry.boundary_runtime_code, velocity_code.grad, order=1
+        )
+        pressure_code.R.first, pressure_code.L.first = ru.extrapolateToFace(
+            pressure_code, geometry.boundary_runtime_code, pressure_code.grad, order=1
+        )
+        if hasattr(fluid, "specific_angular_momentum_code"):
+            (
+                fluid.specific_angular_momentum_code.R.first,
+                fluid.specific_angular_momentum_code.L.first,
+            ) = ru.extrapolateToFace(
+                fluid.specific_angular_momentum_code,
+                geometry.boundary_runtime_code,
+                fluid.specific_angular_momentum_code.grad,
+                order=1,
+            )
+            j_right_cell = np.asarray(
+                fluid.specific_angular_momentum_code.R, dtype=float
+            )
+            j_left_cell = np.asarray(
+                fluid.specific_angular_momentum_code.L, dtype=float
+            )
+            j_min = np.minimum(j_left_cell, j_right_cell)
+            j_max = np.maximum(j_left_cell, j_right_cell)
+            fluid.specific_angular_momentum_code.R.first = as_named_array(
+                np.clip(
+                    np.asarray(fluid.specific_angular_momentum_code.R.first, dtype=float),
+                    j_min,
+                    j_max,
+                )
+            )
+            fluid.specific_angular_momentum_code.L.first = as_named_array(
+                np.clip(
+                    np.asarray(fluid.specific_angular_momentum_code.L.first, dtype=float),
+                    j_min,
+                    j_max,
+                )
+            )
+    solver._apply_low_density_face_mask(fluid, par, order)
+    solver._apply_cosmological_background_boundary_face(mesh, fluid, order)
