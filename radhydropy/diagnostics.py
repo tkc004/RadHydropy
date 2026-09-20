@@ -1,10 +1,12 @@
 """Runtime diagnostics for hydro and thermo-chemistry simulations."""
 
 from pathlib import Path
+import logging
 
 import numpy as np
 
 from radhydropy.cosmology.variables import physical_temperature, supercomoving_scale
+from radhydropy.diagnostic_logging import log_diagnostic
 from radhydropy.runtime_fields import (
     runtime_fields,
     select_fluid_primitive_arrays,
@@ -152,7 +154,19 @@ def check_conserved_energy_admissibility(
             relative_tolerance,
         )
     )
-    print(diagnostic)
+    log_diagnostic(
+        logging.ERROR,
+        "conserved_energy_admissibility_error",
+        stage=stage,
+        cell=index,
+        mass=mass[index],
+        momentum=momentum[index],
+        energy=energy[index],
+        kinetic=kinetic[index],
+        deficit=deficit[index],
+        relative_deficit=deficit[index] / scale[index],
+        relative_tolerance=relative_tolerance,
+    )
     raise ValueError(diagnostic)
 
 
@@ -247,7 +261,15 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
             )
         )
     diagnostic = '\n'.join(lines)
-    print(diagnostic)
+    log_diagnostic(
+        logging.ERROR,
+        "temperature_jump_error",
+        stage=stage,
+        cell=index,
+        time=time_runtime_code,
+        threshold=threshold,
+        diagnostic=diagnostic,
+    )
     output_dir = sim.par.output.directory
     if output_dir is not None:
         try:
@@ -306,7 +328,15 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
             temperature_after[index], rho[index], xhi[index], energy[index],
         )
     )
-    print(diagnostic)
+    log_diagnostic(
+        logging.ERROR,
+        "source_temperature_jump_error",
+        stage=stage,
+        source_step=int(source_step),
+        cell=mesh_index,
+        threshold=threshold,
+        diagnostic=diagnostic,
+    )
     output_dir = par.output.directory
     if output_dir is not None:
         try:

@@ -1,6 +1,9 @@
 """CFL timestep calculation for the finite-volume solver."""
 
+import logging
+
 import numpy as np
+from radhydropy.diagnostic_logging import log_diagnostic
 from radhydropy.runtime_fields import (
     select_fluid_primitive_arrays,
     select_mesh_geometry_arrays,
@@ -167,10 +170,14 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         fluid.vsignal_code[active_slice] = active_vsignal
     solver.dt = dt
     if np.isnan(np.asarray(dt)):
-        print('vsignal', vsignal)
-        print('runtime velocity', velocity)
-        print('fluid.cs_code', fluid.cs_code)
-        raise Exception(" time step is nan")
+        log_diagnostic(
+            logging.ERROR,
+            "hydro_timestep_nan",
+            vsignal=vsignal,
+            velocity=velocity,
+            sound_speed=fluid.cs_code,
+        )
+        raise Exception("time step is nan")
     dtmin_value = par.timestep.dtmin
     if dt < float(np.asarray(dtmin_value, dtype=float)):
         active_index = int(np.argmin(dt_array))
@@ -202,23 +209,21 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             diagnostic_index = min_index
         else:
             diagnostic_index = min_index + first
-        print(
-            '[hydro dt] t=%s dt=%s idx=%d radius=%s rho=%s vel=%s '
-            'cs=%s vsignal=%s dx=%s pre=%s dtmin=%s dtmax=%s'
-            % (
-                time_runtime_code,
-                dt,
-                diagnostic_index,
-                np.asarray(mesh_coordinate)[diagnostic_index],
-                np.asarray(density_field)[diagnostic_index],
-                np.asarray(velocity)[diagnostic_index],
-                np.asarray(fluid.cs_code)[diagnostic_index],
-                np.asarray(vsignal)[diagnostic_index],
-                np.asarray(width_runtime_code)[diagnostic_index],
-                np.asarray(pressure_field)[diagnostic_index],
-                dtmin_value,
-                dtmax_value,
-            )
+        log_diagnostic(
+            logging.WARNING,
+            "hydro_timestep_reduced",
+            time=time_runtime_code,
+            dt=dt,
+            cell=diagnostic_index,
+            radius=np.asarray(mesh_coordinate)[diagnostic_index],
+            density=np.asarray(density_field)[diagnostic_index],
+            velocity=np.asarray(velocity)[diagnostic_index],
+            sound_speed=np.asarray(fluid.cs_code)[diagnostic_index],
+            signal_speed=np.asarray(vsignal)[diagnostic_index],
+            width=np.asarray(width_runtime_code)[diagnostic_index],
+            pressure=np.asarray(pressure_field)[diagnostic_index],
+            dtmin=dtmin_value,
+            dtmax=dtmax_value,
         )
         cell_volume = np.asarray(volume_runtime_code)[diagnostic_index]
         cell_rho_code = np.asarray(density_field)[diagnostic_index]
@@ -232,40 +237,38 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             cell_thermal_density / cell_rho
             if cell_rho > 0.0 else 0.0
         )
-        print(
-            '[hydro dt energy] idx=%d energy_density=%s '
-            'kinetic_density=%s thermal_density=%s '
-            'specific_thermal=%s'
-            % (
-                diagnostic_index,
-                cell_energy_density,
-                cell_kinetic_density,
-                cell_thermal_density,
-                cell_specific_thermal,
-            )
-        )
-        print(
-            '[hydro dt mask] cfl_density_floor=%s masked=%s' % (
-                density_floor,
-                int(np.count_nonzero(zero_density)),
-            )
+        log_diagnostic(
+            logging.WARNING,
+            "hydro_timestep_energy_state",
+            cell=diagnostic_index,
+            energy_density=cell_energy_density,
+            kinetic_density=cell_kinetic_density,
+            thermal_density=cell_thermal_density,
+            specific_thermal=cell_specific_thermal,
+            cfl_density_floor=density_floor,
+            masked_cells=int(np.count_nonzero(zero_density)),
         )
         neighbor_start = max(first, diagnostic_index - 2)
         neighbor_stop = min(
         first + int(par.mesh.grid_cells),
             diagnostic_index + 3,
         )
-        print('[hydro dt neighbors] idx radius rho vel cs pre')
+        neighbors = []
         for neighbor in range(neighbor_start, neighbor_stop):
-            print(
-                '[hydro dt neighbors] %d %s %s %s %s %s'
-                % (
-                    neighbor,
-                    np.asarray(mesh_coordinate)[neighbor],
-                    np.asarray(density_field)[neighbor],
-                    np.asarray(velocity)[neighbor],
-                    np.asarray(fluid.cs_code)[neighbor],
-                    np.asarray(pressure_field)[neighbor],
-                )
+            neighbors.append(
+                {
+                    "cell": neighbor,
+                    "radius": np.asarray(mesh_coordinate)[neighbor],
+                    "density": np.asarray(density_field)[neighbor],
+                    "velocity": np.asarray(velocity)[neighbor],
+                    "sound_speed": np.asarray(fluid.cs_code)[neighbor],
+                    "pressure": np.asarray(pressure_field)[neighbor],
+                }
             )
+        log_diagnostic(
+            logging.WARNING,
+            "hydro_timestep_neighbors",
+            cell=diagnostic_index,
+            neighbors=neighbors,
+        )
     return dt

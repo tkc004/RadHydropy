@@ -6,6 +6,7 @@ dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 """
 
 import copy
+import logging
 
 import numpy as np
 import unyt
@@ -33,6 +34,7 @@ from radhydropy.diagnostics import (
     check_source_temperature,
     thermochemistry_active_mask,
 )
+from radhydropy.diagnostic_logging import log_diagnostic
 from radhydropy.state_boundaries import (
     CgsSourceState,
     ProperCodeState,
@@ -872,12 +874,15 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, verbose=False):
         # shorter photoheating timescale than the hydro-scale dtmin.
         dt = float(min(dtmax_s, remaining_s, min(candidates)))
     if verbose:
-        print(
-            '[source dt] remaining=%s dtmax=%s dtmin=%s selected=%s'
-            % (remaining_s, dtmax_s, dtmin_s, dt)
+        log_diagnostic(
+            logging.DEBUG,
+            "hydrogen_source_timestep",
+            remaining=remaining_s,
+            dtmax=dtmax_s,
+            dtmin=dtmin_s,
+            selected=dt,
+            limiter_details=debug_lines,
         )
-        for line in debug_lines:
-            print(line)
     return dt, source_thermal_rate
 
 
@@ -1229,19 +1234,15 @@ def _fast_source_state(mesh, fluid, par):
                 )[0]
                 for cell in diagnostic_cells:
                     floor = state['temperature_floor_cgs_K']
-                    print(
-                        '[hydrogen source floor mask] '
-                        'cell=%d rho_cgs_g_cm3=% .6e temperature_cgs_K=% .6e '
-                        'temperature_floor_cgs_K=% .6e temperature_ratio=% .6e '
-                        'skip=%s'
-                        % (
-                            int(cell),
-                            float(rho_cgs_g_cm3[cell]),
-                            float(temperature_cgs_K[cell]),
-                            float(floor),
-                            float(temperature_cgs_K[cell] / floor),
-                            bool(skip[cell]),
-                        )
+                    log_diagnostic(
+                        logging.DEBUG,
+                        "hydrogen_source_floor_mask",
+                        cell=int(cell),
+                        density_cgs_g_cm3=float(rho_cgs_g_cm3[cell]),
+                        temperature_cgs_K=float(temperature_cgs_K[cell]),
+                        temperature_floor_cgs_K=float(floor),
+                        temperature_ratio=float(temperature_cgs_K[cell] / floor),
+                        skip=bool(skip[cell]),
                     )
             state['active'] = np.asarray(state['active'], dtype=bool) & ~skip
         # Apply this mask before the source energy/temperature floor. These
@@ -2842,11 +2843,13 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             )
         failure = state.get('_implicit_failure', {})
         if getattr(par, 'hydrogen_implicit_debug', False) or failure:
-            print('[hydrogen implicit failure]', failure)
-            for failed_cell in failure.get('failed_cells', []):
-                print('[hydrogen implicit singular cell]', failed_cell)
-            for unconverged_cell in failure.get('unconverged_cells', []):
-                print('[hydrogen implicit unconverged cell]', unconverged_cell)
+            log_diagnostic(
+                logging.ERROR if failure else logging.DEBUG,
+                "hydrogen_implicit_failure",
+                failure=failure,
+                singular_cells=failure.get('failed_cells', []),
+                unconverged_cells=failure.get('unconverged_cells', []),
+            )
         if fallback == 'error':
             raise RuntimeError(
                 'coupled implicit hydrogen source solve did not converge'

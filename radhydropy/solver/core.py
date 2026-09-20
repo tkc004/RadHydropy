@@ -1,5 +1,6 @@
 """Finite-volume hydrodynamics solver operations."""
 
+import logging
 import math
 import radhydropy.utils as ru
 import radhydropy.chemistry_species.hydrogen as rh
@@ -25,6 +26,7 @@ from radhydropy.units import (
     photon_number_density,
 )
 import numpy as np
+from radhydropy.diagnostic_logging import log_diagnostic
 from types import SimpleNamespace
 from radhydropy.arrays import as_named_array
 from radhydropy.runtime_fields import (
@@ -620,9 +622,13 @@ class Solver():
             pre_runtime_code[invalid_pressure & ~numerical_vacuum] = 0.0
         pre_runtime_code[numerical_vacuum] = 0.0
         if verbose >= 2:
-            print('rho_runtime_code', rho_runtime_code)
-            print('vel_runtime_code', vel_runtime_code)
-            print('pre_runtime_code', pre_runtime_code)
+            log_diagnostic(
+                logging.DEBUG,
+                "primitive_state_reconstructed",
+                rho_runtime_code=rho_runtime_code,
+                velocity_runtime_code=vel_runtime_code,
+                pressure_runtime_code=pre_runtime_code,
+            )
     
     def SetConserved(self, mesh, fluid, verbose=None):
         """Update conserved mass, momentum, and energy from primitive variables."""
@@ -809,9 +815,13 @@ class Solver():
             fluid.InternalEnergy_code[sync] = total_thermal[sync]
             self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
         if verbose >= 2:
-            print('fluid.Mass_code',fluid.Mass_code)
-            print('fluid.Mom_code',fluid.Mom_code)
-            print('fluid.Energy_code',fluid.Energy_code)
+            log_diagnostic(
+                logging.DEBUG,
+                "conserved_state_synchronized",
+                mass_code=fluid.Mass_code,
+                momentum_code=fluid.Mom_code,
+                energy_code=fluid.Energy_code,
+            )
         if hasattr(fluid, '_refresh_runtime_state'):
             fluid._refresh_runtime_state()
         
@@ -2187,9 +2197,13 @@ class Solver():
         else:
             raise ValueError("Interface flux method unknown: %s"%method) 
         if (verbose>=2):
-            print('fluid.Mass_code.flux',fluid.Mass_code.flux)
-            print('fluid.Mom_code.flux',fluid.Mom_code.flux)
-            print('fluid.Energy_code.flux',fluid.Energy_code.flux)
+            log_diagnostic(
+                logging.DEBUG,
+                "interface_fluxes_constructed",
+                mass_flux=fluid.Mass_code.flux,
+                momentum_flux=fluid.Mom_code.flux,
+                energy_flux=fluid.Energy_code.flux,
+            )
             
             
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
