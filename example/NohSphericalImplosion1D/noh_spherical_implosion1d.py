@@ -153,7 +153,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         sim = Rsim(resolution_config["par"])
         sim.RunAll(outputtime=0)
         snapshots = sorted(output.glob("Output_*.hdf5"))
-        if len(snapshots) < 2:
+        if len(snapshots) < 2:  # noqa: PLR2004
             raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
         profiles = [read_profile(filename, resolution_config) for filename in snapshots]
         all_profiles[resolution] = profiles

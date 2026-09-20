@@ -150,7 +150,7 @@ def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
 
 def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
     """Assemble limited mass, momentum, and energy face fluxes."""
-    density_code, velocity_code, pressure_code, _ = solver._active_primitive_arrays(fluid, par)
+    density_code, velocity_code, pressure_code, _ = solver.active_primitive_arrays(fluid, par)
     rho_L, vel_L, pre_L = vacuum_safe_primitive_state(  # noqa: N806
         density_code.L,
         velocity_code.L,
@@ -224,7 +224,7 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
         fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
         # A MUSCL reconstruction is not valid across a vacuum jump.  Retain
         # the first-order flux for the complete local stencil.
-        floor = solver._cfl_density_floor(par)
+        floor = solver.cfl_density_floor(par)
         reconstructed_density = (
             np.asarray(density_code.L.first, dtype=float),
             np.asarray(density_code.R.first, dtype=float),
@@ -257,8 +257,8 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
 def set_face_lr(solver, mesh, fluid, order=0):
     """Construct left and right primitive states at cell faces."""
     par = getattr(mesh, "_par", None)
-    geometry = solver._geometry_state(mesh, par)
-    density_code, velocity_code, pressure_code, _ = solver._active_primitive_arrays(fluid, par)
+    geometry = solver.geometry_state(mesh, par)
+    density_code, velocity_code, pressure_code, _ = solver.active_primitive_arrays(fluid, par)
     if order not in (0, 1):
         raise ValueError(f"order unknown: {order}")
 
@@ -330,5 +330,5 @@ def set_face_lr(solver, mesh, fluid, order=0):
                     j_max,
                 ),
             )
-    solver._apply_low_density_face_mask(fluid, par, order)
-    solver._apply_cosmological_background_boundary_face(mesh, fluid, order)
+    solver.apply_low_density_face_mask(fluid, par, order)
+    solver.apply_cosmological_background_boundary_face(mesh, fluid, order)

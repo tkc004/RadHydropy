@@ -25,7 +25,7 @@ from radhydropy.units import code_quantity_to_cgs, quantity_to_value
 IONIZATION_FRONT_NEUTRAL_FRACTION = 0.5
 
 
-def _to_kpc(values, config):
+def to_kpc(values, config):
     if hasattr(values, "to_value"):
         return np.asarray(values.to_value(unyt.kpc), dtype=float)
     code = config["_output_par"].units.CodeUnits
@@ -35,7 +35,7 @@ def _to_kpc(values, config):
     )
 
 
-def _to_myr(values, config):
+def to_myr(values, config):
     if hasattr(values, "to_value"):
         return np.asarray(values.to_value(unyt.Myr), dtype=float)
     code = config["_output_par"].units.CodeUnits
@@ -55,7 +55,7 @@ def _to_km_s(values, config):
     )
 
 
-def _to_number_density(values, config):
+def to_number_density(values, config):
     if hasattr(values, "to_value"):
         density_proper_cgs_g_cm3 = np.asarray(values.to_value(unyt.g / unyt.cm**3), dtype=float)
         return density_proper_cgs_g_cm3 / (1.0 * unyt.mp).to_value(unyt.g)
@@ -73,7 +73,7 @@ def _to_pressure(values, config):
     return np.asarray(code_quantity_to_cgs(values, code, "pressure_cgs_erg_cm3"), dtype=float)
 
 
-def _pressure_from_radarrays(fluid, config):
+def pressure_from_radarrays(fluid, config):
     """Derive cgs pressure from restored density and temperature views."""
     code = config["_output_par"].units.CodeUnits
     rho_proper_code = fluid.rho_radarray.to_value(code.density_unit)
@@ -237,7 +237,7 @@ def ionization_front_position(
     neutral_fraction=IONIZATION_FRONT_NEUTRAL_FRACTION,
 ):
     interior = interior_slice(config)
-    radius_proper_kpc = _to_kpc(
+    radius_proper_kpc = to_kpc(
         0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
         config,
     )
@@ -274,7 +274,7 @@ def mean_ionized_temperature(fluid, config):
 
 
 def append_history(history, mesh, fluid, config):
-    history["time_proper_Myr"].append(_to_myr(fluid.time_proper_code, config))
+    history["time_proper_Myr"].append(to_myr(fluid.time_proper_code, config))
     history["front_radius_proper_kpc"].append(
         ionization_front_position(
             mesh,
@@ -436,14 +436,14 @@ def save_front_plot(history, config, figure_filename):
 def save_plot(mesh, fluid, config, figure_filename):
     example = config.get("example", {})
     interior = interior_slice(config)
-    radius_proper_pc = _to_kpc(
+    radius_proper_pc = to_kpc(
         0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
         config,
     ) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density = _to_number_density(fluid.rho_radarray[interior], config)
+    number_density = to_number_density(fluid.rho_radarray[interior], config)
     vel_peculiar_proper_km_s = _to_km_s(fluid.vel_radarray[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pressure_proper_cgs_erg_cm3 = _pressure_from_radarrays(fluid, config)[interior]
+    pressure_proper_cgs_erg_cm3 = pressure_from_radarrays(fluid, config)[interior]
     temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)  # noqa: N806
     plot_radius_max = example["plot_radius_max"].to_value(unyt.pc)
     radius_unit = example.get("reference_radius_unit", 15.0 * unyt.kpc)

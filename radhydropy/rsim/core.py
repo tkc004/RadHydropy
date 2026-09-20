@@ -119,6 +119,10 @@ class Rsim:
 
         return _sync_hydro_state(self, fluid=fluid)
 
+    def sync_hydro_state(self, fluid=None):
+        """Refresh hydro primitive and conserved state after an update."""
+        return self._sync_hydro_state(fluid=fluid)
+
     def FinalizeHydroStep(
         self,
         dt,
@@ -153,6 +157,10 @@ class Rsim:
         from .sources import _synchronize_thermochemistry_internal_energy
 
         return _synchronize_thermochemistry_internal_energy(self)
+
+    def synchronize_thermochemistry_internal_energy(self):
+        """Synchronize thermochemistry internal energy through the public API."""
+        return self._synchronize_thermochemistry_internal_energy()
 
     def _clone_fluid(self, fluid=None):
         """Return a deep copy of the supplied fluid state."""

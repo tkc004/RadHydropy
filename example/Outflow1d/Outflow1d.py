@@ -47,6 +47,7 @@ def main(config_filename=DEFAULT_CONFIG):
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
     ax = plt.gca()
+    color_cycle = iter(plt.rcParams["axes.prop_cycle"])
     for outindex in exampleparams["output_indices"]:
         outfilename = os.path.join(
             config["par"]["output"]["directory"],
@@ -59,7 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
             marker="o",
             mfc="none",
             markevery=exampleparams["plot"]["markevery"],
-            color=next(ax._get_lines.prop_cycler)["color"],
+            color=next(color_cycle)["color"],
         )
     figure_filename = os.path.join(
         config["par"]["output"]["directory"],

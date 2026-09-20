@@ -141,7 +141,7 @@ def _run_stage(config, halo, mode, restart=False):
 
 def _write_adiabatic_energy_audit(files, config, filename):
     """Write the open-boundary total-energy budget for an adiabatic stage."""
-    if len(files) < 2:
+    if len(files) < 2:  # noqa: PLR2004
         raise RuntimeError("energy audit requires at least two snapshots")
 
     def snapshot_energy(path):

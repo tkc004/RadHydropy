@@ -32,9 +32,9 @@ def _gravity_potential_energy_enabled(par):
 
 
 def _gravity_potential(solver, mesh, par):
-    if not solver._gravity_potential_energy_enabled(par):
+    if not solver.gravity_potential_energy_enabled(par):
         return None
-    gravity = solver._gravity_model(par)
+    gravity = solver.gravity_model(par)
     if gravity is None or not hasattr(gravity, "potential_on"):
         raise ValueError(
             "gravity_potential_energy requires a gravity model with potential_on",
@@ -45,9 +45,9 @@ def _gravity_potential(solver, mesh, par):
 
 
 def _gravity_potential_faces(solver, mesh, par):
-    if not solver._gravity_potential_energy_enabled(par):
+    if not solver.gravity_potential_energy_enabled(par):
         return None
-    gravity = solver._gravity_model(par)
+    gravity = solver.gravity_model(par)
     if gravity is None or not hasattr(gravity, "potential_on"):
         raise ValueError(
             "gravity_potential_energy requires a gravity model with potential_on",
@@ -63,7 +63,7 @@ def _rotational_energy_density(solver, mesh, fluid, par):
     rho_runtime_code = select_fluid_primitive_arrays(runtime_state, par)[0]
     rho = np.asarray(rho_runtime_code, dtype=float)
     result = np.zeros_like(rho)
-    if not solver._rotational_energy_enabled(par):
+    if not solver.rotational_energy_enabled(par):
         return result
     if not getattr(par, "gas_angular_momentum", False):
         raise ValueError(
@@ -89,7 +89,7 @@ def _rotational_energy_density(solver, mesh, fluid, par):
 def _rotational_energy_from_conserved(solver, mesh, fluid, par):
     """Return opt-in rotational kinetic energy from conserved J and M."""
     result = np.zeros_like(np.asarray(fluid.Mass_code, dtype=float))
-    if not solver._rotational_energy_enabled(par):
+    if not solver.rotational_energy_enabled(par):
         return result
     if not hasattr(fluid, "AngularMomentum_code"):
         return result

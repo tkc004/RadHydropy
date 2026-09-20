@@ -103,7 +103,7 @@ def _source_step(
         sim.par,
         source_result,
     )
-    sim._sync_hydro_state()
+    sim.sync_hydro_state()
     sim.fluid.time_proper_code += dt
     interior = sim.par.mesh.ghost_cells
     shell_state["vel_proper_code"] = float(sim.fluid.vel_proper_code[interior])

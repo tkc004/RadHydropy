@@ -118,7 +118,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     output_files = sorted(
         case_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"),
     )
-    if len(output_files) < 2:
+    if len(output_files) < 2:  # noqa: PLR2004
         raise RuntimeError(f"expected snapshots for {label}")
 
     # Output headers currently do not retain the evolving hydro time.  The

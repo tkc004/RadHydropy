@@ -207,13 +207,13 @@ def main(config_filename=CONFIG):
     mass_error = float(
         abs(np.sum(saved_mass) - np.sum(initial_mass)) / max(abs(np.sum(initial_mass)), 1.0e-300),
     )
-    if velocity_error > 0.08:
+    if velocity_error > 0.08:  # noqa: PLR2004
         raise RuntimeError(
             f"hydro expansion velocity disagrees with shell ODE: {velocity_error:.6g}",
         )
     if not np.all(np.isfinite(saved_j)):
         raise RuntimeError("hydro expansion produced invalid specific angular momentum")
-    if mass_error > 1.0e-10:
+    if mass_error > 1.0e-10:  # noqa: PLR2004
         raise RuntimeError(f"closed hydro expansion lost mass: relative error {mass_error:.6g}")
 
     # Cell-centered potential energy uses the extensive cell mass, which
@@ -231,7 +231,7 @@ def main(config_filename=CONFIG):
     ode_total_energy = np.sum(reference["energy_proper_code"])
     energy_error = float(abs(saved_total_energy - ode_total_energy))
     energy_scale = max(abs(float(ode_total_energy)), 1.0e-12)
-    if energy_error / energy_scale > 2.0e-3:
+    if energy_error / energy_scale > 2.0e-3:  # noqa: PLR2004
         raise RuntimeError(
             "hydro expansion total-energy audit failed: relative error %.6g"
             % (energy_error / energy_scale),

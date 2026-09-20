@@ -64,7 +64,7 @@ def build_initial_condition(config):
         )
         .value,
     )
-    sim.fluid._refresh_runtime_state()
+    sim.fluid.refresh_runtime_state()
     return sim.par, sim.mesh, sim.fluid, sim.solver
 
 
@@ -382,7 +382,7 @@ def front_radius_at_time(history, time_proper_code):
 
 def stromgren_radius(config):
     config = config["initial_condition"]
-    nH = rth._cgs_hydrogen_number_density(  # noqa: N806
+    nH = rth.cgs_hydrogen_number_density(  # noqa: N806
         config["rho_proper"].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
     ) * (1.0 / unyt.cm**3)

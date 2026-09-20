@@ -94,7 +94,7 @@ class Testing(unittest.TestCase):
             * (1.1 + 0.34 * np.exp(-((5.5 - np.log10(temp_value)) ** 2) / 3.0))
         )
 
-        alpha_b = rth._cgs_alpha_B(temp.to_value(unyt.K)) * (unyt.cm**3 / unyt.s)
+        alpha_b = rth.cgs_alpha_B(temp.to_value(unyt.K)) * (unyt.cm**3 / unyt.s)
         beta = rth._cgs_beta(temp.to_value(unyt.K)) * (unyt.cm**3 / unyt.s)
         gamma_ion = rth._cgs_gamma_ion_eHI(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
         gamma_line = rth._cgs_gamma_line_eHI(temp.to_value(unyt.K)) * (
@@ -124,12 +124,12 @@ class Testing(unittest.TestCase):
         dt = 2.0e6 * unyt.s
 
         absorption_frequency = (
-            rth._cgs_hydrogen_number_density(
+            rth.cgs_hydrogen_number_density(
                 rho.to_value(unyt.g / unyt.cm**3),
                 1.0,
             )
             * xHI
-            * rth._cgs_photoionization_frequency(
+            * rth.cgs_photoionization_frequency(
                 ngamma_cgs_cm3.to_value(1.0 / unyt.cm**3),
                 sigma_gamma.to_value(unyt.cm**2),
             )

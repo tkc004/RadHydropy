@@ -81,6 +81,11 @@ def _require_complete_example_config(config, helper_name):
         )
 
 
+def require_complete_example_config(config, helper_name):
+    """Validate the complete nested example configuration."""
+    return _require_complete_example_config(config, helper_name)
+
+
 def snapshot_physical_fields(hdf5_filename, config):
     """Return radial snapshot fields converted to physical quantities.
 

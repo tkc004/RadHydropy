@@ -205,14 +205,14 @@ def shock_radius_cgs_cm(
         density_power_law_exponent,
     )
     compression = rho_proper_cgs_g_cm3 / (initial_nh * (1.0 * unyt.mp).to_value(unyt.g))
-    neutral = (radius_proper_cgs_cm > front) & (xhi > 0.5)
-    candidates = np.where(neutral & (compression > 1.05))[0]
+    neutral = (radius_proper_cgs_cm > front) & (xhi > 0.5)  # noqa: PLR2004
+    candidates = np.where(neutral & (compression > 1.05))[0]  # noqa: PLR2004
     if candidates.size == 0:
         return np.nan
 
     peak = candidates[np.argmax(compression[candidates])]
     shell = np.where(
-        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05),
+        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05),  # noqa: PLR2004
     )[0]
     if shell.size == 0:
         return np.nan

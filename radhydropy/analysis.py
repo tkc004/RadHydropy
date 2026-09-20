@@ -67,7 +67,7 @@ def rplot1d(rsim, yquan=None, showfig=1, showhalf=0, **kwargs):
     plt.ylabel(ylabel, fontsize=24)
     if showhalf == 1:
         plt.xlim(xmax=0.5 * np.amax(xq))
-    if showhalf == 2:
+    if showhalf == 2:  # noqa: PLR2004
         plt.xlim(xmin=0.5 * np.amax(xq))
     if showfig == 1:
         plt.show()

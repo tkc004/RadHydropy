@@ -129,7 +129,7 @@ def _locate_shock(radius_proper_kpc, temperature_proper_cgs_K, virial_radius_pro
 
 def rankine_hugoniot_diagnostics(filenames, config, halo):
     profiles = [_snapshot_profiles(filename, config) for filename in filenames]
-    if len(profiles) < 3:
+    if len(profiles) < 3:  # noqa: PLR2004
         return []
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     mu = float(config["initial_condition"]["mu"])
@@ -165,7 +165,7 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
             * 977.792221
         )
         index = shock_indices[snapshot_index]
-        if index < 5 or index + 5 > len(radius_proper_kpc):
+        if index < 5 or index + 5 > len(radius_proper_kpc):  # noqa: PLR2004
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)

@@ -17,7 +17,7 @@ def test_example_config_is_consumed_as_nested_mapping():
     )
 
     assert set(config) == {"par", "initial_condition", "example"}
-    assert config["par"]["mesh"]["grid_cells"] == 100
-    assert config["initial_condition"]["grid_cells"] == 100
+    assert config["par"]["mesh"]["grid_cells"] == 100  # noqa: PLR2004
+    assert config["initial_condition"]["grid_cells"] == 100  # noqa: PLR2004
     assert "hydrodynamics" in config["par"]
     assert isinstance(config["example"], dict)

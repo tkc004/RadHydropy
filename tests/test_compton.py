@@ -310,7 +310,7 @@ def test_coupled_implicit_source_evolves_recombination_and_energy_together():
         tolerance=1.0e-8,
         max_iterations=32,
     )
-    assert state["xHI"][0] > 0.5
+    assert state["xHI"][0] > 0.5  # noqa: PLR2004
     np.testing.assert_allclose(state["specific_energy_cgs_erg_g"], old_energy)
     assert 0.0 < state["xHI"][0] < 1.0
     assert np.isfinite(state["temperature_cgs_K"][0])
@@ -331,7 +331,7 @@ def test_coupled_implicit_source_handles_collisional_ionization():
         tolerance=1.0e-8,
         max_iterations=32,
     )
-    assert state["xHI"][0] < 0.99
+    assert state["xHI"][0] < 0.99  # noqa: PLR2004
     assert 0.0 < state["xHI"][0] < 1.0
     assert state["temperature_cgs_K"][0] > 0.0
 
@@ -359,8 +359,8 @@ def test_coupled_implicit_source_satisfies_both_backward_euler_residuals():
         state["specific_energy_cgs_erg_g"] - old_energy - dt * thermal / state["rho_cgs_g_cm3"]
     ) / old_energy
     xhi_residual = state["xHI"] - old_xhi - dt * chemistry
-    assert np.max(np.abs(energy_residual)) < 1.0e-7
-    assert np.max(np.abs(xhi_residual)) < 1.0e-7
+    assert np.max(np.abs(energy_residual)) < 1.0e-7  # noqa: PLR2004
+    assert np.max(np.abs(xhi_residual)) < 1.0e-7  # noqa: PLR2004
 
 
 def test_coupled_implicit_chemistry_limits():
@@ -378,7 +378,7 @@ def test_coupled_implicit_chemistry_limits():
         tolerance=1.0e-8,
         max_iterations=32,
     )
-    assert recombination["xHI"][0] > 0.5
+    assert recombination["xHI"][0] > 0.5  # noqa: PLR2004
 
     collisional = _implicit_hydrogen_state(
         temperature=1.0e6,
@@ -394,7 +394,7 @@ def test_coupled_implicit_chemistry_limits():
         tolerance=1.0e-8,
         max_iterations=32,
     )
-    assert collisional["xHI"][0] < 0.5
+    assert collisional["xHI"][0] < 0.5  # noqa: PLR2004
 
     no_chemistry = _implicit_hydrogen_state(
         temperature=1.0e5,
@@ -451,7 +451,7 @@ def test_coupled_implicit_compton_thermal_limit_has_correct_direction():
         tolerance=1.0e-8,
         max_iterations=32,
     )
-    assert hot["temperature_cgs_K"][0] < 1.0e5
+    assert hot["temperature_cgs_K"][0] < 1.0e5  # noqa: PLR2004
 
     cooling = _implicit_hydrogen_state(
         temperature=1.0e5,
@@ -522,8 +522,8 @@ def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
         - dt_s * thermal_rate(state, None) / state["rho_cgs_g_cm3"]
     ) / old_energy
     chemistry_residual = state["xHI"] - old_xhi - dt_s * ionization_fraction_rate(state, None)
-    assert np.max(np.abs(energy_residual)) < 1.0e-4
-    assert np.max(np.abs(chemistry_residual)) < 1.0e-4
+    assert np.max(np.abs(energy_residual)) < 1.0e-4  # noqa: PLR2004
+    assert np.max(np.abs(chemistry_residual)) < 1.0e-4  # noqa: PLR2004
 
 
 def test_stiff_source_cell_isolated_from_quiet_cells():
@@ -542,7 +542,7 @@ def test_stiff_source_cell_isolated_from_quiet_cells():
 
     groups = _source_stiffness_groups(state, 1.0e12)
 
-    assert len(groups) == 2
+    assert len(groups) == 2  # noqa: PLR2004
     np.testing.assert_array_equal(groups[-1], np.array([7]))
 
 
@@ -618,7 +618,7 @@ def test_coupled_implicit_reaches_fixed_field_equilibrium():
             max_iterations=32,
         )
     chemistry = ionization_fraction_rate(state, ngamma_cgs_cm3)
-    assert abs(chemistry[0]) < 1.0e-15
+    assert abs(chemistry[0]) < 1.0e-15  # noqa: PLR2004
     assert 0.0 < state["xHI"][0] < 1.0
 
 
@@ -675,7 +675,7 @@ def test_coupled_implicit_uses_converged_half_step_pair():
         explicit_fluid,
         explicit_par,
     )
-    assert implicit_result["source_steps"] >= 2
+    assert implicit_result["source_steps"] >= 2  # noqa: PLR2004
     assert explicit_result["source_steps"] > 1
 
 
@@ -798,7 +798,7 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
         volume_proper_code=np.array([1.0]),
     )
     result = apply_thermochemistry_fast(1.0e-4, mesh, fluid, par)
-    assert result["source_steps"] >= 2
+    assert result["source_steps"] >= 2  # noqa: PLR2004
     assert fluid.xHI[0] > xhi
     assert np.isfinite(fluid.temp_proper_code[0])
 

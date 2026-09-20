@@ -34,7 +34,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     vsignal = np.absolute(velocity) + fluid.cs_code
     density = np.asarray(density_field, dtype=float)
     if width_runtime_code.shape != vsignal.shape:
-        interior = solver._interior_slice(par)
+        interior = solver.interior_slice(par)
         if width_runtime_code[interior].shape == vsignal.shape:
             width_runtime_code = width_runtime_code[interior]
             density = density[interior]
@@ -102,7 +102,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         )
         cfl_indices = np.concatenate((cfl_indices, interface_indices))
 
-    core_mask = getattr(par, "_hydrostatic_core_mask", None)
+    core_mask = getattr(par, "hydrostatic_core_mask", None)
     if core_mask is not None:
         core_active = np.asarray(core_mask[active_slice], dtype=bool)
         active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
@@ -124,7 +124,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     if np.any(cfl_density_zero):
         cfl_vsignal = np.asarray(cfl_vsignal, dtype=float).copy()
         cfl_vsignal[cfl_density_zero] = 0.0
-    dt_array = solver._safe_divide(CFL * cfl_width_runtime_code, cfl_vsignal)
+    dt_array = solver.safe_divide(CFL * cfl_width_runtime_code, cfl_vsignal)
 
     # A prescribed spherical wind/inflow can have a density very different
     # from the first active cell.  The wave-speed CFL condition alone then

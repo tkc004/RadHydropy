@@ -1067,6 +1067,10 @@ class Par:
             temperature_representation=self.temperature_representation,
         )
 
+    def sync_simulation_parameters(self):
+        """Refresh the public simulation-parameter group from flat values."""
+        self._sync_simulation_parameters()
+
     def _sync_diagnostics_parameters(self):
         self.diagnostics = DiagnosticsParameters(
             verbose=self.verbose,
@@ -1082,6 +1086,10 @@ class Par:
             area_proper=self.area_proper,
             grid_cells=self._parameter("nogrid"),
         )
+
+    def sync_mesh_parameters(self):
+        """Refresh the public mesh-parameter group from flat values."""
+        self._sync_mesh_parameters()
 
     def _sync_chemistry_parameters(self):
         self.chemistry = ChemistryParameters(

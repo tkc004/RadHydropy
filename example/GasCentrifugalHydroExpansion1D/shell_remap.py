@@ -24,7 +24,7 @@ def shell_quadrature(
     samples_per_cell = int(samples_per_cell)
     if samples_per_cell < 1:
         raise ValueError("samples_per_cell must be positive")
-    if boundary_proper_code.ndim != 1 or len(boundary_proper_code) < 2:
+    if boundary_proper_code.ndim != 1 or len(boundary_proper_code) < 2:  # noqa: PLR2004
         raise ValueError("boundary must contain at least one cell")
     if np.any(np.diff(boundary_proper_code) <= 0.0):
         raise ValueError("boundary must be strictly increasing")
@@ -99,7 +99,7 @@ def conservative_shell_remap(
         == len(mass_proper_code)
     ):
         raise ValueError("shell fields must have equal lengths")
-    if len(radius_proper_code) == 0 or len(target_boundary_proper_code) < 2:
+    if len(radius_proper_code) == 0 or len(target_boundary_proper_code) < 2:  # noqa: PLR2004
         raise ValueError("shell and target grids must be non-empty")
     if not np.all(np.isfinite(radius_proper_code)) or np.any(radius_proper_code <= 0.0):
         raise ValueError("shell radii must be finite and positive")

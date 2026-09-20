@@ -604,10 +604,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
             cosmic_time = header.attrs.get("time_cosmic_code", header.attrs.get("CosmicTime"))
             if cosmic_time is not None:
                 par.time_cosmic_code = float(_restore_header_attr_value(cosmic_time))
-        if hasattr(par, "_sync_simulation_parameters"):
-            par._sync_simulation_parameters()
-        if hasattr(par, "_sync_mesh_parameters"):
-            par._sync_mesh_parameters()
+        if hasattr(par, "sync_simulation_parameters"):
+            par.sync_simulation_parameters()
+        if hasattr(par, "sync_mesh_parameters"):
+            par.sync_mesh_parameters()
         if hasattr(par, "load_radiation_spectrum"):
             par.load_radiation_spectrum(
                 par.output.directory,

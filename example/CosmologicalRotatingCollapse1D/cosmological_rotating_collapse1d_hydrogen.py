@@ -155,7 +155,7 @@ def main(output_root=None):
     )
 
     sim.ApplyThermochemistrySources(1.0e-3)
-    sim._synchronize_thermochemistry_internal_energy()
+    sim.synchronize_thermochemistry_internal_energy()
 
     mass_after = np.asarray(sim.fluid.Mass_code[active], dtype=float)
     angular_after = np.asarray(sim.fluid.AngularMomentum_code[active], dtype=float)
@@ -178,7 +178,7 @@ def main(output_root=None):
     np.testing.assert_allclose(rotational_after, rotational_before, rtol=1.0e-12, atol=1.0e-14)
     np.testing.assert_allclose(total_change, thermal_change, rtol=1.0e-10, atol=1.0e-14)
 
-    rio._writehdf5(sim, output_dir / "Output_final.hdf5")
+    rio.write_snapshot_hdf5(sim, output_dir / "Output_final.hdf5")
     return sim
 
 

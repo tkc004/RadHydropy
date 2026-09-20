@@ -126,7 +126,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     sim = Rsim(config["par"])
     sim.RunAll(outputtime=0)
     outputs = sorted(Path(output["directory"]).glob("Output_*.hdf5"))
-    if len(outputs) < 2:
+    if len(outputs) < 2:  # noqa: PLR2004
         raise RuntimeError("spherical converging benchmark produced too few outputs")
 
     profiles = [_read_profile(filename, config) for filename in outputs]

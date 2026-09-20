@@ -138,11 +138,11 @@ def main(config_filename=DEFAULT_CONFIG):
     density_error = np.max(np.abs(actual_delta - expected_delta))
     velocity_error = np.max(np.abs(vel_supercomoving_code - expected_velocity))
     temperature_error = np.max(np.abs(temperature_proper_cgs_K - expected_temperature))
-    if density_error > 1.0e-10 or velocity_error > 1.0e-10:
+    if density_error > 1.0e-10 or velocity_error > 1.0e-10:  # noqa: PLR2004
         raise RuntimeError("stored density or velocity does not match the IC construction")
-    if temperature_error > 1.0e-10:
+    if temperature_error > 1.0e-10:  # noqa: PLR2004
         raise RuntimeError("stored temperature does not match the requested cold IC")
-    if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:
+    if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:  # noqa: PLR2004
         raise RuntimeError(
             "stored target overdensity is inconsistent with the requested normalization",
         )

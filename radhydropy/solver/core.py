@@ -65,6 +65,10 @@ class Solver:
     def _safe_divide(self, numerator, denominator):
         return ru.SafeDivide(numerator, denominator)
 
+    def safe_divide(self, numerator, denominator):
+        """Safely divide solver arrays for extracted solver components."""
+        return self._safe_divide(numerator, denominator)
+
     def _geometry_state(self, mesh, par):
         """Return the representation-selected typed mesh geometry."""
         if par is None:
@@ -84,6 +88,10 @@ class Solver:
             volume_runtime_code=volume,
         )
 
+    def geometry_state(self, mesh, par):
+        """Return the selected mesh geometry for solver components."""
+        return self._geometry_state(mesh, par)
+
     def _fluid_primitive_state(self, fluid, par):
         """Return the typed representation-selected primitive arrays."""
         runtime_state = getattr(fluid, "runtime_state", None)
@@ -101,12 +109,20 @@ class Solver:
         primitive = self._fluid_primitive_state(fluid, par)
         return select_fluid_primitive_arrays(primitive, par)[:4]
 
+    def active_primitive_arrays(self, fluid, par):
+        """Return the active primitive arrays for solver components."""
+        return self._active_primitive_arrays(fluid, par)
+
     def _interior_slice(self, par):
         first = int(par.mesh.ghost_cells)
         return slice(
             first,
             first + int(par.mesh.grid_cells),
         )
+
+    def interior_slice(self, par):
+        """Return the active-cell slice for solver components."""
+        return self._interior_slice(par)
 
     def _thermochemistry_enabled(self, fluid, par):
         return rtc.thermochemistry_enabled(fluid, par)
@@ -209,7 +225,7 @@ class Solver:
                 cross_sections_cgs_cm2={"HI": sigma_groups},
                 boundary_flux=boundary_groups,
                 source_photon_rate=source_groups,
-                direction=rrt._parameter_value(par, "radiative_transfer_direction", 1),
+                direction=rrt.parameter_value(par, "radiative_transfer_direction", 1),
                 coordsys=getattr(mesh, "coordsys", "cartesian"),
                 group_edges_eV=group_edges_eV,
             )
@@ -217,7 +233,7 @@ class Solver:
                 np.asarray(result.cell_photon_density, dtype=float)
                 / scales["number_density_cgs_cm3"]
             )
-            if np.ndim(photon_density_code) != 2:
+            if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
                 raise ValueError(
                     "radiative-transfer result must have shape (ngroup, ncell)",
                 )
@@ -227,8 +243,8 @@ class Solver:
             fluid.ngamma_code[:, interior] = photon_density_code
             return result
         sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
-        boundary_value = rrt._parameter_value(par, "radiative_transfer_boundary_flux", 0.0)
-        source_value = rrt._parameter_value(par, "source_photon_rate", 0.0)
+        boundary_value = rrt.parameter_value(par, "radiative_transfer_boundary_flux", 0.0)
+        source_value = rrt.parameter_value(par, "source_photon_rate", 0.0)
         if hasattr(sigma_value, "to_value"):
             sigma_gamma_cgs_cm2 = _as_cgs_float(sigma_value, CGS_AREA_UNIT)
         else:
@@ -267,13 +283,13 @@ class Solver:
             cross_sections_cgs_cm2={"HI": sigma_gamma_cgs_cm2},
             boundary_flux=boundary_flux,
             source_photon_rate=source_photon_rate,
-            direction=rrt._parameter_value(par, "radiative_transfer_direction", 1),
+            direction=rrt.parameter_value(par, "radiative_transfer_direction", 1),
             coordsys=getattr(mesh, "coordsys", "cartesian"),
         )
         photon_density_code = (
             np.asarray(result.cell_photon_density, dtype=float) / scales["number_density_cgs_cm3"]
         )
-        if np.ndim(photon_density_code) != 2:
+        if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
             raise ValueError(
                 "radiative-transfer result must have shape (ngroup, ncell)",
             )
@@ -310,6 +326,10 @@ class Solver:
         if hasattr(fluid, "rotational_energy_flux"):
             fluid.rotational_energy_flux[origin_face] = 0.0
 
+    def zero_spherical_origin_flux(self, mesh, fluid):
+        """Zero the flux through a spherical origin face."""
+        return self._zero_spherical_origin_flux(mesh, fluid)
+
     @staticmethod
     def _hydrostatic_core_enabled(par):
         from .hydrostatic import hydrostatic_core_enabled
@@ -331,65 +351,117 @@ class Solver:
 
         return apply_hydrostatic_core_flux(self, fluid, par)
 
+    def apply_hydrostatic_core_flux(self, fluid, par):
+        """Apply hydrostatic-core flux corrections."""
+        return self._apply_hydrostatic_core_flux(fluid, par)
+
     def _boundary_field_names(self, *args, **kwargs):
         from .boundary_conditions import _boundary_field_names
 
         return _boundary_field_names(self, *args, **kwargs)
+
+    def boundary_field_names(self, *args, **kwargs):
+        """Return fields participating in boundary updates."""
+        return self._boundary_field_names(*args, **kwargs)
 
     def _copy_boundary_state(self, *args, **kwargs):
         from .boundary_conditions import _copy_boundary_state
 
         return _copy_boundary_state(self, *args, **kwargs)
 
+    def copy_boundary_state(self, *args, **kwargs):
+        """Copy a prepared boundary state into ghost cells."""
+        return self._copy_boundary_state(*args, **kwargs)
+
     def _boundary_state(self, *args, **kwargs):
         from .boundary_conditions import _boundary_state
 
         return _boundary_state(self, *args, **kwargs)
+
+    def boundary_state(self, *args, **kwargs):
+        """Build a boundary state from a fluid slice."""
+        return self._boundary_state(*args, **kwargs)
 
     def _to_code_number_density(self, *args, **kwargs):
         from .boundary_conditions import _to_code_number_density
 
         return _to_code_number_density(self, *args, **kwargs)
 
+    def to_code_number_density(self, *args, **kwargs):
+        """Convert an injected photon number density to code units."""
+        return self._to_code_number_density(*args, **kwargs)
+
     def _apply_periodic_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_periodic_boundary
 
         return _apply_periodic_boundary(self, *args, **kwargs)
+
+    def apply_periodic_boundary(self, *args, **kwargs):
+        """Apply periodic ghost-cell values."""
+        return self._apply_periodic_boundary(*args, **kwargs)
 
     def _apply_open_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_open_boundary
 
         return _apply_open_boundary(self, *args, **kwargs)
 
+    def apply_open_boundary(self, *args, **kwargs):
+        """Apply open ghost-cell values."""
+        return self._apply_open_boundary(*args, **kwargs)
+
     def _apply_reflecting_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_reflecting_boundary
 
         return _apply_reflecting_boundary(self, *args, **kwargs)
+
+    def apply_reflecting_boundary(self, *args, **kwargs):
+        """Apply reflecting ghost-cell values."""
+        return self._apply_reflecting_boundary(*args, **kwargs)
 
     def _apply_spherical_inner_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_spherical_inner_boundary
 
         return _apply_spherical_inner_boundary(self, *args, **kwargs)
 
+    def apply_spherical_inner_boundary(self, *args, **kwargs):
+        """Apply the inner spherical ghost-cell boundary."""
+        return self._apply_spherical_inner_boundary(*args, **kwargs)
+
     def _apply_open_spherical_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_open_spherical_boundary
 
         return _apply_open_spherical_boundary(self, *args, **kwargs)
+
+    def apply_open_spherical_boundary(self, *args, **kwargs):
+        """Apply an open spherical boundary."""
+        return self._apply_open_spherical_boundary(*args, **kwargs)
 
     def _apply_inflow_spherical_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_inflow_spherical_boundary
 
         return _apply_inflow_spherical_boundary(self, *args, **kwargs)
 
+    def apply_inflow_spherical_boundary(self, *args, **kwargs):
+        """Apply an inflow spherical boundary."""
+        return self._apply_inflow_spherical_boundary(*args, **kwargs)
+
     def _apply_outflow_spherical_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_outflow_spherical_boundary
 
         return _apply_outflow_spherical_boundary(self, *args, **kwargs)
 
+    def apply_outflow_spherical_boundary(self, *args, **kwargs):
+        """Apply an outflow spherical boundary."""
+        return self._apply_outflow_spherical_boundary(*args, **kwargs)
+
     def _apply_wind_spherical_boundary(self, *args, **kwargs):
         from .boundary_conditions import _apply_wind_spherical_boundary
 
         return _apply_wind_spherical_boundary(self, *args, **kwargs)
+
+    def apply_wind_spherical_boundary(self, *args, **kwargs):
+        """Apply a wind spherical boundary."""
+        return self._apply_wind_spherical_boundary(*args, **kwargs)
 
     def SetPrimitive(self, mesh, fluid, par=None, verbose=None):
         """Update primitive variables from conserved quantities."""
@@ -637,7 +709,7 @@ class Solver:
         else:
             pre_runtime_code[invalid_pressure & ~numerical_vacuum] = 0.0
         pre_runtime_code[numerical_vacuum] = 0.0
-        if verbose >= 2:
+        if verbose >= 2:  # noqa: PLR2004
             log_diagnostic(
                 logging.DEBUG,
                 "primitive_state_reconstructed",
@@ -690,7 +762,7 @@ class Solver:
             if (
                 hasattr(fluid, "GravitationalPotentialEnergy_code")
                 and (
-                    getattr(fluid, "_gravity_potential_energy_initialized", False)
+                    getattr(fluid, "gravity_potential_energy_initialized", False)
                     or np.any(
                         np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float) != 0.0,
                     )
@@ -743,7 +815,7 @@ class Solver:
                 if old_potential_energy is None
                 else old_potential_energy,
             )
-            fluid._gravity_potential_energy_initialized = True
+            fluid.gravity_potential_energy_initialized = True
         fluid.Mass_code[np.logical_or(fluid.Mass_code < 0.0, np.isnan(fluid.Mass_code))] = 0.0
         fluid.Energy_code[np.logical_or(fluid.Energy_code < 0.0, np.isnan(fluid.Energy_code))] = 0.0
         if old_total_energy is not None:
@@ -850,7 +922,7 @@ class Solver:
             )
             fluid.InternalEnergy_code[sync] = total_thermal[sync]
             self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
-        if verbose >= 2:
+        if verbose >= 2:  # noqa: PLR2004
             log_diagnostic(
                 logging.DEBUG,
                 "conserved_state_synchronized",
@@ -858,8 +930,8 @@ class Solver:
                 momentum_code=fluid.Mom_code,
                 energy_code=fluid.Energy_code,
             )
-        if hasattr(fluid, "_refresh_runtime_state"):
-            fluid._refresh_runtime_state()
+        if hasattr(fluid, "refresh_runtime_state"):
+            fluid.refresh_runtime_state()
 
     def SetGradient(self, mesh, fluid):
         """Calculate centered gradients for density, velocity, and pressure."""
@@ -932,11 +1004,21 @@ class Solver:
         return _cfl_density_floor(*args, **kwargs)
 
     @staticmethod
+    def cfl_density_floor(*args, **kwargs):
+        """Return the configured density floor for solver components."""
+        return Solver._cfl_density_floor(*args, **kwargs)
+
+    @staticmethod
     @staticmethod
     def _dual_energy_enabled(*args, **kwargs):
         from .dual_energy import _dual_energy_enabled
 
         return _dual_energy_enabled(*args, **kwargs)
+
+    @staticmethod
+    def dual_energy_enabled(*args, **kwargs):
+        """Return whether dual-energy evolution is enabled."""
+        return Solver._dual_energy_enabled(*args, **kwargs)
 
     def _validate_dual_energy_compatibility(self, fluid, par):
         if (
@@ -957,31 +1039,57 @@ class Solver:
         return _rotational_energy_enabled(*args, **kwargs)
 
     @staticmethod
+    def rotational_energy_enabled(*args, **kwargs):
+        """Return whether rotational energy is enabled."""
+        return Solver._rotational_energy_enabled(*args, **kwargs)
+
+    @staticmethod
     @staticmethod
     def _gravity_potential_energy_enabled(*args, **kwargs):
         from .dual_energy import _gravity_potential_energy_enabled
 
         return _gravity_potential_energy_enabled(*args, **kwargs)
 
+    @staticmethod
+    def gravity_potential_energy_enabled(*args, **kwargs):
+        """Return whether gravitational potential energy is enabled."""
+        return Solver._gravity_potential_energy_enabled(*args, **kwargs)
+
     def _gravity_potential(self, *args, **kwargs):
         from .dual_energy import _gravity_potential
 
         return _gravity_potential(self, *args, **kwargs)
+
+    def gravity_potential(self, *args, **kwargs):
+        """Return cell-centered gravitational potential values."""
+        return self._gravity_potential(*args, **kwargs)
 
     def _gravity_potential_faces(self, *args, **kwargs):
         from .dual_energy import _gravity_potential_faces
 
         return _gravity_potential_faces(self, *args, **kwargs)
 
+    def gravity_potential_faces(self, *args, **kwargs):
+        """Return face-centered gravitational potential values."""
+        return self._gravity_potential_faces(*args, **kwargs)
+
     def _rotational_energy_density(self, *args, **kwargs):
         from .dual_energy import _rotational_energy_density
 
         return _rotational_energy_density(self, *args, **kwargs)
 
+    def rotational_energy_density(self, *args, **kwargs):
+        """Return the rotational kinetic-energy density."""
+        return self._rotational_energy_density(*args, **kwargs)
+
     def _rotational_energy_from_conserved(self, *args, **kwargs):
         from .dual_energy import _rotational_energy_from_conserved
 
         return _rotational_energy_from_conserved(self, *args, **kwargs)
+
+    def rotational_energy_from_conserved(self, *args, **kwargs):
+        """Return rotational energy reconstructed from conserved state."""
+        return self._rotational_energy_from_conserved(*args, **kwargs)
 
     @staticmethod
     @staticmethod
@@ -989,6 +1097,11 @@ class Solver:
         from .dual_energy import _dual_energy_eta
 
         return _dual_energy_eta(*args, **kwargs)
+
+    @staticmethod
+    def dual_energy_eta(*args, **kwargs):
+        """Return a dual-energy limiter parameter."""
+        return Solver._dual_energy_eta(*args, **kwargs)
 
     def _apply_low_density_face_mask(self, fluid, par, order):
         """Make below-floor reconstructed states vacuum-safe.
@@ -1018,6 +1131,10 @@ class Solver:
                 density[inactive] = 0.0
                 velocity[inactive] = 0.0
                 pressure[inactive] = 0.0
+
+    def apply_low_density_face_mask(self, fluid, par, order):
+        """Apply vacuum-safe values to reconstructed low-density faces."""
+        return self._apply_low_density_face_mask(fluid, par, order)
 
     def SetConservedDensityFlux(self, fluid, par=None):
         """Store Euler fluxes and conserved densities on fluid arrays."""
@@ -1118,6 +1235,10 @@ class Solver:
                 fluid.specific_angular_momentum_code.R.first[outer_face] = angular_momentum
                 fluid.specific_angular_momentum_code.L.first[outer_face] = angular_momentum
 
+    def apply_cosmological_background_boundary_face(self, mesh, fluid, order):
+        """Apply the cosmological background state to the outer face."""
+        return self._apply_cosmological_background_boundary_face(mesh, fluid, order)
+
     @staticmethod
     def _vacuum_safe_primitive_state(rho, vel, pre):
         from .fluxes import vacuum_safe_primitive_state
@@ -1125,10 +1246,20 @@ class Solver:
         return vacuum_safe_primitive_state(rho, vel, pre)
 
     @staticmethod
+    def vacuum_safe_primitive_state(rho, vel, pre):
+        """Return vacuum-safe primitive states for a Riemann solve."""
+        return Solver._vacuum_safe_primitive_state(rho, vel, pre)
+
+    @staticmethod
     def _hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
         from .fluxes import hllc_flux
 
         return hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma)
+
+    @staticmethod
+    def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
+        """Compute the HLLC interface flux."""
+        return Solver._hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma)
 
     def _interface_fluxes(self, fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
         from .fluxes import interface_fluxes
@@ -1179,6 +1310,10 @@ class Solver:
             return
         for flux in (fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux):
             flux[face_mask] = 0.0
+
+    def apply_low_density_flux_mask(self, fluid, par):
+        """Block flux through cells below the configured density floor."""
+        return self._apply_low_density_flux_mask(fluid, par)
 
     @staticmethod
     def _positive_conserved_state(
@@ -1393,7 +1528,7 @@ class Solver:
                         low = middle
                     else:
                         high = middle
-                    if high - low <= 1.0e-13:
+                    if high - low <= 1.0e-13:  # noqa: PLR2004
                         break
                 geometry_fraction[index] = low
 
@@ -1483,7 +1618,7 @@ class Solver:
                 invalid_faces = invalid | ru.periodic_roll(invalid, 1)
                 updated_factors = factors.copy()
                 updated_factors[invalid_faces] *= 0.5
-                near_zero = invalid_faces & (updated_factors < 1.0e-12)
+                near_zero = invalid_faces & (updated_factors < 1.0e-12)  # noqa: PLR2004
                 updated_factors[near_zero] = 0.0
                 if np.array_equal(updated_factors, factors):
                     raise ValueError(
@@ -2250,7 +2385,7 @@ class Solver:
             self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError(f"Interface flux method unknown: {method}")
-        if verbose >= 2:
+        if verbose >= 2:  # noqa: PLR2004
             log_diagnostic(
                 logging.DEBUG,
                 "interface_fluxes_constructed",
@@ -2555,7 +2690,7 @@ class Solver:
                     out=np.ones_like(old_density),
                     where=old_density > 0.0,
                 )
-                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)
+                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)  # noqa: PLR2004
                 isentropic_internal = previous_internal * np.maximum(
                     density_ratio,
                     0.0,
@@ -2602,6 +2737,10 @@ class Solver:
         from .gravity_sources import _gravity_model
 
         return _gravity_model(self, *args, **kwargs)
+
+    def gravity_model(self, *args, **kwargs):
+        """Return the configured gravity model."""
+        return self._gravity_model(*args, **kwargs)
 
     def ApplyGravity(self, *args, **kwargs):
         from .gravity_sources import ApplyGravity

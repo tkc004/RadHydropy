@@ -318,7 +318,7 @@ def _require_unitless_runtime_parameters(sim):
 
     if leaked:
         names = ", ".join(leaked[:20])
-        if len(leaked) > 20:
+        if len(leaked) > 20:  # noqa: PLR2004
             names += f", ... ({len(leaked)} total)"
         raise TypeError(
             "runtime parameters must be unitless code values after startup "

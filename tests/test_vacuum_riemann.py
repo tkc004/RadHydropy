@@ -26,7 +26,7 @@ CODE_UNITS = CodeUnits.from_mapping(
 
 
 def test_vacuum_face_state_is_zeroed_without_flooring_density():
-    rho, vel, pre = Solver._vacuum_safe_primitive_state(
+    rho, vel, pre = Solver.vacuum_safe_primitive_state(
         np.array([1.0, 0.0, -1.0, np.nan]),
         np.array([2.0, 3.0, np.nan, 4.0]),
         np.array([5.0, -2.0, 3.0, np.nan]),
@@ -111,7 +111,7 @@ def test_low_density_active_cell_blocks_both_interface_fluxes():
         time_proper_code=0.0,
     )
 
-    Solver()._apply_low_density_flux_mask(fluid, par)
+    Solver().apply_low_density_flux_mask(fluid, par)
 
     np.testing.assert_array_equal(fluid.Mass_code.flux, [1.0, 1.0, 1.0, 0.0, 1.0])
     np.testing.assert_array_equal(fluid.Mom_code.flux, [2.0, 2.0, 2.0, 0.0, 2.0])

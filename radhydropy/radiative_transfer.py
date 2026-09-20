@@ -60,6 +60,11 @@ def _parameter_value(par, name, default=None):
     return parameter(name, default) if parameter is not None else default
 
 
+def parameter_value(par, name, default=None):
+    """Read a flat or nested runtime parameter for solver orchestration."""
+    return _parameter_value(par, name, default)
+
+
 def _safe_exp_neg(tau):
     tau = np.asarray(tau, dtype=float)
     return np.exp(-np.clip(tau, 0.0, 700.0))
@@ -71,7 +76,7 @@ def species_photoionization_rates(ngamma_cgs_cm3, sigma_by_species):
     rates_cgs_s = {}
     for species, sigma_gamma_cgs_cm2 in sigma_by_species.items():
         sigma_gamma_cgs_cm2 = np.asarray(sigma_gamma_cgs_cm2, dtype=float)
-        if ngamma_cgs_cm3.ndim == 2 and sigma_gamma_cgs_cm2.ndim == 1:
+        if ngamma_cgs_cm3.ndim == 2 and sigma_gamma_cgs_cm2.ndim == 1:  # noqa: PLR2004
             sigma_gamma_cgs_cm2 = sigma_gamma_cgs_cm2[:, None]
         rate_cgs_s = SPEED_OF_LIGHT_CGS * sigma_gamma_cgs_cm2 * ngamma_cgs_cm3
         rates_cgs_s[species] = np.sum(rate_cgs_s, axis=0) if rate_cgs_s.ndim > 1 else rate_cgs_s
@@ -86,7 +91,7 @@ def species_photoionization_heating(ngamma_cgs_cm3, sigma_by_species, epsilon_by
             dtype=float,
         )
         sigma_gamma_cgs_cm2 = np.asarray(sigma_gamma_cgs_cm2, dtype=float)
-        if ngamma_cgs_cm3.ndim == 2:
+        if ngamma_cgs_cm3.ndim == 2:  # noqa: PLR2004
             sigma_gamma_cgs_cm2 = (
                 sigma_gamma_cgs_cm2[:, None]
                 if sigma_gamma_cgs_cm2.ndim == 1
@@ -112,7 +117,7 @@ def _attenuation_mean(tau):
     """Return ``(1 - exp(-tau)) / tau`` with the small-tau limit."""
     tau = np.asarray(tau, dtype=float)
     mean = np.ones_like(tau, dtype=float)
-    valid = np.absolute(tau) > 1.0e-10
+    valid = np.absolute(tau) > 1.0e-10  # noqa: PLR2004
     mean[valid] = -np.expm1(-tau[valid]) / tau[valid]
     return mean
 
@@ -229,7 +234,7 @@ def propagate_causal_cell(geometry, incoming_rate, optical_depth, cell_index, di
         absorbed_rate = incoming * float(-np.expm1(-tau))
         width = geometry.width_cgs_cm[cell_index]
         volume = geometry.volume_cgs_cm3[cell_index]
-        attenuation_mean = float(-np.expm1(-tau) / tau) if abs(tau) > 1e-10 else 1.0
+        attenuation_mean = float(-np.expm1(-tau) / tau) if abs(tau) > 1e-10 else 1.0  # noqa: PLR2004
         if geometry.coordsys == "spherical":
             photon_density = incoming * width * attenuation_mean / volume / SPEED_OF_LIGHT_CGS
         else:
@@ -384,7 +389,7 @@ def _normalize_group_edges(group_edges_eV):
     if group_edges_eV is None:
         return None
     edges = _as_cgs_array(group_edges_eV, 1.0)
-    if edges.ndim != 1 or edges.size < 2:
+    if edges.ndim != 1 or edges.size < 2:  # noqa: PLR2004
         raise ValueError("radiation_group_edges_eV requires at least two edges")
     if not np.all(np.diff(edges) > 0.0):
         raise ValueError("radiation_group_edges_eV must be strictly increasing")
@@ -544,7 +549,7 @@ def trace_long_characteristics(
 def _state_mesh_for_radiative_transfer(state, par):
     """Build a minimal mesh view for the RT helper."""
     boundary = _plain_cgs_geometry("boundary_cgs_cm", state["boundary_cgs_cm"])
-    if boundary.size < 2:
+    if boundary.size < 2:  # noqa: PLR2004
         raise ValueError("radiative transfer requires at least two cell faces")
     volumes = _plain_cgs_geometry("volume_cgs_cm3", state["volume_cgs_cm3"])
     widths = state.get("width_cgs_cm")

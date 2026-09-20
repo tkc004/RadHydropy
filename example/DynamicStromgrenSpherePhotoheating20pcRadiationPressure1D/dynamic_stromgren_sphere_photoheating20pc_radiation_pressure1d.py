@@ -91,7 +91,7 @@ def _pressure_diagnostics(sim, source_result, config):
     interior = _diagnostic_slice(sim, config)
     CodeUnits.from_mapping(sim.par.units.CodeUnits)
     volume_cgs_cm3 = _volume_proper_cgs_cm3(sim, config)
-    pressure_cgs = et._pressure_from_radarrays(sim.fluid, config)[interior]
+    pressure_cgs = et.pressure_from_radarrays(sim.fluid, config)[interior]
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
     weighted_volume = float(np.sum(volume_cgs_cm3 * ionized_weight))
     gas_pressure = (

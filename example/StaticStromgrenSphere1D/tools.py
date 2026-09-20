@@ -236,7 +236,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
 def ionized_hydrogen_atoms(mesh, fluid, config):
     par = config["_output_par"]
     interior = interior_slice(config)
-    nH = rth._cgs_hydrogen_number_density(  # noqa: N806
+    nH = rth.cgs_hydrogen_number_density(  # noqa: N806
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
     )
@@ -260,7 +260,7 @@ def photons_in_volume(mesh, fluid, config):
 def total_recombination_rate(mesh, fluid, config):
     par = config["_output_par"]
     interior = interior_slice(config)
-    nH = rth._cgs_hydrogen_number_density(  # noqa: N806
+    nH = rth.cgs_hydrogen_number_density(  # noqa: N806
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
     )

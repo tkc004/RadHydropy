@@ -46,7 +46,7 @@ def code_values(value, unit):
         return np.asarray(value.to_value(unit), dtype=float)
     raw = np.asarray(value, dtype=float)
     unit_value = float(unit)
-    if unit_value != 1.0 and np.max(np.abs(raw), initial=0.0) > 1.0e6:
+    if unit_value != 1.0 and np.max(np.abs(raw), initial=0.0) > 1.0e6:  # noqa: PLR2004
         raw = raw / unit_value
     return raw
 
@@ -189,9 +189,9 @@ def run():
         )
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factor disagrees")
-        if peculiar_error > 2.0e-12:
+        if peculiar_error > 2.0e-12:  # noqa: PLR2004
             raise RuntimeError(f"{label}: homogeneous peculiar velocity changed")
-        if velocity_error > 2.0e-8:
+        if velocity_error > 2.0e-8:  # noqa: PLR2004
             raise RuntimeError(f"{label}: Hubble velocity disagrees")
     figure = OUTPUT_ROOT / "CosmologicalHubbleFlow1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)

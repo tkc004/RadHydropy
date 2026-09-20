@@ -283,7 +283,7 @@ def _hydro_step_ssprk2(
 
     fields = runtime_fields(sim.par)
     setattr(sim.fluid, fields.time, getattr(initial_state, fields.time) + dt)
-    sim._sync_hydro_state()
+    sim.sync_hydro_state()
     return {
         "dt": dt,
         "hydro_steps": 1,
@@ -363,7 +363,7 @@ def Step(
     if source_integrator == "strang":
         sim.solver.ApplyGravity(0.5 * dt, sim.mesh, sim.fluid, sim.par)
         sim._accumulate_gravity_work()
-        sim._sync_hydro_state()
+        sim.sync_hydro_state()
 
     if mode in ("hydro", "hydro_sources"):
         if hydro_integrator == "ssprk2":
@@ -394,7 +394,6 @@ def Step(
                     temperature_before,
                     stage="gravity update",
                 )
-                sim._sync_hydro_state()
         else:
             sim.PrepareConservedStep()
             old_mass, mass_flux = sim.AdvanceHydroFluxes(dt)
@@ -503,7 +502,7 @@ def Step(
             source_result,
         )
         if pressure_applied:
-            sim._sync_hydro_state()
+            sim.sync_hydro_state()
         if mode == "hydro_sources":
             energy_after_sources = float(
                 np.sum(np.asarray(sim.fluid.Energy_code[first:last], dtype=float)),

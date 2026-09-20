@@ -281,15 +281,15 @@ def locate_shock(snapshot, r200_kpc):
     candidate = (
         (radius_proper_kpc[:-1] > 0.1 * r200_kpc)
         & (radius_proper_kpc[:-1] < 2.0 * r200_kpc)
-        & (density_ratio_dimensionless > 1.02)
-        & (temperature_ratio_dimensionless > 1.02)
+        & (density_ratio_dimensionless > 1.02)  # noqa: PLR2004
+        & (temperature_ratio_dimensionless > 1.02)  # noqa: PLR2004
         & decelerating
     )
     if not np.any(candidate):
         return None
     indices = np.flatnonzero(candidate)
     index = int(indices[np.argmax(score[candidate])])
-    if score[index] < 0.08:
+    if score[index] < 0.08:  # noqa: PLR2004
         return None
     return index
 
@@ -303,7 +303,7 @@ def shock_history(filenames, halo, config, times_myr=None):
         if times_myr is not None:
             snapshot["time_proper_Myr"] = float(times_myr[file_index])
         index = locate_shock(snapshot, r200)
-        if index is None or index < 3 or index + 4 >= len(snapshot["radius_proper_kpc"]):
+        if index is None or index < 3 or index + 4 >= len(snapshot["radius_proper_kpc"]):  # noqa: PLR2004
             continue
         inner = slice(index - 3, index)
         outer = slice(index + 1, index + 4)
@@ -396,7 +396,7 @@ def pie_stability_diagnostics(
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     downstream = []
     for profile, index in zip(profiles, indices, strict=False):
-        if index is None or index < 8 or index + 5 >= len(profile["radius_proper_kpc"]):
+        if index is None or index < 8 or index + 5 >= len(profile["radius_proper_kpc"]):  # noqa: PLR2004
             downstream.append(None)
             continue
         band = slice(index - 8, index - 3)
@@ -508,13 +508,13 @@ def pie_stability_diagnostics(
         specific_energy_analytic = energy_analytic / max(rho_analytic, 1.0e-99)
         gamma_eff = (
             gamma - rho1 * net_rate / (density_rate * specific_energy1)
-            if compression_rate > 1.0e-30
+            if compression_rate > 1.0e-30  # noqa: PLR2004
             else np.nan
         )
         gamma_eff_analytic = (
             gamma
             - rho_analytic * analytic_net_rate / (analytic_density_rate * specific_energy_analytic)
-            if compression_rate > 1.0e-30
+            if compression_rate > 1.0e-30  # noqa: PLR2004
             else np.nan
         )
         rows.append(

@@ -912,7 +912,7 @@ class InitialConditionWriter:
                     photon_values = photon_values[
                         original_ghost_cells : original_ghost_cells + active_count
                     ]
-                elif photon_values.ndim == 2 and photon_values.shape[-1] != active_count:
+                elif photon_values.ndim == 2 and photon_values.shape[-1] != active_count:  # noqa: PLR2004
                     photon_values = photon_values[
                         ...,
                         original_ghost_cells : original_ghost_cells + active_count,
@@ -920,7 +920,7 @@ class InitialConditionWriter:
                 fluid.ngamma_code = np.pad(
                     photon_values,
                     ((0, 0), (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)))
-                    if photon_values.ndim == 2
+                    if photon_values.ndim == 2  # noqa: PLR2004
                     else (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)),
                     mode="edge",
                 )
@@ -992,7 +992,7 @@ class InitialConditionWriter:
                         continue
                     trimmed_values = values_array[first:last]
                 elif (
-                    values_array.ndim == 2
+                    values_array.ndim == 2  # noqa: PLR2004
                     and values_array.shape[-1] == active_count + 2 * ghost_cells
                 ):
                     trimmed_values = values_array[..., first:last]

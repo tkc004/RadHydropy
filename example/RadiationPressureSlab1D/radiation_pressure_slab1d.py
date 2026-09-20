@@ -147,7 +147,7 @@ def main(config_filename=DEFAULT_CONFIG):
             sim.par,
             source_result,
         )
-        sim._sync_hydro_state()
+        sim.sync_hydro_state()
         expected += _absorbed_momentum(source_result, sim.mesh, config, dt)
 
         time_s.append(float(np.asarray(sim.fluid.time_proper_code)))

@@ -41,17 +41,17 @@ def _pressure_diagnostic(snapshot, config):
     par, mesh, fluid = et.load_output_state(snapshot, config)
     interior = et.interior_slice(config)
     radius_proper_pc = (
-        et._to_kpc(
+        et.to_kpc(
             0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
             config,
         )
         * 1000.0
     )
-    hydrogen_number_density_cgs_cm3 = et._to_number_density(
+    hydrogen_number_density_cgs_cm3 = et.to_number_density(
         fluid.rho_radarray[interior],
         config,
     )
-    pressure_proper_cgs_erg_cm3 = et._pressure_from_radarrays(fluid, config)[interior]
+    pressure_proper_cgs_erg_cm3 = et.pressure_from_radarrays(fluid, config)[interior]
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
 
     # The wind shell is the strongest density peak outside the injection cell.
@@ -75,9 +75,9 @@ def _pressure_diagnostic(snapshot, config):
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
     # Exclude the shocked wind interior and the dense shell itself.
-    ambient_ionized = (xhi < 0.5) & (radius_proper_pc < radius_shell_proper_pc)
+    ambient_ionized = (xhi < 0.5) & (radius_proper_pc < radius_shell_proper_pc)  # noqa: PLR2004
     if not np.any(ambient_ionized):
-        ambient_ionized = xhi < 0.5
+        ambient_ionized = xhi < 0.5  # noqa: PLR2004
     weighted_volume = float(np.sum(volume_cgs_cm3[ambient_ionized]))
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(
@@ -89,7 +89,7 @@ def _pressure_diagnostic(snapshot, config):
         if weighted_volume > 0.0
         else 0.0
     )
-    time_proper_Myr = float(np.asarray(et._to_myr(fluid.time_proper_code, config)))  # noqa: N806
+    time_proper_Myr = float(np.asarray(et.to_myr(fluid.time_proper_code, config)))  # noqa: N806
     return (
         time_proper_Myr,
         wind_pressure_proper_cgs_dyn_cm2,
@@ -114,9 +114,9 @@ def pressure_diagnostic_from_profile(profile, config):
         mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
     )
     photoheated = (
-        (np.arange(radius_proper_pc.size) >= 2)
+        (np.arange(radius_proper_pc.size) >= 2)  # noqa: PLR2004
         & (np.arange(radius_proper_pc.size) < shell_index)
-        & (temperature_proper_cgs_K > 500.0)
+        & (temperature_proper_cgs_K > 500.0)  # noqa: PLR2004
     )
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(

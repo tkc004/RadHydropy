@@ -57,6 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
     outputfiles = sorted(
         Path(output["directory"]).glob(f"{output['filename_prefix']}_*.hdf5"),
     )
+    color_cycle = iter(plt.rcParams["axes.prop_cycle"])
     for outfilename in outputfiles:
         et.plot_snapshot(
             str(outfilename),
@@ -65,7 +66,7 @@ def main(config_filename=DEFAULT_CONFIG):
             marker="o",
             mfc="none",
             markevery=1,
-            color=next(ax._get_lines.prop_cycler)["color"],
+            color=next(color_cycle)["color"],
         )
     figure_filename = os.path.join(output["directory"], config["example"]["plot_filename"])
     plt.tight_layout()

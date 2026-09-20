@@ -165,7 +165,7 @@ def main(config_filename=DEFAULT_CONFIG):
             # be evaluated on its single active cell.
             sim.Run(outputtime=0, mode="sources")
             history = load_history(case_dir, case_config)
-            if len(history) < 2:
+            if len(history) < 2:  # noqa: PLR2004
                 raise RuntimeError(f"expected evolved snapshots in {case_dir}")
             # The legacy HDF5 time attribute is zero in this cgs setup. The
             # output list is explicit, so reconstruct the physical times of

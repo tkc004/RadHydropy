@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
-    _pressure_from_radarrays,
+    pressure_from_radarrays,
     _to_km_s,
-    _to_kpc,
-    _to_number_density,
+    to_kpc,
+    to_number_density,
     _to_temperature,
     interior_slice,
     load_reference_profile,
@@ -21,14 +21,14 @@ def save_plot(mesh, fluid, config, figure_filename):
     """Save the inherited profile plot with a linear velocity axis."""
     config["_output_par"]
     interior = interior_slice(config)
-    radius_proper_pc = _to_kpc(
+    radius_proper_pc = to_kpc(
         0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
         config,
     ) * (1.0 * unyt.kpc).to_value(unyt.pc)
-    number_density_cgs_cm3 = _to_number_density(fluid.rho_radarray[interior], config)
+    number_density_cgs_cm3 = to_number_density(fluid.rho_radarray[interior], config)
     vel_peculiar_proper_km_s = _to_km_s(fluid.vel_radarray[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
-    pre_proper_cgs_erg_cm3 = _pressure_from_radarrays(fluid, config)[interior]
+    pre_proper_cgs_erg_cm3 = pressure_from_radarrays(fluid, config)[interior]
     temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)  # noqa: N806
     example_config = config["example"]
     plot_radius_max = example_config["plot_radius_max"].to_value(unyt.pc)

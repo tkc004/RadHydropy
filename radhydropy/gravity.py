@@ -231,7 +231,7 @@ class Gravity:
 
         coord = quantity_to_value(coordinate, code_units.length_unit)
         potential = self.potential_on(coord)
-        if potential.size < 2:
+        if potential.size < 2:  # noqa: PLR2004
             raise ValueError(
                 "At least two coordinate points are required to differentiate the potential",
             )

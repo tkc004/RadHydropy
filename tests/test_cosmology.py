@@ -66,10 +66,15 @@ def test_lambda_cdm_reference_normalization_and_round_trip():
         omega_m=0.3,
         omega_lambda=0.7,
     )
+    expected_hubble_ref = 2.0 * np.arcsinh(np.sqrt(0.7 / 0.3)) / (3.0 * 2.0 * np.sqrt(0.7))
+    assert np.isclose(cosmology.effective_hubble_ref, expected_hubble_ref)
     assert np.isclose(cosmology.scale_factor(2.0), 1.5)
     assert np.isclose(
         cosmology.background_density(2.0),
-        3.0 * cosmology._hubble_ref**2 * 0.3 / (8.0 * np.pi * cosmology.gravitational_constant),
+        3.0
+        * cosmology.effective_hubble_ref**2
+        * 0.3
+        / (8.0 * np.pi * cosmology.gravitational_constant),
     )
     for time in (0.5, 2.0, 8.0):
         tau = cosmology.supercomoving_time(time)
@@ -233,7 +238,7 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
         time_coordinate="supercomoving",
         velocity_representation="supercomoving_peculiar",
     )
-    energy_sc = Solver()._rotational_energy_density(mesh, fluid, options)
+    energy_sc = Solver().rotational_energy_density(mesh, fluid, options)
     energy_phys = 0.5 * physical_density_value * physical_tangential_velocity**2
 
     # Comoving density and radius make this a^5 times the physical density.
@@ -575,7 +580,7 @@ def test_lambda_cdm_header_round_trip():
         assert loaded.cosmology.type_name == "lambda_cdm"
         assert loaded.cosmology.omega_m == pytest.approx(0.3)
         assert loaded.cosmology.omega_lambda == pytest.approx(0.7)
-        assert loaded.cosmology._hubble_ref == pytest.approx(0.4)
+        assert loaded.cosmology.effective_hubble_ref == pytest.approx(0.4)
 
 
 def test_par_constructs_lambda_cdm_from_parameters():
@@ -600,7 +605,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
         },
     )
     assert par.cosmology.model.type_name == "lambda_cdm"
-    assert par.cosmology.model._hubble_ref == pytest.approx(0.4)
+    assert par.cosmology.model.effective_hubble_ref == pytest.approx(0.4)
     assert par.cosmology.type == "lambda_cdm"
     assert par.cosmology.model.type_name == "lambda_cdm"
     assert par.units.CodeUnits is not None
@@ -629,13 +634,13 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.simulation.final_time == 2.0 * unyt.s
     assert par.diagnostics.verbose == par.verbose
     assert par.diagnostics.energy_diagnostics is False
-    assert par.mesh.ghost_cells == 2
+    assert par.mesh.ghost_cells == 2  # noqa: PLR2004
     assert par.mesh.area_proper == par.area_proper
     assert par.chemistry.key == "H"
     assert par.chemistry.hydrogen_mass_fraction == pytest.approx(1.0)
     assert par.chemistry.hydrogen_xHI_initial == pytest.approx(1.0)
     assert par.chemistry.helium_coupled_implicit is True
-    assert par.chemistry.implicit_max_iterations == 32
+    assert par.chemistry.implicit_max_iterations == 32  # noqa: PLR2004
     assert par.chemistry.implicit_fallback == "explicit"
     assert par.chemistry.alpha_B is None
     assert par.chemistry.beta is None
@@ -646,7 +651,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.dark_matter_config.global_timestep_limit is True
     assert par.radiation.radiative_transfer_method == "long_characteristics"
     assert par.radiation.radiation_pressure_efficiency == pytest.approx(1.0)
-    assert par.radiation.c2ray_max_iterations == 32
+    assert par.radiation.c2ray_max_iterations == 32  # noqa: PLR2004
     assert par.radiation.c2ray_nonconvergence == "warn"
     assert par.radiation.compton_cmb_enabled is False
     assert par.radiation.hydrogen_radiation_evolution is True

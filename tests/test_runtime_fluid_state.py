@@ -30,7 +30,7 @@ def test_supercomoving_fluid_runtime_state_has_explicit_fields():
     assert state.vel_supercomoving_code is not None
     assert state.pre_supercomoving_code is not None
     assert state.temp_supercomoving_code is not None
-    assert state.tau_supercomoving_code == 0.5
+    assert state.tau_supercomoving_code == 0.5  # noqa: PLR2004
     assert state.rho_proper_code is None
 
 

@@ -219,7 +219,7 @@ class DarkMatterShells:
 
     def sort_by_radius(self):
         """Sort shells by radius while preserving shell identities."""
-        if self.radius.size < 2 or np.all(self.radius[1:] >= self.radius[:-1]):
+        if self.radius.size < 2 or np.all(self.radius[1:] >= self.radius[:-1]):  # noqa: PLR2004
             return np.arange(self.radius.size)
         order = np.argsort(self.radius, kind="stable")
         self.radius = self.radius[order]
@@ -379,7 +379,7 @@ class DarkMatterShells:
 
     def crossing_timestep(self, safety_factor=0.1):
         """Return a timestep that stops before the first predicted crossing."""
-        if self.number_of_shells < 2:
+        if self.number_of_shells < 2:  # noqa: PLR2004
             return np.inf
         separation = self.radius[1:] - self.radius[:-1]
         closing_speed = self.velocity[:-1] - self.velocity[1:]
@@ -402,7 +402,7 @@ class DarkMatterShells:
 
     def _resolve_coincident_crossings(self):
         """Exchange states for shells that meet while moving through one another."""
-        if self.number_of_shells < 2:
+        if self.number_of_shells < 2:  # noqa: PLR2004
             return
         separation = self.radius[1:] - self.radius[:-1]
         closing_speed = self.velocity[:-1] - self.velocity[1:]

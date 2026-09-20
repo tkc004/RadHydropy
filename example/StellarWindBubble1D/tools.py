@@ -143,7 +143,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
     coordinate_values = x_proper_code.to_value(x_proper_code.units)
     pressure_values = pressure_bubble_proper_unyt.to_value(pressure_bubble_proper_unyt.units)
 
-    if pressure_values.size < 3:
+    if pressure_values.size < 3:  # noqa: PLR2004
         return None
     if np.ptp(pressure_values) == 0.0:
         return None
@@ -152,7 +152,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
     coordinate_values = coordinate_values[mask]
     x_proper_code = x_proper_code[mask]
     pressure_values = pressure_values[mask]
-    if pressure_values.size < 3:
+    if pressure_values.size < 3:  # noqa: PLR2004
         return None
 
     search_start = max(5, int(search_fraction * pressure_values.size))
@@ -203,7 +203,7 @@ def shell_inner_edge_radius(
         rho_proper_values = rho_proper_values[keep]
         x_proper_code = x_proper_code[keep]
 
-    if rho_proper_values.size < 2:
+    if rho_proper_values.size < 2:  # noqa: PLR2004
         return None
 
     threshold = ambient_density.to_value(rho_proper_unyt.units) * float(
@@ -313,9 +313,10 @@ def make_profile_figure(snapshots, config):
     )
     ax_density.set_yscale("log")
     ax_temperature.set_yscale("log")
+    color_cycle = iter(plt.rcParams["axes.prop_cycle"])
 
     for _index, rout in enumerate(snapshots):
-        color = next(ax_density._get_lines.prop_cycler)["color"]
+        color = next(color_cycle)["color"]
         plot_profile_snapshot(
             ax_density,
             rout,
@@ -434,7 +435,7 @@ def numerical_bubble_pressure(rout, radius_shell_proper_unyt):
         nonnegative
     ]
 
-    if pressure_values.size < 2:
+    if pressure_values.size < 2:  # noqa: PLR2004
         return None
 
     shell_width = max(0.05 * radius_shell_proper_pc, 0.1)

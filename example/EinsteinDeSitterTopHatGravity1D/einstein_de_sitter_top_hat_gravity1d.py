@@ -106,7 +106,7 @@ def main(config_filename=DEFAULT_CONFIG):
         / np.maximum(np.abs(analytic[comparison]), 1.0e-300),
     )
     max_error = float(np.max(error))
-    if not np.isfinite(max_error) or max_error > 5.0e-3:
+    if not np.isfinite(max_error) or max_error > 5.0e-3:  # noqa: PLR2004
         raise RuntimeError(f"top-hat gravity error {max_error:.6g} exceeds tolerance")
 
     filename = os.path.join(

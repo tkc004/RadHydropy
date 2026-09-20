@@ -46,7 +46,7 @@ def _read_abundance_file(filename):
     log_abundance = []
     for line in Path(filename).read_text().splitlines():
         fields = line.split()
-        if len(fields) >= 3 and fields[0].isdigit():
+        if len(fields) >= 3 and fields[0].isdigit():  # noqa: PLR2004
             atomic_number.append(int(fields[0]))
             log_abundance.append(float(fields[1]))
     return np.asarray(atomic_number), 10.0 ** (np.asarray(log_abundance) - 12.0)

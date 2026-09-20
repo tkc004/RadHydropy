@@ -132,6 +132,11 @@ def _cgs_alpha_B(temperature_cgs_K):
     return result
 
 
+def cgs_alpha_B(temperature_cgs_K):
+    """Return the case-B recombination coefficient in cgs units."""
+    return _cgs_alpha_B(temperature_cgs_K)
+
+
 def _cgs_alpha_A(temperature_cgs_K):
     """H II case-A recombination coefficient (Hui & Gnedin 1997)."""
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
@@ -219,8 +224,14 @@ def _cgs_gamma_A_eHII(temperature_cgs_K):
     return result
 
 
-def _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction=1.0):
+def cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction=1.0):
+    """Return hydrogen number density in cgs units."""
     return hydrogen_mass_fraction * np.asarray(rho_cgs_g_cm3, dtype=float) / PROTON_MASS_CGS
+
+
+def _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction=1.0):
+    """Backward-compatible private alias for the public conversion function."""
+    return cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
 
 
 def _cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2):
@@ -230,6 +241,11 @@ def _cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2):
         sigma_gamma_cgs_cm2 = sigma_gamma_cgs_cm2[:, None]
     rate_cgs_s = SPEED_OF_LIGHT_CGS * sigma_gamma_cgs_cm2 * ngamma_cgs_cm3
     return np.sum(rate_cgs_s, axis=0) if np.ndim(rate_cgs_s) > 1 else rate_cgs_s
+
+
+def cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2):
+    """Return the photoionization frequency in cgs units."""
+    return _cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2)
 
 
 def _cgs_source_thermal_rate(
@@ -704,7 +720,7 @@ def apply_state(state, fluid, par):
         raise ValueError("hydrogen thermo-chemistry requires configured code units")
     if hasattr(fluid, "ngamma_code") and "ngamma_cgs_cm3" in state:
         target = from_unit_value(state["ngamma_cgs_cm3"], code.number_density_unit)
-        if np.ndim(target) == 2:
+        if np.ndim(target) == 2:  # noqa: PLR2004
             fluid.ngamma_code[:, interior] = target
         else:
             fluid.ngamma_code[interior] = target
@@ -916,7 +932,7 @@ def _fast_source_state(mesh, fluid, par):
             (
                 np.asarray(
                     fluid.ngamma_code[:, interior]
-                    if np.ndim(fluid.ngamma_code) == 2
+                    if np.ndim(fluid.ngamma_code) == 2  # noqa: PLR2004
                     else fluid.ngamma_code[interior],
                     dtype=float,
                 )
@@ -1260,7 +1276,7 @@ def _coupled_implicit_source_update(
         photoheating_rate = np.asarray(heating_rate) - np.asarray(compton_rate)
         failed_cells = []
         if determinant is not None:
-            singular = active & (np.abs(determinant) <= 1.0e-30)
+            singular = active & (np.abs(determinant) <= 1.0e-30)  # noqa: PLR2004
             for cell in np.where(singular)[0]:
                 failed_cells.append(
                     {
@@ -1517,7 +1533,7 @@ def _coupled_implicit_source_update(
             active
             & ~floor_constrained
             & np.isfinite(determinant)
-            & (np.abs(determinant) > 1.0e-30)
+            & (np.abs(determinant) > 1.0e-30)  # noqa: PLR2004
             & np.isfinite(jacobian_11)
             & np.isfinite(jacobian_12)
             & np.isfinite(jacobian_21)
@@ -1533,7 +1549,7 @@ def _coupled_implicit_source_update(
             & ~good
             & (floor_constrained | (np.abs(residual_energy) <= energy_residual_acceptance))
             & np.isfinite(jacobian_22)
-            & (np.abs(jacobian_22) > 1.0e-30)
+            & (np.abs(jacobian_22) > 1.0e-30)  # noqa: PLR2004
         )
         scalar_energy = (
             active
@@ -1541,7 +1557,7 @@ def _coupled_implicit_source_update(
             & ~scalar_chemistry
             & (np.abs(residual_x) <= xhi_residual_tolerance)
             & np.isfinite(jacobian_11)
-            & (np.abs(jacobian_11) > 1.0e-30)
+            & (np.abs(jacobian_11) > 1.0e-30)  # noqa: PLR2004
         )
         solvable = good | scalar_chemistry | scalar_energy
         if not np.any(solvable):
@@ -1760,7 +1776,7 @@ def _explicit_source_state_update(state, remaining_s, par):
             state.get("ngamma_cgs_cm3"),
             remaining_s,
             remaining_s,
-            verbose=getattr(par, "verbose", 0) >= 2,
+            verbose=getattr(par, "verbose", 0) >= 2,  # noqa: PLR2004
         )
         if not np.isfinite(sub_dt_s) or sub_dt_s <= 0.0:
             _raise_invalid_source_timestep(
@@ -1916,7 +1932,7 @@ def _split_implicit_source_state_update(state, dt_s, par):
             max_energy_change = float(
                 np.max(relative_energy_change[active]) if np.any(active) else 0.0,
             )
-            if max_energy_change <= 0.1:
+            if max_energy_change <= 0.1:  # noqa: PLR2004
                 _set_fast_source_state(state, trial)
                 check_source_temperature(
                     state,
@@ -2242,7 +2258,7 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     if hasattr(fluid, "ngamma_code") and state.get("ngamma_cgs_cm3") is not None:
         code = _code_units(par)
         target = from_unit_value(state["ngamma_cgs_cm3"], code.number_density_unit)
-        if np.ndim(target) == 2:
+        if np.ndim(target) == 2:  # noqa: PLR2004
             fluid.ngamma_code[:, interior] = target
         else:
             fluid.ngamma_code[interior] = target
@@ -2710,7 +2726,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             state.get("ngamma_cgs_cm3"),
             remaining_s,
             remaining_s,
-            verbose=getattr(par, "verbose", 0) >= 2,
+            verbose=getattr(par, "verbose", 0) >= 2,  # noqa: PLR2004
         )
         if not np.isfinite(sub_dt_s) or sub_dt_s <= zero_time_s:
             _raise_invalid_source_timestep(

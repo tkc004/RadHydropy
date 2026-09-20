@@ -73,9 +73,9 @@ def test_hydrostatic_core_is_opt_in_and_masks_only_inner_cells():
     mesh, fluid, par = _core_problem()
     solver.InitializeHydrostaticCore(mesh, fluid, par)
 
-    assert par._hydrostatic_core_face == 4
+    assert par.hydrostatic_core_face == 4  # noqa: PLR2004
     np.testing.assert_array_equal(
-        par._hydrostatic_core_mask,
+        par.hydrostatic_core_mask,
         [False, True, True, True, False, False],
     )
 
@@ -90,4 +90,4 @@ def test_default_core_model_does_not_create_core_state():
     solver = Solver()
     mesh, fluid, par = _core_problem(model="none")
     solver.InitializeHydrostaticCore(mesh, fluid, par)
-    assert not hasattr(fluid, "_hydrostatic_core")
+    assert not hasattr(fluid, "hydrostatic_core")

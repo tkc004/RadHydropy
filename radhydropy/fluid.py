@@ -86,6 +86,10 @@ class Fluid:
             xHI_dimensionless=getattr(self, "xHI", None),
         )
 
+    def refresh_runtime_state(self):
+        """Refresh the typed runtime state after a primitive update."""
+        return self._refresh_runtime_state()
+
     @property
     def code_state(self):
         """Return the current runtime arrays as a validated typed state.
@@ -485,7 +489,7 @@ class Fluid:
                     ),
                 ),
             )
-            if values.ndim == 2:
+            if values.ndim == 2:  # noqa: PLR2004
                 ghost = np.full(
                     (values.shape[0], noghost),
                     initial,

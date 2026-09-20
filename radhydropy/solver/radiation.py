@@ -17,7 +17,7 @@ def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
 
     code_units = _code_units(par)
     scales = code_unit_scales(code_units)
-    interior = solver._interior_slice(par)
+    interior = solver.interior_slice(par)
     absorbed = np.asarray(source_result["absorbed_photon_rate"], dtype=float)
     energies = np.asarray(source_result["photon_energy_cgs_erg"], dtype=float)
     if absorbed.ndim == 1:
@@ -30,7 +30,7 @@ def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
     if absorbed.shape[1] != grid_cells:
         raise ValueError("absorbed photon rate must contain physical cells only")
 
-    density_runtime_code, velocity_runtime_code, _, _ = solver._active_primitive_arrays(fluid, par)
+    density_runtime_code, velocity_runtime_code, _, _ = solver.active_primitive_arrays(fluid, par)
     rho_cgs = np.asarray(density_runtime_code[interior], dtype=float) * scales["density_cgs_g_cm3"]
     momentum_rate_density = (
         float(source_result.get("direction", 1))
@@ -45,7 +45,7 @@ def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
     acceleration_cgs[valid] = efficiency * momentum_rate_density[valid] / rho_cgs[valid]
     acceleration = acceleration_cgs / scales["acceleration_cgs_cm_s2"]
     volume = np.asarray(
-        solver._geometry_state(mesh, par).volume_runtime_code[interior],
+        solver.geometry_state(mesh, par).volume_runtime_code[interior],
         dtype=float,
     )
     momentum = fluid.Mom_code[interior]

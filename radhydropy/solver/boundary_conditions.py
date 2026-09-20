@@ -28,7 +28,7 @@ def _boundary_field_names(solver, fluid):
 def _copy_boundary_state(solver, fluid, target_slice, values):
     for attr, value in values.items():
         target = getattr(fluid, attr)
-        if attr == "ngamma_code" and np.ndim(target) == 2:
+        if attr == "ngamma_code" and np.ndim(target) == 2:  # noqa: PLR2004
             value_array = np.asarray(value)
             if value_array.ndim == 1:
                 value_array = value_array[:, None]
@@ -60,7 +60,7 @@ def _boundary_state(
     if hasattr(fluid, "xHI"):
         state["xHI"] = fluid.xHI[source]
     if hasattr(fluid, "ngamma_code"):
-        if np.ndim(fluid.ngamma_code) == 2:
+        if np.ndim(fluid.ngamma_code) == 2:  # noqa: PLR2004
             state["ngamma_code"] = fluid.ngamma_code[:, source]
         else:
             state["ngamma_code"] = fluid.ngamma_code[source]
@@ -78,10 +78,10 @@ def _to_code_number_density(solver, value, scales):
 
 
 def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, noghost):
-    fields = solver._boundary_field_names(fluid)
+    fields = solver.boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
-        if attr == "ngamma_code" and np.ndim(quan) == 2:
+        if attr == "ngamma_code" and np.ndim(quan) == 2:  # noqa: PLR2004
             quan[:, left_ghost] = quan[:, interior][:, -noghost:]
             quan[:, right_ghost] = quan[:, interior][:, :noghost]
         else:
@@ -90,10 +90,10 @@ def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, n
 
 
 def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
-    fields = solver._boundary_field_names(fluid)
+    fields = solver.boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
-        if attr == "ngamma_code" and np.ndim(quan) == 2:
+        if attr == "ngamma_code" and np.ndim(quan) == 2:  # noqa: PLR2004
             quan[:, left_ghost] = quan[:, first]
             quan[:, right_ghost] = quan[:, nolast]
         else:
@@ -127,13 +127,13 @@ def _apply_spherical_inner_boundary(solver, mesh, fluid, first, noghost):
         origin = 0.0 * boundary_units if boundary_units is not None else 0.0
         if boundary[first] < origin and boundary[first + 1] > origin:
             mirror_start = first + 1
-    left_state = solver._boundary_state(
+    left_state = solver.boundary_state(
         fluid,
         slice(mirror_start, mirror_start + noghost),
         negate_velocity=True,
         reverse=True,
     )
-    solver._copy_boundary_state(fluid, slice(0, noghost), left_state)
+    solver.copy_boundary_state(fluid, slice(0, noghost), left_state)
 
 
 def _apply_open_spherical_boundary(
@@ -148,9 +148,9 @@ def _apply_open_spherical_boundary(
     right_ghost,
     noghost,
 ):
-    solver._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
-    right_state = solver._boundary_state(fluid, nolast)
-    solver._copy_boundary_state(fluid, right_ghost, right_state)
+    solver.apply_spherical_inner_boundary(mesh, fluid, first, noghost)
+    right_state = solver.boundary_state(fluid, nolast)
+    solver.copy_boundary_state(fluid, right_ghost, right_state)
 
 
 def _apply_inflow_spherical_boundary(
@@ -165,7 +165,7 @@ def _apply_inflow_spherical_boundary(
     right_ghost,
     noghost,
 ):
-    solver._apply_spherical_inner_boundary(mesh, fluid, first, noghost)
+    solver.apply_spherical_inner_boundary(mesh, fluid, first, noghost)
     runtime = runtime_fields(par)
     right_state = {
         runtime.density: par.boundary.rho_inflow_proper,
@@ -185,11 +185,11 @@ def _apply_inflow_spherical_boundary(
     if hasattr(fluid, "xHI"):
         right_state["xHI"] = getattr(par, "hydrogen_xHI_inflow", 1.0)
     if hasattr(fluid, "ngamma_code"):
-        right_state["ngamma_code"] = solver._to_code_number_density(
+        right_state["ngamma_code"] = solver.to_code_number_density(
             getattr(par, "hydrogen_ngamma_inflow", 0.0),
             scales,
         )
-    solver._copy_boundary_state(fluid, right_ghost, right_state)
+    solver.copy_boundary_state(fluid, right_ghost, right_state)
 
 
 def _apply_outflow_spherical_boundary(
@@ -223,13 +223,13 @@ def _apply_outflow_spherical_boundary(
     if hasattr(fluid, "xHI"):
         left_state["xHI"] = getattr(par, "hydrogen_xHI_outflow", 1.0)
     if hasattr(fluid, "ngamma_code"):
-        left_state["ngamma_code"] = solver._to_code_number_density(
+        left_state["ngamma_code"] = solver.to_code_number_density(
             getattr(par, "hydrogen_ngamma_outflow", 0.0),
             scales,
         )
-    solver._copy_boundary_state(fluid, left_ghost, left_state)
-    right_state = solver._boundary_state(fluid, nolast)
-    solver._copy_boundary_state(fluid, right_ghost, right_state)
+    solver.copy_boundary_state(fluid, left_ghost, left_state)
+    right_state = solver.boundary_state(fluid, nolast)
+    solver.copy_boundary_state(fluid, right_ghost, right_state)
 
 
 def _apply_wind_spherical_boundary(
@@ -292,10 +292,10 @@ def _apply_wind_spherical_boundary(
             getattr(par, "hydrogen_xHI_outflow", 1.0),
         )
     if hasattr(fluid, "ngamma_code"):
-        left_state["ngamma_code"] = solver._to_code_number_density(
+        left_state["ngamma_code"] = solver.to_code_number_density(
             getattr(par, "hydrogen_ngamma_outflow", 0.0),
             scales,
         )
-    solver._copy_boundary_state(fluid, left_ghost, left_state)
-    right_state = solver._boundary_state(fluid, nolast)
-    solver._copy_boundary_state(fluid, right_ghost, right_state)
+    solver.copy_boundary_state(fluid, left_ghost, left_state)
+    right_state = solver.boundary_state(fluid, nolast)
+    solver.copy_boundary_state(fluid, right_ghost, right_state)

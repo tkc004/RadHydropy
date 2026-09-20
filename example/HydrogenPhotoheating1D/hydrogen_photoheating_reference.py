@@ -30,7 +30,7 @@ def recombination_timescale_at_temperature(
     temperature_proper_unyt,
 ):
     """Return ``1 / (nH alpha_B(T))``."""
-    rate = hydrogen_number_density_cgs_cm3_unyt.to_value(1.0 / unyt.cm**3) * rth._cgs_alpha_B(
+    rate = hydrogen_number_density_cgs_cm3_unyt.to_value(1.0 / unyt.cm**3) * rth.cgs_alpha_B(
         temperature_proper_unyt.to_value(unyt.K),
     )
     return unyt.unyt_quantity(1.0 / rate, unyt.s).to(unyt.yr)

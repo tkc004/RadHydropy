@@ -35,7 +35,7 @@ CASES = {"diffuse": 1.0, "self_shielded": 100.0}
 
 
 def _snapshot(filename, config):
-    eu._require_complete_example_config(config, "_snapshot")
+    eu.require_complete_example_config(config, "_snapshot")
     snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
@@ -86,7 +86,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     sim.SetInitFluid()
     sim.Run(outputtime=0, mode="hydro")
     snapshots = sorted(output_dir.glob(f"{case_config['par']['output']['filename_prefix']}_*.hdf5"))
-    if len(snapshots) < 2:
+    if len(snapshots) < 2:  # noqa: PLR2004
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
     temperature_proper_cgs_K = float(  # noqa: N806

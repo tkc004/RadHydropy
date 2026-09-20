@@ -31,7 +31,7 @@ def write_cosmology_header(header, par, output_time, code_units):
     if cosmology.type_name == "lambda_cdm":
         header.attrs["CosmologyOmegaM"] = float(cosmology.omega_m)
         header.attrs["CosmologyOmegaLambda"] = float(cosmology.omega_lambda)
-        header.attrs["CosmologyHubbleRef"] = float(cosmology._hubble_ref)
+        header.attrs["CosmologyHubbleRef"] = float(cosmology.effective_hubble_ref)
     header.attrs["CoordinateFrame"] = getattr(par, "coordinate_frame", "physical")
     header.attrs["TimeCoordinate"] = getattr(par, "time_coordinate", "cosmic")
     header.attrs["VelocityRepresentation"] = getattr(par, "velocity_representation", "physical")

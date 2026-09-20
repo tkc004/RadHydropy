@@ -27,7 +27,7 @@ def initialize_hydrostatic_core(solver, mesh, fluid, par):
         raise ValueError("radius_core_proper must be positive for gas_core_model")
     first = int(par.mesh.ghost_cells)
     last = first + int(par.mesh.grid_cells)
-    geometry = solver._geometry_state(mesh, par)
+    geometry = solver.geometry_state(mesh, par)
     coordinate = np.asarray(
         geometry.coordinate_runtime_code[first:last],
         dtype=float,
@@ -63,14 +63,14 @@ def initialize_hydrostatic_core(solver, mesh, fluid, par):
     ):
         if hasattr(fluid, name):
             state[name] = np.asarray(getattr(fluid, name)[core], dtype=float).copy()
-    fluid._hydrostatic_core = state
-    par._hydrostatic_core_mask = core
-    par._hydrostatic_core_face = int(core_indices[-1] + 1)
+    fluid.hydrostatic_core = state
+    par.hydrostatic_core_mask = core
+    par.hydrostatic_core_face = int(core_indices[-1] + 1)
 
 
 def apply_hydrostatic_core(solver, mesh, fluid, par):
     """Restore the fixed core state before a resolved-halo update."""
-    state = getattr(fluid, "_hydrostatic_core", None)
+    state = getattr(fluid, "hydrostatic_core", None)
     if state is None:
         return
     core = state["core_mask"]
@@ -95,13 +95,13 @@ def apply_hydrostatic_core(solver, mesh, fluid, par):
             values[core] = state[name]
             setattr(fluid, name, as_named_array(values))
     # A fixed core is hydrostatic and has no resolved radial motion.
-    solver._active_primitive_arrays(fluid, par)[1][core] = 0.0
+    solver.active_primitive_arrays(fluid, par)[1][core] = 0.0
 
 
 def apply_hydrostatic_core_flux(solver, fluid, par):
     """Close the resolved halo with a pressure-bearing, no-mass-flux core."""
-    face = getattr(par, "_hydrostatic_core_face", None)
-    state = getattr(fluid, "_hydrostatic_core", None)
+    face = getattr(par, "hydrostatic_core_face", None)
+    state = getattr(fluid, "hydrostatic_core", None)
     if face is None or state is None:
         return
     core_last = state["core_last"]
@@ -109,7 +109,7 @@ def apply_hydrostatic_core_flux(solver, fluid, par):
     # and radial momentum do not cross the core/halo interface.
     fluid.Mass_code.flux[face] = 0.0
     fluid.Energy_code.flux[face] = 0.0
-    _, _, pressure_runtime_code, _ = solver._active_primitive_arrays(
+    _, _, pressure_runtime_code, _ = solver.active_primitive_arrays(
         fluid,
         par,
     )

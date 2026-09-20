@@ -67,7 +67,7 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
         radius = np.abs(
             np.asarray(
-                solver._geometry_state(mesh, par).coordinate_runtime_code,
+                solver.geometry_state(mesh, par).coordinate_runtime_code,
                 dtype=float,
             ),
         )
@@ -80,7 +80,7 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
         float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
     )
     volume_runtime_code = np.asarray(
-        solver._geometry_state(mesh, par).volume_runtime_code,
+        solver.geometry_state(mesh, par).volume_runtime_code,
         dtype=float,
     )
     resolved = mass > density_floor * np.maximum(volume_runtime_code, 0.0)
@@ -118,9 +118,9 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
 
 def ApplyGravity(solver, dt, mesh, fluid, par):
     """Apply the combined external and gas self-gravity source update."""
-    interior = solver._interior_slice(par)
-    gravity = solver._gravity_model(par)
-    rotational_support = solver._rotational_energy_enabled(par)
+    interior = solver.interior_slice(par)
+    gravity = solver.gravity_model(par)
+    rotational_support = solver.rotational_energy_enabled(par)
     if rotational_support and getattr(mesh, "coordsys", None) != "spherical":
         raise ValueError("gas_rotational_energy requires a spherical mesh")
     if gravity is None and not rotational_support:
@@ -156,7 +156,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     # use the same state.
     runtime_fields(par)
     volume_runtime_code = np.asarray(
-        solver._geometry_state(mesh, par).volume_runtime_code,
+        solver.geometry_state(mesh, par).volume_runtime_code,
         dtype=float,
     )
     mass = np.asarray(fluid.Mass_code, dtype=float)
@@ -203,7 +203,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         )
         radius = np.abs(
             np.asarray(
-                solver._geometry_state(mesh, par).coordinate_runtime_code,
+                solver.geometry_state(mesh, par).coordinate_runtime_code,
                 dtype=float,
             ),
         )
@@ -230,7 +230,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
         radius = np.abs(
             np.asarray(
-                solver._geometry_state(mesh, par).coordinate_runtime_code,
+                solver.geometry_state(mesh, par).coordinate_runtime_code,
                 dtype=float,
             ),
         )

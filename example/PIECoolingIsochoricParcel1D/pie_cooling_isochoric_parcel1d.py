@@ -76,7 +76,7 @@ def _equilibrium_temperature(table, hydrogen_number_density_cgs_cm3, metallicity
 
 
 def _snapshot(filename, config, time_proper_Myr=None):
-    eu._require_complete_example_config(config, "_snapshot")
+    eu.require_complete_example_config(config, "_snapshot")
     snapshot = rio.loadhdf5(config, filename)
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
@@ -147,7 +147,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     # mode so no hydro flux gradient is evaluated on the single active cell.
     sim.Run(outputtime=0, mode="sources")
     snapshots = sorted(output_dir.glob(f"{output_prefix}_*.hdf5"))
-    if len(snapshots) < 2:
+    if len(snapshots) < 2:  # noqa: PLR2004
         raise RuntimeError(f"expected snapshots in {output_dir}")
     initial_net_rate_cgs_erg_cm3_s = float(
         _net_rate(

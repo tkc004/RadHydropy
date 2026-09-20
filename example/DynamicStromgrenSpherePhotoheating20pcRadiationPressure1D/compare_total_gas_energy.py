@@ -49,7 +49,7 @@ def _snapshot_energy(snapshot, config, tools):
     interior = tools.interior_slice(config)
     code = CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float)
-    pressure_cgs_erg_cm3 = tools._pressure_from_radarrays(fluid, config)[interior]
+    pressure_cgs_erg_cm3 = tools.pressure_from_radarrays(fluid, config)[interior]
     density_cgs_g_cm3 = np.asarray(
         fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3),
         dtype=float,

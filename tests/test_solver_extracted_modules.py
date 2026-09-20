@@ -11,7 +11,7 @@ from radhydropy.solver.radiation import apply_radiation_pressure
 
 def test_set_boundary_dispatches_periodic_conditions_at_module_boundary():
     solver = Mock()
-    solver._apply_periodic_boundary = Mock()
+    solver.apply_periodic_boundary = Mock()
     mesh = SimpleNamespace()
     fluid = SimpleNamespace(runtime_fields=object())
     par = SimpleNamespace(
@@ -23,22 +23,22 @@ def test_set_boundary_dispatches_periodic_conditions_at_module_boundary():
     set_boundary(solver, mesh, fluid, par)
 
     solver.ApplyHydrostaticCore.assert_called_once_with(mesh, fluid, par)
-    solver._apply_periodic_boundary.assert_called_once()
-    args = solver._apply_periodic_boundary.call_args.args
+    solver.apply_periodic_boundary.assert_called_once()
+    args = solver.apply_periodic_boundary.call_args.args
     assert args[1:3] == (slice(2, 6), slice(0, 2))
-    assert args[4] == 2
+    assert args[4] == 2  # noqa: PLR2004
 
 
 def test_apply_radiation_pressure_updates_conserved_arrays_at_module_boundary():
     solver = Mock()
-    solver._interior_slice.return_value = slice(0, 1)
-    solver._active_primitive_arrays.return_value = (
+    solver.interior_slice.return_value = slice(0, 1)
+    solver.active_primitive_arrays.return_value = (
         np.ones(1),
         np.zeros(1),
         np.ones(1),
         np.ones(1),
     )
-    solver._geometry_state.return_value = SimpleNamespace(
+    solver.geometry_state.return_value = SimpleNamespace(
         volume_runtime_code=np.ones(1),
     )
     fluid = SimpleNamespace(Mom_code=np.zeros(1), Energy_code=np.zeros(1))

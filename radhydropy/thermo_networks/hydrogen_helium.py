@@ -562,7 +562,7 @@ def apply_state(state, fluid, par):
     fluid.mu[i] = state["mu"]
     if hasattr(fluid, "ngamma_code") and state.get("ngamma_cgs_cm3") is not None:
         target = from_unit_value(state["ngamma_cgs_cm3"], code.number_density_unit)
-        if np.ndim(target) == 2:
+        if np.ndim(target) == 2:  # noqa: PLR2004
             fluid.ngamma_code[:, i] = target
         else:
             fluid.ngamma_code[i] = target

@@ -326,7 +326,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
 
 def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
     """Add the advected rotational-energy flux to the total-energy flux."""
-    if not solver._rotational_energy_enabled(par):
+    if not solver.rotational_energy_enabled(par):
         return
     mass_flux = np.asarray(fluid.Mass_code.flux, dtype=float)
     if j_face is None:
@@ -347,7 +347,7 @@ def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
 def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
     """Use first-order hydro fluxes only near a cold rotating cell."""
     if not (
-        solver._rotational_energy_enabled(par) and hasattr(fluid, "angular_momentum_mass_flux_low")
+        solver.rotational_energy_enabled(par) and hasattr(fluid, "angular_momentum_mass_flux_low")
     ):
         return
     threshold = max(

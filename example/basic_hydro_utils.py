@@ -195,7 +195,7 @@ def make_initial_condition(
         area_proper_code=sim.mesh.area_proper_code[first:last],
         volume_proper_code=sim.mesh.volume_proper_code[first:last],
     )
-    sim.fluid._refresh_runtime_state()
+    sim.fluid.refresh_runtime_state()
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 
@@ -233,7 +233,7 @@ def finalize_initial_condition(sim, grid_cells, extra_fields=()):
         area_proper_code=sim.mesh.area_proper_code[first:last],
         volume_proper_code=sim.mesh.volume_proper_code[first:last],
     )
-    sim.fluid._refresh_runtime_state()
+    sim.fluid.refresh_runtime_state()
     return sim
 
 

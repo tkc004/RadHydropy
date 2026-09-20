@@ -188,6 +188,15 @@ class LambdaCDM:
             / (3.0 * self.t_ref * np.sqrt(self.omega_lambda))
         )
 
+    @property
+    def effective_hubble_ref(self):
+        """Return the Hubble parameter at the reference scale factor.
+
+        When ``hubble_ref`` is omitted, the value is derived from the
+        reference time and density parameters.
+        """
+        return self._hubble_ref
+
     def _validate_time(self, time):
         time = np.asarray(time, dtype=float)
         if np.any(time <= self._big_bang_time):

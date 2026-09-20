@@ -242,7 +242,7 @@ class Testing(unittest.TestCase):
             coordinate_runtime_code=np.array([1.0]),
         )
         solver = SimpleNamespace(
-            _geometry_state=lambda mesh, par: geometry,
+            geometry_state=lambda mesh, par: geometry,
         )
         mesh = SimpleNamespace()
         par = SimpleNamespace(
@@ -272,7 +272,7 @@ class Testing(unittest.TestCase):
         rho = np.array([1.0, 2.0])
         velocity = np.array([0.75, -0.25])
         pressure = np.array([1.0, 0.5])
-        flux, valid = Solver._hllc_flux(
+        flux, valid = Solver.hllc_flux(
             rho,
             velocity,
             pressure,
@@ -292,7 +292,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(flux, expected, rtol=1.0e-13, atol=1.0e-13)
 
     def test_hllc_marks_vacuum_state_for_rusanov_fallback(self):
-        _, valid = Solver._hllc_flux(
+        _, valid = Solver.hllc_flux(
             np.array([0.0]),
             np.array([0.0]),
             np.array([0.0]),
@@ -640,7 +640,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(float(fluid.rotational_energy_flux[origin_face]), 0.0)
 
         first_active = par.noghost
-        rotational_energy = solver._rotational_energy_density(
+        rotational_energy = solver.rotational_energy_density(
             mesh,
             fluid,
             par,
@@ -1451,7 +1451,7 @@ class Testing(unittest.TestCase):
         fluid.Mom_code.flux = np.ones(8) * unyt.dyn / unyt.cm**2
         fluid.Energy_code.flux = np.ones(8) * unyt.g / unyt.s**3
 
-        Solver()._zero_spherical_origin_flux(mesh, fluid)
+        Solver().zero_spherical_origin_flux(mesh, fluid)
 
         self.assertEqual(fluid.Mass_code.flux[0], 0.0 * fluid.Mass_code.flux.units)
         self.assertEqual(fluid.Mom_code.flux[0], 0.0 * fluid.Mom_code.flux.units)
@@ -1757,7 +1757,7 @@ class Testing(unittest.TestCase):
         fluid.temp_proper_code[:] = 0.0
         sim = Rsim.FromComponents(par, mesh, fluid)
 
-        sim._sync_hydro_state()
+        sim.sync_hydro_state()
 
         np.testing.assert_allclose(fluid.temp_proper_code, expected)
 
@@ -1840,7 +1840,7 @@ class Testing(unittest.TestCase):
         sim.PrepareConservedStep = fake_prepare
         sim.AdvanceHydroFluxes = fake_advance
         sim.FinalizeHydroStep = fake_finalize
-        sim._sync_hydro_state = fake_sync
+        sim.sync_hydro_state = fake_sync
 
         result = sim.Step(dt=0.25 * unyt.s, mode="hydro", hydro_integrator="ssprk2")
 
@@ -1898,7 +1898,7 @@ class Testing(unittest.TestCase):
         sim.PrepareConservedStep = fake_prepare
         sim.AdvanceHydroFluxes = fake_advance
         sim.FinalizeHydroStep = fake_finalize
-        sim._sync_hydro_state = lambda fluid=None: None
+        sim.sync_hydro_state = lambda fluid=None: None
 
         result = sim.Step(
             dt=0.25 * unyt.s,

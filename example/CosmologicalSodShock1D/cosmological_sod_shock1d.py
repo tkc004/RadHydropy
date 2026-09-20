@@ -266,7 +266,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     )
     central = (radius_comoving_code > interface - 2.0) & (radius_comoving_code < interface + 2.0)
     density_l1 = float(np.mean(np.abs(rho_comoving_code[central] - rho_exact[central])))
-    if density_l1 > 0.04:
+    if density_l1 > 0.04:  # noqa: PLR2004
         raise RuntimeError(
             f"cosmological Sod density profile misses exact solution: L1={density_l1:.6g}",
         )
